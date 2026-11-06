@@ -368,7 +368,7 @@ function buildFileView(data) {
 }
 
 Page({
-  data: { keyword: '', activeTab: '公共', activeFolderId: '', activeFolderName: '', tabs: ['公共', '私人', '四项服务', '分享给我'], tabCounts: { 公共: 0, 私人: 0, 四项服务: 0, 分享给我: 0 }, folders: [], files: [], filteredFiles: [], capacity: { used: '-', total: '-', percent: 0, hint: '存储统计加载中' }, canUpload: false, canDelete: false, canShare: false, canManageFolder: false, canDevUploadSmoke: false, uploading: false, loaded: false, loading: false, page: 1, pageSize: 10, total: 0, folderPerms: [], folderDownloadable: 1, previewing: false, dlToken: '', previewVideoPath: '', actionSheet: { visible: false, index: -1, name: '', actions: [] }, storageApplyInfo: { enabled: false, canApply: false, reason: '', used: 0, quota: 0, maxQuota: 0, allowDecrease: false }, storageApplyForm: { visible: false, submitting: false, quotaInput: '', reasonInput: '', errorText: '' }, storageApplyView: buildStorageApplyView({}), folderSelect: { visible: false, mode: 'upload', folders: [], selectedId: '', selectedName: '根目录', pendingPath: '' }, fileView: buildFileView({ tabs: ['公共', '私人', '四项服务', '分享给我'], tabCounts: { 公共: 0, 私人: 0, 四项服务: 0, 分享给我: 0 }, folders: [], filteredFiles: [], activeTab: '公共', activeFolderName: '', previewVideoPath: '', total: 0 }) },
+  data: { keyword: '', activeTab: '公共', activeFolderId: '', activeFolderName: '', tabs: ['公共', '私人', '四项服务', '分享给我'], tabCounts: { 公共: 0, 私人: 0, 四项服务: 0, 分享给我: 0 }, folders: [], files: [], filteredFiles: [], capacity: { used: '-', total: '-', percent: 0, hint: '存储统计加载中' }, canUpload: false, canDelete: false, canShare: false, canManageFolder: false, canDevUploadSmoke: false, uploading: false, loaded: false, loading: false, page: 1, pageSize: 10, total: 0, folderPerms: [], folderDownloadable: 1, previewing: false, dlToken: '', previewVideoPath: '', actionSheet: { visible: false, index: -1, name: '', actions: [] }, storageApplyInfo: { enabled: false, canApply: false, reason: '', used: 0, quota: 0, maxQuota: 0, allowDecrease: false }, storageApplyForm: { visible: false, submitting: false, quotaInput: '', reasonInput: '', errorText: '' }, storageApplyView: buildStorageApplyView({}), folderSelect: { visible: false, mode: 'album', folders: [], selectedId: '', selectedName: '根目录' }, fileView: buildFileView({ tabs: ['公共', '私人', '四项服务', '分享给我'], tabCounts: { 公共: 0, 私人: 0, 四项服务: 0, 分享给我: 0 }, folders: [], filteredFiles: [], activeTab: '公共', activeFolderName: '', previewVideoPath: '', total: 0 }) },
 
   setFileData(patch) {
     const nextData = { ...this.data, ...patch }
@@ -941,45 +941,24 @@ Page({
     if (this.data.uploading) return
     // 【手机文件上传 2026-11-02 用户令"调用上传手机文件的接口"】三入口:
     // 手机文件(web-view H5 文件选择器,调起手机文件管理器)/从相册(chooseMedia)/从聊天(chooseMessageFile 原通道)
+    // 【2026-11-06 用户令×3"先选择权限范围内的文件夹,然后上传文件"】三入口统一先选文件夹再选文件
     wx.showActionSheet({
       itemList: ['手机文件', '从相册选择', '从聊天选择'],
       success: (res) => {
-        if (res.tapIndex === 0) return this.pickFromDevice()
-        if (res.tapIndex === 1) return this.pickFromAlbum()
-        this.pickFromChat()
+        if (res.tapIndex === 0) return this.openFolderSelect({ mode: 'device' })
+        if (res.tapIndex === 1) return this.openFolderSelect({ mode: 'album' })
+        this.openFolderSelect({ mode: 'chat' })
       },
       fail: () => { /* 用户取消 */ }
     })
   },
 
-  // 手机文件: web-view 内嵌 H5(/mp-file-picker)用 <input type="file"> 调起手机文件选择器
-  // 【2026-11-06 选文件夹】先选目标文件夹再进 H5(与相册/聊天入口同流程, PC UploadDialog 同口径)
-  pickFromDevice() {
-    this.openFolderSelect({ mode: 'device' })
-  },
-
-  // 从相册选择: 图片/视频(chooseMedia, 含拍摄)
-  pickFromAlbum() {
-    wx.chooseMedia({
-      count: 1, mediaType: ['image', 'video'], sourceType: ['album', 'camera'],
-      success: (res) => {
-        const f = res.tempFiles && res.tempFiles[0]
-        if (f && f.tempFilePath) this.beginUploadWithFolder(f.tempFilePath)
-      },
-      fail: (error) => { if (error && error.errMsg && !error.errMsg.includes('cancel')) showError(error, '选择文件失败') }
-    })
-  },
-
-  // 【2026-11-06 用户令"文件上传的时候没选文件夹吗"】选完文件先弹目标文件夹(PC 上传弹窗
-  // selectedFolderId 同口径; 默认=当前浏览文件夹, 根目录可选); 确认后走统一上传段
-  beginUploadWithFolder(filePath) {
-    const folders = (this.data.folders || []).map((item) => ({ id: String(item.id), name: item.rawName || item.name || '未命名文件夹' }))
-    this.setData({ folderSelect: { visible: true, mode: 'upload', folders, selectedId: this.data.activeFolderId ? String(this.data.activeFolderId) : '', selectedName: this.data.activeFolderName || '根目录', pendingPath: filePath } })
-  },
-
+  // 【2026-11-06 用户令×3】第一步: 选目标文件夹(权限范围内)。
+  // 权限范围=本页已加载的文件夹树(getFolders(scope), 后端按权限过滤), 根目录恒可选;
+  // 默认=当前浏览文件夹(PC UploadDialog selectedFolderId 同口径)
   openFolderSelect(options = {}) {
     const folders = (this.data.folders || []).map((item) => ({ id: String(item.id), name: item.rawName || item.name || '未命名文件夹' }))
-    this.setData({ folderSelect: { visible: true, mode: options.mode || 'device', folders, selectedId: this.data.activeFolderId ? String(this.data.activeFolderId) : '', selectedName: this.data.activeFolderName || '根目录', pendingPath: '' } })
+    this.setData({ folderSelect: { visible: true, mode: options.mode || 'album', folders, selectedId: this.data.activeFolderId ? String(this.data.activeFolderId) : '', selectedName: this.data.activeFolderName || '根目录' } })
   },
 
   selectFolderItem(event) {
@@ -988,18 +967,34 @@ Page({
   },
 
   cancelFolderSelect() {
-    this.setData({ 'folderSelect.visible': false, 'folderSelect.pendingPath': '' })
+    this.setData({ 'folderSelect.visible': false })
+    this._uploadTarget = null
   },
 
+  // 【2026-11-06 用户令×3】第二步: 文件夹定死后才进入选文件; 相册/聊天选完直传该文件夹
   confirmFolderSelect() {
-    const { selectedId, selectedName, pendingPath, mode } = this.data.folderSelect
+    const { selectedId, selectedName, mode } = this.data.folderSelect
     this.setData({ 'folderSelect.visible': false })
+    this._uploadTarget = { id: selectedId || null, name: selectedName || '根目录' }
     if (mode === 'device') {
       // 手机文件入口: 带选定文件夹进 H5 选传页(H5 直传该文件夹)
       wx.navigateTo({ url: '/pages/files/picker/index?folderId=' + (selectedId || '') + '&scope=' + this.activeFileScope() })
       return
     }
-    if (pendingPath) this.doUploadFile(pendingPath, selectedId, selectedName)
+    if (mode === 'album') return this.pickFromAlbum()
+    this.pickFromChat()
+  },
+
+  // 从相册选择: 图片/视频(chooseMedia, 含拍摄); 目标文件夹=已选定的 _uploadTarget
+  pickFromAlbum() {
+    wx.chooseMedia({
+      count: 1, mediaType: ['image', 'video'], sourceType: ['album', 'camera'],
+      success: (res) => {
+        const f = res.tempFiles && res.tempFiles[0]
+        if (f && f.tempFilePath) this.doUploadFile(f.tempFilePath)
+      },
+      fail: (error) => { if (error && error.errMsg && !error.errMsg.includes('cancel')) showError(error, '选择文件失败') }
+    })
   },
 
   // 从聊天选择: chooseMessageFile 原通道(微信小程序无法直接访问手机文件系统前的唯一文档入口,保留)
@@ -1012,14 +1007,14 @@ Page({
   },
 
   // 统一上传段(相册/聊天共用; 手机文件走 H5 页直传不经此)
-  // 【2026-11-06 选文件夹】folderId/folderName 由选文件夹面板传入(缺省=当前浏览文件夹)
-  doUploadFile(filePath, folderId, folderName) {
-    const targetId = folderId !== undefined ? folderId : (this.data.activeFolderId || null)
-    const targetName = folderName || this.data.activeFolderName || '根目录'
+  // 【2026-11-06 用户令×3】目标文件夹=confirmFolderSelect 定下的 _uploadTarget(先选夹后选文件);
+  // 无目标兜底=当前浏览文件夹(兼容直调)
+  doUploadFile(filePath) {
+    const target = this._uploadTarget || { id: this.data.activeFolderId || null, name: this.data.activeFolderName || '根目录' }
     this.setData({ uploading: true })
     wx.showLoading({ title: '上传中' })
     // 【L17】loading 与 toast 共用原生单例：必须先 hideLoading 再 showToast，否则成功提示被 finally 里的 hideLoading 一并关掉
-    uploadFile(filePath, targetId, this.activeFileScope()).then(() => { wx.hideLoading(); wx.showToast({ title: '上传成功', icon: 'success' }); targetId ? this.openFolder({ currentTarget: { dataset: { id: targetId, name: targetName } } }) : this.loadFiles() }).catch((error) => { wx.hideLoading(); showError(error, '上传失败') }).finally(() => { this.setData({ uploading: false }) })
+    uploadFile(filePath, target.id, this.activeFileScope()).then(() => { wx.hideLoading(); wx.showToast({ title: '上传成功', icon: 'success' }); target.id ? this.openFolder({ currentTarget: { dataset: { id: target.id, name: target.name } } }) : this.loadFiles() }).catch((error) => { wx.hideLoading(); showError(error, '上传失败') }).finally(() => { this.setData({ uploading: false }); this._uploadTarget = null })
   },
   runDevUploadSmoke() {
     if (!this.data.canDevUploadSmoke) return wx.showToast({ title: '仅本地开发可用', icon: 'none' })

@@ -242,13 +242,16 @@ grep -Fq '`file.aclView` | 文件 | 文件夹权限只读弹窗 ⟦原 pages/fil
 # 微信小程序无手机文件系统 API(官方仅 chooseMessageFile/chooseMedia), 经 H5 /mp-file-picker
 # 的 <input type=file> 调起手机文件选择器直传; 三入口 actionSheet 形态与各链路钉死防回退。
 grep -Fq "'手机文件', '从相册选择', '从聊天选择'" "$PAGE" || fail 'mobile file upload three-entry action sheet disappeared'
-grep -Fq 'pickFromDevice' "$PAGE" || fail 'mobile file device-picker entry disappeared'
+# 【2026-11-06 重锚】device 入口走 openFolderSelect({mode:'device'}) 先选夹再进 H5(旧 pickFromDevice 直跳退役)
+grep -Fq "mode: 'device'" "$PAGE" || fail 'mobile file device-picker entry disappeared'
 grep -Fq 'wx.chooseMedia' "$PAGE" || fail 'mobile file album entry (chooseMedia) disappeared'
 grep -Fq 'this.pickFromChat()' "$PAGE" || fail 'mobile file chat entry (chooseMessageFile) must stay as third entry'
 grep -Fq 'doUploadFile' "$PAGE" || fail 'mobile file unified upload segment disappeared'
-# 【2026-11-06 用户令"文件上传的时候没选文件夹吗"】上传前选文件夹(PC UploadDialog selectedFolderId 同口径):
-# 三入口统一先选目标文件夹再传(根目录可选, 默认=当前浏览文件夹), 面板钉死防回退
-grep -Fq 'beginUploadWithFolder' "$PAGE" || fail 'mobile file upload folder-select flow disappeared'
+# 【2026-11-06 用户令×3"先选择权限范围内的文件夹,然后上传文件"】三入口统一「先选文件夹→再选文件」:
+# actionSheet 三分支全走 openFolderSelect(权限范围内文件夹树+根目录), 确认后 _uploadTarget 定死才选文件;
+# 面板钉死防回退(旧"选完文件再弹夹"顺序与"无选夹"直传均不得复活)
+grep -Fq 'openFolderSelect({ mode:' "$PAGE" || fail 'mobile file upload must open folder-select FIRST for every entry (folder-before-file, 2026-11-06)'
+grep -Fq '_uploadTarget' "$PAGE" || fail 'mobile file upload must pin the confirmed folder as _uploadTarget before file picking'
 grep -Fq '上传到文件夹' "$WXML" || fail 'mobile file upload folder-select modal disappeared'
 grep -Fq 'pages/files/picker/index' "$APPJSON" || fail 'mobile file picker web-view page not registered in app.json'
 grep -Fq "globalData.apiBaseUrl + '/mp-file-picker?'" "$PICKER" || fail 'picker page must load H5 from apiBaseUrl with token'
