@@ -162,7 +162,7 @@ public class FileService {
         if (keyword == null || keyword.isBlank()) return;
         wrapper.and(w -> w.like(BizFile::getFileName, keyword)
                 .or().apply("EXISTS (SELECT 1 FROM sys_user u WHERE u.id = uploader_id AND u.real_name LIKE CONCAT('%', {0}, '%'))", keyword)
-                .or().apply("EXISTS (SELECT 1 FROM biz_file_folder f WHERE f.id = folder_id AND f.name LIKE CONCAT('%', {0}, '%'))", keyword));
+                .or().apply("EXISTS (SELECT 1 FROM biz_file_folder f WHERE f.id = folder_id AND f.folder_name LIKE CONCAT('%', {0}, '%'))", keyword));
     }
 
     public IPage<BizFile> pageFiles(int current, int size, Long folderId, String scope, String keyword, Long userId) {

@@ -180,6 +180,8 @@ class FileServicePermissionTest {
         assertTrue(sql.contains("sys_user"), "应含上传人姓名子查询");
         assertTrue(sql.contains("real_name"), "应匹配上传人姓名列");
         assertTrue(sql.contains("biz_file_folder"), "应含所在文件夹子查询");
+        // 【2026-11-06 生产500自纠】真实列名=folder_name(非name)——SQL段断言挡不住列名错, 生产真跑才暴露
+        assertTrue(sql.contains("folder_name LIKE"), "文件夹子查询必须用真实列名folder_name");
     }
 
     @Test
