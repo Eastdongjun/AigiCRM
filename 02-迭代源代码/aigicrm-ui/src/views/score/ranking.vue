@@ -54,7 +54,7 @@
         <span class="rank-title">个人排行</span>
         <span class="rank-count">{{ personalList.length }}人</span>
       </div>
-      <el-table :data="pagedPersonal" stripe style="width:100%" size="small" empty-text="本周期暂无个人学分记录，可在「学分录入」提交评分">
+      <el-table :data="pagedPersonal" stripe style="width:100%" size="small" empty-text="本周期暂无个人学分记录，可在「学分录入」提交评分" @row-click="openPersonalDetail" :row-class-name="() => 'dept-clickable-row'">
         <el-table-column label="排名" min-width="60" align="center">
           <template #default="{ row }"><span class="rank-num">{{ row.rank }}</span></template>
         </el-table-column>
@@ -74,7 +74,7 @@
       </el-table>
       <el-pagination v-if="personalList.length > pageSize" v-model:current-page="pageNum" :page-size="pageSize" :total="personalList.length" :page-sizes="pageSizes(pageSize)" layout="sizes, prev, pager, next, jumper" size="small" background @size-change="onSizeChange" style="justify-content:flex-end;margin-top:12px" />
       <div class="rank-footer">
-        <span class="footer-note">同分时按文件数排序，文件数相同则按姓名排序</span>
+        <span class="footer-note">同分时按文件数排序，文件数相同则按姓名排序；点击行可查看学分明细</span>
         <!-- 2026-10-04 D15：移除“最近更新：渲染时刻”展示——/score/ranking 与 /score/ranking/stats
              均不返回数据时间字段，用 new Date() 属伪造时间（接口返回字段见后端 ScoreService.ranking/rankingStats） -->
       </div>
@@ -108,7 +108,7 @@
       <div class="dept-detail-summary">
         共 {{ deptDetail.participantCount }} 人 · 合计 {{ deptDetail.totalScore }} 分 · 人均 {{ deptDetail.avgScore }} 分（{{ deptDetail.period }}）
       </div>
-      <el-table :data="deptDetail.members" size="small" stripe max-height="420" v-loading="deptDetailLoading">
+      <el-table :data="deptDetail.members" size="small" stripe max-height="420" v-loading="deptDetailLoading" @row-click="(m) => openPersonalDetail({ userId: m.userId, realName: m.realName, officeName: deptDetail.deptName, rank: m.companyRank, totalScore: m.totalScore, itemCount: m.itemCount })" :row-class-name="() => 'dept-clickable-row'">
         <el-table-column label="姓名" prop="realName" min-width="110" />
         <el-table-column label="总学分" min-width="90" align="right" header-align="right">
           <template #default="{ row }"><strong>{{ row.totalScore }}分</strong></template>
@@ -123,6 +123,20 @@
       <div v-if="!deptDetail.members.length && !deptDetailLoading" class="dept-detail-empty">该部门暂无成员学分</div>
     </el-dialog>
 
+    <!-- 【2026-11-07 用户令"分值明细能点进去看吗"】个人学分明细弹窗(与 MP 学分明细同源 /score/grid, 按大类分组) -->
+    <el-dialog v-model="personalDetailVisible" :title="personalDetail.name ? `学分明细 · ${personalDetail.name}` : '学分明细'" width="560px">
+      <div class="dept-detail-summary">
+        {{ personalDetail.office }} · 公司第 {{ personalDetail.rank }} 名 · 合计 {{ personalDetail.totalScore }} 分 / {{ personalDetail.itemCount }} 个文件（{{ selectedPeriod }}）
+      </div>
+      <div v-loading="personalDetailLoading">
+        <div v-for="g in personalDetail.groups" :key="g.key" class="score-group">
+          <div class="score-group-head"><span class="score-group-name">{{ g.name }}</span><span class="score-group-total">{{ g.totalText }}</span></div>
+          <div v-for="r in g.rows" :key="r.key" class="score-group-row"><span>{{ r.name }}</span><span class="score-group-val">{{ r.scoreText }}</span></div>
+        </div>
+        <div v-if="!personalDetail.groups.length && !personalDetailLoading" class="dept-detail-empty">该成员本周期暂无得分</div>
+      </div>
+    </el-dialog>
+
     <el-dialog v-model="showRules" title="学分规则" width="500px">
       <p>1. 每年对所有同事进行产品知识评分</p>
       <p>2. 每项评分不超出该行设定的区间范围</p>
@@ -135,7 +149,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { getScoreRanking, getScoreRankingStats, getScoreDeptMembers } from '@/api/score'
+import { getScoreRanking, getScoreRankingStats, getScoreDeptMembers, getScoreGrid } from '@/api/score'
 import { buildPeriodOptions, defaultRecordPeriod } from '@/utils/incentive-period'
 import { useLiveRefresh } from '@/composables/useLiveRefresh'
 import { pageSizes } from '@/utils/pagination'
@@ -208,6 +222,46 @@ async function openDeptDetail(row) {
     deptDetailLoading.value = false
   }
 }
+
+// 【2026-11-07 用户令"分值明细能点进去看吗"】个人行点开学分明细弹窗: 数据与 MP 学分明细同源
+// (/score/grid + score_category 字典), 按大类分组展示(组头=中文名+组内合计, 行=product+分值)
+const personalDetailVisible = ref(false)
+const personalDetailLoading = ref(false)
+const personalDetail = ref({ name: '', office: '', rank: '', totalScore: 0, itemCount: 0, groups: [] })
+async function openPersonalDetail(row) {
+  if (!row || !row.userId) return
+  personalDetailVisible.value = true
+  personalDetailLoading.value = true
+  personalDetail.value = { name: row.realName, office: row.officeName, rank: row.rank, totalScore: row.totalScore, itemCount: row.itemCount, groups: [] }
+  try {
+    const res = await getScoreGrid(selectedPeriod.value)
+    const data = res.data || {}
+    const items = data.items || []
+    const scores = data.scores || {}
+    const uid = String(row.userId)
+    const byCat = new Map()
+    for (const item of items) {
+      const score = Number(scores[`${item.id}_${uid}`] || 0)
+      if (!score) continue
+      const cat = item.categoryName || '未分类'
+      if (!byCat.has(cat)) byCat.set(cat, { key: cat, name: cat, rows: [], total: 0 })
+      const g = byCat.get(cat)
+      g.rows.push({ key: `${item.id}_${uid}`, name: item.product || '学分项', score })
+      g.total += score
+    }
+    const groups = Array.from(byCat.values()).map((g) => ({
+      key: g.key,
+      name: g.name,
+      totalText: `${g.total} 分`,
+      rows: g.rows.sort((a, b) => b.score - a.score).map((r) => ({ key: r.key, name: r.name, scoreText: `${r.score} 分` }))
+    }))
+    personalDetail.value = { ...personalDetail.value, groups }
+  } catch {
+    // 失败由 request 拦截器统一提示, 弹窗保留空态
+  } finally {
+    personalDetailLoading.value = false
+  }
+}
 </script>
 
 <style scoped>
@@ -261,4 +315,10 @@ async function openDeptDetail(row) {
 .dept-clickable-row { cursor: pointer; }
 .dept-detail-summary { margin-bottom: 12px; padding: 10px 12px; border-radius: 8px; background: #f0f6ff; color: #1d4ed8; font-size: 13px; font-weight: 600; }
 .dept-detail-empty { padding: 24px 0; text-align: center; color: #94a3b8; font-size: 13px; }
+.score-group { margin-bottom: 6px; }
+.score-group-head { display: flex; justify-content: space-between; padding: 8px 2px; border-bottom: 2px solid #eef4ff; }
+.score-group-name { color: #1d4ed8; font-size: 13px; font-weight: 800; }
+.score-group-total { color: #64748b; font-size: 12px; font-weight: 700; }
+.score-group-row { display: flex; justify-content: space-between; padding: 7px 2px 7px 14px; border-bottom: 1px solid #f1f5f9; color: #334155; font-size: 13px; }
+.score-group-val { color: #1d4ed8; font-weight: 700; }
 </style>
