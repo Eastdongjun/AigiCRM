@@ -955,9 +955,16 @@ Page({
 
   // 【2026-11-06 用户令×3】第一步: 选目标文件夹(权限范围内)。
   // 权限范围=本页已加载的文件夹树(getFolders(scope), 后端按权限过滤), 根目录恒可选;
+  // 【2026-11-06 整体检查 O2】逐夹再按 upload 权过滤(与 showUploadAction 的 folderPerms 口径一致,
+  //   perms 空视为不限制): 可见≠可传, 不给无权夹制造"选完文件才报上传失败"的死路;
   // 默认=当前浏览文件夹(PC UploadDialog selectedFolderId 同口径)
   openFolderSelect(options = {}) {
-    const folders = (this.data.folders || []).map((item) => ({ id: String(item.id), name: item.rawName || item.name || '未命名文件夹' }))
+    const folders = (this.data.folders || [])
+      .filter((item) => {
+        const perms = Array.isArray(item.perms) ? item.perms : String(item.perms || '').split(',').filter(Boolean)
+        return !perms.length || perms.includes('upload')
+      })
+      .map((item) => ({ id: String(item.id), name: item.rawName || item.name || '未命名文件夹' }))
     this.setData({ folderSelect: { visible: true, mode: options.mode || 'album', folders, selectedId: this.data.activeFolderId ? String(this.data.activeFolderId) : '', selectedName: this.data.activeFolderName || '根目录' } })
   },
 

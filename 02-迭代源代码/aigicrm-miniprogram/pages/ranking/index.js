@@ -437,33 +437,39 @@ Page({
     const canScore = demo || hasPermission(rankingTabs.MAIN_TAB_PERMISSIONS.score)
     const canCustomer = demo || hasPermission(rankingTabs.MAIN_TAB_PERMISSIONS.customer)
     const canIncentive = demo || hasPermission(rankingTabs.MAIN_TAB_PERMISSIONS.incentive)
+    // 【2026-11-06 整体检查 X1】单榜模式(?tab= 进入, scope 非空)只拉本榜:
+    //   权限门控之上再按 scope 收窄——不发永不展示的请求, 也不弹无关榜单的失败 toast。
+    const scope = this.data.scope || ''
+    const wantCustomer = (!scope || scope === 'customer') && canCustomer
+    const wantScore = (!scope || scope === 'score') && canScore
+    const wantIncentive = (!scope || scope === 'incentive') && canIncentive
     Promise.all([
-      canCustomer
+      wantCustomer
         ? getCustomerRankings({ period: this.currentCustomerPeriodParam() }).catch((error) => {
             showError(error, '客户排行加载失败')
             return null
           })
         : Promise.resolve(null),
-      canScore
+      wantScore
         ? getScoreRanking({ period, type: 'personal' }).catch((error) => {
             showError(error, '个人学分排行加载失败')
             return []
           })
         : Promise.resolve([]),
-      canScore
+      wantScore
         ? getScoreRanking({ period, type: 'dept' }).catch((error) => {
             showError(error, '部门学分排行加载失败')
             return []
           })
         : Promise.resolve([]),
-      canScore
+      wantScore
         ? getRankingStats({ period }).catch((error) => {
             showError(error, '学分统计加载失败')
             return {}
           })
         : Promise.resolve({}),
       // 【2026-09-23 需求同步】四项服务个人排行(按人员聚合, 与 PC 激励统计同口径)
-      canIncentive
+      wantIncentive
         ? getScoreboard({ period }).catch((error) => {
             showError(error, '激励个人排行加载失败')
             return []

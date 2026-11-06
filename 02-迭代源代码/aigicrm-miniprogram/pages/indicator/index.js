@@ -39,14 +39,17 @@ function buildIndicatorView(state = {}) {
     ],
     ranking: pagerState.rows,
     rankingTotal: pagerState.total,
+    rankingPage: pagerState.page,
     showRankingEmpty: ranking.length === 0
   }
 }
 
 function paginateRanking(list, page, pageSize) {
   const total = (list || []).length
-  const safePage = Math.max(1, Number(page) || 1)
   const safeSize = Math.max(1, Number(pageSize) || 10)
+  // 【2026-11-06 整体检查 O1】页码双向收拢: 下限 1, 上限末页——刷新后数据缩水不停留越界空页
+  const maxPage = Math.max(1, Math.ceil(total / safeSize))
+  const safePage = Math.min(Math.max(1, Number(page) || 1), maxPage)
   const start = (safePage - 1) * safeSize
   return { rows: (list || []).slice(start, start + safeSize), page: safePage, pageSize: safeSize, total }
 }
@@ -65,7 +68,8 @@ Page({
   applyState(patch) {
     const next = { ...this.data, ...patch }
     const indicatorView = buildIndicatorView(next)
-    this.setData({ ...patch, indicatorTotal: indicatorView.rankingTotal, indicatorView })
+    // 【2026-11-06 整体检查 O1】回写收拢后的页码: 刷新致数据缩水时页面回到末页, 不卡越界空页(与排行页同口径)
+    this.setData({ ...patch, indicatorPage: indicatorView.rankingPage, indicatorTotal: indicatorView.rankingTotal, indicatorView })
   },
 
   // 【2026-11-06 翻页】<pager> 回传 {page,pageSize}: 页大小变化时回第 1 页(与排行页同口径)
