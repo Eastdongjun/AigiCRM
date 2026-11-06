@@ -289,9 +289,10 @@ Page({
     }
     let rankTab = firstAllowed
     let scope = ''
-    if (options && options.tab && ['score', 'customer', 'incentive'].indexOf(options.tab) >= 0 && canTabs[options.tab]) {
+    // 【2026-11-06 整体检查 P3】?tab= 白名单改吃注册表 MAIN_TAB_ORDER(单一真源, 新增榜单不再漏深链)
+    if (options && options.tab && rankingTabs.MAIN_TAB_ORDER.indexOf(options.tab) >= 0 && canTabs[options.tab]) {
       rankTab = options.tab
-      // 入口范围=所带页签: 单榜模式(主页签条隐藏, 口径卡只留本榜项)——学分入口不见客户/激励内容
+      // 入口范围=所带页签: 单榜模式(主页签条隐藏, 口径卡整卡移除)——学分入口不见客户/激励内容
       scope = options.tab
     }
     this.setRankingData({ canTabs, rankTab, scope })

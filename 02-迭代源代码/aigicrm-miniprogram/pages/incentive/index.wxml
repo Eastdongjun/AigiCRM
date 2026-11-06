@@ -144,7 +144,7 @@
         <view class="stat-group-name">{{group.parentName}}</view>
         <view class="stat-group-value">{{group.count}} 文件 ›</view>
       </view>
-      <view wx:for="{{group.children}}" wx:for-item="row" wx:key="id" class="stats-row stat-drill-row" data-id="{{row.id}}" bindtap="openStatDetail">
+      <view wx:for="{{group.children}}" wx:for-item="row" wx:for-index="rowIndex" wx:key="id" class="stats-row stat-drill-row" data-id="{{row.id}}" bindtap="openStatDetail">
         <view>
           <view class="stat-name">{{row.name}}</view>
         </view>

@@ -884,10 +884,14 @@ Page({
         { id: 'visit', name: '交流拜访', score: 1, level: 0, count: 3 },
         { id: 'tour', name: '外出参观', score: 1, level: 0, count: 1 }
       ]
+      // 【2026-11-06 整体检查 P3】演示模式补 rankParents(与分类树同源)并串联分类统计,
+      // 此前 demo 早退不调 loadCategoryStats → 统计分支重写了也永远不可达(演示恒"暂无统计")
+      const rankParents = categoryTree.map((item) => ({ id: item.id, categoryName: item.name }))
       this.setData({
         categoryTree,
-        categoryTreeView: buildCategoryTreeView(categoryTree)
-      }, () => this.refreshIncentiveView())
+        categoryTreeView: buildCategoryTreeView(categoryTree),
+        rankParents
+      }, () => { this.refreshIncentiveView(); this.loadCategoryStats() })
       return
     }
     getCategoryTree().then((rows) => {
@@ -922,7 +926,13 @@ Page({
 
   loadCategoryStats() {
     if (getApp().globalData.demoMode) {
-      const demoStats = [{ id: 'trial', name: '产品试点', count: 2, score: 45 }, { id: 'visit', name: '交流拜访', count: 3, score: 28 }]
+      // 【2026-11-06 整体检查 P3】演示统计与演示记录对齐(3 条记录各归一类, 分值一致):
+      // 此前 demoStats 计数/分值与记录对不上, 且明细弹层按 childNames 过滤恒 0 行
+      const demoStats = [
+        { id: 'trial', name: '产品试点', count: 1, score: 32 },
+        { id: 'visit', name: '交流拜访', count: 1, score: 45 },
+        { id: 'talk', name: '两谈两做', count: 1, score: 18 }
+      ]
       this.setData({ categoryStats: demoStats, categoryStatsGroups: buildCategoryStatsGroups(demoStats, this.data.rankParents) }, () => this.refreshIncentiveView())
       return
     }
@@ -1066,19 +1076,30 @@ Page({
     }
     const params = {}
     if (stat.parentId) params.parentCategoryId = stat.parentId
-    // 【M19 2026-10-04】请求序号守卫: 快速切换分类时只采纳最新一次请求,
-    // 迟到的旧响应不再覆盖新弹层(含 finally 关 loading, 避免旧请求提前关掉新弹层的加载态)
+    this._fetchStatDetailRecords(params, (item) => {
+      const itemId = item.categoryId || item.childId || item.categoryCode || item.category
+      const itemName = item.categoryName || item.category || item.type
+      return String(itemId || '') === String(stat.id || '') || itemName === stat.name
+    })
+  },
+
+  closeStatDetail() {
+    const statDetail = { ...this.data.statDetail, visible: false, records: [] }
+    this.setData({ 'statDetail.visible': false, 'statDetail.records': [], statDetailView: buildStatDetailView(statDetail), previewVideoPath: '' })
+  },
+
+  noop() {},
+
+  // 【M19 2026-10-04】请求序号守卫: 快速切换分类时只采纳最新一次请求,
+  // 迟到的旧响应不再覆盖新弹层(含 finally 关 loading, 避免旧请求提前关掉新弹层的加载态)
+  // 【2026-11-06 整体检查 P3】统计明细取数尾部抽取共用——此前 openStatDetail/openGroupStatDetail
+  // 各抄一份约 40 行(解包/过滤/合计/回填/异常/loading 收口), 历史上出过"修一处漏一处"
+  _fetchStatDetailRecords(params, filterFn) {
     const requestSeq = this._statDetailSeq = (this._statDetailSeq || 0) + 1
     getRecords(params).then((rows) => {
       if (requestSeq !== this._statDetailSeq) return
       const source = Array.isArray(rows) ? rows : (rows && (rows.records || rows.rows || rows.list || rows.data)) || []
-      const records = source
-        .filter((item) => {
-          const itemId = item.categoryId || item.childId || item.categoryCode || item.category
-          const itemName = item.categoryName || item.category || item.type
-          return String(itemId || '') === String(stat.id || '') || itemName === stat.name
-        })
-        .map(normalizeStatDetailRecord)
+      const records = source.filter(filterFn).map(normalizeStatDetailRecord)
       const totalScore = records.reduce((sum, item) => sum + (Number(item.score) || 0), 0)
       const statDetail = { ...this.data.statDetail, records, totalScore }
       this.setData({
@@ -1094,13 +1115,6 @@ Page({
       this.setData({ 'statDetail.loading': false, statDetailView: buildStatDetailView(statDetail) })
     })
   },
-
-  closeStatDetail() {
-    const statDetail = { ...this.data.statDetail, visible: false, records: [] }
-    this.setData({ 'statDetail.visible': false, 'statDetail.records': [], statDetailView: buildStatDetailView(statDetail), previewVideoPath: '' })
-  },
-
-  noop() {},
 
   // 【2026-11-05 用户令"数据要能点开查看的"】一级分组头可点开: 明细=组内全部子类记录合并(不按单子类过滤);
   // 请求口径与子级明细同源(getRecords, 大组带 parentCategoryId 直取, 「其他分类」兜底组全量拉回后按子类 id 收口)
@@ -1145,26 +1159,10 @@ Page({
       return
     }
     const params = group.parentId ? { parentCategoryId: group.parentId } : {}
-    const requestSeq = this._statDetailSeq = (this._statDetailSeq || 0) + 1
-    getRecords(params).then((rows) => {
-      if (requestSeq !== this._statDetailSeq) return
-      const source = Array.isArray(rows) ? rows : (rows && (rows.records || rows.rows || rows.list || rows.data)) || []
-      const records = source
-        .filter((item) => childIds.has(String(item.categoryId || item.childId || item.categoryCode || item.category || '')))
-        .map(normalizeStatDetailRecord)
-      const totalScore = records.reduce((sum, item) => sum + (Number(item.score) || 0), 0)
-      const statDetail = { ...this.data.statDetail, records, totalScore }
-      this.setData({
-        'statDetail.records': records,
-        'statDetail.totalScore': totalScore,
-        statDetailView: buildStatDetailView(statDetail)
-      })
-    }).catch((error) => {
-      if (requestSeq === this._statDetailSeq) showError(error, '统计明细加载失败')
-    }).finally(() => {
-      if (requestSeq !== this._statDetailSeq) return
-      const statDetail = { ...this.data.statDetail, loading: false }
-      this.setData({ 'statDetail.loading': false, statDetailView: buildStatDetailView(statDetail) })
+    // 【2026-11-06 整体检查 P3】补名字兜底通道: 与子级明细双通道同口径, 数据缺 id 仅有名时不再吞数
+    this._fetchStatDetailRecords(params, (item) => {
+      const itemName = item.categoryName || item.category || item.type
+      return childIds.has(String(item.categoryId || item.childId || item.categoryCode || item.category || '')) || childNames.has(itemName)
     })
   },
 

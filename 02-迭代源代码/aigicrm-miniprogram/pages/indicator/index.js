@@ -1,6 +1,8 @@
 const { getIndicatorStats } = require('../../api/statistics')
 const { hasPermission, requireLogin } = require('../../utils/auth')
 const { showError } = require('../../utils/feedback')
+// 【2026-11-06 整体检查 P3】改用全站共享分页工具(双向收拢带 totalPages), 删除本地复制版
+const { paginate } = require('../../utils/paging')
 
 function normalizeNumber(value) {
   return Number(value || 0)
@@ -27,7 +29,7 @@ function buildIndicatorView(state = {}) {
   }))
   // 【2026-11-06 用户令"注意翻页"】客户排行客户端分页(10/页, 与排行页/统计页同款 pager);
   // rank 在全量映射时已按全局名次编号, 切页不重排
-  const pagerState = paginateRanking(ranking, state.indicatorPage, state.indicatorPageSize)
+  const pagerState = paginate(ranking, Number(state.indicatorPage) || 1, Number(state.indicatorPageSize) || 10)
   return {
     showLoading: Boolean(state.loading),
     showMetrics: !state.loading,
@@ -42,16 +44,6 @@ function buildIndicatorView(state = {}) {
     rankingPage: pagerState.page,
     showRankingEmpty: ranking.length === 0
   }
-}
-
-function paginateRanking(list, page, pageSize) {
-  const total = (list || []).length
-  const safeSize = Math.max(1, Number(pageSize) || 10)
-  // 【2026-11-06 整体检查 O1】页码双向收拢: 下限 1, 上限末页——刷新后数据缩水不停留越界空页
-  const maxPage = Math.max(1, Math.ceil(total / safeSize))
-  const safePage = Math.min(Math.max(1, Number(page) || 1), maxPage)
-  const start = (safePage - 1) * safeSize
-  return { rows: (list || []).slice(start, start + safeSize), page: safePage, pageSize: safeSize, total }
 }
 
 Page({

@@ -1,7 +1,8 @@
 const incentiveRecords = [
-  { id: 1, name: '山西晋能集团中阳煤业', industry: '煤矿', score: 45, isNew: true, unread: true, summary: '晋能集团高层拜访，达成120万吨供煤合作意向', fileId: '[101,102]', fileName: '现场拜访照片.jpg,合作纪要.pdf' },
-  { id: 2, name: '内蒙古鄂尔多斯化工', industry: '化工', score: 32, isNew: true, unread: false, summary: '煤机设备试运行成功，产能提升15%', filePreId: '[201]', filePreName: '安装前现场照片.jpg', filePostId: '[202]', filePostName: '试运行报告.pdf' },
-  { id: 3, name: '大同云冈电厂', industry: '电力', score: 18, isNew: false, unread: true, summary: '完成现场技术交流', fileTrackId: '[301]', fileTrackName: '跟踪回访记录.docx' }
+  // 【2026-11-06 整体检查 P3】补 categoryName: 演示模式分类统计/明细弹层按分类名过滤需要它(与分类树四类同源)
+  { id: 1, name: '山西晋能集团中阳煤业', industry: '煤矿', score: 45, categoryName: '交流拜访', isNew: true, unread: true, summary: '晋能集团高层拜访，达成120万吨供煤合作意向', fileId: '[101,102]', fileName: '现场拜访照片.jpg,合作纪要.pdf' },
+  { id: 2, name: '内蒙古鄂尔多斯化工', industry: '化工', score: 32, categoryName: '产品试点', isNew: true, unread: false, summary: '煤机设备试运行成功，产能提升15%', filePreId: '[201]', filePreName: '安装前现场照片.jpg', filePostId: '[202]', filePostName: '试运行报告.pdf' },
+  { id: 3, name: '大同云冈电厂', industry: '电力', score: 18, categoryName: '两谈两做', isNew: false, unread: true, summary: '完成现场技术交流', fileTrackId: '[301]', fileTrackName: '跟踪回访记录.docx' }
 ]
 
 const homeCards = [
