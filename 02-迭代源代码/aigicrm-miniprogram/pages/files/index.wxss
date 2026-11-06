@@ -154,13 +154,14 @@
 .files-top-reason { flex-shrink: 0; font-size: 18rpx; color: rgba(255, 255, 255, .5); }
 
 /* 【2026-10-26 用户令"还是做成之前列表展示,但列表要呈现预览的小图"】图片墙退役,
-   四项服务回归时间分组列表行; 行首图片=预览小图, 与类型色块同足迹(68rpx 方块+右距 16rpx) */
+   四项服务回归时间分组列表行; 行首图片=预览小图, 与类型色块同足迹(68rpx 方块+右距 16rpx)
+   【2026-11-06 用户令"图片有点儿小 预览大一点儿"】68→128rpx: 与文件名两行文本等高的可辨识缩略 */
 .file-thumb-sq {
-  width: 68rpx;
-  height: 68rpx;
+  width: 128rpx;
+  height: 128rpx;
   flex-shrink: 0;
   margin-right: 16rpx;
-  border-radius: 15rpx;
+  border-radius: 18rpx;
   overflow: hidden;
   background: #eef3fa;
 }
