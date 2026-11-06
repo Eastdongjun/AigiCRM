@@ -164,6 +164,46 @@ class FileServicePermissionTest {
         }
     }
 
+    /** 【2026-11-06 用户令"全局检索"】文件列表关键字=文件名∨上传人∨所在文件夹, 双端同口径 */
+    @Test
+    void pageFiles_globalKeyword_matchesNameUploaderAndFolder() {
+        when(folderMapper.selectList(any())).thenReturn(List.of());
+        Page<BizFile> empty = new Page<>(1, 10);
+        empty.setRecords(List.of());
+        when(fileMapper.selectPage(any(), any())).thenReturn(empty);
+        svc.pageFiles(1, 10, null, "public", "张三", 1L);
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Wrapper<BizFile>> captor = ArgumentCaptor.forClass(Wrapper.class);
+        verify(fileMapper).selectPage(any(), captor.capture());
+        String sql = captor.getValue().getExpression().getSqlSegment();
+        assertTrue(sql.contains("file_name LIKE"), "应保留文件名匹配");
+        assertTrue(sql.contains("sys_user"), "应含上传人姓名子查询");
+        assertTrue(sql.contains("real_name"), "应匹配上传人姓名列");
+        assertTrue(sql.contains("biz_file_folder"), "应含所在文件夹子查询");
+    }
+
+    @Test
+    void sharedToMe_globalKeyword_alsoMatchesUploaderAndFolder() {
+        BizFileShare share = new BizFileShare();
+        share.setFileId(9L);
+        share.setSharedToUserId(2L);
+        when(fileShareMapper.selectList(any())).thenReturn(List.of(share));
+        Page<BizFile> empty = new Page<>(1, 10);
+        empty.setRecords(List.of());
+        when(fileMapper.selectPage(any(), any())).thenReturn(empty);
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::getCurrentUserId).thenReturn(2L);
+            svc.pageSharedToMe(1, 10, "李四");
+        }
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Wrapper<BizFile>> captor = ArgumentCaptor.forClass(Wrapper.class);
+        verify(fileMapper).selectPage(any(), captor.capture());
+        String sql = captor.getValue().getExpression().getSqlSegment();
+        assertTrue(sql.contains("file_name LIKE"), "应保留文件名匹配");
+        assertTrue(sql.contains("sys_user") && sql.contains("real_name"), "应匹配上传人姓名");
+        assertTrue(sql.contains("biz_file_folder"), "应匹配所在文件夹");
+    }
+
     @Test
     void createFolder_withParentWithoutUploadPermission_throws403() {
         BizFileFolder folder = new BizFileFolder();

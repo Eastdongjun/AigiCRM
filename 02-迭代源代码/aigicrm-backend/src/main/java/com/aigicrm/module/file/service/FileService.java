@@ -151,6 +151,20 @@ public class FileService {
         return buildFolderTree(folders, 0L);
     }
 
+    /**
+     * 【2026-11-06 用户令"小程序和PC都需要全局检索"】文件关键字多字段全局匹配:
+     * 文件名 ∨ 上传人姓名 ∨ 所在文件夹名——此前仅 LIKE 文件名, 与 MP 四项服务 tab 的多字段本地
+     * 筛选口径分裂(10-26 登记, 用户感知为"搜不到"); 双端 /file/list 与 shared-to-me 同走本助手。
+     * {0} 占位由 MyBatis 参数绑定, 无字符串拼接注入面; 数据范围过滤(可见文件夹/归属/分享集)
+     * 在调用方先行生效, 此处只扩匹配面不扩可见面。
+     */
+    private void applyGlobalKeyword(LambdaQueryWrapper<BizFile> wrapper, String keyword) {
+        if (keyword == null || keyword.isBlank()) return;
+        wrapper.and(w -> w.like(BizFile::getFileName, keyword)
+                .or().apply("EXISTS (SELECT 1 FROM sys_user u WHERE u.id = uploader_id AND u.real_name LIKE CONCAT('%', {0}, '%'))", keyword)
+                .or().apply("EXISTS (SELECT 1 FROM biz_file_folder f WHERE f.id = folder_id AND f.name LIKE CONCAT('%', {0}, '%'))", keyword));
+    }
+
     public IPage<BizFile> pageFiles(int current, int size, Long folderId, String scope, String keyword, Long userId) {
 
         // 【安全修复 FEAT-20260804-FILE-AUTHZ】scope 白名单：缺省/空串/未知 scope 一律返回空页，
@@ -218,7 +232,7 @@ public class FileService {
             }
         }
         if (keyword != null && !keyword.isEmpty()) {
-            wrapper.like(BizFile::getFileName, keyword);
+            applyGlobalKeyword(wrapper, keyword);
         }
         wrapper.orderByDesc(BizFile::getCreatedAt);
 
@@ -1435,7 +1449,7 @@ public class FileService {
         LambdaQueryWrapper<BizFile> wrapper = new LambdaQueryWrapper<>();
         wrapper.in(BizFile::getId, fileIds).eq(BizFile::getDeleted, 0);
         if (keyword != null && !keyword.isBlank()) {
-            wrapper.like(BizFile::getFileName, keyword);
+            applyGlobalKeyword(wrapper, keyword);
         }
         wrapper.orderByDesc(BizFile::getCreatedAt);
         IPage<BizFile> page = fileMapper.selectPage(new Page<>(current, size), wrapper);

@@ -746,13 +746,14 @@ Page({
   },
 
   filterFiles(files = this.data.files, context = this.data) {
+    // 【2026-11-06 用户令"全局检索"】真实模式列表已按 scope+keyword 服务端全局过滤
+    // (文件名∨上传人∨所在文件夹, FileService.applyGlobalKeyword), 本地不得按文字二次筛选——
+    // 否则上传人/文件夹命中的服务端结果会被 name+folder 文字法筛掉; 文字法仅演示模式(无服务端)使用
+    if (!getApp().globalData.demoMode) return files
     const keyword = String(context.keyword || '').trim().toLowerCase()
-    // 真实模式列表已按 scope 服务端过滤(onTabTap→loadFiles 带 scope 重拉), 本地不得按文件夹文字二次筛选
-    // —— 真实激励文件 folder 多为'未分类', 文字法会把整表筛空; 文字法仅演示模式(无服务端)使用
-    const useLabelScope = Boolean(getApp().globalData.demoMode)
     return files.filter(item => {
       // 【F3】Tab/keyword 从 context 读取本次变更后的值: 直接读 this.data 会拿到旧值(慢一拍)
-      const matchesTab = !useLabelScope ? true : demoFileMatchesTab(item, context.activeTab)
+      const matchesTab = demoFileMatchesTab(item, context.activeTab)
       return matchesTab && (!keyword || `${item.name}${item.folder}`.toLowerCase().includes(keyword))
     })
   },
@@ -959,12 +960,14 @@ Page({
   //   perms 空视为不限制): 可见≠可传, 不给无权夹制造"选完文件才报上传失败"的死路;
   // 默认=当前浏览文件夹(PC UploadDialog selectedFolderId 同口径)
   openFolderSelect(options = {}) {
+    // 【2026-11-06 整体检查 P3】面板行显示带「· 」层级前缀的 name(父子夹不再平排难分),
+    // 选中目标名仍取 rawName(不带前缀入 toast/上传目标)
     const folders = (this.data.folders || [])
       .filter((item) => {
         const perms = Array.isArray(item.perms) ? item.perms : String(item.perms || '').split(',').filter(Boolean)
         return !perms.length || perms.includes('upload')
       })
-      .map((item) => ({ id: String(item.id), name: item.rawName || item.name || '未命名文件夹' }))
+      .map((item) => ({ id: String(item.id), name: item.name || item.rawName || '未命名文件夹', rawName: item.rawName || item.name || '未命名文件夹' }))
     this.setData({ folderSelect: { visible: true, mode: options.mode || 'album', folders, selectedId: this.data.activeFolderId ? String(this.data.activeFolderId) : '', selectedName: this.data.activeFolderName || '根目录' } })
   },
 

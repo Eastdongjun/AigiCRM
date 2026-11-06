@@ -32,7 +32,7 @@
         </span>
       </el-tooltip>
       <div class="st-actions">
-        <el-input v-model="keyword" placeholder="搜索文件名称..." class="st-search" clearable prefix-icon="Search" @keyup.enter="searchFiles" />
+        <el-input v-model="keyword" placeholder="搜索文件名/上传人/所在文件夹..." class="st-search" clearable prefix-icon="Search" @keyup.enter="searchFiles" />
         <!-- 【2026-10-17 客户反馈】新建文件夹从左侧文件夹树底部移到顶部操作区(原位置不合适) -->
         <el-button v-if="canCreateFolder" class="st-folder-add" :icon="FolderAdd" @click="openCreateFolder">新建文件夹</el-button>
         <el-button v-if="activeTab!=='incentive'&&activeTab!=='shared_to_me' && folderPerms.includes('upload')"
