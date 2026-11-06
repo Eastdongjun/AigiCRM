@@ -19,20 +19,8 @@ function buildDetailView(state = {}) {
   }
 }
 
-function buildItemsView(groups, emptyText) {
-  return { groups: Array.isArray(groups) ? groups : [], emptyText: emptyText || '本期暂无得分记录' }
-}
-
-// 演示模式分组装配(与真实链同形)
-function groupDemoRows(rows) {
-  const byCat = new Map()
-  for (const row of rows) {
-    if (!byCat.has(row.cat)) byCat.set(row.cat, { key: row.cat, name: row.cat, rows: [], total: 0 })
-    const g = byCat.get(row.cat)
-    g.rows.push(row)
-    g.total += Number(String(row.scoreText).replace(' 分', '')) || 0
-  }
-  return Array.from(byCat.values()).map((g) => ({ ...g, totalText: `${g.total} 分` }))
+function buildItemsView(rows, emptyText) {
+  return { rows: Array.isArray(rows) ? rows : [], emptyText: emptyText || '本期暂无得分记录' }
 }
 
 Page({
@@ -74,11 +62,12 @@ Page({
   loadBreakdown() {
     if (getApp().globalData.demoMode) {
       const rows = [
-        { key: 'demo-1', cat: '机封类', name: '机封维修、机封备件', scoreText: '8 分' },
-        { key: 'demo-2', cat: '涂层类', name: '全固体聚合涂层', scoreText: '5 分' },
-        { key: 'demo-3', cat: '涂层类', name: '防滑板', scoreText: '2 分' }
+        { key: 'demo-1', catName: '机封类', name: '机封维修、机封备件', score: 8 },
+        { key: 'demo-2', catName: '涂层类', name: '全固体聚合涂层', score: 5 },
+        { key: 'demo-3', catName: '涂层类', name: '防滑板', score: 2 },
+        { key: 'demo-4', catName: '润滑类', name: '工业润滑油脂类（脂、油）', score: 0 }
       ]
-      this.setData({ itemsView: buildItemsView(groupDemoRows(rows)) })
+      this.setData({ itemsView: buildItemsView(rows) })
       return
     }
     if (this.data.mode !== 'personal' || !this.data.userId) {
@@ -110,28 +99,16 @@ Page({
       const items = (grid && grid.items) || []
       const scores = (grid && grid.scores) || {}
       const uid = String(this.data.userId)
-      // 【2026-11-07 用户令 A=理顺码系】按大类分组展示: categoryName 已由后端从 score_category
-      // 字典回填(与 PC 录入页同源), 组头=大类名+组内合计, 组内行=product+分值(降序);
-      // 无名占位行(PC 录入网格空行)归"未分类"组——数据侧补名后自动归位
-      const byCat = new Map()
-      for (const item of items) {
-        const scoreNum = Number(scores[`${item.id}_${uid}`] || 0)
-        if (!scoreNum) continue
-        const cat = item.categoryName || '未分类'
-        if (!byCat.has(cat)) byCat.set(cat, { key: cat, name: cat, rows: [], total: 0 })
-        const g = byCat.get(cat)
-        g.rows.push({ key: `${item.id}_${uid}`, name: item.product || '学分项', scoreNum })
-        g.total += scoreNum
-      }
-      const groups = Array.from(byCat.values()).map((g) => ({
-        key: g.key,
-        name: g.name,
-        totalText: `${g.total} 分`,
-        rows: g.rows
-          .sort((a, b) => b.scoreNum - a.scoreNum)
-          .map((row) => ({ key: row.key, name: row.name, scoreText: `${row.scoreNum} 分` }))
-      }))
-      this.setData({ loading: false, itemsView: buildItemsView(groups) })
+      // 【2026-11-07 用户令"学分排行榜分值点进去看明细表格"】表格化(与 PC 明细弹窗/录入网格同构):
+      // 全部学分项按录入顺序, 列=#/大类/产品/得分(>0 蓝字, 0 显"—"); 大类中文名取 score_category
+      // 字典回填的 categoryName(拼音码不入 UI); 无名占位行大类归"未分类"
+      const rows = items.map((item) => ({
+        key: `${item.id}_${uid}`,
+        catName: item.categoryName || '未分类',
+        name: item.product || '学分项',
+        scoreNum: Number(scores[`${item.id}_${uid}`] || 0)
+      })).map((row) => ({ ...row, scoreText: row.scoreNum > 0 ? `${row.scoreNum} 分` : '—' }))
+      this.setData({ loading: false, itemsView: buildItemsView(rows) })
     }).catch((error) => {
       this.setData({ loading: false })
       showError(error, '明细加载失败')

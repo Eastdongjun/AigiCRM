@@ -90,11 +90,14 @@ grep -q "buildDetailView" "$detail" || { echo "FAIL: mobile ranking detail displ
 grep -q "header.nameText" "$ROOT/aigicrm-miniprogram/pages/ranking/detail/index.wxml" || { echo "FAIL: mobile ranking detail WXML must render normalized name text" >&2; exit 1; }
 grep -q "header.metaText" "$ROOT/aigicrm-miniprogram/pages/ranking/detail/index.wxml" || { echo "FAIL: mobile ranking detail WXML must render normalized meta text" >&2; exit 1; }
 ! grep -Eq "\\|\\| '未命名用户'|\\|\\| '-'|\\{\\{nameInitial\\}\\}|\\{\\{score\\}\\}|\\{\\{period\\}\\}" "$ROOT/aigicrm-miniprogram/pages/ranking/detail/index.wxml" || { echo "FAIL: mobile ranking detail WXML must not keep fallback display logic" >&2; exit 1; }
-# 【2026-11-07 用户令 A=理顺码系】明细按大类分组与字典同源: 后端 getGrid 从 score_category 字典
-# 回填 categoryName, MP 明细页按 categoryName 分组展示(行名=product)——拼音码不入 UI
+# 【2026-11-07 用户令 A=理顺码系】明细行名与字典同源: 后端 getGrid 从 score_category 字典
+# 回填 categoryName, MP 明细页消费 categoryName(拼音码不入 UI)
+# 【2026-11-07 同日用户令"学分排行榜分值点进去看明细表格"】明细表格化重锚: WXML 分组渲染钉
+# 改为表格渲染钉(rd-table-head 表头+itemsView.rows), 字典同源意图不变
 grep -q 'listDataByCode("score_category")' "$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/score/service/ScoreService.java" || { echo "FAIL: grid must enrich categoryName from score_category dictionary" >&2; exit 1; }
-grep -q "item.categoryName" "$detail" || { echo "FAIL: mobile ranking detail must group by dictionary categoryName" >&2; exit 1; }
-grep -q "itemsView.groups" "$ROOT/aigicrm-miniprogram/pages/ranking/detail/index.wxml" || { echo "FAIL: mobile ranking detail WXML must render grouped breakdown" >&2; exit 1; }
+grep -q "item.categoryName" "$detail" || { echo "FAIL: mobile ranking detail must use dictionary categoryName" >&2; exit 1; }
+grep -q "rd-table-head" "$ROOT/aigicrm-miniprogram/pages/ranking/detail/index.wxml" || { echo "FAIL: mobile ranking detail WXML must render table-style breakdown" >&2; exit 1; }
+grep -q "itemsView.rows" "$ROOT/aigicrm-miniprogram/pages/ranking/detail/index.wxml" || { echo "FAIL: mobile ranking detail WXML must render breakdown rows" >&2; exit 1; }
 # 【2026-11-07 用户令"部门排行做成明细, PC端也一样"】部门成员明细三件套:
 # 后端端点(score:view 同门)+MP api 封装+dept 模式消费; PC 弹窗经 PC 构建验证
 grep -q '@GetMapping("/ranking/dept-members")' "$backend" || { echo "FAIL: backend dept-members route is missing" >&2; exit 1; }

@@ -41,20 +41,22 @@
     </view>
   </block>
 
-  <!-- 个人模式: 得分明细按大类分组(组头=大类名+组内合计, 组内行=产品+分值) -->
+  <!-- 个人模式: 得分明细表格(与 PC 明细弹窗/录入网格同构: #/大类/产品/得分, 全部学分项按录入顺序) -->
   <block wx:else>
   <view class="section-title">得分明细</view>
   <view class="card rd-items-card">
-    <block wx:if="{{itemsView.groups.length}}">
-      <view wx:for="{{itemsView.groups}}" wx:for-item="group" wx:for-index="groupIndex" wx:key="key" class="rd-group">
-        <view class="rd-group-head">
-          <text class="rd-group-name">{{group.name}}</text>
-          <text class="rd-group-total">{{group.totalText}}</text>
-        </view>
-        <view wx:for="{{group.rows}}" wx:for-item="row" wx:for-index="rowIndex" wx:key="key" class="rd-item-row">
-          <text class="rd-item-name">{{row.name}}</text>
-          <text class="rd-item-score">{{row.scoreText}}</text>
-        </view>
+    <block wx:if="{{itemsView.rows.length}}">
+      <view class="rd-table-head">
+        <text class="rd-th rd-th-idx">#</text>
+        <text class="rd-th rd-th-cat">大类</text>
+        <text class="rd-th rd-th-prod">产品</text>
+        <text class="rd-th rd-th-score">得分</text>
+      </view>
+      <view wx:for="{{itemsView.rows}}" wx:for-item="row" wx:for-index="rowIndex" wx:key="key" class="rd-table-row">
+        <text class="rd-td rd-th-idx">{{rowIndex + 1}}</text>
+        <text class="rd-td rd-th-cat">{{row.catName}}</text>
+        <text class="rd-td rd-th-prod">{{row.name}}</text>
+        <text class="rd-td rd-th-score {{row.scoreNum > 0 ? 'rd-score-hi' : 'rd-score-zero'}}">{{row.scoreText}}</text>
       </view>
     </block>
     <view wx:else class="rd-empty muted">{{itemsView.emptyText}}</view>
