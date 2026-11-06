@@ -25,13 +25,19 @@
     </view>
   </view>
 
-  <!-- 得分明细区块 -->
+  <!-- 得分明细区块: 按大类分组(组头=大类名+组内合计, 组内行=产品+分值) -->
   <view class="section-title">得分明细</view>
   <view class="card rd-items-card">
-    <block wx:if="{{itemsView.rows.length}}">
-      <view wx:for="{{itemsView.rows}}" wx:for-item="row" wx:for-index="rowIndex" wx:key="key" class="rd-item-row">
-        <text class="rd-item-name">{{row.name}}</text>
-        <text class="rd-item-score">{{row.scoreText}}</text>
+    <block wx:if="{{itemsView.groups.length}}">
+      <view wx:for="{{itemsView.groups}}" wx:for-item="group" wx:for-index="groupIndex" wx:key="key" class="rd-group">
+        <view class="rd-group-head">
+          <text class="rd-group-name">{{group.name}}</text>
+          <text class="rd-group-total">{{group.totalText}}</text>
+        </view>
+        <view wx:for="{{group.rows}}" wx:for-item="row" wx:for-index="rowIndex" wx:key="key" class="rd-item-row">
+          <text class="rd-item-name">{{row.name}}</text>
+          <text class="rd-item-score">{{row.scoreText}}</text>
+        </view>
       </view>
     </block>
     <view wx:else class="rd-empty muted">{{itemsView.emptyText}}</view>

@@ -19,8 +19,20 @@ function buildDetailView(state = {}) {
   }
 }
 
-function buildItemsView(rows, emptyText) {
-  return { rows, emptyText: emptyText || '本期暂无得分记录' }
+function buildItemsView(groups, emptyText) {
+  return { groups: Array.isArray(groups) ? groups : [], emptyText: emptyText || '本期暂无得分记录' }
+}
+
+// 演示模式分组装配(与真实链同形)
+function groupDemoRows(rows) {
+  const byCat = new Map()
+  for (const row of rows) {
+    if (!byCat.has(row.cat)) byCat.set(row.cat, { key: row.cat, name: row.cat, rows: [], total: 0 })
+    const g = byCat.get(row.cat)
+    g.rows.push(row)
+    g.total += Number(String(row.scoreText).replace(' 分', '')) || 0
+  }
+  return Array.from(byCat.values()).map((g) => ({ ...g, totalText: `${g.total} 分` }))
 }
 
 Page({
@@ -61,11 +73,11 @@ Page({
   loadBreakdown() {
     if (getApp().globalData.demoMode) {
       const rows = [
-        { key: 'demo-1', name: '产品试点 · 例行回访', scoreText: '8 分' },
-        { key: 'demo-2', name: '交流拜访 · 新客首访', scoreText: '5 分' },
-        { key: 'demo-3', name: '两谈两做 · 技术交流', scoreText: '2 分' }
+        { key: 'demo-1', cat: '机封类', name: '机封维修、机封备件', scoreText: '8 分' },
+        { key: 'demo-2', cat: '涂层类', name: '全固体聚合涂层', scoreText: '5 分' },
+        { key: 'demo-3', cat: '涂层类', name: '防滑板', scoreText: '2 分' }
       ]
-      this.setData({ itemsView: buildItemsView(rows) })
+      this.setData({ itemsView: buildItemsView(groupDemoRows(rows)) })
       return
     }
     if (this.data.mode !== 'personal' || !this.data.userId) {
@@ -77,19 +89,28 @@ Page({
       const items = (grid && grid.items) || []
       const scores = (grid && grid.scores) || {}
       const uid = String(this.data.userId)
-      const rows = items
-        .map((item) => ({
-          key: `${item.id}_${uid}`,
-          // 【2026-11-06 用户实机反馈"学分项名字"】biz_score_item.category 存拼音码(jifeng/tuceng,
-          // categoryName 接口未填充), 中文名全在 product——只取 product 展示, 拼音码不入 UI;
-          // 无名占位行(PC 录入网格空行)兜底"学分项"
-          name: item.product || '学分项',
-          score: Number(scores[`${item.id}_${uid}`] || 0)
-        }))
-        .filter((row) => row.score > 0)
-        .sort((a, b) => b.score - a.score)
-        .map((row) => ({ key: row.key, name: row.name, scoreText: `${row.score} 分` }))
-      this.setData({ loading: false, itemsView: buildItemsView(rows) })
+      // 【2026-11-07 用户令 A=理顺码系】按大类分组展示: categoryName 已由后端从 score_category
+      // 字典回填(与 PC 录入页同源), 组头=大类名+组内合计, 组内行=product+分值(降序);
+      // 无名占位行(PC 录入网格空行)归"未分类"组——数据侧补名后自动归位
+      const byCat = new Map()
+      for (const item of items) {
+        const scoreNum = Number(scores[`${item.id}_${uid}`] || 0)
+        if (!scoreNum) continue
+        const cat = item.categoryName || '未分类'
+        if (!byCat.has(cat)) byCat.set(cat, { key: cat, name: cat, rows: [], total: 0 })
+        const g = byCat.get(cat)
+        g.rows.push({ key: `${item.id}_${uid}`, name: item.product || '学分项', scoreNum })
+        g.total += scoreNum
+      }
+      const groups = Array.from(byCat.values()).map((g) => ({
+        key: g.key,
+        name: g.name,
+        totalText: `${g.total} 分`,
+        rows: g.rows
+          .sort((a, b) => b.scoreNum - a.scoreNum)
+          .map((row) => ({ key: row.key, name: row.name, scoreText: `${row.scoreNum} 分` }))
+      }))
+      this.setData({ loading: false, itemsView: buildItemsView(groups) })
     }).catch((error) => {
       this.setData({ loading: false })
       showError(error, '明细加载失败')

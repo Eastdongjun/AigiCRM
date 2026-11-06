@@ -84,6 +84,18 @@ public class ScoreService {
 
         // 所有学分项
         List<BizScoreItem> items = listItems();
+        // 【2026-11-07 用户令 A=理顺码系】大类中文名入 grid: category 存 score_category 字典的
+        // dict_value(拼音码), 中文名回填 categoryName——PC 录入页本就从字典取名, MP 明细页
+        // 行名/分组同源; 此前 categoryName 恒空, MP 只能拿 product 当名字
+        Map<String, String> catNameMap = new HashMap<>();
+        for (SysDictData d : dictService.listDataByCode("score_category")) {
+            catNameMap.put(d.getDictValue(), d.getDictLabel());
+        }
+        for (BizScoreItem it : items) {
+            if (it.getCategory() != null && catNameMap.containsKey(it.getCategory())) {
+                it.setCategoryName(catNameMap.get(it.getCategory()));
+            }
+        }
         result.put("items", items);
 
         // 全部启用用户（用于"添加同事"下拉的候选池）【2026-08-08 按账号数据范围过滤】

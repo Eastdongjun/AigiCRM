@@ -90,6 +90,11 @@ grep -q "buildDetailView" "$detail" || { echo "FAIL: mobile ranking detail displ
 grep -q "header.nameText" "$ROOT/aigicrm-miniprogram/pages/ranking/detail/index.wxml" || { echo "FAIL: mobile ranking detail WXML must render normalized name text" >&2; exit 1; }
 grep -q "header.metaText" "$ROOT/aigicrm-miniprogram/pages/ranking/detail/index.wxml" || { echo "FAIL: mobile ranking detail WXML must render normalized meta text" >&2; exit 1; }
 ! grep -Eq "\\|\\| '未命名用户'|\\|\\| '-'|\\{\\{nameInitial\\}\\}|\\{\\{score\\}\\}|\\{\\{period\\}\\}" "$ROOT/aigicrm-miniprogram/pages/ranking/detail/index.wxml" || { echo "FAIL: mobile ranking detail WXML must not keep fallback display logic" >&2; exit 1; }
+# 【2026-11-07 用户令 A=理顺码系】明细按大类分组与字典同源: 后端 getGrid 从 score_category 字典
+# 回填 categoryName, MP 明细页按 categoryName 分组展示(行名=product)——拼音码不入 UI
+grep -q 'listDataByCode("score_category")' "$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/score/service/ScoreService.java" || { echo "FAIL: grid must enrich categoryName from score_category dictionary" >&2; exit 1; }
+grep -q "item.categoryName" "$detail" || { echo "FAIL: mobile ranking detail must group by dictionary categoryName" >&2; exit 1; }
+grep -q "itemsView.groups" "$ROOT/aigicrm-miniprogram/pages/ranking/detail/index.wxml" || { echo "FAIL: mobile ranking detail WXML must render grouped breakdown" >&2; exit 1; }
 grep -q "@GetMapping(\"/ranking\")" "$backend" || { echo "FAIL: backend ranking route is missing" >&2; exit 1; }
 grep -q "@GetMapping(\"/ranking/stats\")" "$backend" || { echo "FAIL: backend ranking stats route is missing" >&2; exit 1; }
 grep -q "hasAuthority('score:view')" "$backend" || { echo "FAIL: backend ranking permission is missing" >&2; exit 1; }
