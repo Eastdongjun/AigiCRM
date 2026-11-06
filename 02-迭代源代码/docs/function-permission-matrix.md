@@ -243,7 +243,7 @@ Legend: `V` view, `C` create, `U` update, `D` delete, `I` import, `E` export, `A
 | 文件管理 | Rename/update folder | `PUT /api/file/folders/{id}` | `file:folder:manage` | Folder owner/ACL | Update | Yes | Implemented |
 | 文件管理 | Delete folder | `DELETE /api/file/folders/{id}` | `file:folder:manage` | Folder owner/ACL | Delete | Yes | Implemented |
 | 文件管理 | Delete file | `DELETE /api/file/{id}` | `file:delete` | File owner/ACL | Delete | Yes | Implemented |
-| 文件管理 | Replace file | `POST /api/file/{id}/replace` | `file:edit` | File owner/ACL | Replace | Yes | Implemented |
+| 文件管理 | Replace file | `POST /api/file/{id}/replace` | `file:edit` | File owner/ACL | Replace | Yes | Implemented (MP 无替换 UI 为有意现状, 2026-11-05 翻案恢复仅 PC 行内入口) |
 | 文件管理 | Storage stats | `GET /api/file/storage` | `file:view` | Current user/tenant | Read/statistics | Yes | Implemented |
 | 文件管理 | Download by id | `GET /api/file/download/{id}` | `file:view` | File ACL and token check | Download | Yes | Mobile preview/download |
 | 文件管理 | Public download | `GET /api/file/download/public/**` | Public token/path | Public share constraints | Download | Yes | Can preview if linked |
@@ -267,12 +267,12 @@ Legend: `V` view, `C` create, `U` update, `D` delete, `I` import, `E` export, `A
 | 四项服务 | Delete own/permitted record | `DELETE /api/incentive/records/{id}` | Service-layer ownership/permitted delete | Owner/permitted editor/admin | Delete | Yes | Implemented |
 | 四项服务 | Recalculate records | `POST /api/incentive/records/recalculate` | `incentive:edit` | Config/admin scope | Batch mutation | Yes | No |
 | 激励查询 | Customer score | `GET /api/incentive/score/customer/{customerId}` | `incentive:view` | Same incentive/customer visibility | Read/statistics | Yes | Implemented |
-| 激励查询 | Scoreboard | `GET /api/incentive/scoreboard` | `incentive:view` | Role/share/customer visibility | Read/statistics | Yes | Implemented |
-| 激励查询 | Ranking | `GET /api/incentive/ranking` | `incentive:view` | Role/share/customer visibility | Read/statistics | Yes | Implemented |
+| 激励查询 | Scoreboard | `GET /api/incentive/scoreboard` | `incentive:stats:view` ∨ `incentive:rank:view` | Role/share/customer visibility | Read/statistics | Yes | Implemented (V2026.11.04.1 逐功能建码) |
+| 激励查询 | Ranking | `GET /api/incentive/ranking` | `incentive:stats:view` ∨ `incentive:rank:view` | Role/share/customer visibility | Read/statistics | Yes | Implemented (V2026.11.04.1 逐功能建码) |
 | 激励查询 | Customer-record grouped list | `GET /api/incentive/customer-records` | `incentive:view` | Role/share/customer visibility | Read | Yes | Yes |
 | 激励查询 | Mark record read | `POST /api/incentive/records/{id}/read` | `incentive:view` | Current user and visible record | Read-state mutation | Yes | Yes |
 | 激励查询 | Read statistics | `GET /api/incentive/read-stats` | `incentive:read-stats` | Backend stats scope | Read/statistics | Yes | Yes |
-| 激励统计 | Category stats | `GET /api/incentive/category-stats` | `incentive:view` | Role/share/customer visibility | Read/statistics | Yes | Implemented |
+| 激励统计 | Category stats | `GET /api/incentive/category-stats` | `incentive:stats:view` | Role/share/customer visibility | Read/statistics | Yes | Implemented (V2026.11.04.1 逐功能建码) |
 | 激励配置 | User selector | `GET /api/incentive/users` | `incentive:view` | Backend user scope | Read | Yes | Implemented |
 | 激励授权 | Permission list | `GET /api/incentive/permission/list` | `system:config:view` | Config/admin scope | Read | Yes | No |
 | 激励授权 | Grant/revoke permission | `POST /api/incentive/permission/grant`, `DELETE /api/incentive/permission/{id}` | `system:config:edit` | Config/admin scope | Permission mutation | Yes | No |
@@ -374,7 +374,7 @@ Legend: `V` view, `C` create, `U` update, `D` delete, `I` import, `E` export, `A
 | Home | `pages/home/index` | Authenticated plus `dashboard:view` or `statistics:view` for dashboard cards | `/api/auth/info`, `/api/statistics/dashboard`, reminder pending/expiring APIs | Shows user, role, dashboard cards and quick entries when permitted |
 | Mobile Shell | `pages/app/index` | Authenticated and per-entry permission gates from `/api/auth/info` | No extra business API; navigates to registered mobile pages | Mobile counterpart of the PC left menu/application navigation; hides unauthorized app entries |
 | Customer | `pages/customer/index` | `customer:view`, plus action permissions | `/api/customer/list`, `/api/customer/{id}`, `/api/customer/list/counts`, customer form/share/log/contact/finance/indicator APIs | List/detail/counts, scoped create/edit/delete, share/release, logs, contacts create/edit/delete, finance create/delete, relationship score and six indicators are implemented; import/export stay PC-first |
-| File | `pages/files/index` | `file:view`, plus action permissions | `/api/file/list`, `/api/file/download-token`, `/api/file/upload`, folder/share/storage/shared-to-me/ACL read APIs | Unified file center; preview/download/upload/share/replace/delete/folder management/storage/shared-to-me/folder ACL read are implemented; ACL mutation stays PC-first |
+| File | `pages/files/index` | `file:view`, plus action permissions | `/api/file/list`, `/api/file/download-token`, `/api/file/upload`, folder/share/storage/shared-to-me APIs | Unified file center; preview/download/upload/share/replace/delete/folder management/storage/shared-to-me are implemented; folder ACL read popup removed 2026-11-05 (PC keeps permission settings); ACL mutation stays PC-first |
 | Incentive | `pages/incentive/index` | `incentive:view`, optional `incentive:add`, `incentive:read-stats`, `incentive:read-ranking:view` | `/api/incentive/customer-records`, `/records`, `/records/{id}/read`, `/read-stats`, `/read-ranking`, `/category-stats`, `/score/customer/{id}` | Query/detail/upload/edit/delete, file preview/download, read-state, read stats/ranking, category stats and customer score are implemented; category config stays PC-first |
 | Approval | `pages/approval/index` | `approval:view`, optional `approval:approve`, `approval:reject` | `/api/approval/list`, `/approve`, `/reject`, `/statistics` | Action buttons hidden without permissions; backend remains final guard |
 | Public Sea | `pages/sea/index` | `sea:view`, optional `sea:claim` and row edit/delete grant | `/api/sea/list`, `/statistics`, `/configs/visible`, `/claim-records`, shared approval submit and customer edit route | List/stats/pool selector, claim approval submission, claim records, permitted edit route and row delete are implemented; import/config stay PC-first |

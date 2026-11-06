@@ -14,6 +14,12 @@ const MAIN_TAB_PERMISSIONS = {
 }
 
 // 页签顺序（默认页签=该顺序中第一个有权者）
+// 【2026-11-06 整体检查 X2 已核】入口拆分后 incentive 页签无独立入口卡, 仅存于无参全榜模式
+// (应用中心激励排行的家=四项激励·激励统计卡 rank:view pane)。已核迁移链基线不存在
+// incentive:view 独占角色: admin/05行政/0销售总监/06销售员 全部同持 score:view(V2026.09.11.6
+// 四角色授予面), 行政缺 statistics:view 但 11-04 已随 incentive:view 节点回填 stats/rank 双码
+// (V2026.11.04.1)——"仅持 incentive:view 丢失排行入口"为理论形态, 若权限中心后续构造出该形态,
+// 补入口卡或给本页签改挂 rank:view 三方同步, 勿静默。
 const MAIN_TAB_ORDER = ['score', 'customer', 'incentive']
 
 // 页签标题（与 PC 菜单名对齐: 学分排行/客户排行; 激励排行=MP 排行页对激励个人榜的页面级命名）

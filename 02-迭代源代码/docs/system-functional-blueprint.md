@@ -66,7 +66,7 @@ Important boundary:
 | Login | `pages/login/index` | Public | Implemented | Account/password login, current-user profile, group switch and password recovery are implemented. |
 | Home | `pages/home/index` | Authenticated | Implemented | Shows profile and quick entries. |
 | Customer | `pages/customer/index` | `customer:view` | Implemented read-focused | Same backend customer list/detail/counts. |
-| File | `pages/files/index` | `file:view` | Implemented operations | Unified file center; legacy `pages/file/index` redirects here. Preview/download/upload/share/delete/folder management and ACL read are implemented; ACL mutation stays PC-only. |
+| File | `pages/files/index` | `file:view` | Implemented operations | Unified file center; legacy `pages/file/index` redirects here. Preview/download/upload/share/delete/folder management are implemented; folder ACL read popup removed 2026-11-05 (PC keeps permission settings); ACL mutation stays PC-only. |
 | Incentive | `pages/incentive/index` | `incentive:view` | Implemented query/upload/stats | Record query, upload/edit/delete, customer score, ranking, read-state and read stats are implemented; category config stays PC-only. |
 | Legacy incentive alias | `pages/cases/index`, `pages/cases/detail/index` | `incentive:view` | Compatibility alias | Historical links redirect to 四项服务 workbench/detail; they must not reintroduce a separate case concept or independent data source. |
 | Approval | `pages/approval/index` | `approval:view` | Implemented approve/reject | Action buttons gated by approve/reject permissions. |
@@ -202,7 +202,7 @@ Important boundary:
 | Operation types | Read, upload/create, update/replace, delete, share, ACL mutation, download. |
 | Business workflow | Create folder -> set ACL/download flag -> upload file -> list/search -> preview/download -> share/replace/delete when authorized. |
 | Statistics logic | Storage quota/used by user or tenant, shared count, file counts by folder/scope. |
-| Mobile status | File list, preview/download, upload, share, replace, file delete, folder create/rename/delete, storage stats, shared-to-me and folder ACL read are implemented. ACL mutation and download-setting changes stay PC-first. |
+| Mobile status | File list, preview/download, upload, share, replace, file delete, folder create/rename/delete, storage stats and shared-to-me are implemented. Folder ACL read popup removed 2026-11-05 (PC keeps permission settings); ACL mutation and download-setting changes stay PC-first. |
 
 ### 6.5 Incentive
 
@@ -417,7 +417,7 @@ Source references: dashboard `StatisticsQueryService.java:120-152`, daily/weekly
 | --- | --- | --- | --- |
 | Dashboard | `dashboard:view` | Approval widget uses approval permissions | Mobile dashboard/statistics cards implemented |
 | Customer | `customer:view` | `customer:add/edit/delete/import/export/share`, finance uses `finance:view` | Mobile create/edit/delete/share/release/finance/contact/indicator implemented; import/export remain PC-only |
-| File | `file:view` | `file:upload/edit/delete/share/folder:manage/acl:manage` | Mobile preview/download/upload/share/delete/folder management/ACL read implemented; ACL mutation remains PC-only |
+| File | `file:view` | `file:upload/edit/delete/share/folder:manage/acl:manage` | Mobile preview/download/upload/share/delete/folder management implemented; folder ACL read popup removed 2026-11-05 (PC keeps permission settings); ACL mutation remains PC-only |
 | Incentive | `incentive:view` | `incentive:add/edit/delete/read-stats` | Mobile query/upload/edit/delete/read-state/stats implemented; category config remains PC-only |
 | Reminder | `reminder:view` | Process uses same permission/service scope | Mobile list and process implemented; batch ensure remains PC/backend-first |
 | Public Sea | `sea:view` | `sea:claim/import/config:* / pool delete` | Mobile list/claim/edit/delete/claim-records implemented; import/config remain PC-only |
