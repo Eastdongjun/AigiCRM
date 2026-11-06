@@ -54,6 +54,9 @@ function createFolder(data) { return request({ url: '/api/file/folders', method:
 function renameFolder(id, folderName) { return request({ url: '/api/file/folders/' + id, method: 'PUT', data: { folderName } }) }
 function deleteFolder(id) { return request({ url: '/api/file/folders/' + id, method: 'DELETE' }) }
 function deleteFile(id) { return request({ url: '/api/file/' + id, method: 'DELETE' }) }
+// 【2026-11-06 用户令"加一个可以修改文件名称的"】文件重命名: PUT /api/file/{id}/rename
+// (file:edit 码+夹 edit, 与 replace 同门; 只改展示名, ossKey/类型/版本不动)
+function renameFile(id, fileName) { return request({ url: '/api/file/' + id + '/rename', method: 'PUT', data: { fileName } }) }
 // 【2026-11-05 用户令】文件夹权限只读通道随弹窗一并退役(MP 无权限设置实操作), PC 文件管理保留
 function getSharedToMe(params) { return request({ url: '/api/file/shared-to-me', data: params || {} }) }
 function getSharedToMeCount() { return request({ url: '/api/file/shared-to-me/count' }) }

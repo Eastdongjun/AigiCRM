@@ -109,6 +109,14 @@ public class FileController {
         return Result.ok(fileService.replaceFile(id, file));
     }
 
+    /** 【2026-11-06 用户令"加一个可以修改文件名称的"】文件重命名（细粒度权限与 replace 同门 checkFile(P_EDIT)） */
+    @PreAuthorize("hasAuthority('file:edit')")
+    @PutMapping("/{id}/rename")
+    public Result<Void> renameFile(@PathVariable Long id, @RequestBody Map<String, String> body) {
+        fileService.renameFile(id, body == null ? null : body.get("fileName"));
+        return Result.ok(null);
+    }
+
     @PreAuthorize("hasAuthority('file:view')")
     @GetMapping("/storage")
     public Result<Map<String, Object>> getStorageInfo() {

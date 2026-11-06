@@ -1,4 +1,4 @@
-const { getFolders, getStorageInfo, getStorageApplyInfo, getSharedToMe, getSharedToMeCount, getFileList, uploadFile, deleteFile, deleteFolder, shareFile: shareFileApi, getDownloadUrl, getDownloadToken, createFolder } = require('../../api/file')
+const { getFolders, getStorageInfo, getStorageApplyInfo, getSharedToMe, getSharedToMeCount, getFileList, uploadFile, deleteFile, renameFile, deleteFolder, shareFile: shareFileApi, getDownloadUrl, getDownloadToken, createFolder } = require('../../api/file')
 // 【2026-10-26 用户令"默认下载缓存"】预览文件本地缓存(同版本秒开, LRU 200MB 上限)
 const fileCache = require('../../utils/file-cache')
 const { getCustomerRecords } = require('../../api/incentive')
@@ -274,6 +274,9 @@ function buildFileRowView(item, data) {
   // 【需求A】行内按钮全部收进「⋯」半屏面板;打开保留为整行首选操作(点行=打开)
   const sheetActions = [{ key: 'open', label: '打开' }]
   if (showDownload) sheetActions.push({ key: 'download', label: '下载' })
+  // 【2026-11-06 用户令"加一个可以修改文件名称的"】重命名=file:edit+夹 edit(后端与 replace 同门
+  // checkFile P_EDIT); 门禁用当前夹 edit 权限位, 与上传的夹权限口径同级
+  if (folderPerms.includes('edit')) sheetActions.push({ key: 'rename', label: '重命名' })
   if (showShare) sheetActions.push({ key: 'share', label: '分享' })
   if (showDelete) sheetActions.push({ key: 'delete', label: '删除', danger: true })
   const sizePrefix = item.size && item.size !== '-' ? `${item.size} · ` : ''
@@ -368,7 +371,7 @@ function buildFileView(data) {
 }
 
 Page({
-  data: { keyword: '', activeTab: '公共', activeFolderId: '', activeFolderName: '', tabs: ['公共', '私人', '四项服务', '分享给我'], tabCounts: { 公共: 0, 私人: 0, 四项服务: 0, 分享给我: 0 }, folders: [], files: [], filteredFiles: [], capacity: { used: '-', total: '-', percent: 0, hint: '存储统计加载中' }, canUpload: false, canDelete: false, canShare: false, canManageFolder: false, canDevUploadSmoke: false, uploading: false, loaded: false, loading: false, page: 1, pageSize: 10, total: 0, folderPerms: [], folderDownloadable: 1, previewing: false, dlToken: '', previewVideoPath: '', actionSheet: { visible: false, index: -1, name: '', actions: [] }, storageApplyInfo: { enabled: false, canApply: false, reason: '', used: 0, quota: 0, maxQuota: 0, allowDecrease: false }, storageApplyForm: { visible: false, submitting: false, quotaInput: '', reasonInput: '', errorText: '' }, storageApplyView: buildStorageApplyView({}), folderSelect: { visible: false, mode: 'album', folders: [], selectedId: '', selectedName: '根目录' }, fileView: buildFileView({ tabs: ['公共', '私人', '四项服务', '分享给我'], tabCounts: { 公共: 0, 私人: 0, 四项服务: 0, 分享给我: 0 }, folders: [], filteredFiles: [], activeTab: '公共', activeFolderName: '', previewVideoPath: '', total: 0 }) },
+  data: { keyword: '', activeTab: '公共', activeFolderId: '', activeFolderName: '', tabs: ['公共', '私人', '四项服务', '分享给我'], tabCounts: { 公共: 0, 私人: 0, 四项服务: 0, 分享给我: 0 }, folders: [], files: [], filteredFiles: [], capacity: { used: '-', total: '-', percent: 0, hint: '存储统计加载中' }, canUpload: false, canDelete: false, canShare: false, canManageFolder: false, canDevUploadSmoke: false, uploading: false, loaded: false, loading: false, page: 1, pageSize: 10, total: 0, folderPerms: [], folderDownloadable: 1, previewing: false, dlToken: '', previewVideoPath: '', actionSheet: { visible: false, index: -1, name: '', actions: [] }, storageApplyInfo: { enabled: false, canApply: false, reason: '', used: 0, quota: 0, maxQuota: 0, allowDecrease: false }, storageApplyForm: { visible: false, submitting: false, quotaInput: '', reasonInput: '', errorText: '' }, storageApplyView: buildStorageApplyView({}), folderSelect: { visible: false, mode: 'album', folders: [], selectedId: '', selectedName: '根目录' }, renameModal: { visible: false, id: '', input: '' }, fileView: buildFileView({ tabs: ['公共', '私人', '四项服务', '分享给我'], tabCounts: { 公共: 0, 私人: 0, 四项服务: 0, 分享给我: 0 }, folders: [], filteredFiles: [], activeTab: '公共', activeFolderName: '', previewVideoPath: '', total: 0 }) },
 
   setFileData(patch) {
     const nextData = { ...this.data, ...patch }
@@ -1072,7 +1075,31 @@ Page({
     // 【2026-10-27 深度检查修复】预览走下载管线, 与下载同门: 无下载权限提前拦(缓存命中更不许绕过),
     // 否则文件夹 downloadable=0/无 download ACL 时点行只会打到后端 403 报"文件下载失败"
     if (!this.canDownloadItem(item)) return wx.showToast({ title: '该文件夹已关闭下载', icon: 'none' })
+    // 【2026-11-06 用户令"文件管理里图片可以预览的, 左右滑别忘了"】图片=当前视图内全部可下载图片
+    // 的签名直链整组进原生预览(点哪张从哪张起, 左右滑连续看), 不再单张一下载;
+    // dlToken 原本只在四项服务路径装载(公共/私人 tab 为空)→ 先 ensureDlToken(缓存 promise 秒回);
+    // 视频/文档/文本仍走缓存下载管线(openDownloadedFile); 组装不出直链组时退回单张下载预览
+    if (isImageRow(item) && item.id) {
+      this.ensureDlToken().then(() => {
+        const group = this.collectImagePreviewGroup(item)
+        if (group.urls.length) {
+          wx.previewImage({ urls: group.urls, current: group.current || group.urls[0], fail: (error) => showError(error, '图片预览失败') })
+          return
+        }
+        this.fetchFile(item, 'preview')
+      })
+      return
+    }
     this.fetchFile(item, 'preview')
+  },
+  // 同视图图片直链整组(与 thumb.wxs/四项服务行首小图同公式: dlToken 签名, 按行过下载权限)
+  collectImagePreviewGroup(tapped) {
+    const token = this.data.dlToken || ''
+    const rows = (this.data.filteredFiles || []).filter((row) => row && row.id && isImageRow(row) && this.canDownloadItem(row))
+    const urlOf = (row) => withDownloadToken(getDownloadUrl({ id: row.id, ossKey: row.ossKey || row.fileUrl }), token)
+    const urls = rows.map(urlOf).filter(Boolean)
+    const current = tapped && tapped.id ? urlOf(tapped) : ''
+    return { urls, current }
   },
   downloadFile(event) {
     const item = this.findFile(event)
@@ -1095,6 +1122,25 @@ Page({
         }).catch((error) => showError(error, '删除文件失败'))
       }
     })
+  },
+  // 【2026-11-06 用户令"加一个可以修改文件名称的"】重命名弹层: ⋯面板「重命名」进入
+  openRenameModal(event) {
+    const item = this.findFile(event)
+    if (!item || !item.id || String(item.id).startsWith('file-')) return wx.showToast({ title: '演示文件暂不可重命名', icon: 'none' })
+    this.setData({ renameModal: { visible: true, id: item.id, input: item.name || '' } })
+  },
+  onRenameInput(e) { this.setData({ 'renameModal.input': e.detail.value }) },
+  cancelRenameModal() { this.setData({ 'renameModal.visible': false }) },
+  confirmRename() {
+    const { id, input } = this.data.renameModal
+    const name = String(input || '').trim()
+    if (!name) return wx.showToast({ title: '文件名不能为空', icon: 'none' })
+    if (name.length > 200) return wx.showToast({ title: '文件名过长（不超过 200 字符）', icon: 'none' })
+    this.setData({ 'renameModal.visible': false })
+    renameFile(id, name).then(() => {
+      wx.showToast({ title: '已重命名', icon: 'success' })
+      this.data.activeFolderId ? this.openFolder({ currentTarget: { dataset: { id: this.data.activeFolderId, name: this.data.activeFolderName } } }) : this.loadFiles()
+    }).catch((error) => showError(error, '重命名失败'))
   },
   // 【2026-10-26 用户令"三个点不需要替换"】列表页替换处理器与状态位随面板替换入口一并移除;
   // 后端替换 API 与 PC 端能力不动, 详情页文件保留(契约仍钉其归一化字段与替换能力)。
@@ -1199,6 +1245,7 @@ Page({
     const synthetic = { currentTarget: { dataset: { index } } }
     if (act === 'open') return this.openFile(synthetic)
     if (act === 'download') return this.downloadFile(synthetic)
+    if (act === 'rename') return this.openRenameModal(synthetic)
     if (act === 'share') return this.shareFile(synthetic)
     if (act === 'delete') return this.removeFile(synthetic)
   },

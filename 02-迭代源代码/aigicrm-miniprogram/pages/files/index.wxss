@@ -223,4 +223,11 @@
 .folder-select-card .text-btn::after{border:0}
 .folder-select-card .text-btn{font-size:26rpx}
 .folder-select-empty{padding:22rpx 16rpx;color:#94a3b8;font-size:24rpx}
+/* 【2026-11-06 用户令"加一个可以修改文件名称的"】重命名弹层(样式与选夹面板同语言) */
+.rename-mask{padding-bottom:calc(130rpx + env(safe-area-inset-bottom))}
+.rename-card{max-width:620rpx}
+.rename-card .text-btn::after{border:0}
+.rename-card .text-btn{font-size:26rpx}
+.rename-input{margin-top:18rpx}
+.rename-confirm{width:100%;margin-top:28rpx;margin-bottom:calc(env(safe-area-inset-bottom) + 8rpx)}
 .folder-select-confirm{flex-shrink:0;margin-top:24rpx;margin-bottom:calc(env(safe-area-inset-bottom) + 8rpx);width:100%}

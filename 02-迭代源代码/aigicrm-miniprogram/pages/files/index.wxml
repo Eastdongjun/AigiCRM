@@ -122,4 +122,13 @@
       <button class="btn folder-select-confirm" bindtap="confirmFolderSelect">上传到这里</button>
     </view>
   </view>
+
+  <!-- 【2026-11-06 用户令"加一个可以修改文件名称的"】文件重命名弹层(⋯面板「重命名」进入) -->
+  <view wx:if="{{renameModal.visible}}" class="modal-mask rename-mask" catchtap="cancelRenameModal">
+    <view class="card modal-card rename-card" catchtap="noop">
+      <view class="modal-head"><view class="modal-title">重命名文件</view><button class="text-btn" bindtap="cancelRenameModal">取消</button></view>
+      <input class="input rename-input" value="{{renameModal.input}}" bindinput="onRenameInput" maxlength="200" placeholder="输入新的文件名" />
+      <button class="btn rename-confirm" bindtap="confirmRename">确认重命名</button>
+    </view>
+  </view>
 </view>

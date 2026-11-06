@@ -450,6 +450,30 @@ public class FileService {
     }
 
     /**
+     * 【2026-11-06 用户令"加一个可以修改文件名称的"】文件重命名: 只改 file_name 展示名,
+     * oss_key/oss_url/file_type/version 不动——物理对象与下载路由零变化。
+     * 权限与 replace 同门: file:edit 码 + 文件夹 edit(checkFile P_EDIT, 管理员/本人/上级链/ACL)。
+     * 校验: 去首尾空格非空、≤200 字符(与 biz_file.file_name 同宽); 不做扩展名强约束
+     * (类型字段沿用上传时白名单结果, 改名不重算类型)。
+     */
+    public void renameFile(Long fileId, String fileName) {
+        BizFile file = fileMapper.selectById(fileId);
+        if (file == null) throw new BusinessException("文件不存在");
+        Long userId = SecurityUtils.getCurrentUserId();
+        if (!folderPermissionService.checkFile(fileId, FolderPermissionService.P_EDIT, userId)) {
+            throw new BusinessException(403, "没有访问权限，请联系管理员授权");
+        }
+        String name = fileName == null ? "" : fileName.trim();
+        if (name.isEmpty()) throw new BusinessException("文件名不能为空");
+        if (name.length() > 200) throw new BusinessException("文件名过长（不超过 200 字符）");
+        if (name.equals(file.getFileName())) return;
+        BizFile patch = new BizFile();
+        patch.setId(fileId);
+        patch.setFileName(name);
+        fileMapper.updateById(patch);
+    }
+
+    /**
      * 【文件权限体系 Task 6】覆盖替换：新文件先存后删旧（避免先删旧后存储失败导致文件丢失）。
      * 更新 oss_key/oss_url/file_size/file_type/version+1/replace_by/replaced_at；
      * 私人文件按差额调整配额（storageUsed = 原已用 - 旧size + 新size，最小 0）。
