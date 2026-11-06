@@ -80,7 +80,10 @@ Page({
       const rows = items
         .map((item) => ({
           key: `${item.id}_${uid}`,
-          name: [item.category, item.product].filter(Boolean).join(' · ') || '学分项',
+          // 【2026-11-06 用户实机反馈"学分项名字"】biz_score_item.category 存拼音码(jifeng/tuceng,
+          // categoryName 接口未填充), 中文名全在 product——只取 product 展示, 拼音码不入 UI;
+          // 无名占位行(PC 录入网格空行)兜底"学分项"
+          name: item.product || '学分项',
           score: Number(scores[`${item.id}_${uid}`] || 0)
         }))
         .filter((row) => row.score > 0)
