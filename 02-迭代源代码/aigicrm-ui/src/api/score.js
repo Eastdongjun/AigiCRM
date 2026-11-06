@@ -27,3 +27,8 @@ export function getScoreRanking(params) {
 export function getScoreRankingStats(params) {
   return request.get('/score/ranking/stats', { params })
 }
+
+// 【2026-11-07 用户令"部门排行做成明细, PC端也一样"】部门成员明细(部门行点开弹窗)
+export function getScoreDeptMembers(params) {
+  return request.get('/score/ranking/dept-members', { params })
+}

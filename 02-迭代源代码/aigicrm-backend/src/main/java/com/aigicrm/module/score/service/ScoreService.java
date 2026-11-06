@@ -340,6 +340,36 @@ public class ScoreService {
         return result;
     }
 
+    /** 【2026-11-07 用户令"部门排行做成明细, PC端也一样"】部门成员明细: 复用个人排行按 officeName
+     *  收口(与 deptRanking 同一聚合口径), 返回部门摘要+成员列表(总分降序, 带公司名次)——
+     *  零新查询面, MP 明细页 dept 模式与 PC 排行页部门行弹窗共用 */
+    public Map<String, Object> deptMembers(String period, String deptName) {
+        if (deptName == null || deptName.isBlank()) throw new BusinessException("部门名不能为空");
+        List<Map<String, Object>> personal = ranking(period);
+        List<Map<String, Object>> members = new ArrayList<>();
+        int total = 0;
+        for (Map<String, Object> p : personal) {
+            if (!deptName.equals(p.getOrDefault("officeName", "未知"))) continue;
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("userId", p.get("userId"));
+            m.put("realName", p.get("realName"));
+            m.put("totalScore", p.get("totalScore"));
+            m.put("itemCount", p.get("itemCount"));
+            m.put("companyRank", p.get("rank"));
+            members.add(m);
+            total += (int) p.getOrDefault("totalScore", 0);
+        }
+        members.sort((a, b) -> (int) b.get("totalScore") - (int) a.get("totalScore"));
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("deptName", deptName);
+        result.put("period", period);
+        result.put("participantCount", members.size());
+        result.put("totalScore", total);
+        result.put("avgScore", members.isEmpty() ? 0 : Math.round((double) total / members.size() * 10) / 10.0);
+        result.put("members", members);
+        return result;
+    }
+
     public List<Map<String, Object>> deptRanking(String period) {
         List<Map<String, Object>> personal = ranking(period);
         // 按部门汇总

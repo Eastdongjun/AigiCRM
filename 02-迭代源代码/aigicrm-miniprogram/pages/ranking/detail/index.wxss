@@ -15,6 +15,11 @@
 .rd-group-name{color:#1d4ed8;font-size:27rpx;font-weight:800}
 .rd-group-total{color:#64748b;font-size:23rpx;font-weight:700}
 .rd-item-row{display:flex;justify-content:space-between;align-items:center;gap:16rpx;padding:16rpx 4rpx;border-bottom:1rpx solid #f1f5f9;padding-left:20rpx}
+/* 【2026-11-07 部门明细】成员行: 姓名+meta 两行左列, 分值右列, 可点钻个人明细 */
+.rd-members-summary{padding:14rpx 4rpx;color:#64748b;font-size:23rpx;font-weight:700}
+.rd-member-row{padding-top:18rpx;padding-bottom:18rpx}
+.rd-member-main{flex:1;min-width:0}
+.rd-member-meta{margin-top:6rpx;color:#94a3b8;font-size:21rpx}
 .rd-item-row:last-child{border-bottom:0}
 .rd-item-name{color:#334155;font-size:26rpx;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .rd-item-score{flex-shrink:0;color:#1d4ed8;font-size:26rpx;font-weight:800}

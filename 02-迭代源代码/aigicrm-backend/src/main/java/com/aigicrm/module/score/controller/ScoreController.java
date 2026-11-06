@@ -86,6 +86,16 @@ public class ScoreController {
         return Result.ok(scoreService.rankingStats(period));
     }
 
+    /** 【2026-11-07 用户令"部门排行做成明细, PC端也一样"】部门成员明细: 部门行点开看成员得分,
+     *  双端(MP 明细页 dept 模式 / PC 排行页部门行弹窗)共用; 与排行同门 score:view */
+    @GetMapping("/ranking/dept-members")
+    @PreAuthorize("hasAuthority('score:view')")
+    public Result<Map<String, Object>> deptMembers(
+            @RequestParam(required = false) String period,
+            @RequestParam String deptName) {
+        return Result.ok(scoreService.deptMembers(period, deptName));
+    }
+
     // ====== 导出 ======
 
     @GetMapping("/export/grid")

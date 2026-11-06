@@ -1,5 +1,5 @@
 const { requireLogin, hasPermission } = require('../../../utils/auth')
-const { getScoreGrid } = require('../../../api/score')
+const { getScoreGrid, getScoreDeptMembers } = require('../../../api/score')
 const { showError } = require('../../../utils/feedback')
 
 // 【2026-11-06 用户令"学分明细点进去要能看到具体明细,不是一个名字一个总分"+重设计 UI 注意骨架】
@@ -42,7 +42,8 @@ Page({
     period: '',
     loading: false,
     header: buildDetailView({}),
-    itemsView: buildItemsView([])
+    itemsView: buildItemsView([]),
+    membersView: { rows: [], summaryText: '' }
   },
 
   onLoad(options) {
@@ -81,7 +82,27 @@ Page({
       return
     }
     if (this.data.mode !== 'personal' || !this.data.userId) {
-      this.setData({ itemsView: buildItemsView([], '部门聚合行请回个人榜查看成员明细') })
+      // 【2026-11-07 用户令"部门排行做成明细, PC端也一样"】dept 模式=部门成员明细:
+      // 摘要(人数/合计/人均)+成员行(姓名+分值+公司名次), 点成员行钻到该成员的学分明细
+      this.setData({ loading: true })
+      getScoreDeptMembers({ period: this.data.period, deptName: this.data.header.nameText }).then((res) => {
+        const data = res && res.deptName ? res : (res && res.data) || res || {}
+        const rows = (data.members || []).map((m) => ({
+          key: String(m.userId),
+          name: m.realName || '未命名成员',
+          meta: `${m.itemCount || 0} 个文件 · 公司第 ${m.companyRank || '-'} 名`,
+          scoreText: `${m.totalScore || 0} 分`,
+          userId: m.userId,
+          score: m.totalScore || 0
+        }))
+        const summaryText = data.participantCount !== undefined
+          ? `共 ${data.participantCount} 人 · 合计 ${data.totalScore || 0} 分 · 人均 ${data.avgScore || 0} 分`
+          : ''
+        this.setData({ loading: false, membersView: { rows, summaryText } })
+      }).catch((error) => {
+        this.setData({ loading: false, membersView: { rows: [], summaryText: '' } })
+        showError(error, '部门明细加载失败')
+      })
       return
     }
     this.setData({ loading: true })
@@ -119,6 +140,21 @@ Page({
 
   applyState(patch) {
     this.setData(patch)
+  },
+
+  // 【2026-11-07 部门明细】点成员行 → 钻到该成员的学分明细(本页 personal 模式复用)
+  onMemberTap(event) {
+    const dataset = event.currentTarget.dataset || {}
+    if (!dataset.userId) return
+    const query = [
+      `name=${encodeURIComponent(dataset.name || '')}`,
+      `score=${encodeURIComponent(dataset.score || 0)}`,
+      `dept=${encodeURIComponent(this.data.header.nameText || '')}`,
+      `period=${encodeURIComponent(this.data.period || '')}`,
+      `userId=${encodeURIComponent(dataset.userId)}`,
+      `rank=${encodeURIComponent('')}`
+    ].join('&')
+    wx.navigateTo({ url: `/pages/ranking/detail/index?${query}` })
   },
 
   goBack() { wx.navigateBack() }

@@ -25,7 +25,24 @@
     </view>
   </view>
 
-  <!-- 得分明细区块: 按大类分组(组头=大类名+组内合计, 组内行=产品+分值) -->
+  <!-- 部门模式: 成员明细(点成员行钻到该成员的学分明细) -->
+  <block wx:if="{{mode === 'dept'}}">
+    <view class="section-title">成员明细</view>
+    <view class="card rd-items-card">
+      <view wx:if="{{membersView.summaryText}}" class="rd-members-summary">{{membersView.summaryText}}</view>
+      <view wx:for="{{membersView.rows}}" wx:for-item="row" wx:for-index="rowIndex" wx:key="key" class="rd-item-row rd-member-row" data-user-id="{{row.userId}}" data-name="{{row.name}}" data-score="{{row.score}}" bindtap="onMemberTap">
+        <view class="rd-member-main">
+          <view class="rd-item-name">{{row.name}}</view>
+          <view class="rd-member-meta">{{row.meta}}</view>
+        </view>
+        <text class="rd-item-score">{{row.scoreText}}</text>
+      </view>
+      <view wx:if="{{!membersView.rows.length}}" class="rd-empty muted">该部门暂无成员学分</view>
+    </view>
+  </block>
+
+  <!-- 个人模式: 得分明细按大类分组(组头=大类名+组内合计, 组内行=产品+分值) -->
+  <block wx:else>
   <view class="section-title">得分明细</view>
   <view class="card rd-items-card">
     <block wx:if="{{itemsView.groups.length}}">
@@ -42,4 +59,5 @@
     </block>
     <view wx:else class="rd-empty muted">{{itemsView.emptyText}}</view>
   </view>
+  </block>
 </view>

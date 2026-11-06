@@ -95,6 +95,11 @@ grep -q "header.metaText" "$ROOT/aigicrm-miniprogram/pages/ranking/detail/index.
 grep -q 'listDataByCode("score_category")' "$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/score/service/ScoreService.java" || { echo "FAIL: grid must enrich categoryName from score_category dictionary" >&2; exit 1; }
 grep -q "item.categoryName" "$detail" || { echo "FAIL: mobile ranking detail must group by dictionary categoryName" >&2; exit 1; }
 grep -q "itemsView.groups" "$ROOT/aigicrm-miniprogram/pages/ranking/detail/index.wxml" || { echo "FAIL: mobile ranking detail WXML must render grouped breakdown" >&2; exit 1; }
+# 【2026-11-07 用户令"部门排行做成明细, PC端也一样"】部门成员明细三件套:
+# 后端端点(score:view 同门)+MP api 封装+dept 模式消费; PC 弹窗经 PC 构建验证
+grep -q '@GetMapping("/ranking/dept-members")' "$backend" || { echo "FAIL: backend dept-members route is missing" >&2; exit 1; }
+grep -q "'/api/score/ranking/dept-members'" "$ROOT/aigicrm-miniprogram/api/score.js" || { echo "FAIL: mobile dept-members API wrapper is missing" >&2; exit 1; }
+grep -q "getScoreDeptMembers" "$detail" || { echo "FAIL: mobile ranking detail dept mode must load dept members" >&2; exit 1; }
 grep -q "@GetMapping(\"/ranking\")" "$backend" || { echo "FAIL: backend ranking route is missing" >&2; exit 1; }
 grep -q "@GetMapping(\"/ranking/stats\")" "$backend" || { echo "FAIL: backend ranking stats route is missing" >&2; exit 1; }
 grep -q "hasAuthority('score:view')" "$backend" || { echo "FAIL: backend ranking permission is missing" >&2; exit 1; }

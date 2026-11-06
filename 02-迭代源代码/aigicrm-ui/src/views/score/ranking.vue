@@ -84,7 +84,7 @@
       <div class="rank-header">
         <span class="rank-title">部门排行</span>
       </div>
-      <el-table :data="pagedDept" stripe style="width:100%" size="small" empty-text="本周期暂无部门学分记录，可在「学分录入」提交评分">
+      <el-table :data="pagedDept" stripe style="width:100%" size="small" empty-text="本周期暂无部门学分记录，可在「学分录入」提交评分" @row-click="openDeptDetail" :row-class-name="() => 'dept-clickable-row'">
         <el-table-column label="排名" min-width="60" align="center">
           <template #default="{ row }"><span class="rank-num">{{ row.rank }}</span></template>
         </el-table-column>
@@ -100,7 +100,28 @@
         </el-table-column>
       </el-table>
       <el-pagination v-if="deptList.length > pageSize" v-model:current-page="pageNum" :page-size="pageSize" :total="deptList.length" :page-sizes="pageSizes(pageSize)" layout="sizes, prev, pager, next, jumper" size="small" background @size-change="onSizeChange" style="justify-content:flex-end;margin-top:12px" />
+      <div class="rank-footer"><span class="footer-note">点击部门行可查看成员明细</span></div>
     </div>
+
+    <!-- 【2026-11-07 用户令"部门排行做成明细, PC端也一样"】部门成员明细弹窗 -->
+    <el-dialog v-model="deptDetailVisible" :title="deptDetail.deptName ? `部门明细 · ${deptDetail.deptName}` : '部门明细'" width="560px">
+      <div class="dept-detail-summary">
+        共 {{ deptDetail.participantCount }} 人 · 合计 {{ deptDetail.totalScore }} 分 · 人均 {{ deptDetail.avgScore }} 分（{{ deptDetail.period }}）
+      </div>
+      <el-table :data="deptDetail.members" size="small" stripe max-height="420" v-loading="deptDetailLoading">
+        <el-table-column label="姓名" prop="realName" min-width="110" />
+        <el-table-column label="总学分" min-width="90" align="right" header-align="right">
+          <template #default="{ row }"><strong>{{ row.totalScore }}分</strong></template>
+        </el-table-column>
+        <el-table-column label="文件数" min-width="80" align="right" header-align="right">
+          <template #default="{ row }">{{ row.itemCount }}个</template>
+        </el-table-column>
+        <el-table-column label="公司排名" min-width="90" align="center">
+          <template #default="{ row }">第 {{ row.companyRank }} 名</template>
+        </el-table-column>
+      </el-table>
+      <div v-if="!deptDetail.members.length && !deptDetailLoading" class="dept-detail-empty">该部门暂无成员学分</div>
+    </el-dialog>
 
     <el-dialog v-model="showRules" title="学分规则" width="500px">
       <p>1. 每年对所有同事进行产品知识评分</p>
@@ -114,7 +135,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { getScoreRanking, getScoreRankingStats } from '@/api/score'
+import { getScoreRanking, getScoreRankingStats, getScoreDeptMembers } from '@/api/score'
 import { buildPeriodOptions, defaultRecordPeriod } from '@/utils/incentive-period'
 import { useLiveRefresh } from '@/composables/useLiveRefresh'
 import { pageSizes } from '@/utils/pagination'
@@ -168,6 +189,25 @@ watch(activeTab, loadData)
 onMounted(loadData)
 // 【非实时 A 方案 2026-11-02】学分排行聚焦重拉+30s 轮询(页面可见时)
 useLiveRefresh(loadData)
+
+// 【2026-11-07 用户令"部门排行做成明细, PC端也一样"】部门行点开成员明细弹窗
+const deptDetailVisible = ref(false)
+const deptDetailLoading = ref(false)
+const deptDetail = ref({ deptName: '', period: '', participantCount: 0, totalScore: 0, avgScore: 0, members: [] })
+async function openDeptDetail(row) {
+  if (!row || !row.deptName) return
+  deptDetailVisible.value = true
+  deptDetailLoading.value = true
+  deptDetail.value = { deptName: row.deptName, period: selectedPeriod.value, participantCount: 0, totalScore: 0, avgScore: 0, members: [] }
+  try {
+    const res = await getScoreDeptMembers({ period: selectedPeriod.value, deptName: row.deptName })
+    deptDetail.value = res.data || deptDetail.value
+  } catch {
+    // 失败由 request 拦截器统一提示, 弹窗保留空态
+  } finally {
+    deptDetailLoading.value = false
+  }
+}
 </script>
 
 <style scoped>
@@ -217,4 +257,8 @@ useLiveRefresh(loadData)
 .rank-footer { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-top: 1px solid #ebeef5; flex-shrink: 0; }
 /* 2026-10-04 D15：移除"最近更新"假时间后，.footer-time 选择器一并清理（模板已无该 class） */
 .footer-note { color: #6b7280; font-size: 12px; }
+/* 【2026-11-07 部门明细弹窗】行可点手势+摘要/空态 */
+.dept-clickable-row { cursor: pointer; }
+.dept-detail-summary { margin-bottom: 12px; padding: 10px 12px; border-radius: 8px; background: #f0f6ff; color: #1d4ed8; font-size: 13px; font-weight: 600; }
+.dept-detail-empty { padding: 24px 0; text-align: center; color: #94a3b8; font-size: 13px; }
 </style>

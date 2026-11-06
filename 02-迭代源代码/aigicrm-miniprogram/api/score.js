@@ -18,4 +18,9 @@ function getScoreGrid(params) {
   return request({ url: '/api/score/grid', data: params || {} })
 }
 
-module.exports = { getScoreRanking, getRankingStats, getScoreGrid }
+// 【2026-11-07 用户令"部门排行做成明细"】部门成员明细: 部门行点开看成员得分(score:view 同门)
+function getScoreDeptMembers(params) {
+  return request({ url: '/api/score/ranking/dept-members', data: params || {} })
+}
+
+module.exports = { getScoreRanking, getRankingStats, getScoreGrid, getScoreDeptMembers }
