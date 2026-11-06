@@ -30,20 +30,10 @@
       </picker>
     </view>
   </view>
+  <!-- 【2026-11-07 用户令"骨架优化"】队列状态压缩单行: 摘要左+结果右(原 2×2 迷你卡与页签/筛选重复) -->
   <view class="approval-queue-card">
-    <view class="approval-queue-head">
-      <view>
-        <text>当前审批队列</text>
-        <view>{{approvalView.queueSummary}}</view>
-      </view>
-      <text>{{approvalView.queueResultText}}</text>
-    </view>
-    <view class="approval-queue-grid">
-      <view wx:for="{{approvalView.queueChips}}" wx:key="key">
-        <text>{{item.label}}</text>
-        <view>{{item.value}}</view>
-      </view>
-    </view>
+    <text class="approval-queue-summary">{{approvalView.queueSummary}}</text>
+    <text class="approval-queue-result">{{approvalView.queueResultText}}</text>
   </view>
   <view wx:if="{{approvalView.showLoading}}" class="card muted">{{approvalView.loadingText}}</view>
   <block wx:for="{{approvalView.list}}" wx:key="id">

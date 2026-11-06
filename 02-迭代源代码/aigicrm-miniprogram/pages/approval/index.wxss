@@ -12,16 +12,11 @@
 .approval-filter-row{display:flex;gap:14rpx;margin-top:14rpx}
 .approval-filter-row picker{flex:1;min-width:0}
 .approval-filter-chip{height:58rpx;line-height:58rpx;padding:0 18rpx;border:1rpx solid #dbeafe;border-radius:18rpx;background:#fff;color:#334155;font-size:24rpx;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.approval-queue-card{margin:0 0 18rpx;padding:20rpx 22rpx;border-radius:20rpx;background:#f8fbff}
-.approval-queue-head{display:flex;align-items:flex-start;justify-content:space-between;gap:18rpx}
-.approval-queue-head view{min-width:0}
-.approval-queue-head view text{display:block;color:#2563eb;font-size:21rpx;font-weight:850;line-height:28rpx}
-.approval-queue-head view view{margin-top:5rpx;overflow:hidden;color:#172033;font-size:28rpx;font-weight:900;line-height:36rpx;text-overflow:ellipsis;white-space:nowrap}
-.approval-queue-head>text{flex:none;padding:6rpx 12rpx;border-radius:999rpx;background:#eff6ff;color:#1d4ed8;font-size:20rpx;font-weight:800;line-height:26rpx}
-.approval-queue-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12rpx;margin-top:16rpx}
-.approval-queue-grid>view{min-width:0;padding:12rpx 14rpx;border-radius:14rpx;background:#fff}
-.approval-queue-grid text{display:block;overflow:hidden;color:#7c8ba1;font-size:20rpx;line-height:26rpx;text-overflow:ellipsis;white-space:nowrap}
-.approval-queue-grid view view{margin-top:4rpx;overflow:hidden;color:#334155;font-size:23rpx;font-weight:800;line-height:30rpx;text-overflow:ellipsis;white-space:nowrap}
+/* 【2026-11-07 用户令"骨架优化 边框优化 字体优化"】队列卡压缩单行: 摘要左(统一字阶)+结果徽标右;
+   原 2×2 迷你卡网格与页签/筛选信息重复, 连同 head 样式一并退役 */
+.approval-queue-card{display:flex;align-items:center;justify-content:space-between;gap:16rpx;margin:0 0 18rpx;padding:18rpx 22rpx;border-radius:20rpx;background:#f8fbff}
+.approval-queue-summary{flex:1;min-width:0;overflow:hidden;color:#334155;font-size:25rpx;font-weight:700;line-height:34rpx;text-overflow:ellipsis;white-space:nowrap}
+.approval-queue-result{flex:none;padding:6rpx 14rpx;border-radius:999rpx;background:#eff6ff;color:#1d4ed8;font-size:20rpx;font-weight:800;line-height:28rpx}
 .approval-action-row{display:flex;align-items:center;justify-content:flex-end;gap:10rpx;margin-top:18rpx;flex-wrap:wrap}
 .approval-action-row button{min-width:96rpx;height:50rpx;line-height:48rpx;margin:0;padding:0 18rpx;border-radius:14rpx;font-size:22rpx;font-weight:700}
 .approval-action-row button::after{border:0}

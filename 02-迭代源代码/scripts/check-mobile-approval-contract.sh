@@ -90,10 +90,12 @@ grep -Fq "全部部门" "$PAGE" || fail 'mobile approval department filter UI fa
 grep -Fq "bindchange=\"chooseType\"" "$WXML" || fail 'mobile approval type picker binding is missing'
 grep -Fq "bindchange=\"chooseDept\"" "$WXML" || fail 'mobile approval department picker binding is missing'
 grep -Fq "approval-tab-count" "$WXML" || fail 'mobile approval tab counts are missing'
-grep -Fq "当前审批队列" "$WXML" || fail 'mobile approval queue summary UI is missing'
+# 【2026-11-07 用户令"骨架优化 边框优化 字体优化"重锚】队列卡压缩单行(摘要左+结果徽标右):
+# 原"当前审批队列"标题与 2×2 queueChips 迷你卡和页签/筛选信息重复, 一并退役;
+# 规范化队列状态仍由 queueSummary/queueResultText 承载(PAGE 侧 queueChips 计算保留), 意图不变
 grep -Fq "approvalView.queueSummary" "$WXML" || fail 'mobile approval queue summary must use normalized view state'
-grep -Fq "approvalView.queueChips" "$WXML" || fail 'mobile approval queue chips must use normalized view state'
 grep -Fq "approvalView.queueResultText" "$WXML" || fail 'mobile approval queue result text must use normalized view state'
+grep -Fq "approval-queue-summary" "$WXSS" || fail 'mobile approval queue summary style is missing'
 grep -Fq 'approvedThisMonth' "$PAGE" || fail 'mobile approval stats must show PC approved-this-month metric'
 grep -Fq 'rejectedThisMonth' "$PAGE" || fail 'mobile approval stats must show PC rejected-this-month metric'
 grep -Fq '本月通过' "$PAGE" || fail 'mobile approval stats must show PC approved label'
