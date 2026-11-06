@@ -207,7 +207,8 @@ function filterStatDetailRecords(records, keyword) {
   const kw = String(keyword || '').trim().toLowerCase()
   if (!kw) return list
   return list.filter((item) => {
-    const hay = `${item.customerName || ''} ${item.userName || ''} ${item.remarkText || ''} ${item.categoryName || ''}`
+    // 【2026-11-06 用户令】弹层内二次筛同口径收紧: 去 remarkText 弱字段
+    const hay = `${item.customerName || ''} ${item.userName || ''} ${item.categoryName || ''}`
     return hay.toLowerCase().indexOf(kw) >= 0
   })
 }
@@ -796,7 +797,10 @@ Page({
     const startDate = this.data.startDate
     const endDate = this.data.endDate
     return records.filter((item) => {
-      const text = [item.customerName, item.name, item.summary, item.remark, item.description, item.relatedProducts, item.specificProduct, item.product].filter(Boolean).join(' ').toLowerCase()
+      // 【2026-11-06 用户令"检索关键字 无关的记录不用带出来"】本地过滤字段与后端同口径收紧:
+      // 只留强相关(客户名/关联产品/具体产品), 去掉 summary/remark/description 弱字段——
+      // 备注随口一提的记录不再被连带带出
+      const text = [item.customerName, item.name, item.relatedProducts, item.specificProduct, item.product].filter(Boolean).join(' ').toLowerCase()
       if (keyword && !text.includes(keyword)) return false
       if (industry && industry !== '全部行业' && item.industry !== industry) return false
       // 【I1】customer-records 按客户分组返回的行不带 devType/产品字段(devType 属客户、产品在子记录),

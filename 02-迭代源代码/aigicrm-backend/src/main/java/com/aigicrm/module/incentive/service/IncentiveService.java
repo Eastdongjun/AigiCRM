@@ -1188,6 +1188,9 @@ public class IncentiveService {
         }
         // 【2026-11-02 用户令: 深度检索】关键词命中扩到 备注(remark)+详情描述(preInstallQuestion),
         // 原只命中 相关产品/具体产品/客户名; 可见性过滤(applyShareVisibility)在 wrapper 最前,
+        // 【2026-11-06 用户令"检索关键字 无关的记录不用带出来"】关键词语义收紧: 只命中强相关三路
+        // (客户名集合 ∨ 关联产品 ∨ 具体产品); 撤 2026-11-02"深度检索"的 备注+安装前问题 两路弱字段
+        // ——备注随口一提的记录全被带出=无关记录噪音(契约钉已同步翻转为防复活)。
         // 深度检索只在用户有权看的记录集合内进行
         if (keyword != null && !keyword.isBlank()) {
             if (customerName != null && !customerName.isBlank()) {
@@ -1196,22 +1199,16 @@ public class IncentiveService {
                 );
                 if (matched.isEmpty()) {
                     wrapper.and(w -> w.like(BizIncentiveRecord::getRelatedProducts, keyword)
-                            .or().like(BizIncentiveRecord::getSpecificProduct, keyword)
-                            .or().like(BizIncentiveRecord::getRemark, keyword)
-                            .or().like(BizIncentiveRecord::getPreInstallQuestion, keyword));
+                            .or().like(BizIncentiveRecord::getSpecificProduct, keyword));
                 } else {
                     List<Long> cids = matched.stream().map(BizCustomer::getId).toList();
                     wrapper.and(w -> w.in(BizIncentiveRecord::getCustomerId, cids)
                         .or().like(BizIncentiveRecord::getRelatedProducts, keyword)
-                        .or().like(BizIncentiveRecord::getSpecificProduct, keyword)
-                        .or().like(BizIncentiveRecord::getRemark, keyword)
-                        .or().like(BizIncentiveRecord::getPreInstallQuestion, keyword));
+                        .or().like(BizIncentiveRecord::getSpecificProduct, keyword));
                 }
             } else {
                 wrapper.and(w -> w.like(BizIncentiveRecord::getRelatedProducts, keyword)
-                        .or().like(BizIncentiveRecord::getSpecificProduct, keyword)
-                        .or().like(BizIncentiveRecord::getRemark, keyword)
-                        .or().like(BizIncentiveRecord::getPreInstallQuestion, keyword));
+                        .or().like(BizIncentiveRecord::getSpecificProduct, keyword));
             }
         }
         if (salesperson != null && !salesperson.isBlank()) {
