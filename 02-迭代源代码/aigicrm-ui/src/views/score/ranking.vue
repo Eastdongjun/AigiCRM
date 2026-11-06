@@ -129,11 +129,26 @@
         {{ personalDetail.office }} · 公司第 {{ personalDetail.rank }} 名 · 合计 {{ personalDetail.totalScore }} 分 / {{ personalDetail.itemCount }} 个文件（{{ selectedPeriod }}）
       </div>
       <div v-loading="personalDetailLoading">
-        <div v-for="g in personalDetail.groups" :key="g.key" class="score-group">
-          <div class="score-group-head"><span class="score-group-name">{{ g.name }}</span><span class="score-group-total">{{ g.totalText }}</span></div>
-          <div v-for="r in g.rows" :key="r.key" class="score-group-row"><span>{{ r.name }}</span><span class="score-group-val">{{ r.scoreText }}</span></div>
-        </div>
-        <div v-if="!personalDetail.groups.length && !personalDetailLoading" class="dept-detail-empty">该成员本周期暂无得分</div>
+        <!-- 【2026-11-07 用户令"明细和录入的那里一样"】行结构对齐录入网格: #/大类/产品/区间/得分, 全部学分项按录入顺序 -->
+        <el-table :data="personalDetail.rows" size="small" stripe max-height="420">
+          <el-table-column label="#" type="index" width="44" align="center" />
+          <el-table-column label="大类" min-width="100">
+            <template #default="{ row }">{{ row.catName }}</template>
+          </el-table-column>
+          <el-table-column label="产品" min-width="180">
+            <template #default="{ row }">{{ row.product }}</template>
+          </el-table-column>
+          <el-table-column label="区间" min-width="80" align="center">
+            <template #default="{ row }">{{ row.rangeText }}</template>
+          </el-table-column>
+          <el-table-column label="得分" min-width="80" align="right" header-align="right">
+            <template #default="{ row }">
+              <strong v-if="row.score > 0" class="score-val">{{ row.score }}分</strong>
+              <span v-else class="score-zero">—</span>
+            </template>
+          </el-table-column>
+        </el-table>
+        <div v-if="!personalDetail.rows.length && !personalDetailLoading" class="dept-detail-empty">该成员本周期暂无得分</div>
       </div>
     </el-dialog>
 
@@ -224,38 +239,30 @@ async function openDeptDetail(row) {
 }
 
 // 【2026-11-07 用户令"分值明细能点进去看吗"】个人行点开学分明细弹窗: 数据与 MP 学分明细同源
-// (/score/grid + score_category 字典), 按大类分组展示(组头=中文名+组内合计, 行=product+分值)
+// (/score/grid + score_category 字典); 【同日用户令"明细和录入的那里一样"】行结构对齐录入网格:
+// 全部学分项按录入顺序, 列=#/大类/产品/区间/得分, 得分>0 蓝字、0 显"—"
 const personalDetailVisible = ref(false)
 const personalDetailLoading = ref(false)
-const personalDetail = ref({ name: '', office: '', rank: '', totalScore: 0, itemCount: 0, groups: [] })
+const personalDetail = ref({ name: '', office: '', rank: '', totalScore: 0, itemCount: 0, rows: [] })
 async function openPersonalDetail(row) {
   if (!row || !row.userId) return
   personalDetailVisible.value = true
   personalDetailLoading.value = true
-  personalDetail.value = { name: row.realName, office: row.officeName, rank: row.rank, totalScore: row.totalScore, itemCount: row.itemCount, groups: [] }
+  personalDetail.value = { name: row.realName, office: row.officeName, rank: row.rank, totalScore: row.totalScore, itemCount: row.itemCount, rows: [] }
   try {
     const res = await getScoreGrid(selectedPeriod.value)
     const data = res.data || {}
     const items = data.items || []
     const scores = data.scores || {}
     const uid = String(row.userId)
-    const byCat = new Map()
-    for (const item of items) {
-      const score = Number(scores[`${item.id}_${uid}`] || 0)
-      if (!score) continue
-      const cat = item.categoryName || '未分类'
-      if (!byCat.has(cat)) byCat.set(cat, { key: cat, name: cat, rows: [], total: 0 })
-      const g = byCat.get(cat)
-      g.rows.push({ key: `${item.id}_${uid}`, name: item.product || '学分项', score })
-      g.total += score
-    }
-    const groups = Array.from(byCat.values()).map((g) => ({
-      key: g.key,
-      name: g.name,
-      totalText: `${g.total} 分`,
-      rows: g.rows.sort((a, b) => b.score - a.score).map((r) => ({ key: r.key, name: r.name, scoreText: `${r.score} 分` }))
+    const rows = items.map((item) => ({
+      key: `${item.id}_${uid}`,
+      catName: item.categoryName || item.category || '未分类',
+      product: item.product || '学分项',
+      rangeText: `${item.scoreMin ?? '-'}~${item.scoreMax ?? '-'}`,
+      score: Number(scores[`${item.id}_${uid}`] || 0)
     }))
-    personalDetail.value = { ...personalDetail.value, groups }
+    personalDetail.value = { ...personalDetail.value, rows }
   } catch {
     // 失败由 request 拦截器统一提示, 弹窗保留空态
   } finally {
@@ -315,10 +322,6 @@ async function openPersonalDetail(row) {
 .dept-clickable-row { cursor: pointer; }
 .dept-detail-summary { margin-bottom: 12px; padding: 10px 12px; border-radius: 8px; background: #f0f6ff; color: #1d4ed8; font-size: 13px; font-weight: 600; }
 .dept-detail-empty { padding: 24px 0; text-align: center; color: #94a3b8; font-size: 13px; }
-.score-group { margin-bottom: 6px; }
-.score-group-head { display: flex; justify-content: space-between; padding: 8px 2px; border-bottom: 2px solid #eef4ff; }
-.score-group-name { color: #1d4ed8; font-size: 13px; font-weight: 800; }
-.score-group-total { color: #64748b; font-size: 12px; font-weight: 700; }
-.score-group-row { display: flex; justify-content: space-between; padding: 7px 2px 7px 14px; border-bottom: 1px solid #f1f5f9; color: #334155; font-size: 13px; }
-.score-group-val { color: #1d4ed8; font-weight: 700; }
+.score-val { color: #1d4ed8; }
+.score-zero { color: #c0c4cc; }
 </style>
