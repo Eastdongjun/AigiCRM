@@ -72,11 +72,20 @@ TOKEN=$(curl -sk -o /dev/null -w "" -X POST "$BASE/api/auth/login" -H "Origin: $
 AUTH="Authorization: Bearer $TOKEN"
 
 # [2] 核心 API(全部应 200 + code 200)
+# 【2026-11-07 网络抖动护栏】本机→生产链路偶发单端点空响应(失败项漂移、服务端资源/日志恒干净、
+# 手动复测恒过, 与同日 GitHub push 抖动同源): 空响应重试一次, 复测仍败才判 FAIL——
+# 真回归不会重试成功, 判定标准不放松; 重试通过会显式标注以便观察抖动频率
 for ep in "auth/info" "customer/list?page=1&size=2" "incentive/categories" "file/folders" \
           "reminder/list?page=1&size=2" "approval/list?page=1&size=2" "system/depts" \
           "statistics/dashboard" "system/configs" "system/roles"; do
   RESP=$(curl -sk -X GET "$BASE/api/$ep" -H "$AUTH" --connect-timeout 8)
   CODE=$(echo "$RESP" | python3 -c "import sys,json;print(json.load(sys.stdin).get('code','x'))" 2>/dev/null)
+  if [ "$CODE" != "200" ]; then
+    sleep 1
+    RESP=$(curl -sk -X GET "$BASE/api/$ep" -H "$AUTH" --connect-timeout 8)
+    CODE=$(echo "$RESP" | python3 -c "import sys,json;print(json.load(sys.stdin).get('code','x'))" 2>/dev/null)
+    if [ "$CODE" = "200" ]; then ok "/api/$ep (抖动重试通过)"; continue; fi
+  fi
   if [ "$CODE" = "200" ]; then ok "/api/$ep"; else bad "/api/$ep → code=$CODE"; fi
 done
 
@@ -115,6 +124,13 @@ for item in "incentive/categories" "incentive/records?page=1&size=2" "approval/l
             "file/folders" "reminder/list?page=1&size=2" "sea/statistics"; do
   RESP=$(curl -sk -X GET "$BASE/api/$item" -H "$AUTH" --connect-timeout 8)
   CODE=$(echo "$RESP" | python3 -c "import sys,json;print(json.load(sys.stdin).get('code','x'))" 2>/dev/null)
+  if [ "$CODE" != "200" ]; then
+    # 【2026-11-07 网络抖动护栏】同 [2] 段: 空响应重试一次, 复测仍败才判 FAIL
+    sleep 1
+    RESP=$(curl -sk -X GET "$BASE/api/$item" -H "$AUTH" --connect-timeout 8)
+    CODE=$(echo "$RESP" | python3 -c "import sys,json;print(json.load(sys.stdin).get('code','x'))" 2>/dev/null)
+    [ "$CODE" = "200" ] && { ok "回归: $item (抖动重试通过)"; continue; }
+  fi
   [ "$CODE" = "200" ] && ok "回归: $item" || bad "回归: $item → code=$CODE"
 done
 
