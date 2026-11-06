@@ -5,6 +5,28 @@ const { showError } = require('../../utils/feedback')
 // 【审核合规 2026-10-09】当前协议/隐私政策版本号(内容实质变更时更新,触发重新征得同意)
 const AGREEMENT_VERSION = 'v20261009'
 
+// ====== 记住账号/记住密码(2026-11-06 用户令) ======
+// 口径与 PC 端记住密码一致: 本地混淆存储(设备沙箱内, 非强加密——真保密强度依赖设备本身)。
+// 级联: 勾"记住密码"须先勾"记住账号"; 取消"记住账号"连带取消并清除已存值。
+const REMEMBER_KEYS = {
+  accountFlag: 'login_remember_account',
+  accessFlag: 'login_remember_access',
+  username: 'login_saved_username',
+  access: 'login_saved_access'
+}
+
+function encodeSaved(text) {
+  try { return wx.arrayBufferToBase64(new Uint8Array([...String(text)].map((c) => c.charCodeAt(0))).buffer) } catch (e) { return '' }
+}
+
+function decodeSaved(text) {
+  try {
+    let out = ''
+    new Uint8Array(wx.base64ToArrayBuffer(String(text))).forEach((b) => { out += String.fromCharCode(b) })
+    return out
+  } catch (e) { return '' }
+}
+
 function buildLoginView(state = {}) {
   const demoMode = Boolean(state.demoMode)
   return {
@@ -24,6 +46,9 @@ Page({
     demoMode: false,
     // 【审核合规 2026-10-09】收集用户信息(含手机号)前的授权同意状态,默认不勾选
     agreed: false,
+    // 【2026-11-06 用户令】记住账号/记住密码勾选态
+    rememberAccount: false,
+    rememberPassword: false,
     loginView: buildLoginView({})
   },
 
@@ -34,7 +59,67 @@ Page({
 
   onLoad() {
     this.applyState({ demoMode: getApp().globalData.demoMode })
+    this.restoreRemembered()
     this.resumeSessionIfPossible()
+  },
+
+  // 【2026-11-06 用户令"登录页怎么没记住密码按钮"】MP 登录页此前从未做过(10-17 那批是 PC 侧), 本次新做:
+  // 进页回填已存账号/密码并还原勾选态; 级联=记住密码依赖记住账号
+  restoreRemembered() {
+    try {
+      const accountFlag = wx.getStorageSync(REMEMBER_KEYS.accountFlag) === 1
+      const accessFlag = wx.getStorageSync(REMEMBER_KEYS.accessFlag) === 1
+      const username = wx.getStorageSync(REMEMBER_KEYS.username) || ''
+      const access = accountFlag && accessFlag ? decodeSaved(wx.getStorageSync(REMEMBER_KEYS.access)) : ''
+      this.setData({
+        rememberAccount: accountFlag,
+        rememberPassword: accountFlag && accessFlag,
+        username: accountFlag ? username : '',
+        password: accountFlag && accessFlag ? access : ''
+      })
+    } catch (e) { /* 存储异常不阻断登录页 */ }
+  },
+
+  toggleRememberAccount() {
+    const next = !this.data.rememberAccount
+    this.setData({ rememberAccount: next, rememberPassword: next ? this.data.rememberPassword : false })
+    if (!next) this.clearSavedAccess()
+  },
+
+  toggleRememberPassword() {
+    if (!this.data.rememberAccount) {
+      wx.showToast({ title: '请先勾选「记住账号」', icon: 'none' })
+      return
+    }
+    this.setData({ rememberPassword: !this.data.rememberPassword })
+  },
+
+  clearSavedAccess() {
+    try {
+      wx.removeStorageSync(REMEMBER_KEYS.access)
+      wx.removeStorageSync(REMEMBER_KEYS.accessFlag)
+      wx.removeStorageSync(REMEMBER_KEYS.username)
+      wx.removeStorageSync(REMEMBER_KEYS.accountFlag)
+    } catch (e) { /* 尽力而为 */ }
+  },
+
+  // 登录成功后按勾选态落盘/清除(在 then(user) 链内调用)
+  persistRemembered() {
+    try {
+      if (this.data.rememberAccount) {
+        wx.setStorageSync(REMEMBER_KEYS.accountFlag, 1)
+        wx.setStorageSync(REMEMBER_KEYS.username, this.data.username)
+        if (this.data.rememberPassword && this.data.password) {
+          wx.setStorageSync(REMEMBER_KEYS.accessFlag, 1)
+          wx.setStorageSync(REMEMBER_KEYS.access, encodeSaved(this.data.password))
+        } else {
+          wx.removeStorageSync(REMEMBER_KEYS.accessFlag)
+          wx.removeStorageSync(REMEMBER_KEYS.access)
+        }
+      } else {
+        this.clearSavedAccess()
+      }
+    } catch (e) { /* 存储失败不阻断登录 */ }
   },
 
   // 【真机UAT修复 2026-09-22】冷启入口页=登录页,已有有效令牌时自动回填会话并进入首页。
@@ -93,6 +178,8 @@ Page({
       if (!user) return
       // 同意留痕: 记录用户已同意的协议版本,便于后续版本升级时重新征得同意
       try { wx.setStorageSync('user_agreement_version', AGREEMENT_VERSION) } catch (e) { /* 存储失败不阻断登录 */ }
+      // 【2026-11-06 用户令】登录成功按勾选态持久化记住账号/密码
+      this.persistRemembered()
       wx.switchTab({ url: '/pages/home/index' })
     }).catch((err) => {
       showError(err, '登录失败')

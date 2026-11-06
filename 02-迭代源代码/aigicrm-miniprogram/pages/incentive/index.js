@@ -1553,7 +1553,33 @@ Page({
     const file = this.findStatDetailFile(event)
     if (!file) return
     if (getApp().globalData.demoMode) return wx.showToast({ title: '演示附件不可打开', icon: 'none' })
+    // 【2026-11-06 用户令"检索后的图片要能连续滑看"】图片=整组签名直链进原生预览(与聊天图片同交互,
+    // 左右滑连续看完本记录全部图片), 点哪张从哪张起; 此前单张下载预览一次只能看一张。
+    // 直链公式与 thumb.wxs 同源(去 thumbnail 参数); 视频/文档仍走 fetchAttachment 下载通道。
+    if (file.type === 'image' && file.id) {
+      const group = this.collectStatDetailImageUrls(event)
+      if (group.urls.length) {
+        return wx.previewImage({ urls: group.urls, current: group.current || group.urls[0], fail: (error) => showError(error, '图片预览失败') })
+      }
+    }
     return this.fetchAttachment(file, 'preview')
+  },
+
+  // 收集同一条记录内全部图片附件的签名直链; 当前点击的图片作为 current 起播
+  collectStatDetailImageUrls(event) {
+    const record = this.data.statDetail.records[event.currentTarget.dataset.detailIndex]
+    const apiBase = this.data.apiBase
+    const token = this.data.dlToken
+    const empty = { urls: [], current: '' }
+    if (!record || !apiBase || !token) return empty
+    const files = []
+    ;(record.files || []).forEach((f) => files.push(f))
+    ;(record.fileGroups || []).forEach((g) => (g.files || []).forEach((f) => files.push(f)))
+    const urlOf = (f) => apiBase + '/api/file/download/' + f.id + '?token=' + token
+    const urls = files.filter((f) => f && f.type === 'image' && f.id).map(urlOf)
+    const tapped = this.findStatDetailFile(event)
+    const current = tapped && tapped.type === 'image' && tapped.id ? urlOf(tapped) : ''
+    return { urls, current }
   },
 
   downloadStatDetailAttachment(event) {

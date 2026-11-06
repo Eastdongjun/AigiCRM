@@ -12,4 +12,10 @@ function getRankingStats(params) {
   return request({ url: '/api/score/ranking/stats', data: params || {} })
 }
 
-module.exports = { getScoreRanking, getRankingStats }
+// 【2026-11-06 用户令"学分明细要看真明细"】评分网格(按周期): items=学分项全集,
+// scores="itemId_userId"→得分——明细页据此拼单人逐项得分, 复用现有端点零后端改动
+function getScoreGrid(params) {
+  return request({ url: '/api/score/grid', data: params || {} })
+}
+
+module.exports = { getScoreRanking, getRankingStats, getScoreGrid }

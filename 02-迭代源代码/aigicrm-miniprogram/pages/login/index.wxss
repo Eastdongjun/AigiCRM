@@ -1,2 +1,5 @@
-/* 【P2-7 2026-10-19】登录页无页级样式: 全部继承 app.wxss 全局工具类
-   (.page/.login-panel/.input/.login-btn 等), 本文件为消除"页面缺 wxss"工具告警的一致性占位。 */
+/* 【P2-7 2026-10-19】登录页基础样式继承 app.wxss 全局工具类(.page/.login-panel/.input/.login-btn 等)。
+   【2026-11-06 用户令】新增记住账号/密码勾选行样式: */
+.remember-row{display:flex;gap:36rpx;margin-top:22rpx;padding:0 4rpx}
+.remember-item{display:flex;align-items:center;gap:10rpx;color:#677892;font-size:24rpx}
+.remember-item .agreement-check-box{flex-shrink:0}

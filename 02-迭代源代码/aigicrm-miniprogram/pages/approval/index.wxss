@@ -12,7 +12,7 @@
 .approval-filter-row{display:flex;gap:14rpx;margin-top:14rpx}
 .approval-filter-row picker{flex:1;min-width:0}
 .approval-filter-chip{height:58rpx;line-height:58rpx;padding:0 18rpx;border:1rpx solid #dbeafe;border-radius:18rpx;background:#fff;color:#334155;font-size:24rpx;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.approval-queue-card{margin:0 0 18rpx;padding:20rpx 22rpx;border:1rpx solid #dce8f6;border-radius:20rpx;background:#f8fbff}
+.approval-queue-card{margin:0 0 18rpx;padding:20rpx 22rpx;border-radius:20rpx;background:#f8fbff}
 .approval-queue-head{display:flex;align-items:flex-start;justify-content:space-between;gap:18rpx}
 .approval-queue-head view{min-width:0}
 .approval-queue-head view text{display:block;color:#2563eb;font-size:21rpx;font-weight:850;line-height:28rpx}

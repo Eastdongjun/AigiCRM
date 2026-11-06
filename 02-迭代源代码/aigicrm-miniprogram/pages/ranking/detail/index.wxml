@@ -2,18 +2,38 @@
   <view class="hero">
     <view class="row">
       <view>
-        <view class="hero-title">排行明细</view>
-        <view class="hero-sub">个人四项服务学分表现</view>
+        <view class="hero-title">学分明细</view>
+        <view class="hero-sub">{{header.subText}}</view>
       </view>
       <button class="ghost-btn" bindtap="goBack">返回</button>
     </view>
   </view>
 
-  <view class="card ranking-detail-card">
-    <view class="profile-avatar">{{rankingDetailView.nameInitialText}}</view>
-    <view class="ranking-detail-name">{{rankingDetailView.nameText}}</view>
-    <view class="ranking-detail-score">{{rankingDetailView.scoreText}}<text>分</text></view>
-    <view class="detail-row"><text>统计周期</text><text>{{rankingDetailView.periodText}}</text></view>
-    <view class="detail-row"><text>组织范围</text><text>{{rankingDetailView.deptText}}</text></view>
+  <!-- 紧凑头卡: 头像首字 + 姓名 + 名次徽标 | 总分右对齐大字; 周期/组织一行 meta -->
+  <view class="card rd-head-card">
+    <view class="rd-avatar">{{header.nameInitialText}}</view>
+    <view class="rd-main">
+      <view class="rd-name-row">
+        <text class="rd-name">{{header.nameText}}</text>
+        <view wx:if="{{header.rankText}}" class="rd-rank-badge">第 {{header.rankText}} 名</view>
+      </view>
+      <view class="rd-meta">{{header.metaText}}</view>
+    </view>
+    <view class="rd-score-box">
+      <text class="rd-score-num">{{header.scoreText}}</text>
+      <text class="rd-score-unit">分</text>
+    </view>
+  </view>
+
+  <!-- 得分明细区块 -->
+  <view class="section-title">得分明细</view>
+  <view class="card rd-items-card">
+    <block wx:if="{{itemsView.rows.length}}">
+      <view wx:for="{{itemsView.rows}}" wx:for-item="row" wx:for-index="rowIndex" wx:key="key" class="rd-item-row">
+        <text class="rd-item-name">{{row.name}}</text>
+        <text class="rd-item-score">{{row.scoreText}}</text>
+      </view>
+    </block>
+    <view wx:else class="rd-empty muted">{{itemsView.emptyText}}</view>
   </view>
 </view>

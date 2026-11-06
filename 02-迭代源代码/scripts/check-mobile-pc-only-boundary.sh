@@ -57,7 +57,8 @@ assert_absent '/api/approval/config' 'approval configuration'
 assert_absent '/api/incentive/records/recalculate' 'incentive batch recalculation'
 assert_absent '/api/incentive/permission/list' 'incentive permission administration'
 assert_absent '/api/incentive/permission/grant' 'incentive permission grant'
-assert_absent '/api/score/grid' 'score entry grid'
+# 【2026-11-06 重锚】/api/score/grid 只读明细源放开(MP 学分明细页拼逐项得分, score:view 同门,
+# 与排行同受众同粒度级; 录入面=PC)。仍禁: 批量写/导出/录入码——PC-only 录入边界原样
 assert_absent '/api/score/entries/batch' 'score batch entry'
 assert_absent '/api/score/export/grid' 'score export'
 if rg -n "/api/incentive/categories[^[:alnum:]_/].*method: '(POST|PUT|DELETE)'|/api/incentive/categories[^[:alnum:]_/].*method: \"(POST|PUT|DELETE)\"" "$MINI" >/tmp/aigicrm-mobile-pc-only-hit.txt; then

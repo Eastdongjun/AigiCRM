@@ -590,7 +590,10 @@ Page({
       `name=${encodeURIComponent(item.realName || item.deptName || '')}`,
       `score=${encodeURIComponent(item.totalScore || 0)}`,
       `dept=${encodeURIComponent(item.deptName || item.officeName || '')}`,
-      `period=${encodeURIComponent(period)}`
+      `period=${encodeURIComponent(period)}`,
+      // 【2026-11-06 用户令"学分明细要看真明细"】补 userId(拉评分网格拼逐项明细)+rank(头卡名次徽标)
+      `userId=${encodeURIComponent(item.userId || '')}`,
+      `rank=${encodeURIComponent(item.rank || '')}`
     ].join('&')
     wx.navigateTo({ url: `/pages/ranking/detail/index?${query}` })
   }

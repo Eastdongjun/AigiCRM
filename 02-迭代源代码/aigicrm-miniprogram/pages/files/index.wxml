@@ -116,6 +116,7 @@
       <view class="modal-head"><view class="modal-title">上传到文件夹</view><button class="text-btn" bindtap="cancelFolderSelect">取消</button></view>
       <view class="folder-select-list">
         <view class="folder-select-item {{folderSelect.selectedId === '' ? 'selected' : ''}}" data-id="" data-name="根目录" bindtap="selectFolderItem">根目录</view>
+        <view wx:if="{{folderSelect.folders.length === 0}}" class="folder-select-empty">当前分类暂无文件夹，将上传到根目录</view>
         <view wx:for="{{folderSelect.folders}}" wx:key="id" class="folder-select-item {{folderSelect.selectedId === item.id ? 'selected' : ''}}" data-id="{{item.id}}" data-name="{{item.rawName}}" bindtap="selectFolderItem">{{item.name}}</view>
       </view>
       <button class="btn folder-select-confirm" bindtap="confirmFolderSelect">上传到这里</button>

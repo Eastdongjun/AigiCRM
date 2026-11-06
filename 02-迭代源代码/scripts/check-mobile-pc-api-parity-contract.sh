@@ -115,7 +115,8 @@ assert_absent_in_miniprogram_api '/api/sea/configs"' "public sea config mutation
 assert_absent_in_miniprogram_api "/api/approval/config" "approval config"
 assert_absent_in_miniprogram_api "/api/incentive/records/recalculate" "incentive batch recalculation"
 assert_absent_in_miniprogram_api "/api/incentive/permission/grant" "incentive permission grant"
-assert_absent_in_miniprogram_api "/api/score/grid" "score entry grid"
+# 【2026-11-06 重锚】/api/score/grid 只读明细源放开(MP 学分明细页逐项得分, score:view 同门; 录入面=PC)——
+# 与 check-mobile-pc-only-boundary / check-mobile-ranking 两契约同批同理由; 仍禁批量写/导出
 assert_absent_in_miniprogram_api "/api/score/entries/batch" "score batch entry"
 assert_absent_in_miniprogram_api "/api/score/export/grid" "score export"
 

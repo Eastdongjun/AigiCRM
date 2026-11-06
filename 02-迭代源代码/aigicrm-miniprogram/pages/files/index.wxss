@@ -219,4 +219,8 @@
 .folder-select-list{flex:0 1 auto;min-height:0;overflow-y:auto;margin-top:6rpx}
 .folder-select-item{padding:20rpx 16rpx;border-bottom:1rpx solid #eef2f7;color:#1e293b;font-size:26rpx;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .folder-select-item.selected{color:#2563eb;background:#eef4ff;border-radius:12rpx;font-weight:800}
+/* 【2026-11-06 用户截图反馈】取消按钮带微信默认边框很突兀; 空分类给提示代替干列表 */
+.folder-select-card .text-btn::after{border:0}
+.folder-select-card .text-btn{font-size:26rpx}
+.folder-select-empty{padding:22rpx 16rpx;color:#94a3b8;font-size:24rpx}
 .folder-select-confirm{flex-shrink:0;margin-top:24rpx;margin-bottom:calc(env(safe-area-inset-bottom) + 8rpx);width:100%}
