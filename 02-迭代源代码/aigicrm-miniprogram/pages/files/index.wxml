@@ -111,8 +111,8 @@
   </view>
   <!-- 【2026-11-06 用户令"文件上传没选文件夹吗"】上传选文件夹面板(PC UploadDialog selectedFolderId 同口径):
        三入口统一先选文件夹再传; 根目录=空 id, 默认=当前浏览文件夹 -->
-  <view wx:if="{{folderSelect.visible}}" class="modal-mask" catchtap="cancelFolderSelect">
-    <view class="card modal-card" catchtap="noop">
+  <view wx:if="{{folderSelect.visible}}" class="modal-mask folder-select-mask" catchtap="cancelFolderSelect">
+    <view class="card modal-card folder-select-card" catchtap="noop">
       <view class="modal-head"><view class="modal-title">上传到文件夹</view><button class="text-btn" bindtap="cancelFolderSelect">取消</button></view>
       <view class="folder-select-list">
         <view class="folder-select-item {{folderSelect.selectedId === '' ? 'selected' : ''}}" data-id="" data-name="根目录" bindtap="selectFolderItem">根目录</view>
