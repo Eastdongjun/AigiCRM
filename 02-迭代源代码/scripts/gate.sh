@@ -131,17 +131,34 @@ if [ "${AIGI_MATRIX:-0}" = "1" ]; then
 fi
 
 # [8] 可选: 小程序真机渲染走查(显式开启才跑; 需微信开发者工具已登录+自动化端口 9424)
-# 【2026-11-07 守则D7】复盘条目1(MP 43页零单测, 页面级冒烟未进门禁)的第一步: 渲染走查可选档。
+# 【2026-11-07 守则D7/D8】复盘条目1(MP 43页零单测)门禁化: 定向渲染回归 + 43页全量走查双保险。
 if [ "${AIGI_MP_WALK:-0}" = "1" ]; then
   echo "--- [8] 小程序渲染走查 ---"
   if (echo > /dev/tcp/127.0.0.1/9424) >/dev/null 2>&1; then
     if node "$SCRIPT_DIR/miniprogram/verify-nested-alias-render.mjs" > /tmp/gate-mpwalk.log 2>&1; then
-      ok "小程序渲染走查(8页/零报错)"
+      ok "小程序定向渲染走查(8页/零报错)"
     else
-      bad "小程序渲染走查失败:"; grep -E "FAIL|RENDER_FAIL|console\.error" /tmp/gate-mpwalk.log | head -6
+      bad "小程序定向渲染走查失败:"; grep -E "FAIL|RENDER_FAIL|console\.error" /tmp/gate-mpwalk.log | head -6
+    fi
+    if node "$SCRIPT_DIR/miniprogram/walk-all-pages.mjs" > /tmp/gate-mpwalk-all.log 2>&1; then
+      WALK_OPEN=$(grep -oE '打开 [0-9]+/[0-9]+' /tmp/gate-mpwalk-all.log | head -1)
+      ok "小程序全量走查(43页) ${WALK_OPEN:-}"
+    else
+      bad "小程序全量走查失败:"; grep -E "^FAIL|WALK_RED" /tmp/gate-mpwalk-all.log | head -8
     fi
   else
     bad "AIGI_MP_WALK=1 但微信开发者工具自动化端口 9424 未开——先开 DevTools 并确认已登录(显式开启却缺环境=按失败处理, fail-closed)"
+  fi
+fi
+
+# [9] 可选: PC 类型检查基线对账(vue-tsc, 存量冻结新增即红; 全量跑约1-3分钟)
+# 【2026-11-07 守则D8】复盘条目1(PC 零类型检查)第一步落地; 全面类型化=独立批(存量561错)。
+if [ "${AIGI_TSC:-0}" = "1" ]; then
+  echo "--- [9] PC 类型检查(vue-tsc 基线) ---"
+  if bash "$SCRIPT_DIR/check-ui-typecheck.sh" > /tmp/gate-tsc.log 2>&1; then
+    ok "PC 类型检查基线对账"
+  else
+    bad "PC 类型检查失败:"; grep -E "FAIL|error TS" /tmp/gate-tsc.log | head -6
   fi
 fi
 
