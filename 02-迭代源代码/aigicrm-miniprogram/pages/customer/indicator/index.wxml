@@ -23,7 +23,7 @@
           <text class="pill">{{item.value}} 分</text>
         </view>
         <view class="score-grid refined-score-grid">
-          <block wx:for="{{item.optionsView}}" wx:for-item="option" wx:key="score">
+          <block wx:for="{{item.optionsView}}" wx:for-item="option" wx:for-index="scoreIdx" wx:key="score">
             <view class="{{option.className}}" data-field="{{item.field}}" data-score="{{option.score}}" bindtap="selectScore">
               <text>{{option.score}}分</text>
               <view>{{option.label}}</view>

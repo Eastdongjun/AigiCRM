@@ -20,6 +20,7 @@
         <view
           wx:for="{{module.entries}}"
           wx:for-item="app"
+          wx:for-index="appIdx"
           wx:key="key"
           class="ap-tile {{app.wide ? 'ap-tile-wide' : ''}}"
           hover-class="ap-tile-active"

@@ -110,7 +110,7 @@
         <swiper wx:if="{{block.files.length}}" class="slot-swiper" current="{{block.current}}"
                 data-list="install" data-view-index="{{block.viewIndex}}" data-slot-index="{{block.slotIndex}}"
                 data-count="{{block.files.length}}" bindchange="onSlotPageChange">
-          <swiper-item wx:for="{{block.files}}" wx:for-item="file" wx:key="fileKey">
+          <swiper-item wx:for="{{block.files}}" wx:for-item="file" wx:for-index="fileIdx" wx:key="fileKey">
             <view class="slot-file-page">
               <image wx:if="{{file.isImage}}" class="selected-file-thumb" src="{{file.thumbUrl || file.filePath}}" mode="aspectFill" catchtap="previewSelectedFile" data-index="{{block.slotIndex}}" data-file-index="{{file.fileIndex}}" />
               <view wx:else class="slot-type-thumb" catchtap="previewSelectedFile" data-index="{{block.slotIndex}}" data-file-index="{{file.fileIndex}}">
@@ -152,7 +152,7 @@
         <swiper wx:if="{{block.files.length}}" class="slot-swiper" current="{{block.current}}"
                 data-list="track" data-view-index="{{block.viewIndex}}" data-slot-index="{{block.slotIndex}}"
                 data-count="{{block.files.length}}" bindchange="onSlotPageChange">
-          <swiper-item wx:for="{{block.files}}" wx:for-item="file" wx:key="fileKey">
+          <swiper-item wx:for="{{block.files}}" wx:for-item="file" wx:for-index="fileIdx" wx:key="fileKey">
             <view class="slot-file-page">
               <image wx:if="{{file.isImage}}" class="selected-file-thumb" src="{{file.thumbUrl || file.filePath}}" mode="aspectFill" catchtap="previewSelectedFile" data-index="{{block.slotIndex}}" data-file-index="{{file.fileIndex}}" />
               <view wx:else class="slot-type-thumb" catchtap="previewSelectedFile" data-index="{{block.slotIndex}}" data-file-index="{{file.fileIndex}}">

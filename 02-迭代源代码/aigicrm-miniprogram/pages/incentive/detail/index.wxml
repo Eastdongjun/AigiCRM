@@ -100,7 +100,7 @@
             <text class="meta-score" style="color: {{item.scoreColor}};">{{item.scoreText}}</text>
           </view>
           <view class="meta-chips">
-            <view wx:for="{{item.chips}}" wx:for-item="chip" wx:key="label" class="meta-chip">
+            <view wx:for="{{item.chips}}" wx:for-item="chip" wx:for-index="chipIdx" wx:key="label" class="meta-chip">
               <text class="chip-label">{{chip.label}}</text>
               <text class="chip-text">{{chip.text}}</text>
             </view>
@@ -120,7 +120,7 @@
         <view wx:if="{{item.showFilesBlock}}" class="eblock files-block">
           <view class="eblock-label">{{item.countText}}</view>
           <view class="files-grid">
-            <view wx:for="{{item.files}}" wx:for-item="file" wx:key="fileIndex" class="file-tile">
+            <view wx:for="{{item.files}}" wx:for-item="file" wx:for-index="fileIdx" wx:key="fileIndex" class="file-tile">
               <image
                 wx:if="{{file.showThumb}}"
                 class="file-thumb"

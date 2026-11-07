@@ -253,16 +253,16 @@
             <view class="rank-subhead">
               <text class="rsh rth-score"></text>
               <text class="rsh rth-total"></text>
-              <block wx:for="{{rankParents}}" wx:key="id" wx:for-item="parent">
-                <text wx:for="{{parent.children}}" wx:key="id" class="rsh rth-sub">{{item.categoryName}}</text>
+              <block wx:for="{{rankParents}}" wx:key="id" wx:for-item="parent" wx:for-index="parentIdx">
+                <text wx:for="{{parent.children}}" wx:key="id" wx:for-item="child" wx:for-index="childIdx" class="rsh rth-sub">{{child.categoryName}}</text>
               </block>
             </view>
             <block wx:for="{{customerRankPaged}}" wx:key="id">
               <view class="rank-table-row">
                 <view class="rtd rtd-score"><text class="score-pill">{{item.scoreNum}}<text class="pill-unit">分</text></text></view>
                 <view class="rtd rtd-total">{{item.recordCountText}}</view>
-                <block wx:for="{{rankParents}}" wx:key="id" wx:for-item="parent">
-                  <block wx:for="{{parent.children}}" wx:key="id" wx:for-item="child">
+                <block wx:for="{{rankParents}}" wx:key="id" wx:for-item="parent" wx:for-index="parentIdx">
+                  <block wx:for="{{parent.children}}" wx:key="id" wx:for-item="child" wx:for-index="childIdx">
                     <view class="rtd rtd-cat">
                       <block wx:if="{{item.byCategory[child.id]}}">
                         <text class="cat-cnt">{{item.byCategory[child.id][0]}}条</text>
@@ -320,16 +320,16 @@
             <view class="rank-subhead">
               <text class="rsh rth-score"></text>
               <text class="rsh rth-total"></text>
-              <block wx:for="{{rankParents}}" wx:key="id" wx:for-item="parent">
-                <text wx:for="{{parent.children}}" wx:key="id" class="rsh rth-sub">{{item.categoryName}}</text>
+              <block wx:for="{{rankParents}}" wx:key="id" wx:for-item="parent" wx:for-index="parentIdx">
+                <text wx:for="{{parent.children}}" wx:key="id" wx:for-item="child" wx:for-index="childIdx" class="rsh rth-sub">{{child.categoryName}}</text>
               </block>
             </view>
             <block wx:for="{{scoreboardPaged}}" wx:key="id" wx:for-item="row">
               <view class="rank-table-row">
                 <view class="rtd rtd-score"><text class="score-pill">{{row.scoreNum}}<text class="pill-unit">分</text></text></view>
                 <view class="rtd rtd-total">{{row.recordCountText}}</view>
-                <block wx:for="{{rankParents}}" wx:key="id" wx:for-item="parent">
-                  <block wx:for="{{parent.children}}" wx:key="id" wx:for-item="child">
+                <block wx:for="{{rankParents}}" wx:key="id" wx:for-item="parent" wx:for-index="parentIdx">
+                  <block wx:for="{{parent.children}}" wx:key="id" wx:for-item="child" wx:for-index="childIdx">
                     <view class="rtd rtd-cat">
                       <block wx:if="{{row.byCategory[child.id]}}">
                         <text class="cat-cnt">{{row.byCategory[child.id][0]}}条</text>
