@@ -4,6 +4,7 @@
 #   完整档: 后端全量测试 + 前端测试/构建 + 人工文档新鲜度 + 工作区检查
 #   --quick: 跳过前端构建(只跑测试), 用于迭代中间快速自检
 # 可选: AIGI_MATRIX=1 追加权限矩阵回归(需测试环境账号, 见 verify-perm-matrix.sh)
+# 可选: AIGI_MP_WALK=1 追加小程序真机渲染走查(需打开微信开发者工具+自动化端口 9424, 见 scripts/miniprogram/verify-nested-alias-render.mjs)
 # 退出码: 0=全过, 1=任一必需项失败。CI/交付前必须跑完整档。
 # 【F2 2026-10-21】补齐门禁覆盖:
 #   [2b] 由内联 node --check 收敛为 dev-verify.sh miniprogram(含绑定/类名/JSON/app.json 契约);
@@ -126,6 +127,21 @@ if [ "${AIGI_MATRIX:-0}" = "1" ]; then
     ok "权限矩阵回归"
   else
     bad "权限矩阵回归失败:"; grep "FAIL" /tmp/gate-matrix.log | head -5
+  fi
+fi
+
+# [8] 可选: 小程序真机渲染走查(显式开启才跑; 需微信开发者工具已登录+自动化端口 9424)
+# 【2026-11-07 守则D7】复盘条目1(MP 43页零单测, 页面级冒烟未进门禁)的第一步: 渲染走查可选档。
+if [ "${AIGI_MP_WALK:-0}" = "1" ]; then
+  echo "--- [8] 小程序渲染走查 ---"
+  if (echo > /dev/tcp/127.0.0.1/9424) >/dev/null 2>&1; then
+    if node "$SCRIPT_DIR/miniprogram/verify-nested-alias-render.mjs" > /tmp/gate-mpwalk.log 2>&1; then
+      ok "小程序渲染走查(8页/零报错)"
+    else
+      bad "小程序渲染走查失败:"; grep -E "FAIL|RENDER_FAIL|console\.error" /tmp/gate-mpwalk.log | head -6
+    fi
+  else
+    bad "AIGI_MP_WALK=1 但微信开发者工具自动化端口 9424 未开——先开 DevTools 并确认已登录(显式开启却缺环境=按失败处理, fail-closed)"
   fi
 fi
 

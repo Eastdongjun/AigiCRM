@@ -45,3 +45,21 @@
 - 公开下载攻击面:4 组匿名探针(穿越 403×2、越段 404、真实 logo 200)。
 - 停用会话:NO001 三段探针(停用前 200/停用后 401/恢复后 200,测试环境,已恢复)。
 - 403 审计:SecurityConfig.auditAccessDenied 代码确认(BS-A09)。
+
+## 2026-11-07 复核(工程纪律守则 T7 闭环要求: V2 池项逐项核现状)
+
+| 项 | 复核结论 | 证据(11-07 实码) | 复验标准/触发条件 |
+|---|---|---|---|
+| P0-001 跨集团迁移协议 | **维持 V2**(单集团仍无暴露) | 全代码库无第二集团分支逻辑;产品裁决 P0-002 仍有效 | 引入第二集团时立项 |
+| P0-004 execution 凭据表 | **维持 V2**(表仍不存在) | `grep -rn ApprovalExecution` 全仓零命中 | 审批并发化或接外部系统时立项 |
+| P0-005 claim/extend TOCTOU | **维持 V2**(窗口仍存在) | submit 的存储配额已做库端规范化(226-236);transfer 审批时重解析 extraData(324);claim/extend 无背景快照 | 出现多审批人/高并发场景时,先做 claim/extend 背景快照 |
+| P0-006 用户撤回入口 | **维持 V2**(无入口) | SeaService+controller `grep 撤回/withdraw/revoke` 零命中 | 用户提出"锁错人要撤"需求时立项(纯增量功能) |
+| P0-008 激励权限解耦 | **维持 V2**(耦合保持) | IncentiveService:78 canEdit 与 :189 canSeeAllIncentive 独立存在,授权面板语义未变 | 解耦需存量授权迁移方案,先出设计再令 |
+
+### 同日取证修正: "凭据明文入仓"(复盘#13, 原判 unconfirmed)
+
+git 全历史考古(`git log --all --diff-filter=A --name-only`)结论:
+- `settings.local.json` 唯一入史形态 = **`.claude/settings.local.json`(初始提交 8104f9e7), 内容仅 Claude 工具 permissions.allow 配置, 零凭据**, 且 HEAD 不可达;
+- `deploy.env` 系列入史者**全部为 example 模板**(cf381790 等 4 提交均模板);`*.pem`/`*.key` **从未入史**;
+- .gitignore 防线在位(.gitignore:20/21/28/29)。
+**修正**: "生产凭据明文入仓"在 git 历史层面不成立。真实残留风险两项: ①生产每日备份 tar 是否含 SSH 私钥(2026-11-07 服务器现场核验, 见守则台账 D5); ②口令轮换记录 repo 内无法证实(建议用户侧确认一轮)。07-31 审查报告 §四 的表述以当时工作树为准, 现状已改善。
