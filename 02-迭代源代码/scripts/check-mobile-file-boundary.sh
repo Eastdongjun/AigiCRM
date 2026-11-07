@@ -131,7 +131,10 @@ grep -Fq 'this._dlTokenUserId !== userId' "$PAGE" || fail 'mobile files dlToken 
 # 【2026-10-26 二令"还是做成之前列表展示,但列表要呈现预览的小图"】四项服务 tab 回归时间分组
 # 列表行, 行首图片=缩略小图(短时效 1h dlToken URL); 同日更早的图片墙(墙瓦片/previewWallImage)退役
 grep -Fq 'function isImageRow(item)' "$PAGE" || fail 'mobile file incentive row thumbnail classifier is missing'
-grep -Fq "rowThumbUrl = data.activeTab === '四项服务' && isImageRow(item)" "$PAGE" || fail 'mobile file incentive rows must build thumbnails for the incentive tab only'
+grep -Fq "const rowThumbUrl = isImageRow(item)" "$PAGE" || fail 'mobile file rows must build thumbnails for image rows on ALL tabs (11-07 用户报障: 公共/私人页签图片无预览, 原钉只认四项服务)'
+# 【2026-11-07 P1 修复防复活】renameFile 必须在 api/file.js 导出清单里——曾漏导出致页面解构 undefined,
+#   点确认改名必抛 "renameFile is not a function"(11-06 E2E 只测了后端直连未测 UI 链路, 双层失察)
+grep -Fq '  renameFile,' "$API" || fail 'mobile file API must export renameFile (11-07 P1: 漏导出致重命名必败)'
 grep -Fq 'withDownloadToken(getDownloadUrl({ id: item.id, ossKey: item.ossKey || item.fileUrl }, true), data.dlToken' "$PAGE" || fail 'mobile file row thumbnails must carry the short-TTL download token'
 # 【性能 2026-10-27】四项服务 tab 页内切换 30s 缓存窗: 复用已拉取全量行只重放本地过滤,
 # 不再每次点 tab 全量重拉(生产 ~1700 行); forceRefresh.incentive 只读击穿(消费权在轻量页),

@@ -95,6 +95,7 @@ module.exports = {
   getFolders,
   createFolder,
   renameFolder,
+  renameFile,
   deleteFolder,
   deleteFile,
   getSharedToMe,

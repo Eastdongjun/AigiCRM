@@ -280,9 +280,11 @@ function buildFileRowView(item, data) {
   if (showShare) sheetActions.push({ key: 'share', label: '分享' })
   if (showDelete) sheetActions.push({ key: 'delete', label: '删除', danger: true })
   const sizePrefix = item.size && item.size !== '-' ? `${item.size} · ` : ''
-  // 【2026-10-26 用户令"还是做成之前列表展示,但列表要呈现预览的小图"】四项服务行首图片=缩略小图
-  // (短时效 dlToken URL, 无 token/非图片退化为类型色块, 不阻塞列表), 其余 tab 保持类型色块
-  const rowThumbUrl = data.activeTab === '四项服务' && isImageRow(item)
+  // 【2026-11-07 用户报障"上传里面的图片缺少预览"】行首缩略图原只在四项服务页签构建(10-26 批口径),
+  //   公共/私人/分享给我页签的图片行永远只有类型色块——上传默认落公共/私人, 用户传完图看不到预览。
+  //   改为全页签构建; dlToken 未就绪时 withDownloadToken 返空串=仍退化为类型色块(不破图)。
+  //   token 装载前置见 loadFiles(ensureDlToken 后再渲染)。
+  const rowThumbUrl = isImageRow(item)
     ? withDownloadToken(getDownloadUrl({ id: item.id, ossKey: item.ossKey || item.fileUrl }, true), data.dlToken || '')
     : ''
   return {
@@ -584,6 +586,9 @@ Page({
     if (requestSeq !== this._filesReqSeq) return
     const folderNames = folderNameLookup(folders)
     const normalizedFiles = files.map((item, index) => this.normalizeFile(item, index, folderNames))
+    // 【2026-11-07 缩略图全页签】公共/私人页签此前不装 dlToken(只在四项服务路径装载), 行首缩略 URL
+    //   拿不到 token 恒退化色块——渲染前 ensureDlToken(缓存 promise 秒回; 失败返空=优雅退化不阻塞列表)
+    await this.ensureDlToken().catch(() => '')
     // 分页替换语义：只保留当前页；flatIndex 由 buildFileView 按 filteredFiles 重新编号
     this.setFileData({ folders, files: normalizedFiles, filteredFiles: this.filterFiles(normalizedFiles), capacity, loaded: true, loading: false, page, pageSize, total: failed ? 0 : total })
     if (!failed && page === 1) this.loadTabCounts()
