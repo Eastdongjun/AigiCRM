@@ -607,6 +607,9 @@ local_contracts() {
   run bash "$ROOT/scripts/test-sea-claim-matrix-safety.sh"
   run "$ROOT/scripts/check-prototype-state-contract.sh"
   run python3 "$ROOT/scripts/check-mobile-navigation-contract.py"
+  # 【2026-11-07 工程纪律守则】复盘25条错误固化的七段机器执法层(假绿写法/显式出口/迁移硬编码id/
+  #   部署钉/凭据入仓/嵌套wx:for基线/自登记防复活), 守则=docs/工程纪律守则-20261107.md
+  run "$ROOT/scripts/check-discipline-gates.sh"
 }
 
 changed_files() {

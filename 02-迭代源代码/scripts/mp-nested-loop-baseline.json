@@ -1,0 +1,11 @@
+{
+  "_comment": "嵌套 wx:for 缺显式别名(item+index)违例冻结基线 · 2026-11-07 复盘T10 执法。只防新增不逼存量: 新文件出现违例或某文件计数超过此表=FAIL; 存量为登记在案的债务(docs/工程纪律守则-20261107.md 台账), 清一处就把数字改小或删行。",
+  "aigicrm-miniprogram/pages/app/index.wxml": 1,
+  "aigicrm-miniprogram/pages/customer/form/index.wxml": 1,
+  "aigicrm-miniprogram/pages/customer/indicator/index.wxml": 1,
+  "aigicrm-miniprogram/pages/files/index.wxml": 1,
+  "aigicrm-miniprogram/pages/incentive/detail/index.wxml": 2,
+  "aigicrm-miniprogram/pages/incentive/index.wxml": 6,
+  "aigicrm-miniprogram/pages/incentive/upload/index.wxml": 2,
+  "aigicrm-miniprogram/pages/ranking/index.wxml": 4
+}

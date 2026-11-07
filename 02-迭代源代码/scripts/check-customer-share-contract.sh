@@ -52,3 +52,5 @@ grep -q 'height:50rpx' "$WXSS"
 grep -q "customer.share.*新增/撤销.*customer:edit" "$MANIFEST"
 
 echo "PASS: customer share read/mutation permissions match backend, mobile page, and manifest."
+# 【2026-11-07 纪律门禁T1】显式判定出口: 判定只认退出码, 不靠末命令隐式传播(check-discipline-gates §2)
+exit 0
