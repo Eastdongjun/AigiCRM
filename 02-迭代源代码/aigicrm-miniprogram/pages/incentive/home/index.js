@@ -543,7 +543,9 @@ Page({
       let flat = buildFlatRecordRows(this._allRecords || [], this._childRawById).filter((row) => {
         if (categoryNames.length && categoryNames.indexOf(row.categoryName) === -1) return false
         if (keywordFlat) {
-          const haystack = `${row.customerName} ${row.categoryName} ${row.productText} ${row.uploaderName} ${row.timeText}`.toLowerCase()
+          // 【2026-11-09 用户令"只检索含有关键字的记录"】打散视图 haystack 去 customerName——
+          // 客户名含关键字=该客户全部行都命中=客户级扩散, 与服务端两路口径+主记录过滤一致
+          const haystack = `${row.categoryName} ${row.productText} ${row.uploaderName} ${row.timeText}`.toLowerCase()
           if (!haystack.includes(keywordFlat)) return false
         }
         // 【2026-11-02 用户令】日期范围筛选退役, 客户视图的起止日期本地过滤随之移除

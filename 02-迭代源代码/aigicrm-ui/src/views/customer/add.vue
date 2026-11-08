@@ -95,7 +95,9 @@ onMounted(() => {
       // 视口中线偏上视为"当前段",避免高亮抖动
       { rootMargin: '-30% 0px -60% 0px', threshold: 0 }
     )
-    sections.forEach((s) => {
+    // 【2026-11-09 全局测试修复】sections 是 computed ref, 须 .value 解包——原对 ComputedRef
+    // 直接 .forEach 必抛 "k.forEach is not a function", 滚动锚点高亮从未生效(静默失败)
+    sections.value.forEach((s) => {
       const el = document.getElementById(s.id)
       if (el) observer.observe(el)
     })
