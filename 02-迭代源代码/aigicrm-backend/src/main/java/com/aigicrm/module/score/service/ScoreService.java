@@ -292,12 +292,22 @@ public class ScoreService {
         Map<Long, Integer> prevRanks = getPrevRanks(period);
 
         // 排序：总分降序 → 项数降序 → 姓名
+        // 【11-08 逐点核对修复】第三键"姓名"此前仅存在于注释与前端 footer 文案, 未落进比较器,
+        // 同分同名次取决于 HashMap 迭代序(不确定)——补姓名兜底使排序确定化, 与文档/文案口径对齐。
+        Map<Long, String> userNames = new HashMap<>();
+        for (SysUser u : userMapper.selectBatchIds(totalScores.keySet())) {
+            userNames.put(u.getId(), u.getRealName());
+        }
         List<Map.Entry<Long, Integer>> sorted = new ArrayList<>(totalScores.entrySet());
         sorted.sort((a, b) -> {
             int cmp = b.getValue().compareTo(a.getValue());
             if (cmp != 0) return cmp;
-            return (itemCounts.getOrDefault(b.getKey(), 0)).compareTo(
+            cmp = (itemCounts.getOrDefault(b.getKey(), 0)).compareTo(
                     itemCounts.getOrDefault(a.getKey(), 0));
+            if (cmp != 0) return cmp;
+            String nameA = userNames.getOrDefault(a.getKey(), "");
+            String nameB = userNames.getOrDefault(b.getKey(), "");
+            return nameA.compareTo(nameB);
         });
 
         List<Map<String, Object>> result = new ArrayList<>();
