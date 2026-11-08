@@ -32,15 +32,13 @@ const TAG_COLORS = { 安装前: '#b45309', 安装中: '#1d4fd7', 安装后: '#04
 // 【2026-11-02 用户令·PC 同构表格】查询区客户封面卡 → 横向表格(每行一条记录, 列=客户/分类/产品/
 // 时间/上传人/文件/学分, 横滚看全部列)。行数据=客户聚合 records[] 拉平, 字段口径与轻量页
 // buildFlatRow 同源(同 API 同映射); 点行直达记录详情(拨盘页 detail?id=)。
-// 【11-08 审计项5】行携带 groupId(所属客户组 id): 点客户名进一客一册档案页(customer-detail),
-// 档案页 payload 需要整组视图+子记录, 由 openCustomerDetail 按 groupId 反查。
+// 【2026-11-09 档案页退役】groupId 字段随 customer-detail 入口一并移除(客户名恢复纯展示)。
 function buildRecordRow(record, group) {
   const files = record.files || buildIncentiveFiles(record)
   const time = String(record.createdAt || record.createTime || '')
   const categoryName = record.categoryName || record.category || record.type || ''
   return {
     id: record.id,
-    groupId: (group && group.id) || '',
     customerId: (group && group.customerId) || record.customerId || '',
     customerName: record.customerName || (group && (group.name || group.customerName)) || '未命名客户',
     categoryName: categoryName || '未分类',
@@ -317,8 +315,8 @@ function buildRecordView(record) {
   const fileGroupsView = buildFileGroupView(record.fileGroups)
   // 【setData 瘦身 2026-10-13】原始 records/files/fileGroups 大数组不进 data(存页面内存
   // _childRawById/_allDecorated), 68 客户组曾因此把 setData 顶到 1470KB(超 1MB 真机硬限)
-  // 【需求C 2026-10-16】列表页=封面卡: 子记录视图不再进 data(点卡时在 openCustomerDetail 现构建),
-  // 新增封面字段 coverFile(首图,仅传 id 供 thumb.wxs)/coverChar(无图时渐变首字)
+  // 【需求C 2026-10-16】列表页=封面卡: 子记录视图不再进 data(点卡时在原档案入口现构建,
+  // 该页 2026-11-09 已退役), 新增封面字段 coverFile(首图,仅传 id 供 thumb.wxs)/coverChar(无图时渐变首字)
   const { records: _omitRecords, files: _omitFiles, fileGroups: _omitGroups, ...rest } = record
   let coverFile = null
   for (let gi = 0; gi < fileGroupsView.length && !coverFile; gi += 1) {
@@ -1511,51 +1509,15 @@ Page({
     wx.navigateTo({ url: '/pages/incentive/upload/index' })
   },
 
-  // 【需求C 2026-10-16】封面卡点入 → 客户激励详情页: 子记录视图此刻现构建(单客户量级,setData 无压力),
-  // 已读/追加/删除的落地全在详情页(read 事件回写本卡免整页刷新, 变更走 forceRefresh 既有契约)
-  // 【11-08 审计项5】入口重接: 11-02 表格化后封面卡退役, 本方法一度无绑定成死码(档案页 16 个交互
-  // 不可达)——现入口=查询表格「客户」单元格(data-group-id); 组视图从 records 按 id 反查,
-  // 兼容旧 data-index 通道(封面卡 pagedRecords 形态, 已退役)。
-  openCustomerDetail(e) {
-    const dataset = e.currentTarget.dataset || {}
-    const groupId = dataset.groupId !== undefined && dataset.groupId !== null && dataset.groupId !== '' ? String(dataset.groupId) : ''
-    const record = groupId
-      ? (this.data.records || []).find((item) => String(item.id) === groupId)
-      : this.data.pagedRecords[Number(dataset.index)]
-    if (!record) return wx.showToast({ title: '未找到该客户的激励档案', icon: 'none' })
-    const children = ((this._childRawById && this._childRawById[record.id]) || []).map(buildChildRecordView)
-    wx.navigateTo({
-      url: '/pages/incentive/customer-detail/index',
-      events: {
-        read: (payload) => {
-          const id = payload && payload.id
-          const rowIndex = this.data.records.findIndex((item) => item.id === id)
-          if (rowIndex < 0 || !this.data.records[rowIndex].unread) return
-          const upd = {
-            [`records[${rowIndex}].unread`]: false,
-            [`records[${rowIndex}].readStatusText`]: '已读',
-            [`records[${rowIndex}].readStatusClass`]: 'tag-read'
-          }
-          // 列表渲染的是 pagedRecords, 同一客户在当前页时同步刷新未读点
-          const pagedIndex = this.data.pagedRecords.findIndex((item) => item.id === id)
-          if (pagedIndex >= 0) {
-            upd[`pagedRecords[${pagedIndex}].unread`] = false
-            upd[`pagedRecords[${pagedIndex}].readStatusText`] = '已读'
-            upd[`pagedRecords[${pagedIndex}].readStatusClass`] = 'tag-read'
-          }
-          this.setData(upd)
-        }
-      },
-      success: (res) => {
-        res.eventChannel.emit('payload', { record, children })
-      }
-    })
-  },
+  // 【2026-11-09 用户令"档案页拿掉"】客户激励档案页(customer-detail)整体退役:
+  // 2026-10-23 已令轻量页不得进档案界面, 11-08 审计项5 只守轻量页把完整版入口激活属理解过窄。
+  // 原客户名点击入口与页面一并移除(防复活守卫见 check-mobile-incentive-contract.sh);
+  // 记录级操作/已读仍在拨盘详情页(pages/incentive/detail), 统计面板附件处理(findStatDetailFile 系)不受影响。
 
   // 【需求C 2026-10-16】列表页巨卡拆分后, removeRecord/removeChildRecord/appendRecord/
   // appendChildRecord/previewAttachment/downloadAttachment/findRecordFile/findChildRecord(File)/
-  // openCustomer/toggleCustomerRecords/markRead 系列全部下沉到 customer-detail 详情页,
-  // 本页仅保留 openCustomerDetail 入口与统计面板的附件处理(findStatDetailFile 系)。
+  // openCustomer/toggleCustomerRecords/markRead 系列全部下沉到详情页(已随档案页退役),
+  // 本页仅保留统计面板的附件处理(findStatDetailFile 系)。
 
   findStatDetailFile(event) {
     const record = this.data.statDetail.records[event.currentTarget.dataset.detailIndex]

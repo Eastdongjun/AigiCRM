@@ -58,15 +58,15 @@
 | `file.aclManage` | 文件 | 文件夹 ACL 弹窗授权 | 默认 `PC-only` | `file:acl:manage` | 文件夹管理 ACL | 授予/撤销 | `PC-only` |
 | `incentive.index` | 激励(四项激励) | `/incentive`(2026-10-23 拆分: 完整工作台不再是 tabBar 页,由应用中心「四项激励」组进入; 2026-11-05 用户令组名四项服务应用→四项激励) | `pages/incentive/index`、`pages/incentive/detail/index`、`pages/incentive/upload/index` | 读 `incentive:view`;上传 `incentive:add` | 激励分类/用户授权范围 | 读取/创建 | 已实现 |
 | `incentive.home` | 激励(四项服务) | tabBar 轻量客户记录(2026-10-23 用户令拆分: 只显示客户与记录,无分类树/统计/排行/阅读;2026-10-26 用户令改拨盘展示: 点客户直达既有 detail 年/月/日转盘页,一次上传=一条记录,不进一客一册档案;records 平铺清单页退役) | `pages/incentive/home/index`(点客户跳既有 `pages/incentive/detail/index`) | 读 `incentive:view`;上传 `incentive:add` | 激励分享制(本人全部+他人已分享) | 读取/跳转 | 已实现 |
-| `incentive.customerDetail` | 激励 | 客户激励详情(列表封面卡点入,分类锚点+照片墙+历史记录+吸底操作) | `pages/incentive/customer-detail/index`(2026-10-16 需求C 新增,数据经 eventChannel 传整卡聚合) | 读 `incentive:view`(与列表同口径);已读/追加/删除继承本人或授权 `canEdit`/`canDelete` | 激励分享制(本人全部+他人已分享) | 读取/更新已读/跳转详情 | 已实现 |
+| `incentive.customerDetail` | 激励 | 客户激励档案页 ⟦2026-11-09 用户令移除⟧(2026-10-23 已令轻量页不得进档案界面;记录级操作/已读在拨盘详情页保留) | — | — | — | — | 已移除 |
 | `incentive.legacyCasesAlias` | 激励 | 旧激励链接 | `pages/incentive/index` ⟦更正 10-07:cases 重定向壳随 1b3c865b 删除,兼容由历史路由表外无引用保证⟧ | `incentive:view` | 激励分类/用户授权范围 | 兼容导航 | 已实现 |
 | `incentive.search` | 激励 | `/incentive/search` | `pages/incentive/index` | `incentive:view` | 激励分享制(本人全部+他人已分享) | 读取 | 已实现 |
 | `incentive.markRead` | 激励 | 查询详情/已读 | `pages/incentive/index` | `incentive:view` | 可见激励记录 | 更新已读状态 | 已实现 |
 | `incentive.readStats` | 激励 | 查询页已读统计面板 | `pages/incentive/index` | `incentive:read-stats` | 当前集团/月份 | 统计 | 已实现 |
 | `incentive.readRanking` | 激励 | 系统设置→本月激励查询阅读排行榜页 | `pages/incentive/index` 阅读排行区块 | `incentive:read-ranking:view`(默认仅 admin,其他角色由管理员勾选) | 当前集团/月份 | 统计 | 已实现(权限内可见) ⟦补录 09-24:09-13 上线,英文版缺失⟧ |
 | `incentive.upload` | 激励 | `/incentive` 上传弹窗 | `pages/incentive/upload/index` 佐证上传 | `incentive:add` | 当前用户/客户范围 | 创建/上传 | 已实现 |
-| `incentive.recordEdit` | 激励 | 记录表格追加编辑 | `pages/incentive/detail/index`(含编辑/追加文件入口)与 `pages/incentive/customer-detail/index` 行尾「···」追加 | 本人或授权 `canEdit` | 激励授权范围 | 更新 | 已实现 |
-| `incentive.recordDelete` | 激励 | 记录表格删除 | `pages/incentive/index` 最新记录操作、`pages/incentive/detail/index` 删除与 `pages/incentive/customer-detail/index` 行尾「···」删除 | 本人或授权 `canDelete` | 激励授权范围 | 删除 | 已实现 |
+| `incentive.recordEdit` | 激励 | 记录表格追加编辑 | `pages/incentive/detail/index`(含编辑/追加文件入口;customer-detail 载体 2026-11-09 退役) | 本人或授权 `canEdit` | 激励授权范围 | 更新 | 已实现 |
+| `incentive.recordDelete` | 激励 | 记录表格删除 | `pages/incentive/index` 最新记录操作与 `pages/incentive/detail/index` 删除(customer-detail 载体 2026-11-09 退役) | 本人或授权 `canDelete` | 激励授权范围 | 删除 | 已实现 |
 | `incentive.stats` | 激励 | `/incentive/stats`(激励统计表/客户排行 Tab) | `pages/statistics/index` 与 `pages/ranking/index` | `incentive:view` | 激励授权/数据范围 | 统计 | 已实现 |
 | `incentive.personRank` | 激励 | `/incentive/stats` 个人排行 Tab;导出按钮 | `pages/ranking/index` 排行中心·激励个人排行区块 | 数据 `incentive:view`(公司级聚合,含未分享);导出 `incentive:person-rank:export`(默认仅 admin,可勾选) | 公司级(按人聚合总积分降序) | 统计/导出 | 已实现 ⟦补录 09-24:09-23 上线,英文版缺失⟧ |
 | `reminder.list` | 提醒 | `/reminder` | `pages/reminder/index` | `reminder:view` | 当前用户提醒 | 读取 | 已实现 |

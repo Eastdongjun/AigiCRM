@@ -34,10 +34,13 @@ grep -q "hasPermission('incentive:add')" "$page" || { echo "FAIL: incentive uplo
 grep -q "没有四项服务查看权限" "$page" || { echo "FAIL: incentive view denial copy must use four-incentive naming" >&2; exit 1; }
 grep -q "没有四项服务查看权限" "$detail_page" || { echo "FAIL: incentive detail view denial copy must use four-incentive naming" >&2; exit 1; }
 # 【2026-10-17 钉随需求C】b8d62e3f 把 removeRecord/appendRecord 系操作全下游到
-# customer-detail 详情页, 列表页只留 openCustomerDetail 入口——删除/追加文案钉随迁
-CUSTDETAIL="$ROOT/aigicrm-miniprogram/pages/incentive/customer-detail/index.js"
-CUSTDETAIL_WXML="$ROOT/aigicrm-miniprogram/pages/incentive/customer-detail/index.wxml"
-grep -q "没有四项服务删除权限" "$CUSTDETAIL" || { echo "FAIL: incentive customer-detail delete denial copy must use four-incentive naming" >&2; exit 1; }
+# 【2026-11-09 用户令"档案页拿掉"】customer-detail 页面整体退役(2026-10-23 已令轻量页不得进
+# 档案界面; 11-08 审计项5 只守轻量页把完整版入口激活属理解过窄, 本批纠正)——
+# 防复活守卫: 页面目录/注册/入口函数三向不得回潮(字面量连注释都抓, 参照 timeline 退役范式)
+CUSTDETAIL_DIR="$ROOT/aigicrm-miniprogram/pages/incentive/customer-detail"
+[ ! -e "$CUSTDETAIL_DIR" ] || { echo "FAIL: incentive customer-detail page dir must stay removed (2026-11-09 退役)" >&2; exit 1; }
+grep -q "customer-detail" "$ROOT/aigicrm-miniprogram/app.json" && { echo "FAIL: app.json must not register customer-detail (2026-11-09 退役)" >&2; exit 1; }
+grep -qE "openCustomerDetail" "$page" "$wxml" && { echo "FAIL: incentive list must not reintroduce openCustomerDetail entry (2026-11-09 退役)" >&2; exit 1; }
 grep -q "没有四项服务删除权限" "$detail_page" || { echo "FAIL: incentive detail delete denial copy must use four-incentive naming" >&2; exit 1; }
 grep -q "没有四项服务上传权限" "$upload_page" || { echo "FAIL: incentive upload denial copy must use four-incentive naming" >&2; exit 1; }
 grep -q "四项服务上传失败" "$upload_page" || { echo "FAIL: incentive upload failure copy must use four-incentive naming" >&2; exit 1; }
@@ -168,22 +171,10 @@ grep -q 'buildCategoryTreeView' "$page" || { echo "FAIL: incentive mobile catego
 grep -q 'buildStatDetailView' "$page" || { echo "FAIL: incentive mobile stats detail WXML state must be normalized in JS" >&2; exit 1; }
 grep -q 'buildReadStatsView' "$page" || { echo "FAIL: incentive mobile read stats WXML state must be normalized in JS" >&2; exit 1; }
 grep -q 'buildReadRankingView' "$page" || { echo "FAIL: incentive mobile read ranking WXML state must be normalized in JS" >&2; exit 1; }
-# 【钉随一客一册 2026-10-20】分类锚点chips+scrollToGroup 重设计为"封面→左侧月份时间轴+右侧单条翻页"
-# (对齐 PC 时间轴拨片设计): 时间轴月份选择=selectMonth(data-key)+setCurrentGroup, 翻页=prev/nextRecord
-grep -q 'selectMonth' "$CUSTDETAIL" || { echo "FAIL: incentive mobile customer archive timeline month selection is missing" >&2; exit 1; }
-grep -q 'setCurrentGroup' "$CUSTDETAIL" || { echo "FAIL: incentive mobile customer archive cannot browse records by timeline" >&2; exit 1; }
-grep -q 'openRecordDetail' "$CUSTDETAIL" || { echo "FAIL: incentive mobile customer archive cannot open child record detail" >&2; exit 1; }
-grep -q 'markRecordReadByKey(' "$CUSTDETAIL" || { echo "FAIL: incentive mobile archive detail open must mark records read" >&2; exit 1; }
-# 【钉随需求C】旧双index签名 markChildRecordRead 随操作下游退役, 一客一册用 markRecordReadByKey(key, index)
-grep -q 'appendChildRecord' "$page" || { echo "FAIL: incentive mobile customer detail list cannot append child records" >&2; exit 1; }
-grep -q 'removeChildRecord' "$page" || { echo "FAIL: incentive mobile customer detail list cannot delete child records" >&2; exit 1; }
-# 【钉随一客一册 2026-10-20】旧 findWallFile 照片墙重设计为"版面照片 previewPhoto+文档附件
-# previewAttachmentByFile"(照片/视频版面内联展示, 附件区只留需点开阅读的文档)
-grep -q 'previewAttachmentByFile' "$CUSTDETAIL" || { echo "FAIL: incentive mobile customer archive cannot preview child record files" >&2; exit 1; }
+# 【钉随一客一册 2026-10-20→2026-11-09 档案页退役】时间轴/翻页/已读标记/照片墙/追加删除钉
+# 随 customer-detail 页面退役移除——记录级操作与已读仍在拨盘详情页(detail), 防复活守卫见上
 grep -q '客户维度明细' "$wxml" || { echo "FAIL: incentive mobile customer detail list is missing" >&2; exit 1; }
 grep -q 'readStatusClass' "$page" || { echo "FAIL: incentive mobile list must expose read status like PC" >&2; exit 1; }
-# 【钉随一客一册 2026-10-20】readStatusText 徽章改为当前记录未读标记(currentRecord.unread cd-unread-tag)
-grep -q 'cd-unread-tag' "$CUSTDETAIL_WXML" || { echo "FAIL: incentive mobile archive read status UI is missing" >&2; exit 1; }
 grep -q 'inline-read-status' "$page" || { echo "FAIL: incentive mobile child records must expose read status like PC" >&2; exit 1; }
 grep -q '.tag-read' "$app_wxss" || { echo "FAIL: incentive mobile read status style is missing" >&2; exit 1; }
 grep -q '搜索客户 / 产品 / 关键字' "$wxml" || { echo "FAIL: incentive mobile keyword query UI is missing" >&2; exit 1; }
@@ -194,8 +185,8 @@ grep -q 'chooseOrg' "$wxml" || { echo "FAIL: incentive mobile org query UI is mi
 grep -q '全部组织' "$page" || { echo "FAIL: incentive mobile org query default copy is missing" >&2; exit 1; }
 grep -q 'chooseStartDate' "$wxml" || { echo "FAIL: incentive mobile start date query UI is missing" >&2; exit 1; }
 grep -q 'chooseEndDate' "$wxml" || { echo "FAIL: incentive mobile end date query UI is missing" >&2; exit 1; }
-# 【钉随需求C】"全部记录"链接改为整卡点击 openCustomerDetail(封面卡即入口)
-grep -q 'openCustomerDetail' "$page" || { echo "FAIL: incentive mobile customer detail list all-records entry is missing" >&2; exit 1; }
+# 【钉随需求C→2026-11-09 档案页退役】"全部记录"入口钉随 customer-detail 退役移除
+# (openCustomerDetail 防复活守卫见上方 2026-11-09 块)
 # 【2026-11-02 用户令·PC 同构表格】完整版查询区从客户封面卡(2026-10-16 需求C)翻案为横向表格:
 # 每行一条记录(客户/分类/产品/时间/上传人/文件/学分七列, 横滚看全), 点行直达记录详情;
 # cd-wall-card 分组照片墙钉随封面卡退役移除(客户详情页照片墙不受影响, 见 CUSTDETAIL 段钉)
@@ -212,8 +203,7 @@ grep -q 'rankParents' "$page" || { echo "FAIL: rank sub-category group structure
 grep -q 'rtd-cat' "$wxml" || { echo "FAIL: rank sub-category columns are missing from the table" >&2; exit 1; }
 grep -q 'byCategory' "$page" || { echo "FAIL: score rows must keep byCategory for sub-category cells" >&2; exit 1; }
 ! grep -q 'class="cust-card"' "$wxml" || { echo "FAIL: full-version query list must not regress to cover cards (retired 2026-11-02)" >&2; exit 1; }
-# 【钉随需求C】data-child-index 随操作下游退役——customer-detail 用 data-index
-grep -q 'data-index' "$CUSTDETAIL_WXML" || { echo "FAIL: incentive mobile customer detail list child record actions lack record index" >&2; exit 1; }
+# 【钉随需求C→2026-11-09 档案页退役】data-index 钉随 customer-detail 移除(防复活守卫见上)
 ! grep -Eq "item\\.files\\.length|item\\.fileGroups &&|item\\.records &&|item\\.expanded \\?|child\\.categoryName \\|\\||child\\.period \\|\\||child\\.score \\|\\||child\\.preInstallQuestion \\|\\||child\\.fileGroups &&|group\\.files\\.length" "$wxml" || { echo "FAIL: incentive mobile records WXML must not keep record/file fallback branching logic" >&2; exit 1; }
 ! grep -Eq "wx:for-index=\"groupIndex\"|wx:for-index=\"fileIndex\"" "$wxml" || { echo "FAIL: incentive mobile attachment WXML must not derive file action indexes in template" >&2; exit 1; }
 # 【F25 2026-10-13】照片墙循环必须显式命名内层索引: 内层默认 index 遮蔽外层 record index 会让
@@ -263,20 +253,10 @@ grep -q 'record.fileGroups' "$page" || { echo "FAIL: incentive mobile attachment
 grep -q 'canDeleteRecords' "$page" || { echo "FAIL: incentive mobile list delete permission state is missing" >&2; exit 1; }
 grep -q 'getGrantCheck' "$page" || { echo "FAIL: incentive mobile list does not load delete grant" >&2; exit 1; }
 grep -q 'canEditRecords' "$page" || { echo "FAIL: incentive mobile list edit grant state is missing" >&2; exit 1; }
-# 【钉随一客一册 2026-10-20】行级 showAppendAction/showDeleteAction 收敛为 onRecordMore
-# 面板内 record.canEdit/canDelete 判定(JS 归一化保留, WXML 不暴露权限)
-grep -q 'record.canEdit' "$CUSTDETAIL" || { echo "FAIL: incentive mobile archive append visibility must be normalized in JS" >&2; exit 1; }
-grep -q 'record.canDelete' "$CUSTDETAIL" || { echo "FAIL: incentive mobile archive delete visibility must be normalized in JS" >&2; exit 1; }
+# 【钉随一客一册 2026-10-20→2026-11-09 档案页退役】行级权限归一化/追加跳转/删除调用/客户档案
+# 跳转等钉随 customer-detail 退役移除——记录级操作在拨盘详情页(detail), 防复活守卫见上
 grep -q 'appendRecord' "$page" || { echo "FAIL: incentive mobile list record append action is missing" >&2; exit 1; }
-# 【钉随需求C】追加跳转(编辑模式)从列表页下沉到 customer-detail(goAppend)
-grep -q "pages/incentive/upload/index?id=" "$CUSTDETAIL" || { echo "FAIL: incentive mobile list append action does not open upload edit mode" >&2; exit 1; }
 grep -q 'removeRecord' "$page" || { echo "FAIL: incentive mobile list record delete action is missing" >&2; exit 1; }
-# 【钉随需求C→一客一册】删除调用从列表页下沉到 customer-detail(removeRecord→deleteRecord(record.id))
-grep -q 'deleteRecord(record.id)' "$CUSTDETAIL" || { echo "FAIL: incentive mobile archive record delete does not call delete API" >&2; exit 1; }
-# 【钉随需求C】客户档案跳转从列表页下沉到 customer-detail(onOpenCustomer)
-grep -q 'onOpenCustomer' "$CUSTDETAIL" || { echo "FAIL: incentive mobile list customer archive action is missing" >&2; exit 1; }
-# 【钉随需求C】客户档案路由从列表页下沉到 customer-detail(onOpenCustomer)
-grep -Fq '/pages/customer/detail/index?id=${record.customerId}&from=incentive' "$CUSTDETAIL" || { echo "FAIL: incentive mobile list customer archive route is stale" >&2; exit 1; }
 # 【E5 去重 2026-10-05】列表页附件「下载/预览/打开/保存」已收口 utils/attachment.js, 页面经
 # fetchRemoteAttachment 接线; 原页面内 wx.downloadFile/wx.previewImage/wx.openDocument/
 # getFileSystemManager 字面量检查改为「页面接线 + 共享模块具备能力」两段式(detail/upload 页同理)
@@ -289,18 +269,11 @@ grep -q 'previewLoading' "$page" || { echo "FAIL: incentive mobile list attachme
 grep -q 'record-file-wall' "$wxml" || { echo "FAIL: incentive mobile list attachment UI is missing" >&2; exit 1; }  # 【#4 2026-10-12】佐证照片墙重锚
 grep -q 'record-file-group' "$wxml" || { echo "FAIL: incentive mobile list attachment UI does not render PC slot groups" >&2; exit 1; }
 grep -q 'data-group-index' "$wxml" || { echo "FAIL: incentive mobile list grouped attachment actions lack slot index" >&2; exit 1; }
-# 【钉随一客一册 2026-10-20】照片墙 onTileTap/onTileLongPress 重设计为"版面照片 previewPhoto +
-# 附件区文档 previewAttachment"(照片/视频版面内联, 长按下载入口随档案化退役, 下载能力由
-# fetchRemoteAttachment preview 流内承接: 文档下载后 openDocument)
-grep -q 'bindtap="previewPhoto"' "$CUSTDETAIL_WXML" || { echo "FAIL: incentive mobile archive photo preview UI is missing" >&2; exit 1; }
-grep -q 'bindtap="previewAttachment"' "$CUSTDETAIL_WXML" || { echo "FAIL: incentive mobile archive attachment preview UI is missing" >&2; exit 1; }
-grep -q 'fetchRemoteAttachment' "$CUSTDETAIL" || { echo "FAIL: incentive mobile archive attachments cannot preview via shared util" >&2; exit 1; }
+# 【钉随一客一册 2026-10-20→2026-11-09 档案页退役】档案页照片墙/附件预览钉随 customer-detail
+# 退役移除——照片整组连滑已在拨盘详情页(2026-11-08 批), 防复活守卫见上
 grep -q 'incentiveView.previewLoading' "$wxml" || { echo "FAIL: incentive mobile list attachment UI must use normalized preview loading" >&2; exit 1; }
 ! grep -q 'loading="{{previewing}}"' "$wxml" || { echo "FAIL: incentive mobile list WXML must not bind raw previewing state directly" >&2; exit 1; }
-# 【钉随一客一册 2026-10-20】吸底 onAppend/onChildMore(⋯面板) 重设计为记录行尾「···」onRecordMore
-# (详情/追加/删除按 record.canEdit/canDelete 在面板 JS 判定, 不暴露 WXML)
-grep -q 'bindtap="onRecordMore"' "$CUSTDETAIL_WXML" || { echo "FAIL: incentive mobile archive record actions UI is missing" >&2; exit 1; }
-grep -q 'onAppend' "$CUSTDETAIL" || { echo "FAIL: incentive mobile archive append action is missing" >&2; exit 1; }
+# 【钉随一客一册 2026-10-20→2026-11-09 档案页退役】记录行操作面板钉随 customer-detail 退役移除
 ! grep -q 'wx:if="{{item.canEdit}}"' "$wxml" || { echo "FAIL: incentive mobile WXML must not bind raw item edit permission directly" >&2; exit 1; }
 ! grep -q 'wx:if="{{item.canDelete}}"' "$wxml" || { echo "FAIL: incentive mobile WXML must not bind raw item delete permission directly" >&2; exit 1; }
 ! grep -q 'wx:if="{{child.canEdit}}"' "$wxml" || { echo "FAIL: incentive mobile WXML must not bind raw child edit permission directly" >&2; exit 1; }
@@ -311,10 +284,7 @@ grep -q 'incentiveView.showReadStatsPanel' "$wxml" || { echo "FAIL: incentive mo
 grep -q 'incentiveView.showReadRankingPanel' "$wxml" || { echo "FAIL: incentive mobile read ranking panel must use normalized visibility" >&2; exit 1; }
 ! grep -q 'wx:if="{{canViewReadStats}}"' "$wxml" || { echo "FAIL: incentive mobile WXML must not bind raw read stats permission directly" >&2; exit 1; }
 ! grep -q 'wx:if="{{canViewReadRanking}}"' "$wxml" || { echo "FAIL: incentive mobile WXML must not bind raw read ranking permission directly" >&2; exit 1; }
-# 【钉随需求C】openCustomer 下沉到 customer-detail(onOpenCustomer, 吸底"查看客户档案")
-grep -q 'bindtap="onOpenCustomer"' "$CUSTDETAIL_WXML" || { echo "FAIL: incentive mobile list customer archive UI is missing" >&2; exit 1; }
-# 【钉随需求C】"客户档案"文案随操作下沉到 customer-detail 吸底
-grep -q '客户档案' "$CUSTDETAIL_WXML" || { echo "FAIL: incentive mobile list customer archive copy is missing" >&2; exit 1; }
+# 【钉随需求C→2026-11-09 档案页退役】openCustomer/"客户档案"吸底钉随 customer-detail 退役移除
 grep -q 'filePreId' "$upload_page" || { echo "FAIL: incentive upload pre-file slot is missing" >&2; exit 1; }
 grep -q 'fileMidId' "$upload_page" || { echo "FAIL: incentive upload mid-file slot is missing" >&2; exit 1; }
 grep -q 'filePostId' "$upload_page" || { echo "FAIL: incentive upload post-file slot is missing" >&2; exit 1; }

@@ -83,9 +83,10 @@
           <view class="rec-td c-file">文件</view>
         </view>
         <view wx:for="{{pagedTableRows}}" wx:key="id" class="rec-tr" data-id="{{item.id}}" bindtap="openRecordDetail">
-          <!-- 【11-08 审计项5】点客户名进一客一册档案页(customer-detail, catchtap 不冒泡到行);
-               其余列/行点按仍直达记录详情(拨盘页) -->
-          <view class="rec-td c-cust c-cust-link" catchtap="openCustomerDetail" data-group-id="{{item.groupId}}">{{item.customerName}}</view>
+          <!-- 【2026-11-09 用户令"档案页拿掉"】客户激励档案页(customer-detail)整体退役(2026-10-23 已令
+               轻量页不得进档案界面, 11-08 审计项5 只守轻量页把完整版入口激活属理解过窄, 本批纠正):
+               客户名恢复纯展示, 整行点按直达记录详情(拨盘页), 防复活守卫见契约 -->
+          <view class="rec-td c-cust">{{item.customerName}}</view>
           <view class="rec-td c-cat">{{item.categoryName}}</view>
           <view class="rec-td c-prod">{{item.productText || '—'}}</view>
           <view class="rec-td c-date">{{item.timeText}}</view>

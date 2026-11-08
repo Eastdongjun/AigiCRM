@@ -20,6 +20,9 @@ MANIFEST_MOBILE_STATUSES = {
     "planned": "planned",
     "规划中": "planned",
     "PC-only": "PC-only",
+    # 【2026-11-09】整功能/整页退役的终态(如 incentive.customerDetail 档案页用户令移除):
+    # 与"已实现(降级)"(功能收缩但仍存在)区分, 退役即此态, 小程序列应为空/—
+    "已移除": "removed",
 }
 MANIFEST_MOBILE_STATUS_PREFIXES = tuple(
     sorted(MANIFEST_MOBILE_STATUSES.keys(), key=len, reverse=True)
@@ -183,6 +186,11 @@ def assert_manifest_mobile_statuses() -> list[str]:
         if mobile_status == "PC-only" and pages:
             errors.append(
                 f"line {line_number} {feature_key}: PC-only row references Mini Program pages {pages}"
+            )
+        # 【2026-11-09】removed 终态: 小程序列不得再引用任何页面(防"已移除却还挂着页面"的漂移)
+        if mobile_status == "removed" and pages:
+            errors.append(
+                f"line {line_number} {feature_key}: removed row still references Mini Program pages {pages}"
             )
         if mobile_status == "implemented" and mini_program_column in {"", "pending decision"}:
             errors.append(
