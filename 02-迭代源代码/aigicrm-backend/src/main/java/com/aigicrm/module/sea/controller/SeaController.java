@@ -77,6 +77,8 @@ public class SeaController {
     // 【权限修复 2026-08-09】统一导入权限码为 sea:import（0805 新增码），废弃旧的 sea:pool:import 双轨
     @PreAuthorize("hasAuthority('sea:import')")
     public Result<CustomerImportResult> importToSea(@RequestParam("file") MultipartFile file) {
+        // 【六层验收 2026-11-08】空body 500 修复：非 multipart/缺 file part 由 GlobalExceptionHandler
+        // 统一回 400(MultipartException/MissingServletRequestPartException)；空文件仍由下方 ImportGuard 拦截
         // 【BS-D 2026-09-19】导入资源上限统一收口(非空/扩展名/大小 5MB)
         com.aigicrm.common.util.ImportGuard.checkFile(file);
         return Result.ok(seaService.importToSea(file));
@@ -117,6 +119,10 @@ public class SeaController {
     @PreAuthorize("hasAuthority('sea:config:edit')")
     @PutMapping("/configs/{id}")
     public Result<Void> updateConfig(@PathVariable Long id, @RequestBody BizSeaConfig config) {
+        // 【六层验收 2026-11-08】空body 500 修复：空对象拼出空 SET 的 UPDATE(MybatisPlusException)报 500，前置 400
+        if (config == null || config.getPoolName() == null || config.getPoolName().isBlank()) {
+            throw new com.aigicrm.common.BusinessException(400, "公海池名称不能为空");
+        }
         config.setId(id);
         seaConfigService.update(config);
         return Result.ok();

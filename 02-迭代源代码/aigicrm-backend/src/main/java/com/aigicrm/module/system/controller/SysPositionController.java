@@ -29,6 +29,13 @@ public class SysPositionController {
     @PostMapping
     @PreAuthorize("hasAuthority('system:position:add')")
     public Result<Void> create(@RequestBody SysPosition position) {
+        // 【六层验收 2026-11-08】空body 500 修复：空对象缺名/编码直达 DB NOT NULL 报 500，前置 400
+        if (position == null || position.getName() == null || position.getName().isBlank()) {
+            throw new BusinessException(400, "岗位名称不能为空");
+        }
+        if (position.getCode() == null || position.getCode().isBlank()) {
+            throw new BusinessException(400, "岗位编码不能为空");
+        }
         positionService.create(position);
         return Result.ok();
     }
@@ -86,7 +93,7 @@ public class SysPositionController {
         if (positionIds != null && !positionIds.isEmpty() && !SecurityUtils.isAdmin()) {
             boolean hasRulePosition = positionIds.stream()
                     .anyMatch(id -> !positionService.getRules(id).isEmpty());
-            if (hasRulePosition) throw new BusinessException("无权指派携带权限规则的岗位");
+            if (hasRulePosition) throw new BusinessException(403, "无权指派携带权限规则的岗位");
         }
         positionService.assignUserPositions(userId, positionIds);
         return Result.ok();

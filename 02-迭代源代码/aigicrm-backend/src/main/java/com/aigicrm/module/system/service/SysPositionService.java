@@ -81,7 +81,7 @@ public class SysPositionService {
             if (g != null && g.isEmpty()) throw new BusinessException("当前账号无有效集团归属，无法创建岗位");
             position.setGroupId(g == null ? 1L : g.get(0));
         } else if (!GroupScopeUtil.canAccessGroup(position.getGroupId())) {
-            throw new BusinessException("无权在该集团创建岗位");
+            throw new BusinessException(403, "无权在该集团创建岗位");
         }
         Long count = positionMapper.selectCount(
                 new LambdaQueryWrapper<SysPosition>().eq(SysPosition::getCode, position.getCode()));
@@ -96,11 +96,11 @@ public class SysPositionService {
         if (position.getId() != null) {
             SysPosition existing = positionMapper.selectById(position.getId());
             if (existing != null && !GroupScopeUtil.canAccessGroup(existing.getGroupId())) {
-                throw new BusinessException("无权操作其他集团的岗位");
+                throw new BusinessException(403, "无权操作其他集团的岗位");
             }
         }
         if (position.getGroupId() != null && !GroupScopeUtil.canAccessGroup(position.getGroupId())) {
-            throw new BusinessException("无权将岗位归属到其他集团");
+            throw new BusinessException(403, "无权将岗位归属到其他集团");
         }
         positionMapper.updateById(position);
         if (position.getRuleIds() != null) {
@@ -118,7 +118,7 @@ public class SysPositionService {
         // 【修复 岗位删除集团边界】非 admin 无权删除其他集团岗位
         SysPosition existing = positionMapper.selectById(id);
         if (existing != null && !GroupScopeUtil.canAccessGroup(existing.getGroupId())) {
-            throw new BusinessException("无权删除其他集团的岗位");
+            throw new BusinessException(403, "无权删除其他集团的岗位");
         }
         // 【复核修复 2026-08-09】evictByPosition 反查 sys_user_position 表——必须先于删除绑定行执行，
         // 否则反查返回空导致 evict 失效(已删岗位的规则最长残留 10min TTL)
@@ -176,7 +176,7 @@ public class SysPositionService {
                 if (position == null) throw new BusinessException("岗位不存在");
                 if (!com.aigicrm.security.SecurityUtils.isAdmin()) {
                     if (!GroupScopeUtil.canAccessGroup(position.getGroupId())) {
-                        throw new BusinessException("无权分配其他集团的岗位");
+                        throw new BusinessException(403, "无权分配其他集团的岗位");
                     }
                     // 岗位所属组织（org_id）同样必须在可见部门/管辖组织子树内
                     userService.assertTargetOrgVisible(null, null, position.getOrgId());

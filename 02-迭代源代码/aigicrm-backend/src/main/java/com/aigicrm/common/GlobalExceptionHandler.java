@@ -17,6 +17,8 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.MultipartException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.sql.SQLSyntaxErrorException;
@@ -108,6 +110,22 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public Result<Void> handleNotReadable(HttpMessageNotReadableException e) {
         return Result.error(400, "请求体格式不正确，请检查JSON格式");
+    }
+
+    // 【六层验收 2026-11-08】空body 500 修复：空 JSON body 打到 multipart 端点(/file/upload、
+    // /file/{id}/replace、/customer/import、/sea/import)抛 MultipartException("Current request
+    // is not a multipart request")原落入兜底 500，收口为 400。
+    @ExceptionHandler(MultipartException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Result<Void> handleMultipart(MultipartException e) {
+        return Result.error(400, "请使用 multipart/form-data 表单提交文件");
+    }
+
+    // 【六层验收 2026-11-08】空body 500 修复：multipart 请求缺 file part 原落入兜底 500，收口为 400。
+    @ExceptionHandler(MissingServletRequestPartException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Result<Void> handleMissingPart(MissingServletRequestPartException e) {
+        return Result.error(400, "缺少文件参数：" + e.getRequestPartName());
     }
 
     // ==================== 请求方法/路径 ====================

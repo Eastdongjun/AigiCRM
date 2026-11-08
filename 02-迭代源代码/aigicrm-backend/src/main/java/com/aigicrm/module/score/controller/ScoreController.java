@@ -1,6 +1,7 @@
 package com.aigicrm.module.score.controller;
 import org.springframework.security.access.prepost.PreAuthorize;
 
+import com.aigicrm.common.BusinessException;
 import com.aigicrm.common.Result;
 import com.aigicrm.module.score.entity.BizScoreItem;
 import com.aigicrm.module.score.service.ScoreService;
@@ -23,6 +24,13 @@ public class ScoreController {
     @PostMapping("/items")
     @PreAuthorize("hasAuthority('score:manage')")
     public Result<BizScoreItem> addItem(@RequestBody BizScoreItem item) {
+        // 【六层验收 2026-11-08】空body 500 修复：空对象缺类别/产品直达 DB NOT NULL 报 500，前置 400
+        if (item == null || item.getCategory() == null || item.getCategory().isBlank()) {
+            throw new BusinessException(400, "学分类别不能为空");
+        }
+        if (item.getProduct() == null || item.getProduct().isBlank()) {
+            throw new BusinessException(400, "学分产品不能为空");
+        }
         return Result.ok(scoreService.addItem(item));
     }
 
@@ -53,8 +61,15 @@ public class ScoreController {
     @PostMapping("/entries/batch")
     @SuppressWarnings("unchecked")
     public Result<Void> batchSave(@RequestBody Map<String, Object> body) {
-        String period = (String) body.get("period");
-        List<Map<String, Object>> entries = (List<Map<String, Object>>) body.get("entries");
+        // 【六层验收 2026-11-08】空body 500 修复：空对象缺周期/数据, entries=null 在 Service 层 NPE 报 500，前置 400
+        String period = body == null ? null : (String) body.get("period");
+        List<Map<String, Object>> entries = body == null ? null : (List<Map<String, Object>>) body.get("entries");
+        if (period == null || period.isBlank()) {
+            throw new BusinessException(400, "评分周期不能为空");
+        }
+        if (entries == null || entries.isEmpty()) {
+            throw new BusinessException(400, "评分数据不能为空");
+        }
         List<Long> participantIds = new java.util.ArrayList<>();
         Object pids = body.get("participantIds");
         if (pids instanceof List<?> list) {

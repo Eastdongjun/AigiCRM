@@ -25,6 +25,13 @@ public class SysGroupController {
     @PostMapping
     @PreAuthorize("hasAuthority('system:group:add')")
     public Result<Void> create(@RequestBody SysGroup group) {
+        // 【六层验收 2026-11-08】空body 500 修复：空对象缺名/编码直达 DB NOT NULL 报 500，前置 400
+        if (group == null || group.getGroupName() == null || group.getGroupName().isBlank()) {
+            throw new com.aigicrm.common.BusinessException(400, "集团名称不能为空");
+        }
+        if (group.getGroupCode() == null || group.getGroupCode().isBlank()) {
+            throw new com.aigicrm.common.BusinessException(400, "集团编码不能为空");
+        }
         groupService.create(group);
         return Result.ok();
     }

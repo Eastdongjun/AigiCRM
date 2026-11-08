@@ -168,6 +168,10 @@ public class CustomerController {
     @PreAuthorize("hasAuthority('customer:add')")
     @PostMapping("/add")
     public Result<Long> create(@RequestBody BizCustomer customer) {
+        // 【六层验收 2026-11-08】空body 500 修复：空对象缺名直达 DB NOT NULL 报 500，前置 400
+        if (customer == null || customer.getCustomerName() == null || customer.getCustomerName().isBlank()) {
+            throw new BusinessException(400, "客户名称不能为空");
+        }
         customerService.create(customer);
         return Result.ok(customer.getId());
     }
@@ -294,6 +298,10 @@ public class CustomerController {
     @PreAuthorize("hasAuthority('customer:edit')")
     @PostMapping("/{id}/logs")
     public Result<Void> addLog(@PathVariable Long id, @RequestBody BizCustomerLog log) {
+        // 【六层验收 2026-11-08】空body 500 修复：空对象缺 content 直达 DB NOT NULL 报 500，前置 400
+        if (log == null || log.getContent() == null || log.getContent().isBlank()) {
+            throw new BusinessException(400, "跟进内容不能为空");
+        }
         accessService.assertCanEdit(id);
         log.setCustomerId(id);
         customerService.addLog(log);
@@ -515,6 +523,8 @@ public class CustomerController {
     @PreAuthorize("hasAuthority('customer:import')")
     @PostMapping("/import")
     public Result<CustomerImportResult> importCustomers(@RequestParam("file") MultipartFile file) {
+        // 【六层验收 2026-11-08】空body 500 修复：非 multipart/缺 file part 由 GlobalExceptionHandler
+        // 统一回 400(MultipartException/MissingServletRequestPartException)；空文件仍由下方 ImportGuard 拦截
         // 【BS-D 2026-09-19】导入资源上限统一收口(非空/扩展名/大小 5MB)
         com.aigicrm.common.util.ImportGuard.checkFile(file);
         return Result.ok(customerService.importCustomers(file));

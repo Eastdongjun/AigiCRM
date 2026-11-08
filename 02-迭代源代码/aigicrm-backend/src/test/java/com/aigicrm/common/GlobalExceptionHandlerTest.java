@@ -111,7 +111,31 @@ class GlobalExceptionHandlerTest {
                 new org.springframework.dao.DataAccessResourceFailureException("connection refused to 10.0.0.9:3306");
         Result<Void> result = handler.handleDataAccess(dae);
         String msg = String.valueOf(result.getMessage());
-        assertTrue(msg.contains("支持编号 S-"), "数据访问异常响应须含支持编号: " + msg);
-        assertTrue(!msg.contains("10.0.0.9"), "内部主机地址不得泄露: " + msg);
+        assertTrue(msg.contains("支持编号 S-"), "数据访问异常响应须含支持编号");
+        assertTrue(!msg.contains("10.0.0.9"), "内部主机地址不得泄露");
+    }
+
+    // ===== 【六层验收 2026-11-08】空body 500 修复：multipart 缺陷收口 400 =====
+
+    @Test
+    void multipartException_mapsTo400() {
+        // 空 JSON body 打到 multipart 端点(/file/upload 等)抛 MultipartException, 修复前落兜底 500
+        Result<Void> result = handler.handleMultipart(
+                new org.springframework.web.multipart.MultipartException("Current request is not a multipart request"));
+        assertNotNull(result);
+        assertEquals(400, result.getCode());
+        assertTrue(result.getMessage() != null && result.getMessage().contains("multipart/form-data"),
+                "提示须指明 multipart 表单: " + result.getMessage());
+    }
+
+    @Test
+    void missingServletRequestPart_mapsTo400() {
+        // multipart 请求缺 file part, 修复前落兜底 500
+        Result<Void> result = handler.handleMissingPart(
+                new org.springframework.web.multipart.support.MissingServletRequestPartException("file"));
+        assertNotNull(result);
+        assertEquals(400, result.getCode());
+        assertTrue(result.getMessage() != null && result.getMessage().contains("file"),
+                "提示须指明缺失的 part 名: " + result.getMessage());
     }
 }

@@ -82,12 +82,12 @@ public class SysRoleService {
         if (SecurityUtils.isAdmin()) return;
         if ("admin".equals(role.getRoleCode())
                 || (existing != null && "admin".equals(existing.getRoleCode()))) {
-            throw new BusinessException("无权操作系统管理员角色");
+            throw new BusinessException(403, "无权操作系统管理员角色");
         }
         if (role.getDataScope() != null) {
             DataScopeType caller = DataScopeType.fromCode(SecurityUtils.getCurrentDataScope());
             if (DataScopeType.fromCode(role.getDataScope()).rank() < caller.rank()) {
-                throw new BusinessException("无权授予超出自身数据范围的角色");
+                throw new BusinessException(403, "无权授予超出自身数据范围的角色");
             }
         }
         if (role.getMenuIds() != null && !role.getMenuIds().isEmpty()) {
@@ -96,7 +96,7 @@ public class SysRoleService {
             for (SysMenu m : menuMapper.selectByIds(role.getMenuIds())) {
                 if (m.getPermission() != null && !m.getPermission().isBlank()
                         && !callerPerms.contains(m.getPermission())) {
-                    throw new BusinessException("无权授予权限: " + m.getPermission());
+                    throw new BusinessException(403, "无权授予权限: " + m.getPermission());
                 }
             }
         }
@@ -116,7 +116,7 @@ public class SysRoleService {
             if (g != null && g.isEmpty()) throw new BusinessException("当前账号无有效集团归属，无法创建角色");
             role.setGroupId(g == null ? GroupScopeUtil.DEFAULT_GROUP_ID : g.get(0));
         } else if (!GroupScopeUtil.canAccessGroup(role.getGroupId())) {
-            throw new BusinessException("无权在该集团创建角色");
+            throw new BusinessException(403, "无权在该集团创建角色");
         }
         Long count = roleMapper.selectCount(
                 new LambdaQueryWrapper<SysRole>().eq(SysRole::getRoleCode, role.getRoleCode())
@@ -145,11 +145,11 @@ public class SysRoleService {
         }
         // 【修复 角色更新集团边界】目标角色越权不可操作；新 groupId 越权不可归属
         if (!GroupScopeUtil.canAccessGroup(existing.getGroupId())) {
-            throw new BusinessException("无权操作其他集团的角色");
+            throw new BusinessException(403, "无权操作其他集团的角色");
         }
         validateGrantableRole(role, existing);
         if (role.getGroupId() != null && !GroupScopeUtil.canAccessGroup(role.getGroupId())) {
-            throw new BusinessException("无权将角色归属到其他集团");
+            throw new BusinessException(403, "无权将角色归属到其他集团");
         }
         // 仅当有实际字段需要更新时才执行 updateById
         boolean hasRoleFields = role.getRoleName() != null || role.getRoleCode() != null
@@ -199,7 +199,7 @@ public class SysRoleService {
             throw new BusinessException("角色不存在");
         }
         if (!GroupScopeUtil.canAccessGroup(existing.getGroupId())) {
-            throw new BusinessException("无权操作其他集团的角色");
+            throw new BusinessException(403, "无权操作其他集团的角色");
         }
         SysRole role = new SysRole();
         role.setId(roleId);
@@ -225,7 +225,7 @@ public class SysRoleService {
             throw new BusinessException("角色不存在");
         }
         if (!GroupScopeUtil.canAccessGroup(existing.getGroupId())) {
-            throw new BusinessException("无权删除其他集团的角色");
+            throw new BusinessException(403, "无权删除其他集团的角色");
         }
         // 【修复 2026-08-14 缓存审计 G2(P0)】先捕获受影响用户并递增版本，再删绑定——
         // evictByRole 反查依赖 sys_user_role，原"先删绑定后反查"导致反查为空、evict 静默失效、旧权限残留至 TTL
@@ -308,7 +308,7 @@ public class SysRoleService {
                 com.aigicrm.module.system.entity.SysMenu m = menuMapper.selectById(menuId);
                 if (m != null && m.getPermission() != null && !m.getPermission().isBlank()
                         && !callerPerms.contains(m.getPermission())) {
-                    throw new BusinessException("无权授予权限: " + m.getPermission());
+                    throw new BusinessException(403, "无权授予权限: " + m.getPermission());
                 }
             }
         }
@@ -370,7 +370,7 @@ public class SysRoleService {
             }
             // 存在性: 查不到(已删除/伪造) → 拒绝
             if (deptMapper.selectById(orgId) == null) {
-                throw new BusinessException("无权将不存在的组织纳入数据范围(orgId=" + orgId + ")");
+                throw new BusinessException(403, "无权将不存在的组织纳入数据范围(orgId=" + orgId + ")");
             }
             // 有效集团 = 自身或最近祖先的 group_id(历史未回填多为 NULL); 全空退主集团 1(GroupScopeUtil 同口径)
             Long effective = deptMapper.selectEffectiveGroupId(orgId);
@@ -378,16 +378,16 @@ public class SysRoleService {
             // P2(c)-r1: org 有效集团必须与目标角色集团一致(纵深防御)——可访问多集团的高权用户
             // 不得把其他集团 org 挂到本集团角色; 角色集团未知(roleGroup=null)时退回调用者可访问集团校验
             if (roleGroup != null && !effective.equals(roleGroup)) {
-                throw new BusinessException("无权将其他集团的组织纳入数据范围(orgId=" + orgId + ")");
+                throw new BusinessException(403, "无权将其他集团的组织纳入数据范围(orgId=" + orgId + ")");
             }
             if (!GroupScopeUtil.canAccessGroup(effective)) {
-                throw new BusinessException("无权将其他集团的组织纳入数据范围(orgId=" + orgId + ")");
+                throw new BusinessException(403, "无权将其他集团的组织纳入数据范围(orgId=" + orgId + ")");
             }
             // include_children=1 固定展开整棵子树: 子树内任何显式归属其他集团的组织 → 拒绝
             // (P2(c) 子树旁路: 锚点 org 同集团但子树含跨集团节点仍会扩大数据范围)
             for (Long g : deptMapper.selectDescendantGroupIds(orgId)) {
                 if (g != null && !g.equals(effective)) {
-                    throw new BusinessException("无权将包含其他集团组织的子树纳入数据范围(orgId=" + orgId + ")");
+                    throw new BusinessException(403, "无权将包含其他集团组织的子树纳入数据范围(orgId=" + orgId + ")");
                 }
             }
         }

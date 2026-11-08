@@ -96,7 +96,7 @@ public class SysDeptService {
             if (g != null && g.isEmpty()) throw new BusinessException("当前账号无有效集团归属，无法创建部门");
             dept.setGroupId(g == null ? 1L : g.get(0));
         } else if (!com.aigicrm.common.scope.GroupScopeUtil.canAccessGroup(dept.getGroupId())) {
-            throw new BusinessException("无权在该集团创建部门");
+            throw new BusinessException(403, "无权在该集团创建部门");
         }
         deptMapper.insert(dept);
     }
@@ -107,16 +107,16 @@ public class SysDeptService {
         if (dept.getId() != null) {
             SysDept existing = deptMapper.selectById(dept.getId());
             if (existing != null && !com.aigicrm.common.scope.GroupScopeUtil.canAccessGroup(existing.getGroupId())) {
-                throw new BusinessException("无权操作其他集团的部门");
+                throw new BusinessException(403, "无权操作其他集团的部门");
             }
         }
         if (dept.getGroupId() != null && !com.aigicrm.common.scope.GroupScopeUtil.canAccessGroup(dept.getGroupId())) {
-            throw new BusinessException("无权将部门归属到其他集团");
+            throw new BusinessException(403, "无权将部门归属到其他集团");
         }
         if (dept.getParentId() != null) {
             SysDept parent = deptMapper.selectById(dept.getParentId());
             if (parent != null && !com.aigicrm.common.scope.GroupScopeUtil.canAccessGroup(parent.getGroupId())) {
-                throw new BusinessException("无权将部门挂到其他集团的部门下");
+                throw new BusinessException(403, "无权将部门挂到其他集团的部门下");
             }
         }
         deptMapper.updateById(dept);
@@ -131,7 +131,7 @@ public class SysDeptService {
         // 【P1 2026-09-29 复审修复·集团边界】目标部门越权先于子部门/用户检查拒绝(与读路径同口径)
         SysDept target = deptMapper.selectById(id);
         if (target != null && !com.aigicrm.common.scope.GroupScopeUtil.canAccessGroup(target.getGroupId())) {
-            throw new BusinessException("无权删除其他集团的部门");
+            throw new BusinessException(403, "无权删除其他集团的部门");
         }
         // 存在子部门时不允许删除，避免产生孤立节点
         Long childCount = deptMapper.selectCount(

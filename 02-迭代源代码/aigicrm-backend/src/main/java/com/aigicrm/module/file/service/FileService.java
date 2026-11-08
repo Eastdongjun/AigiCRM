@@ -423,10 +423,10 @@ public class FileService {
                 throw new BusinessException("公共文件只有管理员才能删除");
             } else if ("private".equals(scope) || "incentive".equals(scope)) {
                 if (!userId.equals(file.getUploaderId())) {
-                    throw new BusinessException("无权删除该文件");
+                    throw new BusinessException(403, "无权删除该文件");
                 }
             } else {
-                throw new BusinessException("无权删除该文件");
+                throw new BusinessException(403, "无权删除该文件");
             }
         }
 
@@ -1432,7 +1432,7 @@ public class FileService {
                     throw new BusinessException(403, "没有访问权限，请联系管理员授权");
                 }
             } else if (!currentUserId.equals(file.getUploaderId())) {
-                throw new BusinessException("无权分享该文件");
+                throw new BusinessException(403, "无权分享该文件");
             }
         }
         // 【2026-10-27 深度检查修复·PR-22 批次四同款】文件共享不得绕过集团边界: 此前跨集团分享

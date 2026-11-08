@@ -30,6 +30,10 @@ public class IncentiveController {
     @PreAuthorize("hasAuthority('incentive:edit')")
     @PostMapping("/categories")
     public Result<Void> createCategory(@RequestBody BizIncentiveCategory category) {
+        // 【六层验收 2026-11-08】空body 500 修复：空对象缺名直达 DB NOT NULL 报 500，前置 400
+        if (category == null || category.getCategoryName() == null || category.getCategoryName().isBlank()) {
+            throw new BusinessException(400, "类别名称不能为空");
+        }
         incentiveService.createCategory(category);
         return Result.ok();
     }

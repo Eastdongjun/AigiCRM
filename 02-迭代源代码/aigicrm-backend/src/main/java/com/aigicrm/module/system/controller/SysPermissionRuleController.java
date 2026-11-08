@@ -37,6 +37,19 @@ public class SysPermissionRuleController {
     @PostMapping
     @PreAuthorize("hasAuthority('system:rule:add')")
     public Result<Void> create(@RequestBody SysPermissionRule rule) {
+        // 【六层验收 2026-11-08】空body 500 修复：空对象缺名/编码/实体/类型直达 DB NOT NULL 报 500，前置 400
+        if (rule == null || rule.getName() == null || rule.getName().isBlank()) {
+            throw new BusinessException(400, "规则名称不能为空");
+        }
+        if (rule.getCode() == null || rule.getCode().isBlank()) {
+            throw new BusinessException(400, "规则编码不能为空");
+        }
+        if (rule.getTargetEntity() == null || rule.getTargetEntity().isBlank()) {
+            throw new BusinessException(400, "目标实体不能为空");
+        }
+        if (rule.getRuleType() == null || rule.getRuleType().isBlank()) {
+            throw new BusinessException(400, "规则类型不能为空");
+        }
         requireAdmin();
         ruleService.create(rule);
         return Result.ok();

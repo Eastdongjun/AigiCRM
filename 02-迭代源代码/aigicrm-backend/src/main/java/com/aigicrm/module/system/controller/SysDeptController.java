@@ -39,6 +39,10 @@ public class SysDeptController {
     @PostMapping
     @PreAuthorize("hasAuthority('system:dept:edit')")
     public Result<Void> create(@RequestBody SysDept dept) {
+        // 【六层验收 2026-11-08】空body 500 修复：空对象缺名直达 DB NOT NULL 报 500，前置 400
+        if (dept == null || dept.getDeptName() == null || dept.getDeptName().isBlank()) {
+            throw new com.aigicrm.common.BusinessException(400, "部门名称不能为空");
+        }
         deptService.create(dept);
         return Result.ok();
     }
@@ -46,6 +50,10 @@ public class SysDeptController {
     @PutMapping("/{id}")
     @PreAuthorize("hasAuthority('system:dept:edit')")
     public Result<Void> update(@PathVariable Long id, @RequestBody SysDept dept) {
+        // 【六层验收 2026-11-08】空body 500 修复：空对象拼出空 SET 的 UPDATE(MybatisPlusException)报 500，前置 400
+        if (dept == null || dept.getDeptName() == null || dept.getDeptName().isBlank()) {
+            throw new com.aigicrm.common.BusinessException(400, "部门名称不能为空");
+        }
         dept.setId(id);
         deptService.update(dept);
         return Result.ok();

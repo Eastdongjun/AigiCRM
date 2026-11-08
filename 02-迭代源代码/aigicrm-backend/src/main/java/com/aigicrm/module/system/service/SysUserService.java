@@ -232,7 +232,7 @@ public class SysUserService {
         // 守卫: admin 全量; 本人恒可读; 其余目标用户必须落在当前用户的数据范围可见部门内
         // (self/team/office/region/dept/custom 各范围经 OrgScopeResolver 解析)。
         if (!SecurityUtils.isAdmin() && !id.equals(SecurityUtils.getCurrentUserId()) && !isUserVisible(u)) {
-            throw new BusinessException("无权查看该用户");
+            throw new BusinessException(403, "无权查看该用户");
         }
         if ("custom".equals(u.getDataScopeOverride())) {
             // 【2026-08-08 用户级 custom 授权】回填个人授权组织，供编辑表单回显
@@ -254,7 +254,7 @@ public class SysUserService {
         if (SecurityUtils.isAdmin()) return;
         if (userId.equals(SecurityUtils.getCurrentUserId())) return;
         if (!isUserVisible(target)) {
-            throw new BusinessException("无权操作该用户");
+            throw new BusinessException(403, "无权操作该用户");
         }
     }
 
@@ -293,10 +293,10 @@ public class SysUserService {
         if (roleId != null) {
             SysRole role = roleMapper.selectById(roleId);
             if (role == null) throw new BusinessException("角色不存在");
-            if ("admin".equals(role.getRoleCode())) throw new BusinessException("无权授予系统管理员角色");
+            if ("admin".equals(role.getRoleCode())) throw new BusinessException(403, "无权授予系统管理员角色");
             DataScopeType grantScope = DataScopeType.fromCode(role.getDataScope());
             if (grantScope.rank() < callerScope.rank()) {
-                throw new BusinessException("无权授予超出自身数据范围的角色");
+                throw new BusinessException(403, "无权授予超出自身数据范围的角色");
             }
             // 【P0 2026-10-17 提权防护】授予的角色权限必须是调用者自身权限子集，
             // 与 SysRoleService.validateGrantableRole/saveRoleMenus 同口径：
@@ -306,7 +306,7 @@ public class SysUserService {
         if (StringUtils.hasText(dataScopeOverride)) {
             DataScopeType overrideScope = DataScopeType.fromCode(dataScopeOverride);
             if (overrideScope.rank() < callerScope.rank()) {
-                throw new BusinessException("无权设置超出自身数据范围的数据范围");
+                throw new BusinessException(403, "无权设置超出自身数据范围的数据范围");
             }
         }
     }
@@ -323,7 +323,7 @@ public class SysUserService {
         if (granted == null) return;
         for (String permission : granted) {
             if (StringUtils.hasText(permission) && !callerPerms.contains(permission)) {
-                throw new BusinessException("无权授予权限: " + permission);
+                throw new BusinessException(403, "无权授予权限: " + permission);
             }
         }
     }
@@ -365,7 +365,7 @@ public class SysUserService {
                 allowed = visibleDeptIds.contains(target) || managedOrgScope.contains(target);
             }
             if (!allowed) {
-                throw new BusinessException("无权在目标部门/组织下创建或修改用户");
+                throw new BusinessException(403, "无权在目标部门/组织下创建或修改用户");
             }
         }
     }
@@ -519,7 +519,7 @@ public class SysUserService {
         // 【2026-08-15 安全审计 H1 纵深防御】非 admin 操作者禁止重置 admin 角色账号口令——
         // 临时口令明文随响应返回, 得手即接管全系统(不依赖 controller 的 canManageUser 守卫, 服务层独立兜底)
         if (!SecurityUtils.isAdmin() && hasAdminRole(userId)) {
-            throw new BusinessException("无权操作该用户");
+            throw new BusinessException(403, "无权操作该用户");
         }
         // 【2026-08-14 安全 P0】随机临时口令 + 首登强制改密 + DB 级改密时刻(旧 token 立即失效)。
         // 截断到秒：避免 MySQL DATETIME(0) 四舍五入进位导致同秒 token 误判（与 changePassword 同因）
@@ -743,7 +743,7 @@ public class SysUserService {
         if (user == null) throw new BusinessException("用户不存在");
         // 【2026-08-15 安全审计 H1 纵深防御】非 admin 操作者禁止删除 admin 角色账号(服务层兜底, 不依赖 controller 守卫)
         if (!SecurityUtils.isAdmin() && hasAdminRole(userId)) {
-            throw new BusinessException("无权操作该用户");
+            throw new BusinessException(403, "无权操作该用户");
         }
         securityAudit.userAdminEvent("user_delete", userId, null);
         formDraftService.purgeByUser(userId);

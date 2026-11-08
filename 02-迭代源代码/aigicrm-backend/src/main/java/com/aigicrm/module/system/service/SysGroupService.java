@@ -61,7 +61,7 @@ public class SysGroupService {
         if (group.getId() != null) {
             SysGroup existing = groupMapper.selectById(group.getId());
             if (existing != null && !GroupScopeUtil.canAccessGroup(existing.getId())) {
-                throw new BusinessException("无权操作其他集团");
+                throw new BusinessException(403, "无权操作其他集团");
             }
         }
         groupMapper.updateById(group);
@@ -70,7 +70,7 @@ public class SysGroupService {
     @Transactional
     public void delete(Long id) {
         if (!GroupScopeUtil.canAccessGroup(id)) {
-            throw new BusinessException("无权操作其他集团");
+            throw new BusinessException(403, "无权操作其他集团");
         }
         SysGroup group = new SysGroup();
         group.setId(id);

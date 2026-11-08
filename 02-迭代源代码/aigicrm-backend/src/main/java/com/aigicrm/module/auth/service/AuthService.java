@@ -177,7 +177,7 @@ public class AuthService {
         Long userId = SecurityUtils.getCurrentUserId();
         java.util.List<Long> groupIds = resolveGroupIds(userId);
         if (groupId == null || !groupIds.contains(groupId)) {
-            throw new BusinessException("无权切换到该集团");
+            throw new BusinessException(403, "无权切换到该集团");
         }
         var user = userMapper.selectById(userId);
         securityAudit.groupSwitch(userId, user != null ? user.getUsername() : "",

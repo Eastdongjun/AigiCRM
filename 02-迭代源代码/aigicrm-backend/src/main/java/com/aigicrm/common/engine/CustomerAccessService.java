@@ -164,21 +164,21 @@ public class CustomerAccessService {
     public void assertCanView(Long customerId) {
         if (!canView(customerId)) {
             log.warn("用户 {} 尝试越权查看客户 {}", SecurityUtils.getCurrentUserId(), customerId);
-            throw new BusinessException("无权查看该客户");
+            throw new BusinessException(403, "无权查看该客户");
         }
     }
 
     public void assertCanEdit(Long customerId) {
         if (!canEdit(customerId)) {
             log.warn("用户 {} 尝试越权编辑客户 {}", SecurityUtils.getCurrentUserId(), customerId);
-            throw new BusinessException("无权编辑该客户");
+            throw new BusinessException(403, "无权编辑该客户");
         }
     }
 
     public void assertCanDelete(Long customerId) {
         if (!canDelete(customerId)) {
             log.warn("用户 {} 尝试越权删除客户 {}", SecurityUtils.getCurrentUserId(), customerId);
-            throw new BusinessException("无权删除该客户");
+            throw new BusinessException(403, "无权删除该客户");
         }
     }
 

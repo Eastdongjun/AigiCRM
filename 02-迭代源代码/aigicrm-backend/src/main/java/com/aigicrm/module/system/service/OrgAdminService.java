@@ -57,7 +57,7 @@ public class OrgAdminService {
     public void addOrgAdmin(Long orgId, Long userId) {
         // 【安全 2026-08-08】仅能在调用者管辖的组织内任命管理员
         if (!canManageOrg(orgId)) {
-            throw new com.aigicrm.common.BusinessException("无权在该组织任命管理员");
+            throw new com.aigicrm.common.BusinessException(403, "无权在该组织任命管理员");
         }
         // 检查是否已存在
         Long count = orgAdminMapper.selectCount(
@@ -83,7 +83,7 @@ public class OrgAdminService {
         SysOrgAdmin existing = orgAdminMapper.selectById(id);
         if (existing == null) return;
         if (!canManageOrg(existing.getOrgId())) {
-            throw new com.aigicrm.common.BusinessException("无权移除该组织的管理员");
+            throw new com.aigicrm.common.BusinessException(403, "无权移除该组织的管理员");
         }
         orgAdminMapper.deleteById(id);
         // 【Redis 权限缓存】组织管理员移除立即失效该用户

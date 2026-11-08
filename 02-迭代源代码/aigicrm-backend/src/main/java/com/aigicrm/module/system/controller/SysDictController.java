@@ -28,6 +28,13 @@ public class SysDictController {
     @PreAuthorize("hasAuthority('system:config:edit')")
     @PostMapping("/types")
     public Result<Void> createType(@RequestBody SysDictType type) {
+        // 【六层验收 2026-11-08】空body 500 修复：空对象缺名/编码直达 DB NOT NULL 报 500，前置 400
+        if (type == null || type.getDictName() == null || type.getDictName().isBlank()) {
+            throw new com.aigicrm.common.BusinessException(400, "字典名称不能为空");
+        }
+        if (type.getDictCode() == null || type.getDictCode().isBlank()) {
+            throw new com.aigicrm.common.BusinessException(400, "字典编码不能为空");
+        }
         dictService.createType(type);
         return Result.ok();
     }
@@ -35,6 +42,10 @@ public class SysDictController {
     @PreAuthorize("hasAuthority('system:config:edit')")
     @PutMapping("/types/{id}")
     public Result<Void> updateType(@PathVariable Long id, @RequestBody SysDictType type) {
+        // 【六层验收 2026-11-08】空body 500 修复：空对象拼出空 SET 的 UPDATE(MybatisPlusException)报 500，前置 400
+        if (type == null || type.getDictName() == null || type.getDictName().isBlank()) {
+            throw new com.aigicrm.common.BusinessException(400, "字典名称不能为空");
+        }
         type.setId(id);
         dictService.updateType(type);
         return Result.ok();
@@ -71,6 +82,13 @@ public class SysDictController {
     @PostMapping("/data")
     @PreAuthorize("hasAuthority('system:config:edit')")
     public Result<Void> createData(@RequestBody SysDictData data) {
+        // 【六层验收 2026-11-08】空body 500 修复：空对象缺类型/标签直达 DB NOT NULL 报 500，前置 400
+        if (data == null || data.getDictTypeId() == null) {
+            throw new com.aigicrm.common.BusinessException(400, "所属字典类型不能为空");
+        }
+        if (data.getDictLabel() == null || data.getDictLabel().isBlank()) {
+            throw new com.aigicrm.common.BusinessException(400, "字典标签不能为空");
+        }
         dictService.createData(data);
         return Result.ok();
     }
@@ -78,6 +96,10 @@ public class SysDictController {
     @PutMapping("/data/{id}")
     @PreAuthorize("hasAuthority('system:config:edit')")
     public Result<Void> updateData(@PathVariable Long id, @RequestBody SysDictData data) {
+        // 【六层验收 2026-11-08】空body 500 修复：空对象拼出空 SET 的 UPDATE(MybatisPlusException)报 500，前置 400
+        if (data == null || data.getDictLabel() == null || data.getDictLabel().isBlank()) {
+            throw new com.aigicrm.common.BusinessException(400, "字典标签不能为空");
+        }
         data.setId(id);
         dictService.updateData(data);
         return Result.ok();

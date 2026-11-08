@@ -48,6 +48,13 @@ public class SysRoleController {
     @PostMapping
     @PreAuthorize("hasAuthority('system:role:add')")
     public Result<Void> create(@RequestBody SysRole role) {
+        // 【六层验收 2026-11-08】空body 500 修复：空对象缺名/编码直达 DB NOT NULL 报 500，前置 400
+        if (role == null || role.getRoleName() == null || role.getRoleName().isBlank()) {
+            throw new com.aigicrm.common.BusinessException(400, "角色名称不能为空");
+        }
+        if (role.getRoleCode() == null || role.getRoleCode().isBlank()) {
+            throw new com.aigicrm.common.BusinessException(400, "角色编码不能为空");
+        }
         roleService.create(role);
         return Result.ok();
     }

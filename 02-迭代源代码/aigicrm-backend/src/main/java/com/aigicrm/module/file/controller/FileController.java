@@ -71,6 +71,11 @@ public class FileController {
             @RequestParam("file") MultipartFile file,
             @RequestParam(required = false) Long folderId,
             @RequestParam(defaultValue = "private") String scope) {
+        // 【六层验收 2026-11-08】空body 500 修复：非 multipart/缺 file part 由 GlobalExceptionHandler
+        // 统一回 400，此处再兜底空文件(防 0 字节/空 part 继续走落盘链路)
+        if (file == null || file.isEmpty()) {
+            throw new com.aigicrm.common.BusinessException(400, "请选择要上传的文件");
+        }
         return Result.ok(fileService.upload(file, folderId, scope));
     }
 
@@ -106,6 +111,11 @@ public class FileController {
     @PreAuthorize("hasAuthority('file:edit')")
     @PostMapping("/{id}/replace")
     public Result<BizFile> replaceFile(@PathVariable Long id, @RequestParam("file") MultipartFile file) {
+        // 【六层验收 2026-11-08】空body 500 修复：非 multipart/缺 file part 由 GlobalExceptionHandler
+        // 统一回 400，此处再兜底空文件(防 0 字节/空 part 继续走替换落盘链路)
+        if (file == null || file.isEmpty()) {
+            throw new com.aigicrm.common.BusinessException(400, "请选择要替换的文件");
+        }
         return Result.ok(fileService.replaceFile(id, file));
     }
 
