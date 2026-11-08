@@ -572,10 +572,36 @@ Page({
     const item = this.data.detailView.items[Number(dataset.itemIndex)]
     return item && item.files ? item.files[Number(dataset.fileIndex)] : null
   },
+  // 【2026-11-08 用户令"图片可以连着滑"】本记录全部图片附件的签名直链组(原图非缩略):
+  // token 沿用 loadThumbnails 已缓存的页级 dlToken(带时效窗); 任一环缺 token 返空数组→回落单张下载管线。
+  collectRecordImageGroup(item) {
+    const token = this.data.dlToken
+    if (!token || !item || !Array.isArray(item.files)) return []
+    const urls = []
+    for (const f of item.files) {
+      if (!f || f.type !== 'image' || f.id == null) continue
+      const base = getDownloadUrl(f)
+      if (!base) return []
+      urls.push(base + (base.indexOf('?') >= 0 ? '&' : '?') + 'token=' + encodeURIComponent(token))
+    }
+    return urls
+  },
   previewAttachment(event) {
     const file = this.findAttachment(event)
     if (!file) return
     if (getApp().globalData.demoMode) return wx.showToast({ title: '演示附件不可打开', icon: 'none' })
+    // 【2026-11-08 图片连滑】图片附件优先整组签名直链 previewImage(点哪张从哪张起、同记录连续滑,
+    // 与 PC 灯箱/MP 文件页同体验); 组装不出(token 缺失/URL 拼不出)回落既有单张下载管线(fail-open)。
+    if (file.type === 'image') {
+      const dataset = event.currentTarget.dataset
+      const item = this.data.detailView.items[Number(dataset.itemIndex)]
+      const urls = this.collectRecordImageGroup(item)
+      if (urls.length > 0) {
+        const currentBase = getDownloadUrl(file)
+        const current = urls.find((u) => u.indexOf(String(currentBase)) === 0) || urls[0]
+        return wx.previewImage({ urls, current, fail: () => this.fetchAttachment(file, 'preview') })
+      }
+    }
     return this.fetchAttachment(file, 'preview')
   },
   downloadAttachment(event) {

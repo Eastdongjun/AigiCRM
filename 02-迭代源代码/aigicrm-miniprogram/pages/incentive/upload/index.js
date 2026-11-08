@@ -944,8 +944,19 @@ Page({
     if (file.existing && (file.fileId || file.fileUrl)) return this.fetchExistingFile(file, 'preview')
     if (!file.filePath) return
     if (file.fileKind === 'image' || isImageFile(file.fileName, file.filePath)) {
-      recordAttachmentAction('previewImage', { urls: [file.filePath] })
-      wx.previewImage({ urls: [file.filePath], fail: (error) => showError(error, '图片预览失败') })
+      // 【2026-11-08 用户令"图片可以连着滑"】本地已选图片整组连滑(跨前/中/后槽位, 点哪张从哪张起,
+      // 与 PC 灯箱同体验); 组装不出组(异常)回落原单张。
+      const group = []
+      ;(this.data.fileSlots || []).forEach((slot) => {
+        ;(slot && slot.files ? slot.files : []).forEach((f) => {
+          if (f && !f.existing && f.filePath && (f.fileKind === 'image' || isImageFile(f.fileName, f.filePath))) {
+            group.push(f.filePath)
+          }
+        })
+      })
+      const urls = group.length > 1 ? group : [file.filePath]
+      recordAttachmentAction('previewImage', { urls })
+      wx.previewImage({ urls, current: file.filePath, fail: (error) => showError(error, '图片预览失败') })
       return
     }
     // 【2026-10-17】视频走 previewMedia 全屏播放、文本走文本查看页——此前统一塞 openDocument,
