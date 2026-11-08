@@ -7,7 +7,22 @@
       <el-table-column label="文件名称" min-width="220" class-name="name-col">
         <template #default="{ row }">
           <div class="file-name-cell">
-            <span class="file-icon" :class="'icon-' + getFileExt(row.fileName)">{{ getFileExtLabel(row.fileName) }}</span>
+            <!-- 【2026-11-08 用户令"文件管理里的图片要能看到"】图片行直接显示缩略图(签名 thumbnail 直链, 40px),
+                 加载失败退化回类型徽标; 点击缩略=点行同款预览 -->
+            <el-image
+              v-if="isImageRow(row) && !thumbFailedMap[row.id]"
+              class="file-thumb"
+              :src="thumbUrlOf(row)"
+              fit="cover"
+              lazy
+              @error="thumbFailedMap[row.id] = true"
+              @click.stop="onRowClick(row)"
+            >
+              <template #error>
+                <span class="file-icon" :class="'icon-' + getFileExt(row.fileName)" @click.stop="onRowClick(row)">{{ getFileExtLabel(row.fileName) }}</span>
+              </template>
+            </el-image>
+            <span v-else class="file-icon" :class="'icon-' + getFileExt(row.fileName)">{{ getFileExtLabel(row.fileName) }}</span>
             <span class="file-name-text">{{ row.fileName }}</span>
           </div>
         </template>
@@ -73,8 +88,9 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, reactive, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { getDownloadToken, refreshDownloadToken } from '@/utils/token'
 // 【D16】View 图标已由 main.js menuIconList 全局注册(app.component)，本地 import 冗余已删；模板 <View/> 仍可解析
 // （EditPen 同为 menuIconList 白名单成员，模板 <EditPen/> 直接解析）
 import { replaceFile, renameFile } from '@/api/file'
@@ -97,6 +113,20 @@ const rowClassName = ({ row }) => (isImageRow(row) ? 'row-click-preview' : '')
 const onRowClick = (row) => {
   if (isImageRow(row)) handlePreview(row)
 }
+
+// 【2026-11-08 用户令"文件管理里的图片要能看到"】图片行缩略图(签名 thumbnail 直链 ≤300px):
+// token 沿用页面既有 download-token(与预览/下载同源, 切集团自动随 store 刷新);
+// 失败行记入 thumbFailedMap 退化回类型徽标(响应式 Map)。
+const thumbFailedMap = reactive({})
+const thumbUrlOf = (row) => {
+  const t = getDownloadToken() || ''
+  return `/api/file/download/${row.id}?thumbnail=1${t ? `&token=${encodeURIComponent(t)}` : ''}`
+}
+watch(files, async () => {
+  if ((files.value || []).some(isImageRow)) {
+    try { await refreshDownloadToken() } catch (e) { /* 缩略退化类型徽标 */ }
+  }
+}, { immediate: true })
 
 // 文件替换（行操作触发，独立隐藏选择器）
 const replaceFileTarget = ref(null)
@@ -244,4 +274,6 @@ const handleReplaceChosen = async (e) => {
 .file-total { font-size: 12px; color: var(--text-muted); }
 /* 【2026-11-08】图片行可点直预览: 手型光标提示可交互 */
 :deep(.row-click-preview) { cursor: pointer; }
+/* 【2026-11-08】文件名列缩略图(图片行): 40px 方块, 加载失败由模板 error 槽退化类型徽标 */
+.file-thumb { width: 40px; height: 40px; border-radius: 6px; flex: 0 0 40px; overflow: hidden; }
 </style>
