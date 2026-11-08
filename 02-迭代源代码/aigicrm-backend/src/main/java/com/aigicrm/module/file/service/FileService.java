@@ -466,11 +466,28 @@ public class FileService {
         String name = fileName == null ? "" : fileName.trim();
         if (name.isEmpty()) throw new BusinessException("文件名不能为空");
         if (name.length() > 200) throw new BusinessException("文件名过长（不超过 200 字符）");
+        // 【2026-11-08 用户令"改名不更改格式"】扩展名铁律守卫: 无论用户输入是否带/换扩展名,
+        // 一律剥掉输入中的扩展名后拼回原扩展名——photo.jpg → 输入"photo2"/"photo2.png"均得 photo2.jpg。
+        // 原名无扩展名则保持无扩展; 主名被剥空(只输了个扩展名)按"文件名不能为空"拒绝。
+        name = keepOriginalExtension(name, file.getFileName());
         if (name.equals(file.getFileName())) return;
         BizFile patch = new BizFile();
         patch.setId(fileId);
         patch.setFileName(name);
         fileMapper.updateById(patch);
+    }
+
+    /** 改名保格式: 剥掉输入自带的后缀, 拼回原名扩展名——复用本类既有 extOf(:1231, 返回无点小写/null) */
+    private static String keepOriginalExtension(String input, String originalName) {
+        String originalExt = extOf(originalName); // null=原名无扩展名
+        String inputExt = extOf(input);
+        String main = input;
+        if (inputExt != null) {
+            // 输入带了后缀(与原一致或想换格式): 一律剥掉, 稍后统一拼回原扩展名
+            main = input.substring(0, input.length() - inputExt.length() - 1);
+        }
+        if (main.isBlank()) throw new BusinessException("文件名不能为空");
+        return originalExt == null ? main : main + "." + originalExt;
     }
 
     /**

@@ -1207,22 +1207,30 @@ Page({
   },
   // 【2026-11-06 用户令"加一个可以修改文件名称的"】重命名弹层: ⋯面板「重命名」进入
   // 【11-08 审计项3】file:edit 权限码前置: 无码用户不发必败请求(后端 rename 守 file:edit)
+  // 【2026-11-08 用户令"改名不更改格式"】扩展名自动保留: 剥输入后缀拼回原扩展名(与后端同口径)
   openRenameModal(event) {
     if (!this.data.canEditFile) return wx.showToast({ title: '没有文件重命名权限', icon: 'none' })
     const item = this.findFile(event)
     if (!item || !item.id || String(item.id).startsWith('file-')) return wx.showToast({ title: '演示文件暂不可重命名', icon: 'none' })
-    this.setData({ renameModal: { visible: true, id: item.id, input: item.name || '' } })
+    this.setData({ renameModal: { visible: true, id: item.id, input: item.name || '', originalName: item.name || '' } })
   },
   onRenameInput(e) { this.setData({ 'renameModal.input': e.detail.value }) },
   cancelRenameModal() { this.setData({ 'renameModal.visible': false }) },
   confirmRename() {
-    const { id, input } = this.data.renameModal
+    const { id, input, originalName } = this.data.renameModal
     const name = String(input || '').trim()
     if (!name) return wx.showToast({ title: '文件名不能为空', icon: 'none' })
     if (name.length > 200) return wx.showToast({ title: '文件名过长（不超过 200 字符）', icon: 'none' })
+    const extOf = (n) => { const i = (n || '').lastIndexOf('.'); return i > 0 && i < n.length - 1 ? n.slice(i) : '' }
+    const origExt = extOf(originalName)
+    const inExt = extOf(name)
+    const main = inExt ? name.slice(0, name.length - inExt.length) : name
+    if (!main) return wx.showToast({ title: '文件名不能为空', icon: 'none' })
+    const finalName = origExt ? main + origExt : main
+    if (finalName === originalName) return wx.showToast({ title: '新文件名与原文件名相同', icon: 'none' })
     this.setData({ 'renameModal.visible': false })
-    renameFile(id, name).then(() => {
-      wx.showToast({ title: '已重命名', icon: 'success' })
+    renameFile(id, finalName).then(() => {
+      wx.showToast({ title: '已重命名 ' + finalName, icon: 'none' })
       this.data.activeFolderId ? this.openFolder({ currentTarget: { dataset: { id: this.data.activeFolderId, name: this.data.activeFolderName } } }) : this.loadFiles()
     }).catch((error) => showError(error, '重命名失败'))
   },

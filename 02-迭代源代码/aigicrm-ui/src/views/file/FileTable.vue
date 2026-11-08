@@ -140,9 +140,21 @@ const userStore = useUserStore()
 const canRenameFile = computed(() =>
   userStore.hasPermission('file:edit') && folderPerms.value.includes('edit'))
 
+// 【2026-11-08 用户令"改名不更改格式"】扩展名自动保留: 输入带不带/换不换后缀,
+// 提交前统一剥掉输入后缀拼回原扩展名(与后端 keepOriginalExtension 同口径, 后端为铁律守卫)
+const extOf = (n) => { const i = (n || '').lastIndexOf('.'); return i > 0 && i < n.length - 1 ? n.slice(i) : '' }
+const keepOriginalExt = (input, original) => {
+  const origExt = extOf(original)
+  const inExt = extOf(input)
+  const main = inExt ? input.slice(0, input.length - inExt.length) : input
+  return origExt ? main + origExt : main
+}
 const handleRenameFile = async (row) => {
   try {
-    const { value } = await ElMessageBox.prompt('请输入新的文件名（保留扩展名）', '文件改名', {
+    const origExt = extOf(row.fileName)
+    const { value } = await ElMessageBox.prompt(
+      `请输入新的文件名${origExt ? `（扩展名 ${origExt} 自动保留，无需输入）` : ''}`,
+      '文件改名', {
       confirmButtonText: '确定',
       cancelButtonText: '取消',
       inputValue: row.fileName || '',
@@ -150,12 +162,13 @@ const handleRenameFile = async (row) => {
         const name = (v || '').trim()
         if (!name) return '文件名不能为空'
         if (name.length > 200) return '文件名过长（不超过 200 字符）'
-        if (name === row.fileName) return '新文件名与原文件名相同'
+        if (keepOriginalExt(name, row.fileName) === row.fileName) return '新文件名与原文件名相同'
         return true
       }
     })
-    await renameFile(row.id, value.trim())
-    ElMessage.success('改名成功')
+    const finalName = keepOriginalExt(value.trim(), row.fileName)
+    await renameFile(row.id, finalName)
+    ElMessage.success(`改名成功：${finalName}`)
     loadFiles()
   } catch (e) {
     // cancel/close 静默；接口错误提示由 request 拦截器统一处理
