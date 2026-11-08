@@ -493,8 +493,9 @@ Page({
     const industry = this.data.industries[this.data.selectedIndustryIndex]
     const product = this.data.productOptions[this.data.selectedProductIndex]
     return records.filter((item) => {
-      // 【2026-11-02 用户令: 深度检索】关键词命中: 客户/文件名/备注/详情/产品 全字段
-      const text = [item.customerName, item.name, item.summary, item.remark, item.description, item.detail, item.preInstallQuestion, item.relatedProducts, item.specificProduct, item.product].filter(Boolean).join(' ').toLowerCase()
+      // 【2026-11-09 用户令"只检索含有关键字的记录"】客户名不再参与关键字匹配(防客户名沾边客户的
+      // 全部记录被带出); 2026-11-02 深度检索的备注/详情等字段维持不动(本页既有口径, 非本次指令范围)
+      const text = [item.name, item.summary, item.remark, item.description, item.detail, item.preInstallQuestion, item.relatedProducts, item.specificProduct, item.product].filter(Boolean).join(' ').toLowerCase()
       if (keyword && !text.includes(keyword)) return false
       if (industry && industry !== '全部行业' && item.industry !== industry) return false
       if (product && product !== '全部产品') {

@@ -808,7 +808,8 @@ Page({
       // 【2026-11-06 用户令"检索关键字 无关的记录不用带出来"】本地过滤字段与后端同口径收紧:
       // 只留强相关(客户名/关联产品/具体产品), 去掉 summary/remark/description 弱字段——
       // 备注随口一提的记录不再被连带带出
-      const text = [item.customerName, item.name, item.relatedProducts, item.specificProduct, item.product].filter(Boolean).join(' ').toLowerCase()
+      // 【2026-11-09 用户令"只检索含有关键字的记录"】客户名不再参与关键字匹配(防客户级扩散), 与服务端两路口径一致
+      const text = [item.name, item.relatedProducts, item.specificProduct, item.product].filter(Boolean).join(' ').toLowerCase()
       if (keyword && !text.includes(keyword)) return false
       if (industry && industry !== '全部行业' && item.industry !== industry) return false
       // 【I1】customer-records 按客户分组返回的行不带 devType/产品字段(devType 属客户、产品在子记录),

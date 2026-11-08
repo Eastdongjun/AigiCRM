@@ -63,15 +63,18 @@ assert_contains "$INCENTIVE_SERVICE" "private void evictScoreboardCache()"
 EVICT_CALLS=$(grep -c "evictScoreboardCache();" "$INCENTIVE_SERVICE")
 [ "$EVICT_CALLS" -ge 4 ] || fail "激励排行写穿失效调用点不足(应≥4: add/update/delete/removeFile), 实际 $EVICT_CALLS"
 # 【2026-11-06 用户令"检索关键字 无关的记录不用带出来"翻转 11-02 深度检索钉】
-# 关键词语义收紧为强相关三路(客户名集合∨关联产品∨具体产品); 11-02 的"备注+安装前问题"
-# 两路弱字段已撤(备注随口一提=无关记录噪音)——本钉反转为防复活: 弱字段命中数必须为 0
+# 【2026-11-09 用户令"只检索含有关键字的记录, 不要把客户的信息全部检索出来"再收紧】
+# 关键词=纯记录级两路(关联产品∨具体产品): 客户名命中不再扩散为该客户全部记录;
+# 11-02"备注+安装前问题"弱字段与客户名 OR 扩散路均已撤——本钉防复活: 三者命中数必须为 0
 REMARK_HITS=$(grep -c "getRemark, keyword" "$INCENTIVE_SERVICE" || true)
 DETAIL_HITS=$(grep -c "getPreInstallQuestion, keyword" "$INCENTIVE_SERVICE" || true)
-[ "$REMARK_HITS" -eq 0 ] || fail "关键词弱字段回潮: 备注命中 $REMARK_HITS 处(2026-11-06 已撤, 只许客户名∨关联产品∨具体产品)"
+CUST_OR_HITS=$(grep -cE "getCustomerId, cids" "$INCENTIVE_SERVICE" || true)
+[ "$REMARK_HITS" -eq 0 ] || fail "关键词弱字段回潮: 备注命中 $REMARK_HITS 处(2026-11-06 已撤, 只许关联产品∨具体产品)"
 [ "$DETAIL_HITS" -eq 0 ] || fail "关键词弱字段回潮: 安装前问题命中 $DETAIL_HITS 处(2026-11-06 已撤)"
-# 收紧后强相关两路仍须在(3 分支: customerName 空/非空/else)
+[ "$CUST_OR_HITS" -eq 0 ] || fail "关键词客户名扩散路回潮: customerId IN 命中 $CUST_OR_HITS 处(2026-11-09 已撤, 客户级筛选走仅传 customerName 的分支)"
+# 收紧后强相关两路仍须在(纯记录级)
 PRODUCT_HITS=$(grep -c "getRelatedProducts, keyword" "$INCENTIVE_SERVICE" || true)
-[ "$PRODUCT_HITS" -ge 3 ] || fail "关键词强相关匹配缺关联产品分支(应≥3), 实际 $PRODUCT_HITS"
+[ "$PRODUCT_HITS" -ge 1 ] || fail "关键词强相关匹配缺关联产品分支, 实际 $PRODUCT_HITS"
 
 # 【2026-10-29 左面板联动+筛选扩展】点左侧子分类=右侧表格按记录 categoryId 过滤(记录挂二级,数值归一);
 # 筛选栏新增行业(字典)/时间范围(闭区间,前10位字典序); 切大类Tab自动清选中防跨大类串数据
