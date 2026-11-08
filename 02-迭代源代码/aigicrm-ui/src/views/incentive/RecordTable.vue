@@ -19,9 +19,20 @@
       <el-table-column label="安装文件" min-width="200">
         <template #default="{ row }">
           <div class="install-files">
-            <span v-if="row.filePreName" class="file-tag" :class="{previewable: firstType(row.filePreName)!=='doc'}" @click.stop="previewFile(row.filePreId, row.filePreName)"><b>前</b>{{ row.filePreName }}</span>
-            <span v-if="row.fileMidName" class="file-tag" :class="{previewable: firstType(row.fileMidName)!=='doc'}" @click.stop="previewFile(row.fileMidId, row.fileMidName)"><b>中</b>{{ row.fileMidName }}</span>
-            <span v-if="row.filePostName" class="file-tag" :class="{previewable: firstType(row.filePostName)!=='doc'}" @click.stop="previewFile(row.filePostId, row.filePostName)"><b>后</b>{{ row.filePostName }}</span>
+            <!-- 【2026-11-08 用户令"激励上传里的图片也要能预览"】图片槽位直接显示缩略图
+                 (签名 thumbnail 直链, 与文件管理行缩略同款), 点缩略=原文件名点击同款 FilePreview 预览;
+                 非图片槽位与加载失败保持原文字 tag(可点预览的口径不变) -->
+            <template v-for="slot in slotDefs(row)" :key="slot.key">
+              <div v-if="slot.isImage" class="slot-thumb" @click.stop="previewFile(slot.id, slot.name)" :title="slot.name">
+                <el-image class="slot-thumb-img" :src="fileThumbUrl(slot.fid)" fit="cover" lazy>
+                  <template #error>
+                    <span class="file-tag" :class="{previewable: slot.type!=='doc'}" @click.stop="previewFile(slot.id, slot.name)"><b>{{ slot.label }}</b>{{ slot.name }}</span>
+                  </template>
+                </el-image>
+                <span class="slot-thumb-badge">{{ slot.label }}</span>
+              </div>
+              <span v-else class="file-tag" :class="{previewable: slot.type!=='doc'}" @click.stop="previewFile(slot.id, slot.name)"><b>{{ slot.label }}</b>{{ slot.name }}</span>
+            </template>
             <span v-if="!row.filePreName && !row.fileMidName && !row.filePostName" class="file-cell">
               <el-icon class="file-icon"><Document /></el-icon>{{ row.fileName || '—' }}
             </span>
@@ -83,8 +94,27 @@ import { pageSizes } from '@/utils/pagination'
 const {
   userStore, pagedRecords, filteredRecords, pageNum, pageSize,
   canEdit, canDelete, scoreColor, formatDate, fileType, previewFile,
+  fileThumbUrl, parseFids,
   startReplace, toggleShare, handleDeleteRecord, isRecordOwner,
 } = injectIncentiveUpload()
+
+// 【2026-11-08 槽位缩略】前/中/后三槽位统一描述: isImage=首文件是图片(缩略形态),
+// fid=首文件 id(缩略直链用), id/name 原样传 previewFile(保持多文件预览口径)
+const slotDefs = (row) => {
+  const defs = [
+    { key: 'pre', label: '前', id: row.filePreId, name: row.filePreName },
+    { key: 'mid', label: '中', id: row.fileMidId, name: row.fileMidName },
+    { key: 'post', label: '后', id: row.filePostId, name: row.filePostName },
+  ]
+  return defs
+    .filter(d => d.name)
+    .map(d => {
+      const firstName = String(d.name || '').split(',')[0].trim()
+      const fid = parseFids(d.id)[0]
+      const type = fileType(firstName)
+      return { ...d, isImage: type === 'image' && !!fid, fid, type }
+    })
+}
 
 // 【六轮复检修复】meta 行整体拼接: 空 userName/createdAt 不产生孤立「·」前缀,
 // updatedAt 缺失时只显示「改 张三」不再带「—」
@@ -123,4 +153,8 @@ const onSizeChange = (size) => {
 .file-icon { color: var(--el-color-info); font-size: 14px; flex-shrink: 0; }
 .shared-yes { color: var(--el-color-success); font-size: 12px; font-weight: 500; }
 .shared-no { color: var(--text-placeholder); }
+/* 【2026-11-08 槽位缩略】44px 方块+左上角前/中/后角标; 失败由 error 槽退回文字 tag */
+.slot-thumb { position: relative; width: 44px; height: 44px; flex: 0 0 44px; border-radius: 6px; overflow: hidden; cursor: pointer; }
+.slot-thumb-img { width: 100%; height: 100%; }
+.slot-thumb-badge { position: absolute; left: 0; top: 0; background: rgba(0,0,0,.55); color: #fff; font-size: 10px; line-height: 1; padding: 2px 4px; border-radius: 0 0 6px 0; }
 </style>

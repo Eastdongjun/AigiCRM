@@ -54,6 +54,8 @@ export function useIncentiveUpload() {
   const previewVisible = ref(false), previewUrl = ref(''), previewType = ref('image'), previewName = ref('')
   // 【修复 2026-08-14】下载 token 未就绪时不拼 token=（避免必然 403 的空 token 请求）
   const fileUrl = (id) => { const t = getDownloadToken(); return t ? '/api/file/download/' + id + '?token=' + t : '/api/file/download/' + id }
+  // 【2026-11-08 用户令"激励上传里的图片也要能预览"】槽位缩略直链(≤300px, 与文件管理行缩略同款后端口径)
+  const fileThumbUrl = (id) => { const t = getDownloadToken(); return '/api/file/download/' + id + '?thumbnail=1' + (t ? '&token=' + t : '') }
   const parseFids = (v) => { if (!v) return []; if (typeof v === 'number') return [v]; try { const a = JSON.parse(v); return Array.isArray(a) ? a.map(x => Number(x)) : [v] } catch { return String(v).split(',').map(s => s.trim()).filter(Boolean) } }
   const splitNames = (n) => { if (!n) return []; return String(n).split(',').map(s => s.trim()).filter(Boolean) }
   // 文件名三态判定(image/video/doc)统一在 utils/media-type.js，与客户详情页 detectType 同源
@@ -837,7 +839,7 @@ export function useIncentiveUpload() {
     userStore, activeTab, selectedUser, userList, selectedDeptId, deptTree,
     periodOptions, selectedPeriod, categories, records, canEdit, canDelete,
     pageNum, pageSize, pagedRecords, filteredRecords,
-    previewVisible, previewUrl, previewType, previewName, fileUrl,
+    previewVisible, previewUrl, previewType, previewName, fileUrl, fileThumbUrl,
     parseFids, splitNames, fileType, previewFile, previewCardFile,
     searchText, filterCustomer, filterGroup, filterTier, filterGroupOptions, filterTierOptions,
     selectedCategoryId, selectedCategoryName, toggleCategoryFilter, filterIndustry, filterDateRange,
