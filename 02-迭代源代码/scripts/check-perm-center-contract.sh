@@ -64,7 +64,9 @@ grep -Fq "customer:finance:edit" "$MIG/V2026.11.03.3__customer_finance_edit_perm
 grep -Fq "customer:finance:edit" "$BE/com/aigicrm/common/engine/CustomerAccessService.java" || fail 'AccessService must consume customer:finance:edit'
 grep -Fq '"finance_edit"' "$BE/com/aigicrm/common/engine/CustomerAccessService.java" || fail 'finance branch must resolve scope via action finance_edit'
 cnt=$(grep -c "hasAuthority('customer:finance:edit')" "$BE/com/aigicrm/module/customer/controller/CustomerController.java" || true)
-[ "$cnt" -ge 9 ] || fail "CustomerController must extend all 9 finance endpoints with customer:finance:edit, found $cnt"
+# 【死码清理 2026-11-08】逐笔开票/回款 8 个休眠写端点删除后, 存活的财务写端点仅剩
+# 阶段总额 POST /{id}/stage-amounts(1 处三通道注解); 下限 9 → 1
+[ "$cnt" -ge 1 ] || fail "CustomerController stage-amounts endpoint must carry customer:finance:edit three-channel annotation, found $cnt"
 grep -Fq "customer:finance:edit" "$MP/pages/customer/finance/form/index.js" || fail 'MP finance form gate must accept customer:finance:edit'
 grep -Fq "customer:finance:edit" "$MP/pages/customer/finance/index.js" || fail 'MP finance page gate must accept customer:finance:edit'
 

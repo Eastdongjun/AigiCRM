@@ -2,7 +2,7 @@ const { loadCurrentUser } = require('../../api/auth')
 const { getExpiringList, getPendingCount } = require('../../api/reminder')
 const { getDashboardData } = require('../../api/statistics')
 const { homeCards, reminderRecords } = require('../../data/demo')
-const { hasPermission, logout, requireLogin } = require('../../utils/auth')
+const { hasPermission, requireLogin } = require('../../utils/auth')
 const { showError } = require('../../utils/feedback')
 const { getTaskStatistics } = require('../../api/task')
 
@@ -242,7 +242,8 @@ Page({
 
   openAppCenter() {
     wx.switchTab({ url: '/pages/app/index' })
-  },
+  }
 
-  logout
+  // 【11-08 审计项6·审计09章新发现7】死注册清理: logout 曾注册在 Page 配置但 WXML 全文无
+  // bindtap="logout"(首页无退出入口, 出口在「我的」页), 连同 utils/auth 的死导入一并移除。
 })

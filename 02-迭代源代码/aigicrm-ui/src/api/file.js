@@ -82,3 +82,9 @@ export function getFolderPermissions(id) {
 export function replaceFile(id, formData) {
   return request.post(`/file/${id}/replace`, formData, { headers: { 'Content-Type': 'multipart/form-data' } })
 }
+
+// 【2026-11-08 PC 补文件改名入口】后端 FileController PUT /file/{id}/rename
+// （全局权限码 file:edit，service 层 checkFile(P_EDIT) 细粒度同 replace），body 传新文件名
+export function renameFile(id, fileName) {
+  return request.put(`/file/${id}/rename`, { fileName })
+}

@@ -42,19 +42,19 @@ public class SeaController {
 
     // ===== 公海池列表 =====
 
+    // 【死码清理 2026-11-08】officeId 参数已删：service 函数体从未使用，PC/MP/scripts 全库无调用方传它。
     @PreAuthorize("hasAuthority('sea:view')")
     @GetMapping("/list")
     public Result<IPage<BizSeaPool>> page(
             @RequestParam(defaultValue = "1") int current,
             @RequestParam(defaultValue = "15") int size,
             @RequestParam(required = false) String industry,
-            @RequestParam(required = false) Long officeId,
             @RequestParam(required = false) Long deptId,
             @RequestParam(required = false) String enterReason,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) Long poolId,
             @RequestParam(required = false) String status) {
-        return Result.ok(seaService.page(current, size, industry, officeId, enterReason, keyword, poolId, deptId, status));
+        return Result.ok(seaService.page(current, size, industry, enterReason, keyword, poolId, deptId, status));
     }
 
     @PreAuthorize("hasAuthority('sea:view')")

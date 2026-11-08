@@ -26,13 +26,17 @@ const TAG_COLORS = { 安装前: '#b45309', 安装中: '#1d4fd7', 安装后: '#04
 // 【2026-11-02 用户令·PC 同构表格】查询区客户封面卡 → 横向表格(每行一条记录, 列=客户/分类/产品/
 // 时间/上传人/文件/学分, 横滚看全部列)。行数据=客户聚合 records[] 拉平, 字段口径与轻量页
 // buildFlatRow 同源(同 API 同映射); 点行直达记录详情(拨盘页 detail?id=)。
-function buildRecordRow(record, customerName) {
+// 【11-08 审计项5】行携带 groupId(所属客户组 id): 点客户名进一客一册档案页(customer-detail),
+// 档案页 payload 需要整组视图+子记录, 由 openCustomerDetail 按 groupId 反查。
+function buildRecordRow(record, group) {
   const files = record.files || buildIncentiveFiles(record)
   const time = String(record.createdAt || record.createTime || '')
   const categoryName = record.categoryName || record.category || record.type || ''
   return {
     id: record.id,
-    customerName: record.customerName || customerName || '未命名客户',
+    groupId: (group && group.id) || '',
+    customerId: (group && group.customerId) || record.customerId || '',
+    customerName: record.customerName || (group && (group.name || group.customerName)) || '未命名客户',
     categoryName: categoryName || '未分类',
     productText: [record.specificProduct, record.relatedProducts, record.product].filter(Boolean).join(' · '),
     uploaderName: record.userName || record.updatedByName || record.createByName || '',
@@ -52,7 +56,7 @@ function buildRecordTableRows(customerGroups, childRawById) {
     const children = (group && group.records) || (childRawById && group && childRawById[group.id]) || []
     children.forEach((record) => {
       if (record && record.id !== undefined && record.id !== null) {
-        rows.push(buildRecordRow(record, group.name || group.customerName))
+        rows.push(buildRecordRow(record, group))
       }
     })
   })
@@ -1503,11 +1507,16 @@ Page({
 
   // 【需求C 2026-10-16】封面卡点入 → 客户激励详情页: 子记录视图此刻现构建(单客户量级,setData 无压力),
   // 已读/追加/删除的落地全在详情页(read 事件回写本卡免整页刷新, 变更走 forceRefresh 既有契约)
+  // 【11-08 审计项5】入口重接: 11-02 表格化后封面卡退役, 本方法一度无绑定成死码(档案页 16 个交互
+  // 不可达)——现入口=查询表格「客户」单元格(data-group-id); 组视图从 records 按 id 反查,
+  // 兼容旧 data-index 通道(封面卡 pagedRecords 形态, 已退役)。
   openCustomerDetail(e) {
-    const index = Number(e.currentTarget.dataset.index)
-    // 【分页 2026-10-18】data-index 对应列表实际渲染的当页数组; 子记录仍按 record.id 索引, 与页码无关
-    const record = this.data.pagedRecords[index]
-    if (!record) return
+    const dataset = e.currentTarget.dataset || {}
+    const groupId = dataset.groupId !== undefined && dataset.groupId !== null && dataset.groupId !== '' ? String(dataset.groupId) : ''
+    const record = groupId
+      ? (this.data.records || []).find((item) => String(item.id) === groupId)
+      : this.data.pagedRecords[Number(dataset.index)]
+    if (!record) return wx.showToast({ title: '未找到该客户的激励档案', icon: 'none' })
     const children = ((this._childRawById && this._childRawById[record.id]) || []).map(buildChildRecordView)
     wx.navigateTo({
       url: '/pages/incentive/customer-detail/index',

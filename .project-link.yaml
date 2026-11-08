@@ -1,5 +1,5 @@
 # .project-link.yaml — 代码库回指卡（双库对号用）
-# 生成：2026-10-21 / 来源：双库对号-20261021/gen_identity.py
+# 生成：link_card_gen.py（数据源 00-管理/项目执行/link-registry.yaml，勿手改本文件）
 # 本文件必须提交进 Git：换机器 clone 后仍能找到文档库。
 # 路径一律存**相对**，根在 00-管理/项目执行/link-config.yaml。
 
@@ -8,11 +8,11 @@ cust_id: PR01
 cust_name: AIGICRM
 kind: product
 
-# 相对 docs_base（= 百度网盘同步区域）
+# 相对 docs_base（= 网盘/文档库同步区域）
 docs_rel: 40-自研产品/01-AIGICRM
 # 发布物落点（唯一允许代码产物进文档库的地方），相对 docs_base
 release_rel: 40-自研产品/01-AIGICRM/05-交付/04-发布包
 
 # 本仓库在项目中的角色
-role: 自研产品，833 次提交，Sonar 已接
+role: 自研产品，833+ 次提交，Sonar 已接
 gates_apply: true

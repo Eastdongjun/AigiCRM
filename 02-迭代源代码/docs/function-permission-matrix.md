@@ -211,8 +211,8 @@ Legend: `V` view, `C` create, `U` update, `D` delete, `I` import, `E` export, `A
 | 客户详情 | View follow-up logs | `GET /api/customer/{id}/logs` | `customer:view` | Same customer visibility | Read | Yes | Implemented |
 | 客户详情 | Add follow-up log | `POST /api/customer/{id}/logs` | `customer:edit` | Same customer edit boundary | Create | Yes | Implemented |
 | 客户详情 | View invoices | `GET /api/customer/{id}/invoices`, `/summary` | `customer:view` + `finance:view` | Same customer visibility; backend returns empty data without finance permission | Read | Yes | Implemented |
-| 客户详情 | Add invoice | `POST /api/customer/{id}/invoices` | `customer:edit` + `finance:view` | Same customer edit boundary and finance visibility | Create | Yes | Implemented |
-| 客户详情 | Delete invoice | `DELETE /api/customer/{id}/invoices/{invoiceId}` | `customer:edit` + `finance:view` | Same customer edit boundary and finance visibility | Delete | Yes | Implemented |
+| ~~客户详情 \| Add invoice~~ | ~~Add invoice~~ | ~~`POST /api/customer/{id}/invoices`~~ (deleted 2026-11-08, dormant per-item write retired since 2026-10-10 stage-amount era) | — | — | — | — | — |
+| ~~客户详情 \| Delete invoice~~ | ~~Delete invoice~~ | ~~`DELETE /api/customer/{id}/invoices/{invoiceId}`~~ (deleted 2026-11-08, dormant per-item write) | — | — | — | — | — |
 | 客户详情 | View six indicators | `GET /api/customer/{id}/indicator` | `customer:view` | Same customer visibility | Read | Yes | Implemented |
 | 客户详情 | Save six indicators | `POST /api/customer/{id}/indicator` | `customer:edit` | Same customer edit boundary | Update | Yes | Implemented |
 | 客户详情 | Update relationship | `PUT /api/customer/{id}/relationship` | `customer:edit` | Same customer edit boundary | Update | Yes | Implemented |
@@ -223,8 +223,8 @@ Legend: `V` view, `C` create, `U` update, `D` delete, `I` import, `E` export, `A
 | 客户联系人 | Add contact | `POST /api/customer/{id}/contacts` | `customer:edit` | Same customer edit boundary | Create | Yes | Implemented |
 | 客户联系人 | Edit/delete contacts | `PUT/DELETE /api/customer/{id}/contacts...` | `customer:edit` | Same customer edit boundary | Update/Delete | Yes | Implemented |
 | 客户回款 | View payments | `GET /api/customer/{id}/payments`, `/summary` | `customer:view` + `finance:view` | Same customer visibility; backend returns empty data without finance permission | Read | Yes | Implemented |
-| 客户回款 | Add payment | `POST /api/customer/{id}/payments` | `customer:edit` + `finance:view` | Same customer edit boundary and finance visibility | Create | Yes | Implemented |
-| 客户回款 | Delete payment | `DELETE /api/customer/{id}/payments/{paymentId}` | `customer:edit` + `finance:view` | Same customer edit boundary and finance visibility | Delete | Yes | Implemented |
+| ~~客户回款 \| Add payment~~ | ~~Add payment~~ | ~~`POST /api/customer/{id}/payments`~~ (deleted 2026-11-08, dormant per-item write retired since 2026-10-10 stage-amount era) | — | — | — | — | — |
+| ~~客户回款 \| Delete payment~~ | ~~Delete payment~~ | ~~`DELETE /api/customer/{id}/payments/{paymentId}`~~ (deleted 2026-11-08, dormant per-item write) | — | — | — | — | — |
 | 客户导入 | Import customers | `POST /api/customer/import` | `customer:import` | Import target org/group validation | Import | Yes | No |
 | 客户导入 | Download template | `GET /api/customer/import/template` | `customer:import` | None | Download | Yes | No |
 | 客户导出 | Export customers | `GET /api/customer/export` | `customer:export` | Same list data scope | Export | Yes | No |
@@ -265,7 +265,7 @@ Legend: `V` view, `C` create, `U` update, `D` delete, `I` import, `E` export, `A
 | 四项服务 | Upload/add record | `POST /api/incentive/records` | `incentive:add` | Customer access and uploader identity | Create | Yes | Implemented |
 | 四项服务 | Edit own/permitted record | `PUT /api/incentive/records/{id}` | Method allows service-layer ownership/permitted edit | Owner/permitted editor | Update | Yes | Implemented |
 | 四项服务 | Delete own/permitted record | `DELETE /api/incentive/records/{id}` | Service-layer ownership/permitted delete | Owner/permitted editor/admin | Delete | Yes | Implemented |
-| 四项服务 | Recalculate records | `POST /api/incentive/records/recalculate` | `incentive:edit` | Config/admin scope | Batch mutation | Yes | No |
+| ~~四项服务 \| Recalculate records~~ | ~~Recalculate records~~ | ~~`POST /api/incentive/records/recalculate`~~ (deleted 2026-11-08, dead endpoint zero callers both clients) | — | — | — | — | — |
 | 激励查询 | Customer score | `GET /api/incentive/score/customer/{customerId}` | `incentive:view` | Same incentive/customer visibility | Read/statistics | Yes | Implemented |
 | 激励查询 | Scoreboard | `GET /api/incentive/scoreboard` | `incentive:stats:view` ∨ `incentive:rank:view` | Role/share/customer visibility | Read/statistics | Yes | Implemented (V2026.11.04.1 逐功能建码) |
 | 激励查询 | Ranking | `GET /api/incentive/ranking` | `incentive:stats:view` ∨ `incentive:rank:view` | Role/share/customer visibility | Read/statistics | Yes | Implemented (V2026.11.04.1 逐功能建码) |

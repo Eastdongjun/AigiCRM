@@ -61,11 +61,15 @@
         </el-col>
       </el-row>
       <!-- 【2026-08-11 岗位绑定】岗位多选(第一个为主岗位), 岗位数据范围经权限范围管理器"按岗位"配置 -->
+      <!-- 【2026-11-08 审计修复】指派"携带权限规则的岗位"后端 admin-only（assignUserPositions 对非 admin
+           硬校验"无权指派携带权限规则的岗位"），且岗位列表不回传规则携带信息、前端无法逐项区分——
+           非 admin 一律禁改岗位（保留回显），避免可见可点但保存必 403 -->
       <el-form-item label="岗位">
-        <el-select v-model="editForm.positionIds" multiple style="width:100%" placeholder="选择岗位(可多选, 第一个为主岗位)">
+        <el-select v-model="editForm.positionIds" multiple style="width:100%" :disabled="!isAdmin" placeholder="选择岗位(可多选, 第一个为主岗位)">
           <el-option v-for="p in allPositions" :key="p.id" :label="p.name" :value="p.id" />
         </el-select>
-        <div class="org-hint">岗位数据范围请在「系统设置 → 权限管理 → 按岗位」配置</div>
+        <div class="org-hint" v-if="!isAdmin">岗位指派（含携带权限规则的岗位）仅系统管理员可操作</div>
+        <div class="org-hint" v-else>岗位数据范围请在「系统设置 → 权限管理 → 按岗位」配置</div>
       </el-form-item>
       <el-row :gutter="24">
         <el-col :span="12">
@@ -107,13 +111,19 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { injectUserList } from '@/composables/useUserList'
+import { useUserStore } from '@/store/user'
 
 const {
   dialogVisible, editForm, formRules, formRef, orgPath, deptTree, cascaderProps,
   onOrgChange, orgHintText, latestAccountHint, roles, userOptions, handleSave, saving,
   allPositions,
 } = injectUserList()
+
+// 【2026-11-08 审计修复】岗位指派对齐后端超管门槛（携带权限规则的岗位仅 admin 可指派）
+const userStore = useUserStore()
+const isAdmin = computed(() => userStore.isAdmin())
 </script>
 
 <style scoped>

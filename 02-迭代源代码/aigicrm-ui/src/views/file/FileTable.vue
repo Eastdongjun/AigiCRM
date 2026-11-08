@@ -38,6 +38,12 @@
             <el-tooltip v-if="folderPerms.includes('edit')" content="替换" placement="top">
               <el-icon class="act-icon" @click.stop="openReplaceFile(row)"><Refresh /></el-icon>
             </el-tooltip>
+            <!-- 【2026-11-08 PC 补文件改名入口】后端 PUT /file/{id}/rename（FileController file:edit +
+                 checkFile(P_EDIT) 双门），显隐按"全局码 file:edit ∧ 夹内 edit 权限"（2026-10-27
+                 文件夹管理按钮同款口径）；本表行均为文件，不涉文件夹改名（文件夹改名在 FolderPanel） -->
+            <el-tooltip v-if="canRenameFile" content="改名" placement="top">
+              <el-icon class="act-icon" @click.stop="handleRenameFile(row)"><EditPen /></el-icon>
+            </el-tooltip>
             <el-tooltip v-if="folderPerms.includes('delete')" content="删除" placement="top">
               <el-icon class="act-icon act-danger" @click.stop="handleDelete(row)"><Delete /></el-icon>
             </el-tooltip>
@@ -66,11 +72,13 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ref, computed } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 // 【D16】View 图标已由 main.js menuIconList 全局注册(app.component)，本地 import 冗余已删；模板 <View/> 仍可解析
-import { replaceFile } from '@/api/file'
+// （EditPen 同为 menuIconList 白名单成员，模板 <EditPen/> 直接解析）
+import { replaceFile, renameFile } from '@/api/file'
 import { injectFilePage } from '@/composables/useFilePage'
+import { useUserStore } from '@/store/user'
 import { pageSizes } from '@/utils/pagination'
 
 const {
@@ -84,6 +92,35 @@ const {
 const replaceFileTarget = ref(null)
 const replaceFileInputRef = ref(null)
 const replacing = ref(false)
+
+// 【2026-11-08 PC 补文件改名入口】
+// 后端双门：全局权限码 file:edit（@PreAuthorize）+ checkFile(P_EDIT)（管理员/本人/ACL edit）。
+// 前端显隐取两者"与"（与 2026-10-27 文件夹管理按钮修法同口径），只勾其一的角色不再看到必 403 按钮。
+const userStore = useUserStore()
+const canRenameFile = computed(() =>
+  userStore.hasPermission('file:edit') && folderPerms.value.includes('edit'))
+
+const handleRenameFile = async (row) => {
+  try {
+    const { value } = await ElMessageBox.prompt('请输入新的文件名（保留扩展名）', '文件改名', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      inputValue: row.fileName || '',
+      inputValidator: (v) => {
+        const name = (v || '').trim()
+        if (!name) return '文件名不能为空'
+        if (name.length > 200) return '文件名过长（不超过 200 字符）'
+        if (name === row.fileName) return '新文件名与原文件名相同'
+        return true
+      }
+    })
+    await renameFile(row.id, value.trim())
+    ElMessage.success('改名成功')
+    loadFiles()
+  } catch (e) {
+    // cancel/close 静默；接口错误提示由 request 拦截器统一处理
+  }
+}
 
 const openReplaceFile = (row) => {
   replaceFileTarget.value = row

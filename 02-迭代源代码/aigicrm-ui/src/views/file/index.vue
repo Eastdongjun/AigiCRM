@@ -35,8 +35,19 @@
         <el-input v-model="keyword" placeholder="搜索文件名/上传人/所在文件夹..." class="st-search" clearable prefix-icon="Search" @keyup.enter="searchFiles" />
         <!-- 【2026-10-17 客户反馈】新建文件夹从左侧文件夹树底部移到顶部操作区(原位置不合适) -->
         <el-button v-if="canCreateFolder" class="st-folder-add" :icon="FolderAdd" @click="openCreateFolder">新建文件夹</el-button>
-        <el-button v-if="activeTab!=='incentive'&&activeTab!=='shared_to_me' && folderPerms.includes('upload')"
-                   class="st-upload" :icon="Upload" @click="openUpload">上传文件</el-button>
+        <!-- 【2026-11-08 审计修复】公共+根目录+非管理员: 后端恒拒("公共根目录文件仅管理员可上传"),
+             按钮不隐藏改为预禁用 + tooltip 提示原因(与"申请扩容"禁用态同款 span 包裹写法),
+             其余无 upload 权限场景照旧隐藏 -->
+        <el-tooltip
+          v-if="activeTab!=='incentive' && activeTab!=='shared_to_me' && (canUpload || isPublicRootNonAdmin)"
+          :content="uploadDisabledReason"
+          :disabled="canUpload"
+          placement="bottom"
+        >
+          <span class="st-upload-wrap">
+            <el-button class="st-upload" :icon="Upload" :disabled="!canUpload" @click="openUpload">上传文件</el-button>
+          </span>
+        </el-tooltip>
       </div>
     </div>
 
@@ -101,9 +112,10 @@ const filePage = useFilePage()
 provide(FilePageKey, filePage)
 
 const {
-  activeTab, keyword, tabs, folderPerms, storageUsed, storageQuota, storageApplyInfo,
+  activeTab, keyword, tabs, storageUsed, storageQuota, storageApplyInfo,
   previewVisible, previewUrl, previewType, previewName, previewSize,
-  canCreateFolder, switchTab, searchFiles, openUpload, openCreateFolder, openStorageApply,
+  canCreateFolder, isPublicRootNonAdmin, canUpload, uploadDisabledReason,
+  switchTab, searchFiles, openUpload, openCreateFolder, openStorageApply,
   loadFolders, loadFolderPerms, loadFiles, loadTabCounts, loadStorage, loadStorageApplyInfo,
 } = filePage
 
@@ -163,11 +175,19 @@ onMounted(() => {
 /* 【对比度 2026-10-17】占位符按项目占位符口径提升：.55 → .85；输入框半透明底上仍低于正文阈值 */
 .st-search :deep(.el-input__inner::placeholder) { color: rgba(255, 255, 255, .85) }
 .st-search :deep(.el-input__prefix) { color: rgba(255, 255, 255, .75) }
+.st-upload-wrap { display: inline-flex; flex-shrink: 0; }
 .st-upload {
   background: #fff; color: #1d4ed8; border: none; font-weight: 600;
   box-shadow: 0 4px 12px rgba(0, 0, 0, .12);
 }
 .st-upload:hover, .st-upload:focus { background: #eff6ff; color: var(--brand-navy) }
+/* 【2026-11-08】公共根目录非管理员预禁用态: 必败入口不再可点(自定底色覆盖 el-button 默认禁用样式) */
+.st-upload.is-disabled {
+  background: rgba(255, 255, 255, .55);
+  color: rgba(29, 78, 216, .45);
+  box-shadow: none;
+  cursor: not-allowed;
+}
 /* 【2026-10-17】新建文件夹(自树底移入): 描边次级样式,与上传文件主次分明 */
 .st-folder-add {
   background: rgba(255, 255, 255, .12); color: #fff; font-weight: 600;

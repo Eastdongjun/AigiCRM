@@ -282,6 +282,8 @@
 .rec-tr:not(.rec-th):active { background: #f7faff; }
 .rec-td { flex: none; display: flex; align-items: center; padding: 14rpx 12rpx; font-size: 21rpx; color: #2b3a52; line-height: 1.45; box-sizing: border-box; }
 .c-cust { width: 210rpx; font-weight: 600; }
+/* 【11-08 审计项5】客户名=一客一册档案页入口(catchtap 不冒泡到行), 品牌蓝下划线提示可点 */
+.c-cust-link { color: #2563eb; text-decoration: underline; }
 .c-cat { width: 150rpx; }
 .c-prod { width: 190rpx; }
 .c-date { width: 175rpx; color: #64748b; }

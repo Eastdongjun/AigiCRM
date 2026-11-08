@@ -15,9 +15,12 @@ const assert = require('assert')
 const tabs = require('../aigicrm-miniprogram/utils/ranking-tabs.js')
 
 // 模拟权限中心下发的账号权限画像（与测试环境实测一致）
-const XZ_PROFILE = ['score:view', 'incentive:view', 'score:entry', 'customer:view', 'customer:add'] // 行政: 无 statistics:view
-const SALES_PROFILE = ['score:view', 'statistics:view', 'incentive:view', 'customer:view', 'customer:add'] // 销售员: 三码全
+// 【11-08 审计项4】激励榜码=incentive:stats:view∨incentive:rank:view(与后端 /scoreboard
+// hasAnyAuthority 同口径); 行政画像按 V2026.11.04.1 回填口径带 stats/rank 双码
+const XZ_PROFILE = ['score:view', 'incentive:view', 'incentive:stats:view', 'incentive:rank:view', 'score:entry', 'customer:view', 'customer:add'] // 行政: 无 statistics:view
+const SALES_PROFILE = ['score:view', 'statistics:view', 'incentive:view', 'incentive:stats:view', 'incentive:rank:view', 'customer:view', 'customer:add'] // 销售员: 三榜码全
 const STATS_ONLY_PROFILE = ['statistics:view'] // 仅统计查看
+const INCENTIVE_LEGACY_ONLY_PROFILE = ['incentive:view'] // 仅旧激励查看码(无 stats/rank 双码): 激励榜数据必 403, 页签应隐藏
 const NO_PROFILE = ['customer:view'] // 与排行三码无关
 
 const checker = (perms) => (code) => perms.includes(code)
@@ -26,9 +29,16 @@ const checker = (perms) => (code) => perms.includes(code)
 assert.deepStrictEqual(tabs.MAIN_TAB_PERMISSIONS, {
   score: 'score:view',
   customer: 'statistics:view',
-  incentive: 'incentive:view'
+  incentive: ['incentive:stats:view', 'incentive:rank:view']
 })
 assert.deepStrictEqual(tabs.MAIN_TAB_ORDER, ['score', 'customer', 'incentive'])
+
+// ---- 1a. satisfiesPermission: 数组=any-of 任一命中, 字符串=单码(11-08 审计项4) ----
+assert.strictEqual(tabs.satisfiesPermission(checker(['incentive:stats:view']), ['incentive:stats:view', 'incentive:rank:view']), true)
+assert.strictEqual(tabs.satisfiesPermission(checker(['incentive:rank:view']), ['incentive:stats:view', 'incentive:rank:view']), true)
+assert.strictEqual(tabs.satisfiesPermission(checker(INCENTIVE_LEGACY_ONLY_PROFILE), ['incentive:stats:view', 'incentive:rank:view']), false)
+assert.strictEqual(tabs.satisfiesPermission(checker(['score:view']), 'score:view'), true)
+assert.strictEqual(tabs.satisfiesPermission(checker(NO_PROFILE), 'score:view'), false)
 
 // ---- 1b. 页签归属 PC 菜单组+副题(2026-11-06 用户令入口拆分: 客户排行归客户模块/学分排行归学分模块) ----
 assert.deepStrictEqual(tabs.MAIN_TAB_PARENTS, {
@@ -43,9 +53,17 @@ assert.deepStrictEqual(tabs.MAIN_TAB_SUBS, {
 })
 
 // ---- 2. computeCanTabs: 按注入的权限判断函数逐码计算 ----
-// 行政(score:view+incentive:view, 无 statistics:view)
+// 行政(score:view+激励 stats/rank 双码, 无 statistics:view)
 assert.deepStrictEqual(tabs.computeCanTabs(checker(XZ_PROFILE), false), {
   score: true, customer: false, incentive: true
+})
+// 【11-08 审计项4】仅持旧 incentive:view(无 stats/rank 双码): 后端 /scoreboard 必 403, 激励页签隐藏
+assert.deepStrictEqual(tabs.computeCanTabs(checker(INCENTIVE_LEGACY_ONLY_PROFILE), false), {
+  score: false, customer: false, incentive: false
+})
+// 仅持 incentive:rank:view(激励榜任一数据码): 激励页签放行(any-of)
+assert.deepStrictEqual(tabs.computeCanTabs(checker(['incentive:rank:view']), false), {
+  score: false, customer: false, incentive: true
 })
 
 // 销售员(三码全)

@@ -24,4 +24,7 @@ public class BizApproval {
     private String applicantName;
     @TableField(exist = false)
     private String customerName;
+    /** 【11-08 修复清单9】当前节点(状态=pending)审批人==登录用户; 列表与详情均填充, 前端 MP 同批消费 */
+    @TableField(exist = false)
+    private Boolean currentApprover;
 }

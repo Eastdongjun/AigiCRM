@@ -201,7 +201,13 @@ grep -Fq 'aclVisible' "$AUTOMATOR_SCRIPT" && fail 'file center DevTools automato
 # 【P2 2026-11-02 二次重锚】详情页(替换能力最后载体)作为死页删除, MP 替换 API 通道一并退役
 # (【2026-11-05 翻案恢复】替换文件功能已全链还原, 此正向钉继续有效)
 grep -Fq 'one-tap preview download missing' "$AUTOMATOR_SCRIPT" || fail 'file center DevTools automator does not verify one-tap preview download'
-! grep -Fq "hasPermission('file:edit')" "$PAGE" || fail 'file list replace permission gate was retired by user order (2026-10-26)'
+# 【11-08 审计项3 重锚】原钉"页面不得出现 hasPermission('file:edit')"防的是 replace 权限门回潮;
+# rename(2026-11-06 上线)与 replace 同守 file:edit, 前端入口码前置合法 reintroduce 该码——
+# 防复活口径收窄到 replace 状态名(canReplace), rename 的码门另钉正向断言(下行)
+! grep -Fq 'canReplace' "$PAGE" || fail 'file list replace permission gate was retired by user order (2026-10-26); file:edit now only gates rename (11-08 re-anchor)'
+# 【11-08 审计项3】重命名入口=file:edit 码+当前夹 edit 双门(后端 rename 守 file:edit, 单看夹权位必漏 403)
+grep -Fq "canEditFile: globalData.demoMode || hasPermission('file:edit')" "$PAGE" || fail 'mobile file rename entry must pre-gate on the file:edit permission code'
+grep -Fq "if (data.canEditFile && folderPerms.includes('edit')) sheetActions.push({ key: 'rename', label: '重命名' })" "$PAGE" || fail 'mobile file rename sheet action must require file:edit code AND folder edit bit'
 ! grep -Fq 'replaceListFile' "$PAGE" || fail 'file list replace action was retired by user order (2026-10-26)'
 ! grep -Fq "replaceFile(item.id, file.path)" "$PAGE" || fail 'file list replace call was retired by user order (2026-10-26)'
 # 【钉随需求A】行内 replaceListFile 收敛到操作面板 onSheetAction(JS 方法保留)

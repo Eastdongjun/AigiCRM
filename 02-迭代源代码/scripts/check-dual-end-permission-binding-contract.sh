@@ -4,7 +4,8 @@
 # 核心约束:
 #   A. 注册表对账: PC 与 MP 的全部权限码绑定必须 ∈ 权限中心注册表（后端 flyway sys_menu seed 为权威源）, 零死码
 #   B. 双端同源: 同名功能双端绑定同一注册码——学分排行 PC 菜单=score:view, MP 排行页并集含 score:view
-#   C. MP 排行页注册码并集: 页内三榜各绑注册码(学分=score:view/客户=statistics:view/激励=incentive:view),
+#   C. MP 排行页注册码并集: 页内三榜各绑注册码(学分=score:view/客户=statistics:view/
+#      激励=incentive:stats:view∨incentive:rank:view, 11-08 审计项4 与后端数据码对齐),
 #      入口 any-of、页签过滤、无权页签不发请求; 应用中心支持 permissions 数组(any-of)通用门禁
 #   D. 接口守卫=注册码: /score/ranking=score:view, /statistics/customer-rankings=statistics:view
 #
@@ -57,7 +58,10 @@ PC_DEAD=$(comm -23 <(printf '%s\n' "$PC_CODES") <(printf '%s\n' "$REGISTRY"))
 UTIL="$MP/utils/ranking-tabs.js"
 grep -Fq "score: 'score:view'" "$UTIL" || fail 'ranking util must bind registry code score:view'
 grep -Fq "customer: 'statistics:view'" "$UTIL" || fail 'ranking util must bind registry code statistics:view'
-grep -Fq "incentive: 'incentive:view'" "$UTIL" || fail 'ranking util must bind registry code incentive:view'
+# 【11-08 审计项4 重锚】激励榜=后端数据码并集(/scoreboard hasAnyAuthority stats:view∨rank:view),
+# 页签码改挂双码数组(any-of); 旧单码 incentive:view 与后端守卫不一致, 不得回潮
+grep -Fq "incentive: ['incentive:stats:view', 'incentive:rank:view']" "$UTIL" || fail 'ranking util must bind incentive tab to the backend data-plane union (stats:view or rank:view)'
+! grep -Fq "incentive: 'incentive:view'" "$UTIL" || fail 'ranking incentive tab must not regress to incentive:view (misaligned with backend scoreboard guard)'
 grep -Fq "const canTabs = rankingTabs.computeCanTabs(hasPermission, demo)" "$MP/pages/ranking/index.js" || fail 'ranking onLoad must derive canTabs via the pure util'
 grep -Fq "if (canTabs[rankTab] === false) return" "$MP/pages/ranking/index.js" || fail 'ranking must block switching to tabs without the registry code'
 grep -Fq "rankingTabs.visibleMainTabs(canTabs)" "$MP/pages/ranking/index.js" || fail 'ranking main tabs must render via visibleMainTabs (per-tab registry codes)'

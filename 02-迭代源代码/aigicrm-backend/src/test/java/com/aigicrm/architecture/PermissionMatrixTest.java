@@ -163,10 +163,13 @@ public class PermissionMatrixTest {
     }
 
     /** 【2026-08-14】防止权限注解与行级守卫双向静默腐化:
-     *  14 个客户写端点须全部携带 @PreAuthorize("hasAuthority('customer:edit')") 声明式注解,
+     *  客户写端点须全部携带 @PreAuthorize("hasAuthority('customer:edit')") 声明式注解,
      *  且方法体内行级守卫必须保留(防御纵深, 正向规则只校验注解不校验守卫)。
      *  【决策6 2026-10-18】8 个财务写端点(发票/回款 录/确认/作废/删)改 assertCanManageFinance
-     *  (finance:manage 放开对象归属, 内部回退 assertCanEdit)——守卫计数两码并计, 仍不小于 14。 */
+     *  (finance:manage 放开对象归属, 内部回退 assertCanEdit)——守卫计数两码并计。
+     *  【死码清理 2026-11-08】逐笔开票/回款 8 个休眠写端点删除后: 注解口径 15 处(≥14 仍成立),
+     *  守卫口径 11×assertCanEdit + 1×assertCanManageFinance(阶段总额) + 1 处注释提及 = 13,
+     *  阈值随之 14 → 13(实际守卫调用 12 处)。 */
     @Test
     void customerEditWriteMethods_mustRetainAssertCanEditGuard() {
         Path src = Paths.get("src/main/java/com/aigicrm/module/customer/controller/CustomerController.java")
@@ -181,28 +184,26 @@ public class PermissionMatrixTest {
         long annotated = countSubstring(body, "hasAuthority('customer:edit')");
         long guards = countSubstring(body, "assertCanEdit(")
                 + countSubstring(body, "assertCanManageFinance(");
-        assertTrue(annotated >= 14,
-                () -> "客户写端点应补全 14 处 @PreAuthorize(\"hasAuthority('customer:edit')\"), 实际 " + annotated);
-        assertTrue(guards >= 14,
-                () -> "客户写端点须保留 14 处行级守卫(assertCanEdit/assertCanManageFinance, 防御纵深), 实际 " + guards
+        assertTrue(annotated >= 15,
+                () -> "客户写端点应保有 15 处 @PreAuthorize 含 customer:edit 口径(2026-11-08 删 8 端点后), 实际 " + annotated);
+        assertTrue(guards >= 13,
+                () -> "客户写端点须保留 13 处行级守卫(assertCanEdit/assertCanManageFinance, 防御纵深; 2026-11-08 删 8 财务写端点后), 实际 " + guards
                         + " 处——守卫缺失, 权限将无兜底");
     }
 
     /** 财务写入端点三通道口径(钉随 2026-11-03 拆码裁决):
      *  ①finance:manage 财务代录全通 ②customer:finance:edit 独立财务编辑码(带自己的数据范围)
-     *  ③customer:edit∧finance:view 旧通道(整卡编辑范围)——三通道任一命中, 再过行级对象守卫。 */
+     *  ③customer:edit∧finance:view 旧通道(整卡编辑范围)——三通道任一命中, 再过行级对象守卫。
+     *  【死码清理 2026-11-08】逐笔开票/回款 8 个休眠写端点(addInvoice/confirmInvoice/voidInvoice/
+     *  deleteInvoice/addPayment/confirmPayment/voidPayment/deletePayment)已删, 本钉重锚到存活的
+     *  阶段总额写端点 saveStageAmount(同款三通道口径)。 */
     @Test
     void customerFinanceMutationEndpoints_requireCustomerEditAndFinanceView() throws Exception {
         Class<com.aigicrm.module.customer.controller.CustomerController> controller =
                 com.aigicrm.module.customer.controller.CustomerController.class;
 
-        assertPreAuthorize(controller.getDeclaredMethod("addInvoice", Long.class, com.aigicrm.module.customer.entity.BizInvoice.class),
-                "hasAuthority('finance:manage') or hasAuthority('customer:finance:edit') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))");
-        assertPreAuthorize(controller.getDeclaredMethod("deleteInvoice", Long.class, Long.class, String.class),
-                "hasAuthority('finance:manage') or hasAuthority('customer:finance:edit') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))");
-        assertPreAuthorize(controller.getDeclaredMethod("addPayment", Long.class, com.aigicrm.module.customer.entity.BizPayment.class),
-                "hasAuthority('finance:manage') or hasAuthority('customer:finance:edit') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))");
-        assertPreAuthorize(controller.getDeclaredMethod("deletePayment", Long.class, Long.class, String.class),
+        assertPreAuthorize(controller.getDeclaredMethod("saveStageAmount", Long.class,
+                        com.aigicrm.module.customer.dto.StageAmountRequest.class),
                 "hasAuthority('finance:manage') or hasAuthority('customer:finance:edit') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))");
     }
 
@@ -790,8 +791,9 @@ public class PermissionMatrixTest {
         Class<com.aigicrm.module.sea.controller.SeaController> controller =
                 com.aigicrm.module.sea.controller.SeaController.class;
 
+        // 【死码清理 2026-11-08】officeId 死参数已删(全库无调用方传它, service 体未用), 反射签名 9 参 → 8 参
         assertPreAuthorize(controller.getDeclaredMethod("page", int.class, int.class, String.class,
-                        Long.class, Long.class, String.class, String.class, Long.class, String.class),
+                        Long.class, String.class, String.class, Long.class, String.class),
                 "hasAuthority('sea:view')");
         assertPreAuthorize(controller.getDeclaredMethod("statistics"),
                 "hasAuthority('sea:view')");
@@ -1061,8 +1063,7 @@ public class PermissionMatrixTest {
                 "hasAuthority('incentive:view')");
         assertPreAuthorize(controller.getDeclaredMethod("deleteRecord", Long.class),
                 "hasAuthority('incentive:view')");
-        assertPreAuthorize(controller.getDeclaredMethod("recalculateAll"),
-                "hasAuthority('incentive:edit')");
+        // 【死码清理 2026-11-08】POST /records/recalculate 端点已删（双端零调用），契约钉同步移除
         assertPreAuthorize(controller.getDeclaredMethod("markRead", Long.class),
                 "hasAuthority('incentive:view')");
         assertPreAuthorize(controller.getDeclaredMethod("readStats", String.class),
@@ -1121,9 +1122,10 @@ public class PermissionMatrixTest {
                         && serviceBody.contains("existing.setScore(calcScore(existing, category, base))")
                         && serviceBody.contains("recordMapper.updateById(existing)"),
                 "IncentiveService.updateRecord 必须保持事务、客户归属变更限制、本人分享开关、审计人和积分重算落库");
+        // 【死码清理 2026-11-08】recalculateAllScores 已删, updateRecord 区段右边界改锚 addRecord
         String updateBody = serviceBody.substring(
                 serviceBody.indexOf("public void updateRecord"),
-                serviceBody.indexOf("public int recalculateAllScores"));
+                serviceBody.indexOf("public void addRecord"));
         assertFalse(updateBody.contains("setUserId("),
                 "激励记录编辑不得重置初始上传人 userId");
         assertFalse(updateBody.contains("setCreatedAt("),

@@ -116,8 +116,8 @@
           <template #default="{ row }">
             <!-- 【A2 三轮 2026-10-09】空值占位 '—'：与详情抽屉「未关联客户」、全站 dashIfEmpty 同一口径，
                  此前空值整格留白（截图 07 P2026-041 行） -->
+            <!-- 【2026-11-08 审计修复】删 customerIndustry 副行：后端审批列表从不填充该字段，恒空永不渲染 -->
             <div>{{ row.customerName || '—' }}</div>
-            <div class="sub-text" v-if="row.customerIndustry">{{ row.customerIndustry }}</div>
           </template>
         </el-table-column>
         <el-table-column prop="applicantName" label="申请人" min-width="80" sortable :formatter="dashIfEmpty" />
@@ -634,7 +634,6 @@ onBeforeUnmount(() => {
 
 .tab-count { color: var(--text-muted); font-size: 13px; margin-left: 2px; }
 .code-link { padding: 0; height: auto; font-weight: 500; }
-.sub-text { font-size: 12px; color: var(--text-muted); }
 .approval-manage { height: calc(100vh - 124px); display: flex; flex-direction: column; }
 
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }

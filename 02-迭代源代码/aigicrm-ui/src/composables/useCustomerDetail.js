@@ -7,9 +7,13 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   getCustomer, getCustomerLogs, addCustomerLog, updateCustomer,
-  getInvoices, getInvoiceSummary, addInvoice, deleteInvoice,
-  confirmInvoice, voidInvoice, confirmPayment, voidPayment,
-  getPayments, getPaymentSummary, addPayment, deletePayment,
+  // 【2026-11-08 死码清理】逐笔开票/回款 8 个写端点后端同批已删(2026-10-10 改阶段总额录入制后
+  // 双端 UI 入口退役, 见 CustomerController「死码清理 2026-11-08」注记): addInvoice/deleteInvoice/
+  // confirmInvoice/voidInvoice/addPayment/deletePayment/confirmPayment/voidPayment 不再引入,
+  // 对应 8 个 handler 与仅其使用的弹窗态/表单态一并删除(删前 grep 确认零外部引用);
+  // 只读 getInvoices/getInvoiceSummary/getPayments/getPaymentSummary 保留供财务分区展示。
+  getInvoices, getInvoiceSummary,
+  getPayments, getPaymentSummary,
   getContacts, addContact, updateContact, deleteContact,
   getIndicator, saveIndicator, saveRelationship,
   getShares, addShares, removeShare, getSimpleUserList,
@@ -56,7 +60,7 @@ export function useCustomerDetail() {
   const incentiveRecords = ref([])
   const catMap = ref({})
 
-  const showInvoiceDialog = ref(false); const showPaymentDialog = ref(false)
+  // 【2026-11-08 死码清理】showInvoiceDialog/showPaymentDialog 随逐笔开票/回款 handler 删除(零外部引用)
   const showContactDialog = ref(false); const showShareDialog = ref(false); const showTransferDialog = ref(false); const transferUserId = ref(null)
   const shareUserIds = ref([]); const editingContact = ref(null)
 
@@ -66,8 +70,7 @@ export function useCustomerDetail() {
   const showStageDialog = ref(false)
   const stageForm = reactive({ periodYear: new Date().getFullYear(), periodType: 'H1', invoiceAmount: null, paymentAmount: null })
 
-  const invoiceForm = reactive({ invoiceDate:'', invoiceNumber:'', invoiceType:'增值税专票', invoiceCompany:'', amount:null })
-  const paymentForm = reactive({ paymentDate:'', paymentAmount:null, paymentMethod:'', remark:'' })
+  // 【2026-11-08 死码清理】invoiceForm/paymentForm 随逐笔开票/回款 handler 删除(零外部引用)
   const contactForm = reactive({ name:'', position:'', phone:'', remark:'' })
   // 五项评分初始值由统一定义生成，字段名不再在两处硬编码
   const indicatorForm = reactive(INDICATOR_FIELDS.reduce((o, f) => { o[f.field] = 0; return o }, {}))
@@ -255,14 +258,10 @@ export function useCustomerDetail() {
   // 【重构 2026-10-04】开票/回款的新增、删除四处 handler 原各自内联近似复制的 Promise.all 刷新块,统一改调本函数(取刷新超集,最终状态一致)
   // 【2026-10-10】阶段总额同刷(保存阶段后保护期/判定联动)
   const reloadFinance = async () => { const [invRes,summRes,payRes,paySummRes,indRes,cRes,stageRes] = await Promise.all([getInvoices(customerId.value),getInvoiceSummary(customerId.value),getPayments(customerId.value),getPaymentSummary(customerId.value),getIndicator(customerId.value),getCustomer(customerId.value),getStageAmounts(customerId.value)]); invoices.value=invRes.data||[]; invoiceSummary.value=summRes.data||{}; payments.value=payRes.data||[]; paymentSummary.value=paySummRes.data||{}; indicator.value=indRes.data; customer.value=cRes.data; if(stageRes.data) stageSummary.value=stageRes.data }
-  const handleAddInvoice = async () => { if(!invoiceForm.invoiceDate||!invoiceForm.invoiceNumber||!invoiceForm.amount) return ElMessage.warning('请填写完整'); try { await addInvoice(customerId.value,{...invoiceForm}); ElMessage.success('已添加'); showInvoiceDialog.value=false; Object.assign(invoiceForm,{invoiceDate:'',invoiceNumber:'',invoiceType:'增值税专票',invoiceCompany:'',amount:null}); await reloadFinance() } catch(e) { notifyActionFailure(e, '开票记录保存失败') } }
-  const handleDeleteInvoice = async (row) => { try { const { value } = await ElMessageBox.prompt('删除将留痕(审计快照+逻辑删),保护期自动回算。请填写删除原因(必填)', '删除开票记录', { confirmButtonText:'删除', cancelButtonText:'取消', confirmButtonClass:'el-button--danger', inputType:'textarea', inputValidator:(v)=> (v&&v.trim()) ? true : '删除原因必填' }); await deleteInvoice(customerId.value,row.id,value.trim()); ElMessage.success('已删除(已留痕)'); await reloadFinance() } catch(e) { if (e !== 'cancel' && e !== 'close') notifyActionFailure(e, '开票记录删除失败') } }
-  const handleAddPayment = async () => { if(!paymentForm.paymentDate||!paymentForm.paymentAmount) return ElMessage.warning('请填写完整'); try { await addPayment(customerId.value,{...paymentForm}); ElMessage.success('已添加'); showPaymentDialog.value=false; Object.assign(paymentForm,{paymentDate:'',paymentAmount:null,paymentMethod:'',remark:''}); await reloadFinance() } catch(e) { notifyActionFailure(e, '回款记录保存失败') } }
-  const handleDeletePayment = async (row) => { try { const { value } = await ElMessageBox.prompt('删除将留痕(审计快照+逻辑删)。请填写删除原因(必填)', '删除回款记录', { confirmButtonText:'删除', cancelButtonText:'取消', confirmButtonClass:'el-button--danger', inputType:'textarea', inputValidator:(v)=> (v&&v.trim()) ? true : '删除原因必填' }); await deletePayment(customerId.value,row.id,value.trim()); ElMessage.success('已删除(已留痕)'); await reloadFinance() } catch(e) { if (e !== 'cancel' && e !== 'close') notifyActionFailure(e, '回款记录删除失败') } }
-  const handleConfirmInvoice = async (row) => { try { await confirmInvoice(customerId.value,row.id); ElMessage.success('已确认'); await reloadFinance() } catch(e) { notifyActionFailure(e, '开票记录确认失败') } }
-  const handleVoidInvoice = async (row) => { try { const { value } = await ElMessageBox.prompt('作废后该笔不再计入统计/保护期, 记录保留留痕。请填写作废原因(必填)', '作废开票记录', { confirmButtonText:'作废', cancelButtonText:'取消', confirmButtonClass:'el-button--warning', inputType:'textarea', inputValidator:(v)=> (v&&v.trim()) ? true : '作废原因必填' }); await voidInvoice(customerId.value,row.id,value.trim()); ElMessage.success('已作废'); await reloadFinance() } catch(e) { if (e !== 'cancel' && e !== 'close') notifyActionFailure(e, '开票记录作废失败') } }
-  const handleConfirmPayment = async (row) => { try { await confirmPayment(customerId.value,row.id); ElMessage.success('已确认'); await reloadFinance() } catch(e) { notifyActionFailure(e, '回款确认失败') } }
-  const handleVoidPayment = async (row) => { try { const { value } = await ElMessageBox.prompt('作废后该笔不再计入统计, 记录保留留痕。请填写作废原因(必填)', '作废回款记录', { confirmButtonText:'作废', cancelButtonText:'取消', confirmButtonClass:'el-button--warning', inputType:'textarea', inputValidator:(v)=> (v&&v.trim()) ? true : '作废原因必填' }); await voidPayment(customerId.value,row.id,value.trim()); ElMessage.success('已作废'); await reloadFinance() } catch(e) { if (e !== 'cancel' && e !== 'close') notifyActionFailure(e, '回款作废失败') } }
+  // 【2026-11-08 死码清理】逐笔开票/回款 8 个 handler(handleAddInvoice/handleDeleteInvoice/
+  // handleConfirmInvoice/handleVoidInvoice/handleAddPayment/handleDeletePayment/handleConfirmPayment/
+  // handleVoidPayment)删除: 前端按钮 2026-10-10 已随阶段总额录入制下线, 后端同批摘除 8 个写端点,
+  // 删前 grep 全 src 确认除本文件 return 外零引用。reloadFinance 保留(阶段总额保存后仍刷新)。
   // 【裁决 2026-10-10】阶段总额录入(半年/全年总额制, 取代逐笔录入入口): 编辑制 upsert
   const openStageDialog = (row) => {
     if (row) {
@@ -327,10 +326,10 @@ export function useCustomerDetail() {
     loading, activeTab, customer, logs, newLog, invoices, invoiceSummary, payments, paymentSummary, canViewFinance, canViewContacts, canViewIncentive, expireDaysLeft, latestLog,
     loadError, sectionErrors,
     contacts, indicator, shares, allUsers, incentiveScore, incentiveRecords, catMap,
-    showInvoiceDialog, showPaymentDialog, showContactDialog, showShareDialog, shareUserIds, editingContact,
+    showContactDialog, showShareDialog, shareUserIds, editingContact,
     showTransferDialog, transferUserId,
     stageSummary, showStageDialog, stageForm, openStageDialog, handleSaveStageAmount,
-    invoiceForm, paymentForm, contactForm, indicatorForm,
+    contactForm, indicatorForm,
     avatarColor, relationshipOptions, indicatorDefs, indicatorTotal, invoiceThresholdMet,
     paymentThresholdMet, bothThresholdMet, isCore, coreType, coreTypeLabel, coreMinorWan, coreMajorWan,
     annualInvoiceAmount, annualPaymentAmount, totalScore, expireLevel, statusLabel,
@@ -339,8 +338,7 @@ export function useCustomerDetail() {
     parseId, getFiles, detectType, fmtDate, downloadIncentiveFile,
     filePreviewVisible, filePreviewUrl, filePreviewType, filePreviewName, previewIncentiveFile, fileUrl, thumbUrl,
     submitLog, handleExtend, handleEdit, openTransfer, confirmTransfer,
-    handleAddInvoice, handleDeleteInvoice, handleAddPayment, handleDeletePayment,
-    handleConfirmInvoice, handleVoidInvoice, handleConfirmPayment, handleVoidPayment, reloadFinance,
+    reloadFinance,
     openEditContact, handleSaveContact, handleDeleteContact,
     handleSaveIndicator, selectRelationship, handleAddShare, handleRemoveShare,
   }

@@ -226,9 +226,10 @@
           <div class="appr-main">{{ typeLabel(item.type) }} · {{ item.customerName || '—' }}</div>
           <div class="appr-meta">{{ item.applicantName || '—' }} · {{ formatRelativeTime(item.createdAt) }}</div>
         </div>
-        <div class="appr-btns">
-          <el-button type="primary" size="small" @click="doApprove(item.id)">通过</el-button>
-          <el-button size="small" @click="doReject(item.id)">驳回</el-button>
+        <!-- 【2026-11-08 审计修复】通过/驳回按 approval:approve / approval:reject 码渲染(后端硬校验, 前端原缺门控) -->
+        <div class="appr-btns" v-if="canApprove || canReject">
+          <el-button v-if="canApprove" type="primary" size="small" @click="doApprove(item.id)">通过</el-button>
+          <el-button v-if="canReject" size="small" @click="doReject(item.id)">驳回</el-button>
         </div>
       </div>
     </div>
@@ -351,6 +352,11 @@ const myReadTotal = ref(0)
 const canViewReadStats = computed(() => userStore.hasPermission('incentive:read-stats'))
 // 【2026-11-01 审计修复】待我审批卡改按权限码门控(原只判非销售角色: 无 approval:view 者可见可点、跳转即 403)
 const canViewApprovals = computed(() => userStore.hasPermission('approval:view'))
+// 【2026-11-08 审计修复】待审批面板行内"通过/驳回"补码门控: 后端 ApprovalController 分别硬校验
+// approval:approve / approval:reject, 此前面板仅 approval:view 即渲染两钮, 无码用户一点必 403。
+// 与审批中心页 canApprove/canReject 同口径, 无码不渲染。
+const canApprove = computed(() => userStore.hasPermission('approval:approve'))
+const canReject = computed(() => userStore.hasPermission('approval:reject'))
 const canViewReminders = computed(() => userStore.hasPermission('reminder:view'))
 
 const loadRoleData = async () => {

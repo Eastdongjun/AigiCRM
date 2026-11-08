@@ -23,7 +23,11 @@ grep -q "getRankingStats" "$api" || { echo "FAIL: mobile ranking stats API wrapp
 ! grep -q "score:entry" "$page" || { echo "FAIL: mobile ranking page exposes PC-only score entry permission" >&2; exit 1; }
 grep -q "score: 'score:view'" "$util" || { echo "FAIL: ranking util must bind registry code score:view" >&2; exit 1; }
 grep -q "customer: 'statistics:view'" "$util" || { echo "FAIL: ranking util must bind registry code statistics:view" >&2; exit 1; }
-grep -q "incentive: 'incentive:view'" "$util" || { echo "FAIL: ranking util must bind registry code incentive:view" >&2; exit 1; }
+# 【11-08 审计项4 重锚】激励榜码与后端数据面对齐: /api/incentive/scoreboard 守
+# hasAnyAuthority('incentive:stats:view','incentive:rank:view')——页签码=双码 any-of(数组),
+# 旧单码 incentive:view 与后端不一致(看得见页签数据必 403 / 持数据码页签被误藏)不得回潮
+grep -q "incentive: \['incentive:stats:view', 'incentive:rank:view'\]" "$util" || { echo "FAIL: ranking util must bind incentive tab to the backend data-plane code union (stats:view or rank:view, 11-08 audit)" >&2; exit 1; }
+! grep -q "incentive: 'incentive:view'" "$util" || { echo "FAIL: ranking incentive tab must not regress to incentive:view (misaligned with backend scoreboard guard)" >&2; exit 1; }
 # 【2026-11-04 注册表对齐】页面经纯函数 util 派生 canTabs/默认页签/可见页签; 入口=注册码并集, 取代 mp-3 单码补丁
 grep -q "rankingTabs.computeCanTabs(hasPermission, demo)" "$page" || { echo "FAIL: mobile ranking must derive canTabs via util computeCanTabs" >&2; exit 1; }
 grep -q "rankingTabs.firstAllowedTab(canTabs)" "$page" || { echo "FAIL: mobile ranking default tab must come from util firstAllowedTab" >&2; exit 1; }

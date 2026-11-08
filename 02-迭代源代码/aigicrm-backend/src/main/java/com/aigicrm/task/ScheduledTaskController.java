@@ -16,6 +16,11 @@ public class ScheduledTaskController {
 
     private final CustomerExpireTask customerExpireTask;
 
+    /**
+     * 【运维直调入口 2026-11-08 注记】双端无调用（PC/MP/scripts 全库 grep 零命中，
+     * 日常到期批由定时调度与 /api/reminder/ensure-expiring 页面兜底承担）。
+     * 管理员手动触发到期批的运维通道，保留不删；仅限系统管理员（下方 isAdmin 守卫）。
+     */
     @PostMapping("/check-expire")
     public Result<String> checkExpire() {
         // M9: 触发全库批处理仅限系统管理员(原 system:config:view 销售员/行政均可触发,存在滥用风险)

@@ -25,7 +25,9 @@
         </el-select>
       </div>
       <div class="toolbar-right">
-        <el-button type="danger" plain size="small" @click="handleClearAll">一键清空</el-button>
+        <!-- 【2026-11-08 审计修复】按钮文案「一键清空」改「清除本页」: 实际只处理当前页行,
+             原文案误导用户以为清空全部提醒(小程序端同名契约钉的是 miniprogram 文件, 与 PC 无关) -->
+        <el-button type="danger" plain size="small" @click="handleClearAll">清除本页</el-button>
       </div>
     </div>
 
@@ -253,7 +255,8 @@ const handleClearAll = async () => {
   const targets = tableData.value.filter(r => r.reminderId)
   try {
     // 【UI 整改 2026-10-08】确认弹窗收敛到 confirmAction：批量清空属批量不可逆操作，红色确认钮
-    await confirmAction(`确认清空当前页 ${targets.length} 条提醒？（当前筛选共 ${total.value} 条，其余页需翻页逐页处理）分享/开票提醒标记已处理，到期提醒标记已跟进。`, '一键清空(当前页)', { confirmText: '清空' })
+    // 【2026-11-08 审计修复】弹窗文案随按钮由「一键清空」改「清除本页」口径（逻辑不动，仅文案）
+    await confirmAction(`确认清除本页 ${targets.length} 条提醒？（当前筛选共 ${total.value} 条，其余页需翻页逐页处理）分享/开票提醒标记已处理，到期提醒标记已跟进。`, '清除本页提醒', { confirmText: '清除' })
   } catch { return }
   let done = 0
   for (const r of targets) {

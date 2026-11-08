@@ -22,7 +22,11 @@ function buildProfileView(data) {
     groupNoteText: data.switchingGroup ? '切换中...' : '切换后刷新权限',
     groupDisabled: Boolean(data.switchingGroup),
     scopeText: data.scopeName || '按权限范围',
-    wechatStatusText: '说明'
+    wechatStatusText: '说明',
+    // 【11-08 审计项7】占位角标文案(归一化单一出处): 微信绑定=待后端 OAuth 接入(即将上线);
+    // 意见反馈=草稿仅存本机、无服务端提交通道(暂未接入服务端), 入口先亮明状态防误期待
+    wechatBadgeText: '即将上线',
+    feedbackBadgeText: '暂未接入服务端'
   }
 }
 

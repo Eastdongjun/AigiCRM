@@ -61,7 +61,8 @@ public class SeaService {
         return seaConfigService.listVisible().stream().map(BizSeaConfig::getId).collect(Collectors.toList());
     }
 
-    public IPage<BizSeaPool> page(int current, int size, String industry, Long officeId, String enterReason, String keyword, Long poolId, Long deptId, String status) {
+    // 【死码清理 2026-11-08】officeId 参数已删(函数体从未使用, 全库无调用方传它, 随 /sea/list 端点同批清理)
+    public IPage<BizSeaPool> page(int current, int size, String industry, String enterReason, String keyword, Long poolId, Long deptId, String status) {
         List<Long> visiblePoolIds = visiblePoolIds();
         if (visiblePoolIds.isEmpty()) {
             return new Page<>(current, size); // 无可见公海池

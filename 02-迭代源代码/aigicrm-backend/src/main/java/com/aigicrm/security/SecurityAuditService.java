@@ -115,6 +115,30 @@ public class SecurityAuditService {
     }
 
     /**
+     * 【11-08 修复清单5】激励专项授权保存(upsert biz_incentive_grant)审计留痕。
+     * actor=当前操作人(与 LOGIN_SUCCESS 同款 persist 旁路落库 sys_audit_log, 失败降级不阻断授权);
+     * detail 记目标 user_id + 四 flag 终态 JSON(与 sys_rule_version 的时间线互补, 本表面向操作人审计)。
+     */
+    public void incentiveGrantSaved(Long targetUserId, int canViewShared, int canViewAll,
+                                    int canEdit, int canDelete) {
+        Long actorId = null;
+        try {
+            actorId = SecurityUtils.getCurrentUserId();
+        } catch (Exception ignore) {
+            // 无会话上下文(如内部调用)时 actor 为空
+        }
+        event("INCENTIVE_GRANT_SAVE", "targetUserId", targetUserId,
+                "canViewShared", canViewShared, "canViewAll", canViewAll,
+                "canEdit", canEdit, "canDelete", canDelete, "actorId", actorId);
+        persist("INCENTIVE_GRANT_SAVE", actorId, null, null,
+                "targetUserId=" + targetUserId
+                        + " flags={\"canViewShared\":" + canViewShared
+                        + ",\"canViewAll\":" + canViewAll
+                        + ",\"canEdit\":" + canEdit
+                        + ",\"canDelete\":" + canDelete + "}");
+    }
+
+    /**
      * 【D1=A 2026-10-18】存储空间配额审批变更审计:
      * actorId=审批操作人(执行动作的当前登录人), applicantId=被调整用户,
      * old/new=调整前后配额(bytes), approvalId=来源审批单。

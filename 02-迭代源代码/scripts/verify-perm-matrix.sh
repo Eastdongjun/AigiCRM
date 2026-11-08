@@ -147,12 +147,14 @@ db "UPDATE sys_role SET data_scope='self' WHERE id=$BOT_RID;
 FT=$(login_token "$TMP_USER" "$TMP_PW")
 ADMIN_ID=$(db "SELECT id FROM sys_user WHERE username='$API_USER'" | tail -1)
 TARGET_CID=$(db "SELECT id FROM biz_customer WHERE owner_id=$ADMIN_ID AND deleted=0 LIMIT 1" | tail -1)
-# 服务层归属拒绝走 BusinessException, HTTP 可能是 400/403 —— 以"拒绝且原因为权限"为准, 与"发票不存在"(=已穿透服务层)区分
-FB=$(curl -s -m 15 -X POST "$BASE/api/customer/$TARGET_CID/invoices/999999/confirm" -H "Authorization: Bearer $FT" -H "Origin: $BASE")
+# 服务层归属拒绝走 BusinessException, HTTP 可能是 400/403 —— 以"拒绝且原因为权限"为准, 与参数校验错误(=已穿透服务层)区分
+# 【死码清理 2026-11-08】原探针 POST /invoices/999999/confirm(逐笔确认端点已删)重锚到同守卫链的
+# 阶段总额写端点 /stage-amounts(同一 assertCanManageFinance 且先于参数校验执行; 空 body 防穿透误写)
+FB=$(curl -s -m 15 -X POST "$BASE/api/customer/$TARGET_CID/stage-amounts" -H "Authorization: Bearer $FT" -H "Origin: $BASE" -H "Content-Type: application/json" -d '{}')
 if printf '%s' "$FB" | grep -q "无权"; then
-  ok "finance confirm 范围外客户 → 拒绝(对象校验生效: $FB)"
+  ok "finance stage-amounts 范围外客户 → 拒绝(对象校验生效: $FB)"
 else
-  bad "finance confirm 未被权限拒绝(疑似穿透服务层): $FB"
+  bad "finance stage-amounts 未被权限拒绝(疑似穿透服务层): $FB"
 fi
 TC1=$(curl -s -m 15 -o /dev/null -w '%{http_code}' "$BASE/api/task/list?assigneeId=$ADMIN_ID&size=1" -H "Authorization: Bearer $FT")
 [ "$TC1" = "403" ] && ok "task 他人 assigneeId → 403(IDOR已收口)" || bad "task 他人期望403 实得 $TC1(后端未含批次1修复?)"

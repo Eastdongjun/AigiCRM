@@ -97,10 +97,19 @@ export function useFilePage() {
     return folderPerms.value.includes('upload')
   })
 
+  // 【2026-11-08 审计修复】上传按钮与"新建文件夹"同思路显隐对齐：
+  //  - 公共+根目录+非管理员：后端恒拒（仅管理员可传公共根目录），按钮保留可见但预禁用，
+  //    tooltip 提示原因并引导进文件夹上传，不再给可点的必败入口；
+  //  - 其余位置按 folderPerms（含根目录硬编码/子夹 ACL）照旧判定。
+  const isPublicRootNonAdmin = computed(() =>
+    activeTab.value === 'public' && selectedFolderId.value == null && !isAdmin.value)
+  const canUpload = computed(() => folderPerms.value.includes('upload'))
+  const uploadDisabledReason = '公共根目录仅管理员可上传，请先在左侧选择文件夹后再上传'
+
   // 当前文件夹权限加载：
   //  - 激励/分享给我 Tab 无文件夹树：只读 + 可下载（保持原有行为）
-  //  - 根目录（全部文件）无 ACL：公共根目录保持"所有人可上传/下载、管理操作仅管理员"，
-  //    私人根目录本人全量
+  //  - 根目录（全部文件）无 ACL：公共根目录"仅管理员可上传"（2026-11-08 与后端
+  //    FileService.upload 管理员门槛对齐，非管理员无 upload），私人根目录本人全量
   //  - 选中文件夹：调 permissions 接口（管理员/本人/ACL 角色/公共兜底由后端判定）
   const loadFolderPerms = async () => {
     if (activeTab.value === 'incentive' || activeTab.value === 'shared_to_me') {
@@ -110,10 +119,13 @@ export function useFilePage() {
     }
     const id = selectedFolderId.value
     if (id == null) {
+      // 【2026-11-08 审计修复】公共根目录非管理员不再硬编码 upload：后端 FileService.upload 对
+      // "public + 无 folderId + 非管理员"恒拒（"公共根目录文件仅管理员可上传"），原列表单方面放开
+      // 导致必败按钮可点。参照 canCreateFolder 修法：公共+根目录+非管理员 perms 收窄为 view/download。
       folderPerms.value = isAdmin.value
         ? ['view', 'upload', 'edit', 'delete', 'share', 'download']
         : activeTab.value === 'public'
-          ? ['view', 'upload', 'download']
+          ? ['view', 'download']
           : ['view', 'upload', 'edit', 'delete', 'share', 'download']
       folderDownloadable.value = 1
       return
@@ -345,6 +357,7 @@ export function useFilePage() {
     shareDialogVisible, shareFileTarget, aclDialogVisible, aclFolder, storageApplyVisible,
     previewVisible, previewUrl, previewType, previewName, previewSize,
     isAdmin, tabs, currentFolders, canCreateFolder, canManageFolders,
+    isPublicRootNonAdmin, canUpload, uploadDisabledReason,
     loadFolderPerms, loadFolders, loadFiles, loadTabCounts, loadStorage, loadStorageApplyInfo, refreshAll,
     switchTab, selectFolder, searchFiles,
     openUpload, openCreateFolder, openRenameFolder, openShareDialog, openAclDialog, openStorageApply,

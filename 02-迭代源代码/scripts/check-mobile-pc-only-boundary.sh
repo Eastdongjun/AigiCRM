@@ -38,7 +38,9 @@ require_line '| 客户导入 | Import customers | `POST /api/customer/import` | 
 require_line '| 客户导出 | Export customers | `GET /api/customer/export` | `customer:export` | Same list data scope | Export | Yes | No |'
 require_line '| 文件夹 ACL | Add/remove ACL | `POST/DELETE /api/file/folders/{id}/acl...` | `file:acl:manage` | Folder ACL manager | ACL mutation | Yes | No first release |'
 require_line '| 四项服务 | Create/edit/delete category | `POST/PUT/DELETE /api/incentive/categories...` | `incentive:edit` | Admin/config scope | Config mutation | Yes | No first release |'
-require_line '| 四项服务 | Recalculate records | `POST /api/incentive/records/recalculate` | `incentive:edit` | Config/admin scope | Batch mutation | Yes | No |'
+# 【死码清理 2026-11-08】POST /api/incentive/records/recalculate 端点已删(双端零调用):
+# 矩阵行改为删除留痕行, require_line 重锚到留痕行; 下方 assert_absent 继续钉 MP 不回潮
+require_line '| ~~四项服务 \| Recalculate records~~ | ~~Recalculate records~~ | ~~`POST /api/incentive/records/recalculate`~~ (deleted 2026-11-08, dead endpoint zero callers both clients) | — | — | — | — | — |'
 require_line '| 激励授权 | Permission list | `GET /api/incentive/permission/list` | `system:config:view` | Config/admin scope | Read | Yes | No |'
 require_line '| 激励授权 | Grant/revoke permission | `POST /api/incentive/permission/grant`, `DELETE /api/incentive/permission/{id}` | `system:config:edit` | Config/admin scope | Permission mutation | Yes | No |'
 require_line '| 公海导入 | Import to sea | `POST /api/sea/import` | `sea:import` | Target pool import permission | Import | Yes | No |'

@@ -1,8 +1,10 @@
 package com.aigicrm.module.system.controller;
 
+import com.aigicrm.common.BusinessException;
 import com.aigicrm.common.Result;
 import com.aigicrm.module.system.entity.SysPermissionRule;
 import com.aigicrm.module.system.service.SysPermissionRuleService;
+import com.aigicrm.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -16,6 +18,16 @@ public class SysPermissionRuleController {
 
     private final SysPermissionRuleService ruleService;
 
+    /**
+     * 【11-08 修复清单6】权限规则写操作统一平台管理员闸门(参照 RecycleController 同款写法);
+     * 与既有 system:rule:* 权限码叠加, 不放宽——权限规则影响全员数据范围口径, 非 admin 不得写。
+     */
+    private void requireAdmin() {
+        if (!SecurityUtils.isAdmin()) {
+            throw new BusinessException(403, "仅平台管理员可修改权限规则");
+        }
+    }
+
     @GetMapping
     @PreAuthorize("hasAuthority('system:rule:view')")
     public Result<List<SysPermissionRule>> list() {
@@ -25,6 +37,7 @@ public class SysPermissionRuleController {
     @PostMapping
     @PreAuthorize("hasAuthority('system:rule:add')")
     public Result<Void> create(@RequestBody SysPermissionRule rule) {
+        requireAdmin();
         ruleService.create(rule);
         return Result.ok();
     }
@@ -32,6 +45,7 @@ public class SysPermissionRuleController {
     @PutMapping("/{id}")
     @PreAuthorize("hasAuthority('system:rule:edit')")
     public Result<Void> update(@PathVariable Long id, @RequestBody SysPermissionRule rule) {
+        requireAdmin();
         rule.setId(id);
         ruleService.update(rule);
         return Result.ok();
@@ -40,6 +54,7 @@ public class SysPermissionRuleController {
     @PreAuthorize("hasAuthority('system:rule:delete')")
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {
+        requireAdmin();
         ruleService.delete(id);
         return Result.ok();
     }

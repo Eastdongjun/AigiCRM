@@ -131,7 +131,33 @@ public class ApprovalService {
         for (BizApproval a : page.getRecords()) {
             fillApprovalNames(a);
         }
+        // 【11-08 修复清单9】列表行带 currentApprover(当前节点审批人==登录用户, MP 同批消费)
+        markCurrentApprover(page.getRecords(), userId);
         return page;
+    }
+
+    /**
+     * 【11-08 修复清单9】currentApprover 标记: 当前节点(状态=pending)的审批人是否为登录用户。
+     * 批量查本页所有单据的 pending 节点(与审批引擎推进语义一致: 同一时刻至多一个 pending 节点,
+     * 防御性兼容并行节点的 anyMatch), 非当前审批人置 false, 无 pending 节点(已终态)置 false。
+     */
+    private void markCurrentApprover(List<BizApproval> records, Long userId) {
+        if (records.isEmpty()) return;
+        List<Long> ids = records.stream().map(BizApproval::getId).toList();
+        List<BizApprovalNode> pendingNodes = approvalNodeMapper.selectList(
+                new LambdaQueryWrapper<BizApprovalNode>()
+                        .in(BizApprovalNode::getApprovalId, ids)
+                        .eq(BizApprovalNode::getStatus, "pending")
+                        .orderByAsc(BizApprovalNode::getNodeOrder).orderByAsc(BizApprovalNode::getId));
+        Map<Long, List<BizApprovalNode>> byApproval = new HashMap<>();
+        for (BizApprovalNode n : pendingNodes) {
+            byApproval.computeIfAbsent(n.getApprovalId(), k -> new java.util.ArrayList<>()).add(n);
+        }
+        for (BizApproval a : records) {
+            List<BizApprovalNode> cur = byApproval.get(a.getId());
+            a.setCurrentApprover(userId != null && cur != null && cur.stream()
+                    .anyMatch(n -> userId.equals(n.getApproverId())));
+        }
     }
 
     private void applyKeywordFilter(LambdaQueryWrapper<BizApproval> wrapper, String keyword) {
@@ -196,6 +222,12 @@ public class ApprovalService {
         Map<String, Object> result = new HashMap<>();
         result.put("approval", approval);
         result.put("nodes", nodes);
+        // 【11-08 修复清单9】详情同批带 currentApprover(与列表行同口径: 当前 pending 节点审批人==登录用户)
+        boolean currentApprover = nodes.stream()
+                .filter(n -> "pending".equals(n.getStatus()))
+                .anyMatch(n -> userId != null && userId.equals(n.getApproverId()));
+        approval.setCurrentApprover(currentApprover);
+        result.put("currentApprover", currentApprover);
         return result;
     }
 

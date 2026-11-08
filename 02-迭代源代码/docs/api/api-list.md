@@ -1,10 +1,10 @@
 # AIGICRM API 清单(自动生成)
 
-> 生成时间: 2026-10-18 | 来源: 后端 controller 源码扫描
+> 生成时间: 2026-11-08 | 来源: 后端 controller 源码扫描
 > 本文件由 scripts/gen-api.py 自动生成,**禁止手改**;接口变更后重新运行。
 > 权限码与 docs/permission/permission-dict.md 对应。
 
-## 接口清单(232 个)
+## 接口清单(227 个)
 
 | 方法 | 路径 | 权限码 | 方法名 | 文件 |
 |---|---|---|---|---|
@@ -47,26 +47,19 @@
 | PUT | `/api/customer/{id}` | `hasAuthority('customer:edit')` | update | CustomerController.java |
 | POST | `/api/customer/{id}/archive` | `hasAuthority('customer:edit')` | archive | CustomerController.java |
 | GET | `/api/customer/{id}/contacts` | `hasAuthority('customer:view')` | getContacts | CustomerController.java |
-| POST | `/api/customer/{id}/contacts` | `hasAuthority('customer:edit') or hasAuthority('contact:manage')` | addContact | CustomerController.java |
-| DELETE | `/api/customer/{id}/contacts/{contactId}` | `hasAuthority('customer:edit') or hasAuthority('contact:manage')` | deleteContact | CustomerController.java |
-| PUT | `/api/customer/{id}/contacts/{contactId}` | `hasAuthority('customer:edit') or hasAuthority('contact:manage')` | updateContact | CustomerController.java |
+| POST | `/api/customer/{id}/contacts` | `hasAuthority('customer:edit')` | addContact | CustomerController.java |
+| DELETE | `/api/customer/{id}/contacts/{contactId}` | `hasAuthority('customer:edit')` | deleteContact | CustomerController.java |
+| PUT | `/api/customer/{id}/contacts/{contactId}` | `hasAuthority('customer:edit')` | updateContact | CustomerController.java |
+| GET | `/api/customer/{id}/events` | `hasAuthority('customer:view')` | getEvents | CustomerController.java |
 | PUT | `/api/customer/{id}/full` | `hasAuthority('customer:edit')` | updateFull | CustomerController.java |
 | GET | `/api/customer/{id}/indicator` | `hasAuthority('customer:view')` | getIndicator | CustomerController.java |
 | POST | `/api/customer/{id}/indicator` | `hasAuthority('customer:edit')` | saveIndicator | CustomerController.java |
 | GET | `/api/customer/{id}/invoices` | `hasAuthority('customer:view')` | getInvoices | CustomerController.java |
-| POST | `/api/customer/{id}/invoices` | `hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))` | addInvoice | CustomerController.java |
 | GET | `/api/customer/{id}/invoices/summary` | `hasAuthority('customer:view')` | getInvoiceSummary | CustomerController.java |
-| DELETE | `/api/customer/{id}/invoices/{invoiceId}` | `hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))` | deleteInvoice | CustomerController.java |
-| POST | `/api/customer/{id}/invoices/{invoiceId}/confirm` | `hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))` | confirmInvoice | CustomerController.java |
-| POST | `/api/customer/{id}/invoices/{invoiceId}/void` | `hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))` | voidInvoice | CustomerController.java |
 | GET | `/api/customer/{id}/logs` | `hasAuthority('customer:view')` | getLogs | CustomerController.java |
 | POST | `/api/customer/{id}/logs` | `hasAuthority('customer:edit')` | addLog | CustomerController.java |
 | GET | `/api/customer/{id}/payments` | `hasAuthority('customer:view')` | getPayments | CustomerController.java |
-| POST | `/api/customer/{id}/payments` | `hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))` | addPayment | CustomerController.java |
 | GET | `/api/customer/{id}/payments/summary` | `hasAuthority('customer:view')` | getPaymentSummary | CustomerController.java |
-| DELETE | `/api/customer/{id}/payments/{paymentId}` | `hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))` | deletePayment | CustomerController.java |
-| POST | `/api/customer/{id}/payments/{paymentId}/confirm` | `hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))` | confirmPayment | CustomerController.java |
-| POST | `/api/customer/{id}/payments/{paymentId}/void` | `hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))` | voidPayment | CustomerController.java |
 | PUT | `/api/customer/{id}/relationship` | `hasAuthority('customer:edit')` | saveRelationship | CustomerController.java |
 | POST | `/api/customer/{id}/release` | `hasAuthority('customer:edit')` | release | CustomerController.java |
 | POST | `/api/customer/{id}/restore` | `hasAuthority('customer:edit')` | restore | CustomerController.java |
@@ -74,7 +67,7 @@
 | POST | `/api/customer/{id}/shares` | `hasAuthority('customer:edit')` | addShares | CustomerController.java |
 | DELETE | `/api/customer/{id}/shares/{userId}` | `hasAuthority('customer:edit')` | removeShare | CustomerController.java |
 | GET | `/api/customer/{id}/stage-amounts` | `hasAuthority('customer:view')` | getStageAmounts | CustomerController.java |
-| POST | `/api/customer/{id}/stage-amounts` | `hasAuthority('finance:manage') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))` | saveStageAmount | CustomerController.java |
+| POST | `/api/customer/{id}/stage-amounts` | `hasAuthority('finance:manage') or hasAuthority('customer:finance:edit') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))` | saveStageAmount | CustomerController.java |
 | DELETE | `/api/draft/{draftType}` | `isAuthenticated()` | delete | FormDraftController.java |
 | GET | `/api/draft/{draftType}` | `isAuthenticated()` | get | FormDraftController.java |
 | PUT | `/api/draft/{draftType}` | `isAuthenticated()` | save | FormDraftController.java |
@@ -92,7 +85,7 @@
 | POST | `/api/file/folders/{id}/acl` | `hasAuthority('file:acl:manage')` | saveAcl | FolderAclController.java |
 | DELETE | `/api/file/folders/{id}/acl/{roleId}` | `hasAuthority('file:acl:manage')` | removeAcl | FolderAclController.java |
 | PUT | `/api/file/folders/{id}/download` | `hasAuthority('file:acl:manage')` | setDownloadable | FolderAclController.java |
-| GET | `/api/file/folders/{id}/permissions` | `hasAuthority('file:acl:manage')` | permissions | FolderAclController.java |
+| GET | `/api/file/folders/{id}/permissions` | `hasAuthority('file:view')` | permissions | FolderAclController.java |
 | GET | `/api/file/list` | `hasAuthority('file:view')` | pageFiles | FileController.java |
 | GET | `/api/file/reconciliation` | `hasAuthority('file:folder:manage')` | reconcile | FileReconciliationController.java |
 | GET | `/api/file/shared-to-me` | `hasAuthority('file:view')` | sharedToMe | FileController.java |
@@ -101,30 +94,30 @@
 | GET | `/api/file/storage/apply-info` | `hasAuthority('file:view')` | storageApplyInfo | FileController.java |
 | POST | `/api/file/upload` | `hasAuthority('file:upload')` | upload | FileController.java |
 | DELETE | `/api/file/{id}` | `hasAuthority('file:delete')` | deleteFile | FileController.java |
+| PUT | `/api/file/{id}/rename` | `hasAuthority('file:edit')` | renameFile | FileController.java |
 | POST | `/api/file/{id}/replace` | `hasAuthority('file:edit')` | replaceFile | FileController.java |
 | POST | `/api/file/{id}/share` | `hasAuthority('file:share')` | shareFile | FileController.java |
 | GET | `/api/incentive/categories` | `hasAuthority('incentive:view')` | getCategoryTree | IncentiveController.java |
 | POST | `/api/incentive/categories` | `hasAuthority('incentive:edit')` | createCategory | IncentiveController.java |
 | DELETE | `/api/incentive/categories/{id}` | `hasAuthority('incentive:edit')` | deleteCategory | IncentiveController.java |
 | PUT | `/api/incentive/categories/{id}` | `hasAuthority('incentive:edit')` | updateCategory | IncentiveController.java |
-| GET | `/api/incentive/category-stats` | `hasAuthority('incentive:view')` | categoryStats | IncentiveController.java |
+| GET | `/api/incentive/category-stats` | `hasAuthority('incentive:stats:view')` | categoryStats | IncentiveController.java |
 | GET | `/api/incentive/customer-records` | `hasAuthority('incentive:view')` | customerRecords | IncentiveController.java |
 | GET | `/api/incentive/permission/check` | `登录即可` | check | IncentivePermissionController.java |
 | POST | `/api/incentive/permission/grant` | `hasAuthority('system:config:edit')` | grant | IncentivePermissionController.java |
 | GET | `/api/incentive/permission/list` | `hasAuthority('system:config:view')` | list | IncentivePermissionController.java |
 | DELETE | `/api/incentive/permission/{id}` | `hasAuthority('system:config:edit')` | revoke | IncentivePermissionController.java |
-| GET | `/api/incentive/ranking` | `hasAuthority('incentive:view')` | ranking | IncentiveController.java |
+| GET | `/api/incentive/ranking` | `hasAnyAuthority('incentive:stats:view','incentive:rank:view')` | ranking | IncentiveController.java |
 | GET | `/api/incentive/read-ranking` | `hasAuthority('incentive:read-ranking:view')` | readRanking | IncentiveController.java |
 | GET | `/api/incentive/read-stats` | `hasAuthority('incentive:read-stats')` | readStats | IncentiveController.java |
 | GET | `/api/incentive/records` | `hasAuthority('incentive:view')` | getRecords | IncentiveController.java |
 | POST | `/api/incentive/records` | `hasAuthority('incentive:add')` | addRecord | IncentiveController.java |
-| POST | `/api/incentive/records/recalculate` | `hasAuthority('incentive:edit')` | recalculateAll | IncentiveController.java |
 | DELETE | `/api/incentive/records/{id}` | `hasAuthority('incentive:view')` | deleteRecord | IncentiveController.java |
 | PUT | `/api/incentive/records/{id}` | `hasAuthority('incentive:view')` | updateRecord | IncentiveController.java |
 | POST | `/api/incentive/records/{id}/read` | `hasAuthority('incentive:view')` | markRead | IncentiveController.java |
 | POST | `/api/incentive/records/{id}/remove-file` | `hasAuthority('incentive:view')` | removeFile | IncentiveController.java |
 | GET | `/api/incentive/score/customer/{customerId}` | `hasAuthority('incentive:view')` | getScoreByCustomer | IncentiveController.java |
-| GET | `/api/incentive/scoreboard` | `hasAuthority('incentive:view')` | scoreboard | IncentiveController.java |
+| GET | `/api/incentive/scoreboard` | `hasAnyAuthority('incentive:stats:view','incentive:rank:view')` | scoreboard | IncentiveController.java |
 | GET | `/api/incentive/users` | `hasAuthority('incentive:view')` | userList | IncentiveController.java |
 | POST | `/api/reminder/ensure-expiring` | `hasAuthority('reminder:view')` | ensureExpiring | ReminderController.java |
 | GET | `/api/reminder/expiring-list` | `hasAuthority('reminder:view')` | expiringList | ReminderController.java |
@@ -139,6 +132,7 @@
 | DELETE | `/api/score/items/{id}` | `hasAuthority('score:manage')` | deleteItem | ScoreController.java |
 | PUT | `/api/score/items/{id}` | `hasAuthority('score:manage')` | updateItem | ScoreController.java |
 | GET | `/api/score/ranking` | `hasAuthority('score:view')` | ranking | ScoreController.java |
+| GET | `/api/score/ranking/dept-members` | `hasAuthority('score:view')` | deptMembers | ScoreController.java |
 | GET | `/api/score/ranking/stats` | `hasAuthority('score:view')` | rankingStats | ScoreController.java |
 | GET | `/api/sea/claim-records` | `hasAuthority('sea:view')` | claimRecords | SeaController.java |
 | GET | `/api/sea/configs` | `hasAuthority('sea:config:view')` | listConfigs | SeaController.java |
@@ -187,6 +181,7 @@
 | GET | `/api/system/logs` | `hasAuthority('system:log:view')` | page | SysLogController.java |
 | GET | `/api/system/logs/counts` | `hasAuthority('system:log:view')` | counts | SysLogController.java |
 | GET | `/api/system/menus/tree` | `hasAuthority('system:menu:view')` | tree | SysMenuController.java |
+| GET | `/api/system/perm-center/preview` | `hasAuthority('system:config:view')` | preview | PermCenterController.java |
 | GET | `/api/system/perm-scopes/assignee/{type}/{key}` | `hasAuthority('system:config:view')` | getAssigneeScopes | RolePermScopeController.java |
 | PUT | `/api/system/perm-scopes/assignee/{type}/{key}` | `hasAuthority('system:config:edit')` | updateAssigneeScopes | RolePermScopeController.java |
 | GET | `/api/system/perm-scopes/{roleCode}` | `hasAuthority('system:config:view')` | getScopes | RolePermScopeController.java |

@@ -31,7 +31,10 @@
         <el-table-column label="操作" width="200" align="center">
           <template #default="{ row }">
             <el-button v-if="canEditPosition" link type="primary" size="small" @click="openDialog(row)">编辑</el-button>
-            <el-button v-if="canEditPosition" link type="warning" size="small" @click="openRuleDialog(row)">规则</el-button>
+            <!-- 【2026-11-08 审计修复】岗位规则保存后端 admin-only（SysPositionController updateRules:
+                 system:position:edit 之外再硬校验 isAdmin, "仅系统管理员可修改岗位权限规则"）——
+                 非 admin 持 system:position:edit 时按钮可见但保存必 403, 显隐对齐为超管可见 -->
+            <el-button v-if="canEditPosition && isAdmin" link type="warning" size="small" @click="openRuleDialog(row)">规则</el-button>
             <el-button v-if="canDeletePosition" link type="danger" size="small" @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
@@ -115,6 +118,8 @@ const userStore = useUserStore()
 const canAddPosition = computed(() => userStore.hasPermission('system:position:add'))
 const canEditPosition = computed(() => userStore.hasPermission('system:position:edit'))
 const canDeletePosition = computed(() => userStore.hasPermission('system:position:delete'))
+// 【2026-11-08 审计修复】岗位规则保存（updateRules）后端 admin-only，"规则"入口按钮按超管显隐
+const isAdmin = computed(() => userStore.isAdmin())
 
 const positions = ref([])
 const allRules = ref([])

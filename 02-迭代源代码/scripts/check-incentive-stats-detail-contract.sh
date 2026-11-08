@@ -89,7 +89,9 @@ assert_contains "$UTIL_SPEC" "slotCounts"
 
 assert_contains "$PERIOD_UTIL" "periodQueryValue"
 assert_contains "$API_DOC" "| GET | \`/api/incentive/records\` | \`hasAuthority('incentive:view')\` | getRecords | IncentiveController.java |"
-assert_contains "$API_DOC" "| GET | \`/api/incentive/category-stats\` | \`hasAuthority('incentive:view')\` | categoryStats | IncentiveController.java |"
+# 【重锚 2026-11-08】category-stats 权限码随 V2026.11.04.1"逐功能建码"已由 incentive:view
+# 改为 incentive:stats:view(代码与 api-list.md 均为新码), 本钉原钉旧码随 regeneration 同步重锚
+assert_contains "$API_DOC" "| GET | \`/api/incentive/category-stats\` | \`hasAuthority('incentive:stats:view')\` | categoryStats | IncentiveController.java |"
 assert_contains "$FEATURE_AUDIT" "| \`GET\` | \`/api/incentive/records\` | \`hasAuthority('incentive:view')\` |"
 assert_contains "$FEATURE_AUDIT" "| \`getCategoryStats\` | \`GET\` | \`/incentive/category-stats\` |"
 

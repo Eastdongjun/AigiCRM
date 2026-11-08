@@ -101,19 +101,35 @@ watch([aclDialogVisible, aclFolder], async ([vis, folder]) => {
 
 const saveAcl = async () => {
   if (!aclSelectedRoles.value.length || !aclFolder.value) return
+  const folder = aclFolder.value
   aclSaving.value = true
   try {
-    for (const roleId of aclSelectedRoles.value) {
-      await saveFolderAcl(aclFolder.value.id, { roleId, perms: aclSelectedPerms.value })
+    // 【2026-11-08 审计修复】多角色保存由 for-await 串行改 Promise.allSettled 并行：
+    // 原实现中途某角色失败即中断（余下角色静默未保存、已保存部分零提示），且逐个往返耗时随角色数线性涨。
+    // 现并行下发全部角色，结束后按「成功 N / 失败 M」汇总；失败角色保留勾选便于直接重试。
+    const roleIds = [...aclSelectedRoles.value]
+    const results = await Promise.allSettled(
+      roleIds.map(roleId => saveFolderAcl(folder.id, { roleId, perms: aclSelectedPerms.value }))
+    )
+    const failedIds = roleIds.filter((_, i) => results[i].status === 'rejected')
+    const okCount = roleIds.length - failedIds.length
+    const failCount = failedIds.length
+    if (failCount === 0) {
+      ElMessage.success(`权限已保存（成功 ${okCount} / 失败 ${failCount}）`)
+      aclSelectedRoles.value = []
+      aclSelectedPerms.value = []
+    } else if (okCount === 0) {
+      // 单条错误的具体原因已由 request 拦截器逐条提示，此处只给汇总
+      ElMessage.error(`保存失败：成功 ${okCount} / 失败 ${failCount}，请重试`)
+    } else {
+      ElMessage.warning(`部分成功：成功 ${okCount} / 失败 ${failCount}，失败角色已保留勾选，请重试`)
+      aclSelectedRoles.value = failedIds
     }
-    ElMessage.success('权限已保存')
-    aclSelectedRoles.value = []
-    aclSelectedPerms.value = []
-    await loadAclList(aclFolder.value.id)
-    // 授权变更影响当前选中文件夹时同步刷新列表页按钮状态
-    if (selectedFolderId.value === aclFolder.value.id) loadFolderPerms()
-  } catch (e) {
-    // 错误提示由 request 拦截器统一处理
+    if (okCount > 0) {
+      await loadAclList(folder.id)
+      // 授权变更影响当前选中文件夹时同步刷新列表页按钮状态
+      if (selectedFolderId.value === folder.id) loadFolderPerms()
+    }
   } finally {
     aclSaving.value = false
   }

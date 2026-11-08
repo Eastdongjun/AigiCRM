@@ -612,6 +612,9 @@ local_contracts() {
   run "$ROOT/scripts/check-discipline-gates.sh"
   # 【2026-11-07 守则D6】PC 前端死引用扫描(相对/@ 本地引用必须可解析, 502 条全检)
   run node "$ROOT/scripts/check-ui-dead-imports.mjs"
+  # 【2026-11-08 第四类门禁·双端一致性】前端调用→后端端点必须存在(防必败按钮/死调用);
+  #   后端写端点→双端必须有调用方或白名单带理由(防休眠端点复发)。背景=11-08全量审计25项漂移。
+  run "$ROOT/scripts/check-endpoint-parity.sh"
 }
 
 changed_files() {

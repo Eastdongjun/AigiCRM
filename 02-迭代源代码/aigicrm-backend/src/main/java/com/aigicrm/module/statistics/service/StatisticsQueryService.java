@@ -443,7 +443,9 @@ public class StatisticsQueryService {
         Map<String, Object> data = new HashMap<>();
 
         List<BizCustomerIndicator> indicators = indicatorMapper.selectList(null);
-        // 【2026-08-08 设计规则：核心客户六项指标全员可见】公司级指标展示，不做数据范围过滤。
+        // 【注释修正 2026-11-08】原注释"全员可见不过滤"与代码矛盾, 已按 G2 实际口径改写:
+        // 指标随客户可见范围过滤(visibleCustomers: admin 全量; 其余按 statistics 模块数据范围
+        // 解析可见人员并按 ownerId 过滤, 未分配负责人的客户保持可见)——统计范围必须 ≤ 明细可见范围。
         List<BizCustomer> allCustomers = visibleCustomers(customerService.getAllActiveCustomers());
         Map<Long, BizCustomer> customerMap = new HashMap<>();
         for (BizCustomer c : allCustomers) customerMap.put(c.getId(), c);
@@ -463,8 +465,8 @@ public class StatisticsQueryService {
         // 【2026-09-13 修复"卡片全 0 而表格有数据"的口径不一致】
         // 此前四张卡片只统计"当前登录用户自己负责的客户"（myCustomers/myIndicators），而下方「客户排行」是
         // 全公司口径 —— 同一页面两套范围：登录人（如 admin）名下客户恰好没有指标记录时，卡片 4 个 0 而表格有数据。
-        // 现统一为全公司口径，与本方法"核心客户六项指标全员可见、不做数据范围过滤"的既定规则、以及卡片文案
-        // （覆盖客户数/真核心数/争核心数/指标平均分均为公司级语义）保持一致。
+        // 现卡片与排行统一为同一"统计可见范围"口径(G2: admin=全公司, 其余按 statistics 数据范围过滤,
+        // 见上方 visibleCustomers 注释), 以及卡片文案(覆盖客户数/真核心数/争核心数/指标平均分)保持一致。
         int coveredCount = indicators.size();
         int coreCount = 0;
         int quasiCount = 0;
@@ -1087,8 +1089,9 @@ public class StatisticsQueryService {
     /**
      * 【2026-08-08 设计规则（最终）：统计按账号数据范围】统计模块数据按当前账号数据范围过滤
      * （管理员全量 / 负责人本组织 / 销售本人，含系统级开关）。覆盖 dashboard/经营分析/日报周报等查询。
-     * ⚠️ 例外: 核心客户指标(indicatorStats)按设计为"六项指标全员可见", 明确不做数据范围过滤
-     * （见该方法内注释）。getCurrentScopeUserIds 返回 null=全量不过滤。
+     * 【注释修正 2026-11-08】核心客户指标(indicatorStats)自 G2 起同受统计可见范围过滤
+     * （visibleCustomers 按客户可见范围过滤, 见该方法内注释）, 原"六项指标全员可见不过滤"例外表述作废。
+     * getCurrentScopeUserIds 返回 null=全量不过滤。
      * 【A6 2026-10-20 审计】空集(非 null 空集合)显式 1=0: MyBatis-Plus 3.5.17 的 in(空集合)
      * 生成 IN () 语法错误→统计接口 500。空集语义=范围内无可见用户, 恒空结果, 不得报错也不得放行全量。
      */

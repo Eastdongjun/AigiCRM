@@ -115,8 +115,9 @@
     <view class="card modal-card folder-select-card" catchtap="noop">
       <view class="modal-head"><view class="modal-title">上传到文件夹</view><button class="text-btn" bindtap="cancelFolderSelect">取消</button></view>
       <view class="folder-select-list">
-        <view class="folder-select-item {{folderSelect.selectedId === '' ? 'selected' : ''}}" data-id="" data-name="根目录" bindtap="selectFolderItem">根目录</view>
-        <view wx:if="{{folderSelect.folders.length === 0}}" class="folder-select-empty">当前分类暂无文件夹，将上传到根目录</view>
+        <!-- 【11-08 审计项1】公共+根目录+非管理员: 根目录行置灰加角标, 点选提示(后端必拒 403, 前端先禁用) -->
+        <view class="folder-select-item {{folderSelect.selectedId === '' ? 'selected' : ''}} {{folderSelect.rootLocked ? 'is-locked' : ''}}" data-id="" data-name="根目录" bindtap="selectFolderItem">根目录<text wx:if="{{folderSelect.rootLocked}}" class="folder-select-lock-tag">{{folderSelect.rootLockText}}</text></view>
+        <view wx:if="{{folderSelect.folders.length === 0}}" class="folder-select-empty">{{folderSelect.emptyText}}</view>
         <view wx:for="{{folderSelect.folders}}" wx:key="id" class="folder-select-item {{folderSelect.selectedId === item.id ? 'selected' : ''}}" data-id="{{item.id}}" data-name="{{item.rawName}}" bindtap="selectFolderItem">{{item.name}}</view>
       </view>
       <button class="btn folder-select-confirm" bindtap="confirmFolderSelect">上传到这里</button>

@@ -118,13 +118,9 @@ public class IncentiveController {
     }
 
 
-    /** 批量重算所有历史记录学分（按最新规则） */
-    @PreAuthorize("hasAuthority('incentive:edit')")
-    @PostMapping("/records/recalculate")
-    public Result<java.util.Map<String, Object>> recalculateAll() {
-        int changed = incentiveService.recalculateAllScores();
-        return Result.ok(java.util.Map.of("changed", changed));
-    }
+    // 【死码清理 2026-11-08】POST /records/recalculate 已删除：PC/MP/scripts 全库零调用
+    // （单记录重算已由 updateRecord/removeFile 内联完成；全表批重算无行锁外进度保护）。
+    // 同步删除 IncentiveService.recalculateAllScores。
 
     /** 同 updateRecord：归属校验在方法内（admin ∨ can_delete 迁移授权 ∨ 记录本人），去方法级硬码 */
     // 【PR-01 N-03】incentive:view 底线注解，归属仍由方法内守卫判定。

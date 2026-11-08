@@ -639,35 +639,8 @@ public class IncentiveService {
         evictScoreboardCache();
     }
 
-    /** 批量重算所有历史记录的学分（按新规则） */
-    @Transactional
-    public int recalculateAllScores() {
-        List<BizIncentiveRecord> all = recordMapper.selectList(null);
-        int changed = 0;
-        for (BizIncentiveRecord r : all) {
-            BizIncentiveCategory category = categoryMapper.selectById(r.getCategoryId());
-            int base = (category != null && category.getScore() != null) ? category.getScore() : 0;
-            int newScore = calcScore(r, category, base);
-            if (!Integer.valueOf(newScore).equals(r.getScore())) {
-                // 【四轮复检修复】score 有变化时行锁重读最新态重算再写: 全表快照到写入之间的
-                // 并发 removeFile(其自身会按最新规则重算 score)会被本循环按旧快照口径覆盖虚高;
-                // 行锁窗口内重算, 与 removeFile 对同一记录串行化
-                BizIncentiveRecord fresh = recordMapper.selectByIdForUpdate(r.getId());
-                if (fresh == null) continue;
-                int lockedScore = calcScore(fresh, category, base);
-                if (!Integer.valueOf(lockedScore).equals(fresh.getScore())) {
-                    fresh.setScore(lockedScore);
-                    recordMapper.update(null,
-                            new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<BizIncentiveRecord>()
-                                    .eq(BizIncentiveRecord::getId, fresh.getId())
-                                    .set(BizIncentiveRecord::getScore, lockedScore));
-                    changed++;
-                }
-            }
-        }
-        evictScoreboardCache();
-        return changed;
-    }
+    // 【死码清理 2026-11-08】recalculateAllScores 已随 POST /records/recalculate 端点删除：
+    // 双端零调用（11-08 审计确证），单记录重算由 updateRecord/removeFile 内联完成。
 
     /**
      * 新增激励上传记录

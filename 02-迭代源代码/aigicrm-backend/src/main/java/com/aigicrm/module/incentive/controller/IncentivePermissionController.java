@@ -27,6 +27,8 @@ public class IncentivePermissionController {
     private final IncentiveService incentiveService;
     // 【2026-11-03 权限中心 B2】授权变更记 sys_rule_version(审计时间线; 走 service, 控制器不依赖 mapper)
     private final com.aigicrm.module.system.service.SysRuleVersionService ruleVersionService;
+    // 【11-08 修复清单5】授权保存同步写 sys_audit_log(操作人审计; 与 LOGIN_SUCCESS 同一 service/mapper, 旁路失败不阻断)
+    private final com.aigicrm.security.SecurityAuditService securityAuditService;
 
     /**
      * 激励授权面板列表：所有存在专项授权记录的用户及其四个开关
@@ -132,6 +134,8 @@ public class IncentivePermissionController {
                     "can_delete=VALUES(can_delete), updated_by=VALUES(updated_by)",
                     userId, canViewShared, canViewAll, canEdit, canDelete, operator);
             recordGrantVersion(userId, oldFlags, newFlags);
+            // 【11-08 修复清单5】sys_audit_log 操作人审计留痕(INCENTIVE_GRANT_SAVE, 四 flag 终态 JSON)
+            securityAuditService.incentiveGrantSaved(userId, canViewShared, canViewAll, canEdit, canDelete);
         }
         return Result.ok();
     }

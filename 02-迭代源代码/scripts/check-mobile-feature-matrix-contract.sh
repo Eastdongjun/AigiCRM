@@ -136,8 +136,10 @@ require_line '| 新增客户 | Create customer | `POST /api/customer/add` | `cus
 require_line '| 编辑客户 | Edit customer | `PUT /api/customer/{id}` | `customer:edit` | Backend edit access check | Update | Yes | Implemented |'
 require_line '| 客户详情 | View follow-up logs | `GET /api/customer/{id}/logs` | `customer:view` | Same customer visibility | Read | Yes | Implemented |'
 require_line '| 客户详情 | Add follow-up log | `POST /api/customer/{id}/logs` | `customer:edit` | Same customer edit boundary | Create | Yes | Implemented |'
-require_line '| 客户详情 | Add invoice | `POST /api/customer/{id}/invoices` | `customer:edit` + `finance:view` | Same customer edit boundary and finance visibility | Create | Yes | Implemented |'
-require_line '| 客户详情 | Delete invoice | `DELETE /api/customer/{id}/invoices/{invoiceId}` | `customer:edit` + `finance:view` | Same customer edit boundary and finance visibility | Delete | Yes | Implemented |'
+# 【死码清理 2026-11-08】逐笔开票写端点(Add/Delete invoice)已删(双端 UI 零调用, 2026-10-10 起阶段
+# 总额制), 矩阵行改删除留痕行, 本钉同步重锚; 只读 invoices/summary 行原样保留
+require_line '| ~~客户详情 \| Add invoice~~ | ~~Add invoice~~ | ~~`POST /api/customer/{id}/invoices`~~ (deleted 2026-11-08, dormant per-item write retired since 2026-10-10 stage-amount era) | — | — | — | — | — |'
+require_line '| ~~客户详情 \| Delete invoice~~ | ~~Delete invoice~~ | ~~`DELETE /api/customer/{id}/invoices/{invoiceId}`~~ (deleted 2026-11-08, dormant per-item write) | — | — | — | — | — |'
 require_line '| 客户详情 | View six indicators | `GET /api/customer/{id}/indicator` | `customer:view` | Same customer visibility | Read | Yes | Implemented |'
 require_line '| 客户详情 | Save six indicators | `POST /api/customer/{id}/indicator` | `customer:edit` | Same customer edit boundary | Update | Yes | Implemented |'
 require_line '| 客户详情 | Update relationship | `PUT /api/customer/{id}/relationship` | `customer:edit` | Same customer edit boundary | Update | Yes | Implemented |'
@@ -146,8 +148,9 @@ require_line '| 客户详情 | Add/remove share | `POST /api/customer/{id}/share
 require_line '| 客户详情 | Release/return to sea | `POST /api/customer/{id}/release` | `customer:edit` | Same customer edit boundary and sea config match | Status mutation | Yes | Implemented |'
 require_line '| 客户联系人 | Add contact | `POST /api/customer/{id}/contacts` | `customer:edit` | Same customer edit boundary | Create | Yes | Implemented |'
 require_line '| 客户联系人 | Edit/delete contacts | `PUT/DELETE /api/customer/{id}/contacts...` | `customer:edit` | Same customer edit boundary | Update/Delete | Yes | Implemented |'
-require_line '| 客户回款 | Add payment | `POST /api/customer/{id}/payments` | `customer:edit` + `finance:view` | Same customer edit boundary and finance visibility | Create | Yes | Implemented |'
-require_line '| 客户回款 | Delete payment | `DELETE /api/customer/{id}/payments/{paymentId}` | `customer:edit` + `finance:view` | Same customer edit boundary and finance visibility | Delete | Yes | Implemented |'
+# 【死码清理 2026-11-08】逐笔回款写端点(Add/Delete payment)同批删除, 矩阵行改删除留痕行
+require_line '| ~~客户回款 \| Add payment~~ | ~~Add payment~~ | ~~`POST /api/customer/{id}/payments`~~ (deleted 2026-11-08, dormant per-item write retired since 2026-10-10 stage-amount era) | — | — | — | — | — |'
+require_line '| ~~客户回款 \| Delete payment~~ | ~~Delete payment~~ | ~~`DELETE /api/customer/{id}/payments/{paymentId}`~~ (deleted 2026-11-08, dormant per-item write) | — | — | — | — | — |'
 require_line '| 客户校验 | Check duplicate name | `GET /api/customer/check-name` | `customer:view` | Backend check rules | Read/validate | Yes | Implemented |'
 require_line '| 用户简表 | User selector | `GET /api/customer/users/simple` | `customer:view` | Backend user scope | Read | Yes | Implemented |'
 require_line '| 文件管理 | Folder tree | `GET /api/file/folders` | `file:view` | Backend folder ACL and visible folders | Read | Yes | Implemented |'

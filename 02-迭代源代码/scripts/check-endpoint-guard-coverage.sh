@@ -64,8 +64,10 @@ for f in root.rglob('*Controller.java'):
             continue  # 设计公开, 在册放行
         unguarded.append((fname, l.strip(), (lines[i + 1].strip()[:60] if i + 1 < len(lines) else '')))
 
-print(f"端点总数: {total} (护栏下限 230)")
-if total < 230:
+# 【死码清理 2026-11-08】护栏下限 230 → 227: 删 POST /incentive/records/recalculate(1)
+# 与逐笔开票/回款 8 写端点后总数 236→227(删除属有意收缩, 非扫描失配)
+print(f"端点总数: {total} (护栏下限 227)")
+if total < 227:
     print("FAIL: 端点总数低于护栏下限——扫描可能静默失配(假绿), 先修扫描再谈覆盖")
     sys.exit(1)
 if unguarded:

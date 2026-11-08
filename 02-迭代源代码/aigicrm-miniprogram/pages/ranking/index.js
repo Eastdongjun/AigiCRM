@@ -432,12 +432,15 @@ Page({
     const period = this.currentPeriod()
     // 【体检 P1 2026-10-12 + 2026-11-04 注册表对齐】按各榜注册码门控请求：
     //   学分榜三路要 score:view、客户榜(/statistics/customer-rankings)要 statistics:view、
-    //   激励个人榜要 incentive:view——无对应权限的区块直接置空(空态), 不发起必败请求;
+    //   激励个人榜要 incentive:stats:view∨incentive:rank:view(11-08 审计项4, 与后端 /scoreboard
+    //   hasAnyAuthority 同口径)——无对应权限的区块直接置空(空态), 不发起必败请求;
     //   demo 模式恒放开。此前客户榜请求无条件必发, 是 10-17 单码入口补丁的根因。
     const demo = Boolean(getApp().globalData.demoMode)
-    const canScore = demo || hasPermission(rankingTabs.MAIN_TAB_PERMISSIONS.score)
-    const canCustomer = demo || hasPermission(rankingTabs.MAIN_TAB_PERMISSIONS.customer)
-    const canIncentive = demo || hasPermission(rankingTabs.MAIN_TAB_PERMISSIONS.incentive)
+    // 【11-08 审计项4】any-of 判定统一走 util(激励榜码=数组 stats:view∨rank:view, 与后端 /scoreboard
+    // hasAnyAuthority 同口径; 单码页签字符串形态由 satisfiesPermission 兼容)
+    const canScore = demo || rankingTabs.satisfiesPermission(hasPermission, rankingTabs.MAIN_TAB_PERMISSIONS.score)
+    const canCustomer = demo || rankingTabs.satisfiesPermission(hasPermission, rankingTabs.MAIN_TAB_PERMISSIONS.customer)
+    const canIncentive = demo || rankingTabs.satisfiesPermission(hasPermission, rankingTabs.MAIN_TAB_PERMISSIONS.incentive)
     // 【2026-11-06 整体检查 X1】单榜模式(?tab= 进入, scope 非空)只拉本榜:
     //   权限门控之上再按 scope 收窄——不发永不展示的请求, 也不弹无关榜单的失败 toast。
     const scope = this.data.scope || ''

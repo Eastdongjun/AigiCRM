@@ -83,7 +83,9 @@
           <view class="rec-td c-file">文件</view>
         </view>
         <view wx:for="{{pagedTableRows}}" wx:key="id" class="rec-tr" data-id="{{item.id}}" bindtap="openRecordDetail">
-          <view class="rec-td c-cust">{{item.customerName}}</view>
+          <!-- 【11-08 审计项5】点客户名进一客一册档案页(customer-detail, catchtap 不冒泡到行);
+               其余列/行点按仍直达记录详情(拨盘页) -->
+          <view class="rec-td c-cust c-cust-link" catchtap="openCustomerDetail" data-group-id="{{item.groupId}}">{{item.customerName}}</view>
           <view class="rec-td c-cat">{{item.categoryName}}</view>
           <view class="rec-td c-prod">{{item.productText || '—'}}</view>
           <view class="rec-td c-date">{{item.timeText}}</view>

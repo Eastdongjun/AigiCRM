@@ -2,7 +2,9 @@
 // 【2026-10-26 用户令】轻量页与完整版(四项服务应用)排法分工: 完整版=按客户归集封面卡(原地不动);
 // 轻量页默认=打散记录流(不绑客户, 一次上传=一条记录, 按上传时间排), 「按客户」可切回归集视图。
 // 数据链路同源(getCustomerRecords 按客户分组 + 本地筛选排序), 打散=分组结果拉平, 不加接口。
-const { getCustomerRecords, getCategoryTree, getGrantCheck, getUsers } = require('../../../api/incentive')
+// 【11-08 审计项6·审计09章新发现7】getGrantCheck 死导入移除: 轻量页无 grant 消费点
+// (canEdit/canDelete 系操作都在完整版/详情页), 仅完整版 pages/incentive/index 与 detail 在用。
+const { getCustomerRecords, getCategoryTree, getUsers } = require('../../../api/incentive')
 const { getDownloadToken } = require('../../../api/file')
 const { getDictData } = require('../../../api/system')
 const { incentiveRecords } = require('../../../data/demo')

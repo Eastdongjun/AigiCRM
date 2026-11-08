@@ -96,7 +96,7 @@ class SeaServiceTest {
                 mock(com.aigicrm.module.customer.service.CustomerEventService.class));
 
         // page() 内部: visiblePoolIds() = [10](启用池), 禁用池 20 被排除
-        IPage<BizSeaPool> result = seaService.page(1, 15, null, null, null, null, null, null, "available");
+        IPage<BizSeaPool> result = seaService.page(1, 15, null, null, null, null, null, "available");
         assertEquals(1, result.getRecords().size());
         assertEquals(10L, result.getRecords().get(0).getPoolId());
         // 关键断言: 查询条件含 pool_id IN(启用池过滤生效), 且参数值只有启用池 id 10、无禁用池 20。
@@ -157,7 +157,7 @@ class SeaServiceTest {
                 mock(SysUserMapper.class), mock(SysDeptMapper.class), configService, mock(CustomerService.class),
                 mock(com.aigicrm.module.customer.service.CustomerEventService.class));
 
-        IPage<BizSeaPool> page = service.page(1, 15, null, null, null, null, null, null, "available");
+        IPage<BizSeaPool> page = service.page(1, 15, null, null, null, null, null, "available");
 
         assertTrue(page.getRecords().get(0).getCanEdit());
         assertFalse(page.getRecords().get(0).getCanDelete());

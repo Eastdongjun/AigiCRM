@@ -30,6 +30,9 @@ function normalizeApproval(item) {
     createdAt: item.createdAt || item.createTime || '',
     updatedAt: item.updatedAt || item.updateTime || '',
     reason: item.reason || item.comment || item.extraData || '暂无说明',
+    // 【11-08 审计项2】后端同批在列表响应回填 currentApprover 布尔(false=当前审批人非我):
+    // ===false 时隐藏通过/驳回; undefined=旧后端未回字段, 保持显示兼容
+    currentApprover: item.currentApprover,
     nodes: (item.nodes || []).map(normalizeApprovalNode)
   }
 }
@@ -43,8 +46,11 @@ function buildApprovalItemView(item, state = {}) {
   // 【S4】列表接口 BizApproval 瞬态字段只回填 applicantName/customerName，没有行业来源；
   // 无值时保持空串，由 wxml 隐藏该文本位，避免恒显示 "-" 的假数据位
   const customerIndustryText = item.customerIndustry || ''
-  const showRejectAction = Boolean(state.canReject && item.isPending)
-  const showApproveAction = Boolean(state.canApprove && item.isPending)
+  // 【11-08 审计项2】currentApprover===false=列表里的在办节点审批人不是当前用户——通过/驳回
+  // 后端必拒; 显隐收敛在归一化层(===false 才隐藏, undefined=旧后端兼容保持显示)
+  const isCurrentApprover = item.currentApprover !== false
+  const showRejectAction = Boolean(state.canReject && item.isPending && isCurrentApprover)
+  const showApproveAction = Boolean(state.canApprove && item.isPending && isCurrentApprover)
   return {
     ...item,
     titleText: item.title || '审批事项',

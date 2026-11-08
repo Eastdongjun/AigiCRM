@@ -325,68 +325,12 @@ public class CustomerController {
         return Result.ok(customerService.getInvoiceSummary(id));
     }
 
-    // 【2026-11-03 拆码】新增第三通道 customer:finance:edit(开票回款编辑, 带自己的数据范围), 旧两支原样保留
-    @PreAuthorize("hasAuthority('finance:manage') or hasAuthority('customer:finance:edit') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))")
-    @PostMapping("/{id}/invoices")
-    public Result<Void> addInvoice(@PathVariable Long id, @RequestBody BizInvoice invoice) {
-        // 【决策6 2026-10-18】财务代录: finance:manage 持有者放开对象归属(不要求是负责人)
-        accessService.assertCanManageFinance(id);
-        customerService.addInvoice(id, invoice);
-        return Result.ok();
-    }
-
-    /** 【PR-18 2026-09-19】台账确认(pending → confirmed) */
-    // 【2026-11-03 拆码】新增第三通道 customer:finance:edit(开票回款编辑, 带自己的数据范围), 旧两支原样保留
-    @PreAuthorize("hasAuthority('finance:manage') or hasAuthority('customer:finance:edit') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))")
-    @PostMapping("/{id}/invoices/{invoiceId}/confirm")
-    public Result<Void> confirmInvoice(@PathVariable Long id, @PathVariable Long invoiceId) {
-        accessService.assertCanManageFinance(id); // 【决策6 2026-10-18】财务代录同 addInvoice
-        customerService.confirmInvoice(id, invoiceId);
-        return Result.ok();
-    }
-
-    /** 【PR-18】台账作废(保留记录) */
-    // 【2026-11-03 拆码】新增第三通道 customer:finance:edit(开票回款编辑, 带自己的数据范围), 旧两支原样保留
-    @PreAuthorize("hasAuthority('finance:manage') or hasAuthority('customer:finance:edit') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))")
-    @PostMapping("/{id}/invoices/{invoiceId}/void")
-    public Result<Void> voidInvoice(@PathVariable Long id, @PathVariable Long invoiceId,
-                                    @RequestBody Map<String, String> body) {
-        accessService.assertCanManageFinance(id); // 【决策6 2026-10-18】财务代录同 addInvoice
-        customerService.voidInvoice(id, invoiceId, body.get("reason"));
-        return Result.ok();
-    }
-
-    /** 【PR-18】回款确认 */
-    // 【2026-11-03 拆码】新增第三通道 customer:finance:edit(开票回款编辑, 带自己的数据范围), 旧两支原样保留
-    @PreAuthorize("hasAuthority('finance:manage') or hasAuthority('customer:finance:edit') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))")
-    @PostMapping("/{id}/payments/{paymentId}/confirm")
-    public Result<Void> confirmPayment(@PathVariable Long id, @PathVariable Long paymentId) {
-        accessService.assertCanManageFinance(id); // 【决策6 2026-10-18】财务代录同 addInvoice
-        customerService.confirmPayment(id, paymentId);
-        return Result.ok();
-    }
-
-    /** 【PR-18】回款作废 */
-    // 【2026-11-03 拆码】新增第三通道 customer:finance:edit(开票回款编辑, 带自己的数据范围), 旧两支原样保留
-    @PreAuthorize("hasAuthority('finance:manage') or hasAuthority('customer:finance:edit') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))")
-    @PostMapping("/{id}/payments/{paymentId}/void")
-    public Result<Void> voidPayment(@PathVariable Long id, @PathVariable Long paymentId,
-                                    @RequestBody Map<String, String> body) {
-        accessService.assertCanManageFinance(id); // 【决策6 2026-10-18】财务代录同 addInvoice
-        customerService.voidPayment(id, paymentId, body.get("reason"));
-        return Result.ok();
-    }
-
-    // 【2026-11-03 拆码】新增第三通道 customer:finance:edit(开票回款编辑, 带自己的数据范围), 旧两支原样保留
-    @PreAuthorize("hasAuthority('finance:manage') or hasAuthority('customer:finance:edit') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))")
-    @DeleteMapping("/{id}/invoices/{invoiceId}")
-    public Result<Void> deleteInvoice(@PathVariable Long id, @PathVariable Long invoiceId,
-                                      @RequestParam(required = false) String reason) {
-        // 【裁决 2026-09-24】发票可删但必留痕: 原因必填+审计快照+逻辑删(service 内强制)
-        accessService.assertCanManageFinance(id); // 【决策6 2026-10-18】财务代录同 addInvoice
-        customerService.deleteInvoice(id, invoiceId, reason);
-        return Result.ok();
-    }
+    // 【死码清理 2026-11-08】逐笔开票/回款 8 个写端点已删(POST /{id}/invoices、/{id}/invoices/{iid}/confirm、
+    // /{id}/invoices/{iid}/void、DELETE /{id}/invoices/{iid}、POST /{id}/payments、/{id}/payments/{pid}/confirm、
+    // /{id}/payments/{pid}/void、DELETE /{id}/payments/{pid})：2026-10-10 改阶段总额录入制后 UI 入口双端退役
+    // (PC FinanceTab 只读历史+阶段表单; MP 无调用页)，11-08 审计实拉零调用。阶段总额写端点
+    // POST /{id}/stage-amounts 为活码保留(三通道 @PreAuthorize + assertCanManageFinance)。
+    // Service 层方法与行为测试暂留(历史台账只读口径与审计留痕逻辑仍被测试钉住)。
 
     // ====== 阶段开票回款(2026-10-10 半年/全年总额录入制, 逐笔录入入口同批下线改只读历史) ======
 
@@ -516,7 +460,9 @@ public class CustomerController {
         return Result.ok(customerService.getContacts(id));
     }
 
-    @PreAuthorize("hasAuthority('customer:edit') or hasAuthority('contact:manage')")
+    // 【死码清理 2026-11-08】摘除 contact:manage OR 支路(前后端零消费, 11-08 实拉确证; 随
+    // V2026.11.08.1 删 sys_menu 登记行)——联系人写操作统一 customer:edit 单码
+    @PreAuthorize("hasAuthority('customer:edit')")
     @PostMapping("/{id}/contacts")
     public Result<Void> addContact(@PathVariable Long id, @RequestBody BizContact contact) {
         accessService.assertCanEdit(id);
@@ -524,7 +470,8 @@ public class CustomerController {
         return Result.ok();
     }
 
-    @PreAuthorize("hasAuthority('customer:edit') or hasAuthority('contact:manage')")
+    // 【死码清理 2026-11-08】同 addContact: contact:manage OR 支路摘除
+    @PreAuthorize("hasAuthority('customer:edit')")
     @PutMapping("/{id}/contacts/{contactId}")
     public Result<Void> updateContact(@PathVariable Long id, @PathVariable Long contactId,
                                        @RequestBody BizContact contact) {
@@ -533,7 +480,8 @@ public class CustomerController {
         return Result.ok();
     }
 
-    @PreAuthorize("hasAuthority('customer:edit') or hasAuthority('contact:manage')")
+    // 【死码清理 2026-11-08】同 addContact: contact:manage OR 支路摘除
+    @PreAuthorize("hasAuthority('customer:edit')")
     @DeleteMapping("/{id}/contacts/{contactId}")
     public Result<Void> deleteContact(@PathVariable Long id, @PathVariable Long contactId) {
         accessService.assertCanEdit(id);
@@ -559,26 +507,8 @@ public class CustomerController {
         return Result.ok(customerService.getPaymentSummary(id));
     }
 
-    // 【2026-11-03 拆码】新增第三通道 customer:finance:edit(开票回款编辑, 带自己的数据范围), 旧两支原样保留
-    @PreAuthorize("hasAuthority('finance:manage') or hasAuthority('customer:finance:edit') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))")
-    @PostMapping("/{id}/payments")
-    public Result<Void> addPayment(@PathVariable Long id, @RequestBody BizPayment payment) {
-        // 【决策6 2026-10-18】财务代录: finance:manage 持有者放开对象归属(不要求是负责人)
-        accessService.assertCanManageFinance(id);
-        customerService.addPayment(id, payment);
-        return Result.ok();
-    }
-
-    // 【2026-11-03 拆码】新增第三通道 customer:finance:edit(开票回款编辑, 带自己的数据范围), 旧两支原样保留
-    @PreAuthorize("hasAuthority('finance:manage') or hasAuthority('customer:finance:edit') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))")
-    @DeleteMapping("/{id}/payments/{paymentId}")
-    public Result<Void> deletePayment(@PathVariable Long id, @PathVariable Long paymentId,
-                                      @RequestParam(required = false) String reason) {
-        // 【裁决 2026-09-24】回款同口径: 可删必留痕
-        accessService.assertCanManageFinance(id); // 【决策6 2026-10-18】财务代录同 addInvoice
-        customerService.deletePayment(id, paymentId, reason);
-        return Result.ok();
-    }
+    // 【死码清理 2026-11-08】POST /{id}/payments 与 DELETE /{id}/payments/{paymentId} 随逐笔回款
+    // 写端点批删除(见上方开票区注记); 只读 /payments、/payments/summary 保留。
 
     // ====== 批量导入 ======
 

@@ -275,8 +275,9 @@ function buildFileRowView(item, data) {
   const sheetActions = [{ key: 'open', label: '打开' }]
   if (showDownload) sheetActions.push({ key: 'download', label: '下载' })
   // 【2026-11-06 用户令"加一个可以修改文件名称的"】重命名=file:edit+夹 edit(后端与 replace 同门
-  // checkFile P_EDIT); 门禁用当前夹 edit 权限位, 与上传的夹权限口径同级
-  if (folderPerms.includes('edit')) sheetActions.push({ key: 'rename', label: '重命名' })
+  // checkFile P_EDIT); 【11-08 审计项3】门禁补 file:edit 权限码前置——此前只看夹 edit 权位,
+  // 无码用户点重命名必吃后端 403; 码(data.canEditFile)与夹 edit 双门, 与后端同口径
+  if (data.canEditFile && folderPerms.includes('edit')) sheetActions.push({ key: 'rename', label: '重命名' })
   if (showShare) sheetActions.push({ key: 'share', label: '分享' })
   if (showDelete) sheetActions.push({ key: 'delete', label: '删除', danger: true })
   const sizePrefix = item.size && item.size !== '-' ? `${item.size} · ` : ''
@@ -373,7 +374,7 @@ function buildFileView(data) {
 }
 
 Page({
-  data: { keyword: '', activeTab: '公共', activeFolderId: '', activeFolderName: '', tabs: ['公共', '私人', '四项服务', '分享给我'], tabCounts: { 公共: 0, 私人: 0, 四项服务: 0, 分享给我: 0 }, folders: [], files: [], filteredFiles: [], capacity: { used: '-', total: '-', percent: 0, hint: '存储统计加载中' }, canUpload: false, canDelete: false, canShare: false, canManageFolder: false, canDevUploadSmoke: false, uploading: false, loaded: false, loading: false, page: 1, pageSize: 10, total: 0, folderPerms: [], folderDownloadable: 1, previewing: false, dlToken: '', previewVideoPath: '', actionSheet: { visible: false, index: -1, name: '', actions: [] }, storageApplyInfo: { enabled: false, canApply: false, reason: '', used: 0, quota: 0, maxQuota: 0, allowDecrease: false }, storageApplyForm: { visible: false, submitting: false, quotaInput: '', reasonInput: '', errorText: '' }, storageApplyView: buildStorageApplyView({}), folderSelect: { visible: false, mode: 'album', folders: [], selectedId: '', selectedName: '根目录' }, renameModal: { visible: false, id: '', input: '' }, fileView: buildFileView({ tabs: ['公共', '私人', '四项服务', '分享给我'], tabCounts: { 公共: 0, 私人: 0, 四项服务: 0, 分享给我: 0 }, folders: [], filteredFiles: [], activeTab: '公共', activeFolderName: '', previewVideoPath: '', total: 0 }) },
+  data: { keyword: '', activeTab: '公共', activeFolderId: '', activeFolderName: '', tabs: ['公共', '私人', '四项服务', '分享给我'], tabCounts: { 公共: 0, 私人: 0, 四项服务: 0, 分享给我: 0 }, folders: [], files: [], filteredFiles: [], capacity: { used: '-', total: '-', percent: 0, hint: '存储统计加载中' }, canUpload: false, canDelete: false, canShare: false, canEditFile: false, canManageFolder: false, canDevUploadSmoke: false, uploading: false, loaded: false, loading: false, page: 1, pageSize: 10, total: 0, folderPerms: [], folderDownloadable: 1, previewing: false, dlToken: '', previewVideoPath: '', actionSheet: { visible: false, index: -1, name: '', actions: [] }, storageApplyInfo: { enabled: false, canApply: false, reason: '', used: 0, quota: 0, maxQuota: 0, allowDecrease: false }, storageApplyForm: { visible: false, submitting: false, quotaInput: '', reasonInput: '', errorText: '' }, storageApplyView: buildStorageApplyView({}), folderSelect: { visible: false, mode: 'album', folders: [], selectedId: '', selectedName: '根目录', rootLocked: false, rootLockText: '', emptyText: '当前分类暂无文件夹，将上传到根目录' }, renameModal: { visible: false, id: '', input: '' }, fileView: buildFileView({ tabs: ['公共', '私人', '四项服务', '分享给我'], tabCounts: { 公共: 0, 私人: 0, 四项服务: 0, 分享给我: 0 }, folders: [], filteredFiles: [], activeTab: '公共', activeFolderName: '', previewVideoPath: '', total: 0 }) },
 
   setFileData(patch) {
     const nextData = { ...this.data, ...patch }
@@ -421,8 +422,10 @@ Page({
     }
     if (!data.activeFolderId) {
       if (isDemoMode() || isAdmin()) return { perms: ALL_FOLDER_PERMS, downloadable: 1 }
+      // 【11-08 审计项1】公共+根目录+非管理员: 上传预禁用——后端 FileService.upload 对该组合
+      // 必拒(公共根目录文件仅管理员可上传), 根目录 perms 不再含 upload, 上传入口(含面板门禁)先收敛。
       return data.activeTab === '公共'
-        ? { perms: ['view', 'upload', 'download'], downloadable: 1 }
+        ? { perms: ['view', 'download'], downloadable: 1 }
         : { perms: ALL_FOLDER_PERMS, downloadable: 1 }
     }
     if (isDemoMode()) return { perms: ALL_FOLDER_PERMS, downloadable: 1 }
@@ -469,7 +472,7 @@ Page({
     } catch (_) { /* API missing or unavailable → fail-closed */ }
     const isLocalApi = /^https?:\/\/(127\.0\.0\.1|localhost|192\.168\.|10\.|172\.(1[6-9]|2\d|3[0-1])\.)/.test(apiBaseUrl)
     const canDevUploadSmoke = !globalData.demoMode && isLocalApi && isDevelopEnv
-    this.setFileData({ canUpload: globalData.demoMode || hasPermission('file:upload'), canDelete: !globalData.demoMode && hasPermission('file:delete'), canShare: !globalData.demoMode && hasPermission('file:share'), canManageFolder: globalData.demoMode || hasPermission('file:folder:manage'), canDevUploadSmoke })
+    this.setFileData({ canUpload: globalData.demoMode || hasPermission('file:upload'), canDelete: !globalData.demoMode && hasPermission('file:delete'), canShare: !globalData.demoMode && hasPermission('file:share'), canEditFile: globalData.demoMode || hasPermission('file:edit'), canManageFolder: globalData.demoMode || hasPermission('file:folder:manage'), canDevUploadSmoke })
     this.loadFiles()
     this.loadStorageApplyInfo()
   },
@@ -976,11 +979,32 @@ Page({
         return !perms.length || perms.includes('upload')
       })
       .map((item) => ({ id: String(item.id), name: item.name || item.rawName || '未命名文件夹', rawName: item.rawName || item.name || '未命名文件夹' }))
-    this.setData({ folderSelect: { visible: true, mode: options.mode || 'album', folders, selectedId: this.data.activeFolderId ? String(this.data.activeFolderId) : '', selectedName: this.data.activeFolderName || '根目录' } })
+    // 【11-08 审计项1】公共+根目录+非管理员预禁用: 后端对无夹 public 上传必拒 403
+    // (公共根目录文件仅管理员可上传)。根目录行置灰+点选提示; 默认选中回退到第一个可传文件夹。
+    const rootLocked = this.activeFileScope() === 'public' && !isAdmin() && !getApp().globalData.demoMode
+    let selectedId = this.data.activeFolderId ? String(this.data.activeFolderId) : ''
+    if (rootLocked && !selectedId && folders.length) selectedId = folders[0].id
+    const selectedName = folders.find((item) => item.id === selectedId) ? folders.find((item) => item.id === selectedId).rawName : (this.data.activeFolderName || '根目录')
+    this.setData({
+      folderSelect: {
+        visible: true,
+        mode: options.mode || 'album',
+        folders,
+        selectedId,
+        selectedName,
+        rootLocked,
+        rootLockText: rootLocked ? '仅管理员' : '',
+        emptyText: rootLocked ? '当前分类暂无可上传文件夹' : '当前分类暂无文件夹，将上传到根目录'
+      }
+    })
   },
 
   selectFolderItem(event) {
     const dataset = event.currentTarget.dataset || {}
+    // 【11-08 审计项1】公共根目录(非管理员)预禁用: 点选即提示, 不给"选完文件才吃 403"的死路
+    if (!dataset.id && this.data.folderSelect.rootLocked) {
+      return wx.showToast({ title: '公共根目录仅管理员可上传，请选择文件夹', icon: 'none' })
+    }
     this.setData({ 'folderSelect.selectedId': dataset.id === undefined ? '' : String(dataset.id), 'folderSelect.selectedName': dataset.name || '根目录' })
   },
 
@@ -992,6 +1016,10 @@ Page({
   // 【2026-11-06 用户令×3】第二步: 文件夹定死后才进入选文件; 相册/聊天选完直传该文件夹
   confirmFolderSelect() {
     const { selectedId, selectedName, mode } = this.data.folderSelect
+    // 【11-08 审计项1】兜底: 面板仍停在选择态时再拦一次(公共+根目录+非管理员必拒)
+    if (!selectedId && this.data.folderSelect.rootLocked) {
+      return wx.showToast({ title: '公共根目录仅管理员可上传，请选择文件夹', icon: 'none' })
+    }
     this.setData({ 'folderSelect.visible': false })
     this._uploadTarget = { id: selectedId || null, name: selectedName || '根目录' }
     if (mode === 'device') {
@@ -1029,6 +1057,10 @@ Page({
   // 无目标兜底=当前浏览文件夹(兼容直调)
   doUploadFile(filePath) {
     const target = this._uploadTarget || { id: this.data.activeFolderId || null, name: this.data.activeFolderName || '根目录' }
+    // 【11-08 审计项1】深防: 公共+根目录+非管理员组合后端必拒 403, 发请求前先拦(不发必败请求)
+    if (!target.id && this.activeFileScope() === 'public' && !isAdmin() && !getApp().globalData.demoMode) {
+      return wx.showToast({ title: '公共根目录仅管理员可上传，请选择文件夹', icon: 'none' })
+    }
     this.setData({ uploading: true })
     wx.showLoading({ title: '上传中' })
     // 【L17】loading 与 toast 共用原生单例：必须先 hideLoading 再 showToast，否则成功提示被 finally 里的 hideLoading 一并关掉
@@ -1129,7 +1161,9 @@ Page({
     })
   },
   // 【2026-11-06 用户令"加一个可以修改文件名称的"】重命名弹层: ⋯面板「重命名」进入
+  // 【11-08 审计项3】file:edit 权限码前置: 无码用户不发必败请求(后端 rename 守 file:edit)
   openRenameModal(event) {
+    if (!this.data.canEditFile) return wx.showToast({ title: '没有文件重命名权限', icon: 'none' })
     const item = this.findFile(event)
     if (!item || !item.id || String(item.id).startsWith('file-')) return wx.showToast({ title: '演示文件暂不可重命名', icon: 'none' })
     this.setData({ renameModal: { visible: true, id: item.id, input: item.name || '' } })
