@@ -30,6 +30,12 @@ import java.util.concurrent.ThreadLocalRandom;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    private final com.aigicrm.security.PermissionHintService permissionHintService;
+
+    public GlobalExceptionHandler(com.aigicrm.security.PermissionHintService permissionHintService) {
+        this.permissionHintService = permissionHintService;
+    }
+
     // ==================== 【PR-24 首批 2026-09-19】异常支持编号 ====================
     // 总册 PR-24:"异常给用户可记录的脱敏支持编号,内部关联环境、版本、业务对象与操作链"。
     // 对外只回短编号(无堆栈/无内部信息泄露);服务端日志以编号为首键打印完整栈,
@@ -48,7 +54,15 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Result<Void>> handleBusinessException(BusinessException e) {
         log.warn("业务异常: {}", e.getMessage());
         int code = e.getCode() > 0 ? e.getCode() : 400;
-        return ResponseEntity.status(httpStatusOf(code)).body(Result.error(code, e.getMessage()));
+        String message = e.getMessage();
+        // 【2026-11-08 权限报错中文化】403 业务异常（方法内守卫抛出, 非 @PreAuthorize 路径）若文案
+        // 未自带权限中心指引, 统一追加自助排查后缀; 其余码不追加。消息已含"权限中心"（如
+        // PermissionHintService 生成的指引经业务侧透传）则不重复追加。
+        if (code == 403 && (message == null || !message.contains("权限中心"))) {
+            message = (message != null ? message : "您的权限不支持此访问")
+                    + " 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。";
+        }
+        return ResponseEntity.status(httpStatusOf(code)).body(Result.error(code, message));
     }
 
     /** 【2026-08-14 错误码语义化】业务异常 code → HTTP 状态: 401/403/404/429/503 语义化映射, 其余默认 400
@@ -75,8 +89,11 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(AccessDeniedException.class)
     @ResponseStatus(HttpStatus.FORBIDDEN)
-    public Result<Void> handleAccessDeniedException(AccessDeniedException e) {
-        return Result.error(403, "没有访问权限，请联系管理员授权");
+    public Result<Void> handleAccessDeniedException(AccessDeniedException e, jakarta.servlet.http.HttpServletRequest request) {
+        // 【2026-11-08 权限报错中文化】方法级 @PreAuthorize 拒绝走本分支(非 HTTP 层 accessDeniedHandler),
+        // 同样接 PermissionHintService 生成"缺少「XX(码)」→去【系统设置 → 权限中心】开启"自助指引。
+        String hint = permissionHintService.hint(request, com.aigicrm.security.PermissionHintService.FALLBACK_HINT);
+        return Result.error(403, hint);
     }
 
     // ==================== 请求参数 ====================

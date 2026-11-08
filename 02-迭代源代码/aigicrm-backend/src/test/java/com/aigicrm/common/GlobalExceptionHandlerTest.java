@@ -14,14 +14,46 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class GlobalExceptionHandlerTest {
 
-    private final GlobalExceptionHandler handler = new GlobalExceptionHandler();
+    // hint 服务传 null 依赖: hint() 全链路 try-catch 降级 → 恒返回 fallback, 供单测无需 MVC/DB
+    private final GlobalExceptionHandler handler = new GlobalExceptionHandler(
+            new com.aigicrm.security.PermissionHintService(null, null));
 
     @Test
     void businessException_403_mapsToForbidden() {
         ResponseEntity<Result<Void>> resp = handler.handleBusinessException(new BusinessException(403, "没有访问权限"));
         assertEquals(HttpStatus.FORBIDDEN, resp.getStatusCode());
         assertEquals(403, body(resp).getCode());
-        assertEquals("没有访问权限", body(resp).getMessage());
+        // 【2026-11-08 权限报错中文化】403 且文案未含"权限中心"→ 原文案保留 + 追加自助指引后缀
+        assertTrue(body(resp).getMessage().startsWith("没有访问权限"), "原文案保留在首: " + body(resp).getMessage());
+        assertTrue(body(resp).getMessage().contains("【系统设置 → 权限中心】"), "须含权限中心指引: " + body(resp).getMessage());
+    }
+
+    // ===== 【2026-11-08 权限报错中文化】403 业务异常追加权限中心指引后缀 =====
+
+    private static final String PERM_SUFFIX =
+            " 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。";
+
+    @Test
+    void businessException_403_appendsPermissionCenterSuffix() {
+        Result<Void> result = body(handler.handleBusinessException(new BusinessException(403, "无权删除该文件")));
+        assertEquals("无权删除该文件" + PERM_SUFFIX, result.getMessage());
+    }
+
+    @Test
+    void businessException_403_messageAlreadyContainsPermissionCenter_noDoubleSuffix() {
+        // 已含"权限中心"的文案（如 PermissionHintService 生成的指引经业务侧透传）不重复追加
+        String guided = "您的权限不支持此访问。如需访问此内容，请联系管理员在【系统设置 → 权限中心】检查角色功能权限与数据范围。";
+        Result<Void> result = body(handler.handleBusinessException(new BusinessException(403, guided)));
+        assertEquals(guided, result.getMessage());
+    }
+
+    @Test
+    void businessException_non403_noSuffixAppended() {
+        // 其余码(400/404/429…)不追加权限指引
+        assertEquals("客户不存在或无权访问",
+                body(handler.handleBusinessException(new BusinessException(404, "客户不存在或无权访问"))).getMessage());
+        assertEquals("业务失败",
+                body(handler.handleBusinessException(new BusinessException("业务失败"))).getMessage());
     }
 
     @Test

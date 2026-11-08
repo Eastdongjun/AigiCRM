@@ -1,13 +1,15 @@
 package com.aigicrm.config;
 
 import com.aigicrm.security.JwtAuthFilter;
+import com.aigicrm.security.PermissionHintService;
 import com.aigicrm.security.SecurityAuditService;
 import com.aigicrm.security.SecurityUtils;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -23,15 +25,34 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
-@RequiredArgsConstructor
 public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
     private final SecurityAuditService securityAudit;
+    private final PermissionHintService permissionHintService;
+    /** 【修复 2026-11-08】构造注入 ObjectMapper 在 SecurityConfig 早期初始化阶段无 bean 可用
+     * (测试服实测 APPLICATION FAILED TO START)——改私有静态实例, Jackson 线程安全, 语义不变。 */
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
+    /**
+     * 【2026-11-08 权限报错中文化】显式构造器取代 @RequiredArgsConstructor：
+     * PermissionHintService 依赖 RequestMappingHandlerMapping（MVC 基础设施），而 SecurityConfig
+     * 产出 SecurityFilterChain 属早期初始化的配置类——直接注入会形成 Security→MVC→…→Security
+     * 的启动顺序环，故 @Lazy 懒解析（首次 403 才取代理实例）。Lombok 不拷贝字段注解到构造参数，
+     * 必须显式构造器才能把 @Lazy 落在参数上。
+     */
+    public SecurityConfig(JwtAuthFilter jwtAuthFilter,
+                          SecurityAuditService securityAudit,
+                          @Lazy PermissionHintService permissionHintService) {
+        this.jwtAuthFilter = jwtAuthFilter;
+        this.securityAudit = securityAudit;
+        this.permissionHintService = permissionHintService;
+    }
 
     /** 【权限审计批次1 2026-09-21】Swagger 显式开关, 安全默认关: 不再依赖 "prod profile 是否激活" 推断
      *  (默认 profile 启动曾导致 Swagger 匿名全量暴露), 仅开发环境显式置 aigicrm.swagger.enabled=true */
@@ -96,7 +117,16 @@ public class SecurityConfig {
         response.setStatus(HttpServletResponse.SC_FORBIDDEN);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-        response.getWriter().write("{\"code\":403,\"message\":\"没有访问权限\"}");
+        // 【2026-11-08 权限报错中文化】message 由 PermissionHintService 按 method+path 匹配
+        // @PreAuthorize 端点生成“缺少「XX(权限码)」…去【系统设置 → 权限中心 → …】开启”自助指引；
+        // 未命中端点退回 fallback 全量指引。JSON 体用 Jackson 序列化（中文/引号转义不走手工拼串）。
+        String message = permissionHintService.hint(request, PermissionHintService.FALLBACK_HINT);
+        try {
+            response.getWriter().write(OBJECT_MAPPER.writeValueAsString(Map.of("code", 403, "message", message)));
+        } catch (Exception jsonEx) {
+            // 序列化失败不得改变 403 语义, 回退原固定文案
+            response.getWriter().write("{\"code\":403,\"message\":\"没有访问权限\"}");
+        }
     }
 
     @Bean
