@@ -1,7 +1,8 @@
 <template>
   <div class="file-list-panel">
     <!-- 【C12/D13 2026-10-08 二轮】列表请求期间 v-loading，与其他 18 处列表加载反馈对齐 -->
-    <el-table v-loading="filesLoading" :data="files" style="width: 100%" size="small">
+    <el-table v-loading="filesLoading" :data="files" style="width: 100%" size="small"
+              :row-class-name="rowClassName" @row-click="onRowClick">
       <!-- 【2026-10-17 客户反馈】文件名必须看全: 去 show-overflow-tooltip 截断,列内自动换行(word-break) -->
       <el-table-column label="文件名称" min-width="220" class-name="name-col">
         <template #default="{ row }">
@@ -80,6 +81,7 @@ import { replaceFile, renameFile } from '@/api/file'
 import { injectFilePage } from '@/composables/useFilePage'
 import { useUserStore } from '@/store/user'
 import { pageSizes } from '@/utils/pagination'
+import { previewKindOf } from '@/utils/media-type'
 
 const {
   files, fileTotal, filesLoading, query, activeTab, folderPerms, folderDownloadable,
@@ -87,6 +89,14 @@ const {
   handlePreview, handleDownload, openShareDialog, handleDelete,
   formatSize, getFileExt, getFileExtLabel, getFileType,
 } = injectFilePage()
+
+// 【2026-11-08 用户令"图片的可以预览查看"】点图片行直开预览(与行尾"眼睛"同一条链路);
+// 非图片行保持原样(PDF 等仍走眼睛/下载, 避免误触重量级预览)。
+const isImageRow = (row) => previewKindOf(row?.fileName) === 'image'
+const rowClassName = ({ row }) => (isImageRow(row) ? 'row-click-preview' : '')
+const onRowClick = (row) => {
+  if (isImageRow(row)) handlePreview(row)
+}
 
 // 文件替换（行操作触发，独立隐藏选择器）
 const replaceFileTarget = ref(null)
@@ -232,4 +242,6 @@ const handleReplaceChosen = async (e) => {
   padding-top: 12px;
 }
 .file-total { font-size: 12px; color: var(--text-muted); }
+/* 【2026-11-08】图片行可点直预览: 手型光标提示可交互 */
+:deep(.row-click-preview) { cursor: pointer; }
 </style>
