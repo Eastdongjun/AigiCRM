@@ -220,7 +220,7 @@
 | POST | `/api/system/rules` | `hasAuthority('system:rule:add')` | create | SysPermissionRuleController.java |
 | DELETE | `/api/system/rules/{id}` | `hasAuthority('system:rule:delete')` | delete | SysPermissionRuleController.java |
 | PUT | `/api/system/rules/{id}` | `hasAuthority('system:rule:edit')` | update | SysPermissionRuleController.java |
-| POST | `/api/system/task/check-expire` | `登录即可` | checkExpire | ScheduledTaskController.java |
+| POST | `/api/system/task/check-expire` | `admin(方法内isAdmin守卫,运维直调入口)` | checkExpire | ScheduledTaskController.java |
 | GET | `/api/system/users` | `hasAnyAuthority('system:user:view','system:org:admin')` | page | SysUserController.java |
 | POST | `/api/system/users` | `hasAnyAuthority('system:user:add','system:org:admin')` | create | SysUserController.java |
 | POST | `/api/system/users/change-password` | `登录即可` | changePassword | SysUserController.java |

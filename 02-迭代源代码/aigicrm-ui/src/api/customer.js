@@ -85,27 +85,14 @@ export function getInvoices(id) {
 export function getInvoiceSummary(id) {
   return request.get(`/customer/${id}/invoices/summary`)
 }
-export function addInvoice(id, data) {
-  return request.post(`/customer/${id}/invoices`, data)
-}
+// 【死码清理 2026-11-08·复查补漏】addInvoice/deleteInvoice/confirmInvoice/voidInvoice 四个
+// 逐笔开票写包装已随后端端点同批摘除（后端 CustomerController 死码清理 2026-11-08，只读与阶段总额保留）。
 // 【议题五.4】归档(默认隐藏, 统计/到期提醒不参与)与恢复 —— 守卫 customer:edit
 export function archiveCustomer(id) {
   return request.post(`/customer/${id}/archive`)
 }
 export function restoreCustomer(id) {
   return request.post(`/customer/${id}/restore`)
-}
-
-// 【裁决 2026-09-24】发票可删但必留痕: 原因必填(query), 后端记审计快照+逻辑删
-export function deleteInvoice(customerId, invoiceId, reason) {
-  return request.delete(`/customer/${customerId}/invoices/${invoiceId}`, { params: { reason } })
-}
-// 【PR-18 台账状态机】确认(pending→confirmed) / 作废(留痕, 统计口径已排除)
-export function confirmInvoice(customerId, invoiceId) {
-  return request.post(`/customer/${customerId}/invoices/${invoiceId}/confirm`)
-}
-export function voidInvoice(customerId, invoiceId, reason) {
-  return request.post(`/customer/${customerId}/invoices/${invoiceId}/void`, { reason })
 }
 
 /** 新增/编辑表单「所属集团」下拉候选：后端按当前用户数据范围返回客户历史集团名（去重） */
@@ -156,19 +143,8 @@ export function getPayments(id) {
 export function getPaymentSummary(id) {
   return request.get(`/customer/${id}/payments/summary`)
 }
-export function addPayment(id, data) {
-  return request.post(`/customer/${id}/payments`, data)
-}
-// 【裁决 2026-09-24】回款同口径: 可删必留痕
-export function deletePayment(customerId, paymentId, reason) {
-  return request.delete(`/customer/${customerId}/payments/${paymentId}`, { params: { reason } })
-}
-export function confirmPayment(customerId, paymentId) {
-  return request.post(`/customer/${customerId}/payments/${paymentId}/confirm`)
-}
-export function voidPayment(customerId, paymentId, reason) {
-  return request.post(`/customer/${customerId}/payments/${paymentId}/void`, { reason })
-}
+// 【死码清理 2026-11-08·复查补漏】addPayment/deletePayment/confirmPayment/voidPayment 四个
+// 逐笔回款写包装已随后端端点同批摘除（同上，只读与阶段总额保留）。
 
 // 批量导入
 export function importCustomers(file) {

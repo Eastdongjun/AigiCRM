@@ -90,7 +90,9 @@ public class IncentiveController {
     /**
      * 【用户裁决 2026-10-10】编辑历史文件时可移除单个已有文件（上传错了需要修改）。
      * 服务端原子完成"槽位数组剔除该文件ID→重算学分→盖修改人章"；物理文件保留只解除引用。
-     * 权限同 updateRecord：admin ∨ incentive:manage 授权 ∨ 本人记录。
+     * 权限同 updateRecord：admin ∨ 授权表 can_edit(biz_incentive_grant) ∨ 本人记录。
+     * 【勘误 2026-11-08】旧注释"∨ incentive:manage 授权"系 2026-08-16 授权表替代前的口径,
+     * 该权限码已零消费并删除登记(V2026.11.08.2), 实际判定见 assertCanEditRecord→canEdit()。
      */
     @PreAuthorize("hasAuthority('incentive:view')")
     @PostMapping("/records/{id}/remove-file")
@@ -104,7 +106,8 @@ public class IncentiveController {
     public record RemoveFileBody(String slot, Long fileId) {}
 
     /**
-     * 【2026-08-14 RBAC 收敛】编辑归属判定：admin ∨ incentive:manage 授权 ∨ 本人记录。
+     * 【2026-08-14 RBAC 收敛】编辑归属判定：admin ∨ 授权表 can_edit(biz_incentive_grant) ∨ 本人记录。
+     * 【勘误 2026-11-08】旧注释"∨ incentive:manage 授权"系授权表替代(2026-08-16)前口径, 该码已删(V2026.11.08.2)。
      * 【工作流复检修复 2026-10-10】updateRecord/removeFile 原为两段复制粘贴守卫，单边改动会
      * 造成两接口权限口径漂移——收敛为单一方法，两接口共用同一判定。
      */
@@ -129,7 +132,8 @@ public class IncentiveController {
     public Result<Void> deleteRecord(@PathVariable Long id) {
         SecurityUser user = SecurityUtils.getCurrentUser();
         boolean isAdmin = SecurityUtils.isAdmin();
-        // 【2026-08-14 RBAC 收敛】授权判定：admin ∨ incentive:manage 权限码 ∨ 本人记录
+        // 【2026-08-14 RBAC 收敛】授权判定：admin ∨ 授权表 can_delete(biz_incentive_grant) ∨ 本人记录
+        // 【勘误 2026-11-08】旧注释"∨ incentive:manage 权限码"系授权表替代前口径, 该码已删(V2026.11.08.2)
         if (!isAdmin && !incentiveService.canDelete()) {
             // 变量名避开受限标识符 record（SonarLint S6213）
             BizIncentiveRecord incRecord = incentiveService.getRecordById(id);

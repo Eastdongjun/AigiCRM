@@ -165,8 +165,11 @@ function buildApprovalView(approval, state = {}) {
   const customerNameText = approval.customerName || '-'
   const customerIndustryText = approval.customerIndustry || ''
   const storageApply = approval.storageApply || null
-  const showRejectAction = Boolean(approval.isPending && state.canReject)
-  const showApproveAction = Boolean(approval.isPending && state.canApprove)
+  // 【复查补漏 2026-11-08】非当前节点审批人隐藏操作按钮: 后端详情已回填 currentApprover
+  // (ApprovalService.detail 同口径), undefined=旧后端兼容保持显示, false 才隐藏(与列表页一致)
+  const isCurrentApprover = approval.currentApprover !== false
+  const showRejectAction = Boolean(approval.isPending && state.canReject && isCurrentApprover)
+  const showApproveAction = Boolean(approval.isPending && state.canApprove && isCurrentApprover)
   return {
     showLoading: loading,
     loadingText: '加载中...',

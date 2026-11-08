@@ -107,8 +107,10 @@ public class SecurityUtils {
         return user != null && user.hasRole("admin");
     }
 
-    /** 【2026-08-14 RBAC 收敛】isSalesDirector 已删除——角色码硬编码替代权限点的偏离，
-     *  统一改判权限码 hasAuthority("incentive:manage")（M1 绑定给 admin+销售总监） */
+    /** 【2026-08-14 RBAC 收敛】isSalesDirector 已删除——角色码硬编码替代权限点的偏离。
+     *  【死码清理 2026-11-08 勘误】当年所述改判 incentive:manage 权限码已被 2026-08-16
+     *  授权表 biz_incentive_grant(can_edit/can_delete) 替代, 该码全库零消费,
+     *  登记+绑定已由 V2026.11.08.2 删除——勿据旧注释恢复 hasAuthority 判定。 */
 
     /** 是否持有指定权限码（方法内校验用，等价 @PreAuthorize hasAuthority） */
     public static boolean hasAuthority(String authority) {
