@@ -15,11 +15,17 @@ const { paginate } = require('../../../utils/paging')
 // 【2026-11-02 用户令】组织筛选退役: buildDeptLevelOptions 引用随之移除
 
 // 缩略图凭证: 模块级缓存(与完整版同款机制, 本页独立一份); 失败不阻断列表(退化为首字面卡)
+// 【2026-11-08 图片预览可靠性】缓存加时效: 后端下载 token TTL=1h(JwtTokenProvider
+// DOWNLOAD_TOKEN_TTL_MS=3600000), 命中超 50 分钟(留 10 分钟余量)即视为失效重取——本页
+// 是 tabBar 常驻页, 此前命中分支不判时效, 常驻超 1h 后行首缩略直链全 401。
 let dlTokenCache = ''
 let dlTokenCacheUserId = null
+let dlTokenCacheIssuedAt = 0
+const DL_TOKEN_FRESH_MS = 50 * 60 * 1000
 function setHomeDlToken(token, userId) {
   dlTokenCache = token || ''
   dlTokenCacheUserId = token ? (userId ?? null) : null
+  dlTokenCacheIssuedAt = token ? Date.now() : 0
 }
 const TAG_COLORS = { 安装前: '#b45309', 安装中: '#1d4fd7', 安装后: '#047857', 跟踪: '#7c3aed', 佐证: '#64748b' }
 
@@ -689,8 +695,13 @@ Page({
     if (getApp().globalData.demoMode) return Promise.resolve()
     const user = getApp().globalData.currentUser
     const userId = user ? (user.id != null ? user.id : user.username) : null
-    const cacheUsable = Boolean(dlTokenCache) && dlTokenCacheUserId != null && dlTokenCacheUserId === userId
-    if (!cacheUsable && dlTokenCache) {
+    // 【2026-11-08 图片预览可靠性】命中分支判时效: 超 50 分钟(DL_TOKEN_FRESH_MS, 后端
+    // TTL=1h 留 10 分钟余量)视为失效重取——tabBar 常驻超 1h 后行首缩略直链全 401;
+    // 时效失效不清缓存/不清 data 旧值, 重取失败即保留旧 token(聊胜于无, 时间戳未
+    // 刷新=下次回流仍会重试)。
+    const sameUser = dlTokenCacheUserId != null && dlTokenCacheUserId === userId
+    const cacheUsable = Boolean(dlTokenCache) && sameUser && Date.now() - dlTokenCacheIssuedAt <= DL_TOKEN_FRESH_MS
+    if (!sameUser && dlTokenCache) {
       setHomeDlToken('', null)
       this._dlTokenPromise = null
     }
@@ -703,6 +714,8 @@ Page({
       this.setData({ dlToken: token })
     }).catch(() => {
       this._dlTokenPromise = null
+      // 【2026-11-08 图片预览可靠性】请求失败保留旧 token(聊胜于无): 模块缓存与 data 均
+      // 未被清掉, 缩略图继续用旧直链, 下次回流仍会重试
     }).then(() => {})
     return this._dlTokenPromise
   },

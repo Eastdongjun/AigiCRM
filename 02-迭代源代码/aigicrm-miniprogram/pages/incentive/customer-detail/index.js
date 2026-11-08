@@ -9,6 +9,9 @@ const { requireLogin } = require('../../../utils/auth')
 
 const SKELETON_MIN_MS = 260
 const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+// 【2026-11-08 图片预览可靠性】dlToken 缓存时效窗: 后端 JwtTokenProvider
+// DOWNLOAD_TOKEN_TTL_MS=3600000(1h), 命中超 50 分钟(留 10 分钟余量)即视为失效重取
+const DL_TOKEN_FRESH_MS = 50 * 60 * 1000
 
 function pad(value) {
   return String(value).padStart(2, '0')
@@ -321,12 +324,29 @@ Page({
 
   loadDlToken() {
     if (getApp().globalData.demoMode) return Promise.resolve('')
+    // 【2026-11-08 图片预览可靠性】缓存加时效: 命中超 50 分钟(DL_TOKEN_FRESH_MS, 后端
+    // TTL=1h 留 10 分钟余量)即视为失效重取——档案页可长驻浏览, 旧 token 拼 fullUrl 必
+    // 401; 重取失败/空响应保留旧 token(聊胜于无)。另修 _dlTokenPromise 落定后不清除的
+    // 问题(此前一次失败后永远拿 settled 空值, 再也重试不了)。
+    if (this.data.dlToken && Date.now() - (this._dlTokenIssuedAt || 0) <= DL_TOKEN_FRESH_MS) {
+      return Promise.resolve(this.data.dlToken)
+    }
     if (this._dlTokenPromise) return this._dlTokenPromise
     this._dlTokenPromise = getDownloadToken().then((result) => {
+      this._dlTokenPromise = null
       const token = (result && (result.token || (result.data && result.data.token))) || ''
-      if (token) this.setData({ dlToken: token })
-      return token
-    }).catch(() => '')
+      if (token) {
+        this._dlTokenIssuedAt = Date.now()
+        if (token !== this.data.dlToken) this.setData({ dlToken: token })
+        return token
+      }
+      // 空响应: 保留旧 token(聊胜于无), 不刷新时间戳(下次动作仍会重试)
+      return this.data.dlToken || ''
+    }).catch(() => {
+      this._dlTokenPromise = null
+      // 【2026-11-08 图片预览可靠性】请求失败保留旧 token(聊胜于无)
+      return this.data.dlToken || ''
+    })
     return this._dlTokenPromise
   },
 
@@ -347,8 +367,16 @@ Page({
       if (!urls.length) return wx.showToast({ title: '图片地址缺失', icon: 'none' })
       wx.previewImage({ urls, current: urls[index] || urls[0], fail: (error) => showError(error, '图片预览失败') })
     }
-    if (!this.data.dlToken) this.loadDlToken().then(open).catch(open)
-    else open()
+    // 【2026-11-08 图片预览可靠性】token 为空时 fullUrl 只能拼未签名 URL, 整组进
+    // previewImage 必 401 只剩 toast——改为: 先 loadDlToken 重试一次; 仍拿不到 token 就
+    // 走 previewAttachmentByFile 的 fetchRemoteAttachment Bearer 下载管线单张预览
+    // (与拨盘详情页同款口径), 不再让未签名 URL 进 previewImage。
+    const fallbackBearer = () => this.previewAttachmentByFile(record.photos[index] || record.photos[0])
+    if (!this.data.dlToken) {
+      this.loadDlToken().then((token) => (token ? open() : fallbackBearer())).catch(fallbackBearer)
+      return
+    }
+    open()
   },
 
   previewVideo() {

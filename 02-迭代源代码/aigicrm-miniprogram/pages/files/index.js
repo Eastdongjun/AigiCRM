@@ -86,6 +86,10 @@ function withDownloadToken(url, token) {
   return url + sep + 'token=' + encodeURIComponent(token)
 }
 
+// 【2026-11-08 图片预览可靠性】dlToken 缓存时效窗: 后端 JwtTokenProvider
+// DOWNLOAD_TOKEN_TTL_MS=3600000(1h), 命中超 50 分钟(留 10 分钟余量)即视为失效重取
+const DL_TOKEN_FRESH_MS = 50 * 60 * 1000
+
 const IMAGE_EXTS = ['JPG', 'JPEG', 'PNG', 'GIF', 'WEBP', 'BMP']
 
 /** 图片行判定: fileType 媒体分类优先, 扩展名兜底(四项服务列表行的缩略小图/类型色块分流) */
@@ -288,9 +292,12 @@ function buildFileRowView(item, data) {
   const rowThumbUrl = isImageRow(item)
     ? withDownloadToken(getDownloadUrl({ id: item.id, ossKey: item.ossKey || item.fileUrl }, true), data.dlToken || '')
     : ''
+  // 【2026-11-08 图片预览可靠性】binderror 失败表: 该行缩略已加载失败(401/网络/坏图)时
+  // 保持退化类型色块, 防止搜索/翻页重建视图后又闪一次破图(token 换新时失败表清空可自愈)
+  const thumbFailed = Boolean(data.rowThumbFailed && item.id != null && data.rowThumbFailed[item.id])
   return {
     ...item,
-    showRowThumb: Boolean(rowThumbUrl),
+    showRowThumb: Boolean(rowThumbUrl) && !thumbFailed,
     rowThumbUrl,
     typeText: item.type || 'FILE',
     nameText: item.name || '未命名文件',
@@ -384,7 +391,8 @@ Page({
       ...patch,
       folderPerms: permissionState.perms,
       folderDownloadable: permissionState.downloadable,
-      fileView: buildFileView({ ...nextData, ...permissionState }),
+      // 【2026-11-08 图片预览可靠性】行缩略失败表(页内实例态)随视图重建传入, 退化态跨重建保持
+      fileView: buildFileView({ ...nextData, ...permissionState, rowThumbFailed: this._rowThumbFailed || {} }),
       storageApplyView: buildStorageApplyView(nextData)
     })
   },
@@ -625,7 +633,11 @@ Page({
 
   /** 下载 token(列表行缩略 URL 用): 页内缓存, 失败返回空串=行首退化为类型色块(不阻塞)。
       【2026-10-27 深度检查修复】缓存加用户维度: tabBar 页实例常驻, 换号后 onLoad 不重跑,
-      旧账号 token 会让缩略图整批 401——对齐轻量页口径(currentUser 变化即重取) */
+      旧账号 token 会让缩略图整批 401——对齐轻量页口径(currentUser 变化即重取)。
+      【2026-11-08 图片预览可靠性】缓存加时效: 命中超 50 分钟(DL_TOKEN_FRESH_MS, 后端
+      TTL=1h 留 10 分钟余量)即视为失效重取——本页是 tabBar 常驻实例, 此前命中分支不判
+      时效, 常驻超 1h 后行缩略/整组预览直链全 401; 重取期间与失败均保留 data 里的旧
+      token(聊胜于无, 时间戳不刷新=下次动作仍会重试)。 */
   ensureDlToken() {
     if (getApp().globalData.demoMode) return Promise.resolve('')
     const user = getApp().globalData.currentUser
@@ -633,20 +645,33 @@ Page({
     if (this._dlTokenUserId != null && this._dlTokenUserId !== userId) {
       this._dlTokenUserId = userId
       this._dlTokenPromise = null
+      this._dlTokenIssuedAt = 0
       if (this.data.dlToken) this.setData({ dlToken: '' })
     } else if (this._dlTokenUserId == null) {
       this._dlTokenUserId = userId
     }
-    if (this.data.dlToken) return Promise.resolve(this.data.dlToken)
+    if (this.data.dlToken && Date.now() - (this._dlTokenIssuedAt || 0) <= DL_TOKEN_FRESH_MS) {
+      return Promise.resolve(this.data.dlToken)
+    }
     if (this._dlTokenPromise) return this._dlTokenPromise
     this._dlTokenPromise = getDownloadToken().then((result) => {
       this._dlTokenPromise = null
       const token = (result && (result.token || (result.data && result.data.token))) || ''
-      this.setData({ dlToken: token })
-      return token
+      if (token) {
+        this._dlTokenIssuedAt = Date.now()
+        if (token !== this.data.dlToken) {
+          // token 换新: 行缩略失败表清空, 重建的行带新 token 重试(此前 401 的缩略可自愈)
+          this._rowThumbFailed = {}
+          this.setData({ dlToken: token })
+        }
+        return token
+      }
+      // 空响应: 保留旧 token(聊胜于无), 不刷新时间戳(下次动作仍会重试)
+      return this.data.dlToken || ''
     }).catch(() => {
       this._dlTokenPromise = null
-      return ''
+      // 【2026-11-08 图片预览可靠性】请求失败保留旧 token(聊胜于无)
+      return this.data.dlToken || ''
     })
     return this._dlTokenPromise
   },
@@ -1137,6 +1162,26 @@ Page({
     const urls = rows.map(urlOf).filter(Boolean)
     const current = tapped && tapped.id ? urlOf(tapped) : ''
     return { urls, current }
+  },
+  // 【2026-11-08 图片预览可靠性】行缩略 <image> binderror(401/网络/坏图) → 该行退化既有
+  // 类型色块(wx:else 的 file-type 色块, 不新建样式体系); id 记入页内失败表让重建视图保持
+  // 退化, 同时对渲染路径做定向 setData 即时收掉破图。
+  onRowThumbError(event) {
+    const dataset = event.currentTarget.dataset || {}
+    const id = dataset.thumbId
+    if (id !== undefined && id !== null && id !== '') {
+      this._rowThumbFailed = this._rowThumbFailed || {}
+      if (this._rowThumbFailed[id]) return
+      this._rowThumbFailed[id] = true
+    }
+    const groupIdx = Number(dataset.groupIdx)
+    const fileIdx = Number(dataset.fileIdx)
+    if (!Number.isInteger(groupIdx) || !Number.isInteger(fileIdx) || groupIdx < 0 || fileIdx < 0) return
+    const groups = (this.data.fileView && this.data.fileView.fileGroups) || []
+    const row = groups[groupIdx] && groups[groupIdx].files && groups[groupIdx].files[fileIdx]
+    if (row && row.showRowThumb) {
+      this.setData({ [`fileView.fileGroups[${groupIdx}].files[${fileIdx}].showRowThumb`]: false })
+    }
   },
   downloadFile(event) {
     const item = this.findFile(event)

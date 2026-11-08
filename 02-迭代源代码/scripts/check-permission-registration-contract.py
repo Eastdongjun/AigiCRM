@@ -40,6 +40,16 @@ BACKEND_CODES = [
     re.compile(r'hasAuthority\(\s*"([^"]+)"\s*\)'),
 ]
 CLIENT_CODES = re.compile(r"hasPermission\(\s*'([^']+)'\s*\)")
+# 【2026-11-08 契约修复】注释剥离: 在用码口径是"代码里在用"——01bd7d09 的 PermissionHintService
+# javadoc 示例 hasAuthority('x') 被误当在用码致契约假红("x" 从未登记)。剥块注释与行注释
+# (URL 的 :// 除外)后再匹配: 注释里的示例码不再入册, @PreAuthorize 注解与前端/小程序
+# 真实调用不在注释内, 判定不受影响。
+BLOCK_COMMENT = re.compile(r'/\*.*?\*/', re.DOTALL)
+LINE_COMMENT = re.compile(r'(?<!:)//[^\n]*')
+
+
+def strip_comments(text):
+    return LINE_COMMENT.sub(' ', BLOCK_COMMENT.sub(' ', text))
 VERSION = re.compile(r'^V(\d+(?:\.\d+)*)__')
 TARGETS = {
     'insert': re.compile(r'INSERT\s+INTO\s+`?(\w+)`?', re.IGNORECASE),
@@ -64,7 +74,7 @@ def collect(directory, patterns, extensions):
         if path.suffix not in extensions or is_test_path(path):
             continue
         try:
-            text = path.read_text(encoding='utf-8', errors='replace')
+            text = strip_comments(path.read_text(encoding='utf-8', errors='replace'))
         except OSError:
             continue
         for pattern in patterns:

@@ -41,7 +41,8 @@
     <block wx:for="{{fileView.fileGroups}}" wx:key="key" wx:for-item="group" wx:for-index="groupIdx">
       <view class="file-group-head">{{group.label}} · {{group.count}}</view>
       <view wx:for="{{group.files}}" wx:key="id" wx:for-item="file" wx:for-index="fileIdx" class="file-row" data-index="{{file.flatIndex}}" bindtap="openFile" bind:longpress="openActionSheet">
-        <image wx:if="{{file.showRowThumb}}" class="file-thumb-sq" src="{{file.rowThumbUrl}}" mode="aspectFill" lazy-load="{{true}}" />
+        <!-- 【2026-11-08 图片预览可靠性】缩略加载失败(401/网络/坏图) binderror → 置 showRowThumb=false 退化既有类型色块 -->
+        <image wx:if="{{file.showRowThumb}}" class="file-thumb-sq" src="{{file.rowThumbUrl}}" mode="aspectFill" lazy-load="{{true}}" binderror="onRowThumbError" data-group-idx="{{groupIdx}}" data-file-idx="{{fileIdx}}" data-thumb-id="{{file.id}}" />
         <view wx:else class="file-type {{file.tone}}">{{file.typeText}}</view>
         <view class="file-info">
           <view class="file-name">{{file.nameText}}</view>

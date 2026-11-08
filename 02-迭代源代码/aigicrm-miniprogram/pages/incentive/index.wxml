@@ -189,7 +189,8 @@
               </view>
               <view class="wall-grid">
                 <view wx:for="{{group.files}}" wx:for-item="file" wx:for-index="wallFileIdx" wx:key="id" class="wall-tile">
-                  <image wx:if="{{file.type === 'image' && file.id}}" class="wall-thumb" src="{{thumb.thumbSrc(file, apiBase, dlToken)}}" mode="aspectFill" lazy-load="{{true}}" catchtap="previewStatDetailAttachment" data-detail-index="{{detail.sourceIndex}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}" />
+                  <!-- 【2026-11-08 图片预览可靠性】缩略加载失败(401/网络/坏图) binderror → 置 thumbFailed 退化既有 wall-doc-face 类型面卡 -->
+                  <image wx:if="{{file.type === 'image' && file.id && !file.thumbFailed}}" class="wall-thumb" src="{{thumb.thumbSrc(file, apiBase, dlToken)}}" mode="aspectFill" lazy-load="{{true}}" binderror="onWallThumbError" data-row-index="{{index}}" data-wall-group-idx="{{wallGroupIdx}}" data-wall-file-idx="{{wallFileIdx}}" catchtap="previewStatDetailAttachment" data-detail-index="{{detail.sourceIndex}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}" />
                   <view wx:elif="{{file.type === 'video'}}" class="wall-video-face" catchtap="previewStatDetailAttachment" data-detail-index="{{detail.sourceIndex}}" data-group-index="{{group.groupIndex}}" data-file-index="{{file.fileIndex}}">
                     <view class="wall-play-icon">▶</view>
                     <text class="wall-face-name">{{file.name}}</text>

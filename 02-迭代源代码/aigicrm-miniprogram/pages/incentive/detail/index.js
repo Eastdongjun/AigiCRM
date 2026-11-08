@@ -14,6 +14,9 @@ const STAGE_COLORS = { visit: '#d97706', exchange: '#2563eb', plan: '#7c3aed', t
 // 附件槽位标签色(安装前蓝/安装中绿/安装后橙/跟踪紫/佐证灰)
 const TAG_COLORS = { 安装前: '#2563eb', 安装中: '#059669', 安装后: '#f59e0b', 跟踪: '#7c3aed', 佐证: '#64748b' }
 const WEEK_LABELS = '日一二三四五六'
+// 【2026-11-08 图片预览可靠性】dlToken 缓存时效窗: 后端 JwtTokenProvider
+// DOWNLOAD_TOKEN_TTL_MS=3600000(1h), 命中超 50 分钟(留 10 分钟余量)即视为失效重取
+const DL_TOKEN_FRESH_MS = 50 * 60 * 1000
 
 function currentUserId() {
   const user = getApp().globalData.currentUser || {}
@@ -366,6 +369,9 @@ Page({
   },
   onShow() {
     this.startClock()
+    // 【2026-11-08 图片预览可靠性】回流过 token 时效门: 新鲜即秒回(不发请求), 超 50 分钟
+    // 自动重取——长驻浏览超 1h 后记录卡缩略不再整批 401
+    this.loadThumbnails()
   },
   onHide() {
     this.stopClock()
@@ -492,17 +498,25 @@ Page({
     }).catch((error) => showError(error, '客户累计学分加载失败'))
   },
   // 缩略图凭证:取一次复用;之后每次拨盘重建记录卡都会直接带上签名 URL
+  // 【2026-11-08 图片预览可靠性】缓存加时效: 后端下载 token TTL=1h(JwtTokenProvider
+  // DOWNLOAD_TOKEN_TTL_MS=3600000), 命中超 50 分钟(DL_TOKEN_FRESH_MS 留 10 分钟余量)即
+  // 视为失效重取——本页可长驻浏览, 旧 token 下记录卡缩略全 401; onShow 回流每次过此门
+  // (新鲜即秒回不发请求), 重取失败保留旧 token(聊胜于无, 时间戳不刷新=下次仍会重试)。
   loadThumbnails() {
     if (getApp().globalData.demoMode) return
-    if (this.data.dlToken || this._dlTokenPromise) return this._dlTokenPromise
+    const fresh = Boolean(this.data.dlToken) && Date.now() - (this._dlTokenIssuedAt || 0) <= DL_TOKEN_FRESH_MS
+    if (fresh || this._dlTokenPromise) return this._dlTokenPromise
     this._dlTokenPromise = getDownloadToken().then((result) => {
       this._dlTokenPromise = null
       const token = result && (result.token || (result.data && result.data.token)) || ''
       if (!token) throw new Error('缩略图凭证为空')
+      this._dlTokenIssuedAt = Date.now()
       this.setDetailData({ dlToken: token })
     }).catch((error) => {
       this._dlTokenPromise = null
-      showError(error, '缩略图加载失败')
+      // 【2026-11-08 图片预览可靠性】重取失败保留旧 token(聊胜于无): 旧值仍在 data,
+      // 记录卡缩略继续用旧直链; 无旧值可保时才按原口径报错
+      if (!this.data.dlToken) showError(error, '缩略图加载失败')
     })
     return this._dlTokenPromise
   },

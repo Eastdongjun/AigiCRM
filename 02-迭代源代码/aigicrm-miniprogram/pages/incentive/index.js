@@ -14,11 +14,17 @@ const incentivePanes = require('../../utils/incentive-panes.js')
 // 【#4+#7 2026-10-12】列表页佐证照片墙: 缩略图凭证模块级缓存(取一次复用), 未就绪时图片退化为
 // 文档面卡仍可点开大图; TAG_COLORS 与详情页同款槽位配色
 // 【F21 2026-10-13】缓存按用户隔离: 换账号登录后旧凭证立即失效重取, 杜绝跨用户下载凭证滞留。
+// 【2026-11-08 图片预览可靠性】缓存加时效: 后端下载 token TTL=1h(JwtTokenProvider
+// DOWNLOAD_TOKEN_TTL_MS=3600000), 命中超 50 分钟(留 10 分钟余量)即视为失效重取——此前命中
+// 分支不判时效, 长驻会话超 1h 后明细弹层缩略/整组预览直链全 401; 签发时间戳随本 setter 记录。
 let dlTokenCache = ''
 let dlTokenCacheUserId = null
+let dlTokenCacheIssuedAt = 0
+const DL_TOKEN_FRESH_MS = 50 * 60 * 1000
 function setIncentiveDlToken(token, userId) {
   dlTokenCache = token || ''
   dlTokenCacheUserId = token ? (userId ?? null) : null
+  dlTokenCacheIssuedAt = token ? Date.now() : 0
 }
 const TAG_COLORS = { 安装前: '#b45309', 安装中: '#1d4fd7', 安装后: '#047857', 跟踪: '#7c3aed', 佐证: '#64748b' }
 // 【setData 瘦身 2026-10-13】缩略图 URL 拼接移交 thumb.wxs(渲染层), 此处仅维护 token 供其引用
@@ -1595,6 +1601,24 @@ Page({
     return { urls, current }
   },
 
+  // 【2026-11-08 图片预览可靠性】明细弹层缩略 <image> binderror(401/网络/坏图) → 置该格
+  // thumbFailed=true 退化既有 wall-doc-face 类型面卡(不新建样式体系); 对渲染路径做定向
+  // setData, 分页/筛选重建的分页行与源 records 共享同一 file 对象引用, 失败标记随重建保留,
+  // 弹层重开(新数据)自动重试缩略。
+  onWallThumbError(event) {
+    const dataset = event.currentTarget.dataset || {}
+    const rowIndex = Number(dataset.rowIndex)
+    const groupIdx = Number(dataset.wallGroupIdx)
+    const fileIdx = Number(dataset.wallFileIdx)
+    if (!Number.isInteger(rowIndex) || !Number.isInteger(groupIdx) || !Number.isInteger(fileIdx)) return
+    if (rowIndex < 0 || groupIdx < 0 || fileIdx < 0) return
+    const rows = (this.data.statDetailView && this.data.statDetailView.pagedRecords) || []
+    const groups = rows[rowIndex] && rows[rowIndex].fileGroupsView
+    const file = groups && groups[groupIdx] && groups[groupIdx].files && groups[groupIdx].files[fileIdx]
+    if (!file || file.thumbFailed) return
+    this.setData({ [`statDetailView.pagedRecords[${rowIndex}].fileGroupsView[${groupIdx}].files[${fileIdx}].thumbFailed`]: true })
+  },
+
   downloadStatDetailAttachment(event) {
     const file = this.findStatDetailFile(event)
     if (!file) return
@@ -1627,8 +1651,13 @@ Page({
     // 导致换账号后新页面实例缩略图全空)。
     const user = getApp().globalData.currentUser
     const userId = user ? (user.id != null ? user.id : user.username) : null
-    const cacheUsable = Boolean(dlTokenCache) && dlTokenCacheUserId != null && dlTokenCacheUserId === userId
-    if (!cacheUsable && dlTokenCache) {
+    // 【2026-11-08 图片预览可靠性】命中分支判时效: 超 50 分钟(DL_TOKEN_FRESH_MS, 后端
+    // TTL=1h 留 10 分钟余量)视为失效重取——此前命中分支不判时效, 长驻会话超 1h 后明细
+    // 弹层缩略/整组预览直链全 401; 时效失效不清缓存/不清 data 旧值, 重取失败即保留旧
+    // token(聊胜于无, 时间戳未刷新=下次动作仍会重试)。
+    const sameUser = dlTokenCacheUserId != null && dlTokenCacheUserId === userId
+    const cacheUsable = Boolean(dlTokenCache) && sameUser && Date.now() - dlTokenCacheIssuedAt <= DL_TOKEN_FRESH_MS
+    if (!sameUser && dlTokenCache) {
       setIncentiveDlToken('', null)
       this._dlTokenPromise = null
     }
@@ -1642,6 +1671,8 @@ Page({
       this.setData({ dlToken: token })
     }).catch(() => {
       this._dlTokenPromise = null
+      // 【2026-11-08 图片预览可靠性】请求失败保留旧 token(聊胜于无): 模块缓存与 data 均
+      // 未被清掉, 缩略图继续用旧直链(binderror 退化兜底), 下次动作仍会重试
     }).then(() => {})
     return this._dlTokenPromise
   },
