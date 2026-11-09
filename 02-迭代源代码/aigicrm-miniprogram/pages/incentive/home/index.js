@@ -489,14 +489,13 @@ Page({
   },
 
   applyLocalRecordFilters(records) {
-    const keyword = (this.data.keyword || '').trim().toLowerCase()
     const industry = this.data.industries[this.data.selectedIndustryIndex]
     const product = this.data.productOptions[this.data.selectedProductIndex]
     return records.filter((item) => {
-      // 【2026-11-09 用户令"只检索含有关键字的记录"】客户名不再参与关键字匹配(防客户名沾边客户的
-      // 全部记录被带出); 2026-11-02 深度检索的备注/详情等字段维持不动(本页既有口径, 非本次指令范围)
-      const text = [item.name, item.summary, item.remark, item.description, item.detail, item.preInstallQuestion, item.relatedProducts, item.specificProduct, item.product].filter(Boolean).join(' ').toLowerCase()
-      if (keyword && !text.includes(keyword)) return false
+      // 【修复 2026-11-09】关键词不做本地二次过滤: keyword 已随 buildRecordParams 发服务端
+      // 六路宽匹配(①相关产品②具体产品③客户名④分类名⑤上传人⑥文件名), 本地 text 无
+      // 客户名/上传人/文件名字段, 旧二次过滤把服务端③⑤⑥路命中全灭(搜客户名/文件名恒空);
+      // 行业/产品本地过滤保留(与服务端参数同口径的兜底, 非抵消语义)。
       if (industry && industry !== '全部行业' && item.industry !== industry) return false
       if (product && product !== '全部产品') {
         const productText = [item.relatedProducts, item.specificProduct, item.product].filter(Boolean).join(' ').toLowerCase()
@@ -538,17 +537,13 @@ Page({
     this._otherModeDirty = true
     if (this.data.listMode === 'time') {
       // 【打散视图】记录流与封面卡共用筛选(分组已过服务端+本地筛选, 拉平即继承),
-      // 分类/关键词/日期在行上二次过滤, 排序四档作用于单条记录(时间=行自身 createdAt)
-      const keywordFlat = (this.data.keyword || '').trim().toLowerCase()
+      // 分类在行上二次过滤, 排序四档作用于单条记录(时间=行自身 createdAt)
+      // 【修复 2026-11-09】关键词不做本地二次过滤: buildRecordParams 已把 keyword 发服务端六路
+      // 宽匹配(产品/客户名/分类名/上传人/文件名), 本地 haystack 无客户名/文件名字段——
+      // 旧二次过滤把服务端③⑥路命中全灭(搜客户名/文件名恒空结果), 且 timeText 混入 haystack
+      // 导致搜"2026"全命中; 服务端结果即权威, 本地只留分类过滤。
       let flat = buildFlatRecordRows(this._allRecords || [], this._childRawById).filter((row) => {
         if (categoryNames.length && categoryNames.indexOf(row.categoryName) === -1) return false
-        if (keywordFlat) {
-          // 【2026-11-09 用户令"只检索含有关键字的记录"】打散视图 haystack 去 customerName——
-          // 客户名含关键字=该客户全部行都命中=客户级扩散, 与服务端两路口径+主记录过滤一致
-          const haystack = `${row.categoryName} ${row.productText} ${row.uploaderName} ${row.timeText}`.toLowerCase()
-          if (!haystack.includes(keywordFlat)) return false
-        }
-        // 【2026-11-02 用户令】日期范围筛选退役, 客户视图的起止日期本地过滤随之移除
         return true
       })
       if (this.data.order === 'score-asc') flat.sort((a, b) => a.score - b.score)

@@ -1190,17 +1190,22 @@ public class IncentiveService {
                     w.or().in(BizIncentiveRecord::getUserId,
                         matchedUsers.stream().map(SysUser::getId).toList());
                 }
-                // ⑥ 文件名: 从 biz_file 反查文件名含关键字的文件 ID → REGEXP 匹配记录四槽位的 ID 串
+                // ⑥ 文件名: 从 biz_file 反查文件名含关键字的文件 ID → JSON_OVERLAPS 精确元素匹配
                 // (filePreName 等是 @TableField(exist=false) 非表列, 须走 ID 间接匹配; 限 50 防宽词慢查)
+                // 【修复 2026-11-09】四槽位列存 JSON 数组(如 [178,179]), 旧 REGEXP 子串匹配把
+                // [193]/[1119]/[1903] 误当 19 命中——生产实证: 文件ID=19 误报 35 条真命中 0 条。
+                // JSON_OVERLAPS 按数组元素精确比对(需 MySQL>=8.0.17, 生产 8.0.28; 四列已验全合法 JSON),
+                // {0} 绑定 '[19,23]' 字符串经 CAST 成 JSON 数组, 保持参数绑定防注入。
                 List<com.aigicrm.module.file.entity.BizFile> matchedFiles = fileMapper.selectList(
                     new LambdaQueryWrapper<com.aigicrm.module.file.entity.BizFile>()
                         .like(com.aigicrm.module.file.entity.BizFile::getFileName, keyword)
                         .last("LIMIT 50"));
                 if (!matchedFiles.isEmpty()) {
-                    String idPattern = matchedFiles.stream()
+                    String idJsonArray = matchedFiles.stream()
                         .map(f -> String.valueOf(f.getId()))
-                        .collect(java.util.stream.Collectors.joining("|"));
-                    w.or().apply("(file_pre_id REGEXP {0} OR file_mid_id REGEXP {0} OR file_post_id REGEXP {0} OR file_track_id REGEXP {0})", idPattern);
+                        .collect(java.util.stream.Collectors.joining(",", "[", "]"));
+                    w.or().apply("(JSON_OVERLAPS(file_pre_id, CAST({0} AS JSON)) OR JSON_OVERLAPS(file_mid_id, CAST({0} AS JSON)) OR JSON_OVERLAPS(file_post_id, CAST({0} AS JSON)) OR JSON_OVERLAPS(file_track_id, CAST({0} AS JSON)))",
+                        idJsonArray);
                 }
             });
         }

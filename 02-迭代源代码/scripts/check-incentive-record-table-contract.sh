@@ -77,8 +77,12 @@ CUST_JOIN_HITS=$(grep -c "BizCustomer::getCustomerName, keyword" "$INCENTIVE_SER
 [ "$CUST_JOIN_HITS" -ge 1 ] || fail "关键词缺客户名分支(customer表LIKE), 实际 $CUST_JOIN_HITS"
 CAT_JOIN_HITS=$(grep -c "BizIncentiveCategory::getCategoryName, keyword" "$INCENTIVE_SERVICE" || true)
 [ "$CAT_JOIN_HITS" -ge 1 ] || fail "关键词缺分类名分支(category表LIKE), 实际 $CAT_JOIN_HITS"
-FILE_HITS=$(grep -c 'file_pre_id REGEXP' "$INCENTIVE_SERVICE" || true)
-[ "$FILE_HITS" -ge 1 ] || fail "关键词缺文件名分支(biz_file反查+REGEXP), 实际 $FILE_HITS"
+# 【修复 2026-11-09】文件名路径=JSON_OVERLAPS 精确元素匹配: 四槽位列存 JSON 数组(如 [178,179]),
+# 旧 REGEXP 子串匹配把 [193]/[1119] 误当 19 命中(生产实证: 文件ID=19 误报35条真命中0条)
+FILE_HITS=$(grep -cF 'JSON_OVERLAPS(file_pre_id, CAST({0} AS JSON))' "$INCENTIVE_SERVICE" || true)
+[ "$FILE_HITS" -ge 1 ] || fail "关键词缺文件名分支(biz_file反查+JSON_OVERLAPS精确元素匹配), 实际 $FILE_HITS"
+REGEXP_HITS=$(grep -c 'file_pre_id REGEXP' "$INCENTIVE_SERVICE" || true)
+[ "$REGEXP_HITS" -eq 0 ] || fail "文件名分支回退REGEXP子串匹配(JSON数组列禁用,须JSON_OVERLAPS), 实际 $REGEXP_HITS 处"
 
 # 【2026-10-29 左面板联动+筛选扩展】点左侧子分类=右侧表格按记录 categoryId 过滤(记录挂二级,数值归一);
 # 筛选栏新增行业(字典)/时间范围(闭区间,前10位字典序); 切大类Tab自动清选中防跨大类串数据
