@@ -3,8 +3,8 @@ import { mount, flushPromises } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 
 /**
- * 【2026-11-03 统一权限中心】页面最小契约:
- * - 四页签齐备(功能与范围/专项权限/生效预览/变更审计), 子组件打桩(各自有独立 spec)
+ * 【2026-11-03 统一权限中心 + 2026-11-10 骨架 v3】页面最小契约:
+ * - 单层六域导航(授权配置: 功能与范围/激励授权/公海池/文件权限 + 核对与审计: 生效预览/变更审计), 子组件打桩(各自有独立 spec)
  * - 生效预览: 选人 → 消费 /system/perm-center/preview → 人话渲染(范围行/公海池/激励开关)
  * - 变更审计: 消费 /system/rule-versions 分页表
  */
@@ -54,46 +54,45 @@ const mountCenter = () => mount(PermCenter, {
 beforeEach(() => setActivePinia(createPinia()))
 
 describe('权限中心(2026-11-03 门面统一)', () => {
-  it('四页签齐备: 功能与范围 / 专项权限 / 生效预览 / 变更审计', () => {
+  it('【2026-11-10 骨架 v3】单层六域导航齐备(授权配置4域+核对审计2域), 无二级分段', () => {
     const wrapper = mountCenter()
     const text = wrapper.text()
-    for (const label of ['功能与范围', '专项权限', '生效预览', '变更审计']) {
-      expect(text).toContain(label)
-    }
+    const items = wrapper.findAll('.pc-nav-item').map(w => w.text())
+    expect(items).toEqual(['功能与范围', '激励授权', '公海池', '文件权限', '生效预览', '变更审计'])
+    expect(text).toContain('授权配置')
+    expect(text).toContain('核对与审计')
     // 收口提示: 唯一配置入口
     expect(text).toContain('唯一配置入口')
+    // 两级 chip 骨架不得复活
+    expect(wrapper.findAll('.pc-chipbar')).toHaveLength(0)
+    expect(wrapper.findAll('.pc-subchip')).toHaveLength(0)
   })
 
-  it('【2026-11-09 页签合并+骨架重构】文件权限为专项权限页签内子域, 无独立文件权限页签', async () => {
+  it('【2026-11-10 骨架 v3】各域独立直达: 文件/公海/激励 pane 懒挂载', async () => {
     const wrapper = mountCenter()
-    const chips = wrapper.findAll('.pc-chip').map(w => w.text())
-    expect(chips).toEqual(['功能与范围', '专项权限', '生效预览', '变更审计'])
-    expect(chips.filter(t => t.includes('文件权限'))).toHaveLength(0) // 独立页签不得复活
-    // 激活专项权限 → 二级分段三枚齐备, 默认子域=激励授权
-    const tab = wrapper.findAll('.pc-chip').find(w => w.text().includes('专项权限'))
-    await tab.trigger('click')
+    // 文件权限域 → 空间授权矩阵 + 激励指引指向左侧导航
+    const fileNav = wrapper.findAll('.pc-nav-item').find(w => w.text().includes('文件权限'))
+    await fileNav.trigger('click')
     await flushPromises()
-    const subs = wrapper.findAll('.pc-subchip').map(w => w.text())
-    expect(subs).toEqual(['激励授权', '公海池', '文件权限'])
-    expect(wrapper.text()).toContain('激励专项授权')
-    // 切到文件权限子域 → 空间授权矩阵挂载
-    const sub = wrapper.findAll('.pc-subchip').find(w => w.text().includes('文件权限'))
-    await sub.trigger('click')
-    await flushPromises()
-    const text = wrapper.text()
+    let text = wrapper.text()
     expect(text).toContain('公共空间（公司文件）')
-    expect(text).toContain('四项激励文件')
-    // 公海池子域懒挂载
-    const seaSub = wrapper.findAll('.pc-subchip').find(w => w.text().includes('公海池'))
-    await seaSub.trigger('click')
+    expect(text).toContain('左侧导航「激励授权」')
+    // 公海池域
+    const seaNav = wrapper.findAll('.pc-nav-item').find(w => w.text().includes('公海池'))
+    await seaNav.trigger('click')
     await flushPromises()
     expect(wrapper.text()).toContain('公海池名单')
+    // 激励域
+    const incNav = wrapper.findAll('.pc-nav-item').find(w => w.text().includes('激励授权'))
+    await incNav.trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('激励专项授权')
   })
 
   it('生效预览: 选人后渲染引擎算出的范围表/公海判定/激励开关', async () => {
     const wrapper = mountCenter()
     // lazy 页签: 先激活"生效预览"再驱动预览流
-    const tab = wrapper.findAll('.pc-chip').find(w => w.text().includes('生效预览'))
+    const tab = wrapper.findAll('.pc-nav-item').find(w => w.text().includes('生效预览'))
     await tab.trigger('click')
     await flushPromises()
     const vm = wrapper.vm
@@ -114,7 +113,7 @@ describe('权限中心(2026-11-03 门面统一)', () => {
 
   it('变更审计: 消费 rule-versions 分页表(范围配置变更入册)', async () => {
     const wrapper = mountCenter()
-    const tab = wrapper.findAll('.pc-chip').find(w => w.text().includes('变更审计'))
+    const tab = wrapper.findAll('.pc-nav-item').find(w => w.text().includes('变更审计'))
     await tab.trigger('click')
     await flushPromises()
     await wrapper.vm.loadAudit()
