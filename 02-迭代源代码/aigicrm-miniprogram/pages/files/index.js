@@ -270,18 +270,21 @@ function buildFileRowView(item, data) {
   // 后端列表不返回 canDownload/isEvidence，downloadable/perms 来自文件夹树（getFolderTree 逐夹回填）。
   const folderPerms = Array.isArray(data.folderPerms) ? data.folderPerms : []
   const downloadable = data.folderDownloadable !== 0
-  // 行级 canDownload=false 仍然优先；再叠加当前文件夹的下载开关与 download 权限
-  const showDownload = item.canDownload !== false && downloadable && folderPerms.includes('download')
+  // 【2026-11-10 用户令"A"】上传者本人恒可管理自己上传的文件(改名/替换/删除/分享/下载)——
+  // 行级 isOwn 与后端 checkFile 本人短路同口径, 夹权不再优先于上传人
+  const cu = getApp().globalData.currentUser
+  const isOwn = item.uploaderId !== undefined && item.uploaderId !== null && item.uploaderId !== '' && cu != null && String(item.uploaderId) === String(cu.id)
+  // 行级 canDownload=false 仍然优先；再叠加当前文件夹的下载开关与 download 权限(∨ 是我传的)
+  const showDownload = (item.canDownload !== false && downloadable && folderPerms.includes('download')) || isOwn
   // 【2026-10-26 用户令"三个点不需要替换"】替换入口从操作面板移除(详情页与后端 API 不动)
-  const showDelete = Boolean(data.canDelete && canMutateOwnTab && folderPerms.includes('delete'))
-  const showShare = Boolean(data.canShare && canMutateOwnTab && data.activeTab !== '公共' && folderPerms.includes('share'))
+  const showDelete = Boolean(data.canDelete && canMutateOwnTab && (folderPerms.includes('delete') || isOwn))
+  const showShare = Boolean(data.canShare && canMutateOwnTab && data.activeTab !== '公共' && (folderPerms.includes('share') || isOwn))
   // 【需求A】行内按钮全部收进「⋯」半屏面板;打开保留为整行首选操作(点行=打开)
   const sheetActions = [{ key: 'open', label: '打开' }]
   if (showDownload) sheetActions.push({ key: 'download', label: '下载' })
   // 【2026-11-06 用户令"加一个可以修改文件名称的"】重命名=file:edit+夹 edit(后端与 replace 同门
-  // checkFile P_EDIT); 【11-08 审计项3】门禁补 file:edit 权限码前置——此前只看夹 edit 权位,
-  // 无码用户点重命名必吃后端 403; 码(data.canEditFile)与夹 edit 双门, 与后端同口径
-  if (data.canEditFile && folderPerms.includes('edit')) sheetActions.push({ key: 'rename', label: '重命名' })
+  // checkFile P_RENAME); 【11-08 审计项3】码前置; 【2026-11-10 用户令"A"】∨ 是我传的(本人短路)
+  if (data.canEditFile && (folderPerms.includes('edit') || isOwn)) sheetActions.push({ key: 'rename', label: '重命名' })
   if (showShare) sheetActions.push({ key: 'share', label: '分享' })
   if (showDelete) sheetActions.push({ key: 'delete', label: '删除', danger: true })
   const sizePrefix = item.size && item.size !== '-' ? `${item.size} · ` : ''

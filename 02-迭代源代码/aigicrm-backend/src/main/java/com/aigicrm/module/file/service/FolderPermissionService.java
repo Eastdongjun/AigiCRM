@@ -68,13 +68,17 @@ public class FolderPermissionService {
         return (P_VIEW.equals(action) || P_DOWNLOAD.equals(action)) && "public".equals(folder.getFolderType());
     }
 
-    /** 文件权限判定：取 folderId 判定；无文件夹按上传者归属 */
+    /**
+     * 文件权限判定：【2026-11-10 用户令"A"】上传者本人恒可管理自己上传的文件(改名/替换/删除/分享/下载)，
+     * 无论躺在哪个文件夹——此前"夹权优先于上传人"致公共夹里自己传的文件自己改不了名。
+     * 上级链不随本人短路扩展(主管改下属文件仍走夹子判定)；激励佐证禁替换由 FileService 决策5 守卫另行拦截。
+     */
     public boolean checkFile(Long fileId, String action, Long userId) {
         if (SecurityUtils.isAdmin()) return true;
         BizFile file = fileMapper.selectById(fileId);
         if (file == null) return false;
-        if (file.getFolderId() != null) return check(file.getFolderId(), action, userId);
         if (Objects.equals(file.getUploaderId(), userId)) return true;
+        if (file.getFolderId() != null) return check(file.getFolderId(), action, userId);
         return isManagerChain(userId, file.getUploaderId());
     }
 

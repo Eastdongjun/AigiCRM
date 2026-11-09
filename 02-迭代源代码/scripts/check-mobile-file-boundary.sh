@@ -157,7 +157,8 @@ grep -Fq 'bindtap="openFile"' "$WXML" || fail 'mobile file list preview UI disap
 grep -Fq 'catchtap="openActionSheet"' "$WXML" || fail 'mobile file list download UI disappeared'
 # 【钉随需求A 2026-10-16】行内可见性按钮全部收敛进「⋯」面板: 行级可见性归一化仍在 JS(buildFileRowView),
 # 但 WXML 不再引用 item.showXxx, 改为渲染 actionSheet.actions(下载/分享/替换/删除按归一化结果进面板)
-grep -Fq 'const showDownload = item.canDownload !== false' "$PAGE" || fail 'mobile file list download visibility is not normalized like PC'
+# 【2026-11-10 用户令"A"】下载可见性=PC 同口径(行级 canDownload 优先 ∧ 夹 download ∧ 开关) ∨ 是我传的
+grep -Fq 'const showDownload = (item.canDownload !== false' "$PAGE" || fail 'mobile file list download visibility is not normalized like PC'
 grep -Fq "if (showDownload) sheetActions.push({ key: 'download'" "$PAGE" || fail 'mobile file list download UI no longer hides non-downloadable rows like PC'
 # 【2026-10-26 重锚】用户令"三个点不需要替换"——面板替换项退役, 两钉改防复活
 ! grep -Fq "sheetActions.push({ key: 'replace'" "$PAGE" || fail 'file sheet replace action was retired by user order (2026-10-26)'
@@ -205,9 +206,10 @@ grep -Fq 'one-tap preview download missing' "$AUTOMATOR_SCRIPT" || fail 'file ce
 # rename(2026-11-06 上线)与 replace 同守 file:edit, 前端入口码前置合法 reintroduce 该码——
 # 防复活口径收窄到 replace 状态名(canReplace), rename 的码门另钉正向断言(下行)
 ! grep -Fq 'canReplace' "$PAGE" || fail 'file list replace permission gate was retired by user order (2026-10-26); file:edit now only gates rename (11-08 re-anchor)'
-# 【11-08 审计项3】重命名入口=file:edit 码+当前夹 edit 双门(后端 rename 守 file:edit, 单看夹权位必漏 403)
+# 【11-08 审计项3 + 2026-11-10 用户令"A"】重命名入口=file:edit 码 ∧ (当前夹 edit ∨ 是我传的)——
+# 后端 rename 守 file:edit 码 + checkFile(P_RENAME) 本人短路(上传者恒可管自己的文件), 前端同口径
 grep -Fq "canEditFile: globalData.demoMode || hasPermission('file:edit')" "$PAGE" || fail 'mobile file rename entry must pre-gate on the file:edit permission code'
-grep -Fq "if (data.canEditFile && folderPerms.includes('edit')) sheetActions.push({ key: 'rename', label: '重命名' })" "$PAGE" || fail 'mobile file rename sheet action must require file:edit code AND folder edit bit'
+grep -Fq "if (data.canEditFile && (folderPerms.includes('edit') || isOwn)) sheetActions.push({ key: 'rename', label: '重命名' })" "$PAGE" || fail 'mobile file rename sheet action must require file:edit code AND (folder edit bit OR own upload)'
 ! grep -Fq 'replaceListFile' "$PAGE" || fail 'file list replace action was retired by user order (2026-10-26)'
 ! grep -Fq "replaceFile(item.id, file.path)" "$PAGE" || fail 'file list replace call was retired by user order (2026-10-26)'
 # 【钉随需求A】行内 replaceListFile 收敛到操作面板 onSheetAction(JS 方法保留)

@@ -85,6 +85,14 @@ grep -Fq 'typeGranted' "$PERM_SERVICE" \
   || fail 'permission chain must consult real-time type-grant layer'
 grep -Fq 'P_RENAME = "rename"' "$PERM_SERVICE" || fail 'v2 must define P_RENAME'
 grep -Fq 'P_REPLACE = "replace"' "$PERM_SERVICE" || fail 'v2 must define P_REPLACE'
+# 【2026-11-10 用户令"A"】上传者本人恒可管理自己的文件——checkFile 里本人短路必须先于夹判定
+# (此前"夹权优先于上传人"致公共夹里自己传的文件自己改不了名); PC 行级放行(isOwn)与 MP(isOwn)同口径
+grep -Fq '上传者本人恒可管理自己上传的文件' "$PERM_SERVICE" \
+  || fail 'checkFile must short-circuit uploader-self before folder judgment (2026-11-10 user order A)'
+grep -Fq 'Objects.equals(file.getUploaderId(), userId)) return true;' "$PERM_SERVICE" \
+  || fail 'checkFile uploader-self check must exist'
+grep -Fq 'isOwn(row)' "$ROOT/aigicrm-ui/src/views/file/FileTable.vue" \
+  || fail 'PC FileTable must relax own-file rows via isOwn (rename/replace/delete/share/download)'
 # 【防复活】materializeAcl 物化语义已随 v2 退役: 类型授权实时生效, 不得再落 biz_folder_acl 快照
 if grep -Fq 'materializeAcl' "$FILE_SERVICE" "$TYPE_DEFAULT_SERVICE"; then
   fail 'materializeAcl retired in v2 (real-time type-grant layer); do not resurrect'

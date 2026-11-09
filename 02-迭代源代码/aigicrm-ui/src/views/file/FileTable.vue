@@ -45,22 +45,23 @@
             <el-tooltip content="打开" placement="top">
               <el-icon class="act-icon" @click.stop="handlePreview(row)"><View /></el-icon>
             </el-tooltip>
-            <el-tooltip v-if="folderPerms.includes('download') && folderDownloadable === 1" content="下载" placement="top">
+            <el-tooltip v-if="(folderPerms.includes('download') || isOwn(row)) && folderDownloadable === 1" content="下载" placement="top">
               <el-icon class="act-icon" @click.stop="handleDownload(row)"><Download /></el-icon>
             </el-tooltip>
-            <el-tooltip v-if="activeTab !== 'public' && activeTab !== 'shared_to_me' && folderPerms.includes('share')" content="分享" placement="top">
+            <el-tooltip v-if="activeTab !== 'public' && activeTab !== 'shared_to_me' && (folderPerms.includes('share') || isOwn(row))" content="分享" placement="top">
               <el-icon class="act-icon" @click.stop="openShareDialog(row)"><Share /></el-icon>
             </el-tooltip>
-            <el-tooltip v-if="folderPerms.includes('edit')" content="替换" placement="top">
+            <el-tooltip v-if="folderPerms.includes('edit') || isOwn(row)" content="替换" placement="top">
               <el-icon class="act-icon" @click.stop="openReplaceFile(row)"><Refresh /></el-icon>
             </el-tooltip>
             <!-- 【2026-11-08 PC 补文件改名入口】后端 PUT /file/{id}/rename（FileController file:edit +
-                 checkFile(P_EDIT) 双门），显隐按"全局码 file:edit ∧ 夹内 edit 权限"（2026-10-27
-                 文件夹管理按钮同款口径）；本表行均为文件，不涉文件夹改名（文件夹改名在 FolderPanel） -->
-            <el-tooltip v-if="canRenameFile" content="改名" placement="top">
+                 checkFile(P_RENAME) 双门），显隐按"全局码 file:edit ∧ (夹内 edit ∨ 是我传的)"
+                 （2026-10-27 文件夹管理按钮同款口径）；【2026-11-10 用户令"A"】上传者本人恒可管理
+                 自己的文件——夹权不再优先于上传人，isOwn 行级放行与后端本人短路同口径 -->
+            <el-tooltip v-if="canRename(row)" content="改名" placement="top">
               <el-icon class="act-icon" @click.stop="handleRenameFile(row)"><EditPen /></el-icon>
             </el-tooltip>
-            <el-tooltip v-if="folderPerms.includes('delete')" content="删除" placement="top">
+            <el-tooltip v-if="folderPerms.includes('delete') || isOwn(row)" content="删除" placement="top">
               <el-icon class="act-icon act-danger" @click.stop="handleDelete(row)"><Delete /></el-icon>
             </el-tooltip>
           </div>
@@ -88,7 +89,7 @@
 </template>
 
 <script setup>
-import { ref, computed, reactive, watch } from 'vue'
+import { ref, reactive, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getDownloadToken, refreshDownloadToken } from '@/utils/token'
 // 【D16】View 图标已由 main.js menuIconList 全局注册(app.component)，本地 import 冗余已删；模板 <View/> 仍可解析
@@ -133,12 +134,13 @@ const replaceFileTarget = ref(null)
 const replaceFileInputRef = ref(null)
 const replacing = ref(false)
 
-// 【2026-11-08 PC 补文件改名入口】
-// 后端双门：全局权限码 file:edit（@PreAuthorize）+ checkFile(P_EDIT)（管理员/本人/ACL edit）。
-// 前端显隐取两者"与"（与 2026-10-27 文件夹管理按钮修法同口径），只勾其一的角色不再看到必 403 按钮。
+// 【2026-11-08 PC 补文件改名入口 + 2026-11-10 用户令"A"上传者本人恒可管理自己的文件】
+// 后端双门：全局权限码 file:edit（@PreAuthorize）+ checkFile(P_RENAME)（管理员/上传者本人/夹判定）。
+// 前端显隐：全局码 ∧ (夹内 edit ∨ 这行是我传的)，只勾其一的角色不再看到必 403 按钮。
 const userStore = useUserStore()
-const canRenameFile = computed(() =>
-  userStore.hasPermission('file:edit') && folderPerms.value.includes('edit'))
+// 行级"是我传的"判定（列表行自带 uploaderId），本人对自己上传的文件恒显示 改名/替换/删除/分享/下载
+const isOwn = (row) => row?.uploaderId != null && Number(row.uploaderId) === Number(userStore.userId)
+const canRename = (row) => userStore.hasPermission('file:edit') && (folderPerms.value.includes('edit') || isOwn(row))
 
 // 【2026-11-08 用户令"改名不更改格式"】扩展名自动保留: 输入带不带/换不换后缀,
 // 提交前统一剥掉输入后缀拼回原扩展名(与后端 keepOriginalExtension 同口径, 后端为铁律守卫)

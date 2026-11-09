@@ -442,4 +442,47 @@ class FolderPermissionServiceTest {
         assertTrue(FolderPermissionService.csvHas("view,download", FolderPermissionService.P_DOWNLOAD));
     }
 
+    // === 【2026-11-10 用户令"A"】上传者本人恒可管理自己的文件(夹权不再优先于上传人) ===
+
+    @Test
+    void checkFile_uploaderManagesOwnFileInFolderWithoutFolderPerms() {
+        // 42 上传文件进公共夹(非夹主/无 ACL/无类型授权) → 本人改名/替换/删除/分享全放行
+        BizFile file = new BizFile(); file.setId(9L); file.setFolderId(100L); file.setUploaderId(42L);
+        BizFileFolder folder = new BizFileFolder(); folder.setId(100L); folder.setOwnerId(99L); folder.setFolderType("public");
+        when(fileMapper.selectById(9L)).thenReturn(file);
+        when(folderMapper.selectById(100L)).thenReturn(folder);
+        when(aclMapper.selectList(any())).thenReturn(List.of());
+        when(typeDefaultMapper.selectList(any())).thenReturn(List.of());
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            m.when(SecurityUtils::getCurrentRoleCodes).thenReturn(List.of());
+            assertTrue(svc.checkFile(9L, FolderPermissionService.P_RENAME, 42L), "本人改自己传的文件应放行");
+            assertTrue(svc.checkFile(9L, FolderPermissionService.P_REPLACE, 42L));
+            assertTrue(svc.checkFile(9L, FolderPermissionService.P_DELETE, 42L));
+            assertTrue(svc.checkFile(9L, FolderPermissionService.P_SHARE, 42L));
+            // 他人(43)对同一文件仍走夹子判定 → 公共兜底仅 view/download
+            assertFalse(svc.checkFile(9L, FolderPermissionService.P_RENAME, 43L), "他人不因上传者短路受益");
+            assertTrue(svc.checkFile(9L, FolderPermissionService.P_DOWNLOAD, 43L));
+        }
+    }
+
+    @Test
+    void checkFile_uploaderShortCircuit_doesNotExtendToManagerChain() {
+        // 上传者的上级不随本人短路受益(主管改下属文件仍走夹子判定)——A 方案明确不扩上级链
+        BizFile file = new BizFile(); file.setId(9L); file.setFolderId(100L); file.setUploaderId(42L);
+        BizFileFolder folder = new BizFileFolder(); folder.setId(100L); folder.setOwnerId(99L); folder.setFolderType("public");
+        SysUser lower = new SysUser(); lower.setId(42L); lower.setManagerId(7L);
+        when(fileMapper.selectById(9L)).thenReturn(file);
+        when(folderMapper.selectById(100L)).thenReturn(folder);
+        when(aclMapper.selectList(any())).thenReturn(List.of());
+        when(typeDefaultMapper.selectList(any())).thenReturn(List.of());
+        when(userMapper.selectById(42L)).thenReturn(lower);
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            m.when(SecurityUtils::getCurrentRoleCodes).thenReturn(List.of());
+            assertFalse(svc.checkFile(9L, FolderPermissionService.P_RENAME, 7L),
+                    "上传者的上级(7)对夹内文件仍走夹子判定, 公共夹无编辑不放行");
+        }
+    }
+
 }
