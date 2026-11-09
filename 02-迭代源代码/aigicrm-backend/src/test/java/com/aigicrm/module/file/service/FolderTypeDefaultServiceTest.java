@@ -36,7 +36,8 @@ class FolderTypeDefaultServiceTest {
     private final BizFolderAclMapper aclMapper = mock(BizFolderAclMapper.class);
     private final SysRoleMapper roleMapper = mock(SysRoleMapper.class);
     private final FolderTypeDefaultService svc =
-            new FolderTypeDefaultService(defaultMapper, aclMapper, roleMapper);
+            new FolderTypeDefaultService(defaultMapper, aclMapper, roleMapper,
+            mock(com.aigicrm.security.SecurityAuditService.class)); // 体检P4 审计新增依赖
 
     private SysRole role(long id, String code, int status) {
         SysRole r = new SysRole();

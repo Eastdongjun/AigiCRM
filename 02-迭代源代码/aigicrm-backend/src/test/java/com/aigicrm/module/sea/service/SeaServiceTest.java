@@ -89,7 +89,8 @@ class SeaServiceTest {
         CustomerService customerService = mock(CustomerService.class);
         BizCustomerMapper custMapper = customerMapper();
         SeaConfigService configService = new SeaConfigService(configMapper, poolMapper, deptMapper, userMapper,
-                mock(com.aigicrm.module.system.mapper.SysRoleMapper.class));
+                mock(com.aigicrm.module.system.mapper.SysRoleMapper.class),
+                mock(com.aigicrm.security.SecurityAuditService.class)); // 体检P4 审计新增依赖
         // SeaService 字段顺序: seaPoolMapper, seaConfigMapper, customerMapper, userMapper, deptMapper, seaConfigService, customerService, configService
         SeaService seaService = new SeaService(poolMapper, configMapper, custMapper,
                 userMapper, deptMapper, configService, customerService,

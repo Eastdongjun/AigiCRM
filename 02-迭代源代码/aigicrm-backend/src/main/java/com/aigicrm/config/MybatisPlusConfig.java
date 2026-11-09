@@ -37,7 +37,9 @@ public class MybatisPlusConfig {
             "biz_contact", "biz_customer", "biz_customer_event", "biz_customer_indicator", "biz_customer_log",
             "biz_customer_share", "biz_customer_stage_amount", "biz_customer_transfer",
             "biz_file", "biz_file_folder", "biz_file_share", "biz_folder_acl",
-            "biz_incentive_category", "biz_incentive_permission", "biz_incentive_record",
+            // 【体检P1 2026-11-09】biz_incentive_permission 已随 V2026.11.09.4 DROP(死表: 业务判定零引用,
+            // 活口径=biz_incentive_grant; 29 行留档 out/归档-biz_incentive_permission死表29行-20261109.txt)
+            "biz_incentive_category", "biz_incentive_record",
             "biz_invoice", "biz_payment", "biz_reminder", "biz_score_entry", "biz_score_item",
             "biz_score_participant", "biz_sea_config", "biz_sea_pool", "biz_task");
     // 【体检 H4 2026-10-12】biz_customer_stage_amount(V2026.10.10.1 新表, tenant_id NOT NULL DEFAULT '1')

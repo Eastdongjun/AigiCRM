@@ -26,7 +26,8 @@ class FolderAclServiceTest {
     private final BizFileFolderMapper folderMapper = mock(BizFileFolderMapper.class);
     private final SysRoleMapper roleMapper = mock(SysRoleMapper.class);
     private final FolderPermissionService permissionService = mock(FolderPermissionService.class);
-    private final FolderAclService svc = new FolderAclService(aclMapper, folderMapper, roleMapper, permissionService);
+    private final FolderAclService svc = new FolderAclService(aclMapper, folderMapper, roleMapper, permissionService,
+            mock(com.aigicrm.security.SecurityAuditService.class)); // 体检P4 审计新增依赖
 
     private static final Long USER_ID = 42L;
     private static final Long FOLDER_ID = 100L;

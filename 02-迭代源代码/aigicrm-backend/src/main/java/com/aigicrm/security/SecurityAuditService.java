@@ -87,6 +87,22 @@ public class SecurityAuditService {
                 "action=" + action + " roleId=" + targetRoleId + " roleName=" + roleName);
     }
 
+    /**
+     * 【体检P4 2026-11-09】权限等价写操作通用审计——非角色维度的权限写路径此前零留痕:
+     * 数据范围保存/公海池名单/文件夹ACL/文件空间类型默认。targetDesc 描述目标
+     * (如 "scope:ROLE:06" / "seaPool:3" / "folderAcl:7" / "folderTypeDefault:public")。
+     */
+    public void permissionChange(String action, String targetDesc) {
+        Long actorId = null;
+        try {
+            actorId = SecurityUtils.getCurrentUserId();
+        } catch (Exception ignore) {
+            // 无会话上下文(内部调用)时 actor 为空
+        }
+        event("PERMISSION_CHANGE", "action", action, "target", targetDesc, "actorId", actorId);
+        persist("PERMISSION_CHANGE", actorId, null, null, "action=" + action + " " + targetDesc);
+    }
+
     /** 集团/租户变更:会话切换 */
     public void groupSwitch(Long userId, String username, Long fromGroupId, Long toGroupId) {
         event("GROUP_SWITCH", "userId", userId, "username", username,

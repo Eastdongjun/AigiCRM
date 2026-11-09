@@ -32,7 +32,8 @@ class SeaConfigServicePoolPermTest {
     private final SysUserMapper userMapper = mock(SysUserMapper.class);
     // 【2026-11-03 权限中心 P3】池名单按角色引用: 构造器新增 SysRoleMapper
     private final com.aigicrm.module.system.mapper.SysRoleMapper roleMapper = mock(com.aigicrm.module.system.mapper.SysRoleMapper.class);
-    private final SeaConfigService svc = new SeaConfigService(configMapper, seaPoolMapper, deptMapper, userMapper, roleMapper);
+    private final SeaConfigService svc = new SeaConfigService(configMapper, seaPoolMapper, deptMapper, userMapper, roleMapper,
+            mock(com.aigicrm.security.SecurityAuditService.class)); // 体检P4 审计新增依赖
 
     private SecurityUser user(long id, Long deptId, String dataScope) {
         SecurityUser u = new SecurityUser();

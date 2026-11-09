@@ -43,6 +43,8 @@ public class FolderTypeDefaultService {
     private final BizFolderTypeDefaultMapper defaultMapper;
     private final BizFolderAclMapper aclMapper;
     private final SysRoleMapper roleMapper;
+    // 【体检P4 2026-11-09】类型默认写口=权限等价写操作, 补操作人审计
+    private final com.aigicrm.security.SecurityAuditService securityAudit;
 
     /** 权限中心列表：全量默认行(含角色名)，按类型→角色排序 */
     public List<Map<String, Object>> listDefaults() {
@@ -89,6 +91,8 @@ public class FolderTypeDefaultService {
             d.setCreatedAt(LocalDateTime.now());
             defaultMapper.insert(d);
         }
+        // 【体检P4】类型默认保存留痕(失败不阻断)
+        try { securityAudit.permissionChange("folder_type_default_save", "folderTypeDefault:" + folderType + " role:" + roleId + " perms:" + joined); } catch (Exception ignore) { }
     }
 
     public void removeDefault(String folderType, Long roleId) {
@@ -96,6 +100,8 @@ public class FolderTypeDefaultService {
         defaultMapper.delete(new LambdaQueryWrapper<BizFolderTypeDefault>()
                 .eq(BizFolderTypeDefault::getFolderType, folderType)
                 .eq(BizFolderTypeDefault::getRoleId, roleId));
+        // 【体检P4】类型默认删除留痕(失败不阻断)
+        try { securityAudit.permissionChange("folder_type_default_remove", "folderTypeDefault:" + folderType + " role:" + roleId); } catch (Exception ignore) { }
     }
 
     /** 当前登录用户可否创建该类型根文件夹（admin 由调用方前置放行） */

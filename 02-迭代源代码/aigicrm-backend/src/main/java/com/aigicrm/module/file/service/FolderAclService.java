@@ -32,6 +32,8 @@ public class FolderAclService {
     private final BizFileFolderMapper folderMapper;
     private final SysRoleMapper roleMapper;
     private final FolderPermissionService permissionService;
+    // 【体检P4 2026-11-09】ACL 写口=权限等价写操作, 补操作人审计
+    private final com.aigicrm.security.SecurityAuditService securityAudit;
 
     public List<Map<String, Object>> listAcl(Long folderId) {
         requireEdit(folderId);
@@ -102,12 +104,16 @@ public class FolderAclService {
             acl.setCreatedBy(SecurityUtils.getCurrentUserId()); acl.setCreatedAt(LocalDateTime.now());
             aclMapper.insert(acl);
         }
+        // 【体检P4】ACL 授权留痕(失败不阻断)
+        try { securityAudit.permissionChange("folder_acl_save", "folderAcl:" + folderId + " role:" + roleId + " perms:" + joined); } catch (Exception ignore) { }
     }
 
     public void removeAcl(Long folderId, Long roleId) {
         requireEdit(folderId);
         aclMapper.delete(new LambdaQueryWrapper<BizFolderAcl>()
                 .eq(BizFolderAcl::getFolderId, folderId).eq(BizFolderAcl::getRoleId, roleId));
+        // 【体检P4】ACL 撤销留痕(失败不阻断)
+        try { securityAudit.permissionChange("folder_acl_remove", "folderAcl:" + folderId + " role:" + roleId); } catch (Exception ignore) { }
     }
 
     public void setDownloadable(Long folderId, Integer downloadable) {
@@ -117,6 +123,8 @@ public class FolderAclService {
         if (folder == null) throw new BusinessException("文件夹不存在");
         folder.setDownloadable(downloadable);
         folderMapper.updateById(folder);
+        // 【体检P4】下载开关留痕(失败不阻断)
+        try { securityAudit.permissionChange("folder_download_switch", "folderAcl:" + folderId + " downloadable:" + downloadable); } catch (Exception ignore) { }
     }
 
     public Map<String, Object> permissions(Long folderId, Long userId) {

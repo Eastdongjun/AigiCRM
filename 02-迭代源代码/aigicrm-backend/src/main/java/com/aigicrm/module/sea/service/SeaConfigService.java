@@ -31,6 +31,8 @@ public class SeaConfigService {
     private final SysUserMapper userMapper;
     // 【2026-11-03 权限中心 P3】名单按角色引用: 用户角色交集命中
     private final SysRoleMapper roleMapper;
+    // 【体检P4 2026-11-09】池名单=权限等价写操作(view/edit/delete/import/claim), 补操作人审计
+    private final com.aigicrm.security.SecurityAuditService securityAudit;
 
     /** 全部公海池(供管理页面,含禁用池——禁用池也需可查看/重新启用) */
     public List<BizSeaConfig> list() {
@@ -72,6 +74,8 @@ public class SeaConfigService {
         config.setRegionIds(deriveRegionIds(config.getVisibleDeptIds(), config.getVisibleUserIds()));
         checkOfficeOverlap(config);
         configMapper.insert(config);
+        // 【体检P4】池名单创建留痕(失败不阻断)
+        try { securityAudit.permissionChange("sea_pool_create", "seaPool:" + config.getPoolName()); } catch (Exception ignore) { }
     }
 
     public void update(BizSeaConfig config) {
@@ -84,6 +88,8 @@ public class SeaConfigService {
             checkOfficeOverlap(config);
         }
         configMapper.updateById(config);
+        // 【体检P4】池名单变更留痕(失败不阻断)
+        try { securityAudit.permissionChange("sea_pool_update", "seaPool:" + config.getId()); } catch (Exception ignore) { }
     }
 
     /**
@@ -120,6 +126,8 @@ public class SeaConfigService {
             throw new BusinessException("该公海池下仍有 " + poolCount + " 条客户记录，无法删除");
         }
         configMapper.deleteById(id);
+        // 【体检P4】池删除留痕(失败不阻断)
+        try { securityAudit.permissionChange("sea_pool_delete", "seaPool:" + id); } catch (Exception ignore) { }
     }
 
     /** 公海池权限类型 */
