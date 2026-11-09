@@ -610,6 +610,17 @@ Page({
   },
 
   searchRecords() {
+    // 【2026-11-09 用户令"只把含有关键字的记录呈现成列表, 不要呈现客户的卡片"】
+    // 有关键字=强制打散视图(单条记录流), 清空关键字恢复用户原选模式
+    const kw = (this.data.keyword || '').trim()
+    if (kw && this.data.listMode !== 'time') {
+      this._preSearchMode = this.data.listMode
+      this.setData({ listMode: 'time', page: 1 })
+    } else if (!kw && this._preSearchMode && this.data.listMode === 'time') {
+      const restore = this._preSearchMode
+      this._preSearchMode = null
+      this.setData({ listMode: restore, page: 1 })
+    }
     this.loadRecords()
   },
 

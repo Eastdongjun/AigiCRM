@@ -86,6 +86,32 @@
     <!-- 2026-09-13：原内嵌「本月激励查询阅读排行榜」文字条已移除，改由专门页面承载
          （系统设置 → 本月激励查询阅读排行榜，权限码 incentive:read-ranking:view，默认仅管理员可见） -->
 
+    <!-- 【2026-11-09 用户令"只把含有关键字的记录呈现成列表"】关键字搜索=纯记录列表(打散客户分组) -->
+    <template v-if="isKeywordSearch">
+      <div v-loading="loading" element-loading-text="加载中..." class="flat-rec-list">
+        <div v-if="!loading && flatRecords.length===0" style="text-align:center;padding:80px 0;color:#bbb">暂无数据</div>
+        <div v-for="r in pagedFlatRecords" :key="r.id" class="flat-rec-row" @click="showDetail(custs.find(c=>c.customerId===r.customerId))">
+          <div class="flat-rec-main">
+            <span class="flat-rec-cust">{{ r.customerName }}</span>
+            <span class="flat-rec-cat">{{ r.categoryName }}</span>
+            <span class="flat-rec-prod">{{ [r.specificProduct, r.relatedProducts].filter(Boolean).join(' · ') || '—' }}</span>
+          </div>
+          <div class="flat-rec-meta">
+            <span class="flat-rec-date">{{ (r.createdAt || '').substring(0, 10) }}</span>
+            <span class="flat-rec-user">{{ r.userName }}</span>
+            <span class="flat-rec-pts" :style="{color: scoreColor(getCls(catMap, r))}">+{{ r.score }}</span>
+            <el-tag v-if="r.unread" size="small" type="warning">未读</el-tag>
+          </div>
+        </div>
+      </div>
+      <div v-if="flatRecords.length > pageSize" class="search-pager">
+        <span class="search-pager-count">共 <b>{{ flatRecords.length }}</b> 条记录</span>
+        <el-pagination v-model:current-page="pageNum" :page-size="pageSize" :total="flatRecords.length" :page-sizes="pageSizes(pageSize)" layout="sizes, prev, pager, next, jumper" size="small" background @size-change="onSizeChange" />
+      </div>
+    </template>
+
+    <!-- 非搜索态=原客户卡片网格 -->
+    <template v-else>
     <div v-loading="loading" element-loading-text="加载中..." class="isc-grid">
       <div v-if="!loading && custs.length===0" style="grid-column:1/-1;text-align:center;padding:80px 0;color:#bbb">暂无数据</div>
       <div v-for="c in pagedCusts" :key="c.customerId" class="card">
@@ -134,6 +160,7 @@
       <span class="search-pager-count">共 <b>{{ custs.length }}</b> 个客户</span>
       <el-pagination v-model:current-page="pageNum" :page-size="pageSize" :total="custs.length" :page-sizes="pageSizes(pageSize)" layout="sizes, prev, pager, next, jumper" size="small" background @size-change="onSizeChange" />
     </div>
+    </template>
 
     <!-- 灯箱预览（图片/视频/文档）与客户详情弹窗（三联拨盘时间轴） -->
     <SearchLightbox ref="lightbox" :thumb-failed="thumbFailed" @thumb-failed="markThumbFailed" />
@@ -180,6 +207,21 @@ const pageSize = ref(8)
 // 切换每页条数后回到第 1 页（避免停在已不存在的页码看到空网格）
 const onSizeChange = (size) => { pageSize.value = size; pageNum.value = 1 }
 const pagedCusts = computed(() => paginate(custs.value, pageNum.value, pageSize.value))
+
+// 【2026-11-09 用户令"只把含有关键字的记录呈现成列表, 不要呈现客户的卡片"】
+// 关键字搜索激活时: 打散客户分组→纯记录列表(每行=一条记录, 附客户名内联展示), 不再按客户卡片渲染
+const isKeywordSearch = computed(() => !!(fCustomer.value || '').trim())
+const flatRecords = computed(() => {
+  if (!isKeywordSearch.value) return []
+  const rows = []
+  for (const c of custs.value) {
+    for (const r of (c.records || [])) {
+      rows.push({ ...r, customerName: c.customerName, customerId: c.customerId, industry: c.industry })
+    }
+  }
+  return rows
+})
+const pagedFlatRecords = computed(() => paginate(flatRecords.value, pageNum.value, pageSize.value))
 const detailVisible=ref(false),detailCust=ref(null)
 // 【2026-10-29 字典接线】行业选项改调系统字典(industry); 兜底=当前字典全量(含「新行业」, 原硬编码
 // 缺该项致新行业客户筛不出)。改字典后此兜底需人工同步(门禁 check-dict-source-contract.sh 盯调用不删)。
@@ -277,6 +319,23 @@ onMounted(()=>{loadCats();loadDevTypes();loadIndustries();loadUsers();loadOrgs()
 <style scoped>
 /* ===== 页面骨架（白色整体容器由全局 .page-shell 提供）===== */
 .isc-page{display:flex;flex-direction:column;min-height:calc(100vh - 140px)}
+
+/* 【2026-11-09 用户令"关键字搜索=纯记录列表"】打散客户分组的扁平记录行 */
+.flat-rec-list{flex:1;padding:14px 20px 20px;display:flex;flex-direction:column;gap:2px;min-height:200px}
+.flat-rec-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;
+  border-bottom:1px solid var(--el-border-color-extra-light);cursor:pointer;transition:background .12s}
+.flat-rec-row:hover{background:var(--el-fill-color-light)}
+.flat-rec-main{display:flex;align-items:baseline;gap:12px;flex:1;min-width:0}
+.flat-rec-cust{font-weight:600;font-size:14px;color:var(--el-text-color-primary);flex-shrink:0;max-width:180px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.flat-rec-cat{font-size:12px;color:var(--el-color-primary);background:var(--el-color-primary-light-9);
+  padding:2px 8px;border-radius:3px;flex-shrink:0}
+.flat-rec-prod{font-size:13px;color:var(--el-text-color-regular);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.flat-rec-meta{display:flex;align-items:center;gap:10px;flex-shrink:0;font-size:12px;color:var(--el-text-color-secondary)}
+.flat-rec-date{min-width:72px;text-align:right}
+.flat-rec-user{min-width:48px}
+.flat-rec-pts{font-weight:600;font-size:14px;min-width:32px;text-align:right}
+
 .isc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;padding:16px 20px 20px;min-height:200px;
   flex:1;align-content:start}
 .bar{background:transparent;padding:16px 20px 8px}
