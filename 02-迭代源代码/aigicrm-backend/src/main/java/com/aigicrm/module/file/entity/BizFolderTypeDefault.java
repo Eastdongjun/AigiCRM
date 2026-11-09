@@ -5,10 +5,12 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 /**
- * 【2026-11-09 类型级默认权限】文件空间(公共/个人)默认权限行。
- * perms 词表 = 现行 6 短名(view/upload/edit/delete/share/download, 与 biz_folder_acl 同款)
- * + create(可建该类型根文件夹)。新建文件夹时除 create 外物化进 biz_folder_acl,
- * 可逐夹微调; tenant_id 列 DB 默认 1 不映射(与 BizFolderAcl 同款)。
+ * 【2026-11-09 文件权限 v2】文件空间(公共/私人)类型授权行。
+ * 主体 ROLE|USER(V2026.11.09.5 扩展): 管理员可按角色整批或直接勾某个人。
+ * perms 词表 = 8 细动作(view,upload,rename,replace,delete,share,download,create,
+ * 与逐夹 ACL 的 6 短名同源但把 edit 伞拆成 rename/replace 两项; create=可建该类型根文件夹)。
+ * 判定层实时生效(FolderPermissionService.typeGranted), 不再建夹时物化进 biz_folder_acl;
+ * 存量行的 edit 由判定层读时展开为 rename+replace, 数据不回填。tenant_id 列 DB 默认 1 不映射(与 BizFolderAcl 同款)。
  */
 @Data
 @TableName("biz_folder_type_default")
@@ -16,7 +18,8 @@ public class BizFolderTypeDefault {
     @TableId(type = IdType.AUTO)
     private Long id;
     private String folderType;   // public | private
-    private Long roleId;
+    private String subjectType;  // ROLE | USER
+    private Long subjectId;      // sys_role.id | sys_user.id
     private String perms;        // CSV
     private Long createdBy;
     private LocalDateTime createdAt;

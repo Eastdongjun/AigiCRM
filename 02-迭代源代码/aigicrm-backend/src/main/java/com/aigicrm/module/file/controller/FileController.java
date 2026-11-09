@@ -107,7 +107,7 @@ public class FileController {
         return Result.ok();
     }
 
-    /** 【文件权限体系 Task 6】覆盖替换：multipart file，版本+1（细粒度权限在 service 层 checkFile(P_EDIT)） */
+    /** 【文件权限体系 Task 6】覆盖替换：multipart file，版本+1（【文件权限 v2】细粒度动作 replace 在 service 层 checkFile(P_REPLACE)） */
     @PreAuthorize("hasAuthority('file:edit')")
     @PostMapping("/{id}/replace")
     public Result<BizFile> replaceFile(@PathVariable Long id, @RequestParam("file") MultipartFile file) {
@@ -119,7 +119,7 @@ public class FileController {
         return Result.ok(fileService.replaceFile(id, file));
     }
 
-    /** 【2026-11-06 用户令"加一个可以修改文件名称的"】文件重命名（细粒度权限与 replace 同门 checkFile(P_EDIT)） */
+    /** 【2026-11-06 用户令"加一个可以修改文件名称的"】文件重命名（【文件权限 v2】细粒度动作 rename，checkFile(P_RENAME)） */
     @PreAuthorize("hasAuthority('file:edit')")
     @PutMapping("/{id}/rename")
     public Result<Void> renameFile(@PathVariable Long id, @RequestBody Map<String, String> body) {

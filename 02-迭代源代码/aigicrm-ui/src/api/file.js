@@ -78,21 +78,21 @@ export function getFolderPermissions(id) {
   return request.get(`/file/folders/${id}/permissions`)
 }
 
-// 【2026-11-09 类型级默认权限】文件空间(公共/个人)默认权限——权限中心「文件空间默认」页签
-// 读写；词表 = 逐夹 ACL 6 短名 + create(可建该类型根夹)。新建文件夹自动继承(后端物化进
-// biz_folder_acl 可逐夹微调)；均挂 file:acl:manage。
+// 【2026-11-09 文件权限 v2】文件空间类型授权(角色|人 × 空间 × 动作)——权限中心「文件权限」页签
+// 读写；实时生效(判定层 typeGranted, 覆盖该空间全部存量+未来文件夹, 不再建夹物化)；
+// 词表 = 8 细动作(edit 伞已拆 rename/replace) + create(可建该类型根夹)；均挂 file:acl:manage。
 export function getFolderTypeDefaults() {
   return request.get('/file/folders/type-defaults')
 }
 
-// 保存默认权限 {folderType: 'public'|'private', roleId, perms: []}
+// 保存授权 {folderType: 'public'|'private', subjectType: 'ROLE'|'USER', subjectId, perms: []}
 export function saveFolderTypeDefault(data) {
   return request.post('/file/folders/type-defaults', data)
 }
 
-// 移除某类型某角色的默认权限
-export function removeFolderTypeDefault(folderType, roleId) {
-  return request.delete(`/file/folders/type-defaults/${folderType}/${roleId}`)
+// 移除某类型某主体的授权
+export function removeFolderTypeDefault(folderType, subjectType, subjectId) {
+  return request.delete(`/file/folders/type-defaults/${folderType}/${subjectType}/${subjectId}`)
 }
 
 // 文件覆盖替换（multipart "file"），返回更新后文件（含 version）

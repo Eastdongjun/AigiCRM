@@ -259,9 +259,9 @@ class FileServicePermissionTest {
     }
 
     @Test
-    void createFolder_publicRoot_withTypeDefaultCreateGrant_passesAndMaterializes() {
-        // 【2026-11-09 类型级默认权限】非 admin 但类型默认(public, 本人角色)含 create:
-        // 根级公共建夹放行 + 新夹继承类型默认 ACL(materializeAcl 物化)
+    void createFolder_publicRoot_withTypeDefaultCreateGrant_passes() {
+        // 【2026-11-09 文件权限 v2】非 admin 但类型授权(public×主体)含 create:
+        // 根级公共建夹放行。类型授权改判定层实时生效, 不再建夹物化(materializeAcl 已退役)
         BizFileFolder folder = new BizFileFolder();
         folder.setFolderType("public");
         folder.setParentId(0L);
@@ -273,13 +273,13 @@ class FileServicePermissionTest {
             when(typeDefaultService.canCreateRoot("public")).thenReturn(true);
             svc.createFolder(folder);
             verify(folderMapper).insert(folder);
-            verify(typeDefaultService).materializeAcl(99L, "public");
+            verify(typeDefaultService, never()).canCreateRoot("private");
         }
     }
 
     @Test
-    void createFolder_privateRoot_alsoMaterializesTypeDefaults() {
-        // 【2026-11-09 类型级默认权限】私人根建夹门槛不变(有码即可), 但同样继承类型默认 ACL
+    void createFolder_privateRoot_codeGateOnly() {
+        // 【2026-11-09 文件权限 v2】私人根建夹门槛不变(有码即可), 类型授权同样实时生效不物化
         BizFileFolder folder = new BizFileFolder();
         folder.setFolderType("private");
         folder.setParentId(0L);
@@ -290,7 +290,6 @@ class FileServicePermissionTest {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
             svc.createFolder(folder);
             verify(folderMapper).insert(folder);
-            verify(typeDefaultService).materializeAcl(77L, "private");
         }
     }
 
@@ -303,7 +302,7 @@ class FileServicePermissionTest {
         when(folderMapper.selectById(100L)).thenReturn(folder);
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(2L);
-            when(folderPermissionService.check(100L, FolderPermissionService.P_EDIT, 2L)).thenReturn(false);
+            when(folderPermissionService.check(100L, FolderPermissionService.P_RENAME, 2L)).thenReturn(false);
             BusinessException ex = assertThrows(BusinessException.class, () -> svc.renameFolder(100L, "新名字"));
             assertEquals(403, ex.getCode());
             verify(folderMapper, never()).updateById(any(BizFileFolder.class));
@@ -649,7 +648,7 @@ class FileServicePermissionTest {
         MultipartFile mf = new MockMultipartFile("file", "new.txt", "text/plain", new byte[25]);
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(2L);
-            when(folderPermissionService.checkFile(9L, FolderPermissionService.P_EDIT, 2L)).thenReturn(false);
+            when(folderPermissionService.checkFile(9L, FolderPermissionService.P_REPLACE, 2L)).thenReturn(false);
             BusinessException ex = assertThrows(BusinessException.class, () -> svc.replaceFile(9L, mf));
             assertEquals(403, ex.getCode());
             verify(fileMapper, never()).updateById(any(BizFile.class));
@@ -676,7 +675,7 @@ class FileServicePermissionTest {
         MultipartFile mf = new MockMultipartFile("file", "new.txt", "text/plain", new byte[25]);
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
-            when(folderPermissionService.checkFile(9L, FolderPermissionService.P_EDIT, 1L)).thenReturn(true);
+            when(folderPermissionService.checkFile(9L, FolderPermissionService.P_REPLACE, 1L)).thenReturn(true);
             BizFile result = svc.replaceFile(9L, mf);
             // 版本+1 / replace_by / replaced_at / file_size / oss_key 更新
             assertEquals(2, result.getVersion());
@@ -708,7 +707,7 @@ class FileServicePermissionTest {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
             m.when(SecurityUtils::isAdmin).thenReturn(false);
-            when(folderPermissionService.checkFile(9L, FolderPermissionService.P_EDIT, 1L)).thenReturn(true);
+            when(folderPermissionService.checkFile(9L, FolderPermissionService.P_REPLACE, 1L)).thenReturn(true);
             svc.replaceFile(9L, mf);
             // 替换后同一 fileId 下载返回新内容（走更新后的 ossKey）
             MockHttpServletResponse response = new MockHttpServletResponse();
@@ -722,7 +721,7 @@ class FileServicePermissionTest {
 
     @Test
     void renameFolder_aclGranted_succeeds() {
-        // I-1：ACL 授权角色重命名成功——check(P_EDIT)=true 即放行，
+        // I-1：ACL 授权角色重命名成功——【文件权限 v2】check(P_RENAME)=true 即放行，
         // 不再被遗留 checkFolderManagePermission（"只能管理自己的文件夹"）拦截
         BizFileFolder folder = new BizFileFolder();
         folder.setId(100L);
@@ -732,7 +731,7 @@ class FileServicePermissionTest {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(2L);
             m.when(SecurityUtils::isAdmin).thenReturn(false);
-            when(folderPermissionService.check(100L, FolderPermissionService.P_EDIT, 2L)).thenReturn(true);
+            when(folderPermissionService.check(100L, FolderPermissionService.P_RENAME, 2L)).thenReturn(true);
             svc.renameFolder(100L, "新名字");
             ArgumentCaptor<BizFileFolder> cap = ArgumentCaptor.forClass(BizFileFolder.class);
             verify(folderMapper).updateById(cap.capture());
@@ -820,7 +819,7 @@ class FileServicePermissionTest {
         MultipartFile mf = new MockMultipartFile("file", (String) null, "text/plain", new byte[25]);
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
-            when(folderPermissionService.checkFile(9L, FolderPermissionService.P_EDIT, 1L)).thenReturn(true);
+            when(folderPermissionService.checkFile(9L, FolderPermissionService.P_REPLACE, 1L)).thenReturn(true);
             BizFile result = svc.replaceFile(9L, mf);
             assertNotNull(result.getOssUrl());
             assertTrue(result.getOssUrl().contains(result.getOssKey()), "ossUrl 应指向新 key: " + result.getOssUrl());
@@ -1036,7 +1035,7 @@ class FileServicePermissionTest {
         when(incentiveRecordMapper.selectList(any())).thenReturn(java.util.List.of(evidence));
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
-            when(folderPermissionService.checkFile(9L, FolderPermissionService.P_EDIT, 1L)).thenReturn(true);
+            when(folderPermissionService.checkFile(9L, FolderPermissionService.P_REPLACE, 1L)).thenReturn(true);
             BusinessException ex = assertThrows(BusinessException.class, () -> svc.replaceFile(9L, mf));
             assertTrue(ex.getMessage().contains("激励计分佐证"), "实际: " + ex.getMessage());
             verify(fileMapper, never()).updateById(any(BizFile.class));
@@ -1051,7 +1050,7 @@ class FileServicePermissionTest {
         when(incentiveRecordMapper.selectList(any())).thenReturn(java.util.List.of());
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
-            when(folderPermissionService.checkFile(9L, FolderPermissionService.P_EDIT, 1L)).thenReturn(true);
+            when(folderPermissionService.checkFile(9L, FolderPermissionService.P_REPLACE, 1L)).thenReturn(true);
             // 走到存储写入层(即已通过佐证守卫)即算通过——本地落盘成功后 updateById 必被调用
             svc.replaceFile(9L, mf);
             verify(fileMapper).updateById(any(BizFile.class));
@@ -1300,7 +1299,7 @@ class FileServicePermissionTest {
         try {
             try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
                 m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
-                when(folderPermissionService.checkFile(9L, FolderPermissionService.P_EDIT, 1L)).thenReturn(true);
+                when(folderPermissionService.checkFile(9L, FolderPermissionService.P_REPLACE, 1L)).thenReturn(true);
 
                 BizFile result = svc.replaceFile(9L, mf);
 
@@ -1338,7 +1337,7 @@ class FileServicePermissionTest {
 
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
-            when(folderPermissionService.checkFile(9L, FolderPermissionService.P_EDIT, 1L)).thenReturn(true);
+            when(folderPermissionService.checkFile(9L, FolderPermissionService.P_REPLACE, 1L)).thenReturn(true);
 
             BusinessException ex = assertThrows(BusinessException.class, () -> svc.replaceFile(9L, mf));
             assertTrue(ex.getMessage().contains("文件替换失败"), "实际: " + ex.getMessage());
@@ -1372,7 +1371,7 @@ class FileServicePermissionTest {
 
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
-            when(folderPermissionService.checkFile(9L, FolderPermissionService.P_EDIT, 1L)).thenReturn(true);
+            when(folderPermissionService.checkFile(9L, FolderPermissionService.P_REPLACE, 1L)).thenReturn(true);
 
             // 第一次: 配额失败 → 报错(事务语义下 updateById 一并回滚, 单测以异常传播锁定)
             assertThrows(BusinessException.class, () -> svc.replaceFile(9L, mf));

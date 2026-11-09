@@ -8,7 +8,7 @@
     <div class="pc-chipbar">
       <button class="pc-chip" :class="{ active: activePane === 'scope' }" @click="activePane = 'scope'">功能与范围</button>
       <button class="pc-chip" :class="{ active: activePane === 'special' }" @click="activePane = 'special'">专项权限</button>
-      <button class="pc-chip" :class="{ active: activePane === 'fileSpace' }" @click="activePane = 'fileSpace'">文件空间默认</button>
+      <button class="pc-chip" :class="{ active: activePane === 'fileSpace' }" @click="activePane = 'fileSpace'">文件权限</button>
       <button class="pc-chip" :class="{ active: activePane === 'preview' }" @click="activePane = 'preview'">生效预览</button>
       <button class="pc-chip" :class="{ active: activePane === 'audit' }" @click="activePane = 'audit'">变更审计</button>
     </div>
@@ -53,7 +53,7 @@
         </div>
         <PermGrantDialog />
       </div>
-      <!-- 【2026-11-09 类型级默认权限】公共/个人空间默认权限: 角色×空间×动作, 新建文件夹自动继承 -->
+      <!-- 【2026-11-09 文件权限 v2】公共/私人空间授权: 主体(人|角色)×空间×动作, 实时生效(覆盖存量+未来) -->
       <div v-if="paneVisited.has('fileSpace')" v-show="activePane === 'fileSpace'">
         <FileSpaceDefaults :can-edit="canEdit" />
       </div>

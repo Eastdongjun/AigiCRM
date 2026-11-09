@@ -63,43 +63,45 @@ public class FolderAclController {
         return Result.ok(aclService.listAclRoles());
     }
 
-    // 【2026-11-09 类型级默认权限】文件空间(公共/个人)默认权限三端点: 权限中心「文件空间默认」
-    // 页签读写。词表=逐夹 ACL 6 短名 + create(可建该类型根夹); 新建文件夹自动继承(物化进
-    // biz_folder_acl 可逐夹微调)。与逐夹 ACL 写端点同码 file:acl:manage。
+    // 【2026-11-09 文件权限 v2】文件空间(公共/私人)类型授权三端点: 权限中心「文件权限」页签读写。
+    // 主体 ROLE|USER(V2026.11.09.5): 管理员可点名某人或按角色整批; 授权实时生效(判定层 FolderPermissionService
+    // .typeGranted), 不再建夹物化。词表=8 细动作(edit 伞已拆 rename/replace) + create(可建该类型根夹)。
+    // 与逐夹 ACL 写端点同码 file:acl:manage。
     @PreAuthorize("hasAuthority('file:acl:manage')")
     @GetMapping("/type-defaults")
     public Result<List<Map<String, Object>>> listTypeDefaults() {
         return Result.ok(typeDefaultService.listDefaults());
     }
 
-    /** body: { folderType: "public"|"private", roleId, perms: ["view","upload","edit",...] } */
+    /** body: { folderType: "public"|"private", subjectType: "ROLE"|"USER", subjectId, perms: ["view","rename","replace",...] } */
     @PreAuthorize("hasAuthority('file:acl:manage')")
     @PostMapping("/type-defaults")
     public Result<Void> saveTypeDefault(@RequestBody(required = false) Map<String, Object> body) {
         // 畸形输入(缺项/类型非法)由 service 校验抛 BusinessException, 不冒泡 500(同 saveAcl 口径)
         if (body == null) throw new com.aigicrm.common.BusinessException("参数错误");
-        Object rawRoleId = body.get("roleId");
+        Object rawSubjectId = body.get("subjectId");
         Object rawPerms = body.get("perms");
-        if (rawRoleId == null || !(rawPerms instanceof List)) {
+        if (rawSubjectId == null || !(rawPerms instanceof List)) {
             throw new com.aigicrm.common.BusinessException("参数错误");
         }
-        Long roleId;
+        Long subjectId;
         try {
-            roleId = Long.valueOf(rawRoleId.toString().trim());
+            subjectId = Long.valueOf(rawSubjectId.toString().trim());
         } catch (NumberFormatException e) {
             throw new com.aigicrm.common.BusinessException("参数错误");
         }
         List<String> perms = ((List<?>) rawPerms).stream()
                 .map(String::valueOf).toList();
         String folderType = body.get("folderType") == null ? null : String.valueOf(body.get("folderType"));
-        typeDefaultService.saveDefault(folderType, roleId, perms);
+        String subjectType = body.get("subjectType") == null ? null : String.valueOf(body.get("subjectType"));
+        typeDefaultService.saveDefault(folderType, subjectType, subjectId, perms);
         return Result.ok();
     }
 
     @PreAuthorize("hasAuthority('file:acl:manage')")
-    @DeleteMapping("/type-defaults/{folderType}/{roleId}")
-    public Result<Void> removeTypeDefault(@PathVariable String folderType, @PathVariable Long roleId) {
-        typeDefaultService.removeDefault(folderType, roleId);
+    @DeleteMapping("/type-defaults/{folderType}/{subjectType}/{subjectId}")
+    public Result<Void> removeTypeDefault(@PathVariable String folderType, @PathVariable String subjectType, @PathVariable Long subjectId) {
+        typeDefaultService.removeDefault(folderType, subjectType, subjectId);
         return Result.ok();
     }
 }

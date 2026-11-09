@@ -580,12 +580,14 @@ public class PermissionMatrixTest {
                 "FileService.upload 必须保留文件夹 P_UPLOAD 权限守卫");
         assertTrue(body.contains("folderPermissionService.check(folder.getParentId(), FolderPermissionService.P_UPLOAD"),
                 "FileService.createFolder 必须保留父文件夹 P_UPLOAD 权限守卫");
-        assertTrue(body.contains("folderPermissionService.check(folder.getId(), FolderPermissionService.P_EDIT"),
-                "FileService.renameFolder 必须保留文件夹 P_EDIT 权限守卫");
+        assertTrue(body.contains("folderPermissionService.check(folder.getId(), FolderPermissionService.P_RENAME"),
+                "FileService.renameFolder 必须保留文件夹 P_RENAME 权限守卫(【文件权限 v2】动作细分, 存量 edit 授权由判定层读时展开)");
         assertTrue(body.contains("folderPermissionService.check(folder.getId(), FolderPermissionService.P_DELETE"),
                 "FileService.deleteFolder 必须保留文件夹 P_DELETE 权限守卫");
-        assertTrue(body.contains("folderPermissionService.checkFile(fileId, FolderPermissionService.P_EDIT"),
-                "FileService.replaceFile 必须保留文件 P_EDIT 权限守卫");
+        assertTrue(body.contains("folderPermissionService.checkFile(fileId, FolderPermissionService.P_RENAME"),
+                "FileService.renameFile 必须保留文件 P_RENAME 权限守卫(【文件权限 v2】动作细分)");
+        assertTrue(body.contains("folderPermissionService.checkFile(fileId, FolderPermissionService.P_REPLACE"),
+                "FileService.replaceFile 必须保留文件 P_REPLACE 权限守卫(【文件权限 v2】动作细分)");
         assertTrue(body.contains("folderPermissionService.checkFile(file.getId(), FolderPermissionService.P_DOWNLOAD")
                         || body.contains("folderPermissionService.checkFile(fileId, FolderPermissionService.P_DOWNLOAD"),
                 "FileService 下载链路必须保留文件 P_DOWNLOAD 权限守卫");

@@ -349,8 +349,8 @@ public class FileService {
             folder.setOwnerId(SecurityUtils.getCurrentUserId());
         }
         folderMapper.insert(folder);
-        // 【2026-11-09 类型级默认权限】新夹继承类型默认 ACL(除 create 外物化), 之后可逐夹微调
-        folderTypeDefaultService.materializeAcl(folder.getId(), type);
+        // 【2026-11-09 文件权限 v2】类型授权改为判定链实时生效(typeGranted), 不再建夹时物化进
+        // biz_folder_acl——勾选/取消对该空间全部存量+未来文件夹即时同步(v1 建夹物化机制已退役)。
     }
 
     public void renameFolder(Long folderId, String newName) {
@@ -361,9 +361,8 @@ public class FileService {
         if (folder == null) {
             throw new BusinessException("文件夹不存在");
         }
-        // 【文件权限体系】ACL/上级链/本人 编辑权限（管理员恒通过），
-        // 为操作唯一仲裁（已覆盖 admin>本人>上级链>ACL 优先级且 folder==null 已拒绝）
-        if (!folderPermissionService.check(folder.getId(), FolderPermissionService.P_EDIT, SecurityUtils.getCurrentUserId())) {
+        // 【文件权限 v2】文件夹改名走独立动作 rename(从 edit 伞拆出); 判定链 admin>本人>上级链>ACL>类型授权
+        if (!folderPermissionService.check(folder.getId(), FolderPermissionService.P_RENAME, SecurityUtils.getCurrentUserId())) {
             throw new BusinessException(403, "没有访问权限，请联系管理员授权");
         }
         folder.setFolderName(newName.trim());
@@ -460,7 +459,9 @@ public class FileService {
     /**
      * 【2026-11-06 用户令"加一个可以修改文件名称的"】文件重命名: 只改 file_name 展示名,
      * oss_key/oss_url/file_type/version 不动——物理对象与下载路由零变化。
-     * 权限与 replace 同门: file:edit 码 + 文件夹 edit(checkFile P_EDIT, 管理员/本人/上级链/ACL)。
+     * 【2026-11-09 文件权限 v2】动作细分: 改名走独立动作 rename(全局码仍 file:edit 伞),
+     * 判定链=管理员/本人/上级链/ACL/类型授权(FolderPermissionService.checkFile P_RENAME,
+     * 存量 ACL 的 edit 授权由判定层读时展开, 老授权继续有效)。
      * 校验: 去首尾空格非空、≤200 字符(与 biz_file.file_name 同宽); 不做扩展名强约束
      * (类型字段沿用上传时白名单结果, 改名不重算类型)。
      */
@@ -468,7 +469,7 @@ public class FileService {
         BizFile file = fileMapper.selectById(fileId);
         if (file == null) throw new BusinessException("文件不存在");
         Long userId = SecurityUtils.getCurrentUserId();
-        if (!folderPermissionService.checkFile(fileId, FolderPermissionService.P_EDIT, userId)) {
+        if (!folderPermissionService.checkFile(fileId, FolderPermissionService.P_RENAME, userId)) {
             throw new BusinessException(403, "没有访问权限，请联系管理员授权");
         }
         String name = fileName == null ? "" : fileName.trim();
@@ -502,7 +503,8 @@ public class FileService {
      * 【文件权限体系 Task 6】覆盖替换：新文件先存后删旧（避免先删旧后存储失败导致文件丢失）。
      * 更新 oss_key/oss_url/file_size/file_type/version+1/replace_by/replaced_at；
      * 私人文件按差额调整配额（storageUsed = 原已用 - 旧size + 新size，最小 0）。
-     * 权限：文件夹 edit 权限（管理员/本人/上级链/ACL edit，见 FolderPermissionService.checkFile）。
+     * 【2026-11-09 文件权限 v2】动作细分: 替换走独立动作 replace(从 edit 伞拆出, 全局码仍 file:edit),
+     * 判定链见 FolderPermissionService.checkFile(存量 ACL edit 授权读时展开继续有效)。
      * 【A7 2026-10-20 审计·事务化】旧实现 updateById→删旧文件→调配额三步无事务: 配额调整失败时
      * 接口报"替换失败"但台账已提交、旧文件可能已物理删除, 用户重试会再次覆盖并少扣配额。
      * 现口径: ①方法加 @Transactional, 台账更新与配额差额同事务提交/回滚;
@@ -515,7 +517,7 @@ public class FileService {
         BizFile file = fileMapper.selectById(fileId);
         if (file == null) throw new BusinessException("文件不存在");
         Long userId = SecurityUtils.getCurrentUserId();
-        if (!folderPermissionService.checkFile(fileId, FolderPermissionService.P_EDIT, userId)) {
+        if (!folderPermissionService.checkFile(fileId, FolderPermissionService.P_REPLACE, userId)) {
             throw new BusinessException(403, "没有访问权限，请联系管理员授权");
         }
         // 【决策5 2026-10-18 用户裁决·佐证锁定】激励计分佐证禁替换:佐证文件(安装前三槽/跟踪槽/旧单槽)

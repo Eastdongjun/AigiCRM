@@ -6,9 +6,11 @@ import com.aigicrm.module.file.entity.BizFile;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import com.aigicrm.module.file.entity.BizFileFolder;
 import com.aigicrm.module.file.entity.BizFolderAcl;
+import com.aigicrm.module.file.entity.BizFolderTypeDefault;
 import com.aigicrm.module.file.mapper.BizFileFolderMapper;
 import com.aigicrm.module.file.mapper.BizFileMapper;
 import com.aigicrm.module.file.mapper.BizFolderAclMapper;
+import com.aigicrm.module.file.mapper.BizFolderTypeDefaultMapper;
 import com.aigicrm.module.system.entity.SysDept;
 import com.aigicrm.module.system.entity.SysRole;
 import com.aigicrm.module.system.entity.SysUser;
@@ -39,6 +41,7 @@ class FolderPermissionServiceTest {
         TableInfoHelper.initTableInfo(new MapperBuilderAssistant(cfg, ""), SysRole.class);
         TableInfoHelper.initTableInfo(new MapperBuilderAssistant(cfg, ""), BizFileFolder.class);
         TableInfoHelper.initTableInfo(new MapperBuilderAssistant(cfg, ""), BizFile.class);
+        TableInfoHelper.initTableInfo(new MapperBuilderAssistant(cfg, ""), BizFolderTypeDefault.class);
     }
 
     private final BizFolderAclMapper aclMapper = mock(BizFolderAclMapper.class);
@@ -47,7 +50,8 @@ class FolderPermissionServiceTest {
     private final BizFileFolderMapper folderMapper = mock(BizFileFolderMapper.class);
     private final BizFileMapper fileMapper = mock(BizFileMapper.class);
     private final SysRoleMapper roleMapper = mock(SysRoleMapper.class);
-    private final FolderPermissionService svc = new FolderPermissionService(aclMapper, folderMapper, fileMapper, userMapper, deptMapper, roleMapper);
+    private final BizFolderTypeDefaultMapper typeDefaultMapper = mock(BizFolderTypeDefaultMapper.class);
+    private final FolderPermissionService svc = new FolderPermissionService(aclMapper, folderMapper, fileMapper, userMapper, deptMapper, roleMapper, typeDefaultMapper);
 
     @Test
     void admin_hasAllPermissions() {
@@ -181,10 +185,12 @@ class FolderPermissionServiceTest {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(true);
             List<String> perms = svc.permsFor(100L, 1L);
-            assertEquals(6, perms.size());
+            // 【文件权限 v2】8 细词: 6 伞词表 + rename/replace
+            assertEquals(8, perms.size());
             assertTrue(perms.containsAll(List.of(FolderPermissionService.P_VIEW, FolderPermissionService.P_UPLOAD,
                     FolderPermissionService.P_EDIT, FolderPermissionService.P_DELETE,
-                    FolderPermissionService.P_SHARE, FolderPermissionService.P_DOWNLOAD)));
+                    FolderPermissionService.P_SHARE, FolderPermissionService.P_DOWNLOAD,
+                    FolderPermissionService.P_RENAME, FolderPermissionService.P_REPLACE)));
         }
     }
 
@@ -194,7 +200,7 @@ class FolderPermissionServiceTest {
         when(folderMapper.selectById(100L)).thenReturn(folder);
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
-            assertEquals(6, svc.permsFor(100L, 42L).size());
+            assertEquals(8, svc.permsFor(100L, 42L).size());
         }
     }
 
@@ -273,8 +279,8 @@ class FolderPermissionServiceTest {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
             Map<Long, List<String>> res = svc.permsForBatch(List.of(f1, f2), 42L);
-            assertEquals(6, res.get(100L).size());
-            assertEquals(6, res.get(101L).size());
+            assertEquals(8, res.get(100L).size());
+            assertEquals(8, res.get(101L).size());
             // 同一 owner 只做一次链判断（避免 N+1 的防回归）
             verify(userMapper, atMost(1)).selectById(42L);
         }
@@ -311,6 +317,129 @@ class FolderPermissionServiceTest {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
             assertTrue(svc.permsForBatch(List.of(), 42L).isEmpty());
         }
+    }
+
+    // === 【2026-11-09 文件权限 v2】类型授权层(角色|人 × 空间 × 动作, 实时生效) + 动作细分 ===
+
+    private BizFolderTypeDefault typeRow(String folderType, String subjectType, Long subjectId, String perms) {
+        BizFolderTypeDefault d = new BizFolderTypeDefault();
+        d.setFolderType(folderType);
+        d.setSubjectType(subjectType);
+        d.setSubjectId(subjectId);
+        d.setPerms(perms);
+        return d;
+    }
+
+    @Test
+    void typeGrant_userSubject_grantsActionAcrossSpace() {
+        // USER 行点名 42 → 公共夹上 rename 放行(无夹主/上级/ACL 介入), replace 未授权仍拒
+        BizFileFolder folder = new BizFileFolder(); folder.setId(100L); folder.setOwnerId(99L); folder.setFolderType("public");
+        when(folderMapper.selectById(100L)).thenReturn(folder);
+        when(aclMapper.selectList(any())).thenReturn(List.of());
+        when(typeDefaultMapper.selectList(any())).thenReturn(List.of(typeRow("public", "USER", 42L, "rename")));
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            m.when(SecurityUtils::getCurrentRoleCodes).thenReturn(List.of());
+            assertTrue(svc.check(100L, FolderPermissionService.P_RENAME, 42L), "USER 类型授权含 rename 应放行改名");
+            assertFalse(svc.check(100L, FolderPermissionService.P_REPLACE, 42L), "未授权 replace 应拒绝(动作独立)");
+            assertFalse(svc.check(100L, FolderPermissionService.P_DELETE, 42L), "未授权 delete 应拒绝");
+        }
+    }
+
+    @Test
+    void typeGrant_roleSubject_matchesViaRoleCode() {
+        BizFileFolder folder = new BizFileFolder(); folder.setId(100L); folder.setOwnerId(99L); folder.setFolderType("public");
+        when(folderMapper.selectById(100L)).thenReturn(folder);
+        when(aclMapper.selectList(any())).thenReturn(List.of());
+        when(typeDefaultMapper.selectList(any())).thenReturn(List.of(typeRow("public", "ROLE", 9L, "replace,delete")));
+        SysRole role = new SysRole(); role.setId(9L); role.setRoleCode("05");
+        when(roleMapper.selectById(9L)).thenReturn(role);
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            m.when(SecurityUtils::getCurrentRoleCodes).thenReturn(List.of("05"));
+            assertTrue(svc.check(100L, FolderPermissionService.P_REPLACE, 42L), "ROLE 行按角色码匹配应放行 replace");
+            m.when(SecurityUtils::getCurrentRoleCodes).thenReturn(List.of("06"));
+            assertFalse(svc.check(100L, FolderPermissionService.P_REPLACE, 42L), "角色不匹配不放行");
+        }
+    }
+
+    @Test
+    void typeGrant_privateSpace_appliesBeyondOwnerAndAcl() {
+        // 私人夹: admin 勾某人×私人×view → 该人可看全空间私人夹(高权限动作, 设计允许)
+        BizFileFolder folder = new BizFileFolder(); folder.setId(100L); folder.setOwnerId(99L); folder.setFolderType("private");
+        when(folderMapper.selectById(100L)).thenReturn(folder);
+        when(aclMapper.selectList(any())).thenReturn(List.of());
+        when(typeDefaultMapper.selectList(any())).thenReturn(List.of(typeRow("private", "USER", 42L, "view")));
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            m.when(SecurityUtils::getCurrentRoleCodes).thenReturn(List.of());
+            assertTrue(svc.check(100L, FolderPermissionService.P_VIEW, 42L));
+            assertFalse(svc.check(100L, FolderPermissionService.P_UPLOAD, 42L), "只勾 view 不越权 upload");
+        }
+    }
+
+    @Test
+    void legacyAclEdit_expandsToRenameAndReplace() {
+        // 存量 ACL 'edit' 伞: v2 拆词后改名/替换都必须继续放行(读时展开, 数据不回填)
+        BizFileFolder folder = new BizFileFolder(); folder.setId(100L); folder.setOwnerId(99L); folder.setFolderType("public");
+        BizFolderAcl acl = new BizFolderAcl();
+        acl.setFolderId(100L); acl.setRoleId(3L); acl.setPerms("edit");
+        SysRole role = new SysRole(); role.setId(3L); role.setRoleCode("sales");
+        when(folderMapper.selectById(100L)).thenReturn(folder);
+        when(aclMapper.selectList(any())).thenReturn(List.of(acl));
+        when(roleMapper.selectById(3L)).thenReturn(role);
+        when(typeDefaultMapper.selectList(any())).thenReturn(List.of());
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            m.when(SecurityUtils::getCurrentRoleCodes).thenReturn(List.of("sales"));
+            assertTrue(svc.check(100L, FolderPermissionService.P_RENAME, 42L), "存量 edit 授权须继续覆盖改名");
+            assertTrue(svc.check(100L, FolderPermissionService.P_REPLACE, 42L), "存量 edit 授权须继续覆盖替换");
+        }
+    }
+
+    @Test
+    void permsFor_typeGrant_emitsBothVocabularies() {
+        // 类型授权 rename(细词) → permsFor 输出补发 edit 伞词: MP includes('edit') 的改名按钮零改动兼容
+        BizFileFolder folder = new BizFileFolder(); folder.setId(100L); folder.setOwnerId(99L); folder.setFolderType("public");
+        when(folderMapper.selectById(100L)).thenReturn(folder);
+        when(aclMapper.selectList(any())).thenReturn(List.of());
+        when(typeDefaultMapper.selectList(any())).thenReturn(List.of(typeRow("public", "USER", 42L, "rename")));
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            m.when(SecurityUtils::getCurrentRoleCodes).thenReturn(List.of());
+            List<String> perms = svc.permsFor(100L, 42L);
+            assertTrue(perms.containsAll(List.of("rename", "edit", "view", "download")),
+                    "细词 rename + 兼容伞词 edit + 公共兜底 view/download 都须在: " + perms);
+        }
+    }
+
+    @Test
+    void permsForBatch_typeGrantCachedOncePerType() {
+        // 同空间多夹: 类型授权只解析一次(防 N+1 回归)
+        BizFileFolder f1 = new BizFileFolder(); f1.setId(100L); f1.setOwnerId(99L); f1.setFolderType("public");
+        BizFileFolder f2 = new BizFileFolder(); f2.setId(101L); f2.setOwnerId(98L); f2.setFolderType("public");
+        when(aclMapper.selectList(any())).thenReturn(List.of());
+        when(typeDefaultMapper.selectList(any())).thenReturn(List.of(typeRow("public", "USER", 42L, "upload")));
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            m.when(SecurityUtils::getCurrentRoleCodes).thenReturn(List.of());
+            Map<Long, List<String>> res = svc.permsForBatch(List.of(f1, f2), 42L);
+            assertTrue(res.get(100L).contains("upload"));
+            assertTrue(res.get(101L).contains("upload"));
+            verify(typeDefaultMapper, atMost(1)).selectList(any());
+        }
+    }
+
+    @Test
+    void csvHas_editUmbrellaSemantics() {
+        // 词表展开口径: edit⇒rename|replace 均真; 反向 rename/replace 命中 edit; 其他动作精确匹配
+        assertTrue(FolderPermissionService.csvHas("edit", FolderPermissionService.P_RENAME));
+        assertTrue(FolderPermissionService.csvHas("edit", FolderPermissionService.P_REPLACE));
+        assertTrue(FolderPermissionService.csvHas("rename", FolderPermissionService.P_EDIT));
+        assertTrue(FolderPermissionService.csvHas("replace", FolderPermissionService.P_EDIT));
+        assertFalse(FolderPermissionService.csvHas("rename", FolderPermissionService.P_REPLACE));
+        assertFalse(FolderPermissionService.csvHas("view,download", FolderPermissionService.P_UPLOAD));
+        assertTrue(FolderPermissionService.csvHas("view,download", FolderPermissionService.P_DOWNLOAD));
     }
 
 }
