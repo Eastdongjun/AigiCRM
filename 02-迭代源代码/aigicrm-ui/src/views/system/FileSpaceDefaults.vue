@@ -1,23 +1,22 @@
 <template>
-  <!-- 【2026-11-09 文件权限 v2】文件权限: 管理员按 主体(某个人|角色) × 空间(公共/私人) × 动作 勾选授权,
+  <!-- 【2026-11-09 文件权限 v2 + 骨架重构】文件空间授权: 主体(某个人|角色) × 空间(公共/私人) × 动作,
        保存即实时生效(判定层 typeGranted, 覆盖该空间全部存量+未来文件夹, 取消勾选立即收回);
-       四项激励文件跟随激励记录授权(专项权限页签), 此处不配置。词表=8 细动作(edit 已拆改名/替换) + create。 -->
+       四项激励文件跟随激励记录授权(本页签激励子域), 此处不配置。
+       【骨架重构】随专项页签「文件权限」子域挂载: 顶部工具条(主体切换)+两空间区块+激励指引,
+       样式自持(fsd-sec*), 不再借用父组件 scoped 的 pc-sec*(跨作用域实际不生效的暗病)。 -->
   <div class="fsd">
-    <div class="pc-sec" style="margin-top:20px">
-      <div class="pc-sec-head">
-        <span class="pc-sec-title">文件权限</span>
-        <span class="pc-sec-hint">某个人或角色 × 公共/私人空间 × 动作，保存立即生效（覆盖该空间全部文件夹，取消即收回）</span>
-        <el-radio-group v-model="subjectType" size="small" style="margin-left:auto">
-          <el-radio-button value="ROLE">按角色</el-radio-button>
-          <el-radio-button value="USER">按人员</el-radio-button>
-        </el-radio-group>
-      </div>
+    <div class="fsd-toolbar">
+      <span class="fsd-tb-hint">勾选即对该空间全部文件夹生效（含存量与今后新建），取消勾选立即收回</span>
+      <el-radio-group v-model="subjectType" size="small">
+        <el-radio-button value="ROLE">按角色</el-radio-button>
+        <el-radio-button value="USER">按人员</el-radio-button>
+      </el-radio-group>
     </div>
 
-    <div v-for="t in TYPES" :key="t.value" class="pc-sec" style="margin-top:16px">
-      <div class="pc-sec-head">
-        <span class="pc-sec-title">{{ t.label }}</span>
-        <span class="pc-sec-hint">{{ t.hint }}</span>
+    <div v-for="t in TYPES" :key="t.value" class="fsd-sec">
+      <div class="fsd-sec-head">
+        <span class="fsd-sec-title">{{ t.label }}</span>
+        <span class="fsd-sec-hint">{{ t.hint }}</span>
       </div>
       <el-table :data="rowsOf(t.value)" size="small" style="width:100%">
         <el-table-column label="主体" min-width="170">
@@ -63,13 +62,13 @@
       </div>
     </div>
 
-    <div class="pc-sec" style="margin-top:16px">
-      <div class="pc-sec-head">
-        <span class="pc-sec-title">四项激励文件</span>
-        <span class="pc-sec-hint">跟随激励记录授权——能看记录即能看文件，能编辑记录即能改名/替换/删附件</span>
+    <div class="fsd-sec">
+      <div class="fsd-sec-head">
+        <span class="fsd-sec-title">四项激励文件</span>
+        <span class="fsd-sec-hint">跟随激励记录授权——能看记录即能看文件，能编辑记录即能改名/替换/删附件</span>
       </div>
       <el-alert type="info" :closable="false" show-icon
-                title="四项激励的文件是业务记录附件，权限由本页签上方「激励专项授权」管理（查看分享 / 查看全部 / 编辑 / 删除），此处不可配置。" />
+                title="四项激励的文件是业务记录附件，权限由本页签「激励授权」子域管理（查看分享 / 查看全部 / 编辑 / 删除），此处不可配置。" />
     </div>
   </div>
 </template>
@@ -84,7 +83,7 @@ import { getUserList } from '@/api/system'
 defineProps({ canEdit: { type: Boolean, default: false } })
 
 const TYPES = [
-  { value: 'public', label: '公共空间（公司文件）', hint: '勾选即对该空间全部公共文件夹生效（含存量与今后新建）；「新建文件夹」=可建根级公共文件夹（否则仅管理员）' },
+  { value: 'public', label: '公共空间（公司文件）', hint: '「新建文件夹」=可建根级公共文件夹（否则仅管理员）' },
   { value: 'private', label: '个人空间', hint: '作用于全员私人文件夹；夹主本人与其上级链天然全权；建私人夹门槛不变：持有文件夹管理权限即可' }
 ]
 const PERM_OPTIONS = [
@@ -157,6 +156,13 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+/* 区块骨架自持(同权限中心 pc-sec 语言, 不跨作用域借样式) */
+.fsd-sec + .fsd-sec { margin-top: 16px; }
+.fsd-sec-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; font-size: 14px; color: #1f2d3d; margin-bottom: 10px; }
+.fsd-sec-title { font-weight: 600; white-space: nowrap; flex-shrink: 0; }
+.fsd-sec-hint { font-size: 12px; font-weight: 400; color: var(--el-color-info); }
+.fsd-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 12px; margin-bottom: 14px; }
+.fsd-tb-hint { font-size: 12px; color: var(--el-color-info); }
 .fsd-pill { margin: 0 4px 4px 0; }
 .fsd-form { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 12px; padding: 10px 12px; background: #f7f8fa; border-radius: 8px; }
 .fsd-perms { display: flex; flex-wrap: wrap; gap: 0 8px; }

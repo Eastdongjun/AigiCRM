@@ -64,19 +64,30 @@ describe('权限中心(2026-11-03 门面统一)', () => {
     expect(text).toContain('唯一配置入口')
   })
 
-  it('【2026-11-09 页签合并】文件权限在专项权限页签内, 无独立文件权限页签', async () => {
+  it('【2026-11-09 页签合并+骨架重构】文件权限为专项权限页签内子域, 无独立文件权限页签', async () => {
     const wrapper = mountCenter()
     const chips = wrapper.findAll('.pc-chip').map(w => w.text())
     expect(chips).toEqual(['功能与范围', '专项权限', '生效预览', '变更审计'])
     expect(chips.filter(t => t.includes('文件权限'))).toHaveLength(0) // 独立页签不得复活
-    // 激活专项权限 → 文件权限区块(公共空间授权)随面板挂载
+    // 激活专项权限 → 二级分段三枚齐备, 默认子域=激励授权
     const tab = wrapper.findAll('.pc-chip').find(w => w.text().includes('专项权限'))
     await tab.trigger('click')
     await flushPromises()
+    const subs = wrapper.findAll('.pc-subchip').map(w => w.text())
+    expect(subs).toEqual(['激励授权', '公海池', '文件权限'])
+    expect(wrapper.text()).toContain('激励专项授权')
+    // 切到文件权限子域 → 空间授权矩阵挂载
+    const sub = wrapper.findAll('.pc-subchip').find(w => w.text().includes('文件权限'))
+    await sub.trigger('click')
+    await flushPromises()
     const text = wrapper.text()
-    expect(text).toContain('文件权限')
     expect(text).toContain('公共空间（公司文件）')
     expect(text).toContain('四项激励文件')
+    // 公海池子域懒挂载
+    const seaSub = wrapper.findAll('.pc-subchip').find(w => w.text().includes('公海池'))
+    await seaSub.trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('公海池名单')
   })
 
   it('生效预览: 选人后渲染引擎算出的范围表/公海判定/激励开关', async () => {

@@ -33,11 +33,14 @@ grep -Fq "/system/perm-center" "$MIG/V2026.11.03.2__perm_center_menu.sql" || fai
 [ -f "$UI/views/system/PermCenter.vue" ] || fail 'PermCenter.vue must exist'
 grep -Fq "PermScopeManager" "$UI/views/system/PermCenter.vue" || fail 'PermCenter tab-1 must embed PermScopeManager'
 grep -Fq "SeaConfigManager" "$UI/views/system/PermCenter.vue" || fail 'PermCenter tab-2 must embed SeaConfigManager'
-# 【2026-11-09 页签合并(用户令)】文件权限并入专项权限大页签: FileSpaceDefaults 须随 special 面板嵌入,
-# 且不得再有独立「文件权限」页签(防复活)。
+# 【2026-11-09 页签合并+骨架重构(用户令)】文件权限并入专项权限大页签且以二级子域呈现:
+# FileSpaceDefaults 须随 special 面板嵌入; 骨架=二级分段(pc-subchip/specialSection 懒挂载);
+# 顶级不得再有独立文件权限页签(防复活——钉 pane 键而非按钮字面量, 子分段按钮文本本就含「文件权限」)。
 grep -Fq "FileSpaceDefaults" "$UI/views/system/PermCenter.vue" || fail 'PermCenter special pane must embed FileSpaceDefaults (2026-11-09 页签合并)'
-if grep -Fq ">文件权限</button>" "$UI/views/system/PermCenter.vue"; then
-  fail '文件权限已并入专项权限页签, 独立文件权限页签不得复活'
+grep -Fq "specialSection" "$UI/views/system/PermCenter.vue" || fail 'PermCenter special pane must use secondary sections (2026-11-09 骨架重构)'
+grep -Fq "pc-subchip" "$UI/views/system/PermCenter.vue" || fail 'PermCenter special pane must carry pc-subchip segmented control'
+if grep -Fq "activePane = 'fileSpace'" "$UI/views/system/PermCenter.vue"; then
+  fail '文件权限已并入专项权限页签二级子域, 顶级独立文件权限页签键不得复活'
 fi
 grep -Fq "activeTab.value = 'permCenter'" "$UI/views/system/role.vue" || fail 'role.vue jump must land on 系统设置 permCenter tab'
 # 日志管理同款收敛(2026-11-05 用户令"日志管理也放到系统设置里面"): 页签按注册码 system:log:view 显隐
