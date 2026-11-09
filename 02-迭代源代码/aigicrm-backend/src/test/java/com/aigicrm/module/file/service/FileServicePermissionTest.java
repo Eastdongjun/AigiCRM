@@ -57,8 +57,10 @@ class FileServicePermissionTest {
     private final OssConfig ossConfig = mock(OssConfig.class);
     private final FolderPermissionService folderPermissionService = mock(FolderPermissionService.class);
     private final BizFolderAclMapper folderAclMapper = mock(BizFolderAclMapper.class);
+    private final FolderTypeDefaultService typeDefaultService = mock(FolderTypeDefaultService.class);
     private final FileService svc = new FileService(fileMapper, folderMapper, fileShareMapper, folderAclMapper,
             incentiveRecordMapper, userMapper, providerOf(ossClient), ossConfig, folderPermissionService,
+            typeDefaultService, // 2026-11-09 类型级默认权限新增依赖(建夹门槛+新夹继承)
             mock(org.springframework.jdbc.core.JdbcTemplate.class)); // 2026-10-27 shareFile 集团边界校验新增依赖
 
     private java.nio.file.Path thumbCacheDir;
@@ -243,6 +245,7 @@ class FileServicePermissionTest {
     @Test
     void createFolder_rootParentIdZero_public_nonAdmin_keepsAdminGate() {
         // 【体检 H3 2026-10-12】归一化不放宽根级公共夹管理员门槛(与 parentId=null 同规则)
+        // 【2026-11-09 类型级默认权限】mock 的 canCreateRoot 默认 false=零配置, 门槛不变
         BizFileFolder folder = new BizFileFolder();
         folder.setFolderType("public");
         folder.setParentId(0L);
@@ -252,6 +255,42 @@ class FileServicePermissionTest {
             BusinessException ex = assertThrows(BusinessException.class, () -> svc.createFolder(folder));
             assertEquals("公共文件夹只有管理员才能创建", ex.getMessage());
             verify(folderMapper, never()).insert(any(BizFileFolder.class));
+        }
+    }
+
+    @Test
+    void createFolder_publicRoot_withTypeDefaultCreateGrant_passesAndMaterializes() {
+        // 【2026-11-09 类型级默认权限】非 admin 但类型默认(public, 本人角色)含 create:
+        // 根级公共建夹放行 + 新夹继承类型默认 ACL(materializeAcl 物化)
+        BizFileFolder folder = new BizFileFolder();
+        folder.setFolderType("public");
+        folder.setParentId(0L);
+        doAnswer(inv -> { inv.getArgument(0, BizFileFolder.class).setId(99L); return 1; })
+                .when(folderMapper).insert(any(BizFileFolder.class));
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::getCurrentUserId).thenReturn(2L);
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            when(typeDefaultService.canCreateRoot("public")).thenReturn(true);
+            svc.createFolder(folder);
+            verify(folderMapper).insert(folder);
+            verify(typeDefaultService).materializeAcl(99L, "public");
+        }
+    }
+
+    @Test
+    void createFolder_privateRoot_alsoMaterializesTypeDefaults() {
+        // 【2026-11-09 类型级默认权限】私人根建夹门槛不变(有码即可), 但同样继承类型默认 ACL
+        BizFileFolder folder = new BizFileFolder();
+        folder.setFolderType("private");
+        folder.setParentId(0L);
+        doAnswer(inv -> { inv.getArgument(0, BizFileFolder.class).setId(77L); return 1; })
+                .when(folderMapper).insert(any(BizFileFolder.class));
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::getCurrentUserId).thenReturn(2L);
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            svc.createFolder(folder);
+            verify(folderMapper).insert(folder);
+            verify(typeDefaultService).materializeAcl(77L, "private");
         }
     }
 

@@ -78,6 +78,23 @@ export function getFolderPermissions(id) {
   return request.get(`/file/folders/${id}/permissions`)
 }
 
+// 【2026-11-09 类型级默认权限】文件空间(公共/个人)默认权限——权限中心「文件空间默认」页签
+// 读写；词表 = 逐夹 ACL 6 短名 + create(可建该类型根夹)。新建文件夹自动继承(后端物化进
+// biz_folder_acl 可逐夹微调)；均挂 file:acl:manage。
+export function getFolderTypeDefaults() {
+  return request.get('/file/folders/type-defaults')
+}
+
+// 保存默认权限 {folderType: 'public'|'private', roleId, perms: []}
+export function saveFolderTypeDefault(data) {
+  return request.post('/file/folders/type-defaults', data)
+}
+
+// 移除某类型某角色的默认权限
+export function removeFolderTypeDefault(folderType, roleId) {
+  return request.delete(`/file/folders/type-defaults/${folderType}/${roleId}`)
+}
+
 // 文件覆盖替换（multipart "file"），返回更新后文件（含 version）
 export function replaceFile(id, formData) {
   return request.post(`/file/${id}/replace`, formData, { headers: { 'Content-Type': 'multipart/form-data' } })

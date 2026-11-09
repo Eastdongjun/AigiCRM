@@ -8,6 +8,7 @@
     <div class="pc-chipbar">
       <button class="pc-chip" :class="{ active: activePane === 'scope' }" @click="activePane = 'scope'">功能与范围</button>
       <button class="pc-chip" :class="{ active: activePane === 'special' }" @click="activePane = 'special'">专项权限</button>
+      <button class="pc-chip" :class="{ active: activePane === 'fileSpace' }" @click="activePane = 'fileSpace'">文件空间默认</button>
       <button class="pc-chip" :class="{ active: activePane === 'preview' }" @click="activePane = 'preview'">生效预览</button>
       <button class="pc-chip" :class="{ active: activePane === 'audit' }" @click="activePane = 'audit'">变更审计</button>
     </div>
@@ -51,6 +52,10 @@
           <el-empty v-if="!permList.length" description="暂无授权人员，点击「添加授权」配置" :image-size="64" />
         </div>
         <PermGrantDialog />
+      </div>
+      <!-- 【2026-11-09 类型级默认权限】公共/个人空间默认权限: 角色×空间×动作, 新建文件夹自动继承 -->
+      <div v-if="paneVisited.has('fileSpace')" v-show="activePane === 'fileSpace'">
+        <FileSpaceDefaults :can-edit="canEdit" />
       </div>
       <div v-if="paneVisited.has('preview')" v-show="activePane === 'preview'">
 
@@ -139,6 +144,7 @@ import { ref, reactive, computed, onMounted, watch } from 'vue'
 import PermScopeManager from './PermScopeManager.vue'
 import SeaConfigManager from './SeaConfigManager.vue'
 import PermGrantDialog from './PermGrantDialog.vue'
+import FileSpaceDefaults from './FileSpaceDefaults.vue'
 import { usePermissionData } from '@/composables/usePermissionData'
 import { useUserStore } from '@/store/user'
 import { getUserList, getPermCenterPreview, getRuleVersions } from '@/api/system'

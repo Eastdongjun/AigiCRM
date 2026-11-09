@@ -76,6 +76,8 @@ public class FileService {
     private final ObjectProvider<OSS> ossClientProvider;
     private final OssConfig ossConfig;
     private final FolderPermissionService folderPermissionService;
+    // 【2026-11-09 类型级默认权限】建夹门槛(公共根=admin∨类型默认create)+新夹继承默认ACL
+    private final FolderTypeDefaultService folderTypeDefaultService;
     // 【2026-10-27 深度检查修复】shareFile 集团边界校验需要(同 CustomerService.addShares 范式)
     private final JdbcTemplate jdbc;
 
@@ -336,13 +338,19 @@ public class FileService {
                 && !folderPermissionService.check(folder.getParentId(), FolderPermissionService.P_UPLOAD, SecurityUtils.getCurrentUserId())) {
             throw new BusinessException(403, "没有访问权限，请联系管理员授权");
         }
-        if ("public".equals(type) && folder.getParentId() == null && !SecurityUtils.isAdmin()) {
+        // 【2026-11-09 类型级默认权限】根级公共建夹门槛: admin ∨ 类型默认(public, 本人角色)含 create。
+        // 零配置(默认表空)时保持原行为"仅管理员"; 私人根维持"有 file:folder:manage 码即可建"。
+        if ("public".equals(type) && folder.getParentId() == null
+                && !SecurityUtils.isAdmin()
+                && !folderTypeDefaultService.canCreateRoot("public")) {
             throw new BusinessException("公共文件夹只有管理员才能创建");
         }
         if ("private".equals(type)) {
             folder.setOwnerId(SecurityUtils.getCurrentUserId());
         }
         folderMapper.insert(folder);
+        // 【2026-11-09 类型级默认权限】新夹继承类型默认 ACL(除 create 外物化), 之后可逐夹微调
+        folderTypeDefaultService.materializeAcl(folder.getId(), type);
     }
 
     public void renameFolder(Long folderId, String newName) {

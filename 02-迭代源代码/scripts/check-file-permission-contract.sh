@@ -47,4 +47,28 @@ for pair in \
   grep -B1 -F "$mapping" "$CONTROLLER" | grep -Fq "hasAuthority('$permission')" \
     || fail "controller mapping mismatch for $mapping -> $permission"
 done
+
+# ---- 【2026-11-09 类型级默认权限 + ACL 词表归一】 ----------------------------------
+# ① 新表迁移存在; ② 类型默认三端点(FileController 同包 FolderAclController)挂 file:acl:manage;
+# ③ FileService 根级公共建夹门槛= admin ∨ canCreateRoot; 新夹继承=materializeAcl;
+# ④ ACL 词表归一迁移存在(旧长词表 file:upload 等在判定/写入两端口径下全部失效, 归一后生效)。
+ACL_CONTROLLER="$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FolderAclController.java"
+FILE_SERVICE="$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/file/service/FileService.java"
+TYPE_DEFAULT_SERVICE="$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/file/service/FolderTypeDefaultService.java"
+TYPE_DEFAULT_MIGRATION="$ROOT/aigicrm-backend/src/main/resources/db/migration/V2026.11.09.3__folder_type_default.sql"
+ACL_NORMALIZE_MIGRATION="$ROOT/aigicrm-backend/src/main/resources/db/migration/V2026.11.09.2__normalize_folder_acl_perms.sql"
+[ -f "$TYPE_DEFAULT_MIGRATION" ] || fail "missing folder_type_default migration"
+[ -f "$ACL_NORMALIZE_MIGRATION" ] || fail "missing acl perms normalize migration"
+for mapping in "@GetMapping(\"/type-defaults\")" "@PostMapping(\"/type-defaults\")" "@DeleteMapping(\"/type-defaults/{folderType}/{roleId}\")"; do
+  grep -B1 -F "$mapping" "$ACL_CONTROLLER" | grep -Fq "hasAuthority('file:acl:manage')" \
+    || fail "type-defaults endpoint guard mismatch: $mapping"
+done
+grep -Fq 'folderTypeDefaultService.canCreateRoot("public")' "$FILE_SERVICE" \
+  || fail 'createFolder public-root gate must consult FolderTypeDefaultService.canCreateRoot'
+grep -Fq 'folderTypeDefaultService.materializeAcl(folder.getId(), type)' "$FILE_SERVICE" \
+  || fail 'createFolder must materialize type-default ACL into new folder'
+grep -Fq 'perms.remove(P_CREATE)' "$TYPE_DEFAULT_SERVICE" \
+  || fail 'materializeAcl must strip create token before writing per-folder ACL'
+grep -Fq "'file:upload', 'upload'" "$ACL_NORMALIZE_MIGRATION" \
+  || fail 'normalize migration must map file:upload -> upload'
 echo 'PASS: file mutation permission contract is aligned.'

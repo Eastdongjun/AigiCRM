@@ -1,10 +1,10 @@
 # AIGICRM API 清单(自动生成)
 
-> 生成时间: 2026-11-08 | 来源: 后端 controller 源码扫描
+> 生成时间: 2026-11-09 | 来源: 后端 controller 源码扫描
 > 本文件由 scripts/gen-api.py 自动生成,**禁止手改**;接口变更后重新运行。
 > 权限码与 docs/permission/permission-dict.md 对应。
 
-## 接口清单(227 个)
+## 接口清单(230 个)
 
 | 方法 | 路径 | 权限码 | 方法名 | 文件 |
 |---|---|---|---|---|
@@ -79,6 +79,9 @@
 | GET | `/api/file/folders` | `hasAuthority('file:view')` | getFolderTree | FileController.java |
 | POST | `/api/file/folders` | `hasAuthority('file:folder:manage')` | createFolder | FileController.java |
 | GET | `/api/file/folders/acl-roles` | `hasAuthority('file:acl:manage')` | aclRoles | FolderAclController.java |
+| GET | `/api/file/folders/type-defaults` | `hasAuthority('file:acl:manage')` | listTypeDefaults | FolderAclController.java |
+| POST | `/api/file/folders/type-defaults` | `hasAuthority('file:acl:manage')` | saveTypeDefault | FolderAclController.java |
+| DELETE | `/api/file/folders/type-defaults/{folderType}/{roleId}` | `hasAuthority('file:acl:manage')` | removeTypeDefault | FolderAclController.java |
 | DELETE | `/api/file/folders/{id}` | `hasAuthority('file:folder:manage')` | deleteFolder | FileController.java |
 | PUT | `/api/file/folders/{id}` | `hasAuthority('file:folder:manage')` | renameFolder | FileController.java |
 | GET | `/api/file/folders/{id}/acl` | `hasAuthority('file:acl:manage')` | listAcl | FolderAclController.java |
@@ -220,7 +223,7 @@
 | POST | `/api/system/rules` | `hasAuthority('system:rule:add')` | create | SysPermissionRuleController.java |
 | DELETE | `/api/system/rules/{id}` | `hasAuthority('system:rule:delete')` | delete | SysPermissionRuleController.java |
 | PUT | `/api/system/rules/{id}` | `hasAuthority('system:rule:edit')` | update | SysPermissionRuleController.java |
-| POST | `/api/system/task/check-expire` | `admin(方法内isAdmin守卫,运维直调入口)` | checkExpire | ScheduledTaskController.java |
+| POST | `/api/system/task/check-expire` | `登录即可` | checkExpire | ScheduledTaskController.java |
 | GET | `/api/system/users` | `hasAnyAuthority('system:user:view','system:org:admin')` | page | SysUserController.java |
 | POST | `/api/system/users` | `hasAnyAuthority('system:user:add','system:org:admin')` | create | SysUserController.java |
 | POST | `/api/system/users/change-password` | `登录即可` | changePassword | SysUserController.java |

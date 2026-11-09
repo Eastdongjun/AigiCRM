@@ -5,26 +5,26 @@ Generated from local source: `02-迭代源代码`
 ## Summary
 
 - PC routes: 35
-- PC API functions: 208
-- Mini Program pages: 43
-- Mini Program API functions: 105
-- Backend endpoints: 234
-- PC UI actions: 261
-- Mini Program UI actions: 259
-- Backend permission tokens: 70
+- PC API functions: 205
+- Mini Program pages: 42
+- Mini Program API functions: 108
+- Backend endpoints: 230
+- PC UI actions: 263
+- Mini Program UI actions: 250
+- Backend permission tokens: 69
 - Permission dictionary tokens: 81
 - Runtime permission dictionary tokens: 73
 - Compatibility/deprecated dictionary tokens: 8
-- Local migration permission tokens: 47
+- Local migration permission tokens: 48
 - Backend permissions missing in dictionary or local migrations: 0
-- Runtime dictionary permissions not directly seen in backend annotations: 5
+- Runtime dictionary permissions not directly seen in backend annotations: 6
 - Runtime dictionary permissions referenced outside backend annotations: 3
-- Runtime dictionary permissions not seen in backend annotations or code references: 2
+- Runtime dictionary permissions not seen in backend annotations or code references: 3
 - UI permission tokens missing in backend, dictionary, and local migrations: 0
-- Frontend code permission tokens: 58
+- Frontend code permission tokens: 59
 - Frontend code permission tokens missing in known sources: 0
 - PC API wrappers without backend endpoint match: 0
-- Mini Program API wrappers without backend endpoint match: 0
+- Mini Program API wrappers without backend endpoint match: 4
 
 ## PC Routes
 
@@ -93,7 +93,6 @@ Generated from local source: `02-迭代源代码`
 | `pages/incentive/home/index` |
 | `pages/incentive/upload/index` |
 | `pages/incentive/detail/index` |
-| `pages/incentive/customer-detail/index` |
 | `pages/ranking/index` |
 | `pages/ranking/detail/index` |
 | `pages/statistics/index` |
@@ -187,8 +186,8 @@ Generated from local source: `02-迭代源代码`
 | 确认分享 | `handleAddShare` | `` | `aigicrm-ui/src/views/customer/detail.vue:157` |
 | 重试 | `loadAll` | `` | `aigicrm-ui/src/views/customer/detail.vue:167` |
 | (icon/button) | `goBack` | `` | `aigicrm-ui/src/views/customer/detail.vue:168` |
-| 通过 | `doApprove(item.id)` | `` | `aigicrm-ui/src/views/dashboard/index.vue:230` |
-| 驳回 | `doReject(item.id)` | `` | `aigicrm-ui/src/views/dashboard/index.vue:231` |
+| 通过 | `doApprove(item.id)` | `canApprove` | `aigicrm-ui/src/views/dashboard/index.vue:231` |
+| 驳回 | `doReject(item.id)` | `canReject` | `aigicrm-ui/src/views/dashboard/index.vue:232` |
 | 返回登录 | `goLogin` | `` | `aigicrm-ui/src/views/error/403.vue:7` |
 | 返回工作台 | `goHome` | `` | `aigicrm-ui/src/views/error/NotFound.vue:9` |
 | 返回上一页 | `goBack` | `` | `aigicrm-ui/src/views/error/NotFound.vue:10` |
@@ -206,11 +205,11 @@ Generated from local source: `02-迭代源代码`
 | 开始上传{{ pendingFiles.length ? `（${pendingFiles.length} 个）` : '' }} | `startUploads` | `` | `aigicrm-ui/src/views/file/UploadDialog.vue:23` |
 | 申请扩容 | `openStorageApply` | `` | `aigicrm-ui/src/views/file/index.vue:26` |
 | 新建文件夹 | `openCreateFolder` | `canCreateFolder` | `aigicrm-ui/src/views/file/index.vue:37` |
-| 上传文件 | `openUpload` | `` | `aigicrm-ui/src/views/file/index.vue:38` |
+| 上传文件 | `openUpload` | `` | `aigicrm-ui/src/views/file/index.vue:48` |
 | 导出 | `exportPersonRank` | `userStore.hasPermission('incentive:person-rank:export')` | `aigicrm-ui/src/views/incentive/PersonRankTableView.vue:9` |
 | 导出 | `exportRank()` | `userStore.hasPermission('incentive:rank:export')` | `aigicrm-ui/src/views/incentive/RankTableView.vue:11` |
-| 追加 | `startReplace(row)` | `` | `aigicrm-ui/src/views/incentive/RecordTable.vue:57` |
-| 删除 | `handleDeleteRecord(row)` | `` | `aigicrm-ui/src/views/incentive/RecordTable.vue:58` |
+| 追加 | `startReplace(row)` | `` | `aigicrm-ui/src/views/incentive/RecordTable.vue:68` |
+| 删除 | `handleDeleteRecord(row)` | `` | `aigicrm-ui/src/views/incentive/RecordTable.vue:69` |
 | 清除 | `detailKeyword=''` | `` | `aigicrm-ui/src/views/incentive/SearchDetailDialog.vue:51` |
 | (icon/button) | `preview(f.id, f.type, f.label, previewableOf(r))` | `` | `aigicrm-ui/src/views/incentive/SearchDetailDialog.vue:124` |
 | (icon/button) | `downloadFile(f.id, f.label)` | `` | `aigicrm-ui/src/views/incentive/SearchDetailDialog.vue:125` |
@@ -242,13 +241,13 @@ Generated from local source: `02-迭代源代码`
 | 查看客户完整档案 › | `goCustomer` | `` | `aigicrm-ui/src/views/reminder/detail.vue:52` |
 | 标记已处理 | `markProcessed` | `` | `aigicrm-ui/src/views/reminder/detail.vue:73` |
 | 返回列表 | `goBack` | `` | `aigicrm-ui/src/views/reminder/detail.vue:79` |
-| 一键清空 | `handleClearAll` | `` | `aigicrm-ui/src/views/reminder/index.vue:28` |
-| 详情 | `openDetail(row)` | `` | `aigicrm-ui/src/views/reminder/index.vue:70` |
-| 已处理 | `handleProcessShare(row)` | `` | `aigicrm-ui/src/views/reminder/index.vue:73` |
-| 已处理 | `handleProcessShare(row)` | `` | `aigicrm-ui/src/views/reminder/index.vue:76` |
-| 已跟进 | `handleFollowUp(row)` | `` | `aigicrm-ui/src/views/reminder/index.vue:79` |
-| 已跟进 | `` | `` | `aigicrm-ui/src/views/reminder/index.vue:80` |
-| 申请延期 | `handleExtend(row)` | `` | `aigicrm-ui/src/views/reminder/index.vue:81` |
+| 清除本页 | `handleClearAll` | `` | `aigicrm-ui/src/views/reminder/index.vue:30` |
+| 详情 | `openDetail(row)` | `` | `aigicrm-ui/src/views/reminder/index.vue:72` |
+| 已处理 | `handleProcessShare(row)` | `` | `aigicrm-ui/src/views/reminder/index.vue:75` |
+| 已处理 | `handleProcessShare(row)` | `` | `aigicrm-ui/src/views/reminder/index.vue:78` |
+| 已跟进 | `handleFollowUp(row)` | `` | `aigicrm-ui/src/views/reminder/index.vue:81` |
+| 已跟进 | `` | `` | `aigicrm-ui/src/views/reminder/index.vue:82` |
+| 申请延期 | `handleExtend(row)` | `` | `aigicrm-ui/src/views/reminder/index.vue:83` |
 | 保存 | `handleSave` | `` | `aigicrm-ui/src/views/score/entry.vue:18` |
 | 查看排行 | `goRanking` | `` | `aigicrm-ui/src/views/score/entry.vue:20` |
 | 导出 | `handleExport` | `` | `aigicrm-ui/src/views/score/entry.vue:21` |
@@ -288,8 +287,10 @@ Generated from local source: `02-迭代源代码`
 | 确定 | `submitType` | `` | `aigicrm-ui/src/views/system/DictManager.vue:80` |
 | 取消 | `dataDialogVisible = false` | `` | `aigicrm-ui/src/views/system/DictManager.vue:101` |
 | 确定 | `submitData` | `` | `aigicrm-ui/src/views/system/DictManager.vue:102` |
-| 添加授权 | `openPermDialog` | `canEdit` | `aigicrm-ui/src/views/system/PermCenter.vue:27` |
-| 撤销 | `revokePerm(scope?.row?.id)` | `canEdit` | `aigicrm-ui/src/views/system/PermCenter.vue:47` |
+| 删除 | `removeRow(t.value, scope?.row?.roleId)` | `canEdit` | `aigicrm-ui/src/views/system/FileSpaceDefaults.vue:21` |
+| 保存 | `saveRow(t.value)` | `` | `aigicrm-ui/src/views/system/FileSpaceDefaults.vue:33` |
+| 添加授权 | `openPermDialog` | `canEdit` | `aigicrm-ui/src/views/system/PermCenter.vue:28` |
+| 撤销 | `revokePerm(scope?.row?.id)` | `canEdit` | `aigicrm-ui/src/views/system/PermCenter.vue:48` |
 | 全选 | `checkAllUsers` | `` | `aigicrm-ui/src/views/system/PermGrantDialog.vue:23` |
 | 清空 | `clearUsers` | `` | `aigicrm-ui/src/views/system/PermGrantDialog.vue:24` |
 | 清空 | `clearEditUsers` | `` | `aigicrm-ui/src/views/system/PermGrantDialog.vue:70` |
@@ -310,8 +311,8 @@ Generated from local source: `02-迭代源代码`
 | 取消 | `poolDialogVisible = false` | `` | `aigicrm-ui/src/views/system/SeaConfigManager.vue:161` |
 | 确定 | `submitPool` | `` | `aigicrm-ui/src/views/system/SeaConfigManager.vue:162` |
 | 新增用户 | `openDialog()` | `userStore.hasPermission('system:user:add')` | `aigicrm-ui/src/views/system/UserFilterBar.vue:8` |
-| 取消 | `dialogVisible = false` | `` | `aigicrm-ui/src/views/system/UserFormDialog.vue:103` |
-| 保存 | `handleSave` | `` | `aigicrm-ui/src/views/system/UserFormDialog.vue:104` |
+| 取消 | `dialogVisible = false` | `` | `aigicrm-ui/src/views/system/UserFormDialog.vue:107` |
+| 保存 | `handleSave` | `` | `aigicrm-ui/src/views/system/UserFormDialog.vue:108` |
 | 重试 | `retryLoad` | `` | `aigicrm-ui/src/views/system/UserTable.vue:7` |
 | 编辑 | `openDialog(row)` | `userStore.hasPermission('system:user:edit')` | `aigicrm-ui/src/views/system/UserTable.vue:69` |
 | 重置密码 | `handleResetPwd(row)` | `userStore.hasPermission('system:user:edit')` | `aigicrm-ui/src/views/system/UserTable.vue:70` |
@@ -339,12 +340,12 @@ Generated from local source: `02-迭代源代码`
 | 查看 | `showDetail(row)` | `` | `aigicrm-ui/src/views/system/log.vue:72` |
 | 新增岗位 | `openDialog()` | `canAddPosition` | `aigicrm-ui/src/views/system/position.vue:5` |
 | 编辑 | `openDialog(row)` | `canEditPosition` | `aigicrm-ui/src/views/system/position.vue:33` |
-| 规则 | `openRuleDialog(row)` | `canEditPosition` | `aigicrm-ui/src/views/system/position.vue:34` |
-| 删除 | `handleDelete(row)` | `canDeletePosition` | `aigicrm-ui/src/views/system/position.vue:35` |
-| 取消 | `dialogVisible = false` | `` | `aigicrm-ui/src/views/system/position.vue:73` |
-| 保存 | `handleSave` | `` | `aigicrm-ui/src/views/system/position.vue:74` |
-| 取消 | `ruleDialogVisible = false` | `` | `aigicrm-ui/src/views/system/position.vue:99` |
-| 保存规则 | `handleSaveRules` | `` | `aigicrm-ui/src/views/system/position.vue:100` |
+| 规则 | `openRuleDialog(row)` | `canEditPosition && isAdmin` | `aigicrm-ui/src/views/system/position.vue:37` |
+| 删除 | `handleDelete(row)` | `canDeletePosition` | `aigicrm-ui/src/views/system/position.vue:38` |
+| 取消 | `dialogVisible = false` | `` | `aigicrm-ui/src/views/system/position.vue:76` |
+| 保存 | `handleSave` | `` | `aigicrm-ui/src/views/system/position.vue:77` |
+| 取消 | `ruleDialogVisible = false` | `` | `aigicrm-ui/src/views/system/position.vue:102` |
+| 保存规则 | `handleSaveRules` | `` | `aigicrm-ui/src/views/system/position.vue:103` |
 | 清空回收站 | `handlePurgeFiles` | `` | `aigicrm-ui/src/views/system/recycle.vue:47` |
 | 删除为软删除留痕：客户恢复校验同名活跃卡、负责人与公海残留；人员恢复后需重新分配角色；文件删除先入回收站，保留期内可恢复，超期自动清理。 列表加载失败，请检查网络后重试。 重试 | `refreshPage` | `` | `aigicrm-ui/src/views/system/recycle.vue:52` |
 | 详情 | `openCustomerDetail(row)` | `` | `aigicrm-ui/src/views/system/recycle.vue:110` |
@@ -392,10 +393,10 @@ Generated from local source: `02-迭代源代码`
 | (button) | `refresh` | `` | `aigicrm-miniprogram/pages/approval/index.wxml:8` |
 | (button) | `changeTab` | `` | `aigicrm-miniprogram/pages/approval/index.wxml:16` |
 | 查询 | `search` | `` | `aigicrm-miniprogram/pages/approval/index.wxml:22` |
-| 查看详情 | `openDetail` | `` | `aigicrm-miniprogram/pages/approval/index.wxml:58` |
-| 客户档案 | `openCustomer` | `{{item.showCustomerAction}}` | `aigicrm-miniprogram/pages/approval/index.wxml:59` |
-| 驳回 | `reject` | `{{item.showRejectAction}}` | `aigicrm-miniprogram/pages/approval/index.wxml:60` |
-| 通过 | `approve` | `{{item.showApproveAction}}` | `aigicrm-miniprogram/pages/approval/index.wxml:61` |
+| 查看详情 | `openDetail` | `` | `aigicrm-miniprogram/pages/approval/index.wxml:48` |
+| 客户档案 | `openCustomer` | `{{item.showCustomerAction}}` | `aigicrm-miniprogram/pages/approval/index.wxml:49` |
+| 驳回 | `reject` | `{{item.showRejectAction}}` | `aigicrm-miniprogram/pages/approval/index.wxml:50` |
+| 通过 | `approve` | `{{item.showApproveAction}}` | `aigicrm-miniprogram/pages/approval/index.wxml:51` |
 | 返回 | `goBack` | `` | `aigicrm-miniprogram/pages/customer/contact/detail/index.wxml:8` |
 | 拨打电话 | `call` | `` | `aigicrm-miniprogram/pages/customer/contact/detail/index.wxml:17` |
 | 返回 | `goBack` | `` | `aigicrm-miniprogram/pages/customer/contact/form/index.wxml:8` |
@@ -465,24 +466,28 @@ Generated from local source: `02-迭代源代码`
 | 客户文档 | `openFolder` | `{{fileView.showFallbackFolders}}` | `aigicrm-miniprogram/pages/files/index.wxml:27` |
 | 团队共享 | `openFolder` | `{{fileView.showFallbackFolders}}` | `aigicrm-miniprogram/pages/files/index.wxml:28` |
 | ··· | `openFile` | `` | `aigicrm-miniprogram/pages/files/index.wxml:43` |
-| ··· | `openActionSheet` | `` | `aigicrm-miniprogram/pages/files/index.wxml:51` |
-| 取消 | `closeActionSheet` | `{{actionSheet.visible}}` | `aigicrm-miniprogram/pages/files/index.wxml:60` |
-| 取消 | `noop` | `` | `aigicrm-miniprogram/pages/files/index.wxml:61` |
-| (button) | `onSheetAction` | `` | `aigicrm-miniprogram/pages/files/index.wxml:64` |
-| 取消 | `closeActionSheet` | `` | `aigicrm-miniprogram/pages/files/index.wxml:69` |
-| ＋ 新建 | `openFolderForm` | `` | `aigicrm-miniprogram/pages/files/index.wxml:73` |
-| ··· | `openFolderActions` | `` | `aigicrm-miniprogram/pages/files/index.wxml:78` |
-| 申请扩容 关闭 当前配额 可申请上限 申请后总配额（GB） 申请理由 取消 提交申请 | `closeStorageApply` | `{{storageApplyView.visible}}` | `aigicrm-miniprogram/pages/files/index.wxml:85` |
-| 申请扩容 关闭 当前配额 可申请上限 申请后总配额（GB） 申请理由 取消 提交申请 | `noop` | `` | `aigicrm-miniprogram/pages/files/index.wxml:86` |
-| 关闭 | `closeStorageApply` | `` | `aigicrm-miniprogram/pages/files/index.wxml:89` |
-| 取消 | `closeStorageApply` | `` | `aigicrm-miniprogram/pages/files/index.wxml:107` |
-| 提交申请 | `submitStorageApply` | `` | `aigicrm-miniprogram/pages/files/index.wxml:108` |
-| 上传到文件夹取消 根目录 上传到这里 | `cancelFolderSelect` | `{{folderSelect.visible}}` | `aigicrm-miniprogram/pages/files/index.wxml:114` |
-| 上传到文件夹取消 根目录 上传到这里 | `noop` | `` | `aigicrm-miniprogram/pages/files/index.wxml:115` |
-| 取消 | `cancelFolderSelect` | `` | `aigicrm-miniprogram/pages/files/index.wxml:116` |
-| 根目录 | `selectFolderItem` | `` | `aigicrm-miniprogram/pages/files/index.wxml:118` |
-| (button) | `selectFolderItem` | `` | `aigicrm-miniprogram/pages/files/index.wxml:119` |
-| 上传到这里 | `confirmFolderSelect` | `` | `aigicrm-miniprogram/pages/files/index.wxml:121` |
+| ··· | `openActionSheet` | `` | `aigicrm-miniprogram/pages/files/index.wxml:52` |
+| 取消 | `closeActionSheet` | `{{actionSheet.visible}}` | `aigicrm-miniprogram/pages/files/index.wxml:61` |
+| 取消 | `noop` | `` | `aigicrm-miniprogram/pages/files/index.wxml:62` |
+| (button) | `onSheetAction` | `` | `aigicrm-miniprogram/pages/files/index.wxml:65` |
+| 取消 | `closeActionSheet` | `` | `aigicrm-miniprogram/pages/files/index.wxml:70` |
+| ＋ 新建 | `openFolderForm` | `` | `aigicrm-miniprogram/pages/files/index.wxml:74` |
+| ··· | `openFolderActions` | `` | `aigicrm-miniprogram/pages/files/index.wxml:79` |
+| 申请扩容 关闭 当前配额 可申请上限 申请后总配额（GB） 申请理由 取消 提交申请 | `closeStorageApply` | `{{storageApplyView.visible}}` | `aigicrm-miniprogram/pages/files/index.wxml:86` |
+| 申请扩容 关闭 当前配额 可申请上限 申请后总配额（GB） 申请理由 取消 提交申请 | `noop` | `` | `aigicrm-miniprogram/pages/files/index.wxml:87` |
+| 关闭 | `closeStorageApply` | `` | `aigicrm-miniprogram/pages/files/index.wxml:90` |
+| 取消 | `closeStorageApply` | `` | `aigicrm-miniprogram/pages/files/index.wxml:108` |
+| 提交申请 | `submitStorageApply` | `` | `aigicrm-miniprogram/pages/files/index.wxml:109` |
+| 上传到文件夹取消 根目录 上传到这里 | `cancelFolderSelect` | `{{folderSelect.visible}}` | `aigicrm-miniprogram/pages/files/index.wxml:115` |
+| 上传到文件夹取消 根目录 上传到这里 | `noop` | `` | `aigicrm-miniprogram/pages/files/index.wxml:116` |
+| 取消 | `cancelFolderSelect` | `` | `aigicrm-miniprogram/pages/files/index.wxml:117` |
+| 根目录 | `selectFolderItem` | `` | `aigicrm-miniprogram/pages/files/index.wxml:120` |
+| (button) | `selectFolderItem` | `` | `aigicrm-miniprogram/pages/files/index.wxml:122` |
+| 上传到这里 | `confirmFolderSelect` | `` | `aigicrm-miniprogram/pages/files/index.wxml:124` |
+| 重命名文件取消 确认重命名 | `cancelRenameModal` | `{{renameModal.visible}}` | `aigicrm-miniprogram/pages/files/index.wxml:129` |
+| 重命名文件取消 确认重命名 | `noop` | `` | `aigicrm-miniprogram/pages/files/index.wxml:130` |
+| 取消 | `cancelRenameModal` | `` | `aigicrm-miniprogram/pages/files/index.wxml:131` |
+| 确认重命名 | `confirmRename` | `` | `aigicrm-miniprogram/pages/files/index.wxml:133` |
 | (button) | `openReminder` | `` | `aigicrm-miniprogram/pages/home/index.wxml:6` |
 | 全部应用 › | `openAppCenter` | `` | `aigicrm-miniprogram/pages/home/index.wxml:53` |
 | 新增客户 | `openNewCustomer` | `` | `aigicrm-miniprogram/pages/home/index.wxml:56` |
@@ -493,22 +498,6 @@ Generated from local source: `02-迭代源代码`
 | 统计分析 | `openStatistics` | `` | `aigicrm-miniprogram/pages/home/index.wxml:71` |
 | 全部提醒 › | `openReminder` | `` | `aigicrm-miniprogram/pages/home/index.wxml:82` |
 | › | `openCustomer` | `` | `aigicrm-miniprogram/pages/home/index.wxml:87` |
-| 打开档案 → | `openArchive` | `` | `aigicrm-miniprogram/pages/incentive/customer-detail/index.wxml:57` |
-| ← | `closeArchive` | `` | `aigicrm-miniprogram/pages/incentive/customer-detail/index.wxml:63` |
-| 客户档案 › | `onOpenCustomer` | `{{record.customerId}}` | `aigicrm-miniprogram/pages/incentive/customer-detail/index.wxml:69` |
-| 未读 › | `openUnread` | `{{totalUnread}}` | `aigicrm-miniprogram/pages/incentive/customer-detail/index.wxml:70` |
-| 最新 | `latestMonth` | `` | `aigicrm-miniprogram/pages/incentive/customer-detail/index.wxml:77` |
-| 条 | `selectMonth` | `` | `aigicrm-miniprogram/pages/incentive/customer-detail/index.wxml:81` |
-| ⤢ | `previewPhoto` | `` | `aigicrm-miniprogram/pages/incentive/customer-detail/index.wxml:112` |
-| ▶ 现场安装视频 | `previewVideo` | `{{currentRecord.videos.length}}` | `aigicrm-miniprogram/pages/incentive/customer-detail/index.wxml:121` |
-| (button) | `previewAttachment` | `` | `aigicrm-miniprogram/pages/incentive/customer-detail/index.wxml:129` |
-| ··· | `onRecordMore` | `` | `aigicrm-miniprogram/pages/incentive/customer-detail/index.wxml:135` |
-| ‹ | `prevRecord` | `` | `aigicrm-miniprogram/pages/incentive/customer-detail/index.wxml:143` |
-| 未读激励 条待查看 × 暂无未读激励 · › 全部标为已读 | `closeUnread` | `{{unreadOpen}}` | `aigicrm-miniprogram/pages/incentive/customer-detail/index.wxml:149` |
-| 未读激励 条待查看 × 暂无未读激励 · › 全部标为已读 | `noop` | `` | `aigicrm-miniprogram/pages/incentive/customer-detail/index.wxml:150` |
-| × | `closeUnread` | `` | `aigicrm-miniprogram/pages/incentive/customer-detail/index.wxml:153` |
-| · › | `jumpUnread` | `` | `aigicrm-miniprogram/pages/incentive/customer-detail/index.wxml:157` |
-| 全部标为已读 | `markAllRead` | `` | `aigicrm-miniprogram/pages/incentive/customer-detail/index.wxml:163` |
 | 返回 | `goBack` | `` | `aigicrm-miniprogram/pages/incentive/detail/index.wxml:8` |
 | 回到今天 | `goToday` | `` | `aigicrm-miniprogram/pages/incentive/detail/index.wxml:42` |
 | ▶ | `previewAttachment` | `` | `aigicrm-miniprogram/pages/incentive/detail/index.wxml:134` |
@@ -534,24 +523,24 @@ Generated from local source: `02-迭代源代码`
 | (button) | `searchRecords` | `` | `aigicrm-miniprogram/pages/incentive/index.wxml:33` |
 | 清空 | `resetRecordFilters` | `` | `aigicrm-miniprogram/pages/incentive/index.wxml:34` |
 | (button) | `openRecordDetail` | `` | `aigicrm-miniprogram/pages/incentive/index.wxml:85` |
-| 全 全部分类查看所有激励记录 全部 › | `onCategoryAllTap` | `` | `aigicrm-miniprogram/pages/incentive/index.wxml:110` |
-| 条 筛选中 › | `onCategoryRowTap` | `` | `aigicrm-miniprogram/pages/incentive/index.wxml:117` |
-| 文件 › | `openGroupStatDetail` | `` | `aigicrm-miniprogram/pages/incentive/index.wxml:143` |
-| 文件 › | `openStatDetail` | `` | `aigicrm-miniprogram/pages/incentive/index.wxml:147` |
-| 明细 收起 ⌕ 清空 明细加载中... ▶ 打开 下载 0}}" page="" pageSize="" total="" loading="" bind:change="onStatDetailPagerChange" /> | `closeStatDetail` | `{{statDetail.visible}}` | `aigicrm-miniprogram/pages/incentive/index.wxml:155` |
-| 明细 收起 ⌕ 清空 明细加载中... ▶ 打开 下载 0}}" page="" pageSize="" total="" loading="" bind:change="onStatDetailPagerChange" /> | `noop` | `` | `aigicrm-miniprogram/pages/incentive/index.wxml:156` |
-| 收起 | `closeStatDetail` | `` | `aigicrm-miniprogram/pages/incentive/index.wxml:163` |
-| 清空 | `clearStatDetailKeyword` | `{{statDetail.keyword}}` | `aigicrm-miniprogram/pages/incentive/index.wxml:168` |
-| ▶ | `previewStatDetailAttachment` | `` | `aigicrm-miniprogram/pages/incentive/index.wxml:191` |
-| (button) | `previewStatDetailAttachment` | `` | `aigicrm-miniprogram/pages/incentive/index.wxml:195` |
-| 打开 | `previewStatDetailAttachment` | `` | `aigicrm-miniprogram/pages/incentive/index.wxml:201` |
-| 下载 | `downloadStatDetailAttachment` | `` | `aigicrm-miniprogram/pages/incentive/index.wxml:202` |
-| 客户排行 | `switchRankTab` | `` | `aigicrm-miniprogram/pages/incentive/index.wxml:221` |
-| 个人积分榜 | `switchRankTab` | `` | `aigicrm-miniprogram/pages/incentive/index.wxml:222` |
-| 部门排行 | `switchRankTab` | `` | `aigicrm-miniprogram/pages/incentive/index.wxml:223` |
-| ↻ | `loadScoreboard` | `` | `aigicrm-miniprogram/pages/incentive/index.wxml:287` |
-| ↻ | `loadReadStats` | `` | `aigicrm-miniprogram/pages/incentive/index.wxml:384` |
-| 点击重试 | `loadReadRanking` | `` | `aigicrm-miniprogram/pages/incentive/index.wxml:399` |
+| 全 全部分类查看所有激励记录 全部 › | `onCategoryAllTap` | `` | `aigicrm-miniprogram/pages/incentive/index.wxml:113` |
+| 条 筛选中 › | `onCategoryRowTap` | `` | `aigicrm-miniprogram/pages/incentive/index.wxml:120` |
+| 文件 › | `openGroupStatDetail` | `` | `aigicrm-miniprogram/pages/incentive/index.wxml:146` |
+| 文件 › | `openStatDetail` | `` | `aigicrm-miniprogram/pages/incentive/index.wxml:150` |
+| 明细 收起 ⌕ 清空 明细加载中... ▶ 打开 下载 0}}" page="" pageSize="" total="" loading="" bind:change="onStatDetailPagerChange" /> | `closeStatDetail` | `{{statDetail.visible}}` | `aigicrm-miniprogram/pages/incentive/index.wxml:158` |
+| 明细 收起 ⌕ 清空 明细加载中... ▶ 打开 下载 0}}" page="" pageSize="" total="" loading="" bind:change="onStatDetailPagerChange" /> | `noop` | `` | `aigicrm-miniprogram/pages/incentive/index.wxml:159` |
+| 收起 | `closeStatDetail` | `` | `aigicrm-miniprogram/pages/incentive/index.wxml:166` |
+| 清空 | `clearStatDetailKeyword` | `{{statDetail.keyword}}` | `aigicrm-miniprogram/pages/incentive/index.wxml:171` |
+| ▶ | `previewStatDetailAttachment` | `` | `aigicrm-miniprogram/pages/incentive/index.wxml:195` |
+| (button) | `previewStatDetailAttachment` | `` | `aigicrm-miniprogram/pages/incentive/index.wxml:199` |
+| 打开 | `previewStatDetailAttachment` | `` | `aigicrm-miniprogram/pages/incentive/index.wxml:205` |
+| 下载 | `downloadStatDetailAttachment` | `` | `aigicrm-miniprogram/pages/incentive/index.wxml:206` |
+| 客户排行 | `switchRankTab` | `` | `aigicrm-miniprogram/pages/incentive/index.wxml:225` |
+| 个人积分榜 | `switchRankTab` | `` | `aigicrm-miniprogram/pages/incentive/index.wxml:226` |
+| 部门排行 | `switchRankTab` | `` | `aigicrm-miniprogram/pages/incentive/index.wxml:227` |
+| ↻ | `loadScoreboard` | `` | `aigicrm-miniprogram/pages/incentive/index.wxml:291` |
+| ↻ | `loadReadStats` | `` | `aigicrm-miniprogram/pages/incentive/index.wxml:388` |
+| 点击重试 | `loadReadRanking` | `` | `aigicrm-miniprogram/pages/incentive/index.wxml:403` |
 | ⌄ | `openCustomerSheet` | `` | `aigicrm-miniprogram/pages/incentive/upload/index.wxml:39` |
 | (button) | `previewSelectedFile` | `` | `aigicrm-miniprogram/pages/incentive/upload/index.wxml:116` |
 | 预览 | `previewSelectedFile` | `` | `aigicrm-miniprogram/pages/incentive/upload/index.wxml:124` |
@@ -577,12 +566,14 @@ Generated from local source: `02-迭代源代码`
 | (button) | `sendCode` | `` | `aigicrm-miniprogram/pages/login/forgot/index.wxml:18` |
 | (button) | `next` | `` | `aigicrm-miniprogram/pages/login/forgot/index.wxml:28` |
 | (button) | `back` | `` | `aigicrm-miniprogram/pages/login/forgot/index.wxml:29` |
-| (button) | `submit` | `` | `aigicrm-miniprogram/pages/login/index.wxml:17` |
-| (button) | `toggleAgreed` | `` | `aigicrm-miniprogram/pages/login/index.wxml:20` |
-| 《用户服务协议》 | `openAgreement` | `` | `aigicrm-miniprogram/pages/login/index.wxml:25` |
-| 《隐私政策》 | `openPrivacyDoc` | `` | `aigicrm-miniprogram/pages/login/index.wxml:26` |
-| 忘记密码？ | `openForgot` | `{{loginView.showForgotAction}}` | `aigicrm-miniprogram/pages/login/index.wxml:29` |
-| 陕ICP备2024024412号 | `copyBeianUrl` | `` | `aigicrm-miniprogram/pages/login/index.wxml:32` |
+| 记住账号 | `toggleRememberAccount` | `` | `aigicrm-miniprogram/pages/login/index.wxml:19` |
+| 记住密码 | `toggleRememberPassword` | `` | `aigicrm-miniprogram/pages/login/index.wxml:23` |
+| (button) | `submit` | `` | `aigicrm-miniprogram/pages/login/index.wxml:28` |
+| (button) | `toggleAgreed` | `` | `aigicrm-miniprogram/pages/login/index.wxml:31` |
+| 《用户服务协议》 | `openAgreement` | `` | `aigicrm-miniprogram/pages/login/index.wxml:36` |
+| 《隐私政策》 | `openPrivacyDoc` | `` | `aigicrm-miniprogram/pages/login/index.wxml:37` |
+| 忘记密码？ | `openForgot` | `{{loginView.showForgotAction}}` | `aigicrm-miniprogram/pages/login/index.wxml:40` |
+| 陕ICP备2024024412号 | `copyBeianUrl` | `` | `aigicrm-miniprogram/pages/login/index.wxml:43` |
 | 返回 | `goBack` | `` | `aigicrm-miniprogram/pages/profile/feedback/index.wxml:8` |
 | 清空 | `clearDraft` | `` | `aigicrm-miniprogram/pages/profile/feedback/index.wxml:18` |
 | 保存草稿 | `saveDraft` | `` | `aigicrm-miniprogram/pages/profile/feedback/index.wxml:19` |
@@ -591,16 +582,17 @@ Generated from local source: `02-迭代源代码`
 | ↻我的捞取记录› | `openClaims` | `` | `aigicrm-miniprogram/pages/profile/index.wxml:31` |
 | ⚿修改密码› | `openPassword` | `` | `aigicrm-miniprogram/pages/profile/index.wxml:34` |
 | ◇数据权限说明› | `openScope` | `` | `aigicrm-miniprogram/pages/profile/index.wxml:35` |
-| ◌微信绑定 | `openWechat` | `` | `aigicrm-miniprogram/pages/profile/index.wxml:38` |
-| □清除缓存› | `clearCache` | `` | `aigicrm-miniprogram/pages/profile/index.wxml:39` |
-| ⓘ关于我们› | `openAbout` | `` | `aigicrm-miniprogram/pages/profile/index.wxml:40` |
-| ▤用户协议› | `openAgreement` | `` | `aigicrm-miniprogram/pages/profile/index.wxml:41` |
-| ▧隐私政策› | `openPrivacy` | `` | `aigicrm-miniprogram/pages/profile/index.wxml:42` |
-| 意见反馈 | `openFeedback` | `` | `aigicrm-miniprogram/pages/profile/index.wxml:45` |
-| 退出登录 | `logout` | `` | `aigicrm-miniprogram/pages/profile/index.wxml:46` |
+| ◌微信绑定 | `openWechat` | `` | `aigicrm-miniprogram/pages/profile/index.wxml:39` |
+| □清除缓存› | `clearCache` | `` | `aigicrm-miniprogram/pages/profile/index.wxml:40` |
+| ⓘ关于我们› | `openAbout` | `` | `aigicrm-miniprogram/pages/profile/index.wxml:41` |
+| ▤用户协议› | `openAgreement` | `` | `aigicrm-miniprogram/pages/profile/index.wxml:42` |
+| ▧隐私政策› | `openPrivacy` | `` | `aigicrm-miniprogram/pages/profile/index.wxml:43` |
+| 意见反馈 | `openFeedback` | `` | `aigicrm-miniprogram/pages/profile/index.wxml:47` |
+| 退出登录 | `logout` | `` | `aigicrm-miniprogram/pages/profile/index.wxml:48` |
 | (button) | `submit` | `` | `aigicrm-miniprogram/pages/profile/password/index.wxml:11` |
 | 查看接入说明 | `bindWechat` | `` | `aigicrm-miniprogram/pages/profile/wechat/index.wxml:7` |
 | 返回 | `goBack` | `` | `aigicrm-miniprogram/pages/ranking/detail/index.wxml:8` |
+| (button) | `onMemberTap` | `` | `aigicrm-miniprogram/pages/ranking/detail/index.wxml:33` |
 | (button) | `refresh` | `` | `aigicrm-miniprogram/pages/ranking/index.wxml:5` |
 | (button) | `switchMainTab` | `` | `aigicrm-miniprogram/pages/ranking/index.wxml:20` |
 | (button) | `switchScoreTab` | `` | `aigicrm-miniprogram/pages/ranking/index.wxml:40` |
@@ -685,12 +677,8 @@ Generated from local source: `02-迭代源代码`
 | `releaseCustomer` | `POST` | `/customer/${id}/release` | `aigicrm-ui/src/api/customer.js` |
 | `getInvoices` | `GET` | `/customer/${id}/invoices` | `aigicrm-ui/src/api/customer.js` |
 | `getInvoiceSummary` | `GET` | `/customer/${id}/invoices/summary` | `aigicrm-ui/src/api/customer.js` |
-| `addInvoice` | `POST` | `/customer/${id}/invoices` | `aigicrm-ui/src/api/customer.js` |
 | `archiveCustomer` | `POST` | `/customer/${id}/archive` | `aigicrm-ui/src/api/customer.js` |
 | `restoreCustomer` | `POST` | `/customer/${id}/restore` | `aigicrm-ui/src/api/customer.js` |
-| `deleteInvoice` | `DELETE` | `/customer/${customerId}/invoices/${invoiceId}` | `aigicrm-ui/src/api/customer.js` |
-| `confirmInvoice` | `POST` | `/customer/${customerId}/invoices/${invoiceId}/confirm` | `aigicrm-ui/src/api/customer.js` |
-| `voidInvoice` | `POST` | `/customer/${customerId}/invoices/${invoiceId}/void` | `aigicrm-ui/src/api/customer.js` |
 | `getCustomerGroupNames` | `GET` | `/customer/group-names` | `aigicrm-ui/src/api/customer.js` |
 | `getIndicator` | `GET` | `/customer/${id}/indicator` | `aigicrm-ui/src/api/customer.js` |
 | `saveIndicator` | `POST` | `/customer/${id}/indicator` | `aigicrm-ui/src/api/customer.js` |
@@ -704,10 +692,6 @@ Generated from local source: `02-迭代源代码`
 | `deleteContact` | `DELETE` | `/customer/${customerId}/contacts/${contactId}` | `aigicrm-ui/src/api/customer.js` |
 | `getPayments` | `GET` | `/customer/${id}/payments` | `aigicrm-ui/src/api/customer.js` |
 | `getPaymentSummary` | `GET` | `/customer/${id}/payments/summary` | `aigicrm-ui/src/api/customer.js` |
-| `addPayment` | `POST` | `/customer/${id}/payments` | `aigicrm-ui/src/api/customer.js` |
-| `deletePayment` | `DELETE` | `/customer/${customerId}/payments/${paymentId}` | `aigicrm-ui/src/api/customer.js` |
-| `confirmPayment` | `POST` | `/customer/${customerId}/payments/${paymentId}/confirm` | `aigicrm-ui/src/api/customer.js` |
-| `voidPayment` | `POST` | `/customer/${customerId}/payments/${paymentId}/void` | `aigicrm-ui/src/api/customer.js` |
 | `importCustomers` | `POST` | `/customer/import` | `aigicrm-ui/src/api/customer.js` |
 | `getFolderTree` | `GET` | `/file/folders` | `aigicrm-ui/src/api/file.js` |
 | `getFileList` | `GET` | `/file/list` | `aigicrm-ui/src/api/file.js` |
@@ -726,7 +710,11 @@ Generated from local source: `02-迭代源代码`
 | `removeFolderAcl` | `DELETE` | `/file/folders/${id}/acl/${roleId}` | `aigicrm-ui/src/api/file.js` |
 | `setFolderDownloadable` | `PUT` | `/file/folders/${id}/download` | `aigicrm-ui/src/api/file.js` |
 | `getFolderPermissions` | `GET` | `/file/folders/${id}/permissions` | `aigicrm-ui/src/api/file.js` |
+| `getFolderTypeDefaults` | `GET` | `/file/folders/type-defaults` | `aigicrm-ui/src/api/file.js` |
+| `saveFolderTypeDefault` | `POST` | `/file/folders/type-defaults` | `aigicrm-ui/src/api/file.js` |
+| `removeFolderTypeDefault` | `DELETE` | `/file/folders/type-defaults/${folderType}/${roleId}` | `aigicrm-ui/src/api/file.js` |
 | `replaceFile` | `POST` | `/file/${id}/replace` | `aigicrm-ui/src/api/file.js` |
+| `renameFile` | `PUT` | `/file/${id}/rename` | `aigicrm-ui/src/api/file.js` |
 | `getCategoryTree` | `GET` | `/incentive/categories` | `aigicrm-ui/src/api/incentive.js` |
 | `createCategory` | `POST` | `/incentive/categories` | `aigicrm-ui/src/api/incentive.js` |
 | `updateCategory` | `PUT` | `/incentive/categories/${id}` | `aigicrm-ui/src/api/incentive.js` |
@@ -771,6 +759,7 @@ Generated from local source: `02-迭代源代码`
 | `batchSaveEntries` | `POST` | `/score/entries/batch` | `aigicrm-ui/src/api/score.js` |
 | `getScoreRanking` | `GET` | `/score/ranking` | `aigicrm-ui/src/api/score.js` |
 | `getScoreRankingStats` | `GET` | `/score/ranking/stats` | `aigicrm-ui/src/api/score.js` |
+| `getScoreDeptMembers` | `GET` | `/score/ranking/dept-members` | `aigicrm-ui/src/api/score.js` |
 | `getSeaList` | `GET` | `/sea/list` | `aigicrm-ui/src/api/sea.js` |
 | `getSeaStatistics` | `GET` | `/sea/statistics` | `aigicrm-ui/src/api/sea.js` |
 | `deleteSeaPool` | `DELETE` | `/sea/pool/${id}` | `aigicrm-ui/src/api/sea.js` |
@@ -922,6 +911,7 @@ Generated from local source: `02-迭代源代码`
 | `renameFolder` | `PUT` | `/api/file/folders/' + id` | `aigicrm-miniprogram/api/file.js` |
 | `deleteFolder` | `DELETE` | `/api/file/folders/' + id` | `aigicrm-miniprogram/api/file.js` |
 | `deleteFile` | `DELETE` | `/api/file/' + id` | `aigicrm-miniprogram/api/file.js` |
+| `renameFile` | `PUT` | `/api/file/' + id + '/rename` | `aigicrm-miniprogram/api/file.js` |
 | `getSharedToMe` | `GET` | `/api/file/shared-to-me` | `aigicrm-miniprogram/api/file.js` |
 | `getSharedToMeCount` | `GET` | `/api/file/shared-to-me/count` | `aigicrm-miniprogram/api/file.js` |
 | `shareFile` | `POST` | `/api/file/' + id + '/share` | `aigicrm-miniprogram/api/file.js` |
@@ -948,6 +938,8 @@ Generated from local source: `02-迭代源代码`
 | `getPendingCount` | `GET` | `/api/reminder/pending-count` | `aigicrm-miniprogram/api/reminder.js` |
 | `getScoreRanking` | `GET` | `/api/score/ranking` | `aigicrm-miniprogram/api/score.js` |
 | `getRankingStats` | `GET` | `/api/score/ranking/stats` | `aigicrm-miniprogram/api/score.js` |
+| `getScoreGrid` | `GET` | `/api/score/grid` | `aigicrm-miniprogram/api/score.js` |
+| `getScoreDeptMembers` | `GET` | `/api/score/ranking/dept-members` | `aigicrm-miniprogram/api/score.js` |
 | `getSeaList` | `GET` | `/api/sea/list` | `aigicrm-miniprogram/api/sea.js` |
 | `getSeaStatistics` | `GET` | `/api/sea/statistics` | `aigicrm-miniprogram/api/sea.js` |
 | `getVisibleSeaConfigs` | `GET` | `/api/sea/configs/visible` | `aigicrm-miniprogram/api/sea.js` |
@@ -1015,12 +1007,6 @@ Generated from local source: `02-迭代源代码`
 | `GET` | `/api/customer/statistics` | `hasAuthority('customer:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java` |
 | `GET` | `/api/customer/{id}/invoices` | `hasAuthority('customer:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java` |
 | `GET` | `/api/customer/{id}/invoices/summary` | `hasAuthority('customer:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java` |
-| `POST` | `/api/customer/{id}/invoices` | `hasAuthority('finance:manage') or hasAuthority('customer:finance:edit') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java` |
-| `POST` | `/api/customer/{id}/invoices/{invoiceId}/confirm` | `hasAuthority('finance:manage') or hasAuthority('customer:finance:edit') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java` |
-| `POST` | `/api/customer/{id}/invoices/{invoiceId}/void` | `hasAuthority('finance:manage') or hasAuthority('customer:finance:edit') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java` |
-| `POST` | `/api/customer/{id}/payments/{paymentId}/confirm` | `hasAuthority('finance:manage') or hasAuthority('customer:finance:edit') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java` |
-| `POST` | `/api/customer/{id}/payments/{paymentId}/void` | `hasAuthority('finance:manage') or hasAuthority('customer:finance:edit') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java` |
-| `DELETE` | `/api/customer/{id}/invoices/{invoiceId}` | `hasAuthority('finance:manage') or hasAuthority('customer:finance:edit') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java` |
 | `GET` | `/api/customer/{id}/stage-amounts` | `hasAuthority('customer:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java` |
 | `POST` | `/api/customer/{id}/stage-amounts` | `hasAuthority('finance:manage') or hasAuthority('customer:finance:edit') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java` |
 | `GET` | `/api/customer/{id}/indicator` | `hasAuthority('customer:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java` |
@@ -1032,13 +1018,11 @@ Generated from local source: `02-迭代源代码`
 | `POST` | `/api/customer/{id}/release` | `hasAuthority('customer:edit')` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java` |
 | `GET` | `/api/customer/users/simple` | `hasAuthority('customer:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java` |
 | `GET` | `/api/customer/{id}/contacts` | `hasAuthority('customer:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java` |
-| `POST` | `/api/customer/{id}/contacts` | `hasAuthority('customer:edit') or hasAuthority('contact:manage')` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java` |
-| `PUT` | `/api/customer/{id}/contacts/{contactId}` | `hasAuthority('customer:edit') or hasAuthority('contact:manage')` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java` |
-| `DELETE` | `/api/customer/{id}/contacts/{contactId}` | `hasAuthority('customer:edit') or hasAuthority('contact:manage')` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java` |
+| `POST` | `/api/customer/{id}/contacts` | `hasAuthority('customer:edit')` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java` |
+| `PUT` | `/api/customer/{id}/contacts/{contactId}` | `hasAuthority('customer:edit')` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java` |
+| `DELETE` | `/api/customer/{id}/contacts/{contactId}` | `hasAuthority('customer:edit')` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java` |
 | `GET` | `/api/customer/{id}/payments` | `hasAuthority('customer:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java` |
 | `GET` | `/api/customer/{id}/payments/summary` | `hasAuthority('customer:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java` |
-| `POST` | `/api/customer/{id}/payments` | `hasAuthority('finance:manage') or hasAuthority('customer:finance:edit') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java` |
-| `DELETE` | `/api/customer/{id}/payments/{paymentId}` | `hasAuthority('finance:manage') or hasAuthority('customer:finance:edit') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java` |
 | `POST` | `/api/customer/import` | `hasAuthority('customer:import')` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java` |
 | `GET` | `/api/customer/import/template` | `hasAuthority('customer:import')` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java` |
 | `GET` | `/api/customer/export` | `hasAuthority('customer:export')` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java` |
@@ -1052,6 +1036,7 @@ Generated from local source: `02-迭代源代码`
 | `DELETE` | `/api/file/folders/{id}` | `hasAuthority('file:folder:manage')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java` |
 | `DELETE` | `/api/file/{id}` | `hasAuthority('file:delete')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java` |
 | `POST` | `/api/file/{id}/replace` | `hasAuthority('file:edit')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java` |
+| `PUT` | `/api/file/{id}/rename` | `hasAuthority('file:edit')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java` |
 | `GET` | `/api/file/storage` | `hasAuthority('file:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java` |
 | `GET` | `/api/file/storage/apply-info` | `hasAuthority('file:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java` |
 | `GET` | `/api/file/download/{id}` | `hasAuthority('file:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java` |
@@ -1067,6 +1052,9 @@ Generated from local source: `02-迭代源代码`
 | `PUT` | `/api/file/folders/{id}/download` | `hasAuthority('file:acl:manage')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FolderAclController.java` |
 | `GET` | `/api/file/folders/{id}/permissions` | `hasAuthority('file:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FolderAclController.java` |
 | `GET` | `/api/file/folders/acl-roles` | `hasAuthority('file:acl:manage')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FolderAclController.java` |
+| `GET` | `/api/file/folders/type-defaults` | `hasAuthority('file:acl:manage')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FolderAclController.java` |
+| `POST` | `/api/file/folders/type-defaults` | `hasAuthority('file:acl:manage')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FolderAclController.java` |
+| `DELETE` | `/api/file/folders/type-defaults/{folderType}/{roleId}` | `hasAuthority('file:acl:manage')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FolderAclController.java` |
 | `GET` | `/api/incentive/categories` | `hasAuthority('incentive:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/incentive/controller/IncentiveController.java` |
 | `POST` | `/api/incentive/categories` | `hasAuthority('incentive:edit')` | `aigicrm-backend/src/main/java/com/aigicrm/module/incentive/controller/IncentiveController.java` |
 | `PUT` | `/api/incentive/categories/{id}` | `hasAuthority('incentive:edit')` | `aigicrm-backend/src/main/java/com/aigicrm/module/incentive/controller/IncentiveController.java` |
@@ -1075,7 +1063,6 @@ Generated from local source: `02-迭代源代码`
 | `POST` | `/api/incentive/records` | `hasAuthority('incentive:add')` | `aigicrm-backend/src/main/java/com/aigicrm/module/incentive/controller/IncentiveController.java` |
 | `PUT` | `/api/incentive/records/{id}` | `hasAuthority('incentive:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/incentive/controller/IncentiveController.java` |
 | `POST` | `/api/incentive/records/{id}/remove-file` | `hasAuthority('incentive:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/incentive/controller/IncentiveController.java` |
-| `POST` | `/api/incentive/records/recalculate` | `hasAuthority('incentive:edit')` | `aigicrm-backend/src/main/java/com/aigicrm/module/incentive/controller/IncentiveController.java` |
 | `DELETE` | `/api/incentive/records/{id}` | `hasAuthority('incentive:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/incentive/controller/IncentiveController.java` |
 | `GET` | `/api/incentive/score/customer/{customerId}` | `hasAuthority('incentive:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/incentive/controller/IncentiveController.java` |
 | `GET` | `/api/incentive/scoreboard` | `hasAnyAuthority('incentive:stats:view','incentive:rank:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/incentive/controller/IncentiveController.java` |
@@ -1103,6 +1090,7 @@ Generated from local source: `02-迭代源代码`
 | `POST` | `/api/score/entries/batch` | `hasAuthority('score:entry')` | `aigicrm-backend/src/main/java/com/aigicrm/module/score/controller/ScoreController.java` |
 | `GET` | `/api/score/ranking` | `hasAuthority('score:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/score/controller/ScoreController.java` |
 | `GET` | `/api/score/ranking/stats` | `hasAuthority('score:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/score/controller/ScoreController.java` |
+| `GET` | `/api/score/ranking/dept-members` | `hasAuthority('score:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/score/controller/ScoreController.java` |
 | `GET` | `/api/score/export/grid` | `hasAuthority('score:manage')` | `aigicrm-backend/src/main/java/com/aigicrm/module/score/controller/ScoreController.java` |
 | `GET` | `/api/sea/list` | `hasAuthority('sea:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/sea/controller/SeaController.java` |
 | `GET` | `/api/sea/statistics` | `hasAuthority('sea:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/sea/controller/SeaController.java` |
@@ -1229,6 +1217,7 @@ Generated from local source: `02-迭代源代码`
 | `finance:manage` | 财务管理 (V2026.09.19.6__permission_separation.sql) |
 | `finance:view` | 客户财务查看 (V2026.09.13.1__register_missing_used_permission_codes.sql) |
 | `incentive:add` | 激励新增 (V16__add_sys_user_security_columns_and_menu_permissions.sql) |
+| `incentive:manage` | 激励管理(他人记录) (V2026.11.08.2__drop_dead_incentive_manage.sql) |
 | `incentive:person-rank:export` | 个人排行导出 (V2026.09.23.7__person_rank_export_permission.sql) |
 | `incentive:rank:export` | 客户排行导出 (V2026.11.05.8__customer_rank_export_permission.sql) |
 | `incentive:rank:view` | 激励排行查看 (V2026.11.04.1__incentive_stats_rank_permission_codes.sql) |
@@ -1270,6 +1259,7 @@ Generated from local source: `02-迭代源代码`
 
 ### Runtime Dictionary Permissions Not Directly Seen In Backend Annotations
 
+- `contact:manage`: 客户联系人管理
 - `contact:view`: 客户联系人查看
 - `customer:date:edit`: 修改客户保护日期
 - `incentive:manage`: 激励管理(他人记录)
@@ -1284,6 +1274,7 @@ Generated from local source: `02-迭代源代码`
 
 ### Runtime Dictionary Permissions Not Seen In Backend Annotations Or Code References
 
+- `contact:manage`: 客户联系人管理
 - `incentive:manage`: 激励管理(他人记录)
 - `incentive:person-rank:export`: 个人排行导出
 
@@ -1302,9 +1293,9 @@ Generated from local source: `02-迭代源代码`
 
 | Permission | Code Reference | Context |
 | --- | --- | --- |
-| `contact:view` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java:515` | `if (!SecurityUtils.hasAuthority("contact:view")) return Result.ok(List.of());` |
+| `contact:view` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java:467` | `if (!SecurityUtils.hasAuthority("contact:view")) return Result.ok(List.of());` |
 | `customer:date:edit` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/service/CustomerService.java:731` | `return SecurityUtils.isAdmin() \|\| SecurityUtils.hasAuthority("customer:date:edit");` |
-| `sea:claim` | `aigicrm-backend/src/main/java/com/aigicrm/module/approval/service/ApprovalService.java:254` | `&& !SecurityUtils.hasAuthority("sea:claim")) {` |
+| `sea:claim` | `aigicrm-backend/src/main/java/com/aigicrm/module/approval/service/ApprovalService.java:286` | `&& !SecurityUtils.hasAuthority("sea:claim")) {` |
 
 ### UI Permission Tokens Missing In Known Sources
 
@@ -1318,7 +1309,10 @@ Generated from local source: `02-迭代源代码`
 
 ### Mini Program API Wrappers Without Backend Endpoint Match
 
-- None
+- `POST /api/customer/{id}/invoices` from `aigicrm-miniprogram/api/customer.js` (`addInvoice`)
+- `DELETE /api/customer/{id}/invoices/{id}?reason={id}(reason || '')` from `aigicrm-miniprogram/api/customer.js` (`deleteInvoice`)
+- `POST /api/customer/{id}/payments` from `aigicrm-miniprogram/api/customer.js` (`addPayment`)
+- `DELETE /api/customer/{id}/payments/{id}?reason={id}(reason || '')` from `aigicrm-miniprogram/api/customer.js` (`deletePayment`)
 
 ## Notes
 

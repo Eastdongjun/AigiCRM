@@ -499,8 +499,10 @@ public class PermissionMatrixTest {
         // file:acl:manage；permissions 读端点刻意降为 file:view——非 admin 夹主/
         // 上级链打开弹窗需要按 ACL 自身权限放行（前端按钮权限退化兜底），
         // 降级只缩小要求不放大攻击面（原断言 6 端点全 acl:manage 已过时）。
-        assertEquals(Set.of("listAcl", "saveAcl", "removeAcl", "setDownloadable", "aclRoles"), annotated,
-                "FolderAclController ACL 管理 5 端点必须携带 hasAuthority('file:acl:manage')");
+        // 【2026-11-09 类型级默认权限】type-defaults 三端点(读写文件空间默认)同码并入, 5→8。
+        assertEquals(Set.of("listAcl", "saveAcl", "removeAcl", "setDownloadable", "aclRoles",
+                "listTypeDefaults", "saveTypeDefault", "removeTypeDefault"), annotated,
+                "FolderAclController ACL 管理端点(逐夹5+类型默认3)必须携带 hasAuthority('file:acl:manage')");
         assertEquals("hasAuthority('file:view')", permissionsAuthority,
                 "permissions 读端点必须为 file:view（夹主弹窗放行设计，控制器注释为证）");
     }
