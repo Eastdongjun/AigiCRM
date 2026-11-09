@@ -246,18 +246,17 @@ public class ScoreService {
 
         // 持久化该周期参与同事名单（仅用于列显示顺序，不再联动删除分数记录）
         // 【G2 2026-09-21】物理删按当前集团收口, 不再跨租户清参与名单(仅 participant, 分数记录本就不删)
+        // 【2026-11-09 用户令"学分录入人名重复"修复】改用去重后的 participantSet 插入——
+        // 原代码遍历原始 participantIds List(可含重复 id), 同一人同期插多条→网格人名重复
         Long groupForDelete = com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull();
         participantMapper.physicalDeleteByPeriod(period, groupForDelete);
-        if (participantIds != null) {
-            int sort = 0;
-            for (Long uid : participantIds) {
-                if (uid == null) continue;
-                BizScoreParticipant p = new BizScoreParticipant();
-                p.setPeriod(period);
-                p.setUserId(uid);
-                p.setSortOrder(sort++);
-                participantMapper.insert(p);
-            }
+        int sort = 0;
+        for (Long uid : participantSet) {
+            BizScoreParticipant p = new BizScoreParticipant();
+            p.setPeriod(period);
+            p.setUserId(uid);
+            p.setSortOrder(sort++);
+            participantMapper.insert(p);
         }
     }
 

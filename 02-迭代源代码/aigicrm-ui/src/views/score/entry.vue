@@ -157,7 +157,9 @@ const onCategoryChange = (item) => { item.product = ''; persistItem(item, { cate
 const onProductChange = (item) => { persistItem(item, { product: item.product }) }
 const onRangeChange = async (item, val) => { const p=val.split('-'); item.scoreMin=parseInt(p[0])||0; item.scoreMax=parseInt(p[1])||5; if(item.id) try{await updateScoreItem(item.id,{scoreMin:item.scoreMin,scoreMax:item.scoreMax})}catch{} }
 
-const loadGrid = async () => { try { const d=(await getScoreGrid(period.value)).data||{}; items.value=d.items||[]; userPool.value=d.pool||[]; visibleUsers.value=d.users||[]; scores.value=d.scores||{} } catch{} }
+// 【2026-11-09 用户令"学分录入人名重复"】grid 返回的 users 按 participant 表构建, 若表有
+// 同人同期多条(历史 bug 残留)会返回重复人名——前端按 id 去重兜底
+const loadGrid = async () => { try { const d=(await getScoreGrid(period.value)).data||{}; items.value=d.items||[]; userPool.value=d.pool||[]; const seen=new Set(); visibleUsers.value=(d.users||[]).filter(u=>{ if(seen.has(u.id)) return false; seen.add(u.id); return true }); scores.value=d.scores||{} } catch{} }
 // 【L3 2026-10-04】0 分是合法得分：用 ?? 区分"未评分(undefined/null)"与"0 分"，原 || 会把 0 显示成空
 const getScore = (itemId, userId) => scores.value[itemId+'_'+userId] ?? ''
 const setScore = (itemId, userId, event) => { const v=parseInt(event.target.value)||0; const item=items.value.find(i=>i.id===itemId); const mx=item?.scoreMax||5; const mn=item?.scoreMin||0; event.target.value=Math.max(mn,Math.min(mx,v)); scores.value[itemId+'_'+userId]=Math.max(mn,Math.min(mx,v)) }
