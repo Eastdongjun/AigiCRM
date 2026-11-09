@@ -42,19 +42,19 @@
       </el-table>
       <el-empty v-if="!rowsOf(t.value).length" :description="`暂无${t.label}授权`" :image-size="48" />
       <div v-if="canEdit" class="fsd-form">
-        <el-select v-if="subjectType === 'ROLE'" v-model="form[t.value].subjectId" placeholder="选择角色" size="small"
-                   style="width:200px" class="fsd-subject">
+        <el-select v-if="subjectType === 'ROLE'" v-model="form[t.value].subjectIds" multiple collapse-tags
+                   placeholder="选择角色（可多选）" size="small" style="width:220px" class="fsd-subject">
           <el-option v-for="r in roleOptions" :key="r.id" :label="r.roleName" :value="r.id" />
         </el-select>
-        <el-select v-else v-model="form[t.value].subjectId" filterable remote :remote-method="searchUsers"
-                   :loading="userSearching" placeholder="输入姓名 / 账号搜索" size="small" style="width:240px" class="fsd-subject"
+        <el-select v-else v-model="form[t.value].subjectIds" multiple collapse-tags filterable remote :remote-method="searchUsers"
+                   :loading="userSearching" placeholder="输入姓名 / 账号搜索（可多选）" size="small" style="width:260px" class="fsd-subject"
                    @focus="searchUsers('')">
           <el-option v-for="u in userOptions" :key="u.id" :label="`${u.realName}（${u.username}）`" :value="u.id" />
         </el-select>
         <el-checkbox-group v-model="form[t.value].perms" size="small" class="fsd-perms">
           <el-checkbox v-for="o in PERM_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</el-checkbox>
         </el-checkbox-group>
-        <el-button type="primary" size="small" :disabled="!form[t.value].subjectId || !form[t.value].perms.length"
+        <el-button type="primary" size="small" :disabled="!form[t.value].subjectIds.length || !form[t.value].perms.length"
                    :loading="saving === t.value" @click="saveRow(t.value)">保存</el-button>
       </div>
       <div v-if="t.value === 'private' && canEdit" class="fsd-warn">
@@ -107,8 +107,8 @@ const userSearching = ref(false)
 const saving = ref('')
 const subjectType = ref('USER') // 默认按人(用户主诉求: 点名某人)
 const form = reactive({
-  public: { subjectId: null, perms: [] },
-  private: { subjectId: null, perms: [] }
+  public: { subjectIds: [], perms: [] },
+  private: { subjectIds: [], perms: [] }
 })
 
 const rowsOf = (type) => rows.value.filter(r => r.folderType === type)
@@ -126,15 +126,24 @@ const searchUsers = async (query) => {
   userSearching.value = false
 }
 
+// 【2026-11-10 用户令"需要能批量选择"】主体多选批量授权: 逐主体并行下发(Promise.allSettled,
+// AclDialog 多角色保存同款配方——中途单个失败不中断, 成功 N / 失败 M 汇总, 失败主体保留勾选直接重试)
 const saveRow = async (type) => {
   saving.value = type
-  try {
-    await saveFolderTypeDefault({ folderType: type, subjectType: subjectType.value, subjectId: form[type].subjectId, perms: form[type].perms })
-    ElMessage.success('已保存，立即生效（该空间全部文件夹）')
-    form[type].subjectId = null
+  const ids = [...form[type].subjectIds]
+  const results = await Promise.allSettled(ids.map(id =>
+    saveFolderTypeDefault({ folderType: type, subjectType: subjectType.value, subjectId: id, perms: form[type].perms })))
+  const okCount = results.filter(r => r.status === 'fulfilled').length
+  const failCount = ids.length - okCount
+  if (failCount === 0) {
+    ElMessage.success(`已保存 ${okCount} 个主体，立即生效（该空间全部文件夹）`)
+    form[type].subjectIds = []
     form[type].perms = []
-    await load()
-  } catch (e) { /* 拦截器已提示 */ }
+  } else {
+    form[type].subjectIds = ids.filter((id, i) => results[i].status === 'rejected')
+    ElMessage.warning(`保存：成功 ${okCount} / 失败 ${failCount}（失败主体已保留勾选，可直接重试）`)
+  }
+  await load()
   saving.value = ''
 }
 
