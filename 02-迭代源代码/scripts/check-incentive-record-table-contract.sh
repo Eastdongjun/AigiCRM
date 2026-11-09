@@ -62,19 +62,23 @@ assert_file "$INCENTIVE_SERVICE"
 assert_contains "$INCENTIVE_SERVICE" "private void evictScoreboardCache()"
 EVICT_CALLS=$(grep -c "evictScoreboardCache();" "$INCENTIVE_SERVICE")
 [ "$EVICT_CALLS" -ge 4 ] || fail "激励排行写穿失效调用点不足(应≥4: add/update/delete/removeFile), 实际 $EVICT_CALLS"
-# 【2026-11-06 用户令"检索关键字 无关的记录不用带出来"翻转 11-02 深度检索钉】
-# 【2026-11-09 用户令"只检索含有关键字的记录, 不要把客户的信息全部检索出来"再收紧】
-# 关键词=纯记录级两路(关联产品∨具体产品): 客户名命中不再扩散为该客户全部记录;
-# 11-02"备注+安装前问题"弱字段与客户名 OR 扩散路均已撤——本钉防复活: 三者命中数必须为 0
+# 【2026-11-09 用户令"全局检索应能检索客户/分类/单一记录/关联记录"】关键词=六路宽匹配:
+# ①关联产品 ②具体产品 ③客户名 ④分类名 ⑤上传人姓名 ⑥文件名——客户名/分类/上传人/文件名
+# 均以 OR 加入匹配集; 展示层(PC/MP)有关键字时打散为纯记录列表(不按客户分组卡片)。
+# 弱字段(备注+安装前问题)维持已撤(2026-11-06), 本钉防复活
 REMARK_HITS=$(grep -c "getRemark, keyword" "$INCENTIVE_SERVICE" || true)
 DETAIL_HITS=$(grep -c "getPreInstallQuestion, keyword" "$INCENTIVE_SERVICE" || true)
-CUST_OR_HITS=$(grep -cE "getCustomerId, cids" "$INCENTIVE_SERVICE" || true)
-[ "$REMARK_HITS" -eq 0 ] || fail "关键词弱字段回潮: 备注命中 $REMARK_HITS 处(2026-11-06 已撤, 只许关联产品∨具体产品)"
+[ "$REMARK_HITS" -eq 0 ] || fail "关键词弱字段回潮: 备注命中 $REMARK_HITS 处(2026-11-06 已撤)"
 [ "$DETAIL_HITS" -eq 0 ] || fail "关键词弱字段回潮: 安装前问题命中 $DETAIL_HITS 处(2026-11-06 已撤)"
-[ "$CUST_OR_HITS" -eq 0 ] || fail "关键词客户名扩散路回潮: customerId IN 命中 $CUST_OR_HITS 处(2026-11-09 已撤, 客户级筛选走仅传 customerName 的分支)"
-# 收紧后强相关两路仍须在(纯记录级)
+# 六路核心字段均须在
 PRODUCT_HITS=$(grep -c "getRelatedProducts, keyword" "$INCENTIVE_SERVICE" || true)
-[ "$PRODUCT_HITS" -ge 1 ] || fail "关键词强相关匹配缺关联产品分支, 实际 $PRODUCT_HITS"
+[ "$PRODUCT_HITS" -ge 1 ] || fail "关键词缺关联产品分支, 实际 $PRODUCT_HITS"
+CUST_JOIN_HITS=$(grep -c "BizCustomer::getCustomerName, keyword" "$INCENTIVE_SERVICE" || true)
+[ "$CUST_JOIN_HITS" -ge 1 ] || fail "关键词缺客户名分支(customer表LIKE), 实际 $CUST_JOIN_HITS"
+CAT_JOIN_HITS=$(grep -c "BizIncentiveCategory::getCategoryName, keyword" "$INCENTIVE_SERVICE" || true)
+[ "$CAT_JOIN_HITS" -ge 1 ] || fail "关键词缺分类名分支(category表LIKE), 实际 $CAT_JOIN_HITS"
+FILE_HITS=$(grep -c 'file_pre_id REGEXP' "$INCENTIVE_SERVICE" || true)
+[ "$FILE_HITS" -ge 1 ] || fail "关键词缺文件名分支(biz_file反查+REGEXP), 实际 $FILE_HITS"
 
 # 【2026-10-29 左面板联动+筛选扩展】点左侧子分类=右侧表格按记录 categoryId 过滤(记录挂二级,数值归一);
 # 筛选栏新增行业(字典)/时间范围(闭区间,前10位字典序); 切大类Tab自动清选中防跨大类串数据

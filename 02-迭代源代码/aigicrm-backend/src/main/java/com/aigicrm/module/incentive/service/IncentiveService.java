@@ -1159,18 +1159,50 @@ public class IncentiveService {
         if (product != null && !product.isBlank()) {
             wrapper.like(BizIncentiveRecord::getRelatedProducts, product);
         }
-        // 【2026-11-02 用户令: 深度检索】关键词命中扩到 备注(remark)+详情描述(preInstallQuestion),
-        // 原只命中 相关产品/具体产品/客户名; 可见性过滤(applyShareVisibility)在 wrapper 最前,
-        // 【2026-11-06 用户令"检索关键字 无关的记录不用带出来"】关键词语义收紧: 撤"深度检索"的
-        // 备注+安装前问题 两路弱字段——备注随口一提的记录全被带出=无关记录噪音。
-        // 【2026-11-09 用户令"只检索含有关键字的记录, 不要把客户的信息全部检索出来"】关键词再收紧
-        // 为纯记录级两路(关联产品 ∨ 具体产品): 客户名命中不再扩散为"该客户全部记录"——三端搜索框
-        // 均 customerName+keyword 同值双传, 原客户名 OR 路把客户名沾边客户的无关记录全带出;
-        // 按客户找记录走独立客户筛选(仅传 customerName 的分支1保留客户级语义)。
-        // 深度检索只在用户有权看的记录集合内进行
+        // 【2026-11-09 用户令"全局检索应能检索客户/分类/单一记录/关联记录"】关键词=六路宽匹配:
+        // ①关联产品 ②具体产品 ③客户名(customer表LIKE→customerId IN) ④分类名(category表LIKE→categoryId IN)
+        // ⑤上传人姓名(user表LIKE→userId IN) ⑥文件名(三槽位文件名LIKE)。
+        // 展示层(PC/MP)有关键字时打散为纯记录列表(不按客户分组卡片)——
+        // 客户名命中会带出该客户全部记录, 但每条独立成行, 用户逐行看(非旧卡片汇总)。
+        // 可见性过滤(applyOrgQueryVisibility)在 wrapper 最前, 深度检索只在有权看的记录内。
         if (keyword != null && !keyword.isBlank()) {
-            wrapper.and(w -> w.like(BizIncentiveRecord::getRelatedProducts, keyword)
-                    .or().like(BizIncentiveRecord::getSpecificProduct, keyword));
+            wrapper.and(w -> {
+                w.like(BizIncentiveRecord::getRelatedProducts, keyword)
+                 .or().like(BizIncentiveRecord::getSpecificProduct, keyword);
+                // ③ 客户名
+                List<BizCustomer> matchedCustomers = customerMapper.selectList(
+                    new LambdaQueryWrapper<BizCustomer>().like(BizCustomer::getCustomerName, keyword));
+                if (!matchedCustomers.isEmpty()) {
+                    w.or().in(BizIncentiveRecord::getCustomerId,
+                        matchedCustomers.stream().map(BizCustomer::getId).toList());
+                }
+                // ④ 分类名
+                List<BizIncentiveCategory> matchedCats = categoryMapper.selectList(
+                    new LambdaQueryWrapper<BizIncentiveCategory>().like(BizIncentiveCategory::getCategoryName, keyword));
+                if (!matchedCats.isEmpty()) {
+                    w.or().in(BizIncentiveRecord::getCategoryId,
+                        matchedCats.stream().map(BizIncentiveCategory::getId).toList());
+                }
+                // ⑤ 上传人姓名
+                List<SysUser> matchedUsers = userMapper.selectList(
+                    new LambdaQueryWrapper<SysUser>().like(SysUser::getRealName, keyword));
+                if (!matchedUsers.isEmpty()) {
+                    w.or().in(BizIncentiveRecord::getUserId,
+                        matchedUsers.stream().map(SysUser::getId).toList());
+                }
+                // ⑥ 文件名: 从 biz_file 反查文件名含关键字的文件 ID → REGEXP 匹配记录四槽位的 ID 串
+                // (filePreName 等是 @TableField(exist=false) 非表列, 须走 ID 间接匹配; 限 50 防宽词慢查)
+                List<com.aigicrm.module.file.entity.BizFile> matchedFiles = fileMapper.selectList(
+                    new LambdaQueryWrapper<com.aigicrm.module.file.entity.BizFile>()
+                        .like(com.aigicrm.module.file.entity.BizFile::getFileName, keyword)
+                        .last("LIMIT 50"));
+                if (!matchedFiles.isEmpty()) {
+                    String idPattern = matchedFiles.stream()
+                        .map(f -> String.valueOf(f.getId()))
+                        .collect(java.util.stream.Collectors.joining("|"));
+                    w.or().apply("(file_pre_id REGEXP {0} OR file_mid_id REGEXP {0} OR file_post_id REGEXP {0} OR file_track_id REGEXP {0})", idPattern);
+                }
+            });
         }
         if (salesperson != null && !salesperson.isBlank()) {
             List<SysUser> users = userMapper.selectList(
