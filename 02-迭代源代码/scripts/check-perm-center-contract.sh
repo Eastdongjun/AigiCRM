@@ -33,6 +33,12 @@ grep -Fq "/system/perm-center" "$MIG/V2026.11.03.2__perm_center_menu.sql" || fai
 [ -f "$UI/views/system/PermCenter.vue" ] || fail 'PermCenter.vue must exist'
 grep -Fq "PermScopeManager" "$UI/views/system/PermCenter.vue" || fail 'PermCenter tab-1 must embed PermScopeManager'
 grep -Fq "SeaConfigManager" "$UI/views/system/PermCenter.vue" || fail 'PermCenter tab-2 must embed SeaConfigManager'
+# 【2026-11-09 页签合并(用户令)】文件权限并入专项权限大页签: FileSpaceDefaults 须随 special 面板嵌入,
+# 且不得再有独立「文件权限」页签(防复活)。
+grep -Fq "FileSpaceDefaults" "$UI/views/system/PermCenter.vue" || fail 'PermCenter special pane must embed FileSpaceDefaults (2026-11-09 页签合并)'
+if grep -Fq ">文件权限</button>" "$UI/views/system/PermCenter.vue"; then
+  fail '文件权限已并入专项权限页签, 独立文件权限页签不得复活'
+fi
 grep -Fq "activeTab.value = 'permCenter'" "$UI/views/system/role.vue" || fail 'role.vue jump must land on 系统设置 permCenter tab'
 # 日志管理同款收敛(2026-11-05 用户令"日志管理也放到系统设置里面"): 页签按注册码 system:log:view 显隐
 grep -Fq "activeTab === 'log'" "$UI/views/system/config.vue" || fail 'config nav must register log item (日志管理收敛, activeTab key)'

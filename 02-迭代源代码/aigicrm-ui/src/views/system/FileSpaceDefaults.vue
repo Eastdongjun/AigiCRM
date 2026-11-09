@@ -3,15 +3,15 @@
        保存即实时生效(判定层 typeGranted, 覆盖该空间全部存量+未来文件夹, 取消勾选立即收回);
        四项激励文件跟随激励记录授权(专项权限页签), 此处不配置。词表=8 细动作(edit 已拆改名/替换) + create。 -->
   <div class="fsd">
-    <div class="pc-sec">
+    <div class="pc-sec" style="margin-top:20px">
       <div class="pc-sec-head">
-        <span class="pc-sec-title">授权主体</span>
-        <span class="pc-sec-hint">按人点名某人，或按角色整批（勾角色=成员自动获得，换届免改）</span>
+        <span class="pc-sec-title">文件权限</span>
+        <span class="pc-sec-hint">某个人或角色 × 公共/私人空间 × 动作，保存立即生效（覆盖该空间全部文件夹，取消即收回）</span>
+        <el-radio-group v-model="subjectType" size="small" style="margin-left:auto">
+          <el-radio-button value="ROLE">按角色</el-radio-button>
+          <el-radio-button value="USER">按人员</el-radio-button>
+        </el-radio-group>
       </div>
-      <el-radio-group v-model="subjectType" size="small">
-        <el-radio-button value="ROLE">按角色</el-radio-button>
-        <el-radio-button value="USER">按人员</el-radio-button>
-      </el-radio-group>
     </div>
 
     <div v-for="t in TYPES" :key="t.value" class="pc-sec" style="margin-top:16px">
@@ -69,7 +69,7 @@
         <span class="pc-sec-hint">跟随激励记录授权——能看记录即能看文件，能编辑记录即能改名/替换/删附件</span>
       </div>
       <el-alert type="info" :closable="false" show-icon
-                title="四项激励的文件是业务记录附件，权限由「专项权限」页签的激励授权管理（查看分享 / 查看全部 / 编辑 / 删除），此处不可配置。" />
+                title="四项激励的文件是业务记录附件，权限由本页签上方「激励专项授权」管理（查看分享 / 查看全部 / 编辑 / 删除），此处不可配置。" />
     </div>
   </div>
 </template>

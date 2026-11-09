@@ -32,6 +32,13 @@ vi.mock('@/api/sea', () => ({
   getOrgTree: vi.fn().mockResolvedValue({ data: [] }),
   createSeaConfig: vi.fn(), updateSeaConfig: vi.fn(), deleteSeaConfig: vi.fn(),
 }))
+// 【2026-11-09 页签合并】文件权限并入专项权限大页签, FileSpaceDefaults 随 special 面板挂载
+vi.mock('@/api/file', () => ({
+  getFolderTypeDefaults: vi.fn().mockResolvedValue({ data: [] }),
+  saveFolderTypeDefault: vi.fn(),
+  removeFolderTypeDefault: vi.fn(),
+  getAclRoles: vi.fn().mockResolvedValue({ data: [] }),
+}))
 
 import PermCenter from './PermCenter.vue'
 import ElementPlus from 'element-plus'
@@ -55,6 +62,21 @@ describe('权限中心(2026-11-03 门面统一)', () => {
     }
     // 收口提示: 唯一配置入口
     expect(text).toContain('唯一配置入口')
+  })
+
+  it('【2026-11-09 页签合并】文件权限在专项权限页签内, 无独立文件权限页签', async () => {
+    const wrapper = mountCenter()
+    const chips = wrapper.findAll('.pc-chip').map(w => w.text())
+    expect(chips).toEqual(['功能与范围', '专项权限', '生效预览', '变更审计'])
+    expect(chips.filter(t => t.includes('文件权限'))).toHaveLength(0) // 独立页签不得复活
+    // 激活专项权限 → 文件权限区块(公共空间授权)随面板挂载
+    const tab = wrapper.findAll('.pc-chip').find(w => w.text().includes('专项权限'))
+    await tab.trigger('click')
+    await flushPromises()
+    const text = wrapper.text()
+    expect(text).toContain('文件权限')
+    expect(text).toContain('公共空间（公司文件）')
+    expect(text).toContain('四项激励文件')
   })
 
   it('生效预览: 选人后渲染引擎算出的范围表/公海判定/激励开关', async () => {
