@@ -90,12 +90,11 @@
     <template v-if="isKeywordSearch">
       <div v-loading="loading" element-loading-text="加载中..." class="flat-wall">
         <div v-if="!loading && flatRecords.length===0" style="text-align:center;padding:80px 0;color:#bbb">暂无数据</div>
-        <!-- 【2026-11-10 用户令"检索直接显示图片预览, 不要列表不要多点一步"】命中=记录卡片墙:
-             图直出(最多3缩略+余量徽标), 点图即灯箱(翻该记录全部附件); 底部信息条点击进单记录详情 -->
+        <!-- 【2026-11-10 用户令】命中=记录卡片墙: 图直出; 点图/点信息条 → 单记录详情大页(大图可左右滑动, 点大图进灯箱原图) -->
         <div v-for="r in pagedFlatRecords" :key="r.id" class="flat-card">
           <div class="flat-card-imgs">
             <template v-if="getFiles(r).length">
-              <div v-for="f in getFiles(r).slice(0,3)" :key="f.id" class="flat-thumb" @click.stop="preview(f.id, f.type, f.label, getFiles(r))">
+              <div v-for="f in getFiles(r).slice(0,3)" :key="f.id" class="flat-thumb" @click.stop="openRecordDetail(r)">
                 <img v-if="f.type==='image' && !thumbFailed.has(f.id)" :src="thumbUrl(f.id)" loading="lazy" @error="markThumbFailed(f.id)" />
                 <span v-else-if="f.type==='image'" class="flat-tile img">图</span>
                 <span v-else-if="f.type==='video'" class="flat-tile vid">▶</span>
