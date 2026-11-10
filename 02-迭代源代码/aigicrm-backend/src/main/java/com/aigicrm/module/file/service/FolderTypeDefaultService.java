@@ -40,7 +40,9 @@ public class FolderTypeDefaultService {
             FolderPermissionService.P_RENAME, FolderPermissionService.P_REPLACE,
             FolderPermissionService.P_DELETE, FolderPermissionService.P_SHARE,
             FolderPermissionService.P_DOWNLOAD);
-    private static final Set<String> TYPES = Set.of("public", "private");
+    private static final Set<String> TYPES = Set.of("public", "private", "incentive");
+    private static final Set<String> SCOPES = Set.of("self", "dept", "office", "region", "all");
+    private static final String TYPE_INCENTIVE = "incentive";
 
     private final BizFolderTypeDefaultMapper grantMapper;
     private final BizFileFolderMapper folderMapper;
@@ -68,6 +70,7 @@ public class FolderTypeDefaultService {
                 row.put("folderName", f != null ? f.getFolderName() : "未知文件夹");
             }
             row.put("scopeOrgId", g.getScopeOrgId());
+            row.put("scopeLevel", g.getScopeLevel());
             row.put("subjectType", g.getSubjectType());
             row.put("subjectId", g.getSubjectId());
             row.put("subjectName", subjectNameOf(g));
@@ -80,12 +83,17 @@ public class FolderTypeDefaultService {
     }
 
     /** 保存授权: 词表按对象组校验; 'edit' 伞归一 rename+replace; 过期时间必填且须晚于当前 */
-    public void saveGrant(String folderType, String objectType, Long folderId, Long scopeOrgId,
+    public void saveGrant(String folderType, String objectType, Long folderId, Long scopeOrgId, String scopeLevel,
                           String subjectType, Long subjectId, List<String> perms, LocalDateTime expiresAt) {
         if (!TYPES.contains(folderType)) throw new BusinessException("不支持的文件夹类型");
         if (!FolderPermissionService.OBJ_FOLDER.equals(objectType) && !FolderPermissionService.OBJ_FILE.equals(objectType)) {
             throw new BusinessException("动作对象必须是 FOLDER 或 FILE");
         }
+        // 四项激励=纯文件域(无文件夹层)
+        if (TYPE_INCENTIVE.equals(folderType) && FolderPermissionService.OBJ_FOLDER.equals(objectType)) {
+            throw new BusinessException("四项激励类型只有文件动作");
+        }
+        if (scopeLevel != null && !SCOPES.contains(scopeLevel)) throw new BusinessException("非法数据范围: " + scopeLevel);
         if (folderId != null && folderMapper.selectById(folderId) == null) throw new BusinessException("定向文件夹不存在");
         if (subjectId == null) throw new BusinessException("授权主体不能为空");
         if (perms == null || perms.isEmpty()) throw new BusinessException("权限不能为空");
@@ -122,6 +130,7 @@ public class FolderTypeDefaultService {
             existing.setPerms(joined);
             existing.setExpiresAt(expiresAt);
             existing.setScopeOrgId(scopeOrgId);
+            existing.setScopeLevel(scopeLevel);
             grantMapper.updateById(existing);
         } else {
             BizFolderTypeDefault g = new BizFolderTypeDefault();
@@ -129,6 +138,7 @@ public class FolderTypeDefaultService {
             g.setObjectType(objectType);
             g.setFolderId(folderId);
             g.setScopeOrgId(scopeOrgId);
+            g.setScopeLevel(scopeLevel);
             g.setSubjectType(subjectType);
             g.setSubjectId(subjectId);
             g.setPerms(joined);
@@ -139,7 +149,8 @@ public class FolderTypeDefaultService {
         }
         try { securityAudit.permissionChange("file_grant_save",
                 "fileGrant:" + folderType + "/" + objectType + (folderId != null ? "#" + folderId : "")
-                        + " subject:" + subjectType + ":" + subjectId + " perms:" + joined + " expires:" + expiresAt); } catch (Exception ignore) { }
+                        + " subject:" + subjectType + ":" + subjectId + " perms:" + joined
+                        + " scope:" + scopeLevel + " expires:" + expiresAt); } catch (Exception ignore) { }
     }
 
     /** 按 id 删除授权(立即收回) */

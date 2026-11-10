@@ -81,7 +81,7 @@ public class FolderAclController {
         }
         List<String> perms = ((List<?>) rawPerms).stream().map(String::valueOf).toList();
         grantService.saveGrant(
-                str(body.get("folderType")), str(body.get("objectType")), folderId, scopeOrgId,
+                str(body.get("folderType")), str(body.get("objectType")), folderId, scopeOrgId, str(body.get("scopeLevel")),
                 str(body.get("subjectType")), subjectId, perms, expiresAt);
         return Result.ok();
     }

@@ -42,17 +42,17 @@ class FolderTypeDefaultServiceTest {
     @Test
     void saveGrant_rejectsBadInput() {
         LocalDateTime exp = LocalDateTime.now().plusDays(30);
-        assertThrows(BusinessException.class, () -> svc.saveGrant("company", "FILE", null, null, "ROLE", 9L, List.of("view"), exp));
-        assertThrows(BusinessException.class, () -> svc.saveGrant("public", "TEAM", null, null, "ROLE", 9L, List.of("view"), exp));
-        assertThrows(BusinessException.class, () -> svc.saveGrant("public", "FOLDER", null, null, "ROLE", 9L, List.of("view"), exp)); // FOLDER 词表不含 view
-        assertThrows(BusinessException.class, () -> svc.saveGrant("public", "FILE", null, null, "ROLE", 9L, List.of("create"), exp)); // FILE 词表不含 create
-        assertThrows(BusinessException.class, () -> svc.saveGrant("public", "FILE", null, null, "ROLE", 9L, List.of(), exp));
+        assertThrows(BusinessException.class, () -> svc.saveGrant("company", "FILE", null, null, null, "ROLE", 9L, List.of("view"), exp));
+        assertThrows(BusinessException.class, () -> svc.saveGrant("public", "TEAM", null, null, null, "ROLE", 9L, List.of("view"), exp));
+        assertThrows(BusinessException.class, () -> svc.saveGrant("public", "FOLDER", null, null, null, "ROLE", 9L, List.of("view"), exp)); // FOLDER 词表不含 view
+        assertThrows(BusinessException.class, () -> svc.saveGrant("public", "FILE", null, null, null, "ROLE", 9L, List.of("create"), exp)); // FILE 词表不含 create
+        assertThrows(BusinessException.class, () -> svc.saveGrant("public", "FILE", null, null, null, "ROLE", 9L, List.of(), exp));
         // 【2026-11-10 用户令】到期可选: NULL=永久不再拒绝; 填过去时间仍拒绝
-        assertThrows(BusinessException.class, () -> svc.saveGrant("public", "FILE", null, null, "ROLE", 9L, List.of("view"), LocalDateTime.now().minusDays(1)));
+        assertThrows(BusinessException.class, () -> svc.saveGrant("public", "FILE", null, null, null, "ROLE", 9L, List.of("view"), LocalDateTime.now().minusDays(1)));
         when(roleMapper.selectById(9L)).thenReturn(role(9L, "05", 0));
-        assertThrows(BusinessException.class, () -> svc.saveGrant("public", "FILE", null, null, "ROLE", 9L, List.of("view"), exp)); // 停用角色
+        assertThrows(BusinessException.class, () -> svc.saveGrant("public", "FILE", null, null, null, "ROLE", 9L, List.of("view"), exp)); // 停用角色
         when(folderMapper.selectById(500L)).thenReturn(null);
-        assertThrows(BusinessException.class, () -> svc.saveGrant("public", "FILE", 500L, null, "ROLE", 9L, List.of("view"), exp)); // 定向夹不存在
+        assertThrows(BusinessException.class, () -> svc.saveGrant("public", "FILE", 500L, null, null, "ROLE", 9L, List.of("view"), exp)); // 定向夹不存在
     }
 
     @Test
@@ -62,7 +62,7 @@ class FolderTypeDefaultServiceTest {
         LocalDateTime exp = LocalDateTime.now().plusYears(1);
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
-            svc.saveGrant("public", "FILE", null, null, "USER", 42L, List.of("view", "edit", "download"), exp);
+            svc.saveGrant("public", "FILE", null, null, null, "USER", 42L, List.of("view", "edit", "download"), exp);
         }
         ArgumentCaptor<BizFolderTypeDefault> cap = ArgumentCaptor.forClass(BizFolderTypeDefault.class);
         verify(grantMapper).insert(cap.capture());

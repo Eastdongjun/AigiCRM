@@ -80,7 +80,7 @@ public class FolderPermissionService {
         if (folder == null) return false;
         if (Objects.equals(folder.getOwnerId(), userId)) return true;
         if (isManagerChain(userId, folder.getOwnerId())) return true;
-        if (grantGranted(ctxObjectTypeOf(action), folder.getFolderType(), folder.getId(), folder.getOrgId(), action, userId)) return true;
+        if (grantGranted(ctxObjectTypeOf(action), folder.getFolderType(), folder.getId(), folder.getOrgId(), folder.getOwnerId(), action, userId)) return true;
         // 【拍板②文件跟夹走】矩阵通道锚定夹归属组织(夹.org ∈ 我的可见部门集), 不再按创建人
         return deptVisible(folder.getOrgId(), userId, matrixActionOf(action));
     }
@@ -100,9 +100,10 @@ public class FolderPermissionService {
             ref = folderMapper.selectById(folderRef);
             if (ref != null) folderType = ref.getFolderType();
         }
-        if (grantGranted(OBJ_FILE, folderType, folderRef, file.getOrgId(), action, userId)) return true;
+        if (grantGranted(OBJ_FILE, folderType, folderRef, file.getOrgId(), file.getUploaderId(), action, userId)) return true;
         // 【拍板②】夹内文件跟夹走(夹.org ∈ 可见部门集); 无夹文件(激励附件/私人无夹)跟上传人(OWNER 锚)
         if (ref != null) return deptVisible(ref.getOrgId(), userId, matrixActionOf(action));
+        // 【2026-11-10 三层定型】无夹文件按 fileScope 定型(激励附件只吃 incentive 类型授权, 公共/私人授权不再误盖)
         Long uploader = file.getUploaderId();
         return uploader != null && matrixVisible(uploader, userId, matrixActionOf(action));
     }
@@ -114,7 +115,7 @@ public class FolderPermissionService {
     public boolean canCreateFolder(String folderType, Long userId) {
         if (SecurityUtils.isAdmin()) return true;
         if ("private".equals(folderType)) return true;
-        if (grantGranted(OBJ_FOLDER, folderType, null, null, P_CREATE, userId)) return true;
+        if (grantGranted(OBJ_FOLDER, folderType, null, null, null, P_CREATE, userId)) return true;
         return userId != null && leaderOrgId(userId) != null;
     }
 
@@ -188,7 +189,7 @@ public class FolderPermissionService {
     // ==================== 例外授权(必须过期) ====================
 
     /** 授权命中: 主体匹配 ∧ 对象组匹配 ∧ 空间/逐夹定向匹配 ∧ 组织范围匹配 ∧ 词表命中 ∧ 未过期 */
-    private boolean grantGranted(String objectType, String folderType, Long targetFolderId, Long targetOrgId, String action, Long userId) {
+    private boolean grantGranted(String objectType, String folderType, Long targetFolderId, Long targetOrgId, Long targetOwnerId, String action, Long userId) {
         LocalDateTime now = LocalDateTime.now();
         for (BizFolderTypeDefault g : grantMapper.selectList(new LambdaQueryWrapper<>())) {
             if (g.getExpiresAt() != null && g.getExpiresAt().isBefore(now)) continue;
@@ -197,10 +198,31 @@ public class FolderPermissionService {
             if (g.getFolderId() == null && folderType != null && !Objects.equals(g.getFolderType(), folderType)) continue;
             if (g.getScopeOrgId() != null && !g.getScopeOrgId().equals(targetOrgId)) continue;
             if (!subjectMatches(g, userId)) continue;
+            if (!scopeCovers(g, targetOrgId, targetOwnerId)) continue;
             if (csvHas(g.getPerms(), action)) return true;
         }
         return false;
     }
+
+    /** 【2026-11-10 用户令"区分数据范围"】授权行范围命中: scope_level 空/all=不限;
+     *  夹内对象→夹.org ∈ 该档部门集; 无夹文件→上传人 ∈ 该档人员集 */
+    private boolean scopeCovers(BizFolderTypeDefault g, Long targetOrgId, Long targetUploaderId) {
+        String lv = g.getScopeLevel();
+        if (lv == null || lv.isBlank() || "all".equals(lv)) return true;
+        com.aigicrm.security.SecurityUser u = SecurityUtils.getCurrentUser();
+        if (u == null) return false;
+        if ("self".equals(lv)) return targetUploaderId != null && targetUploaderId.equals(SecurityUtils.getCurrentUserId());
+        if (targetOrgId != null) {
+            List<Long> depts = scopeResolver.resolveDeptScope(u, lv);
+            return depts != null && depts.contains(targetOrgId);
+        }
+        if (targetUploaderId != null) {
+            List<Long> users = scopeResolver.resolveScope(u, lv);
+            return users != null && users.contains(targetUploaderId);
+        }
+        return false;
+    }
+
 
     private boolean subjectMatches(BizFolderTypeDefault g, Long userId) {
         if ("USER".equals(g.getSubjectType())) return userId != null && userId.equals(g.getSubjectId());
@@ -245,7 +267,7 @@ public class FolderPermissionService {
             for (String p : List.of(P_VIEW, P_UPLOAD, P_DOWNLOAD, P_RENAME, P_REPLACE, P_SHARE, P_DELETE)) {
                 Set<Long> depts = matrixCache.computeIfAbsent(matrixActionOf(p), ma -> matrixDeptSet(userId, ma));
                 if ((depts != null && folder.getOrgId() != null && depts.contains(folder.getOrgId()))
-                        || grantHitIn(grants, ctxObjectTypeOf(p), folder.getFolderType(), folder.getId(), folder.getOrgId(), p, userId)) {
+                        || grantHitIn(grants, ctxObjectTypeOf(p), folder.getFolderType(), folder.getId(), folder.getOrgId(), folder.getOwnerId(), p, userId)) {
                     mergePerms(perms, p);
                 }
             }
@@ -254,7 +276,7 @@ public class FolderPermissionService {
         return result;
     }
 
-    private boolean grantHitIn(List<BizFolderTypeDefault> grants, String objectType, String folderType, Long targetFolderId, Long targetOrgId, String action, Long userId) {
+    private boolean grantHitIn(List<BizFolderTypeDefault> grants, String objectType, String folderType, Long targetFolderId, Long targetOrgId, Long targetOwnerId, String action, Long userId) {
         LocalDateTime now = LocalDateTime.now();
         for (BizFolderTypeDefault g : grants) {
             if (g.getExpiresAt() != null && g.getExpiresAt().isBefore(now)) continue;
@@ -270,7 +292,7 @@ public class FolderPermissionService {
 
     /** 【①B 列表过滤】该夹是否存在命中当前人的 FILE view 定向授权(=夹内全部文件对其可见) */
     public boolean grantCoversFolderFiles(String folderType, Long folderId, Long orgId, Long userId) {
-        return grantGranted(OBJ_FILE, folderType, folderId, orgId, P_VIEW, userId);
+        return grantGranted(OBJ_FILE, folderType, folderId, orgId, null, P_VIEW, userId);
     }
 
     // ==================== 上级链(个人以下) ====================
