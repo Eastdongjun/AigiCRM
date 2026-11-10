@@ -10,6 +10,7 @@
         <span class="rd-bar-name">{{ rec.customerName }}</span>
         <span class="rd-bar-cat">{{ rec.categoryName }}</span>
         <span class="rd-bar-pts">+{{ rec.score }} 分</span>
+        <el-button size="small" type="primary" plain class="rd-archive-btn" @click="$emit('open-customer', rec)">客户完整档案</el-button>
       </div>
 
       <div class="rd-meta">
@@ -43,7 +44,7 @@
       <el-empty v-else description="该记录无附件" :image-size="60" />
 
       <div class="rd-foot">
-        <span class="rd-cust-link" @click="$emit('open-customer', rec)">查看该客户全部记录 →</span>
+        <span class="rd-cust-link" @click="$emit('open-customer', rec)">查看客户完整档案（拨盘时间轴） →</span>
       </div>
     </div>
     <!-- 灯箱预览(与查询页同源组件): 从缩略打开, 左右翻该记录全部文件 -->
@@ -71,7 +72,7 @@ watch(() => props.modelValue, v => { if (v) { rec.value = props.record; thumbFai
 
 const files = computed(() => rec.value ? getFiles(rec.value) : [])
 const images = computed(() => files.value.filter(f => f.type === 'image'))
-const openPreview = (f) => lightbox.value?.open(files.value, f)
+const openPreview = (f) => lightbox.value?.open(f.id, f.type, f.label, files.value)
 </script>
 
 <style scoped>
@@ -80,6 +81,7 @@ const openPreview = (f) => lightbox.value?.open(files.value, f)
 .rd-back { font-size: 13px; color: var(--el-color-primary); cursor: pointer; }
 .rd-bar-name { font-size: 16px; font-weight: 700; color: #1f2d3d; }
 .rd-bar-cat { font-size: 12px; padding: 1px 8px; border-radius: 10px; background: var(--el-color-primary-light-9); color: var(--el-color-primary); }
+.rd-archive-btn { margin-left: 10px; }
 .rd-bar-pts { margin-left: auto; font-size: 15px; font-weight: 700; color: #e6a23c; }
 .rd-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; padding: 10px 12px; background: #f7f8fa; border-radius: 8px; margin-bottom: 14px; }
 .rd-meta-item { display: flex; gap: 8px; font-size: 13px; color: #4e5969; }
