@@ -99,7 +99,7 @@
           <div class="pc-pane-head">
             <div>
               <div class="pc-pane-title">文件权限</div>
-              <div class="pc-pane-hint">默认=组织矩阵（只看自己的，负责人看本级子树，档位在「功能与范围」调）；下表配跨范围特批——谁 × 空间 × 文件夹/文件动作 × 期限，到期自动收回；自己上传的本人恒可管</div>
+              <div class="pc-pane-hint">默认=组织矩阵（全员可看 · 本部门可管 · 删仅本人，档位在「功能与范围」调）；需要给某人特别开权时在这里加——选夹 → 选人 → 点角色卡，勾选即生效、删除即收回；自己上传的本人恒可管</div>
             </div>
           </div>
           <FileSpaceDefaults :can-edit="canEdit" />

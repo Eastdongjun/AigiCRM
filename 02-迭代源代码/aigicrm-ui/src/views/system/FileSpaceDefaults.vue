@@ -1,47 +1,42 @@
 <template>
-  <!-- 【2026-11-10 文件权限终版 + 授权台重构】例外授权(唯一加授通道, 授权必须过期)。
-       UI=列表 + 三段向导弹窗: ①给谁(组织树/角色) ②配什么(空间×对象组×三档角色卡) ③多久(快捷期限chips)。
-       底座=组织矩阵(默认: 全员可看/本部门可管/删仅本人, 档位在「功能与范围」调), 本表只配跨范围特批。 -->
+  <!-- 【2026-11-10 文件权限·授权台v3(对象优先)】例外授权。上一版"人优先+对象组选择器"违和:
+       管理员的自然句子是"给张三开技术方案夹的编辑", 专业系统(钉钉/Google)全是 对象优先→加人→点角色卡。
+       本版: ①对什么授权(选文件夹/整空间) ②给谁(组织树/角色) ③什么权限(角色卡; 文件/文件夹动作藏进卡内,
+       管理者卡=文件全套+文件夹管理, 保存时自动拆 FILE/FOLDER 两行落库) ④有效期(可选, 默认永久)。 -->
   <div class="fsd">
     <div class="fsd-head">
       <div>
         <div class="fsd-title">例外授权</div>
-        <div class="fsd-hint">默认权限=组织矩阵（全员可看 · 本部门可管 · 删仅本人，在「功能与范围」按角色调档）；这里只配<b>跨范围特批</b>（默认永久，可选限期）</div>
+        <div class="fsd-hint">默认权限=组织矩阵（全员可看 · 本部门可管 · 删仅本人，在「功能与范围」按角色调档）；这里只配<b>跨范围特批</b>，勾选即生效、删除即收回（默认永久，可选限期）</div>
       </div>
       <el-button v-if="canEdit" type="primary" size="small" @click="openAdd">＋ 添加授权</el-button>
     </div>
 
     <el-table :data="rows" size="small" style="width:100%">
-      <el-table-column label="空间" width="64">
-        <template #default="scope">{{ scope?.row?.folderType === 'public' ? '公共' : '私人' }}</template>
-      </el-table-column>
-      <el-table-column label="对象" width="60">
+      <el-table-column label="范围" min-width="150">
         <template #default="scope">
-          <el-tag size="small" :type="scope?.row?.objectType === 'FOLDER' ? 'warning' : 'info'" class="fsd-pill">
-            {{ scope?.row?.objectType === 'FOLDER' ? '文件夹' : '文件' }}
+          <el-tag size="small" :type="scope?.row?.folderType === 'public' ? 'info' : 'warning'" class="fsd-pill">
+            {{ scope?.row?.folderType === 'public' ? '公共' : '私人' }}
           </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column label="定向" min-width="90">
-        <template #default="scope">
           <span v-if="scope?.row?.folderName">📂 {{ scope?.row?.folderName }}</span>
-          <span v-else class="fsd-muted">整空间</span>
+          <span v-else class="fsd-muted">整个空间</span>
         </template>
       </el-table-column>
-      <el-table-column label="主体" min-width="140">
+      <el-table-column label="给谁" min-width="140">
         <template #default="scope">
           <el-tag size="small" :type="scope?.row?.subjectType === 'USER' ? 'warning' : 'info'" class="fsd-pill">
             {{ scope?.row?.subjectType === 'USER' ? '人员' : '角色' }}
           </el-tag>{{ scope?.row?.subjectName }}
         </template>
       </el-table-column>
-      <el-table-column label="动作" min-width="200">
+      <el-table-column label="权限" min-width="230">
         <template #default="scope">
+          <el-tag v-if="presetNameOf(scope?.row)" size="small" type="success" class="fsd-pill">{{ presetNameOf(scope?.row) }}</el-tag>
           <el-tag v-for="p in (scope?.row?.perms || [])" :key="p" size="small"
                   :type="p === 'delete' ? 'danger' : 'info'" class="fsd-pill">{{ labelOf(scope?.row?.objectType, p) }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="到期" width="105">
+      <el-table-column label="到期" width="95">
         <template #default="scope">
           <span v-if="scope?.row?.expired" class="fsd-muted" style="text-decoration:line-through">已过期</span>
           <span v-else-if="!scope?.row?.expiresAt" class="fsd-muted">永久</span>
@@ -55,15 +50,32 @@
         </template>
       </el-table-column>
     </el-table>
-    <el-empty v-if="!rows.length" description="暂无例外授权——默认规则已覆盖日常，需要跨范围特批时再添加" :image-size="48" />
+    <el-empty v-if="!rows.length" description="暂无例外授权——默认规则已覆盖日常，需要给某人特别开权时再添加" :image-size="48" />
 
-    <!-- 三段向导弹窗 -->
-    <el-dialog v-model="addVisible" title="添加授权" width="640px" top="6vh" :close-on-click-modal="false" destroy-on-close>
-      <!-- ① 给谁 -->
+    <!-- 对象优先四段向导 -->
+    <el-dialog v-model="addVisible" title="添加授权" width="660px" top="5vh" :close-on-click-modal="false" destroy-on-close>
+      <!-- ① 对什么授权 -->
       <div class="fsd-step">
         <div class="fsd-step-no">①</div>
         <div class="fsd-step-body">
-          <div class="fsd-step-title">给谁授权</div>
+          <div class="fsd-step-title">对什么授权</div>
+          <div class="fsd-row">
+            <el-radio-group v-model="form.scopeType" size="small">
+              <el-radio-button value="folder">某个文件夹</el-radio-button>
+              <el-radio-button value="public">整个公共空间</el-radio-button>
+              <el-radio-button value="private">整个私人空间</el-radio-button>
+            </el-radio-group>
+            <el-select v-if="form.scopeType === 'folder'" v-model="form.folderId" filterable placeholder="选择文件夹（可搜索）" size="small" style="flex:1;min-width:200px">
+              <el-option v-for="f in folderOptions" :key="f.id" :label="`${f.folderType === 'public' ? '公共' : '私人'} · ${f.name}`" :value="f.id" />
+            </el-select>
+          </div>
+        </div>
+      </div>
+      <!-- ② 给谁 -->
+      <div class="fsd-step">
+        <div class="fsd-step-no">②</div>
+        <div class="fsd-step-body">
+          <div class="fsd-step-title">给谁</div>
           <el-radio-group v-model="form.subjectType" size="small">
             <el-radio-button value="USER">按人员</el-radio-button>
             <el-radio-button value="ROLE">按角色</el-radio-button>
@@ -78,7 +90,7 @@
               <el-button size="small" link type="primary" @click="checkAll">全选</el-button>
               <el-button size="small" link type="danger" style="margin-left:auto" @click="clearUsers">清空</el-button>
             </div>
-            <el-scrollbar height="190px" class="fsd-tree-scroll">
+            <el-scrollbar height="180px" class="fsd-tree-scroll">
               <el-tree ref="treeRef" :data="orgUserTree" show-checkbox node-key="key"
                        :props="{ label: 'label', children: 'children' }" :expand-on-click-node="false" default-expand-all
                        @check="onTreeCheck" />
@@ -86,42 +98,38 @@
           </div>
         </div>
       </div>
-      <!-- ② 配什么 -->
+      <!-- ③ 什么权限(角色卡, 对象组已藏进卡内) -->
       <div class="fsd-step">
-        <div class="fsd-step-no">②</div>
+        <div class="fsd-step-no">③</div>
         <div class="fsd-step-body">
-          <div class="fsd-step-title">配什么权限</div>
-          <div class="fsd-row">
-            <el-select v-model="form.folderType" size="small" style="width:110px">
-              <el-option label="公共空间" value="public" /><el-option label="私人空间" value="private" />
-            </el-select>
-            <el-radio-group v-model="form.objectType" size="small">
-              <el-radio-button value="FILE">文件动作</el-radio-button>
-              <el-radio-button value="FOLDER">文件夹动作</el-radio-button>
-            </el-radio-group>
-            <el-select v-model="form.folderId" clearable placeholder="定向到某夹（默认整空间）" size="small" style="flex:1;min-width:170px">
-              <el-option v-for="f in folderOptions" :key="f.id" :label="`${f.folderType === 'public' ? '公共' : '私人'} · ${f.name}`" :value="f.id" />
-            </el-select>
-          </div>
+          <div class="fsd-step-title">什么权限</div>
           <div class="fsd-preset-cards">
-            <div v-for="ps in presetCards" :key="ps.key" class="fsd-preset-card" :class="{ active: preset === ps.key, disabled: !ps.perms.length }"
-                 @click="choosePreset(ps.key)">
+            <div v-for="ps in ROLE_CARDS" :key="ps.key" class="fsd-preset-card" :class="{ active: preset === ps.key }" @click="choosePreset(ps.key)">
               <div class="fsd-preset-name">{{ ps.name }}</div>
               <div class="fsd-preset-desc">{{ ps.desc }}</div>
+            </div>
+            <div class="fsd-preset-card" :class="{ active: preset === 'custom' }" @click="choosePreset('custom')">
+              <div class="fsd-preset-name">自定义</div>
+              <div class="fsd-preset-desc">逐动作勾选（高级）</div>
             </div>
           </div>
           <el-collapse v-if="preset === 'custom'" class="fsd-adv">
             <el-collapse-item title="高级：逐动作自定义" name="adv">
-              <el-checkbox-group v-model="form.perms" size="small" class="fsd-perms" @change="preset = 'custom'">
-                <el-checkbox v-for="o in permOptionsOf(form.objectType)" :key="o.value" :value="o.value">{{ o.label }}</el-checkbox>
+              <div class="fsd-adv-group">文件</div>
+              <el-checkbox-group v-model="form.permsFile" size="small" class="fsd-perms">
+                <el-checkbox v-for="o in FILE_ACTIONS" :key="o.value" :value="o.value">{{ o.label }}</el-checkbox>
+              </el-checkbox-group>
+              <div class="fsd-adv-group">文件夹</div>
+              <el-checkbox-group v-model="form.permsFolder" size="small" class="fsd-perms">
+                <el-checkbox v-for="o in FOLDER_ACTIONS" :key="o.value" :value="o.value">{{ o.label }}</el-checkbox>
               </el-checkbox-group>
             </el-collapse-item>
           </el-collapse>
         </div>
       </div>
-      <!-- ③ 多久 -->
+      <!-- ④ 有效期(可选) -->
       <div class="fsd-step">
-        <div class="fsd-step-no">③</div>
+        <div class="fsd-step-no">④</div>
         <div class="fsd-step-body">
           <div class="fsd-step-title">有效期（可选）</div>
           <div class="fsd-row">
@@ -129,7 +137,7 @@
               <el-radio-button value="forever">永久</el-radio-button>
               <el-radio-button value="30">30 天</el-radio-button>
               <el-radio-button value="90">90 天</el-radio-button>
-              <el-radio-button value="365">1 年</el-radio-button>
+              <el-radio-button value="1y">1 年</el-radio-button>
               <el-radio-button value="custom">自定义</el-radio-button>
             </el-radio-group>
             <el-date-picker v-if="expiryQuick === 'custom'" v-model="form.expiresAt" type="datetime" size="small"
@@ -151,7 +159,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getFolderTypeDefaults, saveFolderTypeDefault, removeFolderTypeDefault, renewFolderTypeDefault, getAclRoles, getFolderTree } from '@/api/file'
 import { getUserList } from '@/api/system'
@@ -168,27 +176,24 @@ const FOLDER_ACTIONS = [
   { value: 'create', label: '新建' }, { value: 'rename', label: '改名' }, { value: 'delete', label: '删除' }
 ]
 const LEGACY = { edit: '编辑(改名+替换)' }
-const permOptionsOf = (t) => t === 'FOLDER' ? FOLDER_ACTIONS : FILE_ACTIONS
-// 三档角色预设(业界口径): 查看/编辑/管理
-const PRESETS = {
-  FILE: {
-    viewer: ['view', 'download'],
-    editor: ['view', 'download', 'upload', 'rename', 'replace', 'share'],
-    manager: ['view', 'download', 'upload', 'rename', 'replace', 'share', 'delete']
-  },
-  FOLDER: { viewer: [], editor: [], manager: ['create', 'rename', 'delete'] }
+const labelOf = (t, v) => (t === 'FOLDER' ? FOLDER_ACTIONS : FILE_ACTIONS).find(o => o.value === v)?.label || LEGACY[v] || v
+
+// 三档角色卡(对象组藏进卡内: 管理者=文件全套+文件夹管理; 保存时自动拆 FILE/FOLDER 两行)
+const ROLES = {
+  viewer: { name: '查看者', file: ['view', 'download'], folder: [] },
+  editor: { name: '编辑者', file: ['view', 'download', 'upload', 'rename', 'replace', 'share'], folder: [] },
+  manager: { name: '管理者', file: ['view', 'download', 'upload', 'rename', 'replace', 'share', 'delete'], folder: ['create', 'rename', 'delete'] }
 }
-const PRESET_CARDS = {
-  FILE: [
-    { key: 'viewer', name: '查看者', desc: '可查看、下载' },
-    { key: 'editor', name: '编辑者', desc: '查看下载 + 上传、改名、替换、分享' },
-    { key: 'manager', name: '管理者', desc: '编辑者全部 + 删除（高敏，审计）' },
-    { key: 'custom', name: '自定义', desc: '逐动作勾选（高级）' }
-  ],
-  FOLDER: [
-    { key: 'manager', name: '管理者', desc: '可新建、改名、删除文件夹' },
-    { key: 'custom', name: '自定义', desc: '逐动作勾选（高级）' }
-  ]
+const ROLE_CARDS = [
+  { key: 'viewer', name: '查看者', desc: '可查看、下载' },
+  { key: 'editor', name: '编辑者', desc: '查看下载 + 上传、改名、替换、分享' },
+  { key: 'manager', name: '管理者', desc: '编辑者全部 + 删除文件 + 新建/改名/删除文件夹' }
+]
+const presetNameOf = (row) => {
+  const perms = (row?.perms || []).join(',')
+  const obj = row?.objectType
+  return Object.entries(ROLES).find(([, r]) =>
+    (obj === 'FILE' ? r.file : r.folder).join(',') === perms)?.[1].name || null
 }
 
 const rows = ref([])
@@ -200,53 +205,48 @@ const treeRef = ref(null)
 const userCount = ref(0)
 const orgUserTree = ref([])
 const preset = ref('viewer')
-const expiryQuick = ref('365')
+const expiryQuick = ref('forever')
 const form = reactive({
-  subjectType: 'USER', subjectIds: [], folderType: 'public', objectType: 'FILE',
-  folderId: null, perms: [], expiresAt: ''
+  scopeType: 'folder', folderId: null, subjectType: 'USER', subjectIds: [],
+  permsFile: [], permsFolder: [], expiresAt: ''
 })
 
-const presetCards = computed(() =>
-  (PRESET_CARDS[form.objectType] || []).map(c => ({ ...c, perms: PRESETS[form.objectType][c.key] || [] })))
+const targetFolder = computed(() => folderOptions.value.find(f => f.id === form.folderId))
 const choosePreset = (k) => {
   preset.value = k
-  form.perms = k === 'custom' ? [] : [...PRESETS[form.objectType][k]]
+  if (k === 'custom') return
+  form.permsFile = [...ROLES[k].file]
+  form.permsFolder = [...ROLES[k].folder]
 }
-// 对象组切换时预设跟随(FOLDER 无查看/编辑档 → 落管理者)
-watch(() => form.objectType, () => {
-  const keys = PRESET_CARDS[form.objectType].map(c => c.key)
-  choosePreset(keys.includes(preset.value) ? preset.value : keys[0])
-})
-// 手动勾选 → 自动落自定义
-watch(() => form.perms, (v) => {
-  const hit = Object.entries(PRESETS[form.objectType]).find(([, list]) =>
-    list.length === v.length && list.every(p => v.includes(p)))
-  if (!hit && preset.value !== 'custom') preset.value = 'custom'
-})
 
 const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} 23:59:59`
 const applyExpiry = (v) => {
   if (v === 'custom') { form.expiresAt = ''; return }
   if (v === 'forever') { form.expiresAt = ''; return }
-  form.expiresAt = fmt(new Date(Date.now() + Number(v) * 864e5))
+  form.expiresAt = fmt(new Date(Date.now() + (v === '1y' ? 365 : Number(v)) * 864e5))
 }
 const openAdd = () => {
-  Object.assign(form, { subjectType: 'USER', subjectIds: [], folderType: 'public', objectType: 'FILE', folderId: null, perms: [], expiresAt: '' })
-  preset.value = 'viewer'; expiryQuick.value = 'forever'; applyExpiry('forever')
+  Object.assign(form, { scopeType: 'folder', folderId: null, subjectType: 'USER', subjectIds: [], permsFile: [], permsFolder: [], expiresAt: '' })
+  preset.value = 'viewer'; choosePreset('viewer')
+  expiryQuick.value = 'forever'; applyExpiry('forever')
   userCount.value = 0
   addVisible.value = true
 }
 
+const scopeValid = computed(() => form.scopeType !== 'folder' || !!form.folderId)
 const canSubmit = computed(() =>
-  form.perms.length > 0 &&
+  scopeValid.value && (form.permsFile.length > 0 || form.permsFolder.length > 0) &&
   (form.subjectType === 'ROLE' ? form.subjectIds.length > 0 : userCount.value > 0) &&
-  (expiryQuick.value !== 'custom' || !!form.expiresAt)  // 自定义才要求选时间
-)
-const presetName = computed(() => ((PRESET_CARDS[form.objectType] || []).find(c => c.key === preset.value) || {}).name || preset.value)
+  (expiryQuick.value !== 'custom' || !!form.expiresAt))
+const scopeText = computed(() => {
+  if (form.scopeType === 'folder') { const f = targetFolder.value; return f ? `${f.folderType === 'public' ? '公共' : '私人'}夹「${f.name}」` : '未选夹' }
+  return form.scopeType === 'public' ? '整个公共空间' : '整个私人空间'
+})
 const footSummary = computed(() => {
   const n = form.subjectType === 'ROLE' ? form.subjectIds.length : userCount.value
   const unit = form.subjectType === 'ROLE' ? '个角色' : '人'
-  return `将为 ${n || '—'} ${unit} · ${form.folderType === 'public' ? '公共' : '私人'}空间${form.folderId ? '·指定夹' : ''} · ${presetName.value} · ${form.expiresAt ? '至 ' + shortDate(form.expiresAt) : '永久有效'}`
+  const rl = preset.value === 'custom' ? '自定义' : ROLE_CARDS.find(c => c.key === preset.value)?.name
+  return `${scopeText.value} · ${n || '—'} ${unit} · ${rl} · ${form.expiresAt ? '至 ' + shortDate(form.expiresAt) : '永久'}`
 })
 
 const shortDate = (v) => String(v || '').replace('T', ' ').slice(5, 16)
@@ -254,7 +254,6 @@ const nearExpiry = (row) => {
   const t = new Date(String(row?.expiresAt || '').replace(' ', 'T')).getTime()
   return t - Date.now() < 30 * 864e5
 }
-const labelOf = (t, v) => permOptionsOf(t).find(o => o.value === v)?.label || LEGACY[v] || v
 
 const load = async () => {
   try { rows.value = (await getFolderTypeDefaults()).data || [] } catch (e) { rows.value = [] }
@@ -307,25 +306,25 @@ const checkAll = () => {
 }
 const clearUsers = () => { treeRef.value?.setCheckedKeys([]); userCount.value = 0 }
 
-// 逐主体并行下发(allSettled: 成功N/失败M, 失败保留勾选直接重试)
+// 保存: 按主体 × (FILE行+FOLDER行) 拆分并行下发(allSettled: 成功N/失败M, 失败保留直接重试)
 const save = async () => {
   saving.value = true
   const ids = form.subjectType === 'USER' ? selectedUserIds() : [...form.subjectIds]
-  const results = await Promise.allSettled(ids.map(id =>
-    saveFolderTypeDefault({
-      folderType: form.folderType, objectType: form.objectType, folderId: form.folderId || undefined,
-      subjectType: form.subjectType, subjectId: id, perms: form.perms, expiresAt: form.expiresAt
-    })))
+  const folderType = form.scopeType === 'folder' ? targetFolder.value?.folderType : form.scopeType
+  const folderId = form.scopeType === 'folder' ? form.folderId : undefined
+  const payloads = []
+  for (const id of ids) {
+    if (form.permsFile.length) payloads.push({ folderType, objectType: 'FILE', folderId, subjectType: form.subjectType, subjectId: id, perms: form.permsFile, expiresAt: form.expiresAt || undefined })
+    if (form.permsFolder.length) payloads.push({ folderType, objectType: 'FOLDER', folderId, subjectType: form.subjectType, subjectId: id, perms: form.permsFolder, expiresAt: form.expiresAt || undefined })
+  }
+  const results = await Promise.allSettled(payloads.map(p => saveFolderTypeDefault(p)))
   const ok = results.filter(r => r.status === 'fulfilled').length
-  const fail = ids.length - ok
+  const fail = payloads.length - ok
   if (fail === 0) {
-    ElMessage.success(`已授权 ${ok} 个主体，立即生效${form.expiresAt ? '（' + shortDate(form.expiresAt) + ' 到期自动收回）' : '（永久，删除即收回）'}`)
+    ElMessage.success(`已授权 ${ids.length} 个主体，立即生效${form.expiresAt ? '（' + shortDate(form.expiresAt) + ' 到期自动收回）' : '（永久，删除即收回）'}`)
     addVisible.value = false
   } else {
-    const failed = ids.filter((id, i) => results[i].status === 'rejected')
-    if (form.subjectType === 'USER') { treeRef.value?.setCheckedKeys(failed.map(id => 'u' + id)); userCount.value = failed.length }
-    else form.subjectIds = failed
-    ElMessage.warning(`授权：成功 ${ok} / 失败 ${fail}（失败主体已保留勾选，可直接重试）`)
+    ElMessage.warning(`授权：成功 ${ok} / 失败 ${fail}（请检查后重试）`)
   }
   await load()
   saving.value = false
@@ -356,24 +355,24 @@ onMounted(async () => {
 .fsd-muted { color: var(--el-color-info); font-size: 12px; }
 .fsd-near { color: #b45200; font-weight: 600; }
 .fsd-pill { margin: 0 4px 4px 0; }
-/* 三段向导 */
+/* 四段向导 */
 .fsd-step { display: flex; gap: 10px; padding: 12px 0; border-bottom: 1px dashed #f0f2f5; }
 .fsd-step:last-of-type { border-bottom: none; }
 .fsd-step-no { width: 22px; height: 22px; border-radius: 50%; background: var(--el-color-primary-light-9); color: var(--el-color-primary); font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
 .fsd-step-body { flex: 1; min-width: 0; }
 .fsd-step-title { font-size: 13px; font-weight: 600; color: #4e5969; margin-bottom: 8px; }
 .fsd-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-/* 预设角色卡 */
-.fsd-preset-cards { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+/* 角色卡 */
+.fsd-preset-cards { display: flex; gap: 8px; flex-wrap: wrap; }
 .fsd-preset-card { flex: 1; min-width: 118px; border: 1px solid var(--el-border-color-lighter); border-radius: 8px; padding: 8px 10px; cursor: pointer; transition: all .15s; }
 .fsd-preset-card:hover { border-color: var(--el-color-primary-light-5); }
 .fsd-preset-card.active { border-color: var(--el-color-primary); background: var(--el-color-primary-light-9); }
-.fsd-preset-card.disabled { opacity: .45; cursor: not-allowed; }
 .fsd-preset-name { font-size: 13px; font-weight: 600; color: #1f2d3d; }
 .fsd-preset-card.active .fsd-preset-name { color: var(--el-color-primary); }
 .fsd-preset-desc { font-size: 11px; color: var(--el-color-info); margin-top: 3px; line-height: 1.4; }
 .fsd-adv { margin-top: 8px; border: none; }
 .fsd-adv :deep(.el-collapse-item__header) { height: 30px; font-size: 12px; color: var(--el-color-info); }
+.fsd-adv-group { font-size: 12px; color: var(--el-color-info); margin: 6px 0 2px; }
 .fsd-perms { display: flex; flex-wrap: wrap; gap: 0 8px; }
 .fsd-perms :deep(.el-checkbox) { margin-right: 0; height: 24px; }
 .fsd-tree-wrap { border: 1px solid var(--el-border-color-lighter); border-radius: 6px; padding: 8px 10px; background: #fff; margin-top: 8px; }
