@@ -127,11 +127,16 @@ public class FolderTypeDefaultService {
                 .eq(BizFolderTypeDefault::getSubjectType, subjectType)
                 .eq(BizFolderTypeDefault::getSubjectId, subjectId));
         if (existing != null) {
-            existing.setPerms(joined);
-            existing.setExpiresAt(expiresAt);
-            existing.setScopeOrgId(scopeOrgId);
-            existing.setScopeLevel(scopeLevel);
-            grantMapper.updateById(existing);
+            // 【2026-11-10 C区验收修复】updateById 默认 NOT_NULL 策略跳过 null 字段 →
+            // 范围切回 all(null)与到期改永久(null)均不落库(实证: office→all 勾选后 scope_level 仍 office)。
+            // 改显式 UpdateWrapper 逐列 set, null 也写入。
+            grantMapper.update(null,
+                    new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<BizFolderTypeDefault>()
+                            .eq(BizFolderTypeDefault::getId, existing.getId())
+                            .set(BizFolderTypeDefault::getPerms, joined)
+                            .set(BizFolderTypeDefault::getExpiresAt, expiresAt)
+                            .set(BizFolderTypeDefault::getScopeOrgId, scopeOrgId)
+                            .set(BizFolderTypeDefault::getScopeLevel, scopeLevel));
         } else {
             BizFolderTypeDefault g = new BizFolderTypeDefault();
             g.setFolderType(folderType);
