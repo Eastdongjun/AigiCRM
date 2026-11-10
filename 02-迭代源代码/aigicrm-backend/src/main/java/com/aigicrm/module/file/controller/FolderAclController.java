@@ -62,8 +62,8 @@ public class FolderAclController {
         Object rawSubjectId = body.get("subjectId");
         Object rawPerms = body.get("perms");
         Object rawExpires = body.get("expiresAt");
-        if (rawSubjectId == null || !(rawPerms instanceof List) || rawExpires == null) {
-            throw new com.aigicrm.common.BusinessException("参数错误(主体/动作/过期时间必填)");
+        if (rawSubjectId == null || !(rawPerms instanceof List)) {
+            throw new com.aigicrm.common.BusinessException("参数错误(主体/动作必填)");
         }
         Long subjectId;
         try { subjectId = Long.valueOf(rawSubjectId.toString().trim()); } catch (NumberFormatException e) {
@@ -71,11 +71,13 @@ public class FolderAclController {
         }
         Long folderId = parseOrNull(body.get("folderId"));
         Long scopeOrgId = parseOrNull(body.get("scopeOrgId"));
-        LocalDateTime expiresAt;
-        try {
-            expiresAt = LocalDateTime.parse(String.valueOf(rawExpires).replace(" ", "T").substring(0, 19));
-        } catch (Exception e) {
-            throw new com.aigicrm.common.BusinessException("过期时间格式错误(应为 yyyy-MM-dd HH:mm:ss)");
+        LocalDateTime expiresAt = null;
+        if (rawExpires != null && String.valueOf(rawExpires).trim().length() >= 10) {
+            try {
+                expiresAt = LocalDateTime.parse(String.valueOf(rawExpires).replace(" ", "T").substring(0, 19));
+            } catch (Exception e) {
+                throw new com.aigicrm.common.BusinessException("到期时间格式错误(应为 yyyy-MM-dd HH:mm:ss)");
+            }
         }
         List<String> perms = ((List<?>) rawPerms).stream().map(String::valueOf).toList();
         grantService.saveGrant(

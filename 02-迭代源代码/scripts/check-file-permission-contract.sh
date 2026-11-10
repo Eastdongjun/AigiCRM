@@ -91,7 +91,7 @@ grep -Fq 'folderPermissionService.canCreateFolder(type, creator)' "$FILE_SERVICE
 grep -Fq 'checkFile(fileId, FolderPermissionService.P_RENAME, userId)' "$FILE_SERVICE" || fail 'renameFile must check P_RENAME'
 grep -Fq 'checkFile(fileId, FolderPermissionService.P_REPLACE, userId)' "$FILE_SERVICE" || fail 'replaceFile must check P_REPLACE'
 # 授权必须过期: 保存校验 + 续期
-grep -Fq '过期时间必须晚于当前时间' "$GRANT_SERVICE" || fail 'grant save must validate expiry'
+grep -Fq '到期时间必须晚于当前时间' "$GRANT_SERVICE" || fail 'grant save must validate expiry when provided (到期可选, 2026-11-10 用户令权限都是勾选的)'
 grep -Fq 'renewGrant' "$GRANT_SERVICE" || fail 'grant renew endpoint service missing'
 # v1 物化防复活
 if grep -Fq 'materializeAcl' "$FILE_SERVICE" "$GRANT_SERVICE"; then

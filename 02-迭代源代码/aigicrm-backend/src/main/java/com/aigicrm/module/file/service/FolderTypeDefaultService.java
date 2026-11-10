@@ -95,7 +95,8 @@ public class FolderTypeDefaultService {
         if (!SUBJECT_ROLE.equals(subjectType) && !SUBJECT_USER.equals(subjectType)) {
             throw new BusinessException("授权主体类型必须是 ROLE 或 USER");
         }
-        if (expiresAt == null || !expiresAt.isAfter(LocalDateTime.now())) throw new BusinessException("过期时间必须晚于当前时间");
+        // 【2026-11-10 用户令】到期可选: NULL=永久(勾选即生效); 填了才校验须晚于当前
+        if (expiresAt != null && !expiresAt.isAfter(LocalDateTime.now())) throw new BusinessException("到期时间必须晚于当前时间");
         if (subjectType.equals(SUBJECT_ROLE)) {
             SysRole role = roleMapper.selectById(subjectId);
             if (role == null || role.getStatus() == null || role.getStatus() != 1) throw new BusinessException("角色不存在或已停用");

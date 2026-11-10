@@ -6,7 +6,7 @@
     <div class="fsd-head">
       <div>
         <div class="fsd-title">例外授权</div>
-        <div class="fsd-hint">默认权限=组织矩阵（全员可看 · 本部门可管 · 删仅本人，在「功能与范围」按角色调档）；这里只配<b>跨范围特批</b>，到期自动收回</div>
+        <div class="fsd-hint">默认权限=组织矩阵（全员可看 · 本部门可管 · 删仅本人，在「功能与范围」按角色调档）；这里只配<b>跨范围特批</b>（默认永久，可选限期）</div>
       </div>
       <el-button v-if="canEdit" type="primary" size="small" @click="openAdd">＋ 添加授权</el-button>
     </div>
@@ -44,12 +44,13 @@
       <el-table-column label="到期" width="105">
         <template #default="scope">
           <span v-if="scope?.row?.expired" class="fsd-muted" style="text-decoration:line-through">已过期</span>
+          <span v-else-if="!scope?.row?.expiresAt" class="fsd-muted">永久</span>
           <span v-else :class="nearExpiry(scope?.row) ? 'fsd-near' : ''">{{ shortDate(scope?.row?.expiresAt) }}</span>
         </template>
       </el-table-column>
       <el-table-column label="操作" width="116" align="center">
         <template #default="scope">
-          <el-button v-if="canEdit && !scope?.row?.expired" link type="primary" size="small" @click="renewRow(scope?.row?.id)">续期</el-button>
+          <el-button v-if="canEdit && scope?.row?.expiresAt && !scope?.row?.expired" link type="primary" size="small" @click="renewRow(scope?.row?.id)">续期</el-button>
           <el-button v-if="canEdit" link type="danger" size="small" @click="removeRow(scope?.row?.id)">删除</el-button>
         </template>
       </el-table-column>
@@ -122,9 +123,10 @@
       <div class="fsd-step">
         <div class="fsd-step-no">③</div>
         <div class="fsd-step-body">
-          <div class="fsd-step-title">有效期（到期自动收回）</div>
+          <div class="fsd-step-title">有效期（可选）</div>
           <div class="fsd-row">
             <el-radio-group v-model="expiryQuick" size="small" @change="applyExpiry">
+              <el-radio-button value="forever">永久</el-radio-button>
               <el-radio-button value="30">30 天</el-radio-button>
               <el-radio-button value="90">90 天</el-radio-button>
               <el-radio-button value="365">1 年</el-radio-button>
@@ -225,23 +227,26 @@ watch(() => form.perms, (v) => {
 const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} 23:59:59`
 const applyExpiry = (v) => {
   if (v === 'custom') { form.expiresAt = ''; return }
+  if (v === 'forever') { form.expiresAt = ''; return }
   form.expiresAt = fmt(new Date(Date.now() + Number(v) * 864e5))
 }
 const openAdd = () => {
   Object.assign(form, { subjectType: 'USER', subjectIds: [], folderType: 'public', objectType: 'FILE', folderId: null, perms: [], expiresAt: '' })
-  preset.value = 'viewer'; expiryQuick.value = '365'; applyExpiry('365')
+  preset.value = 'viewer'; expiryQuick.value = 'forever'; applyExpiry('forever')
   userCount.value = 0
   addVisible.value = true
 }
 
 const canSubmit = computed(() =>
-  form.perms.length > 0 && !!form.expiresAt &&
-  (form.subjectType === 'ROLE' ? form.subjectIds.length > 0 : userCount.value > 0))
+  form.perms.length > 0 &&
+  (form.subjectType === 'ROLE' ? form.subjectIds.length > 0 : userCount.value > 0) &&
+  (expiryQuick.value !== 'custom' || !!form.expiresAt)  // 自定义才要求选时间
+)
 const presetName = computed(() => ((PRESET_CARDS[form.objectType] || []).find(c => c.key === preset.value) || {}).name || preset.value)
 const footSummary = computed(() => {
   const n = form.subjectType === 'ROLE' ? form.subjectIds.length : userCount.value
   const unit = form.subjectType === 'ROLE' ? '个角色' : '人'
-  return `将为 ${n || '—'} ${unit} · ${form.folderType === 'public' ? '公共' : '私人'}空间${form.folderId ? '·指定夹' : ''} · ${presetName.value} · 至 ${shortDate(form.expiresAt)}`
+  return `将为 ${n || '—'} ${unit} · ${form.folderType === 'public' ? '公共' : '私人'}空间${form.folderId ? '·指定夹' : ''} · ${presetName.value} · ${form.expiresAt ? '至 ' + shortDate(form.expiresAt) : '永久有效'}`
 })
 
 const shortDate = (v) => String(v || '').replace('T', ' ').slice(5, 16)
@@ -314,7 +319,7 @@ const save = async () => {
   const ok = results.filter(r => r.status === 'fulfilled').length
   const fail = ids.length - ok
   if (fail === 0) {
-    ElMessage.success(`已授权 ${ok} 个主体，立即生效（${shortDate(form.expiresAt)} 到期自动收回）`)
+    ElMessage.success(`已授权 ${ok} 个主体，立即生效${form.expiresAt ? '（' + shortDate(form.expiresAt) + ' 到期自动收回）' : '（永久，删除即收回）'}`)
     addVisible.value = false
   } else {
     const failed = ids.filter((id, i) => results[i].status === 'rejected')

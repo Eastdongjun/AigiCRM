@@ -47,8 +47,8 @@ class FolderTypeDefaultServiceTest {
         assertThrows(BusinessException.class, () -> svc.saveGrant("public", "FOLDER", null, null, "ROLE", 9L, List.of("view"), exp)); // FOLDER 词表不含 view
         assertThrows(BusinessException.class, () -> svc.saveGrant("public", "FILE", null, null, "ROLE", 9L, List.of("create"), exp)); // FILE 词表不含 create
         assertThrows(BusinessException.class, () -> svc.saveGrant("public", "FILE", null, null, "ROLE", 9L, List.of(), exp));
-        assertThrows(BusinessException.class, () -> svc.saveGrant("public", "FILE", null, null, "ROLE", 9L, List.of("view"), null)); // 过期必填
-        assertThrows(BusinessException.class, () -> svc.saveGrant("public", "FILE", null, null, "ROLE", 9L, List.of("view"), LocalDateTime.now().minusDays(1))); // 须晚于当前
+        // 【2026-11-10 用户令】到期可选: NULL=永久不再拒绝; 填过去时间仍拒绝
+        assertThrows(BusinessException.class, () -> svc.saveGrant("public", "FILE", null, null, "ROLE", 9L, List.of("view"), LocalDateTime.now().minusDays(1)));
         when(roleMapper.selectById(9L)).thenReturn(role(9L, "05", 0));
         assertThrows(BusinessException.class, () -> svc.saveGrant("public", "FILE", null, null, "ROLE", 9L, List.of("view"), exp)); // 停用角色
         when(folderMapper.selectById(500L)).thenReturn(null);
