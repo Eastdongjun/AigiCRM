@@ -10,7 +10,7 @@
         <span class="rd-bar-name">{{ rec.customerName }}</span>
         <span class="rd-bar-cat">{{ rec.categoryName }}</span>
         <span class="rd-bar-pts">+{{ rec.score }} 分</span>
-        <el-button size="small" type="primary" plain class="rd-archive-btn" @click="$emit('open-customer', rec)">客户完整档案</el-button>
+        <el-button size="small" type="primary" plain class="rd-archive-btn" @click="goCustomer">客户完整档案</el-button>
       </div>
 
       <div class="rd-meta">
@@ -44,7 +44,7 @@
       <el-empty v-else description="该记录无附件" :image-size="60" />
 
       <div class="rd-foot">
-        <span class="rd-cust-link" @click="$emit('open-customer', rec)">查看客户完整档案（拨盘时间轴） →</span>
+        <span class="rd-cust-link" @click="goCustomer">查看客户完整档案（拨盘时间轴） →</span>
       </div>
     </div>
     <!-- 灯箱预览(与查询页同源组件): 从缩略打开, 左右翻该记录全部文件 -->
@@ -64,16 +64,18 @@ const visible = computed({
   get: () => props.modelValue,
   set: v => emit('update:modelValue', v)
 })
-const rec = ref(null)
+// 【用户报"第一下没反应"】直接读 props 消灭 watch 搬运时序(首渲染 rec 曾为 null)
+const rec = computed(() => props.record)
 const thumbFailed = ref(new Set())
 const lightbox = ref(null)
-
-watch(() => props.modelValue, v => { if (v) { rec.value = props.record; thumbFailed.value = new Set() } })
+watch(() => props.record, () => { thumbFailed.value = new Set() })
 
 const files = computed(() => rec.value ? getFiles(rec.value) : [])
 const images = computed(() => files.value.filter(f => f.type === 'image'))
 const openPreview = (f) => lightbox.value?.open(f.id, f.type, f.label, files.value)
 const markThumbFailed = (id) => { thumbFailed.value.add(id) }
+// 【用户报"拨盘打不开"】先关本窗再上抛(避免双层 el-dialog 叠加), 父层负责打开拨盘
+const goCustomer = () => { emit('update:modelValue', false); emit('open-customer', rec.value) }
 const extOf = (label) => { const e = String(label || '').split('.').pop(); return (e && e !== label ? e : '文件').toUpperCase() }
 </script>
 

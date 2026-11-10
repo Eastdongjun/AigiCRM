@@ -244,7 +244,11 @@ const detailVisible=ref(false),detailCust=ref(null)
 const recDetailVisible=ref(false),recDetailRecord=ref(null)
 function openRecordDetail(r){ recDetailRecord.value=r; recDetailVisible.value=true }
 // 单记录详情→客户全部记录(拨盘)的上下文小入口
-function onRecOpenCustomer(r){ const c = custs.find(x=>x.customerId===r.customerId); if (c) showDetail(c) }
+function onRecOpenCustomer(r){
+  const c = custs.find(x=>String(x.customerId)===String(r.customerId))
+  // 匹配不到时用当前记录合成(宽类型比较, 不再静默失败)
+  showDetail(c || { customerId: r.customerId, customerName: r.customerName, records: [r], totalScore: r.score || 0 })
+}
 // 【2026-10-29 字典接线】行业选项改调系统字典(industry); 兜底=当前字典全量(含「新行业」, 原硬编码
 // 缺该项致新行业客户筛不出)。改字典后此兜底需人工同步(门禁 check-dict-source-contract.sh 盯调用不删)。
 const INDUSTRY_FALLBACK=['冶金','煤矿','化工','电力','有色金属','机械','工程公司','维修厂','其他终端客户','新行业']
