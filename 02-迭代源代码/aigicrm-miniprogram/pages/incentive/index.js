@@ -1237,11 +1237,12 @@ Page({
     }, () => { this.refreshIncentiveView(); this.buildCustomerRanking() })
   },
 
-  // 【2026-11-02 用户令·表格】点行直达记录详情(拨盘页, 与轻量页同款跳转)
+  // 【2026-11-02 用户令·表格】点行直达记录详情; 【2026-11-10 验收修复】检索命中行补传 single=1
+  // (5f1e68ac 的 single 模式此前无入口=死码, 拨盘永远显示)
   openRecordDetail(e) {
     const id = e.currentTarget.dataset.id
     if (!id) return
-    wx.navigateTo({ url: '../incentive/detail/index?id=' + id })
+    wx.navigateTo({ url: '../incentive/detail/index?id=' + id + '&single=1' })
   },
 
   // 【分页 2026-10-18】客户端分页: 页码/页大小变化时重算当页切片; 用 paginate 返回的 page
