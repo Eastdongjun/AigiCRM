@@ -36,7 +36,8 @@
       <div class="rd-files-title">附件（{{ files.length }}）</div>
       <div v-if="files.length" class="rd-files">
         <div v-for="f in files" :key="f.id" class="rd-file" @click="openPreview(f)">
-          <el-image v-if="f.type === 'image' && !thumbFailed[f.id]" class="rd-thumb" :src="thumbUrl(f.id)" fit="cover" lazy @error="markThumbFailed(f.id)" />
+          <!-- 【2026-11-10 扫描批】thumbFailed 是 Set, 索引访问恒 undefined 致失败图不退化; 对齐 case-library 的 .has() 写法(3891a4e6 漏改点) -->
+          <el-image v-if="f.type === 'image' && !thumbFailed.has(f.id)" class="rd-thumb" :src="thumbUrl(f.id)" fit="cover" lazy @error="markThumbFailed(f.id)" />
           <div v-else class="rd-ext">{{ extOf(f.label) }}</div>
           <div class="rd-file-name" :title="f.label">{{ f.label }}</div>
         </div>
