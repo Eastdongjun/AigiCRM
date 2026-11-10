@@ -26,8 +26,8 @@
           <el-carousel-item v-for="f in images" :key="f.id">
             <div class="rd-slide" @click="openPreview(f)">
               <el-image :src="thumbUrl(f.id)" fit="contain" style="width:100%;height:100%" lazy
-                        @error="thumbFailed[f.id] = true" />
-              <span class="rd-slide-name">{{ f.name }}</span>
+                        @error="markThumbFailed(f.id)" />
+              <span class="rd-slide-name">{{ f.label }}</span>
             </div>
           </el-carousel-item>
         </el-carousel>
@@ -36,9 +36,9 @@
       <div class="rd-files-title">附件（{{ files.length }}）</div>
       <div v-if="files.length" class="rd-files">
         <div v-for="f in files" :key="f.id" class="rd-file" @click="openPreview(f)">
-          <el-image v-if="f.type === 'image' && !thumbFailed[f.id]" class="rd-thumb" :src="thumbUrl(f)" fit="cover" lazy @error="thumbFailed[f.id] = true" />
-          <div v-else class="rd-ext" :class="'ext-' + (f.ext || 'file')">{{ (f.ext || '文件').toUpperCase() }}</div>
-          <div class="rd-file-name" :title="f.name">{{ f.name }}</div>
+          <el-image v-if="f.type === 'image' && !thumbFailed[f.id]" class="rd-thumb" :src="thumbUrl(f.id)" fit="cover" lazy @error="markThumbFailed(f.id)" />
+          <div v-else class="rd-ext">{{ extOf(f.label) }}</div>
+          <div class="rd-file-name" :title="f.label">{{ f.label }}</div>
         </div>
       </div>
       <el-empty v-else description="该记录无附件" :image-size="60" />
@@ -48,7 +48,7 @@
       </div>
     </div>
     <!-- 灯箱预览(与查询页同源组件): 从缩略打开, 左右翻该记录全部文件 -->
-    <SearchLightbox ref="lightbox" :thumb-failed="thumbFailed" @thumb-failed="id => (thumbFailed[id] = true)" />
+    <SearchLightbox ref="lightbox" :thumb-failed="thumbFailed" @thumb-failed="markThumbFailed" />
   </el-dialog>
 </template>
 
@@ -65,14 +65,16 @@ const visible = computed({
   set: v => emit('update:modelValue', v)
 })
 const rec = ref(null)
-const thumbFailed = ref({})
+const thumbFailed = ref(new Set())
 const lightbox = ref(null)
 
-watch(() => props.modelValue, v => { if (v) { rec.value = props.record; thumbFailed.value = {} } })
+watch(() => props.modelValue, v => { if (v) { rec.value = props.record; thumbFailed.value = new Set() } })
 
 const files = computed(() => rec.value ? getFiles(rec.value) : [])
 const images = computed(() => files.value.filter(f => f.type === 'image'))
 const openPreview = (f) => lightbox.value?.open(f.id, f.type, f.label, files.value)
+const markThumbFailed = (id) => { thumbFailed.value.add(id) }
+const extOf = (label) => { const e = String(label || '').split('.').pop(); return (e && e !== label ? e : '文件').toUpperCase() }
 </script>
 
 <style scoped>
