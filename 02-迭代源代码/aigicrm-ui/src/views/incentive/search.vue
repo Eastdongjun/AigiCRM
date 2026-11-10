@@ -88,19 +88,34 @@
 
     <!-- 【2026-11-09 用户令"只把含有关键字的记录呈现成列表"】关键字搜索=纯记录列表(打散客户分组) -->
     <template v-if="isKeywordSearch">
-      <div v-loading="loading" element-loading-text="加载中..." class="flat-rec-list">
+      <div v-loading="loading" element-loading-text="加载中..." class="flat-wall">
         <div v-if="!loading && flatRecords.length===0" style="text-align:center;padding:80px 0;color:#bbb">暂无数据</div>
-        <div v-for="r in pagedFlatRecords" :key="r.id" class="flat-rec-row" @click="openRecordDetail(r)">
-          <div class="flat-rec-main">
-            <span class="flat-rec-cust">{{ r.customerName }}</span>
-            <span class="flat-rec-cat">{{ r.categoryName }}</span>
-            <span class="flat-rec-prod">{{ [r.specificProduct, r.relatedProducts].filter(Boolean).join(' · ') || '—' }}</span>
+        <!-- 【2026-11-10 用户令"检索直接显示图片预览, 不要列表不要多点一步"】命中=记录卡片墙:
+             图直出(最多3缩略+余量徽标), 点图即灯箱(翻该记录全部附件); 底部信息条点击进单记录详情 -->
+        <div v-for="r in pagedFlatRecords" :key="r.id" class="flat-card">
+          <div class="flat-card-imgs">
+            <template v-if="getFiles(r).length">
+              <div v-for="f in getFiles(r).slice(0,3)" :key="f.id" class="flat-thumb" @click.stop="preview(f.id, f.type, f.label, getFiles(r))">
+                <img v-if="f.type==='image' && !thumbFailed.has(f.id)" :src="thumbUrl(f.id)" loading="lazy" @error="markThumbFailed(f.id)" />
+                <span v-else-if="f.type==='image'" class="flat-tile img">图</span>
+                <span v-else-if="f.type==='video'" class="flat-tile vid">▶</span>
+                <span v-else class="flat-tile doc">{{ (f.label||'文').slice(f.label.lastIndexOf('.')+1 || 0, 8) }}</span>
+              </div>
+              <span v-if="getFiles(r).length > 3" class="flat-more">+{{ getFiles(r).length - 3 }}</span>
+            </template>
+            <span v-else class="flat-tile none">无附件</span>
           </div>
-          <div class="flat-rec-meta">
-            <span class="flat-rec-date">{{ (r.createdAt || '').substring(0, 10) }}</span>
-            <span class="flat-rec-user">{{ r.userName }}</span>
-            <span class="flat-rec-pts" :style="{color: scoreColor(getCls(catMap, r))}">+{{ r.score }}</span>
-            <el-tag v-if="r.unread" size="small" type="warning">未读</el-tag>
+          <div class="flat-card-info" @click="openRecordDetail(r)">
+            <div class="flat-card-line">
+              <span class="flat-rec-cust">{{ r.customerName }}</span>
+              <span class="flat-rec-cat">{{ r.categoryName }}</span>
+              <span class="flat-rec-pts" :style="{color: scoreColor(getCls(catMap, r))}">+{{ r.score }}</span>
+              <el-tag v-if="r.unread" size="small" type="warning">未读</el-tag>
+            </div>
+            <div class="flat-card-line sub">
+              <span class="flat-rec-prod">{{ [r.specificProduct, r.relatedProducts].filter(Boolean).join(' · ') || '—' }}</span>
+              <span class="flat-rec-meta">{{ (r.createdAt || '').substring(0, 10) }} · {{ r.userName }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -325,6 +340,21 @@ onMounted(()=>{loadCats();loadDevTypes();loadIndustries();loadUsers();loadOrgs()
 </script>
 
 <style scoped>
+/* 【2026-11-10】检索命中=卡片墙(图直出, 点图即灯箱) */
+.flat-wall { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.flat-card { border: 1px solid #ebeef5; border-radius: 10px; overflow: hidden; background: #fff; transition: box-shadow .15s; }
+.flat-card:hover { box-shadow: 0 2px 10px rgba(0,0,0,.08); }
+.flat-card-imgs { display: flex; gap: 4px; padding: 8px 8px 0; height: 96px; }
+.flat-thumb { flex: 1; min-width: 0; border-radius: 6px; overflow: hidden; background: #f2f4f8; cursor: zoom-in; display: flex; align-items: center; justify-content: center; }
+.flat-thumb img { width: 100%; height: 96px; object-fit: cover; }
+.flat-tile { font-size: 12px; color: var(--el-color-primary); background: var(--el-color-primary-light-9); width: 100%; height: 96px; display: flex; align-items: center; justify-content: center; }
+.flat-tile.vid { color: #e6a23c; background: #fdf6ec; }
+.flat-tile.none { color: #c0c4cc; background: #f7f8fa; }
+.flat-more { align-self: center; font-size: 12px; color: #909399; padding: 0 4px; }
+.flat-card-info { padding: 8px 10px 10px; cursor: pointer; }
+.flat-card-line { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.flat-card-line.sub { margin-top: 4px; justify-content: space-between; }
+.flat-card-line.sub .flat-rec-prod { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* ===== 页面骨架（白色整体容器由全局 .page-shell 提供）===== */
 .isc-page{display:flex;flex-direction:column;min-height:calc(100vh - 140px)}
 
