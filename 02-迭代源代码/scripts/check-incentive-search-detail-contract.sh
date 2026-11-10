@@ -38,6 +38,17 @@ done
 
 assert_contains "$SEARCH_VIEW" "request.get('/incentive/customer-records'"
 assert_contains "$SEARCH_VIEW" "showDetail(c)"
+# 【2026-11-10 用户令"检索只给那一条记录"】检索命中行点击=单记录详情弹窗(RecordDetailDialog),
+# 不得直接触达客户拨盘(上下文走弹窗底部"查看该客户全部记录"小入口); MP 打散行带 single=1。
+RECORD_COMPONENT="$ROOT/aigicrm-ui/src/views/incentive/RecordDetailDialog.vue"
+assert_file "$RECORD_COMPONENT"
+assert_contains "$SEARCH_VIEW" "openRecordDetail(r)"
+assert_contains "$SEARCH_VIEW" "RecordDetailDialog"
+if grep -Fq "showDetail(custs.find(c=>c.customerId===r.customerId))" "$SEARCH_VIEW"; then
+  fail "检索命中行不得直接打开客户拨盘(2026-11-10 用户令), 改走 RecordDetailDialog"
+fi
+assert_contains "$ROOT/aigicrm-miniprogram/pages/incentive/home/index.js" "single=1"
+assert_contains "$ROOT/aigicrm-miniprogram/pages/incentive/detail/index.wxml" '!singleMode'
 assert_contains "$DETAIL_COMPONENT" "markIncentiveRead(id)"
 # 【2026-09-20 详情工具条升级】分组调用升级为"过滤后记录+方向参数"形态;
 # 同时钉住详情页内检索与时间方向两个新能力, 防回退

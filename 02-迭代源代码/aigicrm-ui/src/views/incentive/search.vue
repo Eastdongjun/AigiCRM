@@ -90,7 +90,7 @@
     <template v-if="isKeywordSearch">
       <div v-loading="loading" element-loading-text="加载中..." class="flat-rec-list">
         <div v-if="!loading && flatRecords.length===0" style="text-align:center;padding:80px 0;color:#bbb">暂无数据</div>
-        <div v-for="r in pagedFlatRecords" :key="r.id" class="flat-rec-row" @click="showDetail(custs.find(c=>c.customerId===r.customerId))">
+        <div v-for="r in pagedFlatRecords" :key="r.id" class="flat-rec-row" @click="openRecordDetail(r)">
           <div class="flat-rec-main">
             <span class="flat-rec-cust">{{ r.customerName }}</span>
             <span class="flat-rec-cat">{{ r.categoryName }}</span>
@@ -166,6 +166,8 @@
     <SearchLightbox ref="lightbox" :thumb-failed="thumbFailed" @thumb-failed="markThumbFailed" />
     <SearchDetailDialog v-model="detailVisible" :cust="detailCust" :cat-map="catMap" :thumb-failed="thumbFailed"
       @preview="preview" @thumb-failed="markThumbFailed" />
+    <!-- 【2026-11-10 用户令】检索命中只看该条上传记录, 不再端出客户拨盘; 需要上下文走底部小入口 -->
+    <RecordDetailDialog v-model="recDetailVisible" :record="recDetailRecord" @open-customer="onRecOpenCustomer" />
   </div>
 </template>
 
@@ -186,6 +188,7 @@ import { PRODUCT_CATS, PRODUCT_CAT_KEYS, buildProductCatsFromTree } from './prod
 import { thumbUrl, getFiles, getMain, getCls, scoreColor } from './search-helpers'
 import SearchLightbox from './SearchLightbox.vue'
 import SearchDetailDialog from './SearchDetailDialog.vue'
+import RecordDetailDialog from './RecordDetailDialog.vue'
 
 const fCustomer=ref(''),fSales=ref(''),fIndustry=ref(''),fDevType=ref(''),fDateRange=ref(null),fOrgIds=ref([]),showFilter=ref(false)
 // 【2026-10-28 两级分类】一级=大类 id(发后端 mainCategoryId), 二级=子类名(客户端按记录 categoryName 过滤)
@@ -223,6 +226,11 @@ const flatRecords = computed(() => {
 })
 const pagedFlatRecords = computed(() => paginate(flatRecords.value, pageNum.value, pageSize.value))
 const detailVisible=ref(false),detailCust=ref(null)
+// 【2026-11-10 用户令】检索命中=单记录详情(客户拨盘不再随检索触达)
+const recDetailVisible=ref(false),recDetailRecord=ref(null)
+function openRecordDetail(r){ recDetailRecord.value=r; recDetailVisible.value=true }
+// 单记录详情→客户全部记录(拨盘)的上下文小入口
+function onRecOpenCustomer(r){ const c = custs.find(x=>x.customerId===r.customerId); if (c) showDetail(c) }
 // 【2026-10-29 字典接线】行业选项改调系统字典(industry); 兜底=当前字典全量(含「新行业」, 原硬编码
 // 缺该项致新行业客户筛不出)。改字典后此兜底需人工同步(门禁 check-dict-source-contract.sh 盯调用不删)。
 const INDUSTRY_FALLBACK=['冶金','煤矿','化工','电力','有色金属','机械','工程公司','维修厂','其他终端客户','新行业']

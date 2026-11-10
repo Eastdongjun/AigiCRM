@@ -684,7 +684,7 @@ Page({
     const index = Number(e.currentTarget.dataset.index)
     const row = this.data.pagedFlatRecords[index]
     if (!row || !row.id) return
-    wx.navigateTo({ url: '/pages/incentive/detail/index?id=' + row.id })
+    wx.navigateTo({ url: '/pages/incentive/detail/index?id=' + row.id + '&single=1' })
   },
 
   // 【2026-10-26 用户令"展示按拨盘来,不要一个客户一个档案"】点客户直达既有拨盘详情页

@@ -35,7 +35,7 @@
   <view wx:if="{{detailView.showLoading}}" class="card muted">{{detailView.loadingText}}</view>
 
   <block wx:if="{{detailView.hasRecord}}">
-    <view wx:if="{{detailView.showDial}}" class="card dial-card">
+    <view wx:if="{{detailView.showDial && !singleMode}}" class="card dial-card">
       <view class="dial-now">
         <text class="dial-now-date">{{detailView.nowDateText}}</text>
         <text class="dial-now-time">{{detailView.nowTimeText}}</text>

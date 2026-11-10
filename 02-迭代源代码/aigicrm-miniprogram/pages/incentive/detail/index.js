@@ -362,7 +362,8 @@ Page({
       setTimeout(() => wx.navigateBack(), 500)
       return
     }
-    this.setDetailData({ id: options.id || '', canDeleteRecords: !getApp().globalData.demoMode && isAdmin(), canEditRecords: !getApp().globalData.demoMode && isAdmin() })
+    // 【2026-11-10 用户令"检索只给那一条记录"】single=1: 只渲染命中的这条上传记录, 拨盘隐藏
+    this.setDetailData({ id: options.id || '', singleMode: options.single === '1', canDeleteRecords: !getApp().globalData.demoMode && isAdmin(), canEditRecords: !getApp().globalData.demoMode && isAdmin() })
     this.loadGrantCheck()
     this.loadDetail()
     this.startClock()
@@ -451,6 +452,8 @@ Page({
   },
   // 建立客户台账态:该客户全部记录 + 拨盘初始对位(聚焦记录所在月,无则最新月)
   applyCustomer(row, records, focused) {
+    // 【single 模式】只保留命中的这条记录(检索命中=单记录, 客户其余记录不随行带出)
+    if (this.data.singleMode) records = [focused]
     const enriched = (records || []).map((item) => ({
       ...item,
       customerName: (row && row.customerName) || item.customerName || '',
