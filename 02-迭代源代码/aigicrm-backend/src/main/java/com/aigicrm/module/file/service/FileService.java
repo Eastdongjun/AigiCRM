@@ -244,20 +244,24 @@ public class FileService {
                 wrapper.and(w -> w.isNull(BizFile::getFolderId)
                         .or().in(BizFile::getFolderId, visibleIds));
             }
-            // 【2026-11-10 终版①B】逐文件组织过滤: 夹可见≠夹内全部文件可见——
-            // 文件可见 = 上传人 ∈ 组织矩阵(file,view)集 ∪ 本人 ∨ 所在夹有 FILE view 定向授权(整夹覆盖)
+            // 【2026-11-10 终版二段·拍板①②】逐文件过滤(夹可见≠夹内全部文件可见):
+            // 夹内文件跟夹走(夹.org ∈ view 可见部门集) ∨ 无夹文件跟上传人(view 可见用户集) ∨ 本人 ∨ FILE view 定向授权(整夹覆盖)
             if (!SecurityUtils.isAdmin()) {
-                java.util.Set<Long> allowed = folderPermissionService.matrixSet(userId, "view");
+                java.util.Set<Long> deptSet = folderPermissionService.matrixDeptSet(userId, "view");
+                java.util.Set<Long> upSet = folderPermissionService.matrixSet(userId, "view");
+                java.util.Set<Long> orgAllowed = new java.util.HashSet<>();
                 java.util.Set<Long> grantCovered = new java.util.HashSet<>();
                 for (BizFileFolder f : folders) {
+                    if (deptSet == null || (f.getOrgId() != null && deptSet.contains(f.getOrgId()))) orgAllowed.add(f.getId());
                     if (folderPermissionService.grantCoversFolderFiles(f.getFolderType(), f.getId(), f.getOrgId(), userId)) {
                         grantCovered.add(f.getId());
                     }
                 }
-                if (allowed != null || !grantCovered.isEmpty()) {
+                if (upSet != null || !orgAllowed.isEmpty() || !grantCovered.isEmpty()) {
                     wrapper.and(w -> {
                         w.eq(BizFile::getUploaderId, userId);
-                        if (allowed != null && !allowed.isEmpty()) w.or().in(BizFile::getUploaderId, allowed);
+                        if (!orgAllowed.isEmpty()) w.or().in(BizFile::getFolderId, orgAllowed);
+                        if (upSet != null && !upSet.isEmpty()) w.or().in(BizFile::getUploaderId, upSet);
                         if (!grantCovered.isEmpty()) w.or().in(BizFile::getFolderId, grantCovered);
                     });
                 }
@@ -379,8 +383,14 @@ public class FileService {
             throw new BusinessException("没有创建该类型文件夹的权限，请联系管理员授权");
         }
         folder.setOwnerId(creator);
+        // 【拍板④】公共夹归属=创建人所辖最高组织(负责人建夹=给本组织开抽屉); 私人夹/非负责人=创建人组织
+        Long leaderOrg = folderPermissionService.leaderOrgId(creator);
         SysUser creatorUser = userMapper.selectById(creator);
-        folder.setOrgId(creatorUser != null ? java.util.Objects.requireNonNullElse(creatorUser.getOfficeId(), creatorUser.getDeptId()) : null);
+        if ("public".equals(type) && leaderOrg != null && leaderOrg > 0) {
+            folder.setOrgId(leaderOrg);
+        } else {
+            folder.setOrgId(creatorUser != null ? java.util.Objects.requireNonNullElse(creatorUser.getOfficeId(), creatorUser.getDeptId()) : null);
+        }
         folderMapper.insert(folder);
     }
 

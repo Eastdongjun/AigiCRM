@@ -85,6 +85,13 @@ class FolderPermissionServiceTest {
         return f;
     }
 
+    /** ORG 锚决策桩: visibleDeptIds=给定集(空=fail-closed) */
+    private com.aigicrm.common.scope.ScopeDecision deptDecision(java.util.Collection<Long> deptIds) {
+        com.aigicrm.common.scope.ScopeDecision d = new com.aigicrm.common.scope.ScopeDecision();
+        d.setVisibleDeptIds(deptIds == null ? null : new java.util.ArrayList<>(deptIds));
+        return d;
+    }
+
     private BizFile file(long id, Long folderId, Long uploader) {
         BizFile f = new BizFile();
         f.setId(id); f.setFolderId(folderId); f.setUploaderId(uploader);
@@ -102,7 +109,8 @@ class FolderPermissionServiceTest {
         when(folderMapper.selectById(100L)).thenReturn(folder(100L, null, "public"));
         when(grantMapper.selectList(any())).thenReturn(List.of());
         SecurityUser u = mock(SecurityUser.class);
-        when(scopeResolver.resolveModuleUsers(any(), eq("file"), any())).thenReturn(List.of(42L)); // 矩阵=仅本人
+        when(scopeResolver.resolveModuleUsers(any(), eq("file"), any())).thenReturn(List.of(42L)); // OWNER 矩阵=仅本人
+        when(scopeResolver.resolveScope(any())).thenReturn(deptDecision(List.of())); // ORG 矩阵=空(fail-closed)
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             stub(m, u, false);
             // 本人: 全动作恒可
@@ -118,20 +126,23 @@ class FolderPermissionServiceTest {
     // ===== ③ 组织矩阵: manage 档位覆盖他人文件 =====
 
     @Test
-    void orgMatrix_manageScopeGrantsOthersFiles() {
+    void orgMatrix_folderAnchor_manageDeptGrantsOthersFiles() {
+        // 【拍板②】文件跟夹走: 夹 org=5; manage/view 档含 5 → 他人文件可看可改名; delete 档不含 → 不可删
+        BizFileFolder f = folder(100L, null, "public"); f.setOrgId(5L);
         when(fileMapper.selectById(10L)).thenReturn(file(10L, 100L, 99L));
-        when(folderMapper.selectById(100L)).thenReturn(folder(100L, null, "public"));
+        when(folderMapper.selectById(100L)).thenReturn(f);
         when(grantMapper.selectList(any())).thenReturn(List.of());
         SecurityUser u = mock(SecurityUser.class);
-        // 矩阵: view/manage=42+99 可见(如部门档), delete=仅42(删除独立③)
-        when(scopeResolver.resolveModuleUsers(any(), eq("file"), eq("view"))).thenReturn(List.of(42L, 99L));
-        when(scopeResolver.resolveModuleUsers(any(), eq("file"), eq("manage"))).thenReturn(List.of(42L, 99L));
-        when(scopeResolver.resolveModuleUsers(any(), eq("file"), eq("delete"))).thenReturn(List.of(42L));
+        when(scopeResolver.resolveScope(any())).thenAnswer(inv -> {
+            com.aigicrm.common.scope.ScopeRequest r = inv.getArgument(0);
+            return "manage".equals(r.getAction()) || "view".equals(r.getAction())
+                    ? deptDecision(List.of(5L)) : deptDecision(List.of());
+        });
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             stub(m, u, false);
-            assertTrue(svc.checkFile(10L, FolderPermissionService.P_VIEW, 42L), "view 档位含上传者→可见");
-            assertTrue(svc.checkFile(10L, FolderPermissionService.P_RENAME, 42L), "manage 档位含上传者→可改名");
-            assertFalse(svc.checkFile(10L, FolderPermissionService.P_DELETE, 42L), "delete 独立档位不含上传者→不可删");
+            assertTrue(svc.checkFile(10L, FolderPermissionService.P_VIEW, 42L), "夹org∈view档→可见");
+            assertTrue(svc.checkFile(10L, FolderPermissionService.P_RENAME, 42L), "夹org∈manage档→可改名他人文件");
+            assertFalse(svc.checkFile(10L, FolderPermissionService.P_DELETE, 42L), "delete档不含夹org→不可删");
         }
     }
 
@@ -142,7 +153,8 @@ class FolderPermissionServiceTest {
         when(fileMapper.selectById(10L)).thenReturn(file(10L, 100L, 99L));
         when(folderMapper.selectById(100L)).thenReturn(folder(100L, null, "public"));
         SecurityUser u = mock(SecurityUser.class);
-        when(scopeResolver.resolveModuleUsers(any(), eq("file"), any())).thenReturn(List.of(42L)); // 矩阵仅本人
+        when(scopeResolver.resolveModuleUsers(any(), eq("file"), any())).thenReturn(List.of(42L)); // OWNER 矩阵仅本人
+        when(scopeResolver.resolveScope(any())).thenReturn(deptDecision(List.of())); // ORG 矩阵空
         // 未过期 USER 授权(定向夹100, view)
         when(grantMapper.selectList(any())).thenReturn(List.of(
                 grant("FILE", "public", 100L, "USER", 42L, "view", LocalDateTime.now().plusDays(7))));
@@ -166,6 +178,7 @@ class FolderPermissionServiceTest {
         when(fileMapper.selectById(10L)).thenReturn(file(10L, 100L, 99L));
         when(folderMapper.selectById(100L)).thenReturn(folder(100L, null, "public"));
         when(scopeResolver.resolveModuleUsers(any(), eq("file"), any())).thenReturn(List.of(42L));
+        when(scopeResolver.resolveScope(any())).thenReturn(deptDecision(List.of()));
         when(grantMapper.selectList(any())).thenReturn(List.of(
                 grant("FILE", "public", 100L, "ROLE", 3L, "view,upload,rename,replace,delete", LocalDateTime.now().plusYears(1))));
         SysRole role = new SysRole(); role.setId(3L); role.setRoleCode("05");
@@ -182,16 +195,22 @@ class FolderPermissionServiceTest {
     // ===== ⑥ 建夹门槛 =====
 
     @Test
-    void canCreateFolder_grantGated() {
+    void canCreateFolder_grantGated_privateFree_leaderCreatesPublic() {
         SecurityUser u = mock(SecurityUser.class);
         when(grantMapper.selectList(any())).thenReturn(List.of(
                 grant("FOLDER", "public", null, "USER", 42L, "create", LocalDateTime.now().plusDays(30))));
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             stub(m, u, false);
             assertTrue(svc.canCreateFolder("public", 42L), "授权含 FOLDER:create→可建公共夹");
-            assertFalse(svc.canCreateFolder("private", 42L), "私人域无授权→不可建");
-            assertFalse(svc.canCreateFolder("public", 43L), "非授权主体→不可建");
+            assertTrue(svc.canCreateFolder("private", 43L), "拍板④: 私人夹全员可建");
+            assertFalse(svc.canCreateFolder("public", 43L), "无授权非负责人→不可建公共夹");
         }
+        // 负责人制: 43 是部门5 的 leader → 可建公共夹, leaderOrgId=5
+        SysDept d5 = new SysDept(); d5.setId(5L); d5.setParentId(0L); d5.setLeaderId(43L);
+        when(deptMapper.selectList(any())).thenReturn(List.of(d5));
+        when(deptMapper.selectById(5L)).thenReturn(d5);
+        assertTrue(svc.canCreateFolder("public", 43L), "组织负责人→可建本组织公共夹");
+        org.junit.jupiter.api.Assertions.assertEquals(5L, svc.leaderOrgId(43L));
     }
 
     // ===== ② 上级链 =====
@@ -224,14 +243,18 @@ class FolderPermissionServiceTest {
     void folder_creatorFullAndOrgMatrixRename() {
         when(folderMapper.selectById(100L)).thenReturn(folder(100L, 77L, "public"));
         when(grantMapper.selectList(any())).thenReturn(List.of());
+        BizFileFolder f100 = folder(100L, 77L, "public"); f100.setOrgId(5L);
+        when(folderMapper.selectById(100L)).thenReturn(f100);
         SecurityUser u = mock(SecurityUser.class);
-        when(scopeResolver.resolveModuleUsers(any(), eq("file"), any())).thenReturn(List.of(42L)); // 泛化先注册
-        when(scopeResolver.resolveModuleUsers(any(), eq("file"), eq("manage"))).thenReturn(List.of(42L, 77L)); // 专属后注册(优先)
+        when(scopeResolver.resolveScope(any())).thenAnswer(inv -> {
+            com.aigicrm.common.scope.ScopeRequest r = inv.getArgument(0);
+            return "manage".equals(r.getAction()) ? deptDecision(List.of(5L)) : deptDecision(List.of());
+        });
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             stub(m, u, false);
             assertTrue(svc.check(100L, FolderPermissionService.P_RENAME, 77L), "创建人全权");
-            assertTrue(svc.check(100L, FolderPermissionService.P_RENAME, 42L), "矩阵 manage 档覆盖创建人→可改名");
-            assertFalse(svc.check(100L, FolderPermissionService.P_DELETE, 42L), "delete 档不含创建人→不可删");
+            assertTrue(svc.check(100L, FolderPermissionService.P_RENAME, 42L), "夹org∈manage档→可改名");
+            assertFalse(svc.check(100L, FolderPermissionService.P_DELETE, 42L), "delete档不含夹org→不可删");
         }
     }
 
@@ -254,11 +277,12 @@ class FolderPermissionServiceTest {
                 grant("FILE", "public", null, "USER", 42L, "view,download", LocalDateTime.now().plusDays(1))));
         SecurityUser u = mock(SecurityUser.class);
         when(scopeResolver.resolveModuleUsers(any(), eq("file"), any())).thenReturn(List.of(42L));
+        when(scopeResolver.resolveScope(any())).thenReturn(deptDecision(List.of()));
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             stub(m, u, false);
             Map<Long, List<String>> res = svc.permsForBatch(List.of(f1), 42L);
             assertTrue(res.get(100L).containsAll(List.of("view", "download")), "授权行并入按钮视图: " + res.get(100L));
-            verify(scopeResolver, atMost(3)).resolveModuleUsers(any(), any(), any());
+            verify(scopeResolver, atMost(3)).resolveScope(any());
         }
     }
 }

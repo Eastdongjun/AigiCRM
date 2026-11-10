@@ -89,9 +89,20 @@
         <el-select v-model="form.folderId" clearable placeholder="定向到…（默认整空间）" size="small" style="width:190px">
           <el-option v-for="f in folderOptions" :key="f.id" :label="`${f.folderType === 'public' ? '公共' : '私人'} · ${f.name}`" :value="f.id" />
         </el-select>
-        <el-checkbox-group v-model="form.perms" size="small" class="fsd-perms">
-          <el-checkbox v-for="o in permOptionsOf(form.objectType)" :key="o.value" :value="o.value">{{ o.label }}</el-checkbox>
-        </el-checkbox-group>
+        <el-radio-group v-model="preset" size="small" @change="applyPreset">
+          <el-radio-button value="viewer">查看者</el-radio-button>
+          <el-radio-button value="editor">编辑者</el-radio-button>
+          <el-radio-button value="manager">管理者</el-radio-button>
+          <el-radio-button value="custom">自定义</el-radio-button>
+        </el-radio-group>
+        <el-collapse v-if="preset === 'custom'" class="fsd-adv">
+          <el-collapse-item title="高级：逐动作自定义" name="adv">
+            <el-checkbox-group v-model="form.perms" size="small" class="fsd-perms" @change="preset = 'custom'">
+              <el-checkbox v-for="o in permOptionsOf(form.objectType)" :key="o.value" :value="o.value">{{ o.label }}</el-checkbox>
+            </el-checkbox-group>
+          </el-collapse-item>
+        </el-collapse>
+        <span v-else class="fsd-preset-hint">{{ presetHint }}</span>
         <el-date-picker v-model="form.expiresAt" type="datetime" size="small" placeholder="到期时间(必填)"
                         value-format="YYYY-MM-DD HH:mm:ss" :default-value="defaultExpiry" style="width:200px" />
         <el-button type="primary" size="small" :disabled="!canSubmit" :loading="saving" @click="save">保存</el-button>
@@ -103,7 +114,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getFolderTypeDefaults, saveFolderTypeDefault, removeFolderTypeDefault, renewFolderTypeDefault, getAclRoles, getFolderTree } from '@/api/file'
 import { getUserList } from '@/api/system'
@@ -121,6 +132,29 @@ const FOLDER_ACTIONS = [
 ]
 const LEGACY = { edit: '编辑(改名+替换)' }
 const permOptionsOf = (t) => t === 'FOLDER' ? FOLDER_ACTIONS : FILE_ACTIONS
+// 【拍板③】三档角色预设(业界口径): 查看=看+下载; 编辑=+上传/改名/替换/分享; 管理=+删除(FILE)/+新建改名删除(FOLDER)
+const PRESETS = {
+  FILE: {
+    viewer: ['view', 'download'],
+    editor: ['view', 'download', 'upload', 'rename', 'replace', 'share'],
+    manager: ['view', 'download', 'upload', 'rename', 'replace', 'share', 'delete']
+  },
+  FOLDER: {
+    viewer: [],
+    editor: [],
+    manager: ['create', 'rename', 'delete']
+  }
+}
+const preset = ref('viewer')
+const applyPreset = (v) => {
+  if (v === 'custom') return
+  form.perms = [...PRESETS[form.objectType][v]]
+}
+const presetHint = computed(() => ({
+  viewer: form.objectType === 'FILE' ? '可查看、下载' : '（文件夹无“查看者”档，请选管理者或自定义）',
+  editor: '可查看、下载、上传、改名、替换、分享',
+  manager: form.objectType === 'FILE' ? '编辑者全部 + 删除（高敏，审计）' : '可新建、改名、删除文件夹'
+})[preset.value] || '')
 const labelOf = (t, v) => permOptionsOf(t).find(o => o.value === v)?.label || LEGACY[v] || v
 
 const rows = ref([])
@@ -134,6 +168,11 @@ const defaultExpiry = new Date(Date.now() + 365 * 864e5)
 const form = reactive({
   subjectType: 'USER', subjectIds: [], folderType: 'public', objectType: 'FILE',
   folderId: null, perms: [], expiresAt: ''
+})
+watch(() => form.perms, (v) => {
+  const match = Object.entries(PRESETS[form.objectType]).find(([, list]) =>
+    list.length === v.length && list.every(p => v.includes(p)))
+  if (match && match[0] !== 'viewer' && match[0] !== 'editor' && match[0] !== 'manager') preset.value = 'custom'
 })
 
 const canSubmit = computed(() =>
@@ -262,6 +301,9 @@ onMounted(async () => {
 .fsd-form { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 10px 12px; background: #f7f8fa; border-radius: 8px; }
 .fsd-perms { display: flex; flex-wrap: wrap; gap: 0 8px; }
 .fsd-perms :deep(.el-checkbox) { margin-right: 0; height: 24px; }
+.fsd-preset-hint { font-size: 12px; color: var(--el-color-info); }
+.fsd-adv { flex-basis: 100%; border: none; }
+.fsd-adv :deep(.el-collapse-item__header) { height: 32px; font-size: 12px; color: var(--el-color-info); }
 .fsd-warn { margin-top: 8px; padding: 6px 10px; font-size: 12px; color: #b45200; background: #fdf6ec; border-radius: 6px; }
 .fsd-tree-wrap { flex-basis: 100%; border: 1px solid var(--el-border-color-lighter); border-radius: 6px; padding: 8px 10px; background: #fff; }
 .fsd-tree-tools { display: flex; align-items: center; gap: 4px; margin-bottom: 6px; }

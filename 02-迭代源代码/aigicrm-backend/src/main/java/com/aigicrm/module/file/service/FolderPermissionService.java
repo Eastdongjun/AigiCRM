@@ -81,8 +81,8 @@ public class FolderPermissionService {
         if (Objects.equals(folder.getOwnerId(), userId)) return true;
         if (isManagerChain(userId, folder.getOwnerId())) return true;
         if (grantGranted(ctxObjectTypeOf(action), folder.getFolderType(), folder.getId(), folder.getOrgId(), action, userId)) return true;
-        Long owner = folder.getOwnerId();
-        return owner != null && matrixVisible(owner, userId, matrixActionOf(action));
+        // 【拍板②文件跟夹走】矩阵通道锚定夹归属组织(夹.org ∈ 我的可见部门集), 不再按创建人
+        return deptVisible(folder.getOrgId(), userId, matrixActionOf(action));
     }
 
     public boolean checkFile(Long fileId, String action, Long userId) {
@@ -95,19 +95,46 @@ public class FolderPermissionService {
         if (isManagerChain(userId, file.getUploaderId())) return true;
         String folderType = null;
         Long folderRef = file.getFolderId();
+        BizFileFolder ref = null;
         if (folderRef != null) {
-            BizFileFolder f = folderMapper.selectById(folderRef);
-            if (f != null) folderType = f.getFolderType();
+            ref = folderMapper.selectById(folderRef);
+            if (ref != null) folderType = ref.getFolderType();
         }
         if (grantGranted(OBJ_FILE, folderType, folderRef, file.getOrgId(), action, userId)) return true;
+        // 【拍板②】夹内文件跟夹走(夹.org ∈ 可见部门集); 无夹文件(激励附件/私人无夹)跟上传人(OWNER 锚)
+        if (ref != null) return deptVisible(ref.getOrgId(), userId, matrixActionOf(action));
         Long uploader = file.getUploaderId();
         return uploader != null && matrixVisible(uploader, userId, matrixActionOf(action));
     }
 
-    /** 建夹门槛(公共/私人分列): admin ∨ 例外授权含 FOLDER:create */
+    /**
+     * 建夹门槛(公共/私人分列): 私人夹=全员可建(控制器 file:folder:manage 码前置, 个人空间天生自由);
+     * 公共夹=admin ∨ 例外授权 FOLDER:create ∨ 组织负责人(拍板④: 负责人可建本组织公共夹, org 快照=所辖最高组织)。
+     */
     public boolean canCreateFolder(String folderType, Long userId) {
         if (SecurityUtils.isAdmin()) return true;
-        return grantGranted(OBJ_FOLDER, folderType, null, null, P_CREATE, userId);
+        if ("private".equals(folderType)) return true;
+        if (grantGranted(OBJ_FOLDER, folderType, null, null, P_CREATE, userId)) return true;
+        return userId != null && leaderOrgId(userId) != null;
+    }
+
+    /** 用户担任负责人的最高组织节点 id(公共夹 org 快照用; 未任负责人=null) */
+    public Long leaderOrgId(Long userId) {
+        List<SysDept> led = deptMapper.selectList(
+                new LambdaQueryWrapper<SysDept>().eq(SysDept::getLeaderId, userId));
+        if (led == null || led.isEmpty()) return null;
+        // 最高=祖先链最短: 逐节点算深度取最浅
+        Long best = null; int bestDepth = Integer.MAX_VALUE;
+        for (SysDept d : led) {
+            int depth = 0; SysDept cur = d;
+            while (cur.getParentId() != null && cur.getParentId() != 0 && depth < 50) {
+                SysDept parent = deptMapper.selectById(cur.getParentId());
+                if (parent == null) break;
+                cur = parent; depth++;
+            }
+            if (depth < bestDepth) { bestDepth = depth; best = d.getId(); }
+        }
+        return best;
     }
 
     // ==================== 组织矩阵(底座) ====================
@@ -133,7 +160,24 @@ public class FolderPermissionService {
         return visible != null && visible.contains(targetUserId);
     }
 
-    /** 可见用户集(null=全部); 按动作缓存于本次调用方(不缓存跨请求, 与权限矩阵即时生效语义一致) */
+    /** 【拍板②】可见部门集(ORG 锚, null=全部)——夹/文件归属过滤用 */
+    Set<Long> matrixDeptSet(Long currentUserId, String matrixAction) {
+        com.aigicrm.security.SecurityUser user = SecurityUtils.getCurrentUser();
+        if (user == null) return Set.of();
+        com.aigicrm.common.scope.ScopeRequest req = com.aigicrm.common.scope.ScopeRequest.builder()
+                .user(user).module(MODULE_FILE).action(matrixAction)
+                .anchor(com.aigicrm.common.scope.ScopeRequest.AnchorType.ORG).build();
+        com.aigicrm.common.scope.ScopeDecision d = scopeResolver.resolveScope(req);
+        return d == null || d.getVisibleDeptIds() == null ? null : new HashSet<>(d.getVisibleDeptIds());
+    }
+
+    private boolean deptVisible(Long orgId, Long userId, String matrixAction) {
+        if (orgId == null) return false;
+        Set<Long> depts = matrixDeptSet(userId, matrixAction);
+        return depts != null && depts.contains(orgId);
+    }
+
+    /** 可见用户集(OWNER 锚, null=全部); 无夹文件/激励附件过滤用 */
     Set<Long> matrixSet(Long currentUserId, String matrixAction) {
         com.aigicrm.security.SecurityUser user = SecurityUtils.getCurrentUser();
         if (user == null) return Set.of();
@@ -199,8 +243,8 @@ public class FolderPermissionService {
             if (privileged) { result.put(folder.getId(), ALL_PERMS); continue; }
             List<String> perms = new ArrayList<>();
             for (String p : List.of(P_VIEW, P_UPLOAD, P_DOWNLOAD, P_RENAME, P_REPLACE, P_SHARE, P_DELETE)) {
-                Set<Long> vis = matrixCache.computeIfAbsent(matrixActionOf(p), ma -> matrixSet(userId, ma));
-                if ((vis != null && folder.getOwnerId() != null && vis.contains(folder.getOwnerId()))
+                Set<Long> depts = matrixCache.computeIfAbsent(matrixActionOf(p), ma -> matrixDeptSet(userId, ma));
+                if ((depts != null && folder.getOrgId() != null && depts.contains(folder.getOrgId()))
                         || grantHitIn(grants, ctxObjectTypeOf(p), folder.getFolderType(), folder.getId(), folder.getOrgId(), p, userId)) {
                     mergePerms(perms, p);
                 }
