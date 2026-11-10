@@ -158,7 +158,8 @@ public class FolderPermissionService {
     private boolean matrixVisible(Long targetUserId, Long currentUserId, String matrixAction) {
         if (targetUserId == null) return false;
         Set<Long> visible = matrixSet(currentUserId, matrixAction);
-        return visible != null && visible.contains(targetUserId);
+        // 【2026-11-10 C区验收修复】matrixSet null=全部(all档), 原写法把 null 当不含 → view=all 恒失效
+        return visible == null || visible.contains(targetUserId);
     }
 
     /** 【拍板②】可见部门集(ORG 锚, null=全部)——夹/文件归属过滤用 */
@@ -175,7 +176,8 @@ public class FolderPermissionService {
     private boolean deptVisible(Long orgId, Long userId, String matrixAction) {
         if (orgId == null) return false;
         Set<Long> depts = matrixDeptSet(userId, matrixAction);
-        return depts != null && depts.contains(orgId);
+        // 【2026-11-10 C区验收修复】null=全部(all档)放行, 对齐 FileService#255 写法
+        return depts == null || depts.contains(orgId);
     }
 
     /** 可见用户集(OWNER 锚, null=全部); 无夹文件/激励附件过滤用 */
@@ -214,11 +216,12 @@ public class FolderPermissionService {
         if ("self".equals(lv)) return targetUploaderId != null && targetUploaderId.equals(SecurityUtils.getCurrentUserId());
         if (targetOrgId != null) {
             List<Long> depts = scopeResolver.resolveDeptScope(u, lv);
-            return depts != null && depts.contains(targetOrgId);
+            // 【2026-11-10 C区验收修复】resolver null=不限制, 放行(与授权"不限"语义一致)
+            return depts == null || depts.contains(targetOrgId);
         }
         if (targetUploaderId != null) {
             List<Long> users = scopeResolver.resolveScope(u, lv);
-            return users != null && users.contains(targetUploaderId);
+            return users == null || users.contains(targetUploaderId);
         }
         return false;
     }
@@ -266,7 +269,8 @@ public class FolderPermissionService {
             List<String> perms = new ArrayList<>();
             for (String p : List.of(P_VIEW, P_UPLOAD, P_DOWNLOAD, P_RENAME, P_REPLACE, P_SHARE, P_DELETE)) {
                 Set<Long> depts = matrixCache.computeIfAbsent(matrixActionOf(p), ma -> matrixDeptSet(userId, ma));
-                if ((depts != null && folder.getOrgId() != null && depts.contains(folder.getOrgId()))
+                // 【2026-11-10 C区验收修复】null=全部(all档)放行, 对齐 FileService#255; 原写法致全员可看档在批量夹判定恒失效
+                if ((depts == null || (folder.getOrgId() != null && depts.contains(folder.getOrgId())))
                         || grantHitIn(grants, ctxObjectTypeOf(p), folder.getFolderType(), folder.getId(), folder.getOrgId(), folder.getOwnerId(), p, userId)) {
                     mergePerms(perms, p);
                 }
