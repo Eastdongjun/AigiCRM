@@ -85,14 +85,20 @@ export function getFolderTypeDefaults() {
   return request.get('/file/folders/type-defaults')
 }
 
-// 保存授权 {folderType: 'public'|'private', subjectType: 'ROLE'|'USER', subjectId, perms: []}
+// 【2026-11-10 终版】保存例外授权 {folderType, objectType: 'FOLDER'|'FILE', folderId?, scopeOrgId?,
+// subjectType: 'ROLE'|'USER', subjectId, perms: [], expiresAt: 'yyyy-MM-dd HH:mm:ss'}
 export function saveFolderTypeDefault(data) {
   return request.post('/file/folders/type-defaults', data)
 }
 
-// 移除某类型某主体的授权
-export function removeFolderTypeDefault(folderType, subjectType, subjectId) {
-  return request.delete(`/file/folders/type-defaults/${folderType}/${subjectType}/${subjectId}`)
+// 续期(顺延至指定时刻)
+export function renewFolderTypeDefault(id, expiresAt) {
+  return request.put(`/file/folders/type-defaults/${id}/renew`, { expiresAt })
+}
+
+// 按 id 删除授权(立即收回)
+export function removeFolderTypeDefault(id) {
+  return request.delete(`/file/folders/type-defaults/${id}`)
 }
 
 // 文件覆盖替换（multipart "file"），返回更新后文件（含 version）

@@ -76,8 +76,9 @@ public class FileService {
     private final ObjectProvider<OSS> ossClientProvider;
     private final OssConfig ossConfig;
     private final FolderPermissionService folderPermissionService;
+    // 【2026-11-10 拍板③】删除=高敏动作, 全程走审计
+    private final com.aigicrm.security.SecurityAuditService securityAudit;
     // 【2026-11-09 类型级默认权限】建夹门槛(公共根=admin∨类型默认create)+新夹继承默认ACL
-    private final FolderTypeDefaultService folderTypeDefaultService;
     // 【2026-10-27 深度检查修复】shareFile 集团边界校验需要(同 CustomerService.addShares 范式)
     private final JdbcTemplate jdbc;
 
@@ -193,12 +194,23 @@ public class FileService {
                 // 自己的 + 其他挂了分享的激励文件（与下载可见性同源，30s 缓存见 incentiveVisibleFileIds）
                 {
                 Set<Long> sharedFileIds = incentiveVisibleFileIds(userId);
-
-                if (sharedFileIds.isEmpty()) {
-                    wrapper.eq(BizFile::getUploaderId, userId);
+                // 【2026-11-10 拍板②激励按组织】可见 = 上传人 ∈ 组织矩阵(file,view)集 ∪ 本人 ∨ 记录分享
+                Set<Long> orgVisible = folderPermissionService.matrixSet(userId, "view");
+                if (orgVisible == null) {
+                    // 组织矩阵=全部(file view 配到 all): 激励附件本域不过滤(分享语义兜底在 record 侧)
+                    if (!sharedFileIds.isEmpty()) {
+                        wrapper.and(w -> w.in(BizFile::getUploaderId, java.util.List.of(userId))
+                                .or().in(BizFile::getId, sharedFileIds));
+                    }
                 } else {
-                    wrapper.and(w -> w.eq(BizFile::getUploaderId, userId)
-                            .or().in(BizFile::getId, sharedFileIds));
+                    java.util.List<Long> allow = new java.util.ArrayList<>(orgVisible);
+                    if (!allow.contains(userId)) allow.add(userId);
+                    if (sharedFileIds.isEmpty()) {
+                        wrapper.in(BizFile::getUploaderId, allow);
+                    } else {
+                        wrapper.and(w -> w.in(BizFile::getUploaderId, allow)
+                                .or().in(BizFile::getId, sharedFileIds));
+                    }
                 }
                 }
             }
@@ -231,6 +243,24 @@ public class FileService {
             } else {
                 wrapper.and(w -> w.isNull(BizFile::getFolderId)
                         .or().in(BizFile::getFolderId, visibleIds));
+            }
+            // 【2026-11-10 终版①B】逐文件组织过滤: 夹可见≠夹内全部文件可见——
+            // 文件可见 = 上传人 ∈ 组织矩阵(file,view)集 ∪ 本人 ∨ 所在夹有 FILE view 定向授权(整夹覆盖)
+            if (!SecurityUtils.isAdmin()) {
+                java.util.Set<Long> allowed = folderPermissionService.matrixSet(userId, "view");
+                java.util.Set<Long> grantCovered = new java.util.HashSet<>();
+                for (BizFileFolder f : folders) {
+                    if (folderPermissionService.grantCoversFolderFiles(f.getFolderType(), f.getId(), f.getOrgId(), userId)) {
+                        grantCovered.add(f.getId());
+                    }
+                }
+                if (allowed != null || !grantCovered.isEmpty()) {
+                    wrapper.and(w -> {
+                        w.eq(BizFile::getUploaderId, userId);
+                        if (allowed != null && !allowed.isEmpty()) w.or().in(BizFile::getUploaderId, allowed);
+                        if (!grantCovered.isEmpty()) w.or().in(BizFile::getFolderId, grantCovered);
+                    });
+                }
             }
         }
         if (keyword != null && !keyword.isEmpty()) {
@@ -296,6 +326,9 @@ public class FileService {
 
             BizFile bizFile = new BizFile();
             bizFile.setFolderId(folderId);
+            // 【2026-11-10 终版】归属组织快照(上传人当时组织节点, 转岗不漂移)
+            SysUser uploader = userMapper.selectById(userId);
+            bizFile.setOrgId(uploader != null ? java.util.Objects.requireNonNullElse(uploader.getOfficeId(), uploader.getDeptId()) : null);
             bizFile.setFileName(originalFilename);
             bizFile.setFileSize(file.getSize());
             int dotIdx = originalFilename.lastIndexOf('.');
@@ -338,19 +371,17 @@ public class FileService {
                 && !folderPermissionService.check(folder.getParentId(), FolderPermissionService.P_UPLOAD, SecurityUtils.getCurrentUserId())) {
             throw new BusinessException(403, "没有访问权限，请联系管理员授权");
         }
-        // 【2026-11-09 类型级默认权限】根级公共建夹门槛: admin ∨ 类型默认(public, 本人角色)含 create。
-        // 零配置(默认表空)时保持原行为"仅管理员"; 私人根维持"有 file:folder:manage 码即可建"。
-        if ("public".equals(type) && folder.getParentId() == null
-                && !SecurityUtils.isAdmin()
-                && !folderTypeDefaultService.canCreateRoot("public")) {
-            throw new BusinessException("公共文件夹只有管理员才能创建");
+        // 【2026-11-10 文件权限终版】建夹门槛=判定链 canCreateFolder(admin ∨ 例外授权含 FOLDER:create),
+        // 公共/私人分列配置; 归属: owner=创建人(公共私人同, 治存量公共夹 owner 全 NULL 的结构缺失),
+        // org_id=创建人当时组织快照(转岗不漂移)。
+        Long creator = SecurityUtils.getCurrentUserId();
+        if (!folderPermissionService.canCreateFolder(type, creator)) {
+            throw new BusinessException("没有创建该类型文件夹的权限，请联系管理员授权");
         }
-        if ("private".equals(type)) {
-            folder.setOwnerId(SecurityUtils.getCurrentUserId());
-        }
+        folder.setOwnerId(creator);
+        SysUser creatorUser = userMapper.selectById(creator);
+        folder.setOrgId(creatorUser != null ? java.util.Objects.requireNonNullElse(creatorUser.getOfficeId(), creatorUser.getDeptId()) : null);
         folderMapper.insert(folder);
-        // 【2026-11-09 文件权限 v2】类型授权改为判定链实时生效(typeGranted), 不再建夹时物化进
-        // biz_folder_acl——勾选/取消对该空间全部存量+未来文件夹即时同步(v1 建夹物化机制已退役)。
     }
 
     public void renameFolder(Long folderId, String newName) {
@@ -447,6 +478,10 @@ public class FileService {
             // 并发/重复删除: 台账已不在活跃态, 不得二次归还配额; 幂等返回成功(前端不报错)
             return;
         }
+        // 【2026-11-10 拍板③】删除审计(高敏动作, 失败不阻断)
+        try { securityAudit.permissionChange("file_delete",
+                "file:" + fileId + " name:" + file.getFileName() + " scope:" + file.getFileScope()
+                        + " by:" + SecurityUtils.getCurrentUsername()); } catch (Exception ignore) { }
         // 【性能 file-3】删除后清掉该文件所有版本的缩略图磁盘缓存（逻辑删只保留原图供回收站）
         evictThumbnailCache(fileId);
 

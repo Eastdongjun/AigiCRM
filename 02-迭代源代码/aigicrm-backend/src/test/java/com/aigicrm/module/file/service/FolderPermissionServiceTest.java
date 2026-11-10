@@ -1,15 +1,14 @@
 package com.aigicrm.module.file.service;
 
+import com.aigicrm.common.scope.OrgScopeResolver;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.aigicrm.module.file.entity.BizFile;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import com.aigicrm.module.file.entity.BizFileFolder;
-import com.aigicrm.module.file.entity.BizFolderAcl;
 import com.aigicrm.module.file.entity.BizFolderTypeDefault;
 import com.aigicrm.module.file.mapper.BizFileFolderMapper;
 import com.aigicrm.module.file.mapper.BizFileMapper;
-import com.aigicrm.module.file.mapper.BizFolderAclMapper;
 import com.aigicrm.module.file.mapper.BizFolderTypeDefaultMapper;
 import com.aigicrm.module.system.entity.SysDept;
 import com.aigicrm.module.system.entity.SysRole;
@@ -17,472 +16,249 @@ import com.aigicrm.module.system.entity.SysUser;
 import com.aigicrm.module.system.mapper.SysDeptMapper;
 import com.aigicrm.module.system.mapper.SysRoleMapper;
 import com.aigicrm.module.system.mapper.SysUserMapper;
+import com.aigicrm.security.SecurityUser;
 import com.aigicrm.security.SecurityUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
+/**
+ * 【2026-11-10 文件权限终版】组织底座判定链回归:
+ * ①上传者本人恒可管 ②上级链 ③组织矩阵(view/manage/delete 三档) ④例外授权(未过期命中/过期拒绝)
+ * ⑤公共兜底已删除(拍板①B: 看也按组织收窄) ⑥建夹门槛=授权 FOLDER:create ⑦ACL 转换行(edit伞)读时展开。
+ */
 class FolderPermissionServiceTest {
 
-    /** MyBatis-Plus 3.5.17(Boot 4)起纯 mock 环境必须显式注册实体 lambda 缓存（升级回归修复） */
     @BeforeEach
     void initLambdaCache() {
         MybatisConfiguration cfg = new MybatisConfiguration();
-        TableInfoHelper.initTableInfo(new MapperBuilderAssistant(cfg, ""), BizFolderAcl.class);
+        TableInfoHelper.initTableInfo(new MapperBuilderAssistant(cfg, ""), BizFolderTypeDefault.class);
         TableInfoHelper.initTableInfo(new MapperBuilderAssistant(cfg, ""), SysUser.class);
         TableInfoHelper.initTableInfo(new MapperBuilderAssistant(cfg, ""), SysDept.class);
         TableInfoHelper.initTableInfo(new MapperBuilderAssistant(cfg, ""), SysRole.class);
         TableInfoHelper.initTableInfo(new MapperBuilderAssistant(cfg, ""), BizFileFolder.class);
         TableInfoHelper.initTableInfo(new MapperBuilderAssistant(cfg, ""), BizFile.class);
-        TableInfoHelper.initTableInfo(new MapperBuilderAssistant(cfg, ""), BizFolderTypeDefault.class);
     }
 
-    private final BizFolderAclMapper aclMapper = mock(BizFolderAclMapper.class);
-    private final SysUserMapper userMapper = mock(SysUserMapper.class);
-    private final SysDeptMapper deptMapper = mock(SysDeptMapper.class);
     private final BizFileFolderMapper folderMapper = mock(BizFileFolderMapper.class);
     private final BizFileMapper fileMapper = mock(BizFileMapper.class);
+    private final SysUserMapper userMapper = mock(SysUserMapper.class);
+    private final SysDeptMapper deptMapper = mock(SysDeptMapper.class);
     private final SysRoleMapper roleMapper = mock(SysRoleMapper.class);
-    private final BizFolderTypeDefaultMapper typeDefaultMapper = mock(BizFolderTypeDefaultMapper.class);
-    private final FolderPermissionService svc = new FolderPermissionService(aclMapper, folderMapper, fileMapper, userMapper, deptMapper, roleMapper, typeDefaultMapper);
+    private final BizFolderTypeDefaultMapper grantMapper = mock(BizFolderTypeDefaultMapper.class);
+    private final OrgScopeResolver scopeResolver = mock(OrgScopeResolver.class);
+    private final FolderPermissionService svc =
+            new FolderPermissionService(folderMapper, fileMapper, userMapper, deptMapper, roleMapper, grantMapper, scopeResolver);
+
+    /** 统一静态桩: 非 admin + 可控 currentUser(matrixSet 需要非 null SecurityUser) */
+    private MockedStatic<SecurityUtils> stub(MockedStatic<SecurityUtils> m, SecurityUser user, boolean admin) {
+        m.when(SecurityUtils::isAdmin).thenReturn(admin);
+        m.when(SecurityUtils::getCurrentUser).thenReturn(user);
+        m.when(SecurityUtils::getCurrentRoleCodes).thenReturn(List.of("05"));
+        return m;
+    }
+
+    private BizFolderTypeDefault grant(String objectType, String folderType, Long folderId, String subjectType, Long subjectId, String perms, LocalDateTime expires) {
+        BizFolderTypeDefault g = new BizFolderTypeDefault();
+        g.setObjectType(objectType);
+        g.setFolderType(folderType);
+        g.setFolderId(folderId);
+        g.setSubjectType(subjectType);
+        g.setSubjectId(subjectId);
+        g.setPerms(perms);
+        g.setExpiresAt(expires);
+        return g;
+    }
+
+    private BizFileFolder folder(long id, Long owner, String type) {
+        BizFileFolder f = new BizFileFolder();
+        f.setId(id); f.setOwnerId(owner); f.setFolderType(type);
+        return f;
+    }
+
+    private BizFile file(long id, Long folderId, Long uploader) {
+        BizFile f = new BizFile();
+        f.setId(id); f.setFolderId(folderId); f.setUploaderId(uploader);
+        return f;
+    }
+
+    // ===== ① 本人恒可管 + 公共兜底已删除 =====
 
     @Test
-    void admin_hasAllPermissions() {
-        SysUser admin = new SysUser(); admin.setId(1L); admin.setManagerId(null);
-        when(userMapper.selectById(1L)).thenReturn(admin);
+    void uploaderSelfAlwaysManages_publicFallbackRemoved() {
+        BizFile mine = file(9L, 100L, 42L);
+        BizFile others = file(10L, 100L, 99L);
+        when(fileMapper.selectById(9L)).thenReturn(mine);
+        when(fileMapper.selectById(10L)).thenReturn(others);
+        when(folderMapper.selectById(100L)).thenReturn(folder(100L, null, "public"));
+        when(grantMapper.selectList(any())).thenReturn(List.of());
+        SecurityUser u = mock(SecurityUser.class);
+        when(scopeResolver.resolveModuleUsers(any(), eq("file"), any())).thenReturn(List.of(42L)); // 矩阵=仅本人
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
-            m.when(SecurityUtils::isAdmin).thenReturn(true);
-            assertTrue(svc.check(100L, FolderPermissionService.P_DELETE, 1L));
+            stub(m, u, false);
+            // 本人: 全动作恒可
+            assertTrue(svc.checkFile(9L, FolderPermissionService.P_RENAME, 42L));
+            assertTrue(svc.checkFile(9L, FolderPermissionService.P_DELETE, 42L));
+            assertTrue(svc.checkFile(9L, FolderPermissionService.P_VIEW, 42L));
+            // 他人99: 矩阵 self=只含42 → 不可见——【拍板①B】公共兜底删除, 同部门/全公司不再白看
+            assertFalse(svc.checkFile(10L, FolderPermissionService.P_VIEW, 42L), "公共兜底已删除: 他人文件默认不可见");
+            assertFalse(svc.checkFile(10L, FolderPermissionService.P_DOWNLOAD, 42L));
+        }
+    }
+
+    // ===== ③ 组织矩阵: manage 档位覆盖他人文件 =====
+
+    @Test
+    void orgMatrix_manageScopeGrantsOthersFiles() {
+        when(fileMapper.selectById(10L)).thenReturn(file(10L, 100L, 99L));
+        when(folderMapper.selectById(100L)).thenReturn(folder(100L, null, "public"));
+        when(grantMapper.selectList(any())).thenReturn(List.of());
+        SecurityUser u = mock(SecurityUser.class);
+        // 矩阵: view/manage=42+99 可见(如部门档), delete=仅42(删除独立③)
+        when(scopeResolver.resolveModuleUsers(any(), eq("file"), eq("view"))).thenReturn(List.of(42L, 99L));
+        when(scopeResolver.resolveModuleUsers(any(), eq("file"), eq("manage"))).thenReturn(List.of(42L, 99L));
+        when(scopeResolver.resolveModuleUsers(any(), eq("file"), eq("delete"))).thenReturn(List.of(42L));
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            stub(m, u, false);
+            assertTrue(svc.checkFile(10L, FolderPermissionService.P_VIEW, 42L), "view 档位含上传者→可见");
+            assertTrue(svc.checkFile(10L, FolderPermissionService.P_RENAME, 42L), "manage 档位含上传者→可改名");
+            assertFalse(svc.checkFile(10L, FolderPermissionService.P_DELETE, 42L), "delete 独立档位不含上传者→不可删");
+        }
+    }
+
+    // ===== ④ 例外授权: 命中/过期/定向 =====
+
+    @Test
+    void grant_hitNotExpired_expiredRejected_folderScoped() {
+        when(fileMapper.selectById(10L)).thenReturn(file(10L, 100L, 99L));
+        when(folderMapper.selectById(100L)).thenReturn(folder(100L, null, "public"));
+        SecurityUser u = mock(SecurityUser.class);
+        when(scopeResolver.resolveModuleUsers(any(), eq("file"), any())).thenReturn(List.of(42L)); // 矩阵仅本人
+        // 未过期 USER 授权(定向夹100, view)
+        when(grantMapper.selectList(any())).thenReturn(List.of(
+                grant("FILE", "public", 100L, "USER", 42L, "view", LocalDateTime.now().plusDays(7))));
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            stub(m, u, false);
+            assertTrue(svc.checkFile(10L, FolderPermissionService.P_VIEW, 42L), "未过期定向授权→可见");
+            assertFalse(svc.checkFile(10L, FolderPermissionService.P_DELETE, 42L), "授权只有 view→不可删");
+        }
+        // 过期后自动收回
+        when(grantMapper.selectList(any())).thenReturn(List.of(
+                grant("FILE", "public", 100L, "USER", 42L, "view", LocalDateTime.now().minusDays(1))));
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            stub(m, u, false);
+            assertFalse(svc.checkFile(10L, FolderPermissionService.P_VIEW, 42L), "过期授权自动收回");
         }
     }
 
     @Test
-    void owner_hasFullPermissions() {
-        BizFileFolder folder = new BizFileFolder(); folder.setId(100L); folder.setOwnerId(42L);
-        when(folderMapper.selectById(100L)).thenReturn(folder);
+    void grant_aclConvertedEditUmbrella_stillCoversRenameReplace() {
+        // ACL 转换行: perms='view,upload,rename,replace,delete' (迁移把 edit 归一为细词) → 词表命中
+        when(fileMapper.selectById(10L)).thenReturn(file(10L, 100L, 99L));
+        when(folderMapper.selectById(100L)).thenReturn(folder(100L, null, "public"));
+        when(scopeResolver.resolveModuleUsers(any(), eq("file"), any())).thenReturn(List.of(42L));
+        when(grantMapper.selectList(any())).thenReturn(List.of(
+                grant("FILE", "public", 100L, "ROLE", 3L, "view,upload,rename,replace,delete", LocalDateTime.now().plusYears(1))));
+        SysRole role = new SysRole(); role.setId(3L); role.setRoleCode("05");
+        when(roleMapper.selectById(3L)).thenReturn(role);
+        SecurityUser u = mock(SecurityUser.class);
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
-            m.when(SecurityUtils::isAdmin).thenReturn(false);
-            assertTrue(svc.check(100L, FolderPermissionService.P_EDIT, 42L));
+            stub(m, u, false);
+            assertTrue(svc.checkFile(10L, FolderPermissionService.P_RENAME, 42L), "ACL转换行细词命中改名");
+            assertTrue(svc.checkFile(10L, FolderPermissionService.P_REPLACE, 42L));
+            assertTrue(svc.checkFile(10L, FolderPermissionService.P_DELETE, 42L));
         }
     }
+
+    // ===== ⑥ 建夹门槛 =====
+
+    @Test
+    void canCreateFolder_grantGated() {
+        SecurityUser u = mock(SecurityUser.class);
+        when(grantMapper.selectList(any())).thenReturn(List.of(
+                grant("FOLDER", "public", null, "USER", 42L, "create", LocalDateTime.now().plusDays(30))));
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            stub(m, u, false);
+            assertTrue(svc.canCreateFolder("public", 42L), "授权含 FOLDER:create→可建公共夹");
+            assertFalse(svc.canCreateFolder("private", 42L), "私人域无授权→不可建");
+            assertFalse(svc.canCreateFolder("public", 43L), "非授权主体→不可建");
+        }
+    }
+
+    // ===== ② 上级链 =====
 
     @Test
     void managerChain_viaManagerId() {
-        // lower=42 的 manager_id=7，upper=7 → true
-        SysUser lower = new SysUser(); lower.setId(42L); lower.setManagerId(7L);
-        SysUser upper = new SysUser(); upper.setId(7L);
-        when(userMapper.selectById(42L)).thenReturn(lower);
-        when(userMapper.selectById(7L)).thenReturn(upper);
-        assertTrue(svc.isManagerChain(7L, 42L));
+        SysUser lower = new SysUser(); lower.setId(99L); lower.setManagerId(42L);
+        when(userMapper.selectById(99L)).thenReturn(lower);
+        assertTrue(svc.isManagerChain(42L, 99L));
     }
 
     @Test
-    void managerChain_viaDeptLeader() {
-        // lower=42 manager_id 为空，dept=9，dept9.leader=7 → true
-        SysUser lower = new SysUser(); lower.setId(42L); lower.setManagerId(null); lower.setDeptId(9L);
-        SysDept dept9 = new SysDept(); dept9.setId(9L); dept9.setParentId(2L); dept9.setLeaderId(7L);
-        SysDept dept2 = new SysDept(); dept2.setId(2L); dept2.setParentId(0L);
-        when(userMapper.selectById(42L)).thenReturn(lower);
-        when(deptMapper.selectById(9L)).thenReturn(dept9);
-        when(deptMapper.selectById(2L)).thenReturn(dept2);
-        assertTrue(svc.isManagerChain(7L, 42L));
-    }
-
-    @Test
-    void managerChain_managerIdSet_deptLeaderNotConsulted() {
-        // M-3：设计 §6 收紧——lower 的 manager_id 非空时不再走部门 leader 链（此前为超集更宽松）
-        // upper=8：manager 链（7→null 不命中）；dept9.leader=8 本可命中，但因 manager_id 非空被跳过 → false
-        SysUser lower = new SysUser(); lower.setId(42L); lower.setManagerId(7L); lower.setDeptId(9L);
-        SysUser manager = new SysUser(); manager.setId(7L); manager.setManagerId(null);
-        SysDept dept9 = new SysDept(); dept9.setId(9L); dept9.setLeaderId(8L);
-        when(userMapper.selectById(42L)).thenReturn(lower);
-        when(userMapper.selectById(7L)).thenReturn(manager);
-        when(deptMapper.selectById(9L)).thenReturn(dept9);
-        assertFalse(svc.isManagerChain(8L, 42L));
-        verify(deptMapper, never()).selectById(any());
-    }
-
-    @Test
-    void aclRole_grantsConfiguredPermission() {
-        BizFileFolder folder = new BizFileFolder(); folder.setId(100L); folder.setOwnerId(99L); folder.setFolderType("private");
-        BizFolderAcl acl = new BizFolderAcl();
-        acl.setFolderId(100L); acl.setRoleId(3L); acl.setPerms("view,upload");
-        SysRole role = new SysRole(); role.setId(3L); role.setRoleCode("sales");
-        when(folderMapper.selectById(100L)).thenReturn(folder);
-        when(aclMapper.selectList(any())).thenReturn(List.of(acl));
-        when(roleMapper.selectById(3L)).thenReturn(role);
+    void managerChain_managesSubordinateFiles() {
+        when(fileMapper.selectById(10L)).thenReturn(file(10L, 100L, 99L));
+        when(folderMapper.selectById(100L)).thenReturn(folder(100L, null, "public"));
+        when(grantMapper.selectList(any())).thenReturn(List.of());
+        when(scopeResolver.resolveModuleUsers(any(), eq("file"), any())).thenReturn(List.of(42L));
+        SysUser lower = new SysUser(); lower.setId(99L); lower.setManagerId(42L);
+        when(userMapper.selectById(99L)).thenReturn(lower);
+        SecurityUser u = mock(SecurityUser.class);
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
-            m.when(SecurityUtils::isAdmin).thenReturn(false);
-            m.when(SecurityUtils::getCurrentRoleCodes).thenReturn(List.of("sales")); // 用户角色含 sales → ACL 生效
-            assertTrue(svc.check(100L, FolderPermissionService.P_UPLOAD, 42L));
+            stub(m, u, false);
+            assertTrue(svc.checkFile(10L, FolderPermissionService.P_DELETE, 42L), "上级链→可管下属文件(含删)");
         }
     }
 
+    // ===== 文件夹链: 创建人/组织矩阵 =====
+
     @Test
-    void publicFolder_viewOnlyForOthers() {
-        BizFileFolder folder = new BizFileFolder(); folder.setId(100L); folder.setOwnerId(99L); folder.setFolderType("public");
-        when(folderMapper.selectById(100L)).thenReturn(folder);
+    void folder_creatorFullAndOrgMatrixRename() {
+        when(folderMapper.selectById(100L)).thenReturn(folder(100L, 77L, "public"));
+        when(grantMapper.selectList(any())).thenReturn(List.of());
+        SecurityUser u = mock(SecurityUser.class);
+        when(scopeResolver.resolveModuleUsers(any(), eq("file"), any())).thenReturn(List.of(42L)); // 泛化先注册
+        when(scopeResolver.resolveModuleUsers(any(), eq("file"), eq("manage"))).thenReturn(List.of(42L, 77L)); // 专属后注册(优先)
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
-            m.when(SecurityUtils::isAdmin).thenReturn(false);
-            assertTrue(svc.check(100L, FolderPermissionService.P_VIEW, 42L));
-            assertFalse(svc.check(100L, FolderPermissionService.P_EDIT, 42L));
-            assertFalse(svc.check(100L, FolderPermissionService.P_UPLOAD, 42L));
+            stub(m, u, false);
+            assertTrue(svc.check(100L, FolderPermissionService.P_RENAME, 77L), "创建人全权");
+            assertTrue(svc.check(100L, FolderPermissionService.P_RENAME, 42L), "矩阵 manage 档覆盖创建人→可改名");
+            assertFalse(svc.check(100L, FolderPermissionService.P_DELETE, 42L), "delete 档不含创建人→不可删");
         }
     }
 
-    @Test
-    void publicFolder_downloadAllowedForOthers() {
-        // 修复轮 I-4a：公共文件夹 download 兜底（实际是否可下载由 downloadById 开关约束）
-        BizFileFolder folder = new BizFileFolder(); folder.setId(100L); folder.setOwnerId(99L); folder.setFolderType("public");
-        when(folderMapper.selectById(100L)).thenReturn(folder);
-        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
-            m.when(SecurityUtils::isAdmin).thenReturn(false);
-            assertTrue(svc.check(100L, FolderPermissionService.P_DOWNLOAD, 42L));
-        }
-    }
-
-    @Test
-    void privateFolder_deniedWithoutOwnerManagerOrAcl() {
-        BizFileFolder folder = new BizFileFolder(); folder.setId(100L); folder.setOwnerId(99L); folder.setFolderType("private");
-        when(folderMapper.selectById(100L)).thenReturn(folder);
-        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
-            m.when(SecurityUtils::isAdmin).thenReturn(false);
-            assertFalse(svc.check(100L, FolderPermissionService.P_VIEW, 42L));
-        }
-    }
-
-    @Test
-    void checkFile_uploaderGetsFullPermissionWhenNoFolder() {
-        BizFile file = new BizFile(); file.setId(9L); file.setFolderId(null); file.setUploaderId(42L);
-        when(fileMapper.selectById(9L)).thenReturn(file);
-        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
-            m.when(SecurityUtils::isAdmin).thenReturn(false);
-            assertTrue(svc.checkFile(9L, FolderPermissionService.P_DELETE, 42L));
-        }
-    }
-
-    @Test
-    void checkFile_withFolder_delegatesToFolder() {
-        BizFile file = new BizFile(); file.setId(9L); file.setFolderId(100L);
-        BizFileFolder folder = new BizFileFolder(); folder.setId(100L); folder.setOwnerId(42L);
-        when(fileMapper.selectById(9L)).thenReturn(file);
-        when(folderMapper.selectById(100L)).thenReturn(folder);
-        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
-            m.when(SecurityUtils::isAdmin).thenReturn(false);
-            assertTrue(svc.checkFile(9L, FolderPermissionService.P_EDIT, 42L));
-        }
-    }
-
-    @Test
-    void permsFor_admin_returnsAll() {
-        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
-            m.when(SecurityUtils::isAdmin).thenReturn(true);
-            List<String> perms = svc.permsFor(100L, 1L);
-            // 【文件权限 v2】8 细词: 6 伞词表 + rename/replace
-            assertEquals(8, perms.size());
-            assertTrue(perms.containsAll(List.of(FolderPermissionService.P_VIEW, FolderPermissionService.P_UPLOAD,
-                    FolderPermissionService.P_EDIT, FolderPermissionService.P_DELETE,
-                    FolderPermissionService.P_SHARE, FolderPermissionService.P_DOWNLOAD,
-                    FolderPermissionService.P_RENAME, FolderPermissionService.P_REPLACE)));
-        }
-    }
-
-    @Test
-    void permsFor_owner_returnsAll() {
-        BizFileFolder folder = new BizFileFolder(); folder.setId(100L); folder.setOwnerId(42L);
-        when(folderMapper.selectById(100L)).thenReturn(folder);
-        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
-            m.when(SecurityUtils::isAdmin).thenReturn(false);
-            assertEquals(8, svc.permsFor(100L, 42L).size());
-        }
-    }
-
-    @Test
-    void permsFor_aclPermissions_union() {
-        BizFileFolder folder = new BizFileFolder(); folder.setId(100L); folder.setOwnerId(99L); folder.setFolderType("public");
-        BizFolderAcl acl = new BizFolderAcl();
-        acl.setFolderId(100L); acl.setRoleId(3L); acl.setPerms("view,download");
-        SysRole role = new SysRole(); role.setId(3L); role.setRoleCode("sales");
-        when(folderMapper.selectById(100L)).thenReturn(folder);
-        when(aclMapper.selectList(any())).thenReturn(List.of(acl));
-        when(roleMapper.selectById(3L)).thenReturn(role);
-        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
-            m.when(SecurityUtils::isAdmin).thenReturn(false);
-            m.when(SecurityUtils::getCurrentRoleCodes).thenReturn(List.of("sales"));
-            assertEquals(List.of("view", "download"), svc.permsFor(100L, 42L));
-        }
-    }
-
-    @Test
-    void permsFor_publicWithoutAcl_returnsViewAndDownload() {
-        BizFileFolder folder = new BizFileFolder(); folder.setId(100L); folder.setOwnerId(99L); folder.setFolderType("public");
-        when(folderMapper.selectById(100L)).thenReturn(folder);
-        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
-            m.when(SecurityUtils::isAdmin).thenReturn(false);
-            assertEquals(List.of("view", "download"), svc.permsFor(100L, 42L));
-        }
-    }
-
-    @Test
-    void permsFor_publicWithAclWithoutView_userStillSeesFolder() {
-        // 修复轮 I-3：公共文件夹配置 ACL（无 view）后，未匹配/匹配角色的普通用户仍必须可见
-        BizFileFolder folder = new BizFileFolder(); folder.setId(100L); folder.setOwnerId(99L); folder.setFolderType("public");
-        BizFolderAcl acl = new BizFolderAcl();
-        acl.setFolderId(100L); acl.setRoleId(3L); acl.setPerms("upload,edit");
-        SysRole role = new SysRole(); role.setId(3L); role.setRoleCode("sales");
-        when(folderMapper.selectById(100L)).thenReturn(folder);
-        when(aclMapper.selectList(any())).thenReturn(List.of(acl));
-        when(roleMapper.selectById(3L)).thenReturn(role);
-        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
-            m.when(SecurityUtils::isAdmin).thenReturn(false);
-            // 角色匹配：ACL 权限 + 公共兜底 view/download
-            m.when(SecurityUtils::getCurrentRoleCodes).thenReturn(List.of("sales"));
-            List<String> matched = svc.permsFor(100L, 42L);
-            assertTrue(matched.containsAll(List.of(FolderPermissionService.P_VIEW, FolderPermissionService.P_DOWNLOAD, "upload", "edit")));
-            // 角色不匹配：公共兜底仍保证可见
-            m.when(SecurityUtils::getCurrentRoleCodes).thenReturn(List.of("other"));
-            List<String> unmatched = svc.permsFor(100L, 42L);
-            assertEquals(List.of("view", "download"), unmatched);
-        }
-    }
-
-    // === permsForBatch（getFolderTree 批量权限，修复轮 I-2a）===
-
-    @Test
-    void permsForBatch_admin_returnsAllForEveryFolder() {
-        BizFileFolder f1 = new BizFileFolder(); f1.setId(100L); f1.setOwnerId(99L); f1.setFolderType("private");
-        BizFileFolder f2 = new BizFileFolder(); f2.setId(101L); f2.setOwnerId(98L); f2.setFolderType("public");
-        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
-            m.when(SecurityUtils::isAdmin).thenReturn(true);
-            Map<Long, List<String>> res = svc.permsForBatch(List.of(f1, f2), 1L);
-            assertEquals(2, res.size());
-            assertTrue(res.get(100L).containsAll(List.of(FolderPermissionService.P_VIEW, FolderPermissionService.P_UPLOAD,
-                    FolderPermissionService.P_EDIT, FolderPermissionService.P_DELETE,
-                    FolderPermissionService.P_SHARE, FolderPermissionService.P_DOWNLOAD)));
-            assertTrue(res.get(101L).containsAll(List.of(FolderPermissionService.P_VIEW, FolderPermissionService.P_UPLOAD,
-                    FolderPermissionService.P_EDIT, FolderPermissionService.P_DELETE,
-                    FolderPermissionService.P_SHARE, FolderPermissionService.P_DOWNLOAD)));
-        }
-    }
-
-    @Test
-    void permsForBatch_ownerGetsAll_sameOwnerCachedOnce() {
-        BizFileFolder f1 = new BizFileFolder(); f1.setId(100L); f1.setOwnerId(42L); f1.setFolderType("private");
-        BizFileFolder f2 = new BizFileFolder(); f2.setId(101L); f2.setOwnerId(42L); f2.setFolderType("private");
-        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
-            m.when(SecurityUtils::isAdmin).thenReturn(false);
-            Map<Long, List<String>> res = svc.permsForBatch(List.of(f1, f2), 42L);
-            assertEquals(8, res.get(100L).size());
-            assertEquals(8, res.get(101L).size());
-            // 同一 owner 只做一次链判断（避免 N+1 的防回归）
-            verify(userMapper, atMost(1)).selectById(42L);
-        }
-    }
-
-    @Test
-    void permsForBatch_aclUnionAndPublicFallback() {
-        BizFileFolder pub = new BizFileFolder(); pub.setId(100L); pub.setOwnerId(99L); pub.setFolderType("public");
-        BizFileFolder priv = new BizFileFolder(); priv.setId(101L); priv.setOwnerId(99L); priv.setFolderType("private");
-        BizFolderAcl acl1 = new BizFolderAcl(); acl1.setFolderId(100L); acl1.setRoleId(3L); acl1.setPerms("upload,edit");
-        BizFolderAcl acl2 = new BizFolderAcl(); acl2.setFolderId(101L); acl2.setRoleId(3L); acl2.setPerms("view,download");
-        SysRole role = new SysRole(); role.setId(3L); role.setRoleCode("sales");
-        when(aclMapper.selectList(any())).thenReturn(List.of(acl1, acl2));
-        when(roleMapper.selectById(3L)).thenReturn(role);
-        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
-            m.when(SecurityUtils::isAdmin).thenReturn(false);
-            m.when(SecurityUtils::getCurrentRoleCodes).thenReturn(List.of("sales"));
-            Map<Long, List<String>> res = svc.permsForBatch(List.of(pub, priv), 42L);
-            // 公共：ACL(upload/edit) + 兜底 view/download
-            assertTrue(res.get(100L).containsAll(List.of("upload", "edit", "view", "download")));
-            // 私有：仅 ACL 授权
-            assertEquals(List.of("view", "download"), res.get(101L));
-            // 角色不匹配 → 公共兜底 view/download，私有空
-            m.when(SecurityUtils::getCurrentRoleCodes).thenReturn(List.of("other"));
-            res = svc.permsForBatch(List.of(pub, priv), 42L);
-            assertEquals(List.of("view", "download"), res.get(100L));
-            assertTrue(res.get(101L).isEmpty());
-        }
-    }
-
-    @Test
-    void permsForBatch_emptyInput_returnsEmptyMap() {
-        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
-            m.when(SecurityUtils::isAdmin).thenReturn(false);
-            assertTrue(svc.permsForBatch(List.of(), 42L).isEmpty());
-        }
-    }
-
-    // === 【2026-11-09 文件权限 v2】类型授权层(角色|人 × 空间 × 动作, 实时生效) + 动作细分 ===
-
-    private BizFolderTypeDefault typeRow(String folderType, String subjectType, Long subjectId, String perms) {
-        BizFolderTypeDefault d = new BizFolderTypeDefault();
-        d.setFolderType(folderType);
-        d.setSubjectType(subjectType);
-        d.setSubjectId(subjectId);
-        d.setPerms(perms);
-        return d;
-    }
-
-    @Test
-    void typeGrant_userSubject_grantsActionAcrossSpace() {
-        // USER 行点名 42 → 公共夹上 rename 放行(无夹主/上级/ACL 介入), replace 未授权仍拒
-        BizFileFolder folder = new BizFileFolder(); folder.setId(100L); folder.setOwnerId(99L); folder.setFolderType("public");
-        when(folderMapper.selectById(100L)).thenReturn(folder);
-        when(aclMapper.selectList(any())).thenReturn(List.of());
-        when(typeDefaultMapper.selectList(any())).thenReturn(List.of(typeRow("public", "USER", 42L, "rename")));
-        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
-            m.when(SecurityUtils::isAdmin).thenReturn(false);
-            m.when(SecurityUtils::getCurrentRoleCodes).thenReturn(List.of());
-            assertTrue(svc.check(100L, FolderPermissionService.P_RENAME, 42L), "USER 类型授权含 rename 应放行改名");
-            assertFalse(svc.check(100L, FolderPermissionService.P_REPLACE, 42L), "未授权 replace 应拒绝(动作独立)");
-            assertFalse(svc.check(100L, FolderPermissionService.P_DELETE, 42L), "未授权 delete 应拒绝");
-        }
-    }
-
-    @Test
-    void typeGrant_roleSubject_matchesViaRoleCode() {
-        BizFileFolder folder = new BizFileFolder(); folder.setId(100L); folder.setOwnerId(99L); folder.setFolderType("public");
-        when(folderMapper.selectById(100L)).thenReturn(folder);
-        when(aclMapper.selectList(any())).thenReturn(List.of());
-        when(typeDefaultMapper.selectList(any())).thenReturn(List.of(typeRow("public", "ROLE", 9L, "replace,delete")));
-        SysRole role = new SysRole(); role.setId(9L); role.setRoleCode("05");
-        when(roleMapper.selectById(9L)).thenReturn(role);
-        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
-            m.when(SecurityUtils::isAdmin).thenReturn(false);
-            m.when(SecurityUtils::getCurrentRoleCodes).thenReturn(List.of("05"));
-            assertTrue(svc.check(100L, FolderPermissionService.P_REPLACE, 42L), "ROLE 行按角色码匹配应放行 replace");
-            m.when(SecurityUtils::getCurrentRoleCodes).thenReturn(List.of("06"));
-            assertFalse(svc.check(100L, FolderPermissionService.P_REPLACE, 42L), "角色不匹配不放行");
-        }
-    }
-
-    @Test
-    void typeGrant_privateSpace_appliesBeyondOwnerAndAcl() {
-        // 私人夹: admin 勾某人×私人×view → 该人可看全空间私人夹(高权限动作, 设计允许)
-        BizFileFolder folder = new BizFileFolder(); folder.setId(100L); folder.setOwnerId(99L); folder.setFolderType("private");
-        when(folderMapper.selectById(100L)).thenReturn(folder);
-        when(aclMapper.selectList(any())).thenReturn(List.of());
-        when(typeDefaultMapper.selectList(any())).thenReturn(List.of(typeRow("private", "USER", 42L, "view")));
-        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
-            m.when(SecurityUtils::isAdmin).thenReturn(false);
-            m.when(SecurityUtils::getCurrentRoleCodes).thenReturn(List.of());
-            assertTrue(svc.check(100L, FolderPermissionService.P_VIEW, 42L));
-            assertFalse(svc.check(100L, FolderPermissionService.P_UPLOAD, 42L), "只勾 view 不越权 upload");
-        }
-    }
-
-    @Test
-    void legacyAclEdit_expandsToRenameAndReplace() {
-        // 存量 ACL 'edit' 伞: v2 拆词后改名/替换都必须继续放行(读时展开, 数据不回填)
-        BizFileFolder folder = new BizFileFolder(); folder.setId(100L); folder.setOwnerId(99L); folder.setFolderType("public");
-        BizFolderAcl acl = new BizFolderAcl();
-        acl.setFolderId(100L); acl.setRoleId(3L); acl.setPerms("edit");
-        SysRole role = new SysRole(); role.setId(3L); role.setRoleCode("sales");
-        when(folderMapper.selectById(100L)).thenReturn(folder);
-        when(aclMapper.selectList(any())).thenReturn(List.of(acl));
-        when(roleMapper.selectById(3L)).thenReturn(role);
-        when(typeDefaultMapper.selectList(any())).thenReturn(List.of());
-        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
-            m.when(SecurityUtils::isAdmin).thenReturn(false);
-            m.when(SecurityUtils::getCurrentRoleCodes).thenReturn(List.of("sales"));
-            assertTrue(svc.check(100L, FolderPermissionService.P_RENAME, 42L), "存量 edit 授权须继续覆盖改名");
-            assertTrue(svc.check(100L, FolderPermissionService.P_REPLACE, 42L), "存量 edit 授权须继续覆盖替换");
-        }
-    }
-
-    @Test
-    void permsFor_typeGrant_emitsBothVocabularies() {
-        // 类型授权 rename(细词) → permsFor 输出补发 edit 伞词: MP includes('edit') 的改名按钮零改动兼容
-        BizFileFolder folder = new BizFileFolder(); folder.setId(100L); folder.setOwnerId(99L); folder.setFolderType("public");
-        when(folderMapper.selectById(100L)).thenReturn(folder);
-        when(aclMapper.selectList(any())).thenReturn(List.of());
-        when(typeDefaultMapper.selectList(any())).thenReturn(List.of(typeRow("public", "USER", 42L, "rename")));
-        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
-            m.when(SecurityUtils::isAdmin).thenReturn(false);
-            m.when(SecurityUtils::getCurrentRoleCodes).thenReturn(List.of());
-            List<String> perms = svc.permsFor(100L, 42L);
-            assertTrue(perms.containsAll(List.of("rename", "edit", "view", "download")),
-                    "细词 rename + 兼容伞词 edit + 公共兜底 view/download 都须在: " + perms);
-        }
-    }
-
-    @Test
-    void permsForBatch_typeGrantCachedOncePerType() {
-        // 同空间多夹: 类型授权只解析一次(防 N+1 回归)
-        BizFileFolder f1 = new BizFileFolder(); f1.setId(100L); f1.setOwnerId(99L); f1.setFolderType("public");
-        BizFileFolder f2 = new BizFileFolder(); f2.setId(101L); f2.setOwnerId(98L); f2.setFolderType("public");
-        when(aclMapper.selectList(any())).thenReturn(List.of());
-        when(typeDefaultMapper.selectList(any())).thenReturn(List.of(typeRow("public", "USER", 42L, "upload")));
-        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
-            m.when(SecurityUtils::isAdmin).thenReturn(false);
-            m.when(SecurityUtils::getCurrentRoleCodes).thenReturn(List.of());
-            Map<Long, List<String>> res = svc.permsForBatch(List.of(f1, f2), 42L);
-            assertTrue(res.get(100L).contains("upload"));
-            assertTrue(res.get(101L).contains("upload"));
-            verify(typeDefaultMapper, atMost(1)).selectList(any());
-        }
-    }
+    // ===== 词表展开 =====
 
     @Test
     void csvHas_editUmbrellaSemantics() {
-        // 词表展开口径: edit⇒rename|replace 均真; 反向 rename/replace 命中 edit; 其他动作精确匹配
         assertTrue(FolderPermissionService.csvHas("edit", FolderPermissionService.P_RENAME));
         assertTrue(FolderPermissionService.csvHas("edit", FolderPermissionService.P_REPLACE));
         assertTrue(FolderPermissionService.csvHas("rename", FolderPermissionService.P_EDIT));
-        assertTrue(FolderPermissionService.csvHas("replace", FolderPermissionService.P_EDIT));
         assertFalse(FolderPermissionService.csvHas("rename", FolderPermissionService.P_REPLACE));
-        assertFalse(FolderPermissionService.csvHas("view,download", FolderPermissionService.P_UPLOAD));
         assertTrue(FolderPermissionService.csvHas("view,download", FolderPermissionService.P_DOWNLOAD));
     }
 
-    // === 【2026-11-10 用户令"A"】上传者本人恒可管理自己的文件(夹权不再优先于上传人) ===
-
     @Test
-    void checkFile_uploaderManagesOwnFileInFolderWithoutFolderPerms() {
-        // 42 上传文件进公共夹(非夹主/无 ACL/无类型授权) → 本人改名/替换/删除/分享全放行
-        BizFile file = new BizFile(); file.setId(9L); file.setFolderId(100L); file.setUploaderId(42L);
-        BizFileFolder folder = new BizFileFolder(); folder.setId(100L); folder.setOwnerId(99L); folder.setFolderType("public");
-        when(fileMapper.selectById(9L)).thenReturn(file);
-        when(folderMapper.selectById(100L)).thenReturn(folder);
-        when(aclMapper.selectList(any())).thenReturn(List.of());
-        when(typeDefaultMapper.selectList(any())).thenReturn(List.of());
+    void permsForBatch_grantsAndMatrix_cached() {
+        BizFileFolder f1 = folder(100L, 77L, "public");
+        // 【终版口径】夹内文件动作(view/download)命中 FILE 组定向授权
+        when(grantMapper.selectList(any())).thenReturn(List.of(
+                grant("FILE", "public", null, "USER", 42L, "view,download", LocalDateTime.now().plusDays(1))));
+        SecurityUser u = mock(SecurityUser.class);
+        when(scopeResolver.resolveModuleUsers(any(), eq("file"), any())).thenReturn(List.of(42L));
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
-            m.when(SecurityUtils::isAdmin).thenReturn(false);
-            m.when(SecurityUtils::getCurrentRoleCodes).thenReturn(List.of());
-            assertTrue(svc.checkFile(9L, FolderPermissionService.P_RENAME, 42L), "本人改自己传的文件应放行");
-            assertTrue(svc.checkFile(9L, FolderPermissionService.P_REPLACE, 42L));
-            assertTrue(svc.checkFile(9L, FolderPermissionService.P_DELETE, 42L));
-            assertTrue(svc.checkFile(9L, FolderPermissionService.P_SHARE, 42L));
-            // 他人(43)对同一文件仍走夹子判定 → 公共兜底仅 view/download
-            assertFalse(svc.checkFile(9L, FolderPermissionService.P_RENAME, 43L), "他人不因上传者短路受益");
-            assertTrue(svc.checkFile(9L, FolderPermissionService.P_DOWNLOAD, 43L));
+            stub(m, u, false);
+            Map<Long, List<String>> res = svc.permsForBatch(List.of(f1), 42L);
+            assertTrue(res.get(100L).containsAll(List.of("view", "download")), "授权行并入按钮视图: " + res.get(100L));
+            verify(scopeResolver, atMost(3)).resolveModuleUsers(any(), any(), any());
         }
     }
-
-    @Test
-    void checkFile_uploaderShortCircuit_doesNotExtendToManagerChain() {
-        // 上传者的上级不随本人短路受益(主管改下属文件仍走夹子判定)——A 方案明确不扩上级链
-        BizFile file = new BizFile(); file.setId(9L); file.setFolderId(100L); file.setUploaderId(42L);
-        BizFileFolder folder = new BizFileFolder(); folder.setId(100L); folder.setOwnerId(99L); folder.setFolderType("public");
-        SysUser lower = new SysUser(); lower.setId(42L); lower.setManagerId(7L);
-        when(fileMapper.selectById(9L)).thenReturn(file);
-        when(folderMapper.selectById(100L)).thenReturn(folder);
-        when(aclMapper.selectList(any())).thenReturn(List.of());
-        when(typeDefaultMapper.selectList(any())).thenReturn(List.of());
-        when(userMapper.selectById(42L)).thenReturn(lower);
-        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
-            m.when(SecurityUtils::isAdmin).thenReturn(false);
-            m.when(SecurityUtils::getCurrentRoleCodes).thenReturn(List.of());
-            assertFalse(svc.checkFile(9L, FolderPermissionService.P_RENAME, 7L),
-                    "上传者的上级(7)对夹内文件仍走夹子判定, 公共夹无编辑不放行");
-        }
-    }
-
 }

@@ -21,16 +21,11 @@
       <span class="sq-icon sq-icon--folder"><el-icon><Folder /></el-icon></span>
       <span class="folder-name">{{ folder.folderName }}</span>
       <span class="folder-count">{{ folder.fileCount || 0 }}</span>
-      <!-- 【2026-10-27 深度检查修复】重命名/删除再叠加全局权限码 file:folder:manage(与后端 @PreAuthorize 同口径);
-           权限设置走 ACL 端点不受该码管辖, 维持原显隐 -->
-      <span v-if="canManageFolders && (folder.perms?.includes('edit') || folder.perms?.includes('delete'))" class="folder-actions">
+<span v-if="canManageFolders && (folder.perms?.includes('edit') || folder.perms?.includes('delete'))" class="folder-actions">
         <el-tooltip v-if="folder.perms?.includes('edit')" content="重命名" placement="top">
           <el-icon class="folder-act" @click.stop="openRenameFolder(folder)"><EditPen /></el-icon>
         </el-tooltip>
-        <el-tooltip v-if="folder.perms?.includes('edit') && canManageAcl" content="权限设置" placement="top">
-          <el-icon class="folder-act" @click.stop="openAclDialog(folder)"><Setting /></el-icon>
-        </el-tooltip>
-        <el-tooltip v-if="folder.perms?.includes('delete')" content="删除" placement="top">
+<el-tooltip v-if="folder.perms?.includes('delete')" content="删除" placement="top">
           <el-icon class="folder-act folder-act-danger" @click.stop="handleDeleteFolder(folder)"><Delete /></el-icon>
         </el-tooltip>
       </span>
@@ -58,7 +53,6 @@ const {
   selectFolder, openRenameFolder, openAclDialog, handleDeleteFolder,
 } = injectFilePage()
 
-// 【2026-11-01 审计修复】权限设置入口须持 file:acl:manage(与弹窗内 ACL 端点同码),
 // 否则无该码的夹主看到入口打开是恒空空壳(403 被静默吞)
 const userStore = useUserStore()
 const canManageAcl = computed(() => userStore.hasPermission('file:acl:manage'))

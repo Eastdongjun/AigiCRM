@@ -14,6 +14,8 @@ public class BizFileFolder {
     private String folderName;
     private String folderType;
     private Long ownerId;
+    /** 归属组织快照(建夹时创建人组织节点; 存量公共夹归总部) */
+    private Long orgId;
     private Integer sortOrder;
     private Integer downloadable;   // 新增：下载开关 1=允许 0=仅预览（默认1）
     private LocalDateTime createdAt;

@@ -37,7 +37,9 @@ vi.mock('@/api/file', () => ({
   getFolderTypeDefaults: vi.fn().mockResolvedValue({ data: [] }),
   saveFolderTypeDefault: vi.fn(),
   removeFolderTypeDefault: vi.fn(),
+  renewFolderTypeDefault: vi.fn(),
   getAclRoles: vi.fn().mockResolvedValue({ data: [] }),
+  getFolderTree: vi.fn().mockResolvedValue({ data: [] }),
 }))
 
 import PermCenter from './PermCenter.vue'
@@ -75,8 +77,8 @@ describe('权限中心(2026-11-03 门面统一)', () => {
     await fileNav.trigger('click')
     await flushPromises()
     let text = wrapper.text()
-    expect(text).toContain('公共空间（公司文件）')
-    expect(text).toContain('左侧导航「激励授权」')
+    expect(text).toContain('例外授权')
+    expect(text).toContain('组织矩阵')
     // 公海池域
     const seaNav = wrapper.findAll('.pc-nav-item').find(w => w.text().includes('公海池'))
     await seaNav.trigger('click')

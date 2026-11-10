@@ -17,6 +17,8 @@ public class BizFile {
     private String ossUrl;
     private String fileScope;
     private Long uploaderId;
+    /** 归属组织快照(上传时上传人组织节点, 转岗不漂移) */
+    private Long orgId;
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
     @TableField(fill = FieldFill.INSERT_UPDATE)

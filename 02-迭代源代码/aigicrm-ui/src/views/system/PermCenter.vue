@@ -99,7 +99,7 @@
           <div class="pc-pane-head">
             <div>
               <div class="pc-pane-title">文件权限</div>
-              <div class="pc-pane-hint">某个人或角色 × 公共/私人空间 × 动作 · 勾选即对该空间全部文件夹生效（取消立即收回）；自己上传的文件本人恒可管理</div>
+              <div class="pc-pane-hint">默认=组织矩阵（只看自己的，负责人看本级子树，档位在「功能与范围」调）；下表配跨范围特批——谁 × 空间 × 文件夹/文件动作 × 期限，到期自动收回；自己上传的本人恒可管</div>
             </div>
           </div>
           <FileSpaceDefaults :can-edit="canEdit" />

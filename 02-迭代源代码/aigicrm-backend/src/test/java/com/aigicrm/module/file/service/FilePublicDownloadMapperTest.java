@@ -51,7 +51,7 @@ class FilePublicDownloadMapperTest {
             providerOf(mock(OSS.class)),
             mock(OssConfig.class),
             mock(FolderPermissionService.class),
-            mock(com.aigicrm.module.file.service.FolderTypeDefaultService.class), // 2026-11-09 类型级默认权限新增依赖
+            mock(com.aigicrm.security.SecurityAuditService.class),
             mock(org.springframework.jdbc.core.JdbcTemplate.class)); // 2026-10-27 shareFile 集团边界校验新增依赖
 
     private static ObjectProvider<OSS> providerOf(OSS client) {

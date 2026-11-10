@@ -32,6 +32,9 @@ BTN = re.compile(
 
 # ---- 白名单(文件名 → [(动作行片段, 理由)]; 片段=动作行 strip 后任意位置的包含式匹配) ----
 ALLOW = {
+    'system/FileSpaceDefaults.vue': (
+        [("clearUsers", "授权表单组织树'清空'按钮: 纯前端清勾选, 无任何请求, 无破坏面(2026-11-10 文件权限终版)")],
+        "文件例外授权表单: 树工具按钮非敏感动作"),
     'approval/index.vue': (
         [("router.push", "审批页签条件跳转(视图导航)"),
          ("confirmExtend", "审批通过动作按钮: 后端 approval:approve 守卫兜底+当前全员持码(注记#1)")],

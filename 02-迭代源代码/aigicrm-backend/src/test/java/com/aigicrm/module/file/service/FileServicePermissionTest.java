@@ -57,10 +57,9 @@ class FileServicePermissionTest {
     private final OssConfig ossConfig = mock(OssConfig.class);
     private final FolderPermissionService folderPermissionService = mock(FolderPermissionService.class);
     private final BizFolderAclMapper folderAclMapper = mock(BizFolderAclMapper.class);
-    private final FolderTypeDefaultService typeDefaultService = mock(FolderTypeDefaultService.class);
     private final FileService svc = new FileService(fileMapper, folderMapper, fileShareMapper, folderAclMapper,
             incentiveRecordMapper, userMapper, providerOf(ossClient), ossConfig, folderPermissionService,
-            typeDefaultService, // 2026-11-09 类型级默认权限新增依赖(建夹门槛+新夹继承)
+            mock(com.aigicrm.security.SecurityAuditService.class),
             mock(org.springframework.jdbc.core.JdbcTemplate.class)); // 2026-10-27 shareFile 集团边界校验新增依赖
 
     private java.nio.file.Path thumbCacheDir;
@@ -233,6 +232,7 @@ class FileServicePermissionTest {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(2L);
             m.when(SecurityUtils::isAdmin).thenReturn(false);
+            when(folderPermissionService.canCreateFolder("private", 2L)).thenReturn(true);
             svc.createFolder(folder);
             verify(folderPermissionService, never()).check(org.mockito.ArgumentMatchers.anyLong(),
                     org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyLong());
@@ -245,7 +245,7 @@ class FileServicePermissionTest {
     @Test
     void createFolder_rootParentIdZero_public_nonAdmin_keepsAdminGate() {
         // 【体检 H3 2026-10-12】归一化不放宽根级公共夹管理员门槛(与 parentId=null 同规则)
-        // 【2026-11-09 类型级默认权限】mock 的 canCreateRoot 默认 false=零配置, 门槛不变
+        // 【2026-11-10 终版】mock 的 canCreateFolder 默认 false=无授权, 门槛拒绝
         BizFileFolder folder = new BizFileFolder();
         folder.setFolderType("public");
         folder.setParentId(0L);
@@ -253,33 +253,51 @@ class FileServicePermissionTest {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(2L);
             m.when(SecurityUtils::isAdmin).thenReturn(false);
             BusinessException ex = assertThrows(BusinessException.class, () -> svc.createFolder(folder));
-            assertEquals("公共文件夹只有管理员才能创建", ex.getMessage());
+            assertEquals("没有创建该类型文件夹的权限，请联系管理员授权", ex.getMessage());
             verify(folderMapper, never()).insert(any(BizFileFolder.class));
         }
     }
 
     @Test
-    void createFolder_publicRoot_withTypeDefaultCreateGrant_passes() {
-        // 【2026-11-09 文件权限 v2】非 admin 但类型授权(public×主体)含 create:
-        // 根级公共建夹放行。类型授权改判定层实时生效, 不再建夹物化(materializeAcl 已退役)
+    void createFolder_publicRoot_withGrant_passesAndSnapshotsOwner() {
+        // 【2026-11-10 终版】授权含 FOLDER:create → 放行; owner=创建人(公共私人同), org=创建人组织快照
         BizFileFolder folder = new BizFileFolder();
         folder.setFolderType("public");
         folder.setParentId(0L);
         doAnswer(inv -> { inv.getArgument(0, BizFileFolder.class).setId(99L); return 1; })
                 .when(folderMapper).insert(any(BizFileFolder.class));
+        SysUser creator = new SysUser(); creator.setId(2L); creator.setOfficeId(5L);
+        when(userMapper.selectById(2L)).thenReturn(creator);
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(2L);
             m.when(SecurityUtils::isAdmin).thenReturn(false);
-            when(typeDefaultService.canCreateRoot("public")).thenReturn(true);
+            when(folderPermissionService.canCreateFolder("public", 2L)).thenReturn(true);
             svc.createFolder(folder);
-            verify(folderMapper).insert(folder);
-            verify(typeDefaultService, never()).canCreateRoot("private");
+            ArgumentCaptor<BizFileFolder> cap = ArgumentCaptor.forClass(BizFileFolder.class);
+            verify(folderMapper).insert(cap.capture());
+            assertEquals(2L, cap.getValue().getOwnerId(), "公共夹 owner=创建人(治存量 NULL)");
+            assertEquals(5L, cap.getValue().getOrgId(), "org=创建人组织快照");
+        }
+    }
+
+    @Test
+    void createFolder_gateDenied_throws() {
+        // 【2026-11-10 终版】canCreateFolder=false(无授权非admin) → 拒绝
+        BizFileFolder folder = new BizFileFolder();
+        folder.setFolderType("private");
+        folder.setParentId(0L);
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::getCurrentUserId).thenReturn(2L);
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            when(folderPermissionService.canCreateFolder("private", 2L)).thenReturn(false);
+            assertThrows(BusinessException.class, () -> svc.createFolder(folder));
+            verify(folderMapper, never()).insert(any(BizFileFolder.class));
         }
     }
 
     @Test
     void createFolder_privateRoot_codeGateOnly() {
-        // 【2026-11-09 文件权限 v2】私人根建夹门槛不变(有码即可), 类型授权同样实时生效不物化
+        // 【2026-11-10 终版】私人根=授权门槛同链, 授权通过即建
         BizFileFolder folder = new BizFileFolder();
         folder.setFolderType("private");
         folder.setParentId(0L);
@@ -288,6 +306,7 @@ class FileServicePermissionTest {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(2L);
             m.when(SecurityUtils::isAdmin).thenReturn(false);
+            when(folderPermissionService.canCreateFolder("private", 2L)).thenReturn(true);
             svc.createFolder(folder);
             verify(folderMapper).insert(folder);
         }
@@ -789,6 +808,7 @@ class FileServicePermissionTest {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(2L);
             m.when(SecurityUtils::isAdmin).thenReturn(false);
             when(folderPermissionService.check(100L, FolderPermissionService.P_UPLOAD, 2L)).thenReturn(true);
+            when(folderPermissionService.canCreateFolder("public", 2L)).thenReturn(true);
             svc.createFolder(folder);
             verify(folderMapper).insert(folder);
         }
@@ -802,7 +822,7 @@ class FileServicePermissionTest {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
             BusinessException ex = assertThrows(BusinessException.class, () -> svc.createFolder(folder));
-            assertEquals("公共文件夹只有管理员才能创建", ex.getMessage());
+            assertEquals("没有创建该类型文件夹的权限，请联系管理员授权", ex.getMessage());
             verify(folderMapper, never()).insert(any(BizFileFolder.class));
         }
     }

@@ -18,9 +18,13 @@ public class BizFolderTypeDefault {
     @TableId(type = IdType.AUTO)
     private Long id;
     private String folderType;   // public | private
+    private String objectType;   // FOLDER | FILE (动作对象组)
+    private Long folderId;       // 逐夹定向(NULL=该空间全部; ACL 转换行携带)
+    private Long scopeOrgId;     // 授权组织范围(NULL=不限)
     private String subjectType;  // ROLE | USER
     private Long subjectId;      // sys_role.id | sys_user.id
     private String perms;        // CSV
+    private java.time.LocalDateTime expiresAt; // 过期自动收回(授权必须过期)
     private Long createdBy;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

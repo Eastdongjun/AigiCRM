@@ -87,7 +87,6 @@
     <CreateFolderDialog />
     <RenameFolderDialog />
     <ShareDialog />
-    <AclDialog />
     <FilePreview v-model:visible="previewVisible" :url="previewUrl" :type="previewType" :file-name="previewName" :file-size="previewSize" />
     <StorageApplyDialog />
   </div>
@@ -103,7 +102,6 @@ import UploadDialog from './UploadDialog.vue'
 import CreateFolderDialog from './CreateFolderDialog.vue'
 import RenameFolderDialog from './RenameFolderDialog.vue'
 import ShareDialog from './ShareDialog.vue'
-import AclDialog from './AclDialog.vue'
 import StorageApplyDialog from './StorageApplyDialog.vue'
 import FilePreview from '@/components/FilePreview.vue'
 
