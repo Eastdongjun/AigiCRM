@@ -245,7 +245,8 @@ const recDetailVisible=ref(false),recDetailRecord=ref(null)
 function openRecordDetail(r){ recDetailRecord.value=r; recDetailVisible.value=true }
 // 单记录详情→客户全部记录(拨盘)的上下文小入口
 function onRecOpenCustomer(r){
-  const c = custs.find(x=>String(x.customerId)===String(r.customerId))
+  // 【2026-11-10 用户报"完整档案两入口没反应"】custs 是 ref, 漏 .value 致 TypeError → showDetail 永不执行(静默)
+  const c = custs.value.find(x=>String(x.customerId)===String(r.customerId))
   // 匹配不到时用当前记录合成(宽类型比较, 不再静默失败)
   showDetail(c || { customerId: r.customerId, customerName: r.customerName, records: [r], totalScore: r.score || 0 })
 }
