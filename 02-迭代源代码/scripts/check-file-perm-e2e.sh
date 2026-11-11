@@ -2,15 +2,25 @@
 # 【治本④ 2026-11-11】文件权限端到端一致性钉(用户令"权限一再有问题"治本): 三段闭环
 #   勾X(admin 给测试号 USER 级授权) → 双端出X(PC permissions 接口 + MP 树回填接口)
 #   → 操作放行X(真实下载 GET 走 checkFile) → 收回 → 双端复位(数据零残留)
-# 依赖: 测试服可达 + ~/.aigicrm-deploy.env(HEALTH_CHECK_*) + 测试号 t_auto_ty3/Tst#2026@Verify2
-# 只认 exit code; 任何一段失败即 FAIL(治本背景: 7 个权限 bug 全是"API 对、最后一公里断")
+# 【T0 加固 2026-11-11 审计整改】零硬编码凭据/地址: 全参数走环境变量, 缺任一则 SKIP(exit 0);
+#   显式 AIGI_PERM_E2E=1 + 完整五变量才真执行(默认不跑, 离线/CI 不假红, 不碰共享测试环境)。
+#   管理员凭据仍走 ~/.aigicrm-deploy.env(HEALTH_CHECK_*), 本脚本不落任何口令默认值。
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-BASE="${PERM_E2E_BASE:-http://111.229.37.220}"
-E2E_TUSER="${PERM_E2E_USER:-t_auto_ty3}"
-E2E_TPASS="${PERM_E2E_PASS:-Tst#2026@Verify2}"
-E2E_TUID="${PERM_E2E_UID:-92}"          # 测试服 t_auto_ty3 的用户 id
-FOLDER_ID="${PERM_E2E_FOLDER:-7}"       # 公共夹"公司文件"
+
+if [ "${AIGI_PERM_E2E:-0}" != "1" ]; then
+  echo "SKIP: 文件权限e2e默认不跑(设 AIGI_PERM_E2E=1 且提供 PERM_E2E_BASE/USER/PASS/UID/FOLDER 环境变量以启用)"
+  exit 0
+fi
+BASE="${PERM_E2E_BASE:-}"
+E2E_TUSER="${PERM_E2E_USER:-}"
+E2E_TPASS="${PERM_E2E_PASS:-}"
+E2E_TUID="${PERM_E2E_UID:-}"
+FOLDER_ID="${PERM_E2E_FOLDER:-}"
+if [ -z "$BASE" ] || [ -z "$E2E_TUSER" ] || [ -z "$E2E_TPASS" ] || [ -z "$E2E_TUID" ] || [ -z "$FOLDER_ID" ]; then
+  echo "SKIP: AIGI_PERM_E2E=1 但缺 PERM_E2E_BASE/USER/PASS/UID/FOLDER 之一(全部由环境注入, 脚本无默认值)"
+  exit 0
+fi
 GRANTS="view,download,share,delete,rename"
 PERMS_JSON=$(python3 -c "print(','.join('\"%s\"' % x for x in '$GRANTS'.split(',')))")
 

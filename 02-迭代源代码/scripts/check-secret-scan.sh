@@ -45,6 +45,13 @@ P_PRIVATE_KEY="${PK_HEAD}${PK_TAIL}"
 P_URL_CRED="[a-z][a-z0-9+.-]*://[^/[:space:]\"':@]+:[^/[:space:]\"'@]{4,}@"
 P_SECRET_TOKEN_ASSIGN="(^|[^A-Za-z0-9_])(secret|token|api[_-]?key)[\"']?[[:space:]]*[:=][[:space:]]*[\"'][A-Za-z0-9_./+=-]{16,}[\"']"
 P_BCRYPT_HASH='\$2[aby]\$[0-9]{2}\$[./A-Za-z0-9]{53}'
+# 【T0 2026-11-11 审计整改】p7/p8: 测试口令默认值双形态——
+#   p7=shell/env 默认值里内嵌口令样串(默认值含井号等强口令特征, 形态见 P_PASS_DEFAULT_EMBED);
+#   p8=赋值字符串口令样(引号内 字母串+井号+字母数字 的强口令字面量, 形态见 P_PASS_LIKE_LITERAL)。
+#   背景: e2e 脚本曾在参数默认值里硬编码测试口令而 p1-p6 全漏(整改后该口令已环境注入)。
+#   注: 本文件注释一律用文字描述形态, 不写引号包裹的示例串(防自噬)。
+P_PASS_DEFAULT_EMBED='\$\{[A-Za-z_][A-Za-z0-9_]*(PASS|PWD)[A-Za-z0-9_]*:-[^}]*[#][^}]*\}'
+P_PASS_LIKE_LITERAL="[\"'][A-Za-z]{2,}#[A-Za-z0-9@#]{4,}[\"']"
 
 # 模式表: id<TAB>正则<TAB>大小写(ci/cs)<TAB>豁免策略(exempt=对 $/占位符豁免; strict=只认 allowlist)
 TAB=$'\t'
@@ -55,6 +62,8 @@ PATTERNS=(
   "p4${TAB}${P_URL_CRED}${TAB}cs${TAB}exempt"
   "p5${TAB}${P_SECRET_TOKEN_ASSIGN}${TAB}ci${TAB}exempt"
   "p6${TAB}${P_BCRYPT_HASH}${TAB}cs${TAB}strict"
+  "p7${TAB}${P_PASS_DEFAULT_EMBED}${TAB}ci${TAB}strict"
+  "p8${TAB}${P_PASS_LIKE_LITERAL}${TAB}cs${TAB}strict"
 )
 
 PLACEHOLDER_MARKERS='redacted|placeholder|dummy|changeme|change-me'
@@ -96,8 +105,9 @@ while IFS= read -r rel; do
   scanned=$((scanned + 1))
   # -I 跳过二进制; 大小写敏感全集 + 口令/密钥类键名补一遍大小写不敏感, 去重后逐模式归因
   cs_lines="$(grep -hnIE -e "$P_PASSWORD_ASSIGN" -e "$P_POSITIONAL_FILL" -e "$P_PRIVATE_KEY" \
-                    -e "$P_URL_CRED" -e "$P_SECRET_TOKEN_ASSIGN" -e "$P_BCRYPT_HASH" -- "$file" 2>/dev/null || true)"
-  ci_lines="$(grep -ihnIE -e "$P_PASSWORD_ASSIGN" -e "$P_SECRET_TOKEN_ASSIGN" -- "$file" 2>/dev/null || true)"
+                    -e "$P_URL_CRED" -e "$P_SECRET_TOKEN_ASSIGN" -e "$P_BCRYPT_HASH" \
+                    -e "$P_PASS_DEFAULT_EMBED" -e "$P_PASS_LIKE_LITERAL" -- "$file" 2>/dev/null || true)"
+  ci_lines="$(grep -ihnIE -e "$P_PASSWORD_ASSIGN" -e "$P_SECRET_TOKEN_ASSIGN" -e "$P_PASS_DEFAULT_EMBED" -- "$file" 2>/dev/null || true)"
   [ -n "$cs_lines$ci_lines" ] || continue
   all_lines="$(printf '%s\n%s\n' "$cs_lines" "$ci_lines" | grep -vE '^$' | sort -u)"
   while IFS= read -r hit; do

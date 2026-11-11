@@ -11,7 +11,8 @@ BASE="${AIGI_BASE_URL:-http://111.229.37.220}"
 API_USER="${AIGI_TEST_USER:-admin}"
 API_PASS="${AIGI_TEST_PASS:?缺少 AIGI_TEST_PASS(测试账号密码, 禁止硬编码)}"
 TMP_USER="perm-matrix-bot"
-TMP_PW='PermMatrix#2609'
+# 【T0 整改】临时bot口令改运行期随机生成(原为硬编码字面量, 被新 p8 形态抓获)
+TMP_PW="PM$(date +%s)$RANDOM"
 PASS=0; FAIL=0
 ok()  { echo "PASS: $1"; PASS=$((PASS+1)); }
 bad() { echo "FAIL: $1"; FAIL=$((FAIL+1)); }
