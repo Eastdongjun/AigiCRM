@@ -113,3 +113,30 @@ bash scripts/check-scope-axis-contract.sh
 3. **人工文档同步**:功能交付必须同步更新 docs/unified-feature-manifest.md 对应行与 docs/business/ 对应篇——`scripts/gate.sh` 第4项做新鲜度检查,落后源码 3 天以上即门禁失败(上线周零回流的根因就是没这道检查)。
 4. **交付前一键门禁**:`bash scripts/gate.sh`(完整档)——后端全量(含不变量钉)+前端测试构建+文档新鲜度+工作区检查;CI/发布前必跑。
 5. **产品裁决只进台账**:业务口径变化一律记 docs/REQUIREMENTS.md 未决事项→裁决→business/ 落档,不散在会话里(这是最大的熵源)。
+
+## AI 代码验收线(2026-11-12 起,任何 AI 产出的变更全部满足才算过关)
+
+> 源自审计→整改→再审计五轮闭环的方法论沉淀(7 类 AI 特有失败模式均在本项目实证过)。
+> 审 AI 代码的重点是验证信任链闭合——需求意图→设计假设→代码实现→验证手段→证据可复现,
+> AI 最擅长"让每一环**看起来**闭合";三道核心闸 = 声明与实现一致(D3)、验证真实(D4)、全局一致(D5)。
+
+1. **证据可复现**:每条结论有 file:line + 可复现命令 + 退出码;不能验证的显式标 BLOCKED,
+   不采信"应该绿/大概率没问题"。BLOCKED 不是 PASS。
+2. **生成物优先**:涉及权限/跨端的改动必须走生成物——权限码用 `scripts/gen-permission-codes.py`
+   双端常量(`src/generated/permission-codes.js`),端点契约用 `scripts/gen-api.py` 的
+   `docs/api/api-list.json`——新增/修改禁止手写字面量。存量手写字面量(PC/MP)按待裁项分批替换,
+   替换完成前漂移由 `check-permission-code-consumption.sh` 兜底。
+3. **负例自证**:每个新增/修改的契约必须先证明"改坏会红"才能转正(参照
+   `AIGI_API_CONTRACT_NOGEN=1` 负例通道、移除修复迁移复跑须红的自证法);自指、无负例的契约=假绿。
+4. **证据阶梯不降级**:关键路径(登录/权限/文件/财务/审批)必须有第④层(集成/切片,如
+   PermissionBehaviorMatrixTest 的 @PreAuthorize 真实求值)或第⑤层(运行态:空库重放/boot-smoke/
+   e2e)证据;只停在 mock 单测+文本契约层不得宣称"系统行为对"。
+5. **迁移双口径**:数据库迁移必须过"空库重放(`scripts/replay-empty-db.sh` / CI empty-db-replay)
+   + 快照库 validate(deploy-db-test 通道)"双口径,登记回滚方案;末态断言码单一源
+   `scripts/empty-replay-codes.txt`,禁止两处各写一份。
+6. **变更面收口**:diff 可回滚、范围可解释(无"顺手"改无关文件/删旧逻辑/扩范围)、并行会话不覆盖
+   ——提交前 `git status` 收口,只提交本任务文件。
+
+**审查反模式对照**(发现即打回):注释/摘要比实现自信;契约自指无负例;为绿而绿(改契约/改文档/降断言
+代替修根因);声称通过但不可复现;局部正确全局不一致(跨端口径漂移);检查存在但默认不跑(休眠冒充覆盖);
+用"更新文档"代替"修代码"掩盖问题。

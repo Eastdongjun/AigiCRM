@@ -124,7 +124,7 @@ VSCode Problems 面板显示 0 个错误 **只能作为辅助证据**，不得�
 
 ## 二、本项目实际门禁（按真实技术栈）
 
-> 本仓库为 **Vue 3(JS) + Spring Boot 4.1.0(Java 21)**；含 Maven Wrapper（`./mvnw`，工具链 3.9.9 与 Dockerfile 冻结同版；本机直跑用 `MAVEN_SKIP_RC=true mvn`）；前端是 **JavaScript 项目**（无 tsconfig、未配 lint/type-check）。
+> 本仓库为 **Vue 3(JS) + Spring Boot 4.1.0(Java 21)**；含 Maven Wrapper（`./mvnw`，工具链 3.9.9 与 Dockerfile 冻结同版；本机直跑用 `MAVEN_SKIP_RC=true mvn`）；前端是 **JavaScript 项目**（lint 未配置；type-check 已于 2026-11-11 转正——`scripts/check-ui-typecheck.sh` vue-tsc 基线档默认进 gate，561 存量基线只减不增，逃生门 `AIGI_TSC=0`）。
 
 ### 1. 修改范围检查（必跑）
 ```bash
@@ -140,7 +140,7 @@ cd aigicrm-ui
 npm run test     # vitest —— 必须 0 Failed、无未经说明的 skipped
 npm run build    # 退出码 0
 ```
-**lint / type-check：本项目未配置（JS 项目）→ 门禁中如实标 `N/A` 并说明，不得虚报 PASS。** 后续接入 ESLint/TS 后再加入放行组合。
+**lint：未配置 → 门禁中如实标 `N/A` 并说明，不得虚报 PASS。** type-check：vue-tsc 基线档已转正（2026-11-11 纠偏，旧文"未配置"过期）——`scripts/check-ui-typecheck.sh` 由 `scripts/gate.sh` 第 9 段默认执行，存量 561 错基线冻结只减不增，新增类型错即 FAIL；显式跳过须 `AIGI_TSC=0`。
 
 ### 3. 后端门禁（`aigicrm-backend`，必须 JDK 21——与 pom `java.version=21` 一致）
 ```bash
@@ -185,3 +185,14 @@ mvn -B clean verify     # 编译 + 单测/集成 0 Failed + 打包退出码 0；
 | 专项功能验证 | 实际测试场景 | - | PASS |
 
 同时报告：测试总数/成功/失败/跳过、构建结果、实际验证过的业务场景、**未验证内容**、剩余风险、修改文件清单。一键执行入口：`bash scripts/quality-gate.sh`。
+
+## AI 代码验收线（2026-11-12 起，与 AGENTS.md 同名章节同等强制）
+
+任何 AI 产出的变更全部满足以下 6 条才算过关（全文单一源在 **AGENTS.md「AI 代码验收线」**，此处只列要点防双份漂移）：
+
+1. 证据可复现：结论带 file:line + 可复现命令 + 退出码；不能验证标 BLOCKED（≠PASS）。
+2. 生成物优先：权限/跨端改动走 `gen-permission-codes.py` 双端常量与 `gen-api.py` 的 `docs/api/api-list.json`，新增/修改禁手写字面量（存量分批替换中）。
+3. 负例自证：新增/修改的契约必须先证明"改坏会红"再转正。
+4. 证据阶梯不降级：登录/权限/文件/财务/审批关键路径须有集成（如 PermissionBehaviorMatrixTest）或运行态（空库重放/boot-smoke）证据，不得只停在 mock+文本契约。
+5. 迁移双口径：空库重放 + 快照库 validate，断言码单一源 `scripts/empty-replay-codes.txt`，登记回滚方案。
+6. 变更面收口：diff 可回滚、范围可解释、并行会话不覆盖，提交前 `git status` 收口。
