@@ -43,10 +43,15 @@ if [ "$ENV" = "local" ]; then
   query "SELECT c.table_name, c.column_name, c.column_type, c.is_nullable, c.column_default, c.column_key, c.column_comment FROM information_schema.columns c WHERE c.table_schema='$DB_NAME' ORDER BY c.table_name, c.ordinal_position;" > /tmp/dict-cols.txt
 else
   # 库名不得硬编码（原为 aigicrm）：生产实际库名是 ycmn（改名窗口未开），
-  # 测试为 aigicrm。硬编码会让 remote 模式查错库 ⇒ 查询返回空 ⇒ 生成失败。
-  RM_DB="${DB_NAME:-aigicrm}"
-  "$SSH_FN" "docker exec $MYSQL_C mysql -u"$DB_USER" -p"$DB_PASS" -N --default-character-set=utf8mb4 -e \"SELECT t.table_name, t.table_comment FROM information_schema.tables t WHERE t.table_schema='$RM_DB' ORDER BY t.table_name;\" 2>/dev/null" > /tmp/dict-tables.txt
-  "$SSH_FN" "docker exec $MYSQL_C mysql -u"$DB_USER" -p"$DB_PASS" -N --default-character-set=utf8mb4 -e \"SELECT c.table_name, c.column_name, c.column_type, c.is_nullable, c.column_default, c.column_key, c.column_comment FROM information_schema.columns c WHERE c.table_schema='$RM_DB' ORDER BY c.table_name, c.ordinal_position;\" 2>/dev/null" > /tmp/dict-cols.txt
+  # 测试为 aigicrm_prod_20261016。硬编码会让 remote 模式查错库 ⇒ 查询返回空 ⇒ 生成失败。
+  # 【修复 2026-11-11】remote 分支嵌套引号经 ssh 被吃致 SQL 断裂(实测 prod/test 双分支空结果);
+  # 改 stdin 直灌(printf SQL | ssh docker exec -i mysql), 密码用容器内 env MYSQL_ROOT_PASSWORD
+  # (deploy.env 的 DB_NAME/口令与容器实况并非总一致), 默认库名按环境给。
+  RM_DB="${DB_NAME:-$([ "$ENV" = "prod" ] && echo ycmn || echo aigicrm_prod_20261016)}"
+  SQL_TABLES="SELECT t.table_name, t.table_comment FROM information_schema.tables t WHERE t.table_schema='$RM_DB' ORDER BY t.table_name;"
+  SQL_COLS="SELECT c.table_name, c.column_name, c.column_type, c.is_nullable, c.column_default, c.column_key, c.column_comment FROM information_schema.columns c WHERE c.table_schema='$RM_DB' ORDER BY c.table_name, c.ordinal_position;"
+  printf '%s\n' "$SQL_TABLES" | "$SSH_FN" "docker exec -i $MYSQL_C sh -c 'mysql -uroot -p\$MYSQL_ROOT_PASSWORD -N --default-character-set=utf8mb4'" 2>/dev/null > /tmp/dict-tables.txt
+  printf '%s\n' "$SQL_COLS" | "$SSH_FN" "docker exec -i $MYSQL_C sh -c 'mysql -uroot -p\$MYSQL_ROOT_PASSWORD -N --default-character-set=utf8mb4'" 2>/dev/null > /tmp/dict-cols.txt
 fi
 if [ ! -s /tmp/dict-tables.txt ] || [ ! -s /tmp/dict-cols.txt ]; then
   echo "错误: 数据库查询未返回完整的数据字典结果，文档生成未完成" >&2
