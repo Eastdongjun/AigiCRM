@@ -1,4 +1,4 @@
-// 由 scripts/gen-permission-codes.py 自动生成——禁止手改; 权威源=后端注解+命令式码。
+// 由 scripts/gen-permission-codes.py 自动生成——禁止手改; 权威源=后端注解+命令式码 + FE_ONLY 前端专属码白名单。
 // MP(CommonJS): const { PERMISSION_CODES } = require('../../generated/permission-codes')
 const PERMISSION_CODES = Object.freeze({
   APPROVAL_APPROVE: 'approval:approve',
@@ -25,6 +25,7 @@ const PERMISSION_CODES = Object.freeze({
   FINANCE_VIEW: 'finance:view',
   INCENTIVE_ADD: 'incentive:add',
   INCENTIVE_EDIT: 'incentive:edit',
+  INCENTIVE_RANK_VIEW: 'incentive:rank:view',
   INCENTIVE_READ_RANKING_VIEW: 'incentive:read-ranking:view',
   INCENTIVE_READ_STATS: 'incentive:read-stats',
   INCENTIVE_STATS_VIEW: 'incentive:stats:view',
@@ -49,6 +50,7 @@ const PERMISSION_CODES = Object.freeze({
   SYSTEM_GROUP_VIEW: 'system:group:view',
   SYSTEM_LOG_VIEW: 'system:log:view',
   SYSTEM_MENU_VIEW: 'system:menu:view',
+  SYSTEM_ORG_ADMIN: 'system:org:admin',
   SYSTEM_POSITION_ADD: 'system:position:add',
   SYSTEM_POSITION_DELETE: 'system:position:delete',
   SYSTEM_POSITION_EDIT: 'system:position:edit',
@@ -64,7 +66,10 @@ const PERMISSION_CODES = Object.freeze({
   SYSTEM_RULE_DELETE: 'system:rule:delete',
   SYSTEM_RULE_EDIT: 'system:rule:edit',
   SYSTEM_RULE_VIEW: 'system:rule:view',
+  SYSTEM_USER_ADD: 'system:user:add',
+  SYSTEM_USER_DELETE: 'system:user:delete',
   SYSTEM_USER_EDIT: 'system:user:edit',
+  SYSTEM_USER_VIEW: 'system:user:view',
   TASK_MANAGE: 'task:manage',
   TASK_VIEW: 'task:view',
 })

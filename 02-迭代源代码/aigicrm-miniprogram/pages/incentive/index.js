@@ -1017,9 +1017,9 @@ Page({
   loadScoreboard() {
     // 【2026-11-04 逐功能建码】排行数据面守卫(rank:view∨stats:view): 两者皆无则跳过(不发起必败请求)
     const demo = Boolean(getApp().globalData.demoMode)
-    // 【2026-11-12 回退】incentive:rank:view 为纯前端门控码(后端零消费点, 不在生成物权威集),
-    // 常量化会得 undefined→门禁恒关; 保留字面量, 待生成器扩"前端专属码"语义后随第二批替换。
-    if (!demo && !hasPermission('incentive:rank:view') && !hasPermission(PERMISSION_CODES.INCENTIVE_STATS_VIEW)) return
+    // 【T9 翻案 2026-11-12】incentive:rank:view 并非纯前端码——它在 IncentiveController 多参注解里,
+    // 此前"回退保字面量"的依据是旧生成器漏抓多参所致误判; 生成器修复(参数段整抓)后已入权威集, 恢复常量化。
+    if (!demo && !hasPermission(PERMISSION_CODES.INCENTIVE_RANK_VIEW) && !hasPermission(PERMISSION_CODES.INCENTIVE_STATS_VIEW)) return
     if (getApp().globalData.demoMode) {
       this.setData({
         scoreboard: [
