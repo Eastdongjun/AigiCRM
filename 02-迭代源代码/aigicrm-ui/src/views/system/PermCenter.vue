@@ -18,16 +18,18 @@
       <!-- 左侧分组域导航(cfg-nav 同语言: 分组 caption + pill 条目) -->
       <aside class="pc-nav">
         <div class="pc-nav-caption">授权配置</div>
-        <button class="pc-nav-item" :class="{ active: activePane === 'scope' }" @click="activePane = 'scope'">
+        <!-- 【T6 2026-11-12】配置域 pane 按后端接口码门控: 勾了接口码才能看到/使用对应配置面
+             (此前只勾 sea:config:view/file:acl:manage/system:menu:view 的用户 pane 打开即 403/空) -->
+        <button v-if="canScopePane" class="pc-nav-item" :class="{ active: activePane === 'scope' }" @click="activePane = 'scope'">
           <el-icon><Grid /></el-icon>功能与范围
         </button>
         <button class="pc-nav-item" :class="{ active: activePane === 'incentive' }" @click="activePane = 'incentive'">
           <el-icon><Medal /></el-icon>激励授权
         </button>
-        <button class="pc-nav-item" :class="{ active: activePane === 'sea' }" @click="activePane = 'sea'">
+        <button v-if="canSeaPane" class="pc-nav-item" :class="{ active: activePane === 'sea' }" @click="activePane = 'sea'">
           <el-icon><Location /></el-icon>公海池
         </button>
-        <button class="pc-nav-item" :class="{ active: activePane === 'file' }" @click="activePane = 'file'">
+        <button v-if="canFilePane" class="pc-nav-item" :class="{ active: activePane === 'file' }" @click="activePane = 'file'">
           <el-icon><FolderOpened /></el-icon>文件权限
         </button>
         <div class="pc-nav-caption">核对与审计</div>
@@ -217,10 +219,18 @@ defineProps({ embedded: { type: Boolean, default: false } })
 const userStore = useUserStore()
 const canEdit = computed(() => userStore.isAdmin() && userStore.hasPermission('system:config:edit'))
 
+// 【T6 2026-11-12】配置域 pane 按后端接口码门控(与各域接口 @PreAuthorize 同码):
+// 功能与范围=权限树(system:menu:view) / 公海池(sea:config:view) / 文件权限(file:acl:manage)——
+// 无码藏入口而非"可见即 403"; 403 侧由 PermissionHintService 自动按注解码生成"缺少XX请去开启"文案
+const canScopePane = computed(() => userStore.hasPermission('system:menu:view'))
+const canSeaPane = computed(() => userStore.hasPermission('sea:config:view'))
+const canFilePane = computed(() => userStore.hasPermission('file:acl:manage'))
+
 // 【2026-11-10 骨架 v3】单层六域(scope/incentive/sea/file/preview/audit), 弃两级 chip;
 // 惰性挂载: 各域首访才渲染(原 lazy 语义), 之后 v-show 保态
-const activePane = ref('scope')
-const paneVisited = reactive(new Set(['scope']))
+// 【T6】默认域回退: 无 system:menu:view 时 scope 不可用, 默认落"生效预览"(核对区不依赖配置码)
+const activePane = ref(canScopePane.value ? 'scope' : 'preview')
+const paneVisited = reactive(new Set([activePane.value]))
 watch(activePane, (v) => { if (v) paneVisited.add(v) }, { immediate: true })
 
 // ---- 激励专项授权(从系统设置 CategoryManager 收编, 复用共享 composable 单例) ----

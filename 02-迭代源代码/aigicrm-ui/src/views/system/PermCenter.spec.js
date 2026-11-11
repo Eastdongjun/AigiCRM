@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 
@@ -44,16 +44,23 @@ vi.mock('@/api/file', () => ({
 
 import PermCenter from './PermCenter.vue'
 import ElementPlus from 'element-plus'
+import { useUserStore } from '@/store/user'
 
-const mountCenter = () => mount(PermCenter, {
-  global: {
-    plugins: [ElementPlus, createPinia()],
-    // 子面板各挂各的 API, 本 spec 只钉权限中心壳与预览/审计流, 子组件整体打桩
-    stubs: { PermScopeManager: true, SeaConfigManager: true, PermGrantDialog: true },
-  },
-})
-
-beforeEach(() => setActivePinia(createPinia()))
+// 【T6 2026-11-12】mount 前注入权限集(pane 门控=system:menu:view/sea:config:view/file:acl:manage);
+// 默认给三码=既有"六域齐备"用例语义不变
+const PANE_CODES = ['system:menu:view', 'sea:config:view', 'file:acl:manage']
+const mountCenter = (permissions = PANE_CODES) => {
+  const pinia = createPinia()
+  setActivePinia(pinia)
+  useUserStore().permissions = new Set(permissions)
+  return mount(PermCenter, {
+    global: {
+      plugins: [ElementPlus, pinia],
+      // 子面板各挂各的 API, 本 spec 只钉权限中心壳与预览/审计流, 子组件整体打桩
+      stubs: { PermScopeManager: true, SeaConfigManager: true, PermGrantDialog: true },
+    },
+  })
+}
 
 describe('权限中心(2026-11-03 门面统一)', () => {
   it('【2026-11-10 骨架 v3】单层六域导航齐备(授权配置4域+核对审计2域), 无二级分段', () => {
@@ -124,5 +131,18 @@ describe('权限中心(2026-11-03 门面统一)', () => {
     expect(wrapper.text()).toContain('self/OWNER')
     expect(wrapper.text()).toContain('region/ORG')
     expect(wrapper.text()).toContain('admin')
+  })
+
+  it('【T6】配置域 pane 按接口码门控: 无码藏入口+默认域回退预览', () => {
+    const wrapper = mountCenter(['customer:view']) // 无三码
+    const items = wrapper.findAll('.pc-nav-item').map(w => w.text())
+    expect(items).toEqual(['激励授权', '生效预览', '变更审计'])
+    expect(wrapper.vm.activePane).toBe('preview') // scope 不可用 → 默认落核对区
+  })
+
+  it('【T6】勾了接口码即见对应配置面: sea:config:view 点亮公海池', () => {
+    const wrapper = mountCenter(['sea:config:view'])
+    const items = wrapper.findAll('.pc-nav-item').map(w => w.text())
+    expect(items).toEqual(['激励授权', '公海池', '生效预览', '变更审计'])
   })
 })
