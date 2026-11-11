@@ -191,7 +191,7 @@
   {
    "method": "GET",
    "path": "/api/customer/rankings",
-   "permission": "hasAuthority('score:view') or hasAuthority('ranking:customer:view') or hasAuthority('statistics:view')",
+   "permission": "hasAuthority('score:view') or hasAuthority('statistics:view')",
    "handler": "rankings"
   },
   {

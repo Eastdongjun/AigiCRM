@@ -18,7 +18,7 @@
 | positions/users/{userId} GET | system:position:view ∨ system:user:view |
 | statistics dashboard/daily-stats/weekly-stats/team-activities(4) | statistics:view ∨ dashboard:view |
 | customer/group-names | customer:add ∨ customer:edit |
-| customer/rankings | score:view ∨ ranking:customer:view ∨ statistics:view(3路OR) |
+| customer/rankings | score:view ∨ statistics:view(2路OR, ranking:customer:view 2026-11-12 退役) |
 | customer contacts 写×3 | customer:edit ∨ contact:manage |
 | customer 发票/收款写×8 | finance:manage ∨ (customer:edit ∧ finance:view) |
 
@@ -36,7 +36,7 @@
 - **System 族**: users(6+OR) / roles×7 / depts×8(tree+list isAuth,写 dept:edit) / positions×8 / groups×4 / menus tree=system:menu:view / dict×9(types 读=config:view,data 读 isAuth,写 config:edit) / rules×4 / rule-versions / perm-scopes×4 / configs×4 / logs×2+audit-logs(system:log:view) / task×1
 
 ## 权限码去重(64)
-system: config:view/edit, log:view, position:view/add/edit/delete, user:view/add/edit/delete, org:admin, dept:view/edit, group:view/add/edit/delete, menu:view, rule:view/add/edit/delete, role:view/add/edit/delete · customer: view/add/edit/delete/import/export · contact:manage · finance: view/manage · sea: view/import, config:view/edit · task: view/manage · approval: view/approve/reject · reminder:view · file: view/upload/edit/delete/share, folder:manage, acl:manage · score: view/manage/entry · ranking:customer:view · statistics:view · dashboard:view · incentive: view/add/edit, read-stats, read-ranking:view
+system: config:view/edit, log:view, position:view/add/edit/delete, user:view/add/edit/delete, org:admin, dept:view/edit, group:view/add/edit/delete, menu:view, rule:view/add/edit/delete, role:view/add/edit/delete · customer: view/add/edit/delete/import/export · contact:manage · finance: view/manage · sea: view/import, config:view/edit · task: view/manage · approval: view/approve/reject · reminder:view · file: view/upload/edit/delete/share, folder:manage, acl:manage · score: view/manage/entry · statistics:view · dashboard:view · incentive: view/add/edit, read-stats, read-ranking:view
 
 ## 关键风险提示(待深审)
 1. Incentive PUT/DELETE /records/{id} 仅 view 码,写靠方法内守卫(注释称有意,需行为验证)

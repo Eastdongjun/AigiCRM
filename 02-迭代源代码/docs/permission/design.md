@@ -86,7 +86,9 @@
 2. **role_perm_scope 死配置**(生产快照 2026-11-11): incentive 域 8 档全死——激励可见性实际走
    biz_incentive_grant; customer 另有 add/date/export/import/share 死档; 另有 `*/*` 通配 9 行、
    dashboard/score/sea:config 等无消费行。清理属数据治理, 待令(file 域死配置已由 V2026.11.09.1 清过)。
-3. **孤儿码**: ranking:customer:view(后端有/双端零消费)——绑定契约白名单挂账待裁决。
+3. **孤儿码**: ~~ranking:customer:view~~ ✅2026-11-12 裁决A已执行——V2026.11.12.1 删 sys_menu 行
+   与销售员绑定, CustomerController:155 三码 OR 收窄为 score:view ∨ statistics:view(销售员双兜底
+   实存, 端点可见集零变化); 生产部署后 gen-permission-dict.sh 重生成即自洽。
 4. **词表仍三端手写**(PC 51/MP 30/后端 78): 当前由消费侧契约+词表单一源契约(check-file-action-vocab)
    机器拦截; P1 方案=permission-codes 生成物 + AuthorizationFacade 统一决策点(前端 can() 数据驱动),
    属 1-2 周专项待排期。

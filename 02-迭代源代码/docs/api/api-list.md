@@ -39,7 +39,7 @@
 | GET | `/api/customer/list` | `hasAuthority('customer:view')` | page | CustomerController.java |
 | GET | `/api/customer/list/counts` | `hasAuthority('customer:view')` | listCounts | CustomerController.java |
 | GET | `/api/customer/list/counts-by-filter` | `hasAuthority('customer:view')` | countsByFilter | CustomerController.java |
-| GET | `/api/customer/rankings` | `hasAuthority('score:view') or hasAuthority('ranking:customer:view') or hasAuthority('statistics:view')` | rankings | CustomerController.java |
+| GET | `/api/customer/rankings` | `hasAuthority('score:view') or hasAuthority('statistics:view')` | rankings | CustomerController.java |
 | GET | `/api/customer/statistics` | `hasAuthority('customer:view')` | statistics | CustomerController.java |
 | GET | `/api/customer/users/simple` | `hasAuthority('customer:view')` | simpleUserList | CustomerController.java |
 | DELETE | `/api/customer/{id}` | `hasAuthority('customer:delete')` | delete | CustomerController.java |

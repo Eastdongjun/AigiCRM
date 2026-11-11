@@ -992,7 +992,7 @@ Generated from local source: `02-迭代源代码`
 | `GET` | `/api/customer/list/counts-by-filter` | `hasAuthority('customer:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java` |
 | `GET` | `/api/customer/list/counts` | `hasAuthority('customer:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java` |
 | `GET` | `/api/customer/group-names` | `hasAuthority('customer:add') or hasAuthority('customer:edit')` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java` |
-| `GET` | `/api/customer/rankings` | `hasAuthority('score:view') or hasAuthority('ranking:customer:view') or hasAuthority('statistics:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java` |
+| `GET` | `/api/customer/rankings` | `hasAuthority('score:view') or hasAuthority('statistics:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java` |
 | `GET` | `/api/customer/{id}` | `hasAuthority('customer:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java` |
 | `POST` | `/api/customer/add` | `hasAuthority('customer:add')` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java` |
 | `PUT` | `/api/customer/{id}` | `hasAuthority('customer:edit')` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java` |
@@ -1225,7 +1225,7 @@ Generated from local source: `02-迭代源代码`
 | `incentive:read-stats` | 激励查询已读统计 (V2026.09.13.1__register_missing_used_permission_codes.sql) |
 | `incentive:stats:view` | 激励统计查看 (V2026.11.04.1__incentive_stats_rank_permission_codes.sql) |
 | `incentive:view` | 激励新增 (V16__add_sys_user_security_columns_and_menu_permissions.sql) |
-| `ranking:customer:view` | 客户排行查看 (V2026.09.11.4__register_orphan_customer_ranking_permission.sql) |
+| ~~`ranking:customer:view`~~ | 客户排行查看 (V2026.09.11.4 登记; 2026-11-12 裁决A退役, V2026.11.12.1 删行, rankings 端点改 score:view ∨ statistics:view 双码) |
 | `reminder:view` | reminder/index (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
 | `score:entry` | score/entry (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
 | `score:ranking` | score/ranking (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |

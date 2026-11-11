@@ -29,7 +29,6 @@ export const PERMISSION_CODES = Object.freeze({
   INCENTIVE_READ_STATS: 'incentive:read-stats',
   INCENTIVE_STATS_VIEW: 'incentive:stats:view',
   INCENTIVE_VIEW: 'incentive:view',
-  RANKING_CUSTOMER_VIEW: 'ranking:customer:view',
   REMINDER_VIEW: 'reminder:view',
   SCORE_ENTRY: 'score:entry',
   SCORE_MANAGE: 'score:manage',

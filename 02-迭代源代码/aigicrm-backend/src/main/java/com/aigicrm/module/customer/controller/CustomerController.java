@@ -152,7 +152,9 @@ public class CustomerController {
         return Result.ok(customerService.listGroupNames());
     }
 
-    @PreAuthorize("hasAuthority('score:view') or hasAuthority('ranking:customer:view') or hasAuthority('statistics:view')")
+    // 【2026-11-12 裁决A】ranking:customer:view 孤儿码退役(V2026.11.12.1 删行)——前端/MP 零引用,
+    // 销售员原绑定由 score:view / statistics:view 双兜底, 端点可见集零变化。
+    @PreAuthorize("hasAuthority('score:view') or hasAuthority('statistics:view')")
     @GetMapping("/rankings")
     public Result<Map<String, Object>> rankings() {
         return Result.ok(customerService.customerRankings());
