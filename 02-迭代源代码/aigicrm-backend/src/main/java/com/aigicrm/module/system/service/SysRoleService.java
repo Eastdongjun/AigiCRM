@@ -125,6 +125,14 @@ public class SysRoleService {
         roleMapper.insert(role);
         saveRoleMenus(role.getId(), role.getMenuIds());
         saveRoleOrgs(role);
+        // 【T10.4 2026-11-12】新角色写 file 域矩阵默认行(view/manage/delete=self 保守档):
+        // V2026.11.10.1 CROSS JOIN 只覆盖当时已有角色, 此后新建角色 file 三档回退 self——
+        // 与配置页"本部门可管"文案不符(勾了不生效歧义)。默认最保守, 上线后由权限中心按需放宽。
+        for (String act : new String[]{"view", "manage", "delete"}) {
+            jdbc.update("INSERT INTO role_perm_scope (role_code, assignee_type, assignee_key, module, action, scope_level, anchor) "
+                            + "VALUES (?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE scope_level=VALUES(scope_level)",
+                    role.getRoleCode(), "ROLE", role.getRoleCode(), "file", act, "self", "OWNER");
+        }
         // 【Redis 权限缓存】新角色已绑定用户（前端可能同时授用户），立即失效该角色下用户缓存
         permissionCacheService.evictByRole(role.getId());
     }

@@ -637,6 +637,8 @@ local_contracts() {
   run "$ROOT/scripts/check-menu-code-uniqueness.sh"
   # 【T9 2026-11-12】配置-消费注册表契约: 注册表每码三端可 grep(负例通道 AIGI_NEGATIVE=1)
   run "$ROOT/scripts/check-permission-config-consumption.sh"
+  # 【T10.2 2026-11-12】码↔范围键映射双源对账(PermScopeManager=PermCenterService)
+  run "$ROOT/scripts/check-perm-scope-targets-parity.sh"
   # 【T1 2026-11-11 审计整改】权限码绑定覆盖率: @PreAuthorize 码必须有锚点角色绑定(防空库重放全员403)
   run "$ROOT/scripts/check-permission-binding-coverage.sh"
 }

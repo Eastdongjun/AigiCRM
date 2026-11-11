@@ -904,4 +904,34 @@ class SysRoleServiceTest {
                     "admin 闭包同样只补 type=1 目录行(10)，不注入 type=2 父菜单(11)");
         }
     }
+
+    // ===== 【T10.4 2026-11-12】新角色 file 域矩阵默认行(view/manage/delete=self 保守档) =====
+
+    @Test
+    void create_writesFileScopeDefaults() {
+        SysRoleMapper roleMapper = mock(SysRoleMapper.class);
+        org.springframework.jdbc.core.JdbcTemplate jdbc = mock(org.springframework.jdbc.core.JdbcTemplate.class);
+        SysRoleService service = new SysRoleService(roleMapper,
+                mock(SysRoleMenuMapper.class), mock(SysMenuMapper.class), mock(SysRoleOrgMapper.class),
+                mock(SysDeptMapper.class), mock(com.aigicrm.security.PermissionCacheService.class),
+                mock(RolePermScopeService.class), mock(com.aigicrm.module.system.mapper.SysUserRoleMapper.class),
+                jdbc, mock(com.aigicrm.security.SecurityAuditService.class));
+        SysRole role = new SysRole();
+        role.setRoleCode("r10");
+        role.setRoleName("新角色默认档");
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(true);
+
+            service.create(role);
+
+            // file 三档(view/manage/delete)各写一行 self/OWNER——新角色不再回退隐式档
+            var ins = org.mockito.Mockito.times(3);
+            verify(jdbc, ins).update(
+                    org.mockito.ArgumentMatchers.contains("INSERT INTO role_perm_scope"),
+                    org.mockito.ArgumentMatchers.eq("r10"), org.mockito.ArgumentMatchers.eq("ROLE"),
+                    org.mockito.ArgumentMatchers.eq("r10"), org.mockito.ArgumentMatchers.eq("file"),
+                    org.mockito.ArgumentMatchers.anyString(),
+                    org.mockito.ArgumentMatchers.eq("self"), org.mockito.ArgumentMatchers.eq("OWNER"));
+        }
+    }
 }
