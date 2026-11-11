@@ -176,20 +176,28 @@ jobs:
           docker run --rm --network host -v /tmp/replay-mig:/flyway/sql flyway/flyway:9.22.3-alpine \
             -url="jdbc:mysql://127.0.0.1:3306/ycmn?characterEncoding=UTF-8&connectionCollation=utf8mb4_general_ci&useSSL=false&allowPublicKeyRetrieval=true" \
             -user=root -password=replay-root -connectRetries=30 -validateMigrationNaming=true migrate 2>&1 | tail -6
-      - name: 末态断言(8 审计码绑定全覆盖, 0 failed)
+      - name: 末态断言(码清单单一源, 0 failed)
         run: |
+          # 【N7】断言码读 scripts/empty-replay-codes.txt(与 scripts/replay-empty-db.sh 共用单一源)
+          CODES_IN=$(grep -vE '^#|^$' scripts/empty-replay-codes.txt | awk "{printf "'%s',", \$1}" | sed 's/,$//')
+          TOTAL=$(grep -cE '^[a-z]' scripts/empty-replay-codes.txt)
+          echo "断言码 $TOTAL 个: $CODES_IN"
           docker run --rm --network host mysql:8.0 mysql -h127.0.0.1 -P3306 -uroot -preplay-root ycmn -N -e "
             SELECT IF(COUNT(*)=0,'flyway_failed=0','HAS_FAILED') FROM flyway_schema_history WHERE success<>1;
             SELECT m.permission, m.status, COUNT(rm.role_id) FROM sys_menu m
             LEFT JOIN sys_role_menu rm ON rm.menu_id=m.id
-            WHERE m.permission IN ('file:upload','file:edit','file:delete','file:share','file:folder:manage','finance:manage','customer:finance:edit','customer:invoice-date:edit')
+            WHERE m.permission IN ($CODES_IN)
               AND m.menu_type=3 GROUP BY m.permission, m.status ORDER BY m.permission;"
           BAD=$(docker run --rm --network host mysql:8.0 mysql -h127.0.0.1 -P3306 -uroot -preplay-root ycmn -N -e "
             SELECT COUNT(*) FROM sys_menu m LEFT JOIN sys_role_menu rm ON rm.menu_id=m.id
-            WHERE m.permission IN ('file:upload','file:edit','file:delete','file:share','file:folder:manage','finance:manage','customer:finance:edit','customer:invoice-date:edit')
+            WHERE m.permission IN ($CODES_IN)
               AND m.menu_type=3 AND (m.status<>1 OR rm.id IS NULL);")
-          echo "末态异常行: $BAD (预期 0)"
-          [ "$BAD" = "0" ] || { echo '❌ 空库重放末态断言失败'; exit 1; }
+          ADMIN_N=$(docker run --rm --network host mysql:8.0 mysql -h127.0.0.1 -P3306 -uroot -preplay-root ycmn -N -e "
+            SELECT COUNT(DISTINCT m.permission) FROM sys_role_menu rm
+            JOIN sys_menu m ON m.id=rm.menu_id JOIN sys_role r ON r.id=rm.role_id
+            WHERE r.role_code='admin' AND m.menu_type=3 AND m.permission IN ($CODES_IN);")
+          echo "末态异常行: $BAD (预期 0) / admin 持码: $ADMIN_N/$TOTAL"
+          [ "$BAD" = "0" ] && [ "$ADMIN_N" = "$TOTAL" ] || { echo '❌ 空库重放末态断言失败'; exit 1; }
 
   # 【N3 2026-11-11 审计整改】文件权限端到端钉的定时真跑:
   # 治本④ 的五段闭环(勾→双端出→操作放行→收回复位)默认休眠(离线/CI push 不假红),
