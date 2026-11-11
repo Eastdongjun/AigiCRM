@@ -284,7 +284,10 @@ function buildFileRowView(item, data) {
   if (showDownload) sheetActions.push({ key: 'download', label: '下载' })
   // 【2026-11-06 用户令"加一个可以修改文件名称的"】重命名=file:edit+夹 edit(后端与 replace 同门
   // checkFile P_RENAME); 【11-08 审计项3】码前置; 【2026-11-10 用户令"A"】∨ 是我传的(本人短路)
-  if (data.canEditFile && (folderPerms.includes('edit') || isOwn)) sheetActions.push({ key: 'rename', label: '重命名' })
+  // 【修复 2026-11-11 NO001 验收发现】文件夹树回填 perms 是权限终版细词(rename/replace),
+  // 此前只认旧 'edit' 伞词 → 勾了"改名"的夹里非本人文件的重命名入口恒不出现(仅 isOwn 兜底);
+  // 兼容双词表: 'edit' ∨ 'rename' 均放行
+  if (data.canEditFile && (folderPerms.includes('edit') || folderPerms.includes('rename') || isOwn)) sheetActions.push({ key: 'rename', label: '重命名' })
   if (showShare) sheetActions.push({ key: 'share', label: '分享' })
   if (showDelete) sheetActions.push({ key: 'delete', label: '删除', danger: true })
   const sizePrefix = item.size && item.size !== '-' ? `${item.size} · ` : ''
