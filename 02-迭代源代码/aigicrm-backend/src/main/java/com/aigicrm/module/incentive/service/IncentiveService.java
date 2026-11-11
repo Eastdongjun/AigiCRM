@@ -1196,6 +1196,10 @@ public class IncentiveService {
                 // [193]/[1119]/[1903] 误当 19 命中——生产实证: 文件ID=19 误报 35 条真命中 0 条。
                 // JSON_OVERLAPS 按数组元素精确比对(需 MySQL>=8.0.17, 生产 8.0.28; 四列已验全合法 JSON),
                 // {0} 绑定 '[19,23]' 字符串经 CAST 成 JSON 数组, 保持参数绑定防注入。
+                // 【性能 2026-11-11 检索优化】JSON_OVERLAPS 拆出六路 OR 为独立预查询取命中记录 id,
+                // 主查询改 IN(ids)——JSON 函数混在 OR 里阻断 MySQL 优化器短路, 是 DB 侧 ~1s 主因
+                // (496 行全表×4 列逐行 JSON 解析)。集合恒等: 外条件 AND (五路 OR 全表JSON命中id集)
+                // ≡ 原 外条件 AND 六路OR(JSON_OVERLAPS 本身与外条件无关, 全表命中即该路完整结果)。
                 List<com.aigicrm.module.file.entity.BizFile> matchedFiles = fileMapper.selectList(
                     new LambdaQueryWrapper<com.aigicrm.module.file.entity.BizFile>()
                         .like(com.aigicrm.module.file.entity.BizFile::getFileName, keyword)
@@ -1204,8 +1208,15 @@ public class IncentiveService {
                     String idJsonArray = matchedFiles.stream()
                         .map(f -> String.valueOf(f.getId()))
                         .collect(java.util.stream.Collectors.joining(",", "[", "]"));
-                    w.or().apply("(JSON_OVERLAPS(file_pre_id, CAST({0} AS JSON)) OR JSON_OVERLAPS(file_mid_id, CAST({0} AS JSON)) OR JSON_OVERLAPS(file_post_id, CAST({0} AS JSON)) OR JSON_OVERLAPS(file_track_id, CAST({0} AS JSON)))",
-                        idJsonArray);
+                    List<BizIncentiveRecord> jsonHits = recordMapper.selectList(
+                        new LambdaQueryWrapper<BizIncentiveRecord>()
+                            .select(BizIncentiveRecord::getId)
+                            .apply("(JSON_OVERLAPS(file_pre_id, CAST({0} AS JSON)) OR JSON_OVERLAPS(file_mid_id, CAST({0} AS JSON)) OR JSON_OVERLAPS(file_post_id, CAST({0} AS JSON)) OR JSON_OVERLAPS(file_track_id, CAST({0} AS JSON)))",
+                                idJsonArray));
+                    if (!jsonHits.isEmpty()) {
+                        w.or().in(BizIncentiveRecord::getId,
+                            jsonHits.stream().map(BizIncentiveRecord::getId).collect(java.util.stream.Collectors.toSet()));
+                    }
                 }
             });
         }
@@ -1285,14 +1296,23 @@ public class IncentiveService {
                 .collect(Collectors.toSet()));
 
         // 填充关联信息
+        // 【性能 2026-11-11 检索优化】用户名批量化: 原循环内逐条 userMapper.selectById,
+        // 300+ 记录=600+ 次 DB 往返(实测组装层 ~2s 主因); 与客户/分类同款批量建 map, 数据源不变
+        Set<Long> uidsAll = new LinkedHashSet<>();
+        for (BizIncentiveRecord r : records) {
+            if (r.getUserId() != null) uidsAll.add(r.getUserId());
+            if (r.getUpdatedBy() != null) uidsAll.add(r.getUpdatedBy());
+        }
+        Map<Long, SysUser> userMap = new HashMap<>();
+        if (!uidsAll.isEmpty()) userMapper.selectByIds(uidsAll).forEach(u -> userMap.put(u.getId(), u));
         for (BizIncentiveRecord r : records) {
             r.setUnread(r.getId() != null && !readRecordIds.contains(r.getId()));
             if (r.getCategoryId() != null) {
                 BizIncentiveCategory cat = catMap2.get(r.getCategoryId());
                 if (cat != null) r.setCategoryName(cat.getCategoryName());
             }
-            if (r.getUserId() != null) { SysUser u = userMapper.selectById(r.getUserId()); if (u != null) r.setUserName(u.getRealName()); }
-            if (r.getUpdatedBy() != null) { SysUser up = userMapper.selectById(r.getUpdatedBy()); if (up != null) r.setUpdatedByName(up.getRealName()); }
+            if (r.getUserId() != null) { SysUser u = userMap.get(r.getUserId()); if (u != null) r.setUserName(u.getRealName()); }
+            if (r.getUpdatedBy() != null) { SysUser up = userMap.get(r.getUpdatedBy()); if (up != null) r.setUpdatedByName(up.getRealName()); }
             if (r.getCustomerId() != null) {
                 BizCustomer c = custMap.get(r.getCustomerId());
                 if (c != null) r.setCustomerName(c.getCustomerName());

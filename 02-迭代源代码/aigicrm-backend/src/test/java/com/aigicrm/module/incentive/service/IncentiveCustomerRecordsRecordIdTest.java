@@ -37,6 +37,16 @@ class IncentiveCustomerRecordsRecordIdTest {
                 mock(org.springframework.jdbc.core.JdbcTemplate.class));
     }
 
+    @org.junit.jupiter.api.BeforeAll
+    static void initTableInfo() {
+        // 【2026-11-11】lambda 列名解析需要实体 TableInfo(纯单测无 MyBatis 容器);
+        // 原先蹭其他测试类的静态注册, 类名字母序本类先跑时缓存未建即炸——显式自注册消除顺序依赖
+        com.baomidou.mybatisplus.core.metadata.TableInfoHelper.initTableInfo(
+                new org.apache.ibatis.builder.MapperBuilderAssistant(
+                        new com.baomidou.mybatisplus.core.MybatisConfiguration(), ""),
+                BizIncentiveRecord.class);
+    }
+
     private BizIncentiveRecord seed(Long id, Long customerId) {
         BizIncentiveRecord record = new BizIncentiveRecord();
         record.setId(id);

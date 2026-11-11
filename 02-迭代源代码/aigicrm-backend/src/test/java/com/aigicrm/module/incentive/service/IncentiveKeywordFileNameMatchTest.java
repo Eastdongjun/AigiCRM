@@ -43,7 +43,11 @@ class IncentiveKeywordFileNameMatchTest {
         BizIncentiveCategoryMapper catMapper = mock(BizIncentiveCategoryMapper.class);
         com.aigicrm.module.file.mapper.BizFileMapper fileMapper =
                 mock(com.aigicrm.module.file.mapper.BizFileMapper.class);
-        when(recMapper.selectList(any())).thenReturn(List.of());
+        // 【性能 2026-11-11 检索优化】第⑥路拆独立预查询: 第1次 selectList=JSON 预查询(返回命中 id=19),
+        // 第2次=主查询(五路 OR + IN(预查询命中集), 返回空便于只验 SQL)
+        com.aigicrm.module.incentive.entity.BizIncentiveRecord jsonHit = new com.aigicrm.module.incentive.entity.BizIncentiveRecord();
+        jsonHit.setId(19L);
+        when(recMapper.selectList(any())).thenReturn(List.of(jsonHit)).thenReturn(List.of());
         // biz_file 反查: 文件名含关键字的文件 ID=19(其余 customer/category/user 路径 mock 默认空集跳过)
         com.aigicrm.module.file.entity.BizFile file = new com.aigicrm.module.file.entity.BizFile();
         file.setId(19L);
@@ -68,12 +72,14 @@ class IncentiveKeywordFileNameMatchTest {
         @SuppressWarnings("unchecked") // forClass 需具体类, LambdaQueryWrapper 泛型参数擦除, 必须的 unchecked
         ArgumentCaptor<com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<BizIncentiveRecord>> cap =
                 ArgumentCaptor.forClass((Class<com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<BizIncentiveRecord>>) (Class<?>) com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper.class);
-        verify(recMapper).selectList(cap.capture());
-        String sql = cap.getValue().getExpression().getSqlSegment().toLowerCase();
-        assertTrue(sql.contains("json_overlaps"), "文件名分支应为 JSON_OVERLAPS 精确元素匹配, 实际: " + sql);
-        assertTrue(sql.contains("as json)"), "{0} 绑定值须经 CAST(... AS JSON) 转数组, 实际: " + sql);
-        assertFalse(sql.contains("regexp"), "JSON 数组列禁止 REGEXP 子串匹配(会把 [193] 误当 19), 实际: " + sql);
-        assertTrue(cap.getValue().getParamNameValuePairs().containsValue("[19]"),
-                "绑定参数应为 JSON 数组字面量 [19], 实际: " + cap.getValue().getParamNameValuePairs());
+        verify(recMapper, org.mockito.Mockito.times(2)).selectList(cap.capture());
+        String jsonSql = cap.getAllValues().get(0).getExpression().getSqlSegment().toLowerCase();
+        String mainSql = cap.getAllValues().get(1).getExpression().getSqlSegment().toLowerCase();
+        assertTrue(jsonSql.contains("json_overlaps"), "预查询应为 JSON_OVERLAPS 精确元素匹配, 实际: " + jsonSql);
+        assertTrue(jsonSql.contains("as json)"), "{0} 绑定值须经 CAST(... AS JSON) 转数组, 实际: " + jsonSql);
+        assertFalse(jsonSql.contains("regexp"), "JSON 数组列禁止 REGEXP 子串匹配(会把 [193] 误当 19), 实际: " + jsonSql);
+        assertTrue(cap.getAllValues().get(0).getParamNameValuePairs().containsValue("[19]"),
+                "预查询绑定参数应为 JSON 数组字面量 [19], 实际: " + cap.getAllValues().get(0).getParamNameValuePairs());
+        assertTrue(mainSql.contains("in"), "主查询应合并预查询命中集(IN 分支), 实际: " + mainSql);
     }
 }
