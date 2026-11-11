@@ -416,4 +416,29 @@ class FolderPermissionServiceTest {
                     "本人恒管=全行级动作");
         }
     }
+
+    // ===== 【T3 2026-11-12】夹行 FOLDER 授权进按钮视图(folderActions 分字段) =====
+
+    @Test
+    void folderActionsForBatch_folderGrantLightsActions_fileGrantMustNot() {
+        // FOLDER 行授权(rename,delete)点亮夹行动作; FILE 行授权(同动作词)不得误点亮夹动作(词义分离)
+        BizFileFolder f = folder(200L, 99L, "public");
+        when(folderMapper.selectById(200L)).thenReturn(f); // check() 内部按 id 重查夹
+        when(grantMapper.selectList(any())).thenReturn(List.of(
+                grant("FOLDER", "public", null, "USER", 42L, "rename,delete", null),
+                grant("FILE", "public", null, "USER", 42L, "rename", null)));
+        SecurityUser u = mock(SecurityUser.class);
+        when(scopeResolver.resolveModuleUsers(any(), eq("file"), any())).thenReturn(List.of());
+        when(scopeResolver.resolveScope(any())).thenReturn(deptDecision(List.of()));
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            stub(m, u, false);
+            List<String> actions = svc.folderActionsForBatch(List.of(f), 42L).get(200L);
+            assertTrue(actions.containsAll(List.of("rename", "delete")), "FOLDER 授权点亮夹行动作: " + actions);
+            // 对照: 若只剩 FILE 行(夹授权删除), 夹动作不得被文件授权点亮
+            when(grantMapper.selectList(any())).thenReturn(List.of(
+                    grant("FILE", "public", null, "USER", 42L, "rename,delete", null)));
+            List<String> onlyFile = svc.folderActionsForBatch(List.of(f), 42L).get(200L);
+            assertTrue(onlyFile.isEmpty(), "FILE 行授权不得点亮夹动作(词义分离): " + onlyFile);
+        }
+    }
 }
