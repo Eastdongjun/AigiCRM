@@ -117,6 +117,18 @@ describe('客户详情 FinanceTab 阶段总额制(2026-10-10)', () => {
     expect(wrapper.findAll('button').some((b) => b.text().trim() === '编辑')).toBe(true)
   })
 
+  // 【T3 2026-11-11 审计整改】第三通道: 只持 customer:finance:edit(行政生产配置=finance:view+本码,
+  // 不持 finance:manage/customer:edit)也必须有录入入口——此前漏该通道导致行政无按钮
+  it('只持 customer:finance:edit(第三通道)也显示录入与编辑', async () => {
+    mockPermCodes.clear()
+    mockPermCodes.add('finance:view')
+    mockPermCodes.add('customer:finance:edit')
+    const { wrapper } = mountFinanceTab({ stageRows: [stageRow()] })
+    await settle(wrapper)
+    expect(wrapper.text()).toContain('录入阶段数据')
+    expect(wrapper.findAll('button').some((b) => b.text().trim() === '编辑')).toBe(true)
+  })
+
   // 防改过头: 无财务写权(只读访客/仅 finance:view)时, readonly 与正常态均不得出现写入口
   it('无财务写权时 readonly 与正常态均不显示录入与编辑操作', async () => {
     mockPermCodes.clear()

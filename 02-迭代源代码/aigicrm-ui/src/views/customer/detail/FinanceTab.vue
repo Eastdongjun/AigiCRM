@@ -210,13 +210,16 @@ const saveInvoiceDate = async () => {
   } finally { invoiceDateSaving.value = false }
 }
 
-// 【2026-11-01 审计修复】财务写门控三处统一为后端口径: finance:manage ∨ (customer:edit ∧ finance:view)
-// (原仅判 readonly, 只持 finance:view 者可见可点、保存必 403; MP 端同批对齐)
+// 【2026-11-01 审计修复】财务写门控统一为后端口径(原仅判 readonly, 只持 finance:view 者可见可点、保存必 403)
 // 【裁决 2026-11-02】readonly(公海/共享只读入口)不再参与财务写门控——只读锁客户资料编辑不锁财务代录,
 // 与后端 2026-10-18 代录口径(finance:manage 放开对象归属)对齐; 组件不再消费 readonly。
+// 【T3 2026-11-11 审计整改】补第三通道 customer:finance:edit(2026-11-03 拆码, 开票回款编辑,
+// 行政生产配置=finance:view+本码)——此前漏掉导致只持该码者无录入按钮;
+// 与 CustomerController:358 三通道 @PreAuthorize、MP finance/index.js:112 同口径。
 const userStore = useUserStore()
 const canWriteFinance = computed(() =>
   userStore.hasPermission('finance:manage')
+  || userStore.hasPermission('customer:finance:edit')
   || (userStore.hasPermission('customer:edit') && userStore.hasPermission('finance:view')))
 
 const stageRows = computed(() => stageSummary.value.rows || [])
