@@ -620,6 +620,8 @@ local_contracts() {
   run "$ROOT/scripts/check-file-perm-e2e.sh"
   # 【治本③ 2026-11-11】文件动作词表单一源: 后端常量=权威, 前端矩阵/MP 消费必须一致(edit 兼容词须与 rename 并存)
   run "$ROOT/scripts/check-file-action-vocab.sh"
+  # 【T1 2026-11-11 审计整改】权限码绑定覆盖率: @PreAuthorize 码必须有锚点角色绑定(防空库重放全员403)
+  run "$ROOT/scripts/check-permission-binding-coverage.sh"
 }
 
 changed_files() {
