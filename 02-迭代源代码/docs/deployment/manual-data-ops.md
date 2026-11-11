@@ -32,3 +32,15 @@
 - **回滚方式**: `INSERT INTO flyway_schema_history SELECT * FROM _repair_bak_fsh_20261111 WHERE ...`
   （按 installed_on 前缀过滤 2026-11-05 02:08/03:22 批次行）。
 - **关联**: 本文件同日 deploy-db-test.sh 口径厘清注释；scripts/replay-empty-db.sh。
+
+### 3. flyway_schema_history 补 .05.9 对齐行 + 清 DELETE 空转行 —— 测试库
+
+- **用途**: V2026.11.05.9__remove_file_edit_dead_code.sql 找回主目录后(从 6ac68aa1 逐字节
+  恢复, 生产 checksum 322618291), 测试库 history 无行会导致 migrate 想补跑 .05.9——
+  它会删掉 .05.10 已重建的 file:edit 节点(破坏现状)。补一行与生产对齐的 applied 行;
+  同版 DELETE 型空转遗迹行(11-05 批次)一并清除。
+- **批准状态**: ✅ 2026-11-11 执行(T7 整改, 测试环境)。
+- **执行记录**: 补 SQL 行(checksum=322618291=生产权威值); 删 1 行 DELETE 空转行;
+  validate 122 migrations 全绿。
+- **回滚方式**: 删该 INSERT 行即可(纯 history 层操作, 不涉业务表)。
+- **关联**: FROZEN-SHA256.txt T7 补登记段; scripts/replay-empty-db.sh 复跑 110 迁移全绿。
