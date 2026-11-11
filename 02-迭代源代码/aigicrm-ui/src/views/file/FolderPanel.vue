@@ -50,12 +50,9 @@ import { useUserStore } from '@/store/user'
 const {
   selectedFolderId, fileTotal, currentFolders, canCreateFolder, canManageFolders,
   activeTab, storageUsed, storageQuota, storagePercent,
-  selectFolder, openRenameFolder, openAclDialog, handleDeleteFolder,
+  selectFolder, openRenameFolder, handleDeleteFolder,
 } = injectFilePage()
 
-// 否则无该码的夹主看到入口打开是恒空空壳(403 被静默吞)
-const userStore = useUserStore()
-const canManageAcl = computed(() => userStore.hasPermission('file:acl:manage'))
 </script>
 
 <style scoped>

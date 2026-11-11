@@ -1,10 +1,10 @@
 # AIGICRM API 清单(自动生成)
 
-> 生成时间: 2026-11-09 | 来源: 后端 controller 源码扫描
+> 生成时间: 2026-11-11 | 来源: 后端 controller 源码扫描
 > 本文件由 scripts/gen-api.py 自动生成,**禁止手改**;接口变更后重新运行。
 > 权限码与 docs/permission/permission-dict.md 对应。
 
-## 接口清单(230 个)
+## 接口清单(227 个)
 
 | 方法 | 路径 | 权限码 | 方法名 | 文件 |
 |---|---|---|---|---|
@@ -81,13 +81,10 @@
 | GET | `/api/file/folders/acl-roles` | `hasAuthority('file:acl:manage')` | aclRoles | FolderAclController.java |
 | GET | `/api/file/folders/type-defaults` | `hasAuthority('file:acl:manage')` | listTypeDefaults | FolderAclController.java |
 | POST | `/api/file/folders/type-defaults` | `hasAuthority('file:acl:manage')` | saveTypeDefault | FolderAclController.java |
-| DELETE | `/api/file/folders/type-defaults/{folderType}/{roleId}` | `hasAuthority('file:acl:manage')` | removeTypeDefault | FolderAclController.java |
+| DELETE | `/api/file/folders/type-defaults/{id}` | `hasAuthority('file:acl:manage')` | removeTypeDefault | FolderAclController.java |
+| PUT | `/api/file/folders/type-defaults/{id}/renew` | `hasAuthority('file:acl:manage')` | renewTypeDefault | FolderAclController.java |
 | DELETE | `/api/file/folders/{id}` | `hasAuthority('file:folder:manage')` | deleteFolder | FileController.java |
 | PUT | `/api/file/folders/{id}` | `hasAuthority('file:folder:manage')` | renameFolder | FileController.java |
-| GET | `/api/file/folders/{id}/acl` | `hasAuthority('file:acl:manage')` | listAcl | FolderAclController.java |
-| POST | `/api/file/folders/{id}/acl` | `hasAuthority('file:acl:manage')` | saveAcl | FolderAclController.java |
-| DELETE | `/api/file/folders/{id}/acl/{roleId}` | `hasAuthority('file:acl:manage')` | removeAcl | FolderAclController.java |
-| PUT | `/api/file/folders/{id}/download` | `hasAuthority('file:acl:manage')` | setDownloadable | FolderAclController.java |
 | GET | `/api/file/folders/{id}/permissions` | `hasAuthority('file:view')` | permissions | FolderAclController.java |
 | GET | `/api/file/list` | `hasAuthority('file:view')` | pageFiles | FileController.java |
 | GET | `/api/file/reconciliation` | `hasAuthority('file:folder:manage')` | reconcile | FileReconciliationController.java |

@@ -59,8 +59,6 @@ export function useFilePage() {
   const renameFolderTarget = ref(null)
   const shareDialogVisible = ref(false)
   const shareFileTarget = ref(null)
-  const aclDialogVisible = ref(false)
-  const aclFolder = ref(null)
   const storageApplyVisible = ref(false)
   const previewVisible = ref(false)
   const previewUrl = ref('')
@@ -257,10 +255,6 @@ export function useFilePage() {
     shareFileTarget.value = row
     shareDialogVisible.value = true
   }
-  const openAclDialog = (folder) => {
-    aclFolder.value = folder
-    aclDialogVisible.value = true
-  }
   const openStorageApply = () => { storageApplyVisible.value = true }
 
   // ---- 下载 ----
@@ -358,13 +352,13 @@ export function useFilePage() {
     publicCount, privateCount, incentiveCount, sharedToMeCount,
     storageUsed, storageQuota, storagePercent, storageApplyInfo,
     uploadVisible, createFolderVisible, renameFolderVisible, renameFolderTarget,
-    shareDialogVisible, shareFileTarget, aclDialogVisible, aclFolder, storageApplyVisible,
+    shareDialogVisible, shareFileTarget, storageApplyVisible,
     previewVisible, previewUrl, previewType, previewName, previewSize,
     isAdmin, tabs, currentFolders, canCreateFolder, canManageFolders,
     isPublicRootNonAdmin, canUpload, uploadDisabledReason,
     loadFolderPerms, loadFolders, loadFiles, loadTabCounts, loadStorage, loadStorageApplyInfo, refreshAll,
     switchTab, selectFolder, searchFiles,
-    openUpload, openCreateFolder, openRenameFolder, openShareDialog, openAclDialog, openStorageApply,
+    openUpload, openCreateFolder, openRenameFolder, openShareDialog, openStorageApply,
     handlePreview, handleDownload, handleDelete, handleDeleteFolder,
     formatSize, getFileExt, getFileExtLabel, getFileType,
   }

@@ -525,6 +525,8 @@ local_contracts() {
   # 【2026-11-04 TDD】激励统计页 pane 门禁纯函数单测(utils/incentive-panes.js, 先红后绿)
   run node "$ROOT/scripts/test-miniprogram-incentive-panes.js"
   run "$ROOT/scripts/check-read-stats-migration.sh"
+  # 【T6 2026-11-11 审计整改 P1-11】API 清单内容级新鲜度(mtime 之外的真校验)
+  run "$ROOT/scripts/check-api-list-fresh.sh"
   run "$ROOT/scripts/check-migration-contract.sh"
   run "$ROOT/scripts/check-migration-chain-contract.sh"
   run "$ROOT/scripts/check-mobile-auth-contract.sh"

@@ -47,32 +47,11 @@ export function getSharedToMeCount() {
 
 // === 文件权限体系（Task 5/6 接口）===
 
-// 文件夹角色授权列表 [{roleId, roleName, perms[]}]
-export function getFolderAcl(id) {
-  return request.get(`/file/folders/${id}/acl`)
-}
-
 // 【体检 P1 2026-10-12】ACL 授权面轻量角色字典 [{id, roleName}]——/system/roles 要求
 // system:role:view(仅 admin/0), 05/06 等 file:acl:manage 持有者改走本端点(同权限放行)
 export function getAclRoles() {
   return request.get('/file/folders/acl-roles')
 }
-
-// 保存某角色的权限 {roleId, perms: []}
-export function saveFolderAcl(id, data) {
-  return request.post(`/file/folders/${id}/acl`, data)
-}
-
-// 移除某角色的授权
-export function removeFolderAcl(id, roleId) {
-  return request.delete(`/file/folders/${id}/acl/${roleId}`)
-}
-
-// 下载开关 {downloadable: 0|1}
-export function setFolderDownloadable(id, downloadable) {
-  return request.put(`/file/folders/${id}/download`, { downloadable })
-}
-
 // 当前用户对文件夹的权限视图 {perms: [], downloadable: 0|1}
 export function getFolderPermissions(id) {
   return request.get(`/file/folders/${id}/permissions`)
