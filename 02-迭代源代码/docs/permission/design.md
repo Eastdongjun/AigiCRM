@@ -81,8 +81,12 @@
 
 ## 六、已知问题与待拍板(2026-11-11 底座评估)
 
-1. **统计双 key**: 统计面一部分走 (customer,view) 一部分走 (statistics,view)——管理员须两处配一致,
-   否则"列表能看/看板不算"。统一 key 属口径变更(涉生产配置迁移), 待用户拍板。
+1. **统计双 key**: ✅2026-11-12 裁决A已执行——statistics 域统一单键 statistics:view(V2026.11.12.2:
+   行政按"给全"补绑统计三菜单+dashboard:view 菜单行 permission 置 NULL 退役), 后端 4 端点
+   hasAnyAuthority 收窄单码, PC 路由门禁/布局兜底/MP home 同步。逐角色×端点对账(生产实况推演):
+   系统管理员 7→7 / 销售总监 7→7 / 销售员 7→7(已持 statistics:view, 补绑条件不触发,
+   不误增"统计分析"入口) / 行政 4→7(拍板"给全"接受: 侧栏+统计分析/六项指标/客户排行) /
+   其余角色 0→0。客户域 (customer,view) 与统计域分键是业务分层(列表权限≠看板权限), 不在本次统一范围。
 2. **role_perm_scope 死配置**(生产快照 2026-11-11): incentive 域 8 档全死——激励可见性实际走
    biz_incentive_grant; customer 另有 add/date/export/import/share 死档; 另有 `*/*` 通配 9 行、
    dashboard/score/sea:config 等无消费行。清理属数据治理, 待令(file 域死配置已由 V2026.11.09.1 清过)。

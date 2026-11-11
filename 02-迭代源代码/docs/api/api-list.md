@@ -147,11 +147,11 @@
 | GET | `/api/sea/statistics` | `hasAuthority('sea:view')` | statistics | SeaController.java |
 | GET | `/api/statistics/analysis` | `hasAuthority('statistics:view')` | analysis | StatisticsController.java |
 | GET | `/api/statistics/customer-rankings` | `hasAuthority('statistics:view')` | customerRankings | StatisticsController.java |
-| GET | `/api/statistics/daily-stats` | `hasAnyAuthority('statistics:view','dashboard:view')` | dailyStats | StatisticsController.java |
-| GET | `/api/statistics/dashboard` | `hasAnyAuthority('statistics:view','dashboard:view')` | dashboard | StatisticsController.java |
+| GET | `/api/statistics/daily-stats` | `hasAuthority('statistics:view')` | dailyStats | StatisticsController.java |
+| GET | `/api/statistics/dashboard` | `hasAuthority('statistics:view')` | dashboard | StatisticsController.java |
 | GET | `/api/statistics/indicator-stats` | `hasAuthority('statistics:view')` | indicatorStats | StatisticsController.java |
-| GET | `/api/statistics/team-activities` | `hasAnyAuthority('statistics:view','dashboard:view')` | teamActivities | StatisticsController.java |
-| GET | `/api/statistics/weekly-stats` | `hasAnyAuthority('statistics:view','dashboard:view')` | weeklyStats | StatisticsController.java |
+| GET | `/api/statistics/team-activities` | `hasAuthority('statistics:view')` | teamActivities | StatisticsController.java |
+| GET | `/api/statistics/weekly-stats` | `hasAuthority('statistics:view')` | weeklyStats | StatisticsController.java |
 | GET | `/api/system/audit-logs` | `hasAuthority('system:log:view')` | page | SysAuditLogController.java |
 | GET | `/api/system/configs` | `hasAuthority('system:config:view')` | list | SysConfigController.java |
 | PUT | `/api/system/configs` | `hasAuthority('system:config:edit')` | batchUpdate | SysConfigController.java |

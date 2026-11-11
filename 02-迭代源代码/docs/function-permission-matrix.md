@@ -194,9 +194,9 @@ Legend: `V` view, `C` create, `U` update, `D` delete, `I` import, `E` export, `A
 
 | Menu/Page | Button/Action | API | Permission | Data Scope | Operation Type | PC | Mobile |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 工作台 | View dashboard | `GET /api/statistics/dashboard` | `statistics:view` or `dashboard:view` | Current user/org/group scope inside service | Read/statistics | Yes | Implemented |
-| 工作台 | Daily stats | `GET /api/statistics/daily-stats` | `statistics:view` or `dashboard:view` | Role/org scope | Read/statistics | Yes | Implemented |
-| 工作台 | Weekly stats | `GET /api/statistics/weekly-stats` | `statistics:view` or `dashboard:view` | Role/org scope | Read/statistics | Yes | Implemented |
+| 工作台 | View dashboard | `GET /api/statistics/dashboard` | `statistics:view` | Current user/org/group scope inside service | Read/statistics | Yes | Implemented |
+| 工作台 | Daily stats | `GET /api/statistics/daily-stats` | `statistics:view` | Role/org scope | Read/statistics | Yes | Implemented |
+| 工作台 | Weekly stats | `GET /api/statistics/weekly-stats` | `statistics:view` | Role/org scope | Read/statistics | Yes | Implemented |
 | 工作台 | Indicator stats | `GET /api/statistics/indicator-stats` | `statistics:view` | Role/org scope | Read/statistics | Yes | Implemented |
 
 ## Customer Management
@@ -371,7 +371,7 @@ Legend: `V` view, `C` create, `U` update, `D` delete, `I` import, `E` export, `A
 | Mobile Page | Menu/Entry | Permission | APIs | Notes |
 | --- | --- | --- | --- | --- |
 | Login | `pages/login/index` | Public | `/api/auth/login`, `/api/auth/info` | Existing account/password first; WeChat binding later |
-| Home | `pages/home/index` | Authenticated plus `dashboard:view` or `statistics:view` for dashboard cards | `/api/auth/info`, `/api/statistics/dashboard`, reminder pending/expiring APIs | Shows user, role, dashboard cards and quick entries when permitted |
+| Home | `pages/home/index` | Authenticated plus `statistics:view` for dashboard cards | `/api/auth/info`, `/api/statistics/dashboard`, reminder pending/expiring APIs | Shows user, role, dashboard cards and quick entries when permitted |
 | Mobile Shell | `pages/app/index` | Authenticated and per-entry permission gates from `/api/auth/info` | No extra business API; navigates to registered mobile pages | Mobile counterpart of the PC left menu/application navigation; hides unauthorized app entries |
 | Customer | `pages/customer/index` | `customer:view`, plus action permissions | `/api/customer/list`, `/api/customer/{id}`, `/api/customer/list/counts`, customer form/share/log/contact/finance/indicator APIs | List/detail/counts, scoped create/edit/delete, share/release, logs, contacts create/edit/delete, finance create/delete, relationship score and six indicators are implemented; import/export stay PC-first |
 | File | `pages/files/index` | `file:view`, plus action permissions | `/api/file/list`, `/api/file/download-token`, `/api/file/upload`, folder/share/storage/shared-to-me APIs | Unified file center; preview/download/upload/share/replace/delete/folder management/storage/shared-to-me are implemented; folder ACL read popup removed 2026-11-05 (PC keeps permission settings); ACL mutation stays PC-first |

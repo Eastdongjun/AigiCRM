@@ -40,7 +40,9 @@ const routes = [
         path: 'dashboard',
         name: 'Dashboard',
         component: () => import('@/views/dashboard/index.vue'),
-        meta: { title: '工作台', icon: 'Monitor', permission: 'dashboard:view' }
+        // 【2026-11-12 裁决A】统计单键统一: dashboard:view 退役, 工作台路由门禁改 statistics:view
+        // (角色可见集不变——V2026.11.12.2 已给原 dashboard:view 持有者补绑 statistics:view)
+        meta: { title: '工作台', icon: 'Monitor', permission: 'statistics:view' }
       },
       // 客户管理
       // 【A1 三轮 2026-10-09】客户组四条路由补 parentTitle「客户管理」：此前客户列表/新增客户面包屑只有两级，

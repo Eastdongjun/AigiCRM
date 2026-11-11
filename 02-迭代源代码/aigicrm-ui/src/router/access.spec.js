@@ -4,14 +4,14 @@ import { firstAccessiblePath } from './access'
 const routes = [{
   path: '/',
   children: [
-    { path: 'dashboard', meta: { permission: 'dashboard:view' } },
+    { path: 'dashboard', meta: { permission: 'statistics:view' } },
     { path: 'customer', meta: { permission: 'customer:view' } }
   ]
 }]
 
 describe('firstAccessiblePath', () => {
   it('prefers the first permitted route', () => {
-    expect(firstAccessiblePath(routes, { hasPermission: permission => permission === 'dashboard:view' }))
+    expect(firstAccessiblePath(routes, { hasPermission: permission => permission === 'statistics:view' }))
       .toBe('/dashboard')
   })
 

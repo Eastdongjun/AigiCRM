@@ -33,7 +33,7 @@ Important boundary:
 | Level 1 | Level 2 | Level 3 / Page | Route | Permission | Page Source |
 | --- | --- | --- | --- | --- | --- |
 | Auth | Login | Login page | `/login` | Public | `aigicrm-ui/src/views/login/index.vue` |
-| 工作台 | 工作台 | Overview dashboard | `/dashboard` | `dashboard:view` | `views/dashboard/index.vue` |
+| 工作台 | 工作台 | Overview dashboard | `/dashboard` | `statistics:view` | `views/dashboard/index.vue` |
 | 客户管理 | 客户列表 | List/search/filter/table/export/release | `/customer` | `customer:view` | `views/customer/list.vue` |
 | 客户管理 | 新增客户 | Create customer form | `/customer/add` | `customer:add` | `views/customer/add.vue` |
 | 客户管理 | 编辑客户 | Edit customer form | `/customer/edit/:id` | `customer:edit` | `views/customer/add.vue` |
@@ -164,10 +164,10 @@ Important boundary:
 | Main APIs | `/api/statistics/dashboard`, `/daily-stats`, `/weekly-stats`, `/indicator-stats`, `/team-activities`, reminder pending APIs. |
 | Page functions | Statistic cards, weekly charts, pending reminders, team activities, pending approvals, quick entries. |
 | Click behavior | Cards/quick entries navigate to target menu; approval buttons approve/reject when user has action permission. |
-| Permissions | Route `dashboard:view`; some APIs allow `statistics:view` or `dashboard:view`. |
+| Permissions | Route `statistics:view` (2026-11-12 统一单键, `dashboard:view` 退役); all statistics APIs use `statistics:view`. |
 | Data scope | User/org/role/group scope; team activity should stay within visible scope. |
 | Operation types | Read/statistics, approval status mutation from embedded widget. |
-| Mobile status | Home profile/cards/quick entries and dashboard summary cards are implemented; mobile dashboard contract now verifies frontend permission gates, backend `statistics:view`/`dashboard:view` authorization and scope-aware dashboard counts. Live multi-account fixture QA remains release-level enhancement. |
+| Mobile status | Home profile/cards/quick entries and dashboard summary cards are implemented; mobile dashboard contract now verifies frontend permission gates, backend `statistics:view` authorization and scope-aware dashboard counts. Live multi-account fixture QA remains release-level enhancement. |
 
 ### 6.3 Customer Management
 
@@ -415,7 +415,7 @@ Source references: dashboard `StatisticsQueryService.java:120-152`, daily/weekly
 
 | Module | View Permission | Mutation Permissions | Suggested Mobile Phase |
 | --- | --- | --- | --- |
-| Dashboard | `dashboard:view` | Approval widget uses approval permissions | Mobile dashboard/statistics cards implemented |
+| Dashboard | `statistics:view` | Approval widget uses approval permissions | Mobile dashboard/statistics cards implemented |
 | Customer | `customer:view` | `customer:add/edit/delete/import/export/share`, finance uses `finance:view` | Mobile create/edit/delete/share/release/finance/contact/indicator implemented; import/export remain PC-only |
 | File | `file:view` | `file:upload/edit/delete/share/folder:manage/acl:manage` | Mobile preview/download/upload/share/delete/folder management implemented; folder ACL read popup removed 2026-11-05 (PC keeps permission settings); ACL mutation remains PC-only |
 | Incentive | `incentive:view` | `incentive:add/edit/delete/read-stats` | Mobile query/upload/edit/delete/read-state/stats implemented; category config remains PC-only |

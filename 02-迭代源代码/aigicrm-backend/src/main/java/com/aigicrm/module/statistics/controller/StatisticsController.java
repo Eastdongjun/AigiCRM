@@ -14,7 +14,7 @@ import java.util.Map;
  *
  * 【需求】统计看板/日报/周报/指标排行/经营分析/团队动态
  * 【方法】数据查询与组装全部委托 StatisticsQueryService（分层约束：Controller 不直查 Mapper）
- * 【业务规则】统计接口权限：statistics:view / dashboard:view；指标详情需 statistics:view
+ * 【业务规则】统计接口权限：统一单键 statistics:view(2026-11-12 裁决A, dashboard:view 退役)；指标详情同码
  */
 @RestController
 @RequestMapping("/api/statistics")
@@ -24,19 +24,19 @@ public class StatisticsController {
     private final StatisticsQueryService statisticsQueryService;
 
     @GetMapping("/dashboard")
-    @PreAuthorize("hasAnyAuthority('statistics:view','dashboard:view')")
+    @PreAuthorize("hasAuthority('statistics:view')")
     public Result<Map<String, Object>> dashboard() {
         return Result.ok(statisticsQueryService.dashboard());
     }
 
     @GetMapping("/daily-stats")
-    @PreAuthorize("hasAnyAuthority('statistics:view','dashboard:view')")
+    @PreAuthorize("hasAuthority('statistics:view')")
     public Result<Map<String, Object>> dailyStats() {
         return Result.ok(statisticsQueryService.dailyStats());
     }
 
     @GetMapping("/weekly-stats")
-    @PreAuthorize("hasAnyAuthority('statistics:view','dashboard:view')")
+    @PreAuthorize("hasAuthority('statistics:view')")
     public Result<Map<String, Object>> weeklyStats() {
         return Result.ok(statisticsQueryService.weeklyStats());
     }
@@ -62,7 +62,7 @@ public class StatisticsController {
     }
 
     @GetMapping("/team-activities")
-    @PreAuthorize("hasAnyAuthority('statistics:view','dashboard:view')")
+    @PreAuthorize("hasAuthority('statistics:view')")
     public Result<List<Map<String, Object>>> teamActivities() {
         return Result.ok(statisticsQueryService.teamActivities());
     }

@@ -214,10 +214,11 @@ class PermissionBehaviorMatrixTest {
     }
 
     @Test
-    void dashboard_withDashboardView_200() throws Exception {
-        org.mockito.Mockito.when(statisticsQueryService.dashboard()).thenReturn(java.util.Map.of());
+    void dashboard_withRetiredDashboardView_403() throws Exception {
+        // 【2026-11-12 裁决A】dashboard:view 已退役: 持它(且无 statistics:view)访问统计端点应 403
         mockMvc.perform(get("/api/statistics/dashboard").accept(MediaType.APPLICATION_JSON).with(as("dashboard:view")))
-                .andExpect(status().isOk());
+                .andExpect(status().isForbidden());
+        verifyNoInteractions(statisticsQueryService);
     }
 
     @Test

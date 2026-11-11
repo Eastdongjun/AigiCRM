@@ -338,7 +338,8 @@ const resetInactivityTimer = () => {
 onMounted(async () => {
   try {
     await userStore.fetchUserInfo()
-    if (route.path === '/dashboard' && !userStore.hasPermission('dashboard:view')) {
+    // 【2026-11-12 裁决A】dashboard:view 退役, 工作台兜底判断与路由门禁同改 statistics:view
+    if (route.path === '/dashboard' && !userStore.hasPermission('statistics:view')) {
       router.replace(firstAccessiblePath())
     }
     // 路由级权限守卫：直接输 URL 访问无权限页面 → 跳回首页（菜单已隐藏的页面此处兜底）

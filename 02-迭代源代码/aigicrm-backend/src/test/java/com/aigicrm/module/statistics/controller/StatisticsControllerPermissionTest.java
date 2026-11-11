@@ -11,14 +11,15 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 class StatisticsControllerPermissionTest {
 
     @Test
-    void dashboardAndTrendEndpointsAcceptDashboardOrStatisticsView() throws Exception {
-        assertEquals("hasAnyAuthority('statistics:view','dashboard:view')",
+    void dashboardAndTrendEndpointsRequireStatisticsViewSingleKey() throws Exception {
+        // 【2026-11-12 裁决A】统计单键统一: dashboard:view 退役, 全端点 hasAuthority('statistics:view')
+        assertEquals("hasAuthority('statistics:view')",
                 authorization("dashboard"));
-        assertEquals("hasAnyAuthority('statistics:view','dashboard:view')",
+        assertEquals("hasAuthority('statistics:view')",
                 authorization("dailyStats"));
-        assertEquals("hasAnyAuthority('statistics:view','dashboard:view')",
+        assertEquals("hasAuthority('statistics:view')",
                 authorization("weeklyStats"));
-        assertEquals("hasAnyAuthority('statistics:view','dashboard:view')",
+        assertEquals("hasAuthority('statistics:view')",
                 authorization("teamActivities"));
     }
 

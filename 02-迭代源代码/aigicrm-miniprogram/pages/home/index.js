@@ -129,7 +129,8 @@ Page({
   },
 
   loadHomeData() {
-    const canViewDashboard = hasPermission('dashboard:view') || hasPermission('statistics:view')
+    // 【2026-11-12 裁决A】统计单键统一: dashboard:view 退役, 统计卡片门禁仅看 statistics:view
+    const canViewDashboard = hasPermission('statistics:view')
     this.setData({ canViewDashboard, showDashboardCards: canViewDashboard, cards: [], overview: buildOverview([]) })
     // 【PM4 2026-10-07】各请求收进 tasks 并聚合返回: 下拉刷新(onPullDownRefresh)用它收尾
     // stopPullDownRefresh;各链路自带 catch(错误已在各自分支处理), 聚合结果恒 resolve

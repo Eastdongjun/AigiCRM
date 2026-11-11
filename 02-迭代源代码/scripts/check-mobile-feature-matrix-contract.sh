@@ -20,8 +20,8 @@ require_blueprint_line() {
   grep -Fq "$expected" "$BLUEPRINT" || fail "system functional blueprint mobile status is stale: $expected"
 }
 
-require_line '| 工作台 | Daily stats | `GET /api/statistics/daily-stats` | `statistics:view` or `dashboard:view` | Role/org scope | Read/statistics | Yes | Implemented |'
-require_line '| 工作台 | Weekly stats | `GET /api/statistics/weekly-stats` | `statistics:view` or `dashboard:view` | Role/org scope | Read/statistics | Yes | Implemented |'
+require_line '| 工作台 | Daily stats | `GET /api/statistics/daily-stats` | `statistics:view` | Role/org scope | Read/statistics | Yes | Implemented |'
+require_line '| 工作台 | Weekly stats | `GET /api/statistics/weekly-stats` | `statistics:view` | Role/org scope | Read/statistics | Yes | Implemented |'
 require_line '| 工作台 | Indicator stats | `GET /api/statistics/indicator-stats` | `statistics:view` | Role/org scope | Read/statistics | Yes | Implemented |'
 require_line '| Customer create/edit | No mobile admin | Implemented scoped | Implemented scoped | Implemented own/scoped | Implemented scoped | No | No |'
 require_line '| File upload/share/delete | No mobile admin | Upload/share/delete implemented by granted row action | Upload/delete implemented by granted row action | Upload own/share/delete if granted | Upload/share/delete if granted | Yes | Yes |'
@@ -35,7 +35,7 @@ if grep -Fq 'Mobile customer detail is currently list/detail-card level' "$MATRI
 fi
 grep -Fq '| Mobile operational scope | Mobile supports field use with shared backend identity and scope: read, search, preview/download, upload where granted, mark-read, approve/reject, customer follow-up/contact/finance/indicator updates, public-sea claim/edit/delete where backend row grants allow, and statistics/ranking views. |' "$BLUEPRINT" \
   || fail "system functional blueprint mobile operating principle is stale"
-grep -Fq '| Dashboard | `dashboard:view` | Approval widget uses approval permissions | Mobile dashboard/statistics cards implemented |' "$BLUEPRINT" \
+grep -Fq '| Dashboard | `statistics:view` | Approval widget uses approval permissions | Mobile dashboard/statistics cards implemented |' "$BLUEPRINT" \
   || fail "system functional blueprint dashboard mobile phase is stale"
 grep -Fq '| Approval | `approval:view` | `approval:approve/reject` | Mobile list/detail/approve/reject and business-flow submission implemented |' "$BLUEPRINT" \
   || fail "system functional blueprint approval mobile phase is stale"

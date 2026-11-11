@@ -61,7 +61,7 @@ require_line '暂无可用应用' "$APP_WXML"
 reject_line "item.key === 'customer'" "$APP_WXML"
 reject_line 'apps.length===0' "$APP_WXML"
 require_line '| Mobile Shell | `pages/app/index` | Authenticated and per-entry permission gates from `/api/auth/info` | No extra business API; navigates to registered mobile pages | Mobile counterpart of the PC left menu/application navigation; hides unauthorized app entries |' "$MATRIX"
-require_line '| Home | `pages/home/index` | Authenticated plus `dashboard:view` or `statistics:view` for dashboard cards | `/api/auth/info`, `/api/statistics/dashboard`, reminder pending/expiring APIs | Shows user, role, dashboard cards and quick entries when permitted |' "$MATRIX"
+require_line '| Home | `pages/home/index` | Authenticated plus `statistics:view` for dashboard cards | `/api/auth/info`, `/api/statistics/dashboard`, reminder pending/expiring APIs | Shows user, role, dashboard cards and quick entries when permitted |' "$MATRIX"
 
 # 【全局转发 2026-10-27】app.js 全局注入默认 onShareAppMessage: 删掉这段, 右上角「…」菜单
 # 的「转发」入口会整体消失(微信只在页面定义了 onShareAppMessage 时才展示), 手机上无从转发。

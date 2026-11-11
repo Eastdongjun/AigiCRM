@@ -131,7 +131,8 @@ grep -q 'daily-stats' "$backend" || { echo "FAIL: backend daily statistics route
 grep -q 'weekly-stats' "$backend" || { echo "FAIL: backend weekly statistics route is missing" >&2; exit 1; }
 grep -q 'analysis' "$backend" || { echo "FAIL: backend analysis route is missing" >&2; exit 1; }
 grep -q "@PreAuthorize(\"hasAuthority('statistics:view')\")" "$backend" || { echo "FAIL: statistics backend view permission is missing" >&2; exit 1; }
-grep -q "@PreAuthorize(\"hasAnyAuthority('statistics:view','dashboard:view')\")" "$backend" || { echo "FAIL: statistics backend dashboard fallback permission is missing" >&2; exit 1; }
+# 【2026-11-12 裁决A】统计单键统一: 旧双码 fallback 形态反钉防复活
+! grep -q "@PreAuthorize(\"hasAnyAuthority('statistics:view','dashboard:view')\")" "$backend" || { echo "FAIL: retired dual-key statistics/dashboard OR still present" >&2; exit 1; }
 grep -q "customerService.dailyNewCustomers()" "$service" || { echo "FAIL: daily customer stats do not use scope-aware customer service" >&2; exit 1; }
 grep -q "customerService.weeklyNewCustomers()" "$service" || { echo "FAIL: weekly customer stats do not use scope-aware customer service" >&2; exit 1; }
 grep -q "applyFileScope(" "$service" || { echo "FAIL: file statistics do not apply account scope" >&2; exit 1; }

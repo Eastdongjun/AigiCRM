@@ -25,7 +25,7 @@
 | `auth.feedback` | 认证/个人中心 | PC 支持/联系兜底入口 | `pages/profile/index` 与 `pages/profile/feedback/index` | 登录即可 | 当前账号本地草稿 | 本地反馈草稿 | 已实现 |
 | `auth.wechatBinding` | 认证/个人中心 | 预留微信账号绑定 | `pages/profile/index` 与 `pages/profile/wechat/index` | 登录即可 | 当前账号 | 仅绑定状态说明;OAuth/openid 绑定未接 | 已实现 |
 | `auth.legalDocs` | 认证/个人中心 | 公开/法务文档 | `pages/profile/about/index`、`pages/profile/agreement/index`、`pages/profile/privacy/index` | 公开/登录 | 静态产品文档 | 读取 | 已实现 |
-| `dashboard.view` | 工作台 | `/` | `pages/home/index` | `dashboard:view` 或 `statistics:view` | 当前用户范围 | 读取/统计 | 已实现 |
+| `dashboard.view` | 工作台 | `/` | `pages/home/index` | `statistics:view` | 当前用户范围 | 读取/统计 | 已实现 |
 | `app.launcher` | 小程序外壳 | PC 左侧菜单/应用导航 | `pages/app/index` | 登录即可 | 当前账号权限 | 导航至已授权模块 | 已实现 |
 | `customer.list` | 客户 | `/customer` | `pages/customer/index` | `customer:view` | 统一客户数据范围 | 读取 | 已实现 |
 | `customer.detail` | 客户 | `/customer/detail/:id` | `pages/customer/detail/index` | `customer:view` | 负责人/分享/组织范围 | 读取 | 已实现 |

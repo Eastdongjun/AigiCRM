@@ -36,7 +36,7 @@ describe('layout B1: 普通改密走 logout 清理口令遗留键', () => {
     getUserInfo.mockResolvedValue({ data: {
       userId: 1, username: 'NO001', realName: '测试', avatar: '',
       deptName: '', officeName: '', roles: [], roleName: '', dataScope: 'self',
-      permissions: ['dashboard:view'], menus: []
+      permissions: ['statistics:view'], menus: []
     } })
     changePassword.mockResolvedValue({})
   })

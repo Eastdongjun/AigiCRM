@@ -839,13 +839,13 @@
   {
    "method": "GET",
    "path": "/api/statistics/daily-stats",
-   "permission": "hasAnyAuthority('statistics:view','dashboard:view')",
+   "permission": "hasAuthority('statistics:view')",
    "handler": "dailyStats"
   },
   {
    "method": "GET",
    "path": "/api/statistics/dashboard",
-   "permission": "hasAnyAuthority('statistics:view','dashboard:view')",
+   "permission": "hasAuthority('statistics:view')",
    "handler": "dashboard"
   },
   {
@@ -857,13 +857,13 @@
   {
    "method": "GET",
    "path": "/api/statistics/team-activities",
-   "permission": "hasAnyAuthority('statistics:view','dashboard:view')",
+   "permission": "hasAuthority('statistics:view')",
    "handler": "teamActivities"
   },
   {
    "method": "GET",
    "path": "/api/statistics/weekly-stats",
-   "permission": "hasAnyAuthority('statistics:view','dashboard:view')",
+   "permission": "hasAuthority('statistics:view')",
    "handler": "weeklyStats"
   },
   {
