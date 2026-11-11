@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # API 清单生成: 扫描 Spring controller 源码, 提取接口路径/方法/权限码
 # 用法: gen-api.py <controller根目录> <输出md>
-import os, re, sys, datetime, tempfile
+import os, re, sys, datetime, tempfile, json
 
 METHOD_MAP = {
     'GetMapping': 'GET', 'PostMapping': 'POST', 'PutMapping': 'PUT',
@@ -104,6 +104,15 @@ def main(ctrl_dir, out_path):
     out_path = guard_repo_path(out_path, '输出文件', allow_tempdir=True)
     apis = extract_apis(ctrl_dir)
     apis.sort(key=lambda a: (a['path'], a['method']))
+    # 【底座收敛 2026-11-11】机器可读契约: 同名 .json(端点×方法×权限码三元组, 供
+    # check-api-contract-diff.sh 做破坏性变更检测; 完整 OpenAPI schema 属 P2 运行态生成)
+    contract = {
+        'generated_at': str(datetime.date.today()),
+        'count': len(apis),
+        'endpoints': [{'method': a['method'], 'path': a['path'], 'permission': a['perm'], 'handler': a['func']} for a in apis],
+    }
+    write_text(os.path.splitext(out_path)[0] + '.json',
+               json.dumps(contract, ensure_ascii=False, indent=1, sort_keys=False) + '\n', 'API 契约 json')
     L = []
     L.append('# AIGICRM API 清单(自动生成)')
     L.append('')

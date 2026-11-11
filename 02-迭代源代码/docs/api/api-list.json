@@ -1,0 +1,1368 @@
+{
+ "generated_at": "2026-11-12",
+ "count": 227,
+ "endpoints": [
+  {
+   "method": "POST",
+   "path": "/api/approval/config",
+   "permission": "hasAuthority('system:config:edit')",
+   "handler": "create"
+  },
+  {
+   "method": "GET",
+   "path": "/api/approval/config/list",
+   "permission": "hasAuthority('system:config:view')",
+   "handler": "list"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/approval/config/{id}",
+   "permission": "hasAuthority('system:config:edit')",
+   "handler": "delete"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/approval/config/{id}",
+   "permission": "hasAuthority('system:config:edit')",
+   "handler": "update"
+  },
+  {
+   "method": "GET",
+   "path": "/api/approval/list",
+   "permission": "hasAuthority('approval:view')",
+   "handler": "page"
+  },
+  {
+   "method": "GET",
+   "path": "/api/approval/statistics",
+   "permission": "hasAuthority('approval:view')",
+   "handler": "statistics"
+  },
+  {
+   "method": "POST",
+   "path": "/api/approval/submit",
+   "permission": "hasAuthority('approval:view')",
+   "handler": "submit"
+  },
+  {
+   "method": "GET",
+   "path": "/api/approval/{id}",
+   "permission": "hasAuthority('approval:view')",
+   "handler": "detail"
+  },
+  {
+   "method": "POST",
+   "path": "/api/approval/{id}/approve",
+   "permission": "hasAuthority('approval:approve')",
+   "handler": "approve"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/approval/{id}/nodes/{nodeId}/transfer",
+   "permission": "hasAuthority('approval:view')",
+   "handler": "transferNode"
+  },
+  {
+   "method": "POST",
+   "path": "/api/approval/{id}/reject",
+   "permission": "hasAuthority('approval:reject')",
+   "handler": "reject"
+  },
+  {
+   "method": "POST",
+   "path": "/api/auth/forgot-password/lookup",
+   "permission": "匿名",
+   "handler": "forgotPasswordLookup"
+  },
+  {
+   "method": "POST",
+   "path": "/api/auth/forgot-password/reset",
+   "permission": "匿名",
+   "handler": "forgotPasswordReset"
+  },
+  {
+   "method": "POST",
+   "path": "/api/auth/forgot-password/send-code",
+   "permission": "匿名",
+   "handler": "forgotPasswordSendCode"
+  },
+  {
+   "method": "GET",
+   "path": "/api/auth/info",
+   "permission": "登录即可",
+   "handler": "getUserInfo"
+  },
+  {
+   "method": "POST",
+   "path": "/api/auth/login",
+   "permission": "匿名",
+   "handler": "login"
+  },
+  {
+   "method": "POST",
+   "path": "/api/auth/logout",
+   "permission": "登录即可",
+   "handler": "logout"
+  },
+  {
+   "method": "GET",
+   "path": "/api/auth/permission-explain",
+   "permission": "isAuthenticated()",
+   "handler": "explain"
+  },
+  {
+   "method": "POST",
+   "path": "/api/auth/switch-group",
+   "permission": "登录即可",
+   "handler": "switchGroup"
+  },
+  {
+   "method": "GET",
+   "path": "/api/common/scope/depts",
+   "permission": "登录即可",
+   "handler": "depts"
+  },
+  {
+   "method": "GET",
+   "path": "/api/common/scope/users",
+   "permission": "登录即可",
+   "handler": "users"
+  },
+  {
+   "method": "POST",
+   "path": "/api/customer/add",
+   "permission": "hasAuthority('customer:add')",
+   "handler": "create"
+  },
+  {
+   "method": "GET",
+   "path": "/api/customer/check-name",
+   "permission": "hasAuthority('customer:view')",
+   "handler": "checkName"
+  },
+  {
+   "method": "GET",
+   "path": "/api/customer/export",
+   "permission": "hasAuthority('customer:export')",
+   "handler": "export"
+  },
+  {
+   "method": "POST",
+   "path": "/api/customer/full",
+   "permission": "hasAuthority('customer:add')",
+   "handler": "createFull"
+  },
+  {
+   "method": "GET",
+   "path": "/api/customer/group-names",
+   "permission": "hasAuthority('customer:add') or hasAuthority('customer:edit')",
+   "handler": "groupNames"
+  },
+  {
+   "method": "POST",
+   "path": "/api/customer/import",
+   "permission": "hasAuthority('customer:import')",
+   "handler": "importCustomers"
+  },
+  {
+   "method": "GET",
+   "path": "/api/customer/import/template",
+   "permission": "hasAuthority('customer:import')",
+   "handler": "downloadTemplate"
+  },
+  {
+   "method": "GET",
+   "path": "/api/customer/list",
+   "permission": "hasAuthority('customer:view')",
+   "handler": "page"
+  },
+  {
+   "method": "GET",
+   "path": "/api/customer/list/counts",
+   "permission": "hasAuthority('customer:view')",
+   "handler": "listCounts"
+  },
+  {
+   "method": "GET",
+   "path": "/api/customer/list/counts-by-filter",
+   "permission": "hasAuthority('customer:view')",
+   "handler": "countsByFilter"
+  },
+  {
+   "method": "GET",
+   "path": "/api/customer/rankings",
+   "permission": "hasAuthority('score:view') or hasAuthority('ranking:customer:view') or hasAuthority('statistics:view')",
+   "handler": "rankings"
+  },
+  {
+   "method": "GET",
+   "path": "/api/customer/statistics",
+   "permission": "hasAuthority('customer:view')",
+   "handler": "statistics"
+  },
+  {
+   "method": "GET",
+   "path": "/api/customer/users/simple",
+   "permission": "hasAuthority('customer:view')",
+   "handler": "simpleUserList"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/customer/{id}",
+   "permission": "hasAuthority('customer:delete')",
+   "handler": "delete"
+  },
+  {
+   "method": "GET",
+   "path": "/api/customer/{id}",
+   "permission": "hasAuthority('customer:view')",
+   "handler": "getById"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/customer/{id}",
+   "permission": "hasAuthority('customer:edit')",
+   "handler": "update"
+  },
+  {
+   "method": "POST",
+   "path": "/api/customer/{id}/archive",
+   "permission": "hasAuthority('customer:edit')",
+   "handler": "archive"
+  },
+  {
+   "method": "GET",
+   "path": "/api/customer/{id}/contacts",
+   "permission": "hasAuthority('customer:view')",
+   "handler": "getContacts"
+  },
+  {
+   "method": "POST",
+   "path": "/api/customer/{id}/contacts",
+   "permission": "hasAuthority('customer:edit')",
+   "handler": "addContact"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/customer/{id}/contacts/{contactId}",
+   "permission": "hasAuthority('customer:edit')",
+   "handler": "deleteContact"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/customer/{id}/contacts/{contactId}",
+   "permission": "hasAuthority('customer:edit')",
+   "handler": "updateContact"
+  },
+  {
+   "method": "GET",
+   "path": "/api/customer/{id}/events",
+   "permission": "hasAuthority('customer:view')",
+   "handler": "getEvents"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/customer/{id}/full",
+   "permission": "hasAuthority('customer:edit')",
+   "handler": "updateFull"
+  },
+  {
+   "method": "GET",
+   "path": "/api/customer/{id}/indicator",
+   "permission": "hasAuthority('customer:view')",
+   "handler": "getIndicator"
+  },
+  {
+   "method": "POST",
+   "path": "/api/customer/{id}/indicator",
+   "permission": "hasAuthority('customer:edit')",
+   "handler": "saveIndicator"
+  },
+  {
+   "method": "GET",
+   "path": "/api/customer/{id}/invoices",
+   "permission": "hasAuthority('customer:view')",
+   "handler": "getInvoices"
+  },
+  {
+   "method": "GET",
+   "path": "/api/customer/{id}/invoices/summary",
+   "permission": "hasAuthority('customer:view')",
+   "handler": "getInvoiceSummary"
+  },
+  {
+   "method": "GET",
+   "path": "/api/customer/{id}/logs",
+   "permission": "hasAuthority('customer:view')",
+   "handler": "getLogs"
+  },
+  {
+   "method": "POST",
+   "path": "/api/customer/{id}/logs",
+   "permission": "hasAuthority('customer:edit')",
+   "handler": "addLog"
+  },
+  {
+   "method": "GET",
+   "path": "/api/customer/{id}/payments",
+   "permission": "hasAuthority('customer:view')",
+   "handler": "getPayments"
+  },
+  {
+   "method": "GET",
+   "path": "/api/customer/{id}/payments/summary",
+   "permission": "hasAuthority('customer:view')",
+   "handler": "getPaymentSummary"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/customer/{id}/relationship",
+   "permission": "hasAuthority('customer:edit')",
+   "handler": "saveRelationship"
+  },
+  {
+   "method": "POST",
+   "path": "/api/customer/{id}/release",
+   "permission": "hasAuthority('customer:edit')",
+   "handler": "release"
+  },
+  {
+   "method": "POST",
+   "path": "/api/customer/{id}/restore",
+   "permission": "hasAuthority('customer:edit')",
+   "handler": "restore"
+  },
+  {
+   "method": "GET",
+   "path": "/api/customer/{id}/shares",
+   "permission": "hasAuthority('customer:view')",
+   "handler": "getShares"
+  },
+  {
+   "method": "POST",
+   "path": "/api/customer/{id}/shares",
+   "permission": "hasAuthority('customer:edit')",
+   "handler": "addShares"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/customer/{id}/shares/{userId}",
+   "permission": "hasAuthority('customer:edit')",
+   "handler": "removeShare"
+  },
+  {
+   "method": "GET",
+   "path": "/api/customer/{id}/stage-amounts",
+   "permission": "hasAuthority('customer:view')",
+   "handler": "getStageAmounts"
+  },
+  {
+   "method": "POST",
+   "path": "/api/customer/{id}/stage-amounts",
+   "permission": "hasAuthority('finance:manage') or hasAuthority('customer:finance:edit') or (hasAuthority('customer:edit') and hasAuthority('finance:view'))",
+   "handler": "saveStageAmount"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/draft/{draftType}",
+   "permission": "isAuthenticated()",
+   "handler": "delete"
+  },
+  {
+   "method": "GET",
+   "path": "/api/draft/{draftType}",
+   "permission": "isAuthenticated()",
+   "handler": "get"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/draft/{draftType}",
+   "permission": "isAuthenticated()",
+   "handler": "save"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/draft/{draftType}/force",
+   "permission": "isAuthenticated()",
+   "handler": "forceSave"
+  },
+  {
+   "method": "GET",
+   "path": "/api/file/download-token",
+   "permission": "登录即可",
+   "handler": "downloadToken"
+  },
+  {
+   "method": "GET",
+   "path": "/api/file/download/**",
+   "permission": "hasAuthority('file:view')",
+   "handler": "download"
+  },
+  {
+   "method": "GET",
+   "path": "/api/file/download/public/**",
+   "permission": "匿名",
+   "handler": "downloadPublic"
+  },
+  {
+   "method": "GET",
+   "path": "/api/file/download/{id}",
+   "permission": "hasAuthority('file:view')",
+   "handler": "downloadById"
+  },
+  {
+   "method": "GET",
+   "path": "/api/file/folders",
+   "permission": "hasAuthority('file:view')",
+   "handler": "getFolderTree"
+  },
+  {
+   "method": "POST",
+   "path": "/api/file/folders",
+   "permission": "hasAuthority('file:folder:manage')",
+   "handler": "createFolder"
+  },
+  {
+   "method": "GET",
+   "path": "/api/file/folders/acl-roles",
+   "permission": "hasAuthority('file:acl:manage')",
+   "handler": "aclRoles"
+  },
+  {
+   "method": "GET",
+   "path": "/api/file/folders/type-defaults",
+   "permission": "hasAuthority('file:acl:manage')",
+   "handler": "listTypeDefaults"
+  },
+  {
+   "method": "POST",
+   "path": "/api/file/folders/type-defaults",
+   "permission": "hasAuthority('file:acl:manage')",
+   "handler": "saveTypeDefault"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/file/folders/type-defaults/{id}",
+   "permission": "hasAuthority('file:acl:manage')",
+   "handler": "removeTypeDefault"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/file/folders/type-defaults/{id}/renew",
+   "permission": "hasAuthority('file:acl:manage')",
+   "handler": "renewTypeDefault"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/file/folders/{id}",
+   "permission": "hasAuthority('file:folder:manage')",
+   "handler": "deleteFolder"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/file/folders/{id}",
+   "permission": "hasAuthority('file:folder:manage')",
+   "handler": "renameFolder"
+  },
+  {
+   "method": "GET",
+   "path": "/api/file/folders/{id}/permissions",
+   "permission": "hasAuthority('file:view')",
+   "handler": "permissions"
+  },
+  {
+   "method": "GET",
+   "path": "/api/file/list",
+   "permission": "hasAuthority('file:view')",
+   "handler": "pageFiles"
+  },
+  {
+   "method": "GET",
+   "path": "/api/file/reconciliation",
+   "permission": "hasAuthority('file:folder:manage')",
+   "handler": "reconcile"
+  },
+  {
+   "method": "GET",
+   "path": "/api/file/shared-to-me",
+   "permission": "hasAuthority('file:view')",
+   "handler": "sharedToMe"
+  },
+  {
+   "method": "GET",
+   "path": "/api/file/shared-to-me/count",
+   "permission": "hasAuthority('file:view')",
+   "handler": "sharedToMeCount"
+  },
+  {
+   "method": "GET",
+   "path": "/api/file/storage",
+   "permission": "hasAuthority('file:view')",
+   "handler": "getStorageInfo"
+  },
+  {
+   "method": "GET",
+   "path": "/api/file/storage/apply-info",
+   "permission": "hasAuthority('file:view')",
+   "handler": "storageApplyInfo"
+  },
+  {
+   "method": "POST",
+   "path": "/api/file/upload",
+   "permission": "hasAuthority('file:upload')",
+   "handler": "upload"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/file/{id}",
+   "permission": "hasAuthority('file:delete')",
+   "handler": "deleteFile"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/file/{id}/rename",
+   "permission": "hasAuthority('file:edit')",
+   "handler": "renameFile"
+  },
+  {
+   "method": "POST",
+   "path": "/api/file/{id}/replace",
+   "permission": "hasAuthority('file:edit')",
+   "handler": "replaceFile"
+  },
+  {
+   "method": "POST",
+   "path": "/api/file/{id}/share",
+   "permission": "hasAuthority('file:share')",
+   "handler": "shareFile"
+  },
+  {
+   "method": "GET",
+   "path": "/api/incentive/categories",
+   "permission": "hasAuthority('incentive:view')",
+   "handler": "getCategoryTree"
+  },
+  {
+   "method": "POST",
+   "path": "/api/incentive/categories",
+   "permission": "hasAuthority('incentive:edit')",
+   "handler": "createCategory"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/incentive/categories/{id}",
+   "permission": "hasAuthority('incentive:edit')",
+   "handler": "deleteCategory"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/incentive/categories/{id}",
+   "permission": "hasAuthority('incentive:edit')",
+   "handler": "updateCategory"
+  },
+  {
+   "method": "GET",
+   "path": "/api/incentive/category-stats",
+   "permission": "hasAuthority('incentive:stats:view')",
+   "handler": "categoryStats"
+  },
+  {
+   "method": "GET",
+   "path": "/api/incentive/customer-records",
+   "permission": "hasAuthority('incentive:view')",
+   "handler": "customerRecords"
+  },
+  {
+   "method": "GET",
+   "path": "/api/incentive/permission/check",
+   "permission": "登录即可",
+   "handler": "check"
+  },
+  {
+   "method": "POST",
+   "path": "/api/incentive/permission/grant",
+   "permission": "hasAuthority('system:config:edit')",
+   "handler": "grant"
+  },
+  {
+   "method": "GET",
+   "path": "/api/incentive/permission/list",
+   "permission": "hasAuthority('system:config:view')",
+   "handler": "list"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/incentive/permission/{id}",
+   "permission": "hasAuthority('system:config:edit')",
+   "handler": "revoke"
+  },
+  {
+   "method": "GET",
+   "path": "/api/incentive/ranking",
+   "permission": "hasAnyAuthority('incentive:stats:view','incentive:rank:view')",
+   "handler": "ranking"
+  },
+  {
+   "method": "GET",
+   "path": "/api/incentive/read-ranking",
+   "permission": "hasAuthority('incentive:read-ranking:view')",
+   "handler": "readRanking"
+  },
+  {
+   "method": "GET",
+   "path": "/api/incentive/read-stats",
+   "permission": "hasAuthority('incentive:read-stats')",
+   "handler": "readStats"
+  },
+  {
+   "method": "GET",
+   "path": "/api/incentive/records",
+   "permission": "hasAuthority('incentive:view')",
+   "handler": "getRecords"
+  },
+  {
+   "method": "POST",
+   "path": "/api/incentive/records",
+   "permission": "hasAuthority('incentive:add')",
+   "handler": "addRecord"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/incentive/records/{id}",
+   "permission": "hasAuthority('incentive:view')",
+   "handler": "deleteRecord"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/incentive/records/{id}",
+   "permission": "hasAuthority('incentive:view')",
+   "handler": "updateRecord"
+  },
+  {
+   "method": "POST",
+   "path": "/api/incentive/records/{id}/read",
+   "permission": "hasAuthority('incentive:view')",
+   "handler": "markRead"
+  },
+  {
+   "method": "POST",
+   "path": "/api/incentive/records/{id}/remove-file",
+   "permission": "hasAuthority('incentive:view')",
+   "handler": "removeFile"
+  },
+  {
+   "method": "GET",
+   "path": "/api/incentive/score/customer/{customerId}",
+   "permission": "hasAuthority('incentive:view')",
+   "handler": "getScoreByCustomer"
+  },
+  {
+   "method": "GET",
+   "path": "/api/incentive/scoreboard",
+   "permission": "hasAnyAuthority('incentive:stats:view','incentive:rank:view')",
+   "handler": "scoreboard"
+  },
+  {
+   "method": "GET",
+   "path": "/api/incentive/users",
+   "permission": "hasAuthority('incentive:view')",
+   "handler": "userList"
+  },
+  {
+   "method": "POST",
+   "path": "/api/reminder/ensure-expiring",
+   "permission": "hasAuthority('reminder:view')",
+   "handler": "ensureExpiring"
+  },
+  {
+   "method": "GET",
+   "path": "/api/reminder/expiring-list",
+   "permission": "hasAuthority('reminder:view')",
+   "handler": "expiringList"
+  },
+  {
+   "method": "GET",
+   "path": "/api/reminder/list",
+   "permission": "hasAuthority('reminder:view')",
+   "handler": "page"
+  },
+  {
+   "method": "GET",
+   "path": "/api/reminder/pending-count",
+   "permission": "hasAuthority('reminder:view')",
+   "handler": "pendingCount"
+  },
+  {
+   "method": "GET",
+   "path": "/api/reminder/{id}",
+   "permission": "hasAuthority('reminder:view')",
+   "handler": "detail"
+  },
+  {
+   "method": "POST",
+   "path": "/api/reminder/{id}/process",
+   "permission": "hasAuthority('reminder:view')",
+   "handler": "process"
+  },
+  {
+   "method": "POST",
+   "path": "/api/score/entries/batch",
+   "permission": "hasAuthority('score:entry')",
+   "handler": "batchSave"
+  },
+  {
+   "method": "GET",
+   "path": "/api/score/export/grid",
+   "permission": "hasAuthority('score:manage')",
+   "handler": "exportGrid"
+  },
+  {
+   "method": "GET",
+   "path": "/api/score/grid",
+   "permission": "hasAuthority('score:view')",
+   "handler": "getGrid"
+  },
+  {
+   "method": "POST",
+   "path": "/api/score/items",
+   "permission": "hasAuthority('score:manage')",
+   "handler": "addItem"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/score/items/{id}",
+   "permission": "hasAuthority('score:manage')",
+   "handler": "deleteItem"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/score/items/{id}",
+   "permission": "hasAuthority('score:manage')",
+   "handler": "updateItem"
+  },
+  {
+   "method": "GET",
+   "path": "/api/score/ranking",
+   "permission": "hasAuthority('score:view')",
+   "handler": "ranking"
+  },
+  {
+   "method": "GET",
+   "path": "/api/score/ranking/dept-members",
+   "permission": "hasAuthority('score:view')",
+   "handler": "deptMembers"
+  },
+  {
+   "method": "GET",
+   "path": "/api/score/ranking/stats",
+   "permission": "hasAuthority('score:view')",
+   "handler": "rankingStats"
+  },
+  {
+   "method": "GET",
+   "path": "/api/sea/claim-records",
+   "permission": "hasAuthority('sea:view')",
+   "handler": "claimRecords"
+  },
+  {
+   "method": "GET",
+   "path": "/api/sea/configs",
+   "permission": "hasAuthority('sea:config:view')",
+   "handler": "listConfigs"
+  },
+  {
+   "method": "POST",
+   "path": "/api/sea/configs",
+   "permission": "hasAuthority('sea:config:edit')",
+   "handler": "createConfig"
+  },
+  {
+   "method": "GET",
+   "path": "/api/sea/configs/visible",
+   "permission": "hasAuthority('sea:view')",
+   "handler": "listVisibleConfigs"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/sea/configs/{id}",
+   "permission": "hasAuthority('sea:config:edit')",
+   "handler": "deleteConfig"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/sea/configs/{id}",
+   "permission": "hasAuthority('sea:config:edit')",
+   "handler": "updateConfig"
+  },
+  {
+   "method": "POST",
+   "path": "/api/sea/import",
+   "permission": "hasAuthority('sea:import')",
+   "handler": "importToSea"
+  },
+  {
+   "method": "GET",
+   "path": "/api/sea/list",
+   "permission": "hasAuthority('sea:view')",
+   "handler": "page"
+  },
+  {
+   "method": "GET",
+   "path": "/api/sea/org-tree",
+   "permission": "hasAuthority('sea:config:view')",
+   "handler": "orgTree"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/sea/pool/{id}",
+   "permission": "hasAuthority('sea:view')",
+   "handler": "deletePool"
+  },
+  {
+   "method": "GET",
+   "path": "/api/sea/statistics",
+   "permission": "hasAuthority('sea:view')",
+   "handler": "statistics"
+  },
+  {
+   "method": "GET",
+   "path": "/api/statistics/analysis",
+   "permission": "hasAuthority('statistics:view')",
+   "handler": "analysis"
+  },
+  {
+   "method": "GET",
+   "path": "/api/statistics/customer-rankings",
+   "permission": "hasAuthority('statistics:view')",
+   "handler": "customerRankings"
+  },
+  {
+   "method": "GET",
+   "path": "/api/statistics/daily-stats",
+   "permission": "hasAnyAuthority('statistics:view','dashboard:view')",
+   "handler": "dailyStats"
+  },
+  {
+   "method": "GET",
+   "path": "/api/statistics/dashboard",
+   "permission": "hasAnyAuthority('statistics:view','dashboard:view')",
+   "handler": "dashboard"
+  },
+  {
+   "method": "GET",
+   "path": "/api/statistics/indicator-stats",
+   "permission": "hasAuthority('statistics:view')",
+   "handler": "indicatorStats"
+  },
+  {
+   "method": "GET",
+   "path": "/api/statistics/team-activities",
+   "permission": "hasAnyAuthority('statistics:view','dashboard:view')",
+   "handler": "teamActivities"
+  },
+  {
+   "method": "GET",
+   "path": "/api/statistics/weekly-stats",
+   "permission": "hasAnyAuthority('statistics:view','dashboard:view')",
+   "handler": "weeklyStats"
+  },
+  {
+   "method": "GET",
+   "path": "/api/system/audit-logs",
+   "permission": "hasAuthority('system:log:view')",
+   "handler": "page"
+  },
+  {
+   "method": "GET",
+   "path": "/api/system/configs",
+   "permission": "hasAuthority('system:config:view')",
+   "handler": "list"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/system/configs",
+   "permission": "hasAuthority('system:config:edit')",
+   "handler": "batchUpdate"
+  },
+  {
+   "method": "GET",
+   "path": "/api/system/configs/logo",
+   "permission": "匿名",
+   "handler": "logo"
+  },
+  {
+   "method": "GET",
+   "path": "/api/system/configs/public",
+   "permission": "匿名",
+   "handler": "publicConfig"
+  },
+  {
+   "method": "GET",
+   "path": "/api/system/depts",
+   "permission": "isAuthenticated()",
+   "handler": "list"
+  },
+  {
+   "method": "POST",
+   "path": "/api/system/depts",
+   "permission": "hasAuthority('system:dept:edit')",
+   "handler": "create"
+  },
+  {
+   "method": "GET",
+   "path": "/api/system/depts/tree",
+   "permission": "isAuthenticated()",
+   "handler": "tree"
+  },
+  {
+   "method": "GET",
+   "path": "/api/system/depts/{deptId}/admins",
+   "permission": "hasAuthority('system:dept:view')",
+   "handler": "getAdmins"
+  },
+  {
+   "method": "POST",
+   "path": "/api/system/depts/{deptId}/admins",
+   "permission": "hasAuthority('system:dept:edit')",
+   "handler": "addAdmin"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/system/depts/{deptId}/admins/{id}",
+   "permission": "hasAuthority('system:dept:edit')",
+   "handler": "removeAdmin"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/system/depts/{id}",
+   "permission": "hasAuthority('system:dept:edit')",
+   "handler": "delete"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/system/depts/{id}",
+   "permission": "hasAuthority('system:dept:edit')",
+   "handler": "update"
+  },
+  {
+   "method": "POST",
+   "path": "/api/system/dict/data",
+   "permission": "hasAuthority('system:config:edit')",
+   "handler": "createData"
+  },
+  {
+   "method": "GET",
+   "path": "/api/system/dict/data/type/{typeId}",
+   "permission": "isAuthenticated()",
+   "handler": "listDataByTypeId"
+  },
+  {
+   "method": "GET",
+   "path": "/api/system/dict/data/{dictCode}",
+   "permission": "isAuthenticated()",
+   "handler": "listData"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/system/dict/data/{id}",
+   "permission": "hasAuthority('system:config:edit')",
+   "handler": "deleteData"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/system/dict/data/{id}",
+   "permission": "hasAuthority('system:config:edit')",
+   "handler": "updateData"
+  },
+  {
+   "method": "GET",
+   "path": "/api/system/dict/types",
+   "permission": "hasAuthority('system:config:view')",
+   "handler": "listTypes"
+  },
+  {
+   "method": "POST",
+   "path": "/api/system/dict/types",
+   "permission": "hasAuthority('system:config:edit')",
+   "handler": "createType"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/system/dict/types/{id}",
+   "permission": "hasAuthority('system:config:edit')",
+   "handler": "deleteType"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/system/dict/types/{id}",
+   "permission": "hasAuthority('system:config:edit')",
+   "handler": "updateType"
+  },
+  {
+   "method": "GET",
+   "path": "/api/system/groups",
+   "permission": "hasAuthority('system:group:view')",
+   "handler": "list"
+  },
+  {
+   "method": "POST",
+   "path": "/api/system/groups",
+   "permission": "hasAuthority('system:group:add')",
+   "handler": "create"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/system/groups/{id}",
+   "permission": "hasAuthority('system:group:delete')",
+   "handler": "delete"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/system/groups/{id}",
+   "permission": "hasAuthority('system:group:edit')",
+   "handler": "update"
+  },
+  {
+   "method": "GET",
+   "path": "/api/system/logs",
+   "permission": "hasAuthority('system:log:view')",
+   "handler": "page"
+  },
+  {
+   "method": "GET",
+   "path": "/api/system/logs/counts",
+   "permission": "hasAuthority('system:log:view')",
+   "handler": "counts"
+  },
+  {
+   "method": "GET",
+   "path": "/api/system/menus/tree",
+   "permission": "hasAuthority('system:menu:view')",
+   "handler": "tree"
+  },
+  {
+   "method": "GET",
+   "path": "/api/system/perm-center/preview",
+   "permission": "hasAuthority('system:config:view')",
+   "handler": "preview"
+  },
+  {
+   "method": "GET",
+   "path": "/api/system/perm-scopes/assignee/{type}/{key}",
+   "permission": "hasAuthority('system:config:view')",
+   "handler": "getAssigneeScopes"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/system/perm-scopes/assignee/{type}/{key}",
+   "permission": "hasAuthority('system:config:edit')",
+   "handler": "updateAssigneeScopes"
+  },
+  {
+   "method": "GET",
+   "path": "/api/system/perm-scopes/{roleCode}",
+   "permission": "hasAuthority('system:config:view')",
+   "handler": "getScopes"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/system/perm-scopes/{roleCode}",
+   "permission": "hasAuthority('system:config:edit')",
+   "handler": "updateScopes"
+  },
+  {
+   "method": "GET",
+   "path": "/api/system/positions",
+   "permission": "hasAuthority('system:position:view')",
+   "handler": "list"
+  },
+  {
+   "method": "POST",
+   "path": "/api/system/positions",
+   "permission": "hasAuthority('system:position:add')",
+   "handler": "create"
+  },
+  {
+   "method": "GET",
+   "path": "/api/system/positions/users/{userId}",
+   "permission": "hasAnyAuthority('system:position:view','system:user:view')",
+   "handler": "getUserPositions"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/system/positions/users/{userId}",
+   "permission": "hasAuthority('system:user:edit')",
+   "handler": "assignUserPositions"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/system/positions/{id}",
+   "permission": "hasAuthority('system:position:delete')",
+   "handler": "delete"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/system/positions/{id}",
+   "permission": "hasAuthority('system:position:edit')",
+   "handler": "update"
+  },
+  {
+   "method": "GET",
+   "path": "/api/system/positions/{positionId}/rules",
+   "permission": "hasAuthority('system:position:view')",
+   "handler": "getRules"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/system/positions/{positionId}/rules",
+   "permission": "hasAuthority('system:position:edit')",
+   "handler": "updateRules"
+  },
+  {
+   "method": "GET",
+   "path": "/api/system/recycle/customers",
+   "permission": "hasAuthority('system:recycle:view')",
+   "handler": "deletedCustomers"
+  },
+  {
+   "method": "GET",
+   "path": "/api/system/recycle/customers/{id}",
+   "permission": "hasAuthority('system:recycle:view')",
+   "handler": "deletedCustomerDetail"
+  },
+  {
+   "method": "POST",
+   "path": "/api/system/recycle/customers/{id}/purge",
+   "permission": "hasAuthority('system:recycle:purge')",
+   "handler": "hardDeleteCustomer"
+  },
+  {
+   "method": "POST",
+   "path": "/api/system/recycle/customers/{id}/restore",
+   "permission": "hasAuthority('system:recycle:restore')",
+   "handler": "restoreCustomer"
+  },
+  {
+   "method": "GET",
+   "path": "/api/system/recycle/files",
+   "permission": "hasAuthority('system:recycle:view')",
+   "handler": "deletedFiles"
+  },
+  {
+   "method": "POST",
+   "path": "/api/system/recycle/files/purge",
+   "permission": "hasAuthority('system:recycle:purge')",
+   "handler": "purgeFiles"
+  },
+  {
+   "method": "GET",
+   "path": "/api/system/recycle/files/{id}",
+   "permission": "hasAuthority('system:recycle:view')",
+   "handler": "deletedFileDetail"
+  },
+  {
+   "method": "GET",
+   "path": "/api/system/recycle/files/{id}/content",
+   "permission": "hasAuthority('system:recycle:view')",
+   "handler": "fileContent"
+  },
+  {
+   "method": "POST",
+   "path": "/api/system/recycle/files/{id}/purge",
+   "permission": "hasAuthority('system:recycle:purge')",
+   "handler": "hardDeleteFile"
+  },
+  {
+   "method": "POST",
+   "path": "/api/system/recycle/files/{id}/restore",
+   "permission": "hasAuthority('system:recycle:restore')",
+   "handler": "restoreFile"
+  },
+  {
+   "method": "GET",
+   "path": "/api/system/recycle/users",
+   "permission": "hasAuthority('system:recycle:view')",
+   "handler": "deletedUsers"
+  },
+  {
+   "method": "GET",
+   "path": "/api/system/recycle/users/{id}",
+   "permission": "hasAuthority('system:recycle:view')",
+   "handler": "deletedUserDetail"
+  },
+  {
+   "method": "POST",
+   "path": "/api/system/recycle/users/{id}/purge",
+   "permission": "hasAuthority('system:recycle:purge')",
+   "handler": "hardDeleteUser"
+  },
+  {
+   "method": "POST",
+   "path": "/api/system/recycle/users/{id}/restore",
+   "permission": "hasAuthority('system:recycle:restore')",
+   "handler": "restoreUser"
+  },
+  {
+   "method": "GET",
+   "path": "/api/system/roles",
+   "permission": "hasAuthority('system:role:view')",
+   "handler": "list"
+  },
+  {
+   "method": "POST",
+   "path": "/api/system/roles",
+   "permission": "hasAuthority('system:role:add')",
+   "handler": "create"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/system/roles/{id}",
+   "permission": "hasAuthority('system:role:delete')",
+   "handler": "delete"
+  },
+  {
+   "method": "GET",
+   "path": "/api/system/roles/{id}",
+   "permission": "hasAuthority('system:role:view')",
+   "handler": "getById"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/system/roles/{id}",
+   "permission": "hasAuthority('system:role:edit')",
+   "handler": "update"
+  },
+  {
+   "method": "GET",
+   "path": "/api/system/roles/{id}/orgs",
+   "permission": "hasAuthority('system:role:view')",
+   "handler": "getOrgs"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/system/roles/{id}/orgs",
+   "permission": "hasAuthority('system:role:edit')",
+   "handler": "updateOrgs"
+  },
+  {
+   "method": "GET",
+   "path": "/api/system/rule-versions",
+   "permission": "hasAuthority('system:config:view')",
+   "handler": "page"
+  },
+  {
+   "method": "GET",
+   "path": "/api/system/rules",
+   "permission": "hasAuthority('system:rule:view')",
+   "handler": "list"
+  },
+  {
+   "method": "POST",
+   "path": "/api/system/rules",
+   "permission": "hasAuthority('system:rule:add')",
+   "handler": "create"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/system/rules/{id}",
+   "permission": "hasAuthority('system:rule:delete')",
+   "handler": "delete"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/system/rules/{id}",
+   "permission": "hasAuthority('system:rule:edit')",
+   "handler": "update"
+  },
+  {
+   "method": "POST",
+   "path": "/api/system/task/check-expire",
+   "permission": "登录即可",
+   "handler": "checkExpire"
+  },
+  {
+   "method": "GET",
+   "path": "/api/system/users",
+   "permission": "hasAnyAuthority('system:user:view','system:org:admin')",
+   "handler": "page"
+  },
+  {
+   "method": "POST",
+   "path": "/api/system/users",
+   "permission": "hasAnyAuthority('system:user:add','system:org:admin')",
+   "handler": "create"
+  },
+  {
+   "method": "POST",
+   "path": "/api/system/users/change-password",
+   "permission": "登录即可",
+   "handler": "changePassword"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/system/users/{id}",
+   "permission": "hasAnyAuthority('system:user:delete','system:org:admin')",
+   "handler": "delete"
+  },
+  {
+   "method": "GET",
+   "path": "/api/system/users/{id}",
+   "permission": "hasAnyAuthority('system:user:view','system:org:admin')",
+   "handler": "getById"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/system/users/{id}",
+   "permission": "hasAnyAuthority('system:user:edit','system:org:admin')",
+   "handler": "update"
+  },
+  {
+   "method": "POST",
+   "path": "/api/system/users/{id}/reset-password",
+   "permission": "hasAnyAuthority('system:user:edit','system:org:admin')",
+   "handler": "resetPassword"
+  },
+  {
+   "method": "POST",
+   "path": "/api/task",
+   "permission": "hasAuthority('task:manage')",
+   "handler": "create"
+  },
+  {
+   "method": "GET",
+   "path": "/api/task/list",
+   "permission": "hasAuthority('task:view')",
+   "handler": "list"
+  },
+  {
+   "method": "GET",
+   "path": "/api/task/statistics",
+   "permission": "hasAuthority('task:view')",
+   "handler": "statistics"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/task/{id}",
+   "permission": "hasAuthority('task:manage')",
+   "handler": "update"
+  },
+  {
+   "method": "POST",
+   "path": "/api/task/{id}/cancel",
+   "permission": "hasAuthority('task:manage')",
+   "handler": "cancel"
+  },
+  {
+   "method": "POST",
+   "path": "/api/task/{id}/complete",
+   "permission": "hasAuthority('task:manage')",
+   "handler": "complete"
+  },
+  {
+   "method": "POST",
+   "path": "/api/task/{id}/transfer",
+   "permission": "hasAuthority('task:manage')",
+   "handler": "transfer"
+  }
+ ]
+}

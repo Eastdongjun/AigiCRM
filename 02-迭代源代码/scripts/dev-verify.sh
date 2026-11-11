@@ -527,6 +527,8 @@ local_contracts() {
   run "$ROOT/scripts/check-read-stats-migration.sh"
   # 【T6 2026-11-11 审计整改 P1-11】API 清单内容级新鲜度(mtime 之外的真校验)
   run "$ROOT/scripts/check-api-list-fresh.sh"
+  # 【底座收敛 2026-11-11】API 机器契约破坏性变更检测(删端点/改权限码即红)
+  run "$ROOT/scripts/check-api-contract-diff.sh"
   # 【底座评估 2026-11-11】三端词表消费侧一致(前端码⊆后端码∪白名单)
   run "$ROOT/scripts/check-permission-code-consumption.sh"
   # 【底座收敛 P1】权限码生成物(PC/MP 常量)与后端权威集一致

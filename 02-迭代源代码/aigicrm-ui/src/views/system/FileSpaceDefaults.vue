@@ -264,7 +264,7 @@ const spaceGrants = (type) => rows.value.filter(r =>
 
 // 勾选/换范围即存: 合成 FILE+FOLDER 两行(或删除)
 const onDefaultChange = async (type, roleId, patch) => {
-  const cur = defaultRows(type).find(r => r.roleId === roleId) || {}
+  const cur = defaultRows(type).find(r => r.roleId === roleId) || { scopeLevel: null, filePerms: [], folderPerms: [] }
   const next = { scopeLevel: cur.scopeLevel || 'all', filePerms: cur.filePerms || [], folderPerms: cur.folderPerms || [], ...patch }
   const prevRows = typeDefaultRows(type).filter(r => r.subjectId === roleId)
   const tasks = []

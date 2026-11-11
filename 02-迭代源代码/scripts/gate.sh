@@ -153,8 +153,10 @@ fi
 
 # [9] 可选: PC 类型检查基线对账(vue-tsc, 存量冻结新增即红; 全量跑约1-3分钟)
 # 【2026-11-07 守则D8】复盘条目1(PC 零类型检查)第一步落地; 全面类型化=独立批(存量561错)。
-if [ "${AIGI_TSC:-0}" = "1" ]; then
-  echo "--- [9] PC 类型检查(vue-tsc 基线) ---"
+# 【底座收敛 2026-11-11 转正】typecheck 由可选档改为默认跑(561 基线只减不增——
+# "存在但休眠的检查"是检查体系评估点名的第一类元问题; 逃生门: AIGI_TSC=0 显式跳过)
+if [ "${AIGI_TSC:-1}" = "1" ]; then
+  echo "--- [9] PC 类型检查(vue-tsc 基线, 默认档) ---"
   if bash "$SCRIPT_DIR/check-ui-typecheck.sh" > /tmp/gate-tsc.log 2>&1; then
     ok "PC 类型检查基线对账"
   else

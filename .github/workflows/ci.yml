@@ -145,6 +145,90 @@ jobs:
           done
           [ "$bad" -eq 0 ] && echo "✅ 无硬编码密码" || exit 1
 
+  # 【检查体系四轴 2026-11-11】启动冒烟(评估点名的休眠资产转正第三件):
+  # backend job 构建出的 jar 在 mysql+redis service 上真实启动——健康检查 + 权限探针
+  # (无 token 401 / 错 token 401), "上下文能起"从推断变证据。库用空库重放同款集灌入。
+  boot-smoke:
+    runs-on: ubuntu-latest
+    needs: backend
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: smoke-root
+          MYSQL_DATABASE: ycmn
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost"
+          --health-interval=10s --health-timeout=5s --health-retries=30
+          --character-set-server=utf8mb4
+          --collation-server=utf8mb4_general_ci
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s --health-timeout=5s --health-retries=30
+    steps:
+      - uses: actions/checkout@v4
+      - name: 取 backend 构建的 jar
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-jar
+          path: /tmp/jar
+      - name: 灌库(空库重放集, V1+V12~V33+日期版)
+        run: |
+          mkdir -p /tmp/smoke-mig
+          find aigicrm-backend/src/main/resources/db/migration -maxdepth 1 -name '*.sql' \
+            ! -name 'V[2-9]__*' ! -name 'V10__*' ! -name 'V11__*' -exec cp {} /tmp/smoke-mig/ \;
+          docker run --rm --network host -v /tmp/smoke-mig:/flyway/sql flyway/flyway:9.22.3-alpine \
+            -url="jdbc:mysql://127.0.0.1:3306/ycmn?characterEncoding=UTF-8&connectionCollation=utf8mb4_general_ci&useSSL=false&allowPublicKeyRetrieval=true" \
+            -user=root -password=smoke-root -connectRetries=30 -validateMigrationNaming=true migrate 2>&1 | tail -3
+      - name: 启动应用并探活
+        run: |
+          JAR=$(ls /tmp/jar/*.jar | head -1)
+          echo "启动 $JAR"
+          DB_HOST=127.0.0.1 DB_PORT=3306 DB_NAME=ycmn DB_USER=root DB_PASSWORD=smoke-root \
+          REDIS_HOST=127.0.0.1 REDIS_PORT=6379 JWT_SECRET=boot-smoke-secret-key-for-ci-only-32chars \
+          STORAGE_TYPE=local TZ=Asia/Shanghai java -jar "$JAR" > /tmp/boot.log 2>&1 &
+          APP_PID=$!
+          for i in $(seq 1 60); do
+            curl -sf http://127.0.0.1:8080/actuator/health >/dev/null 2>&1 && break
+            sleep 3
+          done
+          curl -sf http://127.0.0.1:8080/actuator/health || { echo '❌ 健康检查失败'; tail -40 /tmp/boot.log; kill $APP_PID; exit 1; }
+          echo "== 权限探针 =="
+          CODE1=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/api/customer/list)
+          CODE2=$(curl -s -o /dev/null -w '%{http_code}' -H 'Authorization: Bearer invalid-token' http://127.0.0.1:8080/api/customer/list)
+          echo "无token=$CODE1(预期401) 错token=$CODE2(预期401)"
+          [ "$CODE1" = "401" ] && [ "$CODE2" = "401" ] || { echo '❌ 认证语义探针失败'; tail -20 /tmp/boot.log; kill $APP_PID; exit 1; }
+          kill $APP_PID
+
+  # 【检查体系四轴 2026-11-11】依赖安全扫描(L1 供应链缺口): osv-scanner 扫 Maven(pom 直扫)
+  # + package-lock, 另跑 npm audit high。发现漏洞即红(带修复指引), 治理决策归人。
+  osv-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version: '1.23' }
+      - name: 安装 osv-scanner
+        run: go install github.com/google/osv-scanner/v2/cmd/osv-scanner@latest
+      - name: 扫描 Maven + 前端锁文件
+        run: |
+          export PATH=$PATH:$(go env GOPATH)/bin
+          osv-scanner --lockfile=aigicrm-ui/package-lock.json || true > /tmp/osv-frontend.log 2>&1
+          osv-scanner --lockfile=aigicrm-backend/pom.xml || true > /tmp/osv-maven.log 2>&1
+          echo "== 前端漏洞 =="; cat /tmp/osv-frontend.log
+          echo "== Maven 漏洞 =="; cat /tmp/osv-maven.log
+          # 红线: 任意 high 及以上漏洞
+          if grep -qE "([0-9]+ (High|Critical) vulnerabilities|Severity: (High|Critical))" /tmp/osv-frontend.log /tmp/osv-maven.log; then
+            echo '❌ 发现 High/Critical 级依赖漏洞'; exit 1
+          fi
+      - name: npm audit (high+)
+        working-directory: aigicrm-ui
+        run: npm audit --audit-level=high --omit=dev || true > /tmp/audit.log 2>&1; cat /tmp/audit.log; ! grep -qE "[1-9][0-9]* (high|critical)" /tmp/audit.log
+
   # 【底座评估 2026-11-11】空库 Flyway 重放 + 权限末态断言(评估建议 P2):
   # 不依赖测试服——runner 内起 mysql:8.0 service(按生产参数 general_ci), 重放集与
   # scripts/replay-empty-db.sh 同口径(V1+V12~V33+日期版, 排除 V2~V11), 末态断言
@@ -223,7 +307,7 @@ jobs:
   # P0 汇总门禁：作为 GitHub 分支保护可要求的必过 job
   quality-gate:
     runs-on: ubuntu-latest
-    needs: [backend, frontend, miniprogram, sonarcloud, diff-check, file-perm-e2e, empty-db-replay]
+    needs: [backend, frontend, miniprogram, sonarcloud, diff-check, file-perm-e2e, empty-db-replay, boot-smoke, osv-scan]
     if: always()
     steps:
       - run: |
@@ -255,3 +339,6 @@ jobs:
           fi
           # 【底座评估】空库重放不依赖 secrets, 全事件强制
           test "${{ needs['empty-db-replay'].result }}" = "success"
+          # 【检查体系四轴】启动冒烟/依赖扫描同样全事件强制
+          test "${{ needs['boot-smoke'].result }}" = "success"
+          test "${{ needs['osv-scan'].result }}" = "success"

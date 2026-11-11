@@ -52,7 +52,11 @@ class PermissionBehaviorMatrixTest {
      */
     @org.springframework.boot.SpringBootConfiguration
     @org.springframework.web.servlet.config.annotation.EnableWebMvc // 默认 converters(Jackson 在 classpath)
-    @Import({MinimalMethodSecurityConfig.class, CustomerController.class})
+    @Import({MinimalMethodSecurityConfig.class,
+            CustomerController.class,
+            com.aigicrm.module.file.controller.FileController.class,
+            com.aigicrm.module.statistics.controller.StatisticsController.class,
+            com.aigicrm.module.task.controller.TaskController.class})
     static class Ctx {
     }
 
@@ -78,6 +82,16 @@ class PermissionBehaviorMatrixTest {
     @MockitoBean CustomerAccessService accessService;
     @MockitoBean CustomerEventService customerEventService;
     @MockitoBean com.aigicrm.security.PermissionHintService permissionHintService;
+    // File 组
+    @MockitoBean com.aigicrm.module.file.service.FileService fileService;
+    @MockitoBean com.aigicrm.security.JwtTokenProvider jwtTokenProvider;
+    @MockitoBean com.aigicrm.module.system.service.SysUserService sysUserService;
+    @MockitoBean com.aigicrm.module.approval.service.ApprovalService approvalService;
+    // Statistics 组
+    @MockitoBean com.aigicrm.module.statistics.service.StatisticsQueryService statisticsQueryService;
+    // Task 组
+    @MockitoBean com.aigicrm.module.task.service.TaskService taskService;
+    @MockitoBean com.aigicrm.module.task.service.TaskViewService taskViewService;
 
     private static final String STAGE_URL = "/api/customer/1/stage-amounts";
     private static final String STAGE_BODY = "{\"periodYear\":2026,\"periodType\":\"H1\",\"invoiceAmount\":10}";
@@ -155,5 +169,88 @@ class PermissionBehaviorMatrixTest {
                         .contentType(MediaType.APPLICATION_JSON).content(STAGE_BODY))
                 .andExpect(status().isForbidden());
         verifyNoInteractions(customerService);
+    }
+
+    // ==================== 矩阵 C: 文件(单码门 × 写动作, multipart) ====================
+
+    @Test
+    void fileUpload_withoutCode_403() throws Exception {
+        org.springframework.mock.web.MockMultipartFile mf =
+                new org.springframework.mock.web.MockMultipartFile("file", "a.png", "image/png", new byte[]{1});
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .multipart("/api/file/upload").file(mf).param("scope", "private")
+                        .with(as("file:view")).accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isForbidden());
+        verifyNoInteractions(fileService);
+    }
+
+    @Test
+    void fileUpload_withCode_reachesService_200() throws Exception {
+        org.springframework.mock.web.MockMultipartFile mf =
+                new org.springframework.mock.web.MockMultipartFile("file", "a.png", "image/png", new byte[]{1});
+        org.mockito.Mockito.when(fileService.upload(any(), any(), any())).thenReturn(new com.aigicrm.module.file.entity.BizFile());
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .multipart("/api/file/upload").file(mf).param("scope", "private")
+                        .with(as("file:upload")).accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+        verify(fileService).upload(any(), any(), any());
+    }
+
+    @Test
+    void fileDelete_withoutCode_403() throws Exception {
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .delete("/api/file/9").with(csrf()).accept(MediaType.APPLICATION_JSON).with(as("file:view")))
+                .andExpect(status().isForbidden());
+        verifyNoInteractions(fileService);
+    }
+
+    // ==================== 矩阵 D: 统计(hasAnyAuthority 组合) ====================
+
+    @Test
+    void dashboard_withStatisticsView_200() throws Exception {
+        org.mockito.Mockito.when(statisticsQueryService.dashboard()).thenReturn(java.util.Map.of());
+        mockMvc.perform(get("/api/statistics/dashboard").accept(MediaType.APPLICATION_JSON).with(as("statistics:view")))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void dashboard_withDashboardView_200() throws Exception {
+        org.mockito.Mockito.when(statisticsQueryService.dashboard()).thenReturn(java.util.Map.of());
+        mockMvc.perform(get("/api/statistics/dashboard").accept(MediaType.APPLICATION_JSON).with(as("dashboard:view")))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void dashboard_withNeither_403() throws Exception {
+        mockMvc.perform(get("/api/statistics/dashboard").accept(MediaType.APPLICATION_JSON).with(as("customer:view")))
+                .andExpect(status().isForbidden());
+        verifyNoInteractions(statisticsQueryService);
+    }
+
+    // ==================== 矩阵 E: 任务(view 读 / manage 写分离) ====================
+
+    @Test
+    void taskList_withoutView_403() throws Exception {
+        mockMvc.perform(get("/api/task/list").accept(MediaType.APPLICATION_JSON).with(as("task:manage")))
+                .andExpect(status().isForbidden());
+        verifyNoInteractions(taskService);
+    }
+
+    @Test
+    void taskCreate_withoutManage_403() throws Exception {
+        mockMvc.perform(post("/api/task").with(csrf()).accept(MediaType.APPLICATION_JSON).with(as("task:view"))
+                        .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isForbidden());
+        verifyNoInteractions(taskService);
+    }
+
+    @Test
+    void taskCreate_withManage_200() throws Exception {
+        org.mockito.Mockito.when(taskService.createFromMap(any())).thenReturn(new com.aigicrm.module.task.entity.BizTask());
+        // toRow 是 static 方法(实例引用调 static), 不可 mock——真实现处理空 BizTask 安全返回
+        mockMvc.perform(post("/api/task").with(csrf()).accept(MediaType.APPLICATION_JSON).with(as("task:manage"))
+                        .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isOk());
+        verify(taskService).createFromMap(any());
     }
 }

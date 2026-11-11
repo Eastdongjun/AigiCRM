@@ -1,6 +1,6 @@
 # AIGICRM API 清单(自动生成)
 
-> 生成时间: 2026-11-11 | 来源: 后端 controller 源码扫描
+> 生成时间: 2026-11-12 | 来源: 后端 controller 源码扫描
 > 本文件由 scripts/gen-api.py 自动生成,**禁止手改**;接口变更后重新运行。
 > 权限码与 docs/permission/permission-dict.md 对应。
 
