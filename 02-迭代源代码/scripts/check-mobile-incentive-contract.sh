@@ -29,8 +29,9 @@ incentive_service="$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/incent
 automator_package="$ROOT/scripts/miniprogram/package.json"
 automator_script="$ROOT/scripts/miniprogram/verify-incentive-attachments.mjs"
 matrix="$ROOT/docs/function-permission-matrix.md"
-grep -q "hasPermission('incentive:view')" "$page" || { echo "FAIL: incentive view gate is missing" >&2; exit 1; }
-grep -q "hasPermission('incentive:add')" "$page" || { echo "FAIL: incentive upload gate is missing" >&2; exit 1; }
+# 【字面量收敛第一批 2026-11-12】incentive 页门控改生成物常量形态
+grep -q "hasPermission(PERMISSION_CODES.INCENTIVE_VIEW)" "$page" || { echo "FAIL: incentive view gate is missing" >&2; exit 1; }
+grep -q "hasPermission(PERMISSION_CODES.INCENTIVE_ADD)" "$page" || { echo "FAIL: incentive upload gate is missing" >&2; exit 1; }
 grep -q "没有四项服务查看权限" "$page" || { echo "FAIL: incentive view denial copy must use four-incentive naming" >&2; exit 1; }
 grep -q "没有四项服务查看权限" "$detail_page" || { echo "FAIL: incentive detail view denial copy must use four-incentive naming" >&2; exit 1; }
 # 【2026-10-17 钉随需求C】b8d62e3f 把 removeRecord/appendRecord 系操作全下游到

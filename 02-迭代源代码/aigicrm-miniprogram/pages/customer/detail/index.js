@@ -1,6 +1,8 @@
 const { deleteCustomer, getCustomer, getCustomerContacts, getCustomerLogs, getCustomerIndicator, getCustomerStageAmounts, saveCustomerRelationship, releaseCustomer, archiveCustomer } = require('../../../api/customer')
 const { submitApproval } = require('../../../api/approval')
 const { hasPermission, requireLogin, isAdmin } = require('../../../utils/auth')
+// 【字面量收敛第一批 2026-11-12】权限码走生成物单源, 禁止手写字面量
+const { PERMISSION_CODES } = require('../../../generated/permission-codes')
 const { showError, showErrorWithRetry } = require('../../../utils/feedback')
 const { readDemoCustomers } = require('../../../utils/demo-customers')
 // 【D24/D25 2026-10-04】状态文案、五项指标配置、核心客户阈值统一引用组内 shared(单一出处)
@@ -294,7 +296,7 @@ Page({
 
   onLoad(options) {
     if (!requireLogin()) return
-    if (!getApp().globalData.demoMode && !hasPermission('customer:view')) {
+    if (!getApp().globalData.demoMode && !hasPermission(PERMISSION_CODES.CUSTOMER_VIEW)) {
       wx.showToast({ title: '没有客户查看权限', icon: 'none' })
       wx.switchTab({ url: '/pages/home/index' })
       return
@@ -303,11 +305,11 @@ Page({
     this.setDetailData({
       id: options.id || '',
       from: options.from || '',
-      canEdit: demoMode || hasPermission('customer:edit'),
-      canDelete: !demoMode && hasPermission('customer:delete'),
-      canViewFinance: demoMode || hasPermission('finance:view'),
-      canViewContacts: demoMode || hasPermission('contact:view'),
-      relationshipOptionsView: buildRelationshipOptions(this.data.relationshipOptions, this.data.indicator, demoMode || hasPermission('customer:edit'))
+      canEdit: demoMode || hasPermission(PERMISSION_CODES.CUSTOMER_EDIT),
+      canDelete: !demoMode && hasPermission(PERMISSION_CODES.CUSTOMER_DELETE),
+      canViewFinance: demoMode || hasPermission(PERMISSION_CODES.FINANCE_VIEW),
+      canViewContacts: demoMode || hasPermission(PERMISSION_CODES.CONTACT_VIEW),
+      relationshipOptionsView: buildRelationshipOptions(this.data.relationshipOptions, this.data.indicator, demoMode || hasPermission(PERMISSION_CODES.CUSTOMER_EDIT))
     })
     this.loadRelationshipDict()
     this.loadDetail()
@@ -459,14 +461,14 @@ Page({
   },
 
   editCustomer() {
-    if (!hasPermission('customer:edit') && !getApp().globalData.demoMode) return wx.showToast({ title: '没有编辑权限', icon: 'none' })
+    if (!hasPermission(PERMISSION_CODES.CUSTOMER_EDIT) && !getApp().globalData.demoMode) return wx.showToast({ title: '没有编辑权限', icon: 'none' })
     wx.navigateTo({ url: `/pages/customer/form/index?id=${this.data.id}` })
   },
 
 
   submitExtendApproval() {
     if (!this.data.id) return
-    if (!getApp().globalData.demoMode && !hasPermission('approval:view')) return wx.showToast({ title: '没有审批提交权限', icon: 'none' })
+    if (!getApp().globalData.demoMode && !hasPermission(PERMISSION_CODES.APPROVAL_VIEW)) return wx.showToast({ title: '没有审批提交权限', icon: 'none' })
     if (getApp().globalData.demoMode) return wx.showToast({ title: '延期申请已提交', icon: 'success' })
     submitApproval({ type: 'extend', customerId: String(this.data.id), actionAfterApprove: '保护期延长(天数以审批单为准)' }).then(() => {
       wx.showToast({ title: '延期申请已提交', icon: 'success' })
@@ -474,7 +476,7 @@ Page({
   },
 
   releaseToSea() {
-    if (!this.data.id || !hasPermission('customer:edit')) return wx.showToast({ title: '没有释放权限', icon: 'none' })
+    if (!this.data.id || !hasPermission(PERMISSION_CODES.CUSTOMER_EDIT)) return wx.showToast({ title: '没有释放权限', icon: 'none' })
     wx.showModal({
       title: '释放到公海',
       content: '确认将该客户释放到公海池？',
@@ -491,7 +493,7 @@ Page({
 
   // 【闭环 2026-10-09 用户反馈】有开票/回款的客户拒删,停止跟进的正确出口=归档
   archiveCurrentCustomer() {
-    if (!this.data.id || !hasPermission('customer:edit')) return wx.showToast({ title: '没有归档权限', icon: 'none' })
+    if (!this.data.id || !hasPermission(PERMISSION_CODES.CUSTOMER_EDIT)) return wx.showToast({ title: '没有归档权限', icon: 'none' })
     wx.showModal({
       title: '归档客户',
       content: `归档后“${(this.data.detail && this.data.detail.customerName) || '该客户'}”默认隐藏、不参与统计与提醒；如需恢复请在电脑端客户列表勾选“显示已归档”操作。确认归档？`,

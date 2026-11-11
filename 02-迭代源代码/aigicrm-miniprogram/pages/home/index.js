@@ -3,6 +3,8 @@ const { getExpiringList, getPendingCount } = require('../../api/reminder')
 const { getDashboardData } = require('../../api/statistics')
 const { homeCards, reminderRecords } = require('../../data/demo')
 const { hasPermission, requireLogin } = require('../../utils/auth')
+// 【字面量收敛第一批 2026-11-12】权限码走生成物单源(statistics:view 两处保留字面量供 dashboard 契约钉)
+const { PERMISSION_CODES } = require('../../generated/permission-codes')
 const { showError } = require('../../utils/feedback')
 const { getTaskStatistics } = require('../../api/task')
 
@@ -181,7 +183,7 @@ Page({
   },
 
   openIncentive() {
-    if (!hasPermission('incentive:view') && !getApp().globalData.demoMode) {
+    if (!hasPermission(PERMISSION_CODES.INCENTIVE_VIEW) && !getApp().globalData.demoMode) {
       wx.showToast({ title: '没有四项服务查看权限', icon: 'none' })
       return
     }
@@ -189,7 +191,7 @@ Page({
   },
 
   openIncentiveUpload() {
-    if (!hasPermission('incentive:add') && !getApp().globalData.demoMode) {
+    if (!hasPermission(PERMISSION_CODES.INCENTIVE_ADD) && !getApp().globalData.demoMode) {
       wx.showToast({ title: '没有四项服务上传权限', icon: 'none' })
       return
     }
@@ -197,7 +199,7 @@ Page({
   },
 
   openApproval() {
-    if (!hasPermission('approval:view') && !getApp().globalData.demoMode) {
+    if (!hasPermission(PERMISSION_CODES.APPROVAL_VIEW) && !getApp().globalData.demoMode) {
       wx.showToast({ title: '没有审批权限', icon: 'none' })
       return
     }
@@ -205,7 +207,7 @@ Page({
   },
 
   openReminder() {
-    if (!hasPermission('reminder:view') && !getApp().globalData.demoMode) {
+    if (!hasPermission(PERMISSION_CODES.REMINDER_VIEW) && !getApp().globalData.demoMode) {
       wx.showToast({ title: '没有提醒权限', icon: 'none' })
       return
     }
@@ -213,7 +215,7 @@ Page({
   },
 
   openSea() {
-    if (!hasPermission('sea:view') && !getApp().globalData.demoMode) {
+    if (!hasPermission(PERMISSION_CODES.SEA_VIEW) && !getApp().globalData.demoMode) {
       wx.showToast({ title: '没有公海权限', icon: 'none' })
       return
     }
@@ -226,7 +228,7 @@ Page({
   },
 
   openNewCustomer() {
-    if (!hasPermission('customer:add') && !getApp().globalData.demoMode) {
+    if (!hasPermission(PERMISSION_CODES.CUSTOMER_ADD) && !getApp().globalData.demoMode) {
       wx.showToast({ title: '没有新建客户权限', icon: 'none' })
       return
     }

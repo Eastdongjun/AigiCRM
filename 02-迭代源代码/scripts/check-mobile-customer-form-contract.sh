@@ -38,7 +38,8 @@ for pattern in \
   fi
 done
 
-if ! rg -Fq "hasPermission('customer:add')" "$HOME"; then
+# 【字面量收敛第一批 2026-11-12】home 门控已改生成物常量形态
+if ! rg -Fq "hasPermission(PERMISSION_CODES.CUSTOMER_ADD)" "$HOME"; then
   echo "FAIL: home new-customer entry must require customer:add"
   exit 1
 fi
@@ -363,7 +364,7 @@ for pattern in "function addCustomer(data)" "function updateCustomer(id, data)" 
   fi
 done
 
-for pattern in "hasPermission('customer:delete')" "deleteCurrentCustomer()" "deleteCustomer(this.data.id)" "客户已删除"; do
+for pattern in "hasPermission(PERMISSION_CODES.CUSTOMER_DELETE)" "deleteCurrentCustomer()" "deleteCustomer(this.data.id)" "客户已删除"; do
   if ! rg -Fq "$pattern" "$DETAIL_JS"; then
     echo "FAIL: mobile customer delete boundary missing $pattern"
     exit 1

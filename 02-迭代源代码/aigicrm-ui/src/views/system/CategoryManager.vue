@@ -10,7 +10,7 @@
             <p>维护激励的一级 / 二级分类，配置名称、编码、分值与启用状态</p>
           </div>
         </div>
-        <el-button v-if="userStore.hasPermission('incentive:edit')" type="primary" size="small" :icon="Plus" @click="openCategoryDialog()">新增类别</el-button>
+        <el-button v-if="userStore.hasPermission(PERMISSION_CODES.INCENTIVE_EDIT)" type="primary" size="small" :icon="Plus" @click="openCategoryDialog()">新增类别</el-button>
       </header>
       <div class="perm-sec-body">
         <div v-if="catLoadError" class="cat-empty cat-error">无权限查看激励类别（缺少 incentive:view 权限）或加载失败</div>
@@ -24,9 +24,9 @@
               <span class="cat-count"><el-icon><Collection /></el-icon> {{ (top.children || []).length }} 个子项</span>
             </div>
             <div class="cat-group-actions" @click.stop>
-              <el-button v-if="userStore.hasPermission('incentive:edit')" link type="primary" size="small" @click="openCategoryDialog(top)">编辑</el-button>
-              <el-button v-if="userStore.hasPermission('incentive:edit')" link type="primary" size="small" @click="openCategoryDialog(null, top.id)">子项</el-button>
-              <el-button v-if="userStore.hasPermission('incentive:edit')" link type="danger" size="small" @click="handleDeleteCategory(top)">删除</el-button>
+              <el-button v-if="userStore.hasPermission(PERMISSION_CODES.INCENTIVE_EDIT)" link type="primary" size="small" @click="openCategoryDialog(top)">编辑</el-button>
+              <el-button v-if="userStore.hasPermission(PERMISSION_CODES.INCENTIVE_EDIT)" link type="primary" size="small" @click="openCategoryDialog(null, top.id)">子项</el-button>
+              <el-button v-if="userStore.hasPermission(PERMISSION_CODES.INCENTIVE_EDIT)" link type="danger" size="small" @click="handleDeleteCategory(top)">删除</el-button>
             </div>
             <span class="cat-arrow" :class="{ expanded: !collapsed.has(top.id) }"><el-icon><ArrowDown /></el-icon></span>
           </div>
@@ -60,8 +60,8 @@
               <el-table-column label="操作" width="128" align="center">
                 <template #default="{ row }">
                   <div class="action-btns">
-                    <el-button v-if="userStore.hasPermission('incentive:edit')" link type="primary" size="small" @click="openCategoryDialog(row)">编辑</el-button>
-                    <el-button v-if="userStore.hasPermission('incentive:edit')" link type="danger" size="small" @click="handleDeleteCategory(row)">删除</el-button>
+                    <el-button v-if="userStore.hasPermission(PERMISSION_CODES.INCENTIVE_EDIT)" link type="primary" size="small" @click="openCategoryDialog(row)">编辑</el-button>
+                    <el-button v-if="userStore.hasPermission(PERMISSION_CODES.INCENTIVE_EDIT)" link type="danger" size="small" @click="handleDeleteCategory(row)">删除</el-button>
                   </div>
                 </template>
               </el-table-column>
@@ -121,6 +121,8 @@ import { Plus, FolderOpened, Collection, ArrowDown } from '@element-plus/icons-v
 import { getCategoryTree, createCategory, updateCategory, deleteCategory } from '@/api/incentive'
 import { confirmAction } from '@/utils/confirm'
 import { useUserStore } from '@/store/user'
+// 【字面量收敛第一批 2026-11-12】权限码走生成物单源, 禁止手写字面量
+import { PERMISSION_CODES } from '@/generated/permission-codes'
 import './perm-common.css'
 
 const userStore = useUserStore()

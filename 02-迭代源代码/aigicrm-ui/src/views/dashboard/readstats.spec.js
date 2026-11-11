@@ -19,6 +19,7 @@ describe('工作台阅读完成卡数据源(B3)', () => {
   })
 
   it("调用前有 incentive:read-stats 权限门控, 无权限不发起请求(防 403 弹错)", () => {
-    expect(src).toContain("hasPermission('incentive:read-stats')")
+    // 【字面量收敛第一批 2026-11-12】门控改生成物常量形态
+    expect(src).toContain("hasPermission(PERMISSION_CODES.INCENTIVE_READ_STATS)")
   })
 })

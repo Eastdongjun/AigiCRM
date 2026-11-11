@@ -182,6 +182,8 @@ import { computed, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { injectCustomerDetail } from '@/composables/useCustomerDetail'
 import { useUserStore } from '@/store/user'
+// 【字面量收敛第一批 2026-11-12】权限码走生成物单源, 禁止手写字面量(365契约钉已同步常量形态)
+import { PERMISSION_CODES } from '@/generated/permission-codes'
 import { formatWan, dashIfEmpty } from '@/utils/format'
 import { FINANCE_LEDGER_STATUS, statusOf } from '@/utils/status-maps'
 import { updateCustomer } from '@/api/customer'
@@ -194,7 +196,7 @@ const {
 
 // 【2026-11-02 用户令】最近开票日页签内维护(与 InfoTab 卡片/编辑表单同码三入口):
 // customer:invoice-date:edit(后台角色管理勾选)或 admin; 后端 protectCustomerDateFields 同码硬校验
-const canEditInvoiceDate = computed(() => isAdmin.value || userStore.hasPermission('customer:invoice-date:edit'))
+const canEditInvoiceDate = computed(() => isAdmin.value || userStore.hasPermission(PERMISSION_CODES.CUSTOMER_INVOICE_DATE_EDIT))
 const invoiceDateDraft = ref('')
 const invoiceDateSaving = ref(false)
 const saveInvoiceDate = async () => {
@@ -218,9 +220,9 @@ const saveInvoiceDate = async () => {
 // 与 CustomerController:358 三通道 @PreAuthorize、MP finance/index.js:112 同口径。
 const userStore = useUserStore()
 const canWriteFinance = computed(() =>
-  userStore.hasPermission('finance:manage')
-  || userStore.hasPermission('customer:finance:edit')
-  || (userStore.hasPermission('customer:edit') && userStore.hasPermission('finance:view')))
+  userStore.hasPermission(PERMISSION_CODES.FINANCE_MANAGE)
+  || userStore.hasPermission(PERMISSION_CODES.CUSTOMER_FINANCE_EDIT)
+  || (userStore.hasPermission(PERMISSION_CODES.CUSTOMER_EDIT) && userStore.hasPermission(PERMISSION_CODES.FINANCE_VIEW)))
 
 const stageRows = computed(() => stageSummary.value.rows || [])
 const maxYear = new Date().getFullYear() + 1

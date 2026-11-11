@@ -81,7 +81,8 @@ assert_contains info_inline_entry "$DETAIL_INFO_TAB" 'startEditInvoiceDate'
 assert_contains info_card_claim "$DETAIL_INFO_TAB" '捞取日期'
 assert_contains info_card_claim_due "$DETAIL_INFO_TAB" '捞取到期日(180天)'
 assert_not_contains info_card_360 "$DETAIL_INFO_TAB" '到期日 (360天)'
-assert_contains fin_bar_perm "$DETAIL_FIN_TAB" "hasPermission('customer:invoice-date:edit')"
+# 【字面量收敛第一批 2026-11-12】FinanceTab 已改生成物常量形态(InfoTab 仍字面量, 第二批替换)
+assert_contains fin_bar_perm "$DETAIL_FIN_TAB" "hasPermission(PERMISSION_CODES.CUSTOMER_INVOICE_DATE_EDIT)"
 assert_contains fin_bar_save "$DETAIL_FIN_TAB" 'saveInvoiceDate'
 assert_contains fin_bar_label "$DETAIL_FIN_TAB" '最近开票日'
 

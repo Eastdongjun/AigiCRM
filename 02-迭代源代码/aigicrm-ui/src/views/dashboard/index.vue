@@ -62,7 +62,7 @@
     <!-- 【PR-10 前端 2026-09-19】待办任务; 【PR-11 后续批次】销售=self激励/阅读, 管理=审批概览/范围 -->
     <div class="stat-row secondary" v-if="!pageLoading">
       <!-- 【工作流复核确认修复】待办任务卡加 task:view 门控(后端 /api/task/* 均要求该权限, 无权限角色点击即 403) -->
-      <div class="stat-card drill" v-if="userStore.hasPermission('task:view')" role="button" tabindex="0"
+      <div class="stat-card drill" v-if="userStore.hasPermission(PERMISSION_CODES.TASK_VIEW)" role="button" tabindex="0"
         @click="$router.push('/task')" @keydown="onCardKeydown($event, () => $router.push('/task'))">
         <div class="stat-info">
           <div class="stat-label">待办任务</div>
@@ -72,7 +72,7 @@
         <el-icon class="stat-icon" :size="22"><List /></el-icon>
       </div>
       <!-- 【体检 P1 2026-10-12】本月完成任务卡同步 task:view 门控(数据源同 /api/task/statistics, 无权限恒 0 且请求弹假错) -->
-      <div class="stat-card" v-if="userStore.hasPermission('task:view')">
+      <div class="stat-card" v-if="userStore.hasPermission(PERMISSION_CODES.TASK_VIEW)">
         <div class="stat-info">
           <div class="stat-label">本月完成任务</div>
           <div class="stat-num">{{ taskStats.completedThisMonth || 0 }}</div>
@@ -241,6 +241,8 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/store/user'
+// 【字面量收敛第一批 2026-11-12】权限码走生成物单源, 禁止手写字面量
+import { PERMISSION_CODES } from '@/generated/permission-codes'
 import { getDashboardData, getTeamActivities, getWeeklyStats, getDailyStats } from '@/api/statistics'
 import { getReminderList, getExpiringList } from '@/api/reminder'
 import { getApprovalList, approve as apiApprove, reject as apiReject } from '@/api/approval'
@@ -349,15 +351,15 @@ const myUploadCount = ref(0)
 const myReadCount = ref(0)
 const myReadTotal = ref(0)
 // 【B3】阅读统计卡权限门控: incentive:read-stats 默认仅 admin, 无权限隐藏卡片且不发起请求
-const canViewReadStats = computed(() => userStore.hasPermission('incentive:read-stats'))
+const canViewReadStats = computed(() => userStore.hasPermission(PERMISSION_CODES.INCENTIVE_READ_STATS))
 // 【2026-11-01 审计修复】待我审批卡改按权限码门控(原只判非销售角色: 无 approval:view 者可见可点、跳转即 403)
-const canViewApprovals = computed(() => userStore.hasPermission('approval:view'))
+const canViewApprovals = computed(() => userStore.hasPermission(PERMISSION_CODES.APPROVAL_VIEW))
 // 【2026-11-08 审计修复】待审批面板行内"通过/驳回"补码门控: 后端 ApprovalController 分别硬校验
 // approval:approve / approval:reject, 此前面板仅 approval:view 即渲染两钮, 无码用户一点必 403。
 // 与审批中心页 canApprove/canReject 同口径, 无码不渲染。
-const canApprove = computed(() => userStore.hasPermission('approval:approve'))
-const canReject = computed(() => userStore.hasPermission('approval:reject'))
-const canViewReminders = computed(() => userStore.hasPermission('reminder:view'))
+const canApprove = computed(() => userStore.hasPermission(PERMISSION_CODES.APPROVAL_APPROVE))
+const canReject = computed(() => userStore.hasPermission(PERMISSION_CODES.APPROVAL_REJECT))
+const canViewReminders = computed(() => userStore.hasPermission(PERMISSION_CODES.REMINDER_VIEW))
 
 const loadRoleData = async () => {
   if (!isSalesRole.value) return
@@ -505,7 +507,7 @@ onMounted(() => {
   loadData(); loadRoleData()
   // 【体检 P1 2026-10-12】/api/task/statistics 要求 task:view, 无权限角色(如行政05)此前
   // 每次进工作台必弹"没有访问权限"假错误——数据请求与待办卡同步门控
-  if (userStore.hasPermission('task:view')) loadTaskStats()
+  if (userStore.hasPermission(PERMISSION_CODES.TASK_VIEW)) loadTaskStats()
 })
 </script>
 

@@ -4,6 +4,8 @@ const { getCustomerList } = require('../../api/customer')
 const { getDepts, getDictData } = require('../../api/system')
 const { incentiveRecords } = require('../../data/demo')
 const { hasPermission, isAdmin, requireLogin } = require('../../utils/auth')
+// 【字面量收敛第一批 2026-11-12】权限码走生成物单源, 禁止手写字面量
+const { PERMISSION_CODES } = require('../../generated/permission-codes')
 const { fetchRemoteAttachment } = require('../../utils/attachment')
 const { showError, showErrorWithRetry } = require('../../utils/feedback')
 const { buildIncentiveFileGroups, buildIncentiveFiles } = require('../../utils/incentive-files')
@@ -624,15 +626,15 @@ Page({
     this.setData({ tabMode, activeTab: initialTab, tabs: buildTabs(initialTab, tabMode, canStatsPanes), canStatsPanes })
     wx.setNavigationBarTitle({ title: TAB_MODE_TITLES[tabMode] })
     this.setData({ apiBase: (getApp().globalData && getApp().globalData.apiBaseUrl) || '' })
-    if (!getApp().globalData.demoMode && !hasPermission('incentive:view')) {
+    if (!getApp().globalData.demoMode && !hasPermission(PERMISSION_CODES.INCENTIVE_VIEW)) {
       wx.showToast({ title: '没有四项服务查看权限', icon: 'none' })
       wx.switchTab({ url: '/pages/home/index' })
       return
     }
     this.setData({
-      canViewReadStats: getApp().globalData.demoMode || hasPermission('incentive:read-stats') || isAdmin(),
-      canViewReadRanking: getApp().globalData.demoMode || hasPermission('incentive:read-ranking:view') || isAdmin(),
-      canUploadEvidence: !getApp().globalData.demoMode && hasPermission('incentive:add'),
+      canViewReadStats: getApp().globalData.demoMode || hasPermission(PERMISSION_CODES.INCENTIVE_READ_STATS) || isAdmin(),
+      canViewReadRanking: getApp().globalData.demoMode || hasPermission(PERMISSION_CODES.INCENTIVE_READ_RANKING_VIEW) || isAdmin(),
+      canUploadEvidence: !getApp().globalData.demoMode && hasPermission(PERMISSION_CODES.INCENTIVE_ADD),
       canDeleteRecords: !getApp().globalData.demoMode && isAdmin()
     })
     this.loadGrantCheck()
@@ -1015,7 +1017,9 @@ Page({
   loadScoreboard() {
     // 【2026-11-04 逐功能建码】排行数据面守卫(rank:view∨stats:view): 两者皆无则跳过(不发起必败请求)
     const demo = Boolean(getApp().globalData.demoMode)
-    if (!demo && !hasPermission('incentive:rank:view') && !hasPermission('incentive:stats:view')) return
+    // 【2026-11-12 回退】incentive:rank:view 为纯前端门控码(后端零消费点, 不在生成物权威集),
+    // 常量化会得 undefined→门禁恒关; 保留字面量, 待生成器扩"前端专属码"语义后随第二批替换。
+    if (!demo && !hasPermission('incentive:rank:view') && !hasPermission(PERMISSION_CODES.INCENTIVE_STATS_VIEW)) return
     if (getApp().globalData.demoMode) {
       this.setData({
         scoreboard: [
