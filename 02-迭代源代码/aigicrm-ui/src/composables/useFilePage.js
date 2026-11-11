@@ -103,7 +103,11 @@ export function useFilePage() {
   //  - 其余位置按 folderPerms（含根目录硬编码/子夹 ACL）照旧判定。
   const isPublicRootNonAdmin = computed(() =>
     activeTab.value === 'public' && selectedFolderId.value == null && !isAdmin.value)
-  const canUpload = computed(() => folderPerms.value.includes('upload'))
+  // 【T4 2026-11-11 审计整改】叠全局码 file:upload: 后端 upload 端点是双门
+  // (@PreAuthorize file:upload + service 夹判定), 此前只看夹 ACL——无全局码者
+  // 按钮可见可点、提交必 403(必败入口)。MP files 页 11-08 批已同口径, PC 此处补齐。
+  const canUpload = computed(() =>
+    userStore.hasPermission('file:upload') && folderPerms.value.includes('upload'))
   const uploadDisabledReason = '公共根目录仅管理员可上传，请先在左侧选择文件夹后再上传'
 
   // 当前文件夹权限加载：

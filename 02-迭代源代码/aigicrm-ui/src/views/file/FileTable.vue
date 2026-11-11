@@ -48,10 +48,10 @@
             <el-tooltip v-if="(folderPerms.includes('download') || isOwn(row)) && folderDownloadable === 1" content="下载" placement="top">
               <el-icon class="act-icon" @click.stop="handleDownload(row)"><Download /></el-icon>
             </el-tooltip>
-            <el-tooltip v-if="activeTab !== 'public' && activeTab !== 'shared_to_me' && (folderPerms.includes('share') || isOwn(row))" content="分享" placement="top">
+            <el-tooltip v-if="activeTab !== 'public' && activeTab !== 'shared_to_me' && canFileAction(row, 'file:share', 'share')" content="分享" placement="top">
               <el-icon class="act-icon" @click.stop="openShareDialog(row)"><Share /></el-icon>
             </el-tooltip>
-            <el-tooltip v-if="folderPerms.includes('edit') || isOwn(row)" content="替换" placement="top">
+            <el-tooltip v-if="canFileAction(row, 'file:edit', 'edit')" content="替换" placement="top">
               <el-icon class="act-icon" @click.stop="openReplaceFile(row)"><Refresh /></el-icon>
             </el-tooltip>
             <!-- 【2026-11-08 PC 补文件改名入口】后端 PUT /file/{id}/rename（FileController file:edit +
@@ -61,7 +61,7 @@
             <el-tooltip v-if="canRename(row)" content="改名" placement="top">
               <el-icon class="act-icon" @click.stop="handleRenameFile(row)"><EditPen /></el-icon>
             </el-tooltip>
-            <el-tooltip v-if="folderPerms.includes('delete') || isOwn(row)" content="删除" placement="top">
+            <el-tooltip v-if="canFileAction(row, 'file:delete', 'delete')" content="删除" placement="top">
               <el-icon class="act-icon act-danger" @click.stop="handleDelete(row)"><Delete /></el-icon>
             </el-tooltip>
           </div>
@@ -140,7 +140,13 @@ const replacing = ref(false)
 const userStore = useUserStore()
 // 行级"是我传的"判定（列表行自带 uploaderId），本人对自己上传的文件恒显示 改名/替换/删除/分享/下载
 const isOwn = (row) => row?.uploaderId != null && Number(row.uploaderId) === Number(userStore.userId)
-const canRename = (row) => userStore.hasPermission('file:edit') && (folderPerms.value.includes('edit') || isOwn(row))
+// 【T4 2026-11-11 审计整改】行级写动作单源: 全局码 ∧ (夹 ACL ∨ isOwn)——与后端双门
+// (@PreAuthorize 全局码 + checkFile 本人恒管/夹判定)同口径。此前分享/替换/删除只看
+// 夹 ACL/isOwn, 无全局码者可见可点、提交必 403; canRename 是首个正确范式, 收敛于此。
+// (MP files 页 buildFileRowView 的 canDelete/canShare/canEditFile 同口径, 11-08 批已就位)
+const canFileAction = (row, code, folderPerm) =>
+  userStore.hasPermission(code) && (folderPerms.value.includes(folderPerm) || isOwn(row))
+const canRename = (row) => canFileAction(row, 'file:edit', 'edit')
 
 // 【2026-11-08 用户令"改名不更改格式"】扩展名自动保留: 输入带不带/换不换后缀,
 // 提交前统一剥掉输入后缀拼回原扩展名(与后端 keepOriginalExtension 同口径, 后端为铁律守卫)
