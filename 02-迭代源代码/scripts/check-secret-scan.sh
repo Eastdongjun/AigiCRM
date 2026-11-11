@@ -153,5 +153,5 @@ if [ -n "$violations" ]; then
   exit 1
 fi
 
-echo "PASS: secret 扫描 ${scanned} 个文件, 未豁免命中 0(豁免命中 ${allowlisted_hits}, 豁免条目 ${total_allow}; p1-p6 形态检测见脚本头注释)。"
+echo "PASS: secret 扫描 ${scanned} 个文件, 未豁免命中 0(豁免命中 ${allowlisted_hits}, 豁免条目 ${total_allow}; p1-p8 形态检测见脚本头注释)。"
 exit 0

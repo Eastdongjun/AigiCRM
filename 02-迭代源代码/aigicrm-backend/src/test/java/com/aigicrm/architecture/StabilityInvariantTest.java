@@ -73,6 +73,39 @@ class StabilityInvariantTest {
     }
 
     /**
+     * INV-MIG-002|迁移 INSERT 禁止显式行 id(WHERE 定位之外的盲区补丁)
+     * 源自 2026-11-11 审计 N2: V2026.11.11.2 首版 "SELECT 9047+n.i" 显式 id 插入菜单行,
+     * 既违背自身"零硬编码 id"承诺, 又在"某行缺失但 id 段被占"的库上主键冲突; 而 INV-MIG-001
+     * 的 WHERE/AND/OR 语境正则对 INSERT 列表里的显式 id 零命中(机器盲区)。
+     * 例外:唯一种子 V2026.09.11.6 的确定性字典 id(9010..9120 段)是刻意设计, 祖父豁免。
+     */
+    @Test
+    void migrations_mustNotInsertExplicitMenuRowIds() throws IOException {
+        List<String> grandfathered = List.of(
+                "V2026.09.11.6__seed_permission_dictionary_and_roles.sql");
+        // INSERT INTO sys_menu/sys_role_menu ... SELECT <3位以上数字>(, 或 +) —— SELECT 列表以
+        // 行 id 字面量开头(含 "9047 + n.i" 算式形态); COALESCE(...) 等函数开头不误伤。
+        Pattern explicitIdInsert = Pattern.compile(
+                "(?is)insert\\s+into\\s+`?(sys_menu|sys_role_menu)`?[^;]{0,400}?select\\s+\\d{3,}\\s*(?:,|\\+)");
+        Path migrationDir = Paths.get("src/main/resources/db/migration").toAbsolutePath().normalize();
+        List<String> violations = new ArrayList<>();
+        try (Stream<Path> files = Files.list(migrationDir)) {
+            for (Path p : files.filter(f -> f.getFileName().toString().endsWith(".sql")).toList()) {
+                String name = p.getFileName().toString();
+                if (grandfathered.contains(name)) continue;
+                StringBuilder effective = new StringBuilder();
+                for (String line : Files.readAllLines(p, StandardCharsets.UTF_8)) {
+                    if (!line.trim().startsWith("--")) effective.append(line).append('\n');
+                }
+                if (explicitIdInsert.matcher(effective).find()) violations.add(name);
+            }
+        }
+        assertTrue(violations.isEmpty(),
+                "INV-MIG-002 违规(迁移 INSERT 显式行 id, 与 id 段漂移的库冲突): " + violations
+                        + " —— id 交给 AUTO_INCREMENT, 行按 permission 自然键定位; 种子外新增即红");
+    }
+
+    /**
      * INV-TENANT-001|租户 fail-closed 语义不可移除
      * 源自事故 2026-09-23 NM005:非 admin 无集团 → tenant_id = NULL 恒假 → 查询恒空(admin 豁免曾掩盖全员不可见)。
      * NullValue 返回与 admin 豁免是这条防线的两根柱子,动它必须先过三态影响评估。

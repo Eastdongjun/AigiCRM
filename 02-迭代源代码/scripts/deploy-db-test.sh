@@ -77,9 +77,12 @@ if [ -x "$SCRIPT_DIR/check-migration-contract.sh" ]; then
 fi
 
 echo "=== [1/5] 本地打包迁移目录（$MIG_CNT 个 .sql）==="
-# 【加固 2026-11-05 事故教训】排除数字旧版本迁移(V2~V33+, 其效果已含在 V1__baseline schema 快照内):
-# 快照库(生产快照)的 flyway 历史若缺这些旧行(实测缺 V2~V11), migrate 会把它们当 pending
-# 重新执行(2026-11-05 02:08 实证十支全部空转, 幂等守卫兜底未伤数据——属侥幸不可依赖)。
+# 【加固 2026-11-05 事故教训; 2026-11-11 口径厘清】数字旧版本迁移(V2~V33)的打包处理:
+#   本脚本只服务**快照库**(生产快照, 数字版效果已随快照携带, flyway history 有原生行),
+#   故全部排除: V2~V11 与 V1__baseline 裸 CREATE 撞表; V12~V33 效果虽不在 V1 快照内
+#   (2026-11-11 空库重放实证), 但快照库已 applied, 文件在包里只会引起版本判定纠纷。
+#   【空库重放口径不同】: 须 V1 + V12~V33 + 日期版(仅排除 V2~V11), 详见
+#   scripts/replay-empty-db.sh(2026-11-11 新增, 空库重放专用管道)。
 # V1 必须保留(空库靠它建 schema); 日期版(2026.*)不受影响。
 tar czf "$PACK" --exclude='*/._*' --exclude='.DS_Store' \
   --exclude='V[2-9]__*.sql' --exclude='V[0-9][0-9]__*.sql' \
