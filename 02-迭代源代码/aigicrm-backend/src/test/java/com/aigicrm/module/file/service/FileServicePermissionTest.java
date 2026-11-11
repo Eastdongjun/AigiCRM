@@ -1409,4 +1409,112 @@ class FileServicePermissionTest {
             }
         }
     }
+
+    // ==================== 【T2 2026-11-11 审计整改】激励空间权限门 + 全 scope 配额 ====================
+
+    @Test
+    void upload_incentiveScope_withoutIncentiveAdd_throws403() {
+        MultipartFile mf = mock(MultipartFile.class);
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
+            m.when(() -> SecurityUtils.hasAuthority("incentive:add")).thenReturn(false);
+            // 【T2】激励空间上传与 IncentiveController /records 同码门槛: 无码 403,
+            // 且不进入存储/配额环节(防借上传端点向激励空间落盘)
+            BusinessException ex = assertThrows(BusinessException.class, () -> svc.upload(mf, null, "incentive"));
+            assertEquals(403, ex.getCode());
+            verify(userMapper, never()).tryConsumeQuota(anyLong(), anyLong());
+            verify(fileMapper, never()).insert(any(BizFile.class));
+        }
+    }
+
+    @Test
+    void upload_incentiveScope_withIncentiveAdd_consumesQuota() throws Exception {
+        // 2×2 真图走 local 落盘路径(与既有用例同款), 验证激励上传同样扣配额
+        java.nio.file.Path img = java.nio.file.Files.createTempFile("t2-inc-", ".png");
+        writeTestImage(img, "png", 2, 2);
+        byte[] bytes = java.nio.file.Files.readAllBytes(img);
+        MultipartFile mf = new MockMultipartFile("f", "证据.png", "image/png",
+                new ByteArrayInputStream(bytes));
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
+            m.when(() -> SecurityUtils.hasAuthority("incentive:add")).thenReturn(true);
+            SysUser me = new SysUser();
+            me.setOfficeId(10L);
+            when(userMapper.selectById(1L)).thenReturn(me);
+            when(userMapper.tryConsumeQuota(eq(1L), eq((long) bytes.length))).thenReturn(1);
+            when(fileMapper.insert(any(BizFile.class))).thenReturn(1);
+
+            BizFile saved = svc.upload(mf, null, "incentive");
+
+            // 【T2】incentive scope 也必须过配额门(此前仅 private, 激励空间无限上传)
+            verify(userMapper).tryConsumeQuota(eq(1L), eq((long) bytes.length));
+            assertEquals("incentive", saved.getFileScope());
+            java.nio.file.Files.deleteIfExists(img);
+        }
+    }
+
+    @Test
+    void upload_publicRoot_admin_alsoConsumesQuota() throws Exception {
+        // 【T2】public 根目录仅 admin 可传, 但同样计入 admin 配额(审计 P1-2: 全 scope 配额)
+        java.nio.file.Path img = java.nio.file.Files.createTempFile("t2-pub-", ".png");
+        writeTestImage(img, "png", 2, 2);
+        byte[] bytes = java.nio.file.Files.readAllBytes(img);
+        MultipartFile mf = new MockMultipartFile("f", "公告.png", "image/png",
+                new ByteArrayInputStream(bytes));
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
+            m.when(SecurityUtils::isAdmin).thenReturn(true);
+            SysUser me = new SysUser();
+            me.setOfficeId(10L);
+            when(userMapper.selectById(1L)).thenReturn(me);
+            when(userMapper.tryConsumeQuota(eq(1L), eq((long) bytes.length))).thenReturn(1);
+            when(fileMapper.insert(any(BizFile.class))).thenReturn(1);
+
+            svc.upload(mf, null, "public");
+
+            verify(userMapper).tryConsumeQuota(eq(1L), eq((long) bytes.length));
+            java.nio.file.Files.deleteIfExists(img);
+        }
+    }
+
+    @Test
+    void deleteFile_incentiveScope_returnsQuota() {
+        // 【T2】占用/归还对称: incentive 文件删除归还上传人配额(存量已由 V2026.11.11.3 回溯对账)
+        BizFile f = new BizFile();
+        f.setId(77L);
+        f.setFileScope("incentive");
+        f.setUploaderId(5L);
+        f.setFileSize(100L);
+        f.setFileName("证据.jpg");
+        when(fileMapper.selectById(77L)).thenReturn(f);
+        when(fileMapper.deleteById(77L)).thenReturn(1);
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::getCurrentUserId).thenReturn(5L);
+            m.when(SecurityUtils::getCurrentUsername).thenReturn("t");
+            svc.deleteFile(77L);
+            verify(userMapper).adjustStorageUsed(5L, -100L);
+        }
+    }
+
+    @Test
+    void deleteFile_unknownScope_doesNotReturnQuota() {
+        // 【T2】白名单外历史脏 scope 行不还配额(防从未扣过的账面漂移)。
+        // admin 才能删未知 scope(非 admin 走默认拒绝 403, 另有既有用例覆盖)——
+        // 这里锁定 admin 删除成功路径上归还段按 quotaBearing 收敛
+        BizFile f = new BizFile();
+        f.setId(78L);
+        f.setFileScope("legacy");
+        f.setUploaderId(5L);
+        f.setFileSize(100L);
+        f.setFileName("旧物.jpg");
+        when(fileMapper.selectById(78L)).thenReturn(f);
+        when(fileMapper.deleteById(78L)).thenReturn(1);
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
+            m.when(SecurityUtils::isAdmin).thenReturn(true);
+            m.when(SecurityUtils::getCurrentUsername).thenReturn("t");
+            svc.deleteFile(78L);
+            verify(userMapper, never()).adjustStorageUsed(anyLong(), anyLong());
+        }
+    }
 }

@@ -366,6 +366,15 @@ public class RecycleService {
             if (size > 0 && userMapper.tryConsumeQuota(f.getUploaderId(), size) == 0) {
                 throw new BusinessException("上传者存储配额不足，无法恢复该文件");
             }
+        } else if (com.aigicrm.module.file.service.FileService.quotaBearing(f.getFileScope())
+                && f.getUploaderId() != null) {
+            // 【T2 2026-11-11 审计整改】配额覆盖全 scope: public/incentive 文件恢复同样重新
+            // 占用(上传者存在性校验是私有文件专属语义——非私有文件不随上传人账号状态判生死;
+            // 历史孤儿行 uploader 缺失时无从归属配额, 免检恢复)。
+            long size = f.getFileSize() != null ? f.getFileSize() : 0L;
+            if (size > 0 && userMapper.tryConsumeQuota(f.getUploaderId(), size) == 0) {
+                throw new BusinessException("上传者存储配额不足，无法恢复该文件");
+            }
         }
         int restored = folderMissing ? fileMapper.restoreDeletedToRoot(id) : fileMapper.restoreDeleted(id);
         if (restored != 1) {

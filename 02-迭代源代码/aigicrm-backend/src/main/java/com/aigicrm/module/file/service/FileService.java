@@ -299,6 +299,13 @@ public class FileService {
             throw new BusinessException("公共根目录文件仅管理员可上传");
         }
 
+        // 【T2 2026-11-11 审计整改】激励空间上传=激励计分动作: 与 IncentiveController /records
+        // 同码门槛(incentive:add, 设计 §3.2 上传语义), 防无激励权限者借文件上传端点向激励空间
+        // 无限落盘(此前仅 private 扣配额, incentive 是绕过面, 审计 P1-2)。
+        if ("incentive".equals(scope) && !SecurityUtils.hasAuthority("incentive:add")) {
+            throw new BusinessException(403, "没有访问权限，请联系管理员授权");
+        }
+
         // 【文件权限体系】上传到文件夹需文件夹上传权限（管理员/本人/上级链/ACL upload）
         if (folderId != null && !folderPermissionService.check(folderId, FolderPermissionService.P_UPLOAD, userId)) {
             throw new BusinessException(403, "没有访问权限，请联系管理员授权");
@@ -306,13 +313,14 @@ public class FileService {
 
         // 【P2 2026-10-09 配额并发修复】配额检查与扣减原子化: WHERE used+size<=quota 命中才扣,
         // 0 行=配额不足——并发上传在 DB 端串行判定, 消除"两请求同过内存检查"的超配额竞态。
-        if ("private".equals(scope)) {
-            if (userMapper.tryConsumeQuota(userId, file.getSize()) == 0) {
-                SysUser user = userMapper.selectById(userId);
-                throw new BusinessException("存储空间不足，当前已用: " +
-                        formatSize(user != null ? user.getStorageUsed() : 0L) +
-                        "，配额: " + formatSize(user != null ? user.getStorageQuota() : 0L));
-            }
+        // 【T2 2026-11-11 审计整改】配额覆盖全部 scope(public/private/incentive): 激励佐证是
+        // 存储大头(生产 2.5k+ 条), 仅 private 扣配额=激励空间无限上传; 存量已由
+        // V2026.11.11.3 一次性回溯对账(全员 10GB 配额, 回溯峰值 943MB, 零超配)。
+        if (userMapper.tryConsumeQuota(userId, file.getSize()) == 0) {
+            SysUser user = userMapper.selectById(userId);
+            throw new BusinessException("存储空间不足，当前已用: " +
+                    formatSize(user != null ? user.getStorageUsed() : 0L) +
+                    "，配额: " + formatSize(user != null ? user.getStorageQuota() : 0L));
         }
 
         try {
@@ -347,11 +355,19 @@ public class FileService {
             return bizFile;
         } catch (Exception e) {
             // 【P2 2026-10-09】扣减成功后存储/入库失败 → 补偿归还(GREATEST 守护)
-            if ("private".equals(scope)) {
-                userMapper.adjustStorageUsed(userId, -file.getSize());
-            }
+            // 【T2 2026-11-11】全 scope 扣减 → 补偿归还同步去 scope 条件
+            userMapper.adjustStorageUsed(userId, -file.getSize());
             throw new BusinessException("文件上传失败: " + e.getMessage());
         }
+    }
+
+    /**
+     * 【T2 2026-11-11 审计整改】占配额的文件范围判定: 与 upload 的 scope 白名单对称
+     * (public/private/incentive)。删除归还/替换差额/回收站恢复共用, 保证占用与归还账面对称;
+     * 历史脏 scope 行(白名单外)不还不扣, 防账面漂移。
+     */
+    public static boolean quotaBearing(String scope) {
+        return "public".equals(scope) || "private".equals(scope) || "incentive".equals(scope);
     }
 
     public void createFolder(BizFileFolder folder) {
@@ -496,7 +512,8 @@ public class FileService {
         evictThumbnailCache(fileId);
 
         // 【P2 2026-10-09 配额并发修复】归还改数据库端原子增减, 消除读改写丢失更新
-        if ("private".equals(file.getFileScope()) && file.getFileSize() != null) {
+        // 【T2 2026-11-11】归还覆盖全 scope(与扣减对称); 历史脏 scope 行不还
+        if (quotaBearing(file.getFileScope()) && file.getFileSize() != null && file.getUploaderId() != null) {
             userMapper.adjustStorageUsed(file.getUploaderId(), -file.getFileSize());
         }
     }
@@ -597,7 +614,8 @@ public class FileService {
             evictThumbnailCache(fileId);
             // 【P2 2026-10-09 配额并发修复】差额调整改数据库端原子(GREATEST 守护最小 0)——
             // 【A7】与 updateById 同事务: 任一失败整体回滚, 配额与台账不再漂移
-            if ("private".equals(scope)) {
+            // 【T2 2026-11-11】差额调整覆盖全 scope(与扣减对称)
+            if (quotaBearing(scope) && file.getUploaderId() != null) {
                 userMapper.adjustStorageUsed(file.getUploaderId(), newFile.getSize() - oldSize);
             }
             // 【A7】旧文件物理删除必须等事务提交: 注册 afterCommit, 回滚路径不执行

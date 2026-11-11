@@ -314,6 +314,7 @@ class RecycleServiceTest {
         // 【审查 biz-2 2026-10-18】原文件夹已硬删且 ID 不复用: 恢复到根目录而非报错要求重建旧夹
         stubLockedFile(deletedFile(11L, "public", 7L, 9L, 1024));
         when(fileService.contentExists(anyString())).thenReturn(true);
+        when(userMapper.tryConsumeQuota(9L, 1024L)).thenReturn(1); // 【T2】public 恢复同样重新占用配额
         when(fileFolderMapper.selectById(7L)).thenReturn(null);
         when(fileMapper.restoreDeletedToRoot(11L)).thenReturn(1);
 
@@ -334,6 +335,7 @@ class RecycleServiceTest {
         BizFile file = deletedFile(11L, "public", null, 9L, 1024);
         stubLockedFile(file);
         when(fileService.contentExists(anyString())).thenReturn(true);
+        when(userMapper.tryConsumeQuota(9L, 1024L)).thenReturn(1); // 【T2】public 恢复同样重新占用配额
         when(fileMapper.restoreDeleted(11L)).thenReturn(1);
 
         service.restoreFile(11L);
@@ -363,6 +365,7 @@ class RecycleServiceTest {
     void restoreFile_success_writesAudit() {
         stubLockedFile(deletedFile(11L, "public", null, 9L, 1024));
         when(fileService.contentExists(anyString())).thenReturn(true);
+        when(userMapper.tryConsumeQuota(9L, 1024L)).thenReturn(1); // 【T2】public 恢复同样重新占用配额
         when(fileMapper.restoreDeleted(11L)).thenReturn(1);
 
         String message = service.restoreFile(11L);
@@ -478,6 +481,7 @@ class RecycleServiceTest {
         stubPurgeAllIds(List.of(11L));
         stubLockedFile(deletedFile(11L, "public", null, 9L, 1024));
         when(fileService.contentExists(anyString())).thenReturn(true);
+        when(userMapper.tryConsumeQuota(9L, 1024L)).thenReturn(1); // 【T2】public 恢复同样重新占用配额
 
         RecycleService.PurgeFilesResult result = service.purgeAllDeletedFiles();
 
