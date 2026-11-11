@@ -633,6 +633,8 @@ local_contracts() {
   # 【修复 2026-11-12 根因1/2/5】文件按钮视图词表契约: 后端 perms 输出词(细词) ⊆ 双端消费词
   #   (PC 双词兼容/MP 双词/夹行 folderActions 分字段/无夹空间锚), 防视图与判定链再度脱节。
   run "$ROOT/scripts/check-file-perms-view-contract.sh"
+  # 【T5 2026-11-12】菜单-权限码 1:1 契约: 同码页面行唯一, 混合/多行仅限白名单(防新增歧义行)
+  run "$ROOT/scripts/check-menu-code-uniqueness.sh"
   # 【T1 2026-11-11 审计整改】权限码绑定覆盖率: @PreAuthorize 码必须有锚点角色绑定(防空库重放全员403)
   run "$ROOT/scripts/check-permission-binding-coverage.sh"
 }

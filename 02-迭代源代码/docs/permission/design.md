@@ -72,6 +72,20 @@
 角色×码勾选唯一入口=权限中心(PermCenter 四页签); 生效预览用真实 UserDetailsService
 重建 SecurityUser 喂各引擎(PermCenterService)。
 
+## 四b、菜单行与权限码关系(T5 2026-11-12 立)
+
+- **一码一行原则**: 同一 permission 的 menu_type=2 页面行应唯一——多行=勾不同行效果不同、
+  字典合并显示, 是"勾了看不到/没勾也能进"歧义源。机器拦截=check-menu-code-uniqueness.sh
+  (静态层防新增; 最终态对账走空库重放, 本机无 Docker 时以静态层为准)。
+- **多页面行白名单(有意设计, 非违例)**: 同功能域多路由共享码(列表/详情/分组页,
+  如 statistics/score/customer/incentive/sea/file:view)与 visible=0 隐藏字典登记行
+  (system:user/dept:view); 时序重登记(system:log:view, 05.2 合并→05.3 重登运行态唯一)。
+- **NULL permission 禁止新增**(工作台菜单行 NULL 系 2026-11-12 裁决A 特例: dashboard:view
+  退役, 菜单可见性与发码解耦, 路由守卫单键 statistics:view)。
+- **2/3 混合(页面行+按钮行同码)**: 仅限白名单 customer:add / incentive:stats:view(历史形态)。
+- **待产品裁决**: system:config:view 3 页面行(配置组/字典/系统设置)是否合并——台账
+  docs/REQUIREMENTS.md。
+
 ## 五、关键安全点(踩坑记录, 含旧文保留)
 
 - admin 无隐式旁路: 权限绑定缺一行=全员 403(含 admin)——空库重放契约/绑定覆盖契约防此。

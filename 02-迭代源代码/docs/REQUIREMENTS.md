@@ -61,7 +61,9 @@
 
 | 事项 | 状态 |
 | --- | --- |
-| 行政(05)是否放开 statistics:view / task:view | 待用户裁决(两库一致现况:未绑) |
+| 菜单-权限码 1:1 治理(2026-11-12 T5 台账) | **契约已上(check-menu-code-uniqueness)**;存量多页面行白名单=有意多路由(statistics/score/customer/incentive/sea/file:view)+隐藏字典行(system:user/dept:view)+时序重登记(system:log:view);**待产品裁决: system:config:view 3 页面行(配置组/字典/系统设置)是否合并**——功能歧义型真违例;2/3 混合(customer:add/incentive:stats:view)历史形态保留 |
+| 工作台菜单行 permission 恢复(任务卡T5.1默认恢复码) | **不采纳,已有用户裁决(2026-11-12 裁决A)**: dashboard:view 退役、菜单行 permission=NULL=菜单可见性与发码解耦, 路由守卫单键 statistics:view, 行政补绑已落地(design.md 已知问题#1) |
+| 行政(05)是否放开 statistics:view / task:view | **部分销账(2026-11-12 裁决A"给全")**: 行政已补绑 statistics 三菜单; task:view 仍待裁决(现况未绑) |
 | 统计页客情/指标排行是否与激励同口径(公司级) | 待裁决;现况=G2 客户可见范围,矩阵回归钉住 |
 | 提醒管理页取数并发化(6 请求 4 段串行+N+1) | **主体已实施(a4077ef1,2026-10-05)**:后端 N+1 批量化+串行段并发化、前端段内并发;残留=前端段间串行与 6 请求数,当前数据量无感知,聚合端点留作 V2(2026-10-08 更新) |
 | 小程序 1.0.2 上传 | 已过时销账:当前 1.0.33(2026-11-02),上传通道正常,版本演进见 mp 后台 |
