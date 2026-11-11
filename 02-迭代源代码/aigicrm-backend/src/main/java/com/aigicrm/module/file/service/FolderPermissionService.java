@@ -190,20 +190,11 @@ public class FolderPermissionService {
 
     // ==================== 例外授权(必须过期) ====================
 
-    /** 授权命中: 主体匹配 ∧ 对象组匹配 ∧ 空间/逐夹定向匹配 ∧ 组织范围匹配 ∧ 词表命中 ∧ 未过期 */
+    /** 授权命中: 主体匹配 ∧ 对象组匹配 ∧ 空间/逐夹定向匹配 ∧ 组织范围匹配 ∧ 词表命中 ∧ 未过期
+     *  【治本② 2026-11-11】与批量版(grantHitIn)合一为同一实现: 本方法=每次实时查全表(单点判定);
+     *  批量视图传入预载 grants 复用同一匹配逻辑(防 N+1), 两路语义永久一致。 */
     private boolean grantGranted(String objectType, String folderType, Long targetFolderId, Long targetOrgId, Long targetOwnerId, String action, Long userId) {
-        LocalDateTime now = LocalDateTime.now();
-        for (BizFolderTypeDefault g : grantMapper.selectList(new LambdaQueryWrapper<>())) {
-            if (g.getExpiresAt() != null && g.getExpiresAt().isBefore(now)) continue;
-            if (!Objects.equals(g.getObjectType(), objectType)) continue;
-            if (g.getFolderId() != null && !g.getFolderId().equals(targetFolderId)) continue;
-            if (g.getFolderId() == null && folderType != null && !Objects.equals(g.getFolderType(), folderType)) continue;
-            if (g.getScopeOrgId() != null && !g.getScopeOrgId().equals(targetOrgId)) continue;
-            if (!subjectMatches(g, userId)) continue;
-            if (!scopeCovers(g, targetOrgId, targetOwnerId)) continue;
-            if (csvHas(g.getPerms(), action)) return true;
-        }
-        return false;
+        return grantHitIn(grantMapper.selectList(new LambdaQueryWrapper<>()), objectType, folderType, targetFolderId, targetOrgId, targetOwnerId, action, userId);
     }
 
     /** 【2026-11-10 用户令"区分数据范围"】授权行范围命中: scope_level 空/all=不限;
@@ -293,6 +284,9 @@ public class FolderPermissionService {
             if (g.getFolderId() == null && folderType != null && !Objects.equals(g.getFolderType(), folderType)) continue;
             if (g.getScopeOrgId() != null && !g.getScopeOrgId().equals(targetOrgId)) continue;
             if (!subjectMatches(g, userId)) continue;
+            // 【治本② 2026-11-11】补 scopeCovers(与单点判定 grantGranted 对齐): 原批量版漏范围命中
+            // 检查, 带 scope_level 档位的授权行在按钮视图绕过范围(与实际 checkFile 判定不一致)。
+            if (!scopeCovers(g, targetOrgId, targetOwnerId)) continue;
             if (csvHas(g.getPerms(), action)) return true;
         }
         return false;
