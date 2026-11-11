@@ -22,6 +22,13 @@ jobs:
       - name: Maven verify (含 ArchUnit 分层约束)
         working-directory: 02-迭代源代码/aigicrm-backend
         run: mvn -B -q verify
+      # 【B2 修复 2026-11-12】jar 上传 artifact——boot-smoke 依赖 backend-jar(原缺 upload 必挂)
+      - name: 上传 jar 产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-jar
+          path: 02-迭代源代码/aigicrm-backend/target/*.jar
+          retention-days: 7
       # aigicrm_database_test.sql 是本地生成的数据库 dump(含业务数据, .gitignore 排除),
       # fresh checkout 无此文件 → 有文件才跑真实 cross-check, 否则跳过(此前固定引用导致 CI 必败)
       - name: Cross-check schema vs entity
@@ -179,7 +186,7 @@ jobs:
       - name: 灌库(空库重放集, V1+V12~V33+日期版)
         run: |
           mkdir -p /tmp/smoke-mig
-          find aigicrm-backend/src/main/resources/db/migration -maxdepth 1 -name '*.sql' \
+          find 02-迭代源代码/aigicrm-backend/src/main/resources/db/migration -maxdepth 1 -name '*.sql' \
             ! -name 'V[2-9]__*' ! -name 'V10__*' ! -name 'V11__*' -exec cp {} /tmp/smoke-mig/ \;
           docker run --rm --network host -v /tmp/smoke-mig:/flyway/sql flyway/flyway:9.22.3-alpine \
             -url="jdbc:mysql://127.0.0.1:3306/ycmn?characterEncoding=UTF-8&connectionCollation=utf8mb4_general_ci&useSSL=false&allowPublicKeyRetrieval=true" \
@@ -217,17 +224,26 @@ jobs:
       - name: 扫描 Maven + 前端锁文件
         run: |
           export PATH=$PATH:$(go env GOPATH)/bin
-          osv-scanner --lockfile=aigicrm-ui/package-lock.json || true > /tmp/osv-frontend.log 2>&1
-          osv-scanner --lockfile=aigicrm-backend/pom.xml || true > /tmp/osv-maven.log 2>&1
+          # 【B2 修复 2026-11-12】路径补 02-迭代源代码/ 前缀; 去 `|| true` 假绿——
+          # scanner 执行失败(rc≥2, 安装/网络/参数)必须红, 只有"扫出漏洞"(rc=1)留给下方 grep 判级
+          rc_sum=0
+          osv-scanner --lockfile=02-迭代源代码/aigicrm-ui/package-lock.json > /tmp/osv-frontend.log 2>&1 || rc=$?
+          rc_sum=$((rc_sum + ${rc:-0})); unset rc
+          osv-scanner --lockfile=02-迭代源代码/aigicrm-backend/pom.xml > /tmp/osv-maven.log 2>&1 || rc=$?
+          rc_sum=$((rc_sum + ${rc:-0})); unset rc
           echo "== 前端漏洞 =="; cat /tmp/osv-frontend.log
           echo "== Maven 漏洞 =="; cat /tmp/osv-maven.log
+          # scanner 自身失败(任一侧 rc≥2)即红, 不静默假绿
+          if [ "$rc_sum" -ge 2 ]; then
+            echo '❌ osv-scanner 执行失败(非"无漏洞")——不允许静默通过'; exit 1
+          fi
           # 红线: 任意 high 及以上漏洞
           if grep -qE "([0-9]+ (High|Critical) vulnerabilities|Severity: (High|Critical))" /tmp/osv-frontend.log /tmp/osv-maven.log; then
             echo '❌ 发现 High/Critical 级依赖漏洞'; exit 1
           fi
       - name: npm audit (high+)
-        working-directory: aigicrm-ui
-        run: npm audit --audit-level=high --omit=dev || true > /tmp/audit.log 2>&1; cat /tmp/audit.log; ! grep -qE "[1-9][0-9]* (high|critical)" /tmp/audit.log
+        working-directory: 02-迭代源代码/aigicrm-ui
+        run: npm audit --audit-level=high --omit=dev > /tmp/audit.log 2>&1; cat /tmp/audit.log; ! grep -qE "[1-9][0-9]* (high|critical)" /tmp/audit.log
 
   # 【底座评估 2026-11-11】空库 Flyway 重放 + 权限末态断言(评估建议 P2):
   # 不依赖测试服——runner 内起 mysql:8.0 service(按生产参数 general_ci), 重放集与
@@ -252,7 +268,7 @@ jobs:
       - name: 打包空库重放集(仅排 V2~V11, 与 replay-empty-db.sh 同口径)
         run: |
           mkdir -p /tmp/replay-mig
-          find aigicrm-backend/src/main/resources/db/migration -maxdepth 1 -name '*.sql' \
+          find 02-迭代源代码/aigicrm-backend/src/main/resources/db/migration -maxdepth 1 -name '*.sql' \
             ! -name 'V[2-9]__*' ! -name 'V10__*' ! -name 'V11__*' -exec cp {} /tmp/replay-mig/ \;
           echo "重放集: $(ls /tmp/replay-mig/*.sql | wc -l) 个"
       - name: Flyway 全链重放

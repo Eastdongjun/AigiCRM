@@ -56,7 +56,13 @@ class PermissionBehaviorMatrixTest {
             CustomerController.class,
             com.aigicrm.module.file.controller.FileController.class,
             com.aigicrm.module.statistics.controller.StatisticsController.class,
-            com.aigicrm.module.task.controller.TaskController.class})
+            com.aigicrm.module.task.controller.TaskController.class,
+            // 【B8 扩面 2026-11-12】approval / incentive / sea / reminder / system(menu)
+            com.aigicrm.module.approval.controller.ApprovalController.class,
+            com.aigicrm.module.incentive.controller.IncentiveController.class,
+            com.aigicrm.module.sea.controller.SeaController.class,
+            com.aigicrm.module.reminder.controller.ReminderController.class,
+            com.aigicrm.module.system.controller.SysMenuController.class})
     static class Ctx {
     }
 
@@ -92,6 +98,16 @@ class PermissionBehaviorMatrixTest {
     // Task 组
     @MockitoBean com.aigicrm.module.task.service.TaskService taskService;
     @MockitoBean com.aigicrm.module.task.service.TaskViewService taskViewService;
+    // 【B8 扩面】五模块依赖(SeaService/ApprovalService 已在上方既有声明)
+    @MockitoBean com.aigicrm.module.incentive.service.IncentiveService incentiveService;
+    @MockitoBean com.aigicrm.module.reminder.service.ReminderService reminderService;
+    @MockitoBean com.aigicrm.module.system.service.SysMenuService sysMenuService;
+    @MockitoBean com.aigicrm.module.sea.service.SeaConfigService seaConfigService;
+    @MockitoBean com.aigicrm.module.approval.mapper.BizApprovalMapper bizApprovalMapper;
+    @MockitoBean com.aigicrm.module.approval.mapper.BizApprovalNodeMapper bizApprovalNodeMapper;
+    @MockitoBean com.aigicrm.module.customer.mapper.BizCustomerMapper bizCustomerMapper;
+    @MockitoBean com.aigicrm.module.system.mapper.SysUserMapper matrixSysUserMapper;
+    @MockitoBean com.aigicrm.common.scope.OrgScopeResolver orgScopeResolver;
 
     private static final String STAGE_URL = "/api/customer/1/stage-amounts";
     private static final String STAGE_BODY = "{\"periodYear\":2026,\"periodType\":\"H1\",\"invoiceAmount\":10}";
@@ -253,5 +269,96 @@ class PermissionBehaviorMatrixTest {
                         .contentType(MediaType.APPLICATION_JSON).content("{}"))
                 .andExpect(status().isOk());
         verify(taskService).createFromMap(any());
+    }
+
+    // ==================== 【B8 扩面 2026-11-12】approval / incentive / sea / reminder / system 五模块 ====================
+    // 每模块钉两格: 无码(或错码)=403 且 service 零触达 / 正码=200 到达 service。
+
+    @Test
+    void approvalList_withoutView_403() throws Exception {
+        mockMvc.perform(get("/api/approval/list").accept(MediaType.APPLICATION_JSON).with(as("task:view")))
+                .andExpect(status().isForbidden());
+        verifyNoInteractions(approvalService);
+    }
+
+    @Test
+    void approvalList_withView_200() throws Exception {
+        org.mockito.Mockito.when(approvalService.page(org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.anyInt(),
+                        any(), any(), any(), any(), any()))
+                .thenReturn(new com.baomidou.mybatisplus.extension.plugins.pagination.Page<>());
+        try (org.mockito.MockedStatic<com.aigicrm.security.SecurityUtils> ms =
+                     org.mockito.Mockito.mockStatic(com.aigicrm.security.SecurityUtils.class)) {
+            ms.when(com.aigicrm.security.SecurityUtils::getCurrentUserId).thenReturn(1L);
+            mockMvc.perform(get("/api/approval/list").accept(MediaType.APPLICATION_JSON).with(as("approval:view")))
+                    .andExpect(status().isOk());
+        }
+        verify(approvalService).page(org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.anyInt(),
+                any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void incentiveCategories_withoutView_403() throws Exception {
+        mockMvc.perform(get("/api/incentive/categories").accept(MediaType.APPLICATION_JSON).with(as("incentive:edit")))
+                .andExpect(status().isForbidden());
+        verifyNoInteractions(incentiveService);
+    }
+
+    @Test
+    void incentiveCategories_withView_200() throws Exception {
+        org.mockito.Mockito.when(incentiveService.getCategoryTree()).thenReturn(java.util.Collections.emptyList());
+        mockMvc.perform(get("/api/incentive/categories").accept(MediaType.APPLICATION_JSON).with(as("incentive:view")))
+                .andExpect(status().isOk());
+        verify(incentiveService).getCategoryTree();
+    }
+
+    @Test
+    void seaList_withoutView_403() throws Exception {
+        mockMvc.perform(get("/api/sea/list").accept(MediaType.APPLICATION_JSON).with(as("sea:claim")))
+                .andExpect(status().isForbidden());
+        verifyNoInteractions(seaService);
+    }
+
+    @Test
+    void seaList_withView_200() throws Exception {
+        org.mockito.Mockito.when(seaService.page(org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.anyInt(),
+                        any(), any(), any(), any(), any(), any()))
+                .thenReturn(new com.baomidou.mybatisplus.extension.plugins.pagination.Page<>());
+        mockMvc.perform(get("/api/sea/list").accept(MediaType.APPLICATION_JSON).with(as("sea:view")))
+                .andExpect(status().isOk());
+        verify(seaService).page(org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.anyInt(),
+                any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void reminderList_withoutView_403() throws Exception {
+        mockMvc.perform(get("/api/reminder/list").accept(MediaType.APPLICATION_JSON).with(as("task:view")))
+                .andExpect(status().isForbidden());
+        verifyNoInteractions(reminderService);
+    }
+
+    @Test
+    void reminderList_withView_200() throws Exception {
+        org.mockito.Mockito.when(reminderService.page(org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.anyInt(),
+                        any(), any(), any(), any(), any(), any()))
+                .thenReturn(new com.baomidou.mybatisplus.extension.plugins.pagination.Page<>());
+        mockMvc.perform(get("/api/reminder/list").accept(MediaType.APPLICATION_JSON).with(as("reminder:view")))
+                .andExpect(status().isOk());
+        verify(reminderService).page(org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.anyInt(),
+                any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void menuTree_withoutMenuView_403() throws Exception {
+        mockMvc.perform(get("/api/system/menus/tree").accept(MediaType.APPLICATION_JSON).with(as("system:config:view")))
+                .andExpect(status().isForbidden());
+        verifyNoInteractions(sysMenuService);
+    }
+
+    @Test
+    void menuTree_withMenuView_200() throws Exception {
+        org.mockito.Mockito.when(sysMenuService.tree()).thenReturn(java.util.Collections.emptyList());
+        mockMvc.perform(get("/api/system/menus/tree").accept(MediaType.APPLICATION_JSON).with(as("system:menu:view")))
+                .andExpect(status().isOk());
+        verify(sysMenuService).tree();
     }
 }
