@@ -137,7 +137,9 @@ describe('权限中心(2026-11-03 门面统一)', () => {
     const wrapper = mountCenter(['customer:view']) // 无三码
     const items = wrapper.findAll('.pc-nav-item').map(w => w.text())
     expect(items).toEqual(['激励授权', '生效预览', '变更审计'])
-    expect(wrapper.vm.activePane).toBe('preview') // scope 不可用 → 默认落核对区
+    // scope 不可用 → 默认激活"生效预览"(以 DOM 激活态断言, 不触 vm 属性访问类型面)
+    const active = wrapper.find('.pc-nav-item.active')
+    expect(active.text()).toBe('生效预览')
   })
 
   it('【T6】勾了接口码即见对应配置面: sea:config:view 点亮公海池', () => {
