@@ -16,12 +16,18 @@ BACKEND_SRC="$ROOT/aigicrm-backend/src/main/java"
 MIG_DIR="$ROOT/aigicrm-backend/src/main/resources/db/migration"
 fail() { echo "FAIL: $1" >&2; exit 1; }
 
-# ① 提取 @PreAuthorize 权限码全集(排除注释行——PermissionHintService 的 'x' 等示例伪码;
-#    管道各段在 pipefail 下遇无匹配即中断, 用 || true 容错后统一判空)
+# ① 提取 @PreAuthorize 权限码全集 + 命令式 SecurityUtils.hasAuthority 码全集。
+#    【底座评估 2026-11-11 补】命令式调用全用双引号(SecurityUtils.hasAuthority("contact:view")),
+#    旧正则只抓单引号 → 14 处命令式码天然漏网(评估报告实锤)。排除注释行——
+#    PermissionHintService 的 'x' 等示例伪码; 管道各段在 pipefail 下遇无匹配即中断, 用 || true 容错。
 CODES=$( { grep -rhE "has(Any)?Authority\(" "$BACKEND_SRC" --include="*.java" \
   | grep -vE "^[[:space:]]*(\*|//|/\*)" \
   | grep -oE "'[a-z][a-z0-9:_-]+'" || true; } | tr -d "'" | sort -u || true)
-[ -n "$CODES" ] || fail "未提取到任何 @PreAuthorize 权限码(扫描器失灵?)"
+IMPERATIVE=$( { grep -rhE 'SecurityUtils\.hasAuthority\("[a-z][a-z0-9:_-]+"\)' "$BACKEND_SRC" --include="*.java" \
+  | grep -vE "^[[:space:]]*(\*|//|/\*)" \
+  | grep -oE '"[a-z][a-z0-9:_-]+"' || true; } | tr -d '"' | sort -u || true)
+CODES=$(printf '%s\n%s\n' "$CODES" "$IMPERATIVE" | grep -vE '^$' | sort -u)
+[ -n "$CODES" ] || fail "未提取到任何权限码(注解+命令式, 扫描器失灵?)"
 
 # ② 【N1】有效迁移集 = 文件名版本序 ≥ 种子 V2026.09.11.6(唯一菜单字典+角色种子)。
 #    字典序在此成立: "V1x__/V2x__数字版" 与 "V2026.*" 第二字符即分出先后, 日期版内部同前缀可比。

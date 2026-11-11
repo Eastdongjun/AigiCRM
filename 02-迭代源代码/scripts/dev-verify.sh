@@ -527,6 +527,10 @@ local_contracts() {
   run "$ROOT/scripts/check-read-stats-migration.sh"
   # 【T6 2026-11-11 审计整改 P1-11】API 清单内容级新鲜度(mtime 之外的真校验)
   run "$ROOT/scripts/check-api-list-fresh.sh"
+  # 【底座评估 2026-11-11】三端词表消费侧一致(前端码⊆后端码∪白名单)
+  run "$ROOT/scripts/check-permission-code-consumption.sh"
+  # 【底座评估 2026-11-11】数据范围"配置面=消费面"动作轴声明对账
+  run "$ROOT/scripts/check-scope-axis-contract.sh"
   run "$ROOT/scripts/check-migration-contract.sh"
   run "$ROOT/scripts/check-migration-chain-contract.sh"
   run "$ROOT/scripts/check-mobile-auth-contract.sh"

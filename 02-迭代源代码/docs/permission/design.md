@@ -1,85 +1,101 @@
 # AIGICRM 权限设计
 
-> 人工维护文档。权限码清单见 `permission-dict.md`(自动生成)。
-> 修改权限体系时必须先更新本文,再改代码。
+> 人工维护文档, 权限码清单见 `permission-dict.md`(自动生成)。
+> **修改权限体系必须先更新本文再改代码**(文件新鲜度已纳入 gate 文档项)。
+> 最近全量重写: 2026-11-11(此前版本停在 2026-09-13, 落后代码两月——按"底座评估"重写;
+> 旧文"两层授权/数据范围来源=sys_permission_rule/一人只取第一个角色/登出后端无状态"
+> 四处表述均与现状不符, 已废弃)。
 
-## 一、认证链路
+## 一、认证与会话
 
 ```
-浏览器 → JWT(Authorization: Bearer) → JwtAuthFilter
+浏览器/小程序 → JWT(Authorization: Bearer) → JwtAuthFilter
   → 解析 token → 查 sys_user(校验 deleted/status)
-  → 查 sys_user_role → 角色
-  → 查 sys_role_menu + sys_menu.permission → 权限码集合
-  → 注入 SecurityContext
+  → 权限码集合 = sys_user_role → sys_role_menu → sys_menu.permission (纯 JOIN, 无 admin 隐式旁路)
 ```
 
-- Token: JWT(HS256),有效期 24h,存 localStorage
-- 登录接口 `/api/auth/login` 匿名可访问;失败 5 次锁定 15 分钟
-- 登出:前端清 token(后端无状态)
+- **多角色并集**: 一人多角色时权限码/数据范围取并集(旧文"只取第一个角色"已废弃);
+  数据范围优先级 USER > POSITION > ROLE(见 OrgScopeResolver)。
+- **登出/token 撤销**: jti 黑名单(Redis) + DB 兜底 + pwd_changed_at DB 级撤销(旧文"无状态"已废弃)。
+- **权限缓存**: perm:ctx(Redis 10min) + 写时 evict + perm_version 比对自愈;
+  文件/激励/公海授权**不走缓存**(每请求直查, 勾选即时生效)。
+- **租户**: fail-closed(非 admin 无集团 → tenant_id=NULL 恒假), 见 INV-TENANT-001。
 
-### 微信绑定设计（账号密码登录稳定后的接入规格）
+### 微信绑定设计（账号密码登录稳定后的接入规格, 保留自旧文）
 
 | 操作 | 前置条件 | 持久化不变量 | 失败处理 | 审计要求 |
 |---|---|---|---|---|
 | 绑定 | 已登录账号；微信授权返回有效 `openid`，必要时带 `unionid` | 一个 `openid` 只能属于一个未删除用户；同一用户重复绑定必须幂等 | `openid` 已属于其他用户时拒绝，不覆盖原绑定 | 记录用户、时间、客户端和结果，不记录授权原文 |
 | 解绑 | 已登录账号；至少保留账号密码登录能力 | 解绑后账号仍可用密码登录；不存在绑定时幂等返回 | 不满足保底登录条件时拒绝解绑 | 记录用户、时间和结果 |
-| 换绑 | 先完成旧绑定校验，再绑定新 `openid` | 旧绑定释放与新绑定建立必须在同一事务中完成 | 任一步失败整体回滚，禁止出现双绑定或无绑定半状态 | 分别记录旧绑定释放和新绑定结果 |
+| 换绑 | 先完成旧绑定校验，再绑定新 | 旧绑定释放与新绑定建立必须在同一事务中完成 | 任一步失败整体回滚，禁止双绑定/无绑定半状态 | 分别记录旧绑定释放和新绑定结果 |
 | 登录 | 微信身份已绑定 | 只按唯一 `openid` 查找有效用户，并复用现有权限/数据范围装载 | 未绑定时引导账号密码登录后再绑定，不自动创建高权限账号 | 复用登录审计，不把 `openid` 写入普通业务日志 |
 
-实现约束：新增 `openid` 唯一索引/唯一约束前必须先清理历史重复值；绑定、解绑、换绑接口均需认证、CSRF/重放保护和直接 API 越权测试。微信能力未接入前，本表是设计规格，不代表后端接口已存在。
+实现约束：新增 `openid` 唯一索引/唯一约束前必须先清理历史重复值；微信能力未接入前，本表是设计规格，不代表后端接口已存在。
 
-## 二、授权机制(两层)
+## 二、授权模型(四层, 2026-11 现状)
 
-| 层 | 实现 | 说明 |
-|---|---|---|
-| 接口层 | `@PreAuthorize("hasAuthority('xxx')")` | 后端强制,POST/PUT/DELETE 全部覆盖 |
-| 页面层 | 前端路由 meta.permission + layout 检查 | 无权限直接输 URL 跳回首页 |
+| 层 | 机制 | 载体 | 生效时效 |
+|---|---|---|---|
+| ① 功能码 (RBAC) | `@PreAuthorize`(69 注解码) + 命令式 `SecurityUtils.hasAuthority`(9 码, 双引号形态) | sys_role_menu | Redis 缓存+evict, 秒级 |
+| ② 数据范围 (ABAC) | role_perm_scope (module,action) × 七档 → OrgScopeResolver/ScopeDecision | role_perm_scope | 30s 配置缓存 |
+| ③ 对象级 (ownership) | customer: CustomerAccessService; file: FolderPermissionService 判定链; sea: 池名单 | 业务表 + grant/ACL 表 | 直查, 即时 |
+| ④ 例外授权 | 文件夹对象优先授权(biz_folder_type_default); 激励分享(biz_incentive_grant) | 同上 | 直查, 即时 |
 
-**规则**:权限码 = `模块:动作`(如 customer:view / system:user:add);
-菜单表中的 permission 列是唯一权限码来源(与代码 @PreAuthorize 对应);
-**新增接口必须同时**:① 控制器加 @PreAuthorize ② sys_menu 加权限码行 ③ 角色绑定 sys_role_menu。
+**组合优先级(对象判定链, 以文件为例)**:
+`admin > 本人恒管(isOwn) > 上级链 > 例外授权(grant) > 组织矩阵底座(role_perm_scope file 域)`,
+任何一层 fail-closed(空集≠全部; OrgScopeResolver null=全部是**显式语义**, 已有测试钉住)。
 
-### 客户字段级二次权限
+**功能码×数据范围是两道门**: 端点先过 ①(@PreAuthorize), service 层再过 ②③。
+"码有了范围忘了/范围有了码忘了"由三契约防:
+- `check-permission-binding-coverage.sh` —— 码→迁移绑定(注解+命令式, 版本序≥种子);
+- `check-permission-code-consumption.sh` —— 前端码⊆后端码∪白名单(三端词表);
+- `check-scope-axis-contract.sh` —— 动作轴声明=配置面/消费面对账。
 
-客户详情的基础可见性仍由 `customer:view` 和数据范围控制；财务明细/汇总额外要求 `finance:view`，联系人个人信息额外要求 `contact:view`。两项权限由 V21 迁移幂等写入 `sys_menu`，默认绑定系统管理员，其他角色通过权限管理显式授予。后端在查询前执行二次守卫，前端仅据此决定是否加载对应区域。
+**规则引擎(sys_permission_rule)是第 4 套维度**, 目前仅 customer 列表/统计两个入口真 eval——
+"有模型没能力"的模块不要在权限中心暴露其配置。
 
-## 三、数据范围(行级权限)
+## 三、数据范围动作轴(实况声明表)
 
-- 配置来源: `sys_permission_rule` 表(规则引擎)+ 角色关联 `sys_role_rule`
-- 规则类型:
-  - `org_filter`: 组织过滤(org_id in 子组织)
-  - `column_filter`: 字段过滤(如 owner_id = 当前用户)
-  - `time_range`: 时间范围(本月/本季度)
-  - `field_visible`: 字段可见性(隐藏财务/联系方式)
-  - `action_control`: 操作控制(禁止导出/删除/只读)
-- 生效链路: 登录时组装 → Service 层拼接 SQL where → 执行
+权威声明见 `scripts/check-scope-axis-contract.sh`(机器对账, 本表为人读版):
 
-## 四、角色体系(4 角色)
+| module | 档位 | 消费点 | 备注 |
+|---|---|---|---|
+| customer | view/edit/delete/finance_edit | CustomerService 列表/详情/导出/统计; CustomerAccessService | 全档真消费 |
+| file | view/manage/delete | FolderPermissionService 组织矩阵(view/download→view; upload/rename/replace/share/edit→manage; delete 独立拍板③) | 2026-11-10 终版 |
+| statistics | view | StatisticsQueryService 排行可见集 | ⚠️ 与 customer.view 双 key 并存(已知问题#1) |
+| approval/reminder/sea | 仅 view | resolveModuleUsers 可见用户集 | 池级编辑走池名单不入此表 |
+| task/score/system | (无) | 不消费 role_perm_scope | 配置面如有行=死配置(已知问题#2) |
 
-| 角色 | 特点 |
-|---|---|
-| 系统管理员(role 1) | 全部权限 |
-| 行政(role 9) | 管理类权限,无销售数据 |
-| 销售总监(role 10) | 管理 + 销售,数据范围全组织 |
-| 销售员(role 11) | 业务权限,数据范围 org_and_children |
+## 四、角色体系
 
-> 注意: 当前一人只取**第一个角色**(UserDetailsServiceImpl),一人多角色时仅第一角色生效(已知限制)。
+4 角色(admin / 05行政 / 0销售总监 / 06销售员, **role_code≠id, 勿硬编码**);
+角色×码勾选唯一入口=权限中心(PermCenter 四页签); 生效预览用真实 UserDetailsService
+重建 SecurityUser 喂各引擎(PermCenterService)。
 
-## 五、关键安全点(踩坑记录)
+## 五、关键安全点(踩坑记录, 含旧文保留)
 
-1. **权限码必须查库确认**: 改权限前先查 sys_menu(勿猜,曾因 dept:view 保护写操作出事)
-2. **所有写接口都要 @PreAuthorize**: 不只第一个,GET 也可能泄漏(用户列表曾无权限码全量泄漏)
-3. **数据范围是 SQL 层强制**: 前端隐藏不等于安全,越权测试必须直接调 API
-4. 登录失败锁定、密码 BCrypt 加密、软删除(deleted 标记)为既有安全基线
+- admin 无隐式旁路: 权限绑定缺一行=全员 403(含 admin)——空库重放契约/绑定覆盖契约防此。
+- 越权 403 落结构化安全审计(securityAudit.permissionChange); 留痕失败 log.warn 不阻断业务(T5)。
+- 命令式 hasAuthority 双引号形态曾被绑定契约漏扫(customer:invoice-date:edit 空库裸奔被抓出)。
+- 迁移禁硬编码行 id 定位/插入(INV-MIG-001/002), 按 permission 自然键锚定。
 
-## 六、与代码的对应
+## 六、已知问题与待拍板(2026-11-11 底座评估)
 
-- `JwtAuthFilter`(com.aigicrm.security): 认证
-- `SecurityConfig`(com.aigicrm.config): 安全规则/CORS
-- `PermissionRuleEngine`(com.aigicrm.common.engine): 数据范围规则
-- `applyDataScope()`: Service 层数据范围拼装
-- `SysDeptController` 等: @PreAuthorize 示例
+1. **统计双 key**: 统计面一部分走 (customer,view) 一部分走 (statistics,view)——管理员须两处配一致,
+   否则"列表能看/看板不算"。统一 key 属口径变更(涉生产配置迁移), 待用户拍板。
+2. **role_perm_scope 死配置**(生产快照 2026-11-11): incentive 域 8 档全死——激励可见性实际走
+   biz_incentive_grant; customer 另有 add/date/export/import/share 死档; 另有 `*/*` 通配 9 行、
+   dashboard/score/sea:config 等无消费行。清理属数据治理, 待令(file 域死配置已由 V2026.11.09.1 清过)。
+3. **孤儿码**: ranking:customer:view(后端有/双端零消费)——绑定契约白名单挂账待裁决。
+4. **词表仍三端手写**(PC 51/MP 30/后端 78): 当前由消费侧契约+词表单一源契约(check-file-action-vocab)
+   机器拦截; P1 方案=permission-codes 生成物 + AuthorizationFacade 统一决策点(前端 can() 数据驱动),
+   属 1-2 周专项待排期。
+5. **0 个 @SpringBootTest**: 权限行为矩阵(角色×端点×预期 401/403/200/空)是 P2 专项; 当前防线=
+   单测(Mockito 953) + 三契约 + e2e 钉(CI scheduled) + 空库重放(CI empty-db-replay)。
 
-## 七、客户文件关联决策
+## 七、演进史(五批)
 
-<!-- 【2026-09-13】原「客户文件关联」ADR 已作废（小程序内部使用、不面向客户），功能与关联表一并移除。 -->
+08-10 统一层(V7/9 权限架构重构) → 09-19 权限分离矩阵 → 10-17 矩阵诚实化 →
+11-03 PermCenter 拆码(customer:finance:edit 等) → 11-09/11-10 文件域组织矩阵终版
+(逐夹 ACL 端点退役→type-defaults 对象优先授权台)。每批只覆盖当时在做的模块——
+"部分模块已接矩阵、部分没接"的断层由此而来, 收敛路线见第六节#4。

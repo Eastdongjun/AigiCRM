@@ -145,6 +145,52 @@ jobs:
           done
           [ "$bad" -eq 0 ] && echo "✅ 无硬编码密码" || exit 1
 
+  # 【底座评估 2026-11-11】空库 Flyway 重放 + 权限末态断言(评估建议 P2):
+  # 不依赖测试服——runner 内起 mysql:8.0 service(按生产参数 general_ci), 重放集与
+  # scripts/replay-empty-db.sh 同口径(V1+V12~V33+日期版, 排除 V2~V11), 末态断言
+  # 8 审计码绑定全覆盖。本地另有 replay-empty-db.sh 走测试服一次性容器(可手动跑)。
+  empty-db-replay:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: replay-root
+          MYSQL_DATABASE: ycmn
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost"
+          --health-interval=10s --health-timeout=5s --health-retries=30
+          --character-set-server=utf8mb4
+          --collation-server=utf8mb4_general_ci
+    steps:
+      - uses: actions/checkout@v4
+      - name: 打包空库重放集(仅排 V2~V11, 与 replay-empty-db.sh 同口径)
+        run: |
+          mkdir -p /tmp/replay-mig
+          find aigicrm-backend/src/main/resources/db/migration -maxdepth 1 -name '*.sql' \
+            ! -name 'V[2-9]__*' ! -name 'V10__*' ! -name 'V11__*' -exec cp {} /tmp/replay-mig/ \;
+          echo "重放集: $(ls /tmp/replay-mig/*.sql | wc -l) 个"
+      - name: Flyway 全链重放
+        run: |
+          docker run --rm --network host -v /tmp/replay-mig:/flyway/sql flyway/flyway:9.22.3-alpine \
+            -url="jdbc:mysql://127.0.0.1:3306/ycmn?characterEncoding=UTF-8&connectionCollation=utf8mb4_general_ci&useSSL=false&allowPublicKeyRetrieval=true" \
+            -user=root -password=replay-root -connectRetries=30 -validateMigrationNaming=true migrate 2>&1 | tail -6
+      - name: 末态断言(8 审计码绑定全覆盖, 0 failed)
+        run: |
+          docker run --rm --network host mysql:8.0 mysql -h127.0.0.1 -P3306 -uroot -preplay-root ycmn -N -e "
+            SELECT IF(COUNT(*)=0,'flyway_failed=0','HAS_FAILED') FROM flyway_schema_history WHERE success<>1;
+            SELECT m.permission, m.status, COUNT(rm.role_id) FROM sys_menu m
+            LEFT JOIN sys_role_menu rm ON rm.menu_id=m.id
+            WHERE m.permission IN ('file:upload','file:edit','file:delete','file:share','file:folder:manage','finance:manage','customer:finance:edit','customer:invoice-date:edit')
+              AND m.menu_type=3 GROUP BY m.permission, m.status ORDER BY m.permission;"
+          BAD=$(docker run --rm --network host mysql:8.0 mysql -h127.0.0.1 -P3306 -uroot -preplay-root ycmn -N -e "
+            SELECT COUNT(*) FROM sys_menu m LEFT JOIN sys_role_menu rm ON rm.menu_id=m.id
+            WHERE m.permission IN ('file:upload','file:edit','file:delete','file:share','file:folder:manage','finance:manage','customer:finance:edit','customer:invoice-date:edit')
+              AND m.menu_type=3 AND (m.status<>1 OR rm.id IS NULL);")
+          echo "末态异常行: $BAD (预期 0)"
+          [ "$BAD" = "0" ] || { echo '❌ 空库重放末态断言失败'; exit 1; }
+
   # 【N3 2026-11-11 审计整改】文件权限端到端钉的定时真跑:
   # 治本④ 的五段闭环(勾→双端出→操作放行→收回复位)默认休眠(离线/CI push 不假红),
   # 只在 schedule 事件带 secrets 真实执行——钉子只在真跑时才有防线价值。
@@ -169,7 +215,7 @@ jobs:
   # P0 汇总门禁：作为 GitHub 分支保护可要求的必过 job
   quality-gate:
     runs-on: ubuntu-latest
-    needs: [backend, frontend, miniprogram, sonarcloud, diff-check, file-perm-e2e]
+    needs: [backend, frontend, miniprogram, sonarcloud, diff-check, file-perm-e2e, empty-db-replay]
     if: always()
     steps:
       - run: |
@@ -199,3 +245,5 @@ jobs:
           if [ "${{ github.event_name }}" = "schedule" ]; then
             test "${{ needs['file-perm-e2e'].result }}" = "success"
           fi
+          # 【底座评估】空库重放不依赖 secrets, 全事件强制
+          test "${{ needs['empty-db-replay'].result }}" = "success"
