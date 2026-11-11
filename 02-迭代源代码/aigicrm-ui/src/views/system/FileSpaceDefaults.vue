@@ -53,9 +53,10 @@
       <div v-if="t.value !== 'incentive' && folderGrants(t.value).length" class="fsd-folders">
         <div v-for="fg in folderGrants(t.value)" :key="fg.folderId" class="fsd-folder-row">
           <span class="fsd-folder-name">📂 {{ fg.folderName }}</span>
+          <!-- 【T7 2026-11-12】过期授权红标(后端 expired 字段此前 0 消费——过期行看着仍"勾着"误导配置) -->
           <el-tag v-for="g in fg.rows" :key="g.id" size="small" closable class="fsd-pill"
-                  :type="g.subjectType === 'USER' ? 'warning' : 'info'"
-                  @close="removeRow(g.id)">{{ g.subjectName }}·{{ presetNameOf(g) || '自定义' }}{{ g.expiresAt ? '·至' + shortDate(g.expiresAt) : '' }}</el-tag>
+                  :type="g.expired ? 'danger' : (g.subjectType === 'USER' ? 'warning' : 'info')"
+                  @close="removeRow(g.id)">{{ g.expired ? '⛔已过期·' : '' }}{{ g.subjectName }}·{{ presetNameOf(g) || '自定义' }}{{ g.expiresAt ? '·至' + shortDate(g.expiresAt) : '' }}</el-tag>
           <el-button v-if="canEdit" size="small" link type="primary" @click="openAdd(fg)">＋加人</el-button>
         </div>
       </div>
@@ -63,8 +64,8 @@
         <div class="fsd-folder-row">
           <span class="fsd-folder-name">⭐ 整空间特批</span>
           <el-tag v-for="g in spaceGrants(t.value)" :key="g.id" size="small" closable class="fsd-pill"
-                  :type="g.subjectType === 'USER' ? 'warning' : 'info'"
-                  @close="removeRow(g.id)">{{ g.subjectName }}·{{ presetNameOf(g) || '自定义' }}{{ g.expiresAt ? '·至' + shortDate(g.expiresAt) : '' }}</el-tag>
+                  :type="g.expired ? 'danger' : (g.subjectType === 'USER' ? 'warning' : 'info')"
+                  @close="removeRow(g.id)">{{ g.expired ? '⛔已过期·' : '' }}{{ g.subjectName }}·{{ presetNameOf(g) || '自定义' }}{{ g.expiresAt ? '·至' + shortDate(g.expiresAt) : '' }}</el-tag>
         </div>
       </div>
     </div>

@@ -40,6 +40,19 @@ public class RolePermScopeService {
         boolean expired() { return System.currentTimeMillis() >= expireAt; }
     }
 
+    /**
+     * 【T7 2026-11-12】动作轴消费档白名单(与 scripts/check-scope-axis-contract.sh 声明表同源 15 档,
+     * 契约④双向对账防两处漂移): 写入面校验——后端永不消费的 (module,action) 档位拒绝入库,
+     * 防"勾了不生效"的死配置新增(存量死档清单见 docs/permission/role-perm-scope-dead-configs.md,
+     * 属数据治理另走清理迁移)。`*` 通配仅限历史存量行, 配置面禁写。
+     */
+    private static final java.util.Set<String> CONSUMED_AXIS = java.util.Set.of(
+            "customer|view", "customer|edit", "customer|delete", "customer|finance_edit",
+            "file|view", "file|manage", "file|delete",
+            "statistics|view", "sea|view", "incentive|stats_view",
+            "task|view", "score|view", "system|view",
+            "approval|view", "reminder|view");
+
     private final JdbcTemplate jdbc;
     private final com.aigicrm.security.PermissionCacheService permissionCacheService;
     // 【2026-11-03 权限中心 B2】范围配置变更记 sys_rule_version(审计时间线)
@@ -283,6 +296,12 @@ public class RolePermScopeService {
             String scope = scopeLevel.toString();
             if (!VALID_SCOPES.contains(scope)) {
                 throw new com.aigicrm.common.BusinessException("非法的数据范围取值: " + scope);
+            }
+            // 【T7 2026-11-12】写入面档位校验: 后端未消费的 (module,action) 拒绝配置(防新增死配置)
+            String axisKey = module + "|" + action;
+            if (!CONSUMED_AXIS.contains(axisKey)) {
+                throw new com.aigicrm.common.BusinessException(400,
+                        "该档位(" + axisKey + ")后端未消费，禁止配置——请选择有效的功能×范围档");
             }
             String anchor = cfg.get("anchor") != null ? cfg.get("anchor").toString() : "OWNER";
             if (!"OWNER".equalsIgnoreCase(anchor) && !"ORG".equalsIgnoreCase(anchor)) {

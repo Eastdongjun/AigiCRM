@@ -50,6 +50,10 @@
 - 后端源码新增 `.module()/.action()` 或 `resolveModuleUsers` 消费点（动作轴契约①会拦：未声明即红）;
 - 生产行为抽样不变：四角色各域可见集与本册快照口径一致。
 
+**UI/写入面防护（T7 2026-11-12 已上）**:
+- `RolePermScopeService.updateScopes` 写入校验：`(module,action)` ∉ 15 档消费集 → 400"该档位后端未消费，禁止配置"——死档**新增**已被机器拦截（存量行不受影响, 清理仍走 A 步）;
+- 消费集与 check-scope-axis-contract.sh 声明表**契约④双向对账**（两处同源漂移即红, 负例已自证）。
+
 **A 步草案**（观察期后待令执行，迁移要求）:
 - 按 (module,action) 自然键 DELETE（含空 role_code 通配死行），分域小步提交（incentive 域先行——占死行最多且语义最明确）;
 - 删行前后各拉一次 `GROUP BY module,action` 对账，**只允许登记册内行消失**;

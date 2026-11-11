@@ -126,4 +126,37 @@ class RolePermScopeServiceTest {
                 "范围读取必须确定性排序: " + sql.getValue());
     }
 
+    // ===== 【T7 2026-11-12】写入面档位校验: 死档拒配 400, 活档(15)全放行 =====
+
+    @Test
+    void updateScopes_deadAxisRejectedWith400() {
+        JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        RolePermScopeService svc = new RolePermScopeService(jdbc, mock(com.aigicrm.security.PermissionCacheService.class),
+                mock(com.aigicrm.module.system.mapper.SysRuleVersionMapper.class));
+        // incentive|view 是生产死档(激励可见性走 grant 表)——写入面必须 400 拒绝, 防新增死配置
+        List<Map<String, Object>> dead = List.of(Map.of("module", "incentive", "action", "view", "scopeLevel", "dept"));
+        com.aigicrm.common.BusinessException ex = org.junit.jupiter.api.Assertions.assertThrows(
+                com.aigicrm.common.BusinessException.class, () -> svc.updateScopes("ROLE", "06", dead));
+        org.junit.jupiter.api.Assertions.assertTrue(String.valueOf(ex.getMessage()).contains("后端未消费"),
+                "死档拒绝文案应说明原因: " + ex.getMessage());
+    }
+
+    @Test
+    void updateScopes_consumedAxisAccepted() {
+        JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        RolePermScopeService svc = new RolePermScopeService(jdbc, mock(com.aigicrm.security.PermissionCacheService.class),
+                mock(com.aigicrm.module.system.mapper.SysRuleVersionMapper.class));
+        // 活档抽样(incentive|stats_view 拍板B档 + approval|view/reminder|view 两个易漏档)不抛且落库
+        svc.updateScopes("ROLE", "06", List.of(
+                Map.of("module", "incentive", "action", "stats_view", "scopeLevel", "dept"),
+                Map.of("module", "approval", "action", "view", "scopeLevel", "self"),
+                Map.of("module", "reminder", "action", "view", "scopeLevel", "all")));
+        org.mockito.Mockito.verify(jdbc, org.mockito.Mockito.atLeast(3)).update(
+                org.mockito.ArgumentMatchers.contains("INSERT INTO role_perm_scope"),
+                org.mockito.ArgumentMatchers.<Object>any(), org.mockito.ArgumentMatchers.<Object>any(),
+                org.mockito.ArgumentMatchers.<Object>any(), org.mockito.ArgumentMatchers.<Object>any(),
+                org.mockito.ArgumentMatchers.<Object>any(), org.mockito.ArgumentMatchers.<Object>any(),
+                org.mockito.ArgumentMatchers.<Object>any());
+    }
+
 }

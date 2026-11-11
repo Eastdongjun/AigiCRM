@@ -87,4 +87,16 @@ done <<<"$AXIS"
 [ "$miss" -eq 0 ] || fail "迁移链写入了动作轴未声明的 (module,action) 配置"
 
 cnt=$(grep -c . <<<"$AXIS")
-echo "PASS: 配置面=消费面 对账($cnt 档位: customer×4 / file×3 / statistics+approval+reminder+sea 仅 view; 统计双 key 已声明待拍板)"
+
+# ④ 【T7 2026-11-12】Java 写入校验集双向对账: RolePermScopeService.CONSUMED_AXIS 必须与 AXIS 同集
+#   (写入面 400 校验依赖它; 两处漂移=活档被误拒炸保存 / 死档被放行)——不允许同一真值两处手写而不对账。
+SVC="$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/RolePermScopeService.java"
+java_axis=$(sed -n '/CONSUMED_AXIS = java.util.Set.of(/,/)"/p' "$SVC" | grep -oE '"[a-z]+\|[a-z_]+"' | tr -d '"' | sort)
+shell_axis=$(grep -oE "^[a-z]+\|[a-z_]+" <<<"$AXIS" | sort)
+if [ "$java_axis" != "$shell_axis" ]; then
+  echo "  [Java集≠Shell集] 差异:"; diff <(echo "$shell_axis") <(echo "$java_axis") || true
+  fail "CONSUMED_AXIS 与动作轴声明表漂移——写入校验与消费面不同源"
+fi
+jcnt=$(echo "$java_axis" | grep -c .)
+
+echo "PASS: 配置面=消费面 对账($cnt 档位: customer×4 / file×3 / statistics+approval+reminder+sea 仅 view; 统计双 key 已声明待拍板; Java写入校验集 $jcnt 档对账一致)"
