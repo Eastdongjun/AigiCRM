@@ -285,4 +285,96 @@ class FolderPermissionServiceTest {
             verify(scopeResolver, atMost(3)).resolveScope(any());
         }
     }
+
+    // ===== 【T1 2026-11-12】按钮视图词表: 授权对象细词输出 + 特权 ALL_PERMS 不变 =====
+
+    @Test
+    void permsForBatch_granteeGetsFineGrainedTokens_noUmbrellaBackfill() {
+        // 类型级 FILE grant 给 USER 42 仅 rename,replace → 按钮视图如实输出细词;
+        // 伞词 edit 不在后端回填(方案B: PC/MP 消费端双词兼容 edit∨rename), 非特权视图无 edit
+        BizFileFolder f = folder(100L, 99L, "public"); f.setOrgId(5L);
+        when(grantMapper.selectList(any())).thenReturn(List.of(
+                grant("FILE", "public", null, "USER", 42L, "rename,replace", null)));
+        SecurityUser u = mock(SecurityUser.class);
+        when(scopeResolver.resolveModuleUsers(any(), eq("file"), any())).thenReturn(List.of()); // 矩阵 fail-closed
+        when(scopeResolver.resolveScope(any())).thenReturn(deptDecision(List.of()));
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            stub(m, u, false);
+            List<String> perms = svc.permsForBatch(List.of(f), 42L).get(100L);
+            assertTrue(perms.containsAll(List.of("rename", "replace")), "授权细词入视图: " + perms);
+            assertFalse(perms.contains("edit"), "非特权不回填伞词 edit(消费端双词兼容)");
+            assertFalse(perms.contains("delete"), "未授权动作不得点亮");
+        }
+    }
+
+    @Test
+    void permsForBatch_privilegedAllPermsUnchanged() {
+        // admin / 夹主输出 ALL_PERMS(含 edit 伞+细词全量)——特权视图与历史一致
+        BizFileFolder f = folder(100L, 42L, "public");
+        SecurityUser u = mock(SecurityUser.class);
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            stub(m, u, true);
+            List<String> adminPerms = svc.permsForBatch(List.of(f), 42L).get(100L);
+            assertTrue(adminPerms.containsAll(List.of("edit", "rename", "replace", "delete", "share", "upload")));
+        }
+        when(grantMapper.selectList(any())).thenReturn(List.of());
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            stub(m, u, false);
+            List<String> ownerPerms = svc.permsForBatch(List.of(f), 42L).get(100L);
+            assertTrue(ownerPerms.containsAll(List.of("edit", "rename", "replace")), "夹主=本人恒管 ALL_PERMS");
+        }
+    }
+
+    // ===== 【T4 2026-11-12】无夹文件空间锚: 类型授权不跨空间 =====
+
+    @Test
+    void checkFile_folderless_publicGrantMustNotHitIncentiveAttachment() {
+        // ① public 类型授权 + incentive 无夹附件(激励) → false(修前 folderType=null 跳过类型约束=越权)
+        BizFile att = file(1L, null, 99L); att.setFileScope("incentive");
+        when(fileMapper.selectById(1L)).thenReturn(att);
+        when(grantMapper.selectList(any())).thenReturn(List.of(
+                grant("FILE", "public", null, "USER", 42L, "delete", null)));
+        SecurityUser u = mock(SecurityUser.class);
+        when(scopeResolver.resolveModuleUsers(any(), eq("file"), any())).thenReturn(List.of()); // OWNER 锚空
+        when(scopeResolver.resolveScope(any())).thenReturn(deptDecision(List.of()));
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            stub(m, u, false);
+            assertFalse(svc.checkFile(1L, FolderPermissionService.P_DELETE, 42L),
+                    "public 空间类型授权不得命中激励附件(空间锚)");
+        }
+    }
+
+    @Test
+    void checkFile_folderless_incentiveGrantHitsIncentiveAttachment() {
+        // ② incentive 类型授权 + incentive 无夹附件 → true("激励附件只吃 incentive 类型授权"口径成立)
+        BizFile att = file(2L, null, 99L); att.setFileScope("incentive");
+        when(fileMapper.selectById(2L)).thenReturn(att);
+        when(grantMapper.selectList(any())).thenReturn(List.of(
+                grant("FILE", "incentive", null, "USER", 42L, "delete", null)));
+        SecurityUser u = mock(SecurityUser.class);
+        when(scopeResolver.resolveModuleUsers(any(), eq("file"), any())).thenReturn(List.of());
+        when(scopeResolver.resolveScope(any())).thenReturn(deptDecision(List.of()));
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            stub(m, u, false);
+            assertTrue(svc.checkFile(2L, FolderPermissionService.P_DELETE, 42L));
+        }
+    }
+
+    @Test
+    void checkFile_typedGrantMustNotCrossFolderType() {
+        // ③ 类型行授权(folderId=null) + 有夹文件夹类型不符 → false(类型约束对本空间夹内文件生效)
+        BizFile f = file(3L, 100L, 99L);
+        when(fileMapper.selectById(3L)).thenReturn(f);
+        when(folderMapper.selectById(100L)).thenReturn(folder(100L, 98L, "contract"));
+        when(grantMapper.selectList(any())).thenReturn(List.of(
+                grant("FILE", "case", null, "USER", 42L, "delete", null)));
+        SecurityUser u = mock(SecurityUser.class);
+        when(scopeResolver.resolveModuleUsers(any(), eq("file"), any())).thenReturn(List.of());
+        when(scopeResolver.resolveScope(any())).thenReturn(deptDecision(List.of()));
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            stub(m, u, false);
+            assertFalse(svc.checkFile(3L, FolderPermissionService.P_DELETE, 42L),
+                    "case 类型授权不得命中 contract 夹内文件");
+        }
+    }
 }
