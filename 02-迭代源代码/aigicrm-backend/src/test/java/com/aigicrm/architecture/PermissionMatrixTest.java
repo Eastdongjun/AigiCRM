@@ -92,6 +92,10 @@ public class PermissionMatrixTest {
      * 这样反向规则只提示真正的“字典有码但代码和设计均无归属”的漂移。
      */
     private static final Set<String> DOCUMENTED_NON_RUNTIME_PERMISSION_CODES = Set.of(
+            // 【N8 2026-11-11】用户裁决的纯前端导出门码(前端 CSV 导出, 无后端端点;
+            // 与 check-permission-code-consumption.sh 白名单同口径)
+            "incentive:rank:export",
+            "incentive:person-rank:export",
             "customer:share",
             "incentive:delete",
             "incentive:view-all",

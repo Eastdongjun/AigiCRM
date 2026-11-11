@@ -1,27 +1,27 @@
 # AIGICRM 权限码字典(自动生成)
 
-> 生成时间: 2026-10-18 | 来源: 生产 sys_menu + sys_role_menu
+> 生成时间: 2026-11-11 | 来源: 生产 sys_menu + sys_role_menu
 > 本文件由 scripts/gen-permission-dict.sh 自动生成,**禁止手改**;权限变更后重新运行。
 > 格式约定: 权限码 = `模块:动作`(如 customer:view / system:user:add)
 >
 > **状态列口径**: `启用` = sys_menu.status=1，该码会出现在角色管理页的配置树中(SysMenuService.tree() 带 status=1 过滤)，**管理员可勾选授予**; `停用` = status=0，**管理员看不到、也无法授予**（即便数据库里存在绑定）。
 
-## 一、权限码清单(80 条；数据库 74 条 + 兼容/历史 6 条；启用 72 / 停用 2)
+## 一、权限码清单(83 条；数据库 77 条 + 兼容/历史 6 条；启用 75 / 停用 2)
 
 | 权限码 | 菜单名 | 类型 | 路径 | 状态 | 绑定的角色 |
 |---|---|---|---|---|---|
 | `approval:approve` | 审批通过 | 3 | `` | 启用 | 系统管理员,行政,销售员,销售总监 |
 | `approval:reject` | 审批驳回 | 3 | `` | 启用 | 系统管理员,行政,销售员,销售总监 |
 | `approval:view` | 审批管理 | 2 | `/approval` | 启用 | 系统管理员,行政,销售员,销售总监 |
-| `contact:manage` | 客户联系人管理 | 3 | `NULL` | 启用 | — |
-| `contact:view` | 客户联系人查看 | 3 | `NULL` | 启用 | 系统管理员 |
+| `contact:view` | 客户联系人查看 | 3 | `NULL` | 启用 | 系统管理员,行政,销售员,销售总监 |
 | `customer:add` | 客户新增 / 新增客户 | 2 / 3 | ` / /customer/add` | 启用 | 系统管理员,行政,销售员,销售总监 |
 | `customer:date:edit` | 修改客户保护日期 | 3 | `NULL` | 启用 | 系统管理员,行政,销售员,销售总监 |
-| `customer:finance:edit` | 开票回款编辑(2026-11-03 拆码, 独立数据范围 customer×finance_edit) | 3 | `NULL` | 启用 | — |
 | `customer:delete` | 客户删除 | 3 | `` | 启用 | 系统管理员,行政,销售员,销售总监 |
 | `customer:edit` | 客户编辑 | 3 | `` | 启用 | 系统管理员,行政,销售员,销售总监 |
 | `customer:export` | 客户导出 | 3 | `` | 启用 | 系统管理员,行政,销售员,销售总监 |
-| `customer:import` | 客户导入 | 3 | `NULL` | 启用 | 系统管理员,销售员,销售总监 |
+| `customer:finance:edit` | 开票回款编辑 | 3 | `NULL` | 启用 | 行政,销售总监 |
+| `customer:import` | 客户导入 | 3 | `NULL` | 启用 | 系统管理员,行政,销售总监 |
+| `customer:invoice-date:edit` | 最近开票日编辑 | 3 | `NULL` | 启用 | 系统管理员,行政,销售员,销售总监 |
 | `customer:share` | 历史兼容项, 不作为独立运行时授权(沿用客户访问/编辑守卫) | — | `—` | — | — |
 | `customer:view` | 客户列表 / 客户管理 / 客户详情 | 2 | `/customer / /customer-group / /customer/detail/:id` | 启用 | 系统管理员,行政,销售员,销售总监 |
 | `dashboard:view` | 工作台 | 2 | `/dashboard` | 启用 | 系统管理员,行政,销售员,销售总监 |
@@ -32,26 +32,28 @@
 | `file:share` | 文件分享 | 3 | `` | 启用 | 系统管理员,行政,销售员,销售总监 |
 | `file:upload` | 文件上传 | 3 | `` | 启用 | 系统管理员,行政,销售员,销售总监 |
 | `file:view` | 文件管理 | 2 | `/file` | 启用 | 系统管理员,行政,销售员,销售总监 |
-| `finance:manage` | 客户财务管理 | 3 | `NULL` | 启用 | — |
-| `finance:view` | 客户财务查看 | 3 | `NULL` | 启用 | 系统管理员 |
+| `finance:manage` | 客户财务管理 | 3 | `NULL` | 启用 | 行政,销售总监 |
+| `finance:view` | 客户财务查看 | 3 | `NULL` | 启用 | 系统管理员,行政,销售员,销售总监 |
 | `incentive:add` | 激励上传 | 2 | `/incentive` | 启用 | 系统管理员,行政,销售员,销售总监 |
 | `incentive:delete` | 历史兼容项, 不作为独立运行时授权(由授权表与服务范围控制) | — | `—` | — | — |
 | `incentive:edit` | 激励编辑 | 3 | `NULL` | 启用 | 系统管理员,行政,销售员,销售总监 |
-| `incentive:manage` | 激励管理(他人记录) | 3 | `NULL` | 启用 | 系统管理员,行政,销售总监 |
-| `incentive:person-rank:export` | 个人排行导出 | 3 | `NULL` | 启用 | 系统管理员,行政,销售总监 |
+| `incentive:person-rank:export` | 个人排行导出（前端导出门码, 后端不作为端点守卫(用户裁决 2026-09-23 独立导出码, 前端 CSV 导出, 与消费侧契约白名单同口径)） | 3 | `NULL` | 启用 | 系统管理员,行政,销售员,销售总监 |
+| `incentive:rank:export` | 客户排行导出（前端导出门码, 后端不作为端点守卫(用户裁决 2026-11-05 独立导出码, 前端 CSV 导出, 与消费侧契约白名单同口径)） | 3 | `NULL` | 启用 | 系统管理员 |
+| `incentive:rank:view` | 激励排行查看 | 3 | `` | 启用 | 系统管理员,行政,销售员,销售总监 |
 | `incentive:read-ranking:view` | 本月激励查询阅读排行榜 | 2 | `/system/incentive-read-ranking` | 启用 | 系统管理员 |
 | `incentive:read-stats` | 激励查询阅读统计 | 3 | `NULL` | 启用 | 系统管理员,行政,销售员,销售总监 |
-| `incentive:view` | 四项服务 / 激励查询 / 激励统计 | 2 | `/incentive-group / /incentive/search / /incentive/stats` | 启用 | 系统管理员,行政,销售员,销售总监 |
+| `incentive:stats:view` | 激励统计 / 激励统计查看 | 2 / 3 | ` / /incentive/stats` | 启用 | 系统管理员,行政,销售员,销售总监 |
+| `incentive:view` | 四项激励 / 案例库 / 激励查询 | 2 | `/case-library / /incentive-group / /incentive/search` | 启用 | 系统管理员,行政,销售员,销售总监 |
 | `incentive:view-all` | 激励查看(全部)（历史残留, 不作为运行时授权(改由授权表按人核定)） | 3 | `NULL` | **停用** | — |
 | `incentive:view-shared` | 激励查看(已分享)（历史残留, 不作为运行时授权(改由授权表按人核定)） | 3 | `NULL` | **停用** | — |
-| `ranking:customer:view` | 客户排行查看 | 3 | `NULL` | 启用 | — |
+| `ranking:customer:view` | 客户排行查看 | 3 | `NULL` | 启用 | 销售员 |
 | `reminder:view` | 提醒管理 | 2 | `/reminder` | 启用 | 系统管理员,行政,销售员,销售总监 |
-| `score:entry` | 积分录入 | 2 | `/score/entry` | 启用 | 系统管理员,行政,销售总监 |
-| `score:manage` | 积分管理 | 3 | `NULL` | 启用 | 系统管理员,销售总监 |
+| `score:entry` | 学分录入 | 2 | `/score/entry` | 启用 | 系统管理员,行政,销售总监 |
+| `score:manage` | 学分管理 | 3 | `NULL` | 启用 | 系统管理员,销售总监 |
 | `score:ranking` | 历史残留, 不作为独立运行时授权(统一使用 score:view) | — | `—` | — | — |
-| `score:view` | 积分排行 | 2 | `/score/ranking` | 启用 | 系统管理员,行政,销售员,销售总监 |
+| `score:view` | 学分排行 | 2 | `/score/ranking` | 启用 | 系统管理员,行政,销售员,销售总监 |
 | `sea:claim` | 公海捞取 | 3 | `` | 启用 | 系统管理员,行政,销售员,销售总监 |
-| `sea:config:edit` | 公海配置编辑 | 3 | `NULL` | 启用 | 系统管理员,销售总监 |
+| `sea:config:edit` | 公海配置编辑 | 3 | `NULL` | 启用 | 系统管理员,行政,销售总监 |
 | `sea:config:view` | 公海配置查看 | 3 | `NULL` | 启用 | 系统管理员,行政,销售总监 |
 | `sea:import` | 公海导入 | 3 | `` | 启用 | 系统管理员,行政,销售总监 |
 | `sea:pool:delete` | 历史残留, 不作为独立运行时授权(运行时由池级 PERM_DELETE 守卫控制) | — | `—` | — | — |
@@ -66,7 +68,7 @@
 | `system:group:delete` | 删除集团 | 3 | `NULL` | 启用 | 系统管理员,销售总监 |
 | `system:group:edit` | 集团编辑 | 3 | `NULL` | 启用 | 系统管理员,销售总监 |
 | `system:group:view` | 集团管理 | 2 | `/system/group` | 启用 | 系统管理员,销售总监 |
-| `system:log:view` | 日志管理 | 2 | `/system/log` | 启用 | 系统管理员,销售总监 |
+| `system:log:view` | 日志查看 | 3 | `` | 启用 | 系统管理员,销售总监 |
 | `system:menu:edit` | 历史残留, 不作为运行时授权(菜单由迁移维护) | — | `—` | — | — |
 | `system:menu:view` | 菜单查看 | 3 | `NULL` | 启用 | 系统管理员,销售总监 |
 | `system:org:admin` | 组织管理员 | 3 | `NULL` | 启用 | 系统管理员,销售总监 |
@@ -101,15 +103,15 @@
 | `approval:approve` | ✅ | ✅ | ✅ | ✅ |
 | `approval:reject` | ✅ | ✅ | ✅ | ✅ |
 | `approval:view` | ✅ | ✅ | ✅ | ✅ |
-| `contact:manage` |   |   |   |   |
-| `contact:view` | ✅ |   |   |   |
+| `contact:view` | ✅ | ✅ | ✅ | ✅ |
 | `customer:add` | ✅ | ✅ | ✅ | ✅ |
 | `customer:date:edit` | ✅ | ✅ | ✅ | ✅ |
-| `customer:finance:edit` |   |   |   |   |
 | `customer:delete` | ✅ | ✅ | ✅ | ✅ |
 | `customer:edit` | ✅ | ✅ | ✅ | ✅ |
 | `customer:export` | ✅ | ✅ | ✅ | ✅ |
-| `customer:import` | ✅ |   | ✅ | ✅ |
+| `customer:finance:edit` |   | ✅ |   | ✅ |
+| `customer:import` | ✅ | ✅ |   | ✅ |
+| `customer:invoice-date:edit` | ✅ | ✅ | ✅ | ✅ |
 | `customer:view` | ✅ | ✅ | ✅ | ✅ |
 | `dashboard:view` | ✅ | ✅ | ✅ | ✅ |
 | `file:acl:manage` | ✅ | ✅ | ✅ | ✅ |
@@ -119,24 +121,26 @@
 | `file:share` | ✅ | ✅ | ✅ | ✅ |
 | `file:upload` | ✅ | ✅ | ✅ | ✅ |
 | `file:view` | ✅ | ✅ | ✅ | ✅ |
-| `finance:manage` |   |   |   |   |
-| `finance:view` | ✅ |   |   |   |
+| `finance:manage` |   | ✅ |   | ✅ |
+| `finance:view` | ✅ | ✅ | ✅ | ✅ |
 | `incentive:add` | ✅ | ✅ | ✅ | ✅ |
 | `incentive:edit` | ✅ | ✅ | ✅ | ✅ |
-| `incentive:manage` | ✅ | ✅ |   | ✅ |
-| `incentive:person-rank:export` | ✅ | ✅ |   | ✅ |
+| `incentive:person-rank:export` | ✅ | ✅ | ✅ | ✅ |
+| `incentive:rank:export` | ✅ |   |   |   |
+| `incentive:rank:view` | ✅ | ✅ | ✅ | ✅ |
 | `incentive:read-ranking:view` | ✅ |   |   |   |
 | `incentive:read-stats` | ✅ | ✅ | ✅ | ✅ |
+| `incentive:stats:view` | ✅ | ✅ | ✅ | ✅ |
 | `incentive:view` | ✅ | ✅ | ✅ | ✅ |
 | `incentive:view-all` |   |   |   |   |
 | `incentive:view-shared` |   |   |   |   |
-| `ranking:customer:view` |   |   |   |   |
+| `ranking:customer:view` |   |   | ✅ |   |
 | `reminder:view` | ✅ | ✅ | ✅ | ✅ |
 | `score:entry` | ✅ | ✅ |   | ✅ |
 | `score:manage` | ✅ |   |   | ✅ |
 | `score:view` | ✅ | ✅ | ✅ | ✅ |
 | `sea:claim` | ✅ | ✅ | ✅ | ✅ |
-| `sea:config:edit` | ✅ |   |   | ✅ |
+| `sea:config:edit` | ✅ | ✅ |   | ✅ |
 | `sea:config:view` | ✅ | ✅ |   | ✅ |
 | `sea:import` | ✅ | ✅ |   | ✅ |
 | `sea:view` | ✅ | ✅ | ✅ | ✅ |

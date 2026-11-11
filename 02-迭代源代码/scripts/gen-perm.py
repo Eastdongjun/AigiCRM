@@ -7,6 +7,8 @@ import os, sys, datetime, tempfile
 # 且行内需带 不作为/已废弃/历史残留/统一使用/授权表 之一的口径说明。
 LEGACY_PERMISSION_CODES = [
     ('customer:share', '历史兼容项, 不作为独立运行时授权(沿用客户访问/编辑守卫)'),
+    ('incentive:rank:export', '前端导出门码, 后端不作为端点守卫(用户裁决 2026-11-05 独立导出码, 前端 CSV 导出, 与消费侧契约白名单同口径)'),
+    ('incentive:person-rank:export', '前端导出门码, 后端不作为端点守卫(用户裁决 2026-09-23 独立导出码, 前端 CSV 导出, 与消费侧契约白名单同口径)'),
     ('incentive:delete', '历史兼容项, 不作为独立运行时授权(由授权表与服务范围控制)'),
     ('incentive:view-all', '历史残留, 不作为运行时授权(改由授权表按人核定)'),
     ('incentive:view-shared', '历史残留, 不作为运行时授权(改由授权表按人核定)'),

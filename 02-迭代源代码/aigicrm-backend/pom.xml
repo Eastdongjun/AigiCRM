@@ -177,6 +177,19 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- 【底座收敛 P2 2026-11-11】权限行为矩阵(@WebMvcTest + @WithMockUser)专用;
+             @WithMockUser/SecurityMockMvcRequestPostProcessors 来自此依赖, 无运行时影响 -->
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- 【P2】Boot 4 切片测试模块化: @WebMvcTest 从 starter-test 迁至 spring-boot-webmvc-test -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-webmvc-test</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>

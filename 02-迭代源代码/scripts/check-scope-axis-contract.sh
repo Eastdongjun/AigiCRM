@@ -28,9 +28,16 @@ file|delete|case P_DELETE -> "delete"|文件矩阵 delete 档(拍板③独立)
 statistics|view|resolveModuleUsers\([a-zA-Z]+, "statistics"\)|统计/排行可见用户集(与 customer.view 双 key 并存, 待拍板归一)
 approval|view|resolveModuleUsers\(SecurityUtils\.getCurrentUser\(\), "approval"\)|审批待办可见集(仅 view 档)
 reminder|view|resolveModuleUsers\(SecurityUtils\.getCurrentUser\(\), "reminder"\)|提醒可见集(仅 view 档)
-sea|view|resolveModuleUsers\(SecurityUtils\.getCurrentUser\(\), "sea"\)|公海列表可见集(池级编辑走池名单, 不入此表)'
+sea|view|resolveModuleUsers\(SecurityUtils\.getCurrentUser\(\), "sea"\)|公海列表可见集(池级编辑走池名单, 不入此表)
+incentive|stats_view|resolveModuleUsers\(user, "incentive", "stats_view"\)|四项激励独立数据范围(2026-11-05 拍板B, V2026.11.05.7 回填; 其余 7 档为生产死配置见 design.md 已知问题#2)
+task|view|resolveModuleUsersWithinGroup\(SecurityUtils\.getCurrentUser\(\), "task"\)|任务分派可见集(仅 view, WithinGroup 集团收口)
+score|view|resolveModuleUsersWithinGroup\(SecurityUtils\.getCurrentUser\(\), "score"\)|学分录入/排行可见集(仅 view, WithinGroup 集团收口)
+system|view|resolveModuleUsersWithinGroup\(SecurityUtils\.getCurrentUser\(\), "system"\)|系统日志可见集(仅 view, admin 全集团; WithinGroup 集团收口)'
 
 # ① 源码消费字面量 ⊆ 枚举
+# 【N6 2026-11-11 修复】链式 .module()/.action() 之外, resolveModuleUsers/WithinGroup 的
+# 位置参数形态(含三参 module+action)此前完全不可见——task/score/system/incentive 四模块
+# 的消费点对"未声明检测"全部失效(评估反向实验实锤)。两路扫描并集。
 miss=0
 while IFS= read -r lit; do
   [ -n "$lit" ] || continue
@@ -42,6 +49,13 @@ while IFS= read -r lit; do
   act=$(printf '%s' "$lit" | sed -E 's/.*\.action\("([a-z_]+)").*/\1/')
   grep -qE "^[a-z]+\|$act\|" <<<"$AXIS" || { echo "  [未声明动作] .$lit"; miss=$((miss+1)); }
 done < <( { grep -rhoE '\.action\("[a-z_]+"\)' "$SRC" --include="*.java" | grep -vE "LogAspect" || true; } )
+# 位置参数形态: resolveModuleUsers[WithinGroup](x, "mod"[, "action"]) —— action 缺省按 view 语义
+while IFS='|' read -r callmod callact; do
+  [ -n "$callmod" ] || continue
+  act="${callact:-view}"
+  grep -q "^$callmod|$act|" <<<"$AXIS" || { echo "  [未声明消费] resolveModuleUsers*(…, \"$callmod\"${callact:+, \"$callact\"})"; miss=$((miss+1)); }
+done < <( { grep -rhoE 'resolveModuleUsers(WithinGroup)?\([^,]+, "[a-z]+"(, "[a-z_]+")?' "$SRC" --include="*.java" \
+  | sed -E 's/.*"([a-z]+)"(, "([a-z_]+)")?$/\1|\3/' || true; } )
 [ "$miss" -eq 0 ] || fail "源码出现未声明的 (module,action) 消费点——先在本脚本动作轴声明表登记档位与锚"
 
 # ② 枚举每档的源码锚必须命中(防声明腐化)

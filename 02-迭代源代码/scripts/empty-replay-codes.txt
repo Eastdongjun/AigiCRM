@@ -1,0 +1,12 @@
+# 空库重放末态断言码清单(单一源) —— scripts/replay-empty-db.sh 与 .github/workflows/ci.yml
+# 的 empty-db-replay job 共用本文件拼断言 SQL, 防两处口径漂移(N7: 曾本地 7 码/CI 8 码)。
+# 维护规则: 新增"审计兜底绑定"迁移(V2026.11.11.x rebind 型)时, 对应码必须同步加到这里,
+# 且两处断言(脚本/CI)都必须覆盖 status=1 且绑定角色数>=1。
+file:upload
+file:edit
+file:delete
+file:share
+file:folder:manage
+finance:manage
+customer:finance:edit
+customer:invoice-date:edit

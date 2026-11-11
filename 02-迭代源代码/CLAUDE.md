@@ -63,8 +63,8 @@ Cross-cutting layers:
 
 ### Frontend (`aigicrm-ui/src/`)
 
-- `views/` – 17 page components organized by feature (customer/, system/, statistics/, etc.)
-- `api/` – 9 API modules matching backend modules; all use the Axios instance from `utils/request.js`
+- `views/` – ~97 .vue components organized by feature (customer/, system/, statistics/, incentive/, file/, etc.)  # 2026-11-11 纠偏(旧文 17 页为初期规模)
+- `api/` – 13 API modules matching backend modules; all use the Axios instance from `utils/request.js`  # 2026-11-11 纠偏
 - `router/index.js` – Route definitions with auth guard (redirects to `/login` without token)
 - `store/user.js` – Pinia store: user info, roles, permissions (Set), `hasPermission()` method
 - `layout/index.vue` – Sidebar (dark theme, collapsible) + main content area
@@ -95,7 +95,7 @@ Cross-cutting layers:
 
 ## API Documentation
 
-Swagger UI available at `http://localhost:8080/swagger-ui.html` when backend is running (Knife4j / OpenAPI 3).
+Swagger UI **默认关闭**(`aigicrm.swagger.enabled=false`); 显式开启后 `http://localhost:8080/swagger-ui.html` 可用(Knife4j / OpenAPI 3)。  # 2026-11-11 纠偏(旧文未提默认值)
 
 ## graphify
 

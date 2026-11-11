@@ -24,7 +24,7 @@ AIGICRM（运筹马年）内部 CRM：客户/审批/激励/文件/公海池/提�
 
 
 - `sys_org` 视图已于 0809 sys_dept/sys_org 双表收口时删除——物理数据只在 `sys_dept` 表（含 dept_type），无 sys_org。
-- schema 真相链：**Flyway 迁移** = `aigicrm-backend/src/main/resources/db/migration/V1__baseline.sql`（**V1' 重建基线**，2026-08-11 生产 schema 快照，56 表）+ V12~V18 后续迁移；历史日期脚本归档 `sql/migration/archive/`（不再登记）；`aigicrm_database_test.sql` = **审查基准 dump**（2026-08-16 起从生产导出：全库 schema + `sys_menu`/`sys_role_menu`/`sys_user_role`/`sys_role` 四表数据行，不含业务数据；旧 8-3 过期版已备份为 `aigicrm_database_test.sql.bak-20260816`）。
+- schema 真相链：**Flyway 迁移** = `aigicrm-backend/src/main/resources/db/migration/V1__baseline.sql`（**V1' 重建基线**，2026-08-11 生产 schema 快照，56 表）+ V12~V33 数字版 + V2026.* 日期版（空库重放口径=V1+V12~V33+日期版，V2~V11 归档 `sql/migration/archive/`）；冻结清单 FROZEN-SHA256.txt（2026-11-11 补登记至 108 项）；`aigicrm_database_test.sql` = **审查基准 dump**（2026-08-16 起从生产导出：全库 schema + `sys_menu`/`sys_role_menu`/`sys_user_role`/`sys_role` 四表数据行，不含业务数据；旧 8-3 过期版已备份为 `aigicrm_database_test.sql.bak-20260816`）。
 - 数据库变更：**必须经 Flyway**（新迁移 `V10+__xxx.sql` 放 `db/migration/`，用 `scripts/deploy-db.sh` 部署）；`sql/migration/` 下已有日期目录仅作历史参考，不得再手工执行。
 - **迁移链例外（2026-08-11 已确认）**：V1 已被原地重建为生产快照（V1'，含 FOREIGN_KEY_CHECKS=0 包装修复 DB-001 前向 FK）；旧 V2-V9 归档 `sql/migration/archive/`。**此后不得再原地修改 V1**——任何变更一律走新迁移 V10+（V2 编号已弃用，避免与归档/未合并线的版本号冲突）。
 - `biz_incentive_record.file_pre_id` 已从 BIGINT 改为 VARCHAR（存 JSON 数组），新代码不要再按数字处理。
@@ -48,14 +48,19 @@ mvn -q compile                    # 快速编译检查
 ```bash
 # 基准 = dump + 迁移链并集（2026-08-16 起强制，勿只用 dump 单文件：
 # dump 可能早于最新迁移，单用会系统性假警报——8-3 旧 dump 曾误报 25 条 schema + 3 条权限）
-python3 ~/.codex/skills/code-review/scripts/check_schema_entity.py \
-  --java-dir aigicrm-backend/src/main/java --sql aigicrm_database_test.sql \
+# 2026-11-11 纠偏: ~/.codex/skills 路径与本机均不存在, 仓库内等价/替代工具如下;
+# aigicrm_database_test.sql 全树缺失——审查基准请用生产只读查询或 replay-empty-db.sh 末态。
+# 已知局限: 该工具只解析 CREATE TABLE, 不解析 ALTER ADD——biz_folder_type_default/
+# biz_invoice/biz_payment/biz_sea_config 四表的 16 处"列不存在"为迁移加列形态的假阳性
+# (2026-11-11 人工核实, 列均存在于 V2026.09.19.7/V2026.11.03.4/V2026.11.10.1 等 ALTER), 需过滤。
+python3 scripts/check_schema_entity.py \
+  --java-dir aigicrm-backend/src/main/java \
   --migrations-dir aigicrm-backend/src/main/resources/db/migration
-python3 ~/.codex/skills/code-review/scripts/check_api_wiring.py \
-  --frontend-api aigicrm-ui/src/api --backend aigicrm-backend/src/main/java
-python3 ~/.codex/skills/code-review/scripts/check_permission_strings.py \
-  --backend aigicrm-backend/src/main/java --sql aigicrm_database_test.sql \
-  --migrations-dir aigicrm-backend/src/main/resources/db/migration
+python3 scripts/gen-api.py aigicrm-backend/src/main/java/com/aigicrm docs/api/api-list.md
+bash scripts/check-api-list-fresh.sh
+bash scripts/check-permission-binding-coverage.sh
+bash scripts/check-permission-code-consumption.sh
+bash scripts/check-scope-axis-contract.sh
 ```
 
 报告规则：
