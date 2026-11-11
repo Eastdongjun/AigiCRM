@@ -53,17 +53,8 @@ public class FileController {
             @RequestParam(defaultValue = "public") String scope) {
         return Result.ok(fileService.getFolderTree(scope, SecurityUtils.getCurrentUserId()));
     }
-
-    /**
-     * 【修复 2026-11-12 根因2】空间根目录的类型授权动作集: 根目录文件无夹上下文(folderId=null),
-     * 前端曾硬编码根目录 perms → 类型级授权(勾了"公共空间×改名")在根目录文件上永远不可见。
-     * 与 checkFile 对无夹文件的授权判定同源(修2 后 folderType=fileScope 空间锚), 输出细词。
-     */
-    @PreAuthorize("hasAuthority('file:view')")
-    @GetMapping("/folders/type-perms")
-    public Result<List<String>> typePermsForScopeRoot(@RequestParam String scope) {
-        return Result.ok(fileService.typePermsForScopeRoot(scope));
-    }
+    // 【T2 2026-11-12】原"根目录类型授权"页级端点(type-perms)已由行级方案取代:
+    // /file/list 每行返回 perms(permsForFiles 与 checkFile 同源), 前端 row.perms 优先消费。
 
     @PreAuthorize("hasAuthority('file:view')")
     @GetMapping("/list")

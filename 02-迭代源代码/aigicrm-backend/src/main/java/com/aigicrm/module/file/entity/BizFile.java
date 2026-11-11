@@ -31,4 +31,7 @@ public class BizFile {
 
     @TableField(exist = false)
     private String uploaderName;
+    /** 【T2 2026-11-12】行级按钮视图动作集(细词, permsForFiles 与 checkFile 同源)——PC 优先消费, 缺失回退夹级 perms */
+    @TableField(exist = false)
+    private java.util.List<String> perms;
 }

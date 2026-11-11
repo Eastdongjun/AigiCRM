@@ -201,16 +201,7 @@ public class FolderPermissionService {
     private boolean grantGranted(String objectType, String folderType, Long targetFolderId, Long targetOrgId, Long targetOwnerId, String action, Long userId) {
         return grantHitIn(grantMapper.selectList(new LambdaQueryWrapper<>()), objectType, folderType, targetFolderId, targetOrgId, targetOwnerId, action, userId);
     }
-
-    /**
-     * 【修复 2026-11-12 根因2】空间根目录(无夹上下文)授权判定口: target 三 null 与 checkFile
-     * 无夹文件的授权分支同参。注: 带 scope 档位(self/部门档)的授权行在页级根目录无行锚
-     * (无 uploader/org 上下文)会保守不命中——精确档位命中需行级上下文, 由行内 isOwn 与后端
-     * checkFile 行级判定兜底; 主形态 scope_level 空/all 不受影响。
-     */
-    public boolean grantGrantedPublic(String objectType, String folderType, String action, Long userId) {
-        return grantGranted(objectType, folderType, null, null, null, action, userId);
-    }
+    // 【T2 2026-11-12】原 grantGrantedPublic(根目录页级判定口)随 type-perms 端点退役删除——行级 permsForFiles 取代
 
     /** 【2026-11-10 用户令"区分数据范围"】授权行范围命中: scope_level 空/all=不限;
      *  夹内对象→夹.org ∈ 该档部门集; 无夹文件→上传人 ∈ 该档人员集 */
@@ -272,6 +263,60 @@ public class FolderPermissionService {
             if (check(folder.getId(), P_RENAME, userId)) mergePerms(actions, P_RENAME);
             if (check(folder.getId(), P_DELETE, userId)) mergePerms(actions, P_DELETE);
             result.put(folder.getId(), actions);
+        }
+        return result;
+    }
+
+    /** 【T2 2026-11-12】行级文件动作词表(细词, 消费端双词兼容): upload 不在行级(上传是夹/根级动作, 公共根另有管理员门槛) */
+    private static final List<String> FILE_ROW_ACTIONS = List.of(P_VIEW, P_DOWNLOAD, P_RENAME, P_REPLACE, P_SHARE, P_DELETE);
+
+    /**
+     * 【T2 2026-11-12】文件行级按钮视图: 与 checkFile 判定链同源——admin>本人>上级链>
+     * FILE 行授权(有夹=夹锚 type/id/org/owner; 无夹=fileScope 空间锚, 与修4 同口径)>
+     * 矩阵(有夹=夹.org ∈ 档位部门集; 无夹=上传人 ∈ 档位人员集)。
+     * 批量防 N+1: 授权表一次; 夹一次 selectBatchIds; 矩阵档位集按动作缓存(同 permsForBatch 模式)。
+     */
+    public Map<Long, List<String>> permsForFiles(Collection<BizFile> files, Long userId) {
+        Map<Long, List<String>> result = new HashMap<>();
+        if (files == null || files.isEmpty()) return result;
+        if (SecurityUtils.isAdmin()) {
+            for (BizFile f : files) result.put(f.getId(), FILE_ROW_ACTIONS);
+            return result;
+        }
+        List<BizFolderTypeDefault> grants = grantMapper.selectList(new LambdaQueryWrapper<>());
+        Map<Long, BizFileFolder> refCache = new HashMap<>();
+        java.util.Set<Long> folderIds = new java.util.HashSet<>();
+        for (BizFile f : files) if (f.getFolderId() != null) folderIds.add(f.getFolderId());
+        if (!folderIds.isEmpty()) {
+            for (BizFileFolder ref : folderMapper.selectBatchIds(folderIds)) refCache.put(ref.getId(), ref);
+        }
+        Map<String, Set<Long>> matrixCache = new HashMap<>();
+        Map<Long, Boolean> chainCache = new HashMap<>();
+        for (BizFile file : files) {
+            Long uploader = file.getUploaderId();
+            if (uploader != null && (uploader.equals(userId)
+                    || chainCache.computeIfAbsent(uploader, uid -> isManagerChain(userId, uid)))) {
+                result.put(file.getId(), FILE_ROW_ACTIONS); // 本人恒管/上级链=全动作
+                continue;
+            }
+            BizFileFolder ref = file.getFolderId() != null ? refCache.get(file.getFolderId()) : null;
+            String anchorType = ref != null ? ref.getFolderType() : file.getFileScope(); // 无夹=空间锚(修4 同口径)
+            List<String> perms = new ArrayList<>();
+            for (String p : FILE_ROW_ACTIONS) {
+                // 矩阵档位集按动作缓存一次(部门集=有夹 org 锚 / 人员集=无夹 uploader 锚, 分键)
+                boolean hit;
+                if (ref != null) {
+                    Set<Long> depts = matrixCache.computeIfAbsent("org:" + matrixActionOf(p), k -> matrixDeptSet(userId, matrixActionOf(p)));
+                    hit = grantHitIn(grants, OBJ_FILE, anchorType, ref.getId(), ref.getOrgId(), ref.getOwnerId(), p, userId)
+                            || depts == null || (ref.getOrgId() != null && depts.contains(ref.getOrgId()));
+                } else {
+                    Set<Long> users = matrixCache.computeIfAbsent("user:" + matrixActionOf(p), k -> matrixSet(userId, matrixActionOf(p)));
+                    hit = grantHitIn(grants, OBJ_FILE, anchorType, null, file.getOrgId(), uploader, p, userId)
+                            || users == null || (uploader != null && users.contains(uploader));
+                }
+                if (hit) mergePerms(perms, p);
+            }
+            result.put(file.getId(), perms);
         }
         return result;
     }

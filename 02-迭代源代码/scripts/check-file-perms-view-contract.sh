@@ -26,7 +26,7 @@ USEFP="$ROOT/aigicrm-ui/src/composables/useFilePage.js"
 # ① PC 双词兼容
 rg -Fq "canFileAction(row, 'file:edit', 'edit', 'rename')" "$FILE_TABLE" || fail "PC 改名门控未双词兼容(edit∨rename)——根因1回退"
 rg -Fq "canFileAction(row, 'file:edit', 'edit', 'replace')" "$FILE_TABLE" || fail "PC 替换门控未双词兼容(edit∨replace)——根因1回退"
-rg -Fq "perms.some((p) => folderPerms.value.includes(p))" "$FILE_TABLE" || fail "PC canFileAction 未多词化(some)——单词消费回退"
+rg -Fq "perms.some((p) => src.includes(p))" "$FILE_TABLE" || fail "PC canFileAction 未多词化(some)——单词消费回退"
 
 # ② MP 双词(既有, 防回退)
 rg -Fq "folderPerms.includes('edit') || folderPerms.includes('rename')" "$MP_FILES" || fail "MP files 改名门控双词兼容被移除"
@@ -43,10 +43,11 @@ rg -Fq "folderActionsForBatch" "$FPS" || fail "folderActionsForBatch 缺失—�
 # ⑤ 无夹文件空间锚
 rg -Fq "file.getFileScope() != null" "$FPS" || fail "checkFile 无夹文件 fileScope 空间锚被移除——跨空间越权回退(根因4)"
 
-# ⑥ 树组装+根目录类型授权
+# ⑥ 树组装+根目录行级类型授权(T2: row.perms 方案)
 rg -Fq "folder.setFolderActions" "$FSVC" || fail "FileService 树组装未回填 folderActions"
 rg -Fq "folderActionsForBatch" "$FSVC" || fail "FileService 未调用 folderActionsForBatch"
-rg -Fq 'GetMapping("/folders/type-perms")' "$FCTRL" || fail "空间根类型授权端点缺失(根因2回退)"
-rg -Fq "getTypePerms('public')" "$USEFP" || fail "PC 根目录未消费类型授权接口(根因2回退)"
+rg -Fq "permsForFiles(page.getRecords(), userId)" "$FSVC" || fail "FileService 列表未回填行级 row.perms(根因2回退)"
+rg -Fq "Array.isArray(row?.perms) ? row.perms : folderPerms.value" "$FILE_TABLE" || fail "PC 行级优先消费缺失(row.perms)"
+! rg -Fq 'GetMapping("/folders/type-perms")' "$FCTRL" || fail "已退役的页级 type-perms 端点复活(T2 已由行级取代)"
 
-echo "PASS: 文件按钮视图词表契约(双词兼容/夹行分字段/空间锚/根目录类型授权) 全部就位。"
+echo "PASS: 文件按钮视图词表契约(双词兼容/夹行分字段/空间锚/根目录行级类型授权) 全部就位。"

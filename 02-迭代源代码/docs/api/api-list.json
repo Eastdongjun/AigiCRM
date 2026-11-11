@@ -1,6 +1,6 @@
 {
  "generated_at": "2026-11-12",
- "count": 228,
+ "count": 227,
  "endpoints": [
   {
    "method": "POST",
@@ -451,12 +451,6 @@
    "path": "/api/file/folders/type-defaults/{id}/renew",
    "permission": "hasAuthority('file:acl:manage')",
    "handler": "renewTypeDefault"
-  },
-  {
-   "method": "GET",
-   "path": "/api/file/folders/type-perms",
-   "permission": "hasAuthority('file:view')",
-   "handler": "typePermsForScopeRoot"
   },
   {
    "method": "DELETE",

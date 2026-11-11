@@ -18,7 +18,11 @@ describe('文件按钮视图 grantee 场景(根因1/2/5)', () => {
   })
 
   it('canFileAction 消费端多词化(some 任一命中), 不再单词 includes', () => {
-    expect(tableSrc).toContain('perms.some((p) => folderPerms.value.includes(p))')
+    expect(tableSrc).toContain('perms.some((p) => src.includes(p))')
+  })
+
+  it('行级优先: row.perms(后端 permsForFiles 同源)存在即按行级判定, 缺失回退页级夹 perms', () => {
+    expect(tableSrc).toContain('Array.isArray(row?.perms) ? row.perms : folderPerms.value')
   })
 
   it('夹行按钮消费 folderActions 分字段, 不再误用文件动作词 perms', () => {
@@ -26,8 +30,9 @@ describe('文件按钮视图 grantee 场景(根因1/2/5)', () => {
     expect(panelSrc).not.toContain("folder.perms?.includes('edit')")
   })
 
-  it('公共根目录 perms 并入后端类型授权动作(不再纯硬编码挡住授权对象)', () => {
-    expect(pageSrc).toContain("getTypePerms('public')")
-    expect(pageSrc).toContain('[...base, ...granted]')
+  it('公共根目录页级仅兜底(view/download), 文件行按钮以后端行级 row.perms 为准(T2)', () => {
+    expect(pageSrc).toContain("activeTab.value === 'public'")
+    expect(pageSrc).not.toContain("getTypePerms('public')")
+    expect(tableSrc).toContain('Array.isArray(row?.perms) ? row.perms : folderPerms.value')
   })
 })

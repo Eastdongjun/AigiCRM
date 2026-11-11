@@ -158,28 +158,6 @@ public class FileService {
     }
 
     /**
-     * 【修复 2026-11-12 根因2】空间根目录类型授权动作集(细词): 逐动作走 grantGranted(OBJ_FILE, scope, null, ...)
-     * ——与 checkFile 无夹文件分支(修2 空间锚后)同源; admin 全词。scope ∈ {public, private}。
-     */
-    public List<String> typePermsForScopeRoot(String scope) {
-        Long userId = SecurityUtils.getCurrentUserId();
-        if (SecurityUtils.isAdmin()) {
-            return List.of(FolderPermissionService.P_VIEW, FolderPermissionService.P_UPLOAD,
-                    FolderPermissionService.P_DOWNLOAD, FolderPermissionService.P_RENAME,
-                    FolderPermissionService.P_REPLACE, FolderPermissionService.P_SHARE,
-                    FolderPermissionService.P_DELETE);
-        }
-        List<String> perms = new ArrayList<>();
-        for (String p : List.of(FolderPermissionService.P_DOWNLOAD, FolderPermissionService.P_RENAME,
-                FolderPermissionService.P_REPLACE, FolderPermissionService.P_SHARE, FolderPermissionService.P_DELETE)) {
-            if (folderPermissionService.grantGrantedPublic(FolderPermissionService.OBJ_FILE, scope, p, userId)) {
-                perms.add(p);
-            }
-        }
-        return perms;
-    }
-
-    /**
      * 【2026-11-06 用户令"小程序和PC都需要全局检索"】文件关键字多字段全局匹配:
      * 文件名 ∨ 上传人姓名 ∨ 所在文件夹名——此前仅 LIKE 文件名, 与 MP 四项服务 tab 的多字段本地
      * 筛选口径分裂(10-26 登记, 用户感知为"搜不到"); 双端 /file/list 与 shared-to-me 同走本助手。
@@ -298,7 +276,11 @@ public class FileService {
         wrapper.orderByDesc(BizFile::getCreatedAt);
 
         IPage<BizFile> page = fileMapper.selectPage(new Page<>(current, size), wrapper);
+        // 【T2 2026-11-12】行级按钮视图(与 checkFile 同源): 根目录/夹内文件的动作判定以后端行级为准,
+        // 前端 useFilePage 不再硬编码根目录写词(消费端 row.perms 优先, 缺失回退夹级 perms)。
+        Map<Long, List<String>> rowPerms = folderPermissionService.permsForFiles(page.getRecords(), userId);
         for (BizFile file : page.getRecords()) {
+            file.setPerms(rowPerms.getOrDefault(file.getId(), Collections.emptyList()));
             if (file.getUploaderId() != null) {
                 SysUser user = userMapper.selectById(file.getUploaderId());
                 if (user != null) file.setUploaderName(user.getRealName());

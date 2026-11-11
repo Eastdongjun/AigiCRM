@@ -3,11 +3,7 @@ import request from '@/utils/request'
 export function getFolderTree(scope) {
   return request.get('/file/folders', { params: { scope } })
 }
-
-// 【修复 2026-11-12 根因2】空间根目录的类型授权动作集(细词), 与 checkFile 无夹分支同源
-export function getTypePerms(scope) {
-  return request.get('/file/folders/type-perms', { params: { scope } })
-}
+// 【T2 2026-11-12】原 getTypePerms(根目录类型授权页级接口)已退役——/file/list 行级 perms(row.perms)取代
 
 export function getFileList(params) {
   return request.get('/file/list', { params })

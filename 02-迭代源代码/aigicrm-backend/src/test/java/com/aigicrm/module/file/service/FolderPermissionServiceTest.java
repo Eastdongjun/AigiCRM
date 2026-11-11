@@ -377,4 +377,43 @@ class FolderPermissionServiceTest {
                     "case 类型授权不得命中 contract 夹内文件");
         }
     }
+
+    // ===== 【T2 2026-11-12】行级 permsForFiles: 类型级授权直达根目录文件行按钮 =====
+
+    @Test
+    void permsForFiles_typeGrantLightsRootFiles() {
+        // 类型级 public FILE grant 给 USER 42(rename,replace) → 根目录无夹文件(fileScope=public,
+        // 他人上传)行级输出含细词; 非授权用户 43 行级不含; 授权对象未授权动作(delete)不点亮
+        BizFile root = file(11L, null, 99L); root.setFileScope("public");
+        when(grantMapper.selectList(any())).thenReturn(List.of(
+                grant("FILE", "public", null, "USER", 42L, "rename,replace", null)));
+        SecurityUser u = mock(SecurityUser.class);
+        when(scopeResolver.resolveModuleUsers(any(), eq("file"), any())).thenReturn(List.of()); // 矩阵 fail-closed
+        when(scopeResolver.resolveScope(any())).thenReturn(deptDecision(List.of()));
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            stub(m, u, false);
+            List<String> grantee = svc.permsForFiles(List.of(root), 42L).get(11L);
+            assertTrue(grantee.containsAll(List.of("rename", "replace")), "类型授权入行级视图: " + grantee);
+            assertFalse(grantee.contains("delete"), "未授权动作不点亮");
+            List<String> other = svc.permsForFiles(List.of(root), 43L).get(11L);
+            assertFalse(other.contains("rename"), "非授权对象不得点亮");
+            assertFalse(other.contains("delete"));
+        }
+    }
+
+    @Test
+    void permsForFiles_uploaderSelfGetsAllRowActions() {
+        // 上传者本人=全行级动作(与 checkFile 本人短路同源); admin 同
+        BizFile mine = file(12L, null, 42L); mine.setFileScope("private");
+        when(grantMapper.selectList(any())).thenReturn(List.of());
+        SecurityUser u = mock(SecurityUser.class);
+        when(scopeResolver.resolveModuleUsers(any(), eq("file"), any())).thenReturn(List.of());
+        when(scopeResolver.resolveScope(any())).thenReturn(deptDecision(List.of()));
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            stub(m, u, false);
+            List<String> own = svc.permsForFiles(List.of(mine), 42L).get(12L);
+            assertTrue(own.containsAll(List.of("rename", "replace", "delete", "share", "download", "view")),
+                    "本人恒管=全行级动作");
+        }
+    }
 }

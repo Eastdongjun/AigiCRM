@@ -146,8 +146,12 @@ const isOwn = (row) => row?.uploaderId != null && Number(row.uploaderId) === Num
 // (MP files 页 buildFileRowView 的 canDelete/canShare/canEditFile 同口径, 11-08 批已就位)
 // 【修复 2026-11-12 根因1】夹 perms 输出是权限终版细词(rename/replace), 'edit' 是历史伞词——
 // 消费端双词兼容(与 MP files:290 同构, 11-11 NO001 验收在 MP 修过、PC 漏跟): 任一词命中即放行。
-const canFileAction = (row, code, ...perms) =>
-  userStore.hasPermission(code) && (perms.some((p) => folderPerms.value.includes(p)) || isOwn(row))
+// 【T2 2026-11-12】行级优先: row.perms(/file/list 每行返回, permsForFiles 与 checkFile 同源)
+// 存在即按行级判定(根目录/类型级授权直达行按钮); 缺失回退页级夹 perms。isOwn 兜底同口径。
+const canFileAction = (row, code, ...perms) => {
+  const src = Array.isArray(row?.perms) ? row.perms : folderPerms.value
+  return userStore.hasPermission(code) && (perms.some((p) => src.includes(p)) || isOwn(row))
+}
 const canRename = (row) => canFileAction(row, 'file:edit', 'edit', 'rename')
 
 // 【2026-11-08 用户令"改名不更改格式"】扩展名自动保留: 输入带不带/换不换后缀,
