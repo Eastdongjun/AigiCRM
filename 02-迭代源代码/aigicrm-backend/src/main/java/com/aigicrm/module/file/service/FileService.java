@@ -141,6 +141,8 @@ public class FileService {
         // 【文件权限体系】批量填充每个文件夹的当前用户权限（前端逐行控制按钮显隐），
         // ACL 一次批量查询 + 上级链按 owner 缓存，避免逐文件夹 N+1
         Map<Long, List<String>> permsMap = folderPermissionService.permsForBatch(folders, userId);
+        // 【修复 2026-11-12 根因5】夹行自身动作(rename/delete)与文件动作分字段——FOLDER 行授权终于点亮夹按钮
+        Map<Long, List<String>> folderActionsMap = folderPermissionService.folderActionsForBatch(folders, userId);
         for (BizFileFolder folder : folders) {
             long count = fileMapper.selectCount(
                     new LambdaQueryWrapper<BizFile>()
@@ -149,9 +151,32 @@ public class FileService {
             );
             folder.setFileCount((int) count);
             folder.setPerms(permsMap.getOrDefault(folder.getId(), Collections.emptyList()));
+            folder.setFolderActions(folderActionsMap.getOrDefault(folder.getId(), Collections.emptyList()));
         }
 
         return buildFolderTree(folders, 0L);
+    }
+
+    /**
+     * 【修复 2026-11-12 根因2】空间根目录类型授权动作集(细词): 逐动作走 grantGranted(OBJ_FILE, scope, null, ...)
+     * ——与 checkFile 无夹文件分支(修2 空间锚后)同源; admin 全词。scope ∈ {public, private}。
+     */
+    public List<String> typePermsForScopeRoot(String scope) {
+        Long userId = SecurityUtils.getCurrentUserId();
+        if (SecurityUtils.isAdmin()) {
+            return List.of(FolderPermissionService.P_VIEW, FolderPermissionService.P_UPLOAD,
+                    FolderPermissionService.P_DOWNLOAD, FolderPermissionService.P_RENAME,
+                    FolderPermissionService.P_REPLACE, FolderPermissionService.P_SHARE,
+                    FolderPermissionService.P_DELETE);
+        }
+        List<String> perms = new ArrayList<>();
+        for (String p : List.of(FolderPermissionService.P_DOWNLOAD, FolderPermissionService.P_RENAME,
+                FolderPermissionService.P_REPLACE, FolderPermissionService.P_SHARE, FolderPermissionService.P_DELETE)) {
+            if (folderPermissionService.grantGrantedPublic(FolderPermissionService.OBJ_FILE, scope, p, userId)) {
+                perms.add(p);
+            }
+        }
+        return perms;
     }
 
     /**

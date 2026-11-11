@@ -274,7 +274,8 @@ const onDefaultChange = async (type, roleId, patch) => {
   prevRows.forEach(r => { if (!tasks.length || (r.objectType === 'FILE' && !next.filePerms.length) || (r.objectType === 'FOLDER' && !next.folderPerms.length)) tasks.push(removeFolderTypeDefault(r.id)) })
   try {
     await Promise.all(tasks)
-    ElMessage.success('已保存，立即生效')
+    // 【修复 2026-11-12 根因3】对象授权是双门之一: 提示补全局码前置条件, 消除"勾了却不显示"认知落差
+    ElMessage.success('对象授权已保存；目标用户还需具备对应的文件全局功能码（如 file:edit / file:delete / file:share）按钮才会出现')
     await load()
   } catch (e) { /* 拦截器已提示 */ }
 }
@@ -331,7 +332,7 @@ const save = async () => {
   const results = await Promise.allSettled(payloads.map(p => saveFolderTypeDefault(p)))
   const ok = results.filter(r => r.status === 'fulfilled').length
   if (ok === payloads.length) {
-    ElMessage.success(`已授权 ${ids.length} 个主体，立即生效${form.expiresAt ? '（' + shortDate(form.expiresAt) + ' 到期自动收回）' : '（永久，删除即收回）'}`)
+    ElMessage.success(`已授权 ${ids.length} 个主体，立即生效${form.expiresAt ? '（' + shortDate(form.expiresAt) + ' 到期自动收回）' : '（永久，删除即收回）'}；目标用户还需具备文件全局功能码按钮才会出现`)
     addVisible.value = false
   } else {
     ElMessage.warning(`授权：成功 ${ok} / 失败 ${payloads.length - ok}（请检查后重试）`)

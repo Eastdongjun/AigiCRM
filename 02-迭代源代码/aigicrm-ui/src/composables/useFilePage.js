@@ -6,7 +6,7 @@
 import { ref, computed, inject } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
-  getFolderTree, getFileList, deleteFile, deleteFolder,
+  getFolderTree, getFileList, deleteFile, deleteFolder, getTypePerms,
   getStorageInfo, getStorageApplyInfo, getSharedToMe, getSharedToMeCount, getFolderPermissions,
 } from '@/api/file'
 import { useUserStore } from '@/store/user'
@@ -124,11 +124,26 @@ export function useFilePage() {
       // 【2026-11-08 审计修复】公共根目录非管理员不再硬编码 upload：后端 FileService.upload 对
       // "public + 无 folderId + 非管理员"恒拒（"公共根目录文件仅管理员可上传"），原列表单方面放开
       // 导致必败按钮可点。参照 canCreateFolder 修法：公共+根目录+非管理员 perms 收窄为 view/download。
-      folderPerms.value = isAdmin.value
+      // 【修复 2026-11-12 根因2】基础集之上并入后端类型授权动作(细词, checkFile 无夹分支同源)——
+      // 勾了"公共空间×改名/替换"等类型授权的对象, 根目录文件按钮不再被硬编码挡住; upload 仍不并
+      // (公共根目录仅管理员可上传是后端铁律)。
+      const base = isAdmin.value
         ? ['view', 'upload', 'edit', 'delete', 'share', 'download']
         : activeTab.value === 'public'
           ? ['view', 'download']
           : ['view', 'upload', 'edit', 'delete', 'share', 'download']
+      if (isAdmin.value || activeTab.value !== 'public') {
+        folderPerms.value = base
+        folderDownloadable.value = 1
+        return
+      }
+      try {
+        const res = await getTypePerms('public')
+        const granted = (res.data || []).filter((p) => p !== 'upload')
+        folderPerms.value = Array.from(new Set([...base, ...granted]))
+      } catch (e) {
+        folderPerms.value = base
+      }
       folderDownloadable.value = 1
       return
     }

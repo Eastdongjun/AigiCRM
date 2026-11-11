@@ -4,6 +4,11 @@ export function getFolderTree(scope) {
   return request.get('/file/folders', { params: { scope } })
 }
 
+// 【修复 2026-11-12 根因2】空间根目录的类型授权动作集(细词), 与 checkFile 无夹分支同源
+export function getTypePerms(scope) {
+  return request.get('/file/folders/type-perms', { params: { scope } })
+}
+
 export function getFileList(params) {
   return request.get('/file/list', { params })
 }

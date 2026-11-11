@@ -100,6 +100,11 @@ public class FolderPermissionService {
             ref = folderMapper.selectById(folderRef);
             if (ref != null) folderType = ref.getFolderType();
         }
+        // 【安全修复 2026-11-12 根因4】无夹文件(激励附件/无夹上传/夹已删孤儿)以 fileScope 为类型锚:
+        // 原 null 锚使 grantHitIn 的 "folderType != null 才校验" 约束被跳过, 公共/私人空间的
+        // 类型授权可跨空间命中激励附件——与 :106 "激励附件只吃 incentive 类型授权"口径相悖。
+        // 空间锚后类型授权不跨空间(生产实测无夹文件 fileScope 无 NULL: incentive 2553/public 2)。
+        if (folderType == null && file.getFileScope() != null) folderType = file.getFileScope();
         if (grantGranted(OBJ_FILE, folderType, folderRef, file.getOrgId(), file.getUploaderId(), action, userId)) return true;
         // 【拍板②】夹内文件跟夹走(夹.org ∈ 可见部门集); 无夹文件(激励附件/私人无夹)跟上传人(OWNER 锚)
         if (ref != null) return deptVisible(ref.getOrgId(), userId, matrixActionOf(action));
@@ -197,6 +202,16 @@ public class FolderPermissionService {
         return grantHitIn(grantMapper.selectList(new LambdaQueryWrapper<>()), objectType, folderType, targetFolderId, targetOrgId, targetOwnerId, action, userId);
     }
 
+    /**
+     * 【修复 2026-11-12 根因2】空间根目录(无夹上下文)授权判定口: target 三 null 与 checkFile
+     * 无夹文件的授权分支同参。注: 带 scope 档位(self/部门档)的授权行在页级根目录无行锚
+     * (无 uploader/org 上下文)会保守不命中——精确档位命中需行级上下文, 由行内 isOwn 与后端
+     * checkFile 行级判定兜底; 主形态 scope_level 空/all 不受影响。
+     */
+    public boolean grantGrantedPublic(String objectType, String folderType, String action, Long userId) {
+        return grantGranted(objectType, folderType, null, null, null, action, userId);
+    }
+
     /** 【2026-11-10 用户令"区分数据范围"】授权行范围命中: scope_level 空/all=不限;
      *  夹内对象→夹.org ∈ 该档部门集; 无夹文件→上传人 ∈ 该档人员集 */
     private boolean scopeCovers(BizFolderTypeDefault g, Long targetOrgId, Long targetUploaderId) {
@@ -240,6 +255,25 @@ public class FolderPermissionService {
         // (与 permsForBatch 修前的同款脱节, 造成 PC 单夹口缺 delete/rename 而 MP 树回填口有)。
         // 单夹=批量同源化: 直接委托 permsForBatch, 两端视图永远一致。
         return permsForBatch(List.of(folder), userId).getOrDefault(folderId, List.of());
+    }
+
+    /**
+     * 【修复 2026-11-12 根因5】夹行动作视图: 输出夹自身动作细词(rename/delete), 与 perms(文件动作词)
+     * 分字段防词义混叠——勾了"文件改名"不该点亮夹改名按钮, 反之亦然。
+     * 判定与夹端点服务层(FileService.renameFolder/deleteFolder 调 check(P_RENAME/P_DELETE))同源:
+     * admin>本人>上级链>FOLDER 行授权(OBJ_FOLDER)>矩阵; 单夹两动作直调 check 保证与判定链永不脱节
+     * (夹树量级小, N+1 可接受; 若树规模增长再引入缓存)。
+     */
+    public Map<Long, List<String>> folderActionsForBatch(Collection<BizFileFolder> folders, Long userId) {
+        Map<Long, List<String>> result = new HashMap<>();
+        if (folders == null || folders.isEmpty()) return result;
+        for (BizFileFolder folder : folders) {
+            List<String> actions = new ArrayList<>();
+            if (check(folder.getId(), P_RENAME, userId)) mergePerms(actions, P_RENAME);
+            if (check(folder.getId(), P_DELETE, userId)) mergePerms(actions, P_DELETE);
+            result.put(folder.getId(), actions);
+        }
+        return result;
     }
 
     /** 批量: 组织集按矩阵动作缓存一次, 授权全表缓存一次, 防逐夹 N+1 */

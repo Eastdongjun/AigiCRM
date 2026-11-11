@@ -26,4 +26,7 @@ public class BizFileFolder {
     private Integer fileCount;
     @TableField(exist = false)
     private List<String> perms;   // 当前用户对该文件夹的权限列表（前端逐行按钮控制）
+    /** 【修复 2026-11-12 根因5】夹自身动作视图(rename/delete 细词), 与 perms(文件动作词)分字段防词义混叠 */
+    @TableField(exist = false)
+    private List<String> folderActions;
 }

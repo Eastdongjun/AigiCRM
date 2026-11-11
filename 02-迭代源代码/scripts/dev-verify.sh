@@ -630,6 +630,9 @@ local_contracts() {
   run "$ROOT/scripts/check-file-perm-e2e.sh"
   # 【治本③ 2026-11-11】文件动作词表单一源: 后端常量=权威, 前端矩阵/MP 消费必须一致(edit 兼容词须与 rename 并存)
   run "$ROOT/scripts/check-file-action-vocab.sh"
+  # 【修复 2026-11-12 根因1/2/5】文件按钮视图词表契约: 后端 perms 输出词(细词) ⊆ 双端消费词
+  #   (PC 双词兼容/MP 双词/夹行 folderActions 分字段/无夹空间锚), 防视图与判定链再度脱节。
+  run "$ROOT/scripts/check-file-perms-view-contract.sh"
   # 【T1 2026-11-11 审计整改】权限码绑定覆盖率: @PreAuthorize 码必须有锚点角色绑定(防空库重放全员403)
   run "$ROOT/scripts/check-permission-binding-coverage.sh"
 }

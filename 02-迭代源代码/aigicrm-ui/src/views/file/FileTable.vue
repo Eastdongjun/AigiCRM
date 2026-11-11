@@ -51,7 +51,7 @@
             <el-tooltip v-if="activeTab !== 'public' && activeTab !== 'shared_to_me' && canFileAction(row, 'file:share', 'share')" content="分享" placement="top">
               <el-icon class="act-icon" @click.stop="openShareDialog(row)"><Share /></el-icon>
             </el-tooltip>
-            <el-tooltip v-if="canFileAction(row, 'file:edit', 'edit')" content="替换" placement="top">
+            <el-tooltip v-if="canFileAction(row, 'file:edit', 'edit', 'replace')" content="替换" placement="top">
               <el-icon class="act-icon" @click.stop="openReplaceFile(row)"><Refresh /></el-icon>
             </el-tooltip>
             <!-- 【2026-11-08 PC 补文件改名入口】后端 PUT /file/{id}/rename（FileController file:edit +
@@ -144,9 +144,11 @@ const isOwn = (row) => row?.uploaderId != null && Number(row.uploaderId) === Num
 // (@PreAuthorize 全局码 + checkFile 本人恒管/夹判定)同口径。此前分享/替换/删除只看
 // 夹 ACL/isOwn, 无全局码者可见可点、提交必 403; canRename 是首个正确范式, 收敛于此。
 // (MP files 页 buildFileRowView 的 canDelete/canShare/canEditFile 同口径, 11-08 批已就位)
-const canFileAction = (row, code, folderPerm) =>
-  userStore.hasPermission(code) && (folderPerms.value.includes(folderPerm) || isOwn(row))
-const canRename = (row) => canFileAction(row, 'file:edit', 'edit')
+// 【修复 2026-11-12 根因1】夹 perms 输出是权限终版细词(rename/replace), 'edit' 是历史伞词——
+// 消费端双词兼容(与 MP files:290 同构, 11-11 NO001 验收在 MP 修过、PC 漏跟): 任一词命中即放行。
+const canFileAction = (row, code, ...perms) =>
+  userStore.hasPermission(code) && (perms.some((p) => folderPerms.value.includes(p)) || isOwn(row))
+const canRename = (row) => canFileAction(row, 'file:edit', 'edit', 'rename')
 
 // 【2026-11-08 用户令"改名不更改格式"】扩展名自动保留: 输入带不带/换不换后缀,
 // 提交前统一剥掉输入后缀拼回原扩展名(与后端 keepOriginalExtension 同口径, 后端为铁律守卫)

@@ -4,7 +4,7 @@
 > 本文件由 scripts/gen-api.py 自动生成,**禁止手改**;接口变更后重新运行。
 > 权限码与 docs/permission/permission-dict.md 对应。
 
-## 接口清单(227 个)
+## 接口清单(228 个)
 
 | 方法 | 路径 | 权限码 | 方法名 | 文件 |
 |---|---|---|---|---|
@@ -83,6 +83,7 @@
 | POST | `/api/file/folders/type-defaults` | `hasAuthority('file:acl:manage')` | saveTypeDefault | FolderAclController.java |
 | DELETE | `/api/file/folders/type-defaults/{id}` | `hasAuthority('file:acl:manage')` | removeTypeDefault | FolderAclController.java |
 | PUT | `/api/file/folders/type-defaults/{id}/renew` | `hasAuthority('file:acl:manage')` | renewTypeDefault | FolderAclController.java |
+| GET | `/api/file/folders/type-perms` | `hasAuthority('file:view')` | typePermsForScopeRoot | FileController.java |
 | DELETE | `/api/file/folders/{id}` | `hasAuthority('file:folder:manage')` | deleteFolder | FileController.java |
 | PUT | `/api/file/folders/{id}` | `hasAuthority('file:folder:manage')` | renameFolder | FileController.java |
 | GET | `/api/file/folders/{id}/permissions` | `hasAuthority('file:view')` | permissions | FolderAclController.java |

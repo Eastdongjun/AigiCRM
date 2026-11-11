@@ -21,11 +21,11 @@
       <span class="sq-icon sq-icon--folder"><el-icon><Folder /></el-icon></span>
       <span class="folder-name">{{ folder.folderName }}</span>
       <span class="folder-count">{{ folder.fileCount || 0 }}</span>
-<span v-if="canManageFolders && (folder.perms?.includes('edit') || folder.perms?.includes('delete'))" class="folder-actions">
-        <el-tooltip v-if="folder.perms?.includes('edit')" content="重命名" placement="top">
+<span v-if="canManageFolders && (folder.folderActions?.includes('rename') || folder.folderActions?.includes('delete'))" class="folder-actions">
+        <el-tooltip v-if="folder.folderActions?.includes('rename')" content="重命名" placement="top">
           <el-icon class="folder-act" @click.stop="openRenameFolder(folder)"><EditPen /></el-icon>
         </el-tooltip>
-<el-tooltip v-if="folder.perms?.includes('delete')" content="删除" placement="top">
+<el-tooltip v-if="folder.folderActions?.includes('delete')" content="删除" placement="top">
           <el-icon class="folder-act folder-act-danger" @click.stop="handleDeleteFolder(folder)"><Delete /></el-icon>
         </el-tooltip>
       </span>
