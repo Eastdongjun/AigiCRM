@@ -615,6 +615,11 @@ local_contracts() {
   # 【2026-11-08 第四类门禁·双端一致性】前端调用→后端端点必须存在(防必败按钮/死调用);
   #   后端写端点→双端必须有调用方或白名单带理由(防休眠端点复发)。背景=11-08全量审计25项漂移。
   run "$ROOT/scripts/check-endpoint-parity.sh"
+  # 【治本④ 2026-11-11】文件权限端到端一致性(勾→双端出→操作放行→收回复位, 打测试服):
+  #   背景=当日 7 个权限 bug 全是"API 对、最后一公里断"(词表/归组/入口错位), 此钉闭环之。
+  run "$ROOT/scripts/check-file-perm-e2e.sh"
+  # 【治本③ 2026-11-11】文件动作词表单一源: 后端常量=权威, 前端矩阵/MP 消费必须一致(edit 兼容词须与 rename 并存)
+  run "$ROOT/scripts/check-file-action-vocab.sh"
 }
 
 changed_files() {

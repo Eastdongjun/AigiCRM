@@ -209,7 +209,9 @@ grep -Fq 'one-tap preview download missing' "$AUTOMATOR_SCRIPT" || fail 'file ce
 # 【11-08 审计项3 + 2026-11-10 用户令"A"】重命名入口=file:edit 码 ∧ (当前夹 edit ∨ 是我传的)——
 # 后端 rename 守 file:edit 码 + checkFile(P_RENAME) 本人短路(上传者恒可管自己的文件), 前端同口径
 grep -Fq "canEditFile: globalData.demoMode || hasPermission('file:edit')" "$PAGE" || fail 'mobile file rename entry must pre-gate on the file:edit permission code'
-grep -Fq "if (data.canEditFile && (folderPerms.includes('edit') || isOwn)) sheetActions.push({ key: 'rename', label: '重命名' })" "$PAGE" || fail 'mobile file rename sheet action must require file:edit code AND (folder edit bit OR own upload)'
+# 【2026-11-11 词表修复对齐】重命名入口兼容双词表: edit(旧伞词)∨rename(终版细词)∨isOwn
+# (树回填 perms=细词, 只认 edit 时非本人文件重命名入口恒不出现——NO001 验收实证)
+grep -Fq "if (data.canEditFile && (folderPerms.includes('edit') || folderPerms.includes('rename') || isOwn)) sheetActions.push({ key: 'rename', label: '重命名' })" "$PAGE" || fail 'mobile file rename sheet action must require file:edit code AND (folder edit OR rename bit OR own upload)'
 ! grep -Fq 'replaceListFile' "$PAGE" || fail 'file list replace action was retired by user order (2026-10-26)'
 ! grep -Fq "replaceFile(item.id, file.path)" "$PAGE" || fail 'file list replace call was retired by user order (2026-10-26)'
 # 【钉随需求A】行内 replaceListFile 收敛到操作面板 onSheetAction(JS 方法保留)
