@@ -87,9 +87,10 @@
    系统管理员 7→7 / 销售总监 7→7 / 销售员 7→7(已持 statistics:view, 补绑条件不触发,
    不误增"统计分析"入口) / 行政 4→7(拍板"给全"接受: 侧栏+统计分析/六项指标/客户排行) /
    其余角色 0→0。客户域 (customer,view) 与统计域分键是业务分层(列表权限≠看板权限), 不在本次统一范围。
-2. **role_perm_scope 死配置**(生产快照 2026-11-11): incentive 域 8 档全死——激励可见性实际走
-   biz_incentive_grant; customer 另有 add/date/export/import/share 死档; 另有 `*/*` 通配 9 行、
-   dashboard/score/sea:config 等无消费行。清理属数据治理, 待令(file 域死配置已由 V2026.11.09.1 清过)。
+2. **role_perm_scope 死配置**: ✅2026-11-12 裁决B已登记——生产实测 31 组中 19 组死(含 7 行空
+   role_code 通配死行), 全景+判死依据+A步删行草案入册
+   [role-perm-scope-dead-configs.md](role-perm-scope-dead-configs.md); `*/*` 通配 05/06 两行为活兜底勿动。
+   A(迁移删行)挂观察期后待令, 观察判据见登记册第四节(file 域死配置已由 V2026.11.09.1 清过)。
 3. **孤儿码**: ~~ranking:customer:view~~ ✅2026-11-12 裁决A已执行——V2026.11.12.1 删 sys_menu 行
    与销售员绑定, CustomerController:155 三码 OR 收窄为 score:view ∨ statistics:view(销售员双兜底
    实存, 端点可见集零变化); 生产部署后 gen-permission-dict.sh 重生成即自洽。
