@@ -244,11 +244,11 @@ public class FolderPermissionService {
         if (Objects.equals(folder.getOwnerId(), userId) || isManagerChain(userId, folder.getOwnerId())) {
             return ALL_PERMS;
         }
-        List<String> result = new ArrayList<>();
-        for (String p : List.of(P_VIEW, P_UPLOAD, P_DOWNLOAD, P_RENAME, P_REPLACE, P_SHARE, P_DELETE)) {
-            if (check(folderId, p, userId)) mergePerms(result, p);
-        }
-        return result;
+        // 【修复 2026-11-11 USER级授权验收发现】单夹视图原逐动作走 check()——check 是"夹上下文"入口,
+        // ctxObjectTypeOf 把 delete/rename 归 OBJ_FOLDER → FILE 行授权(矩阵文件列)在单夹视图永不点亮
+        // (与 permsForBatch 修前的同款脱节, 造成 PC 单夹口缺 delete/rename 而 MP 树回填口有)。
+        // 单夹=批量同源化: 直接委托 permsForBatch, 两端视图永远一致。
+        return permsForBatch(List.of(folder), userId).getOrDefault(folderId, List.of());
     }
 
     /** 批量: 组织集按矩阵动作缓存一次, 授权全表缓存一次, 防逐夹 N+1 */
@@ -267,11 +267,15 @@ public class FolderPermissionService {
                     oid -> oid.equals(userId) || (oid > 0 && isManagerChain(userId, oid)));
             if (privileged) { result.put(folder.getId(), ALL_PERMS); continue; }
             List<String> perms = new ArrayList<>();
+            // 【修复 2026-11-11 USER级授权验收发现】此视图循环的 7 个动作全部是"文件动作"(矩阵文件列
+            // 勾选存 FILE 行), 但 ctxObjectTypeOf 把 delete/rename 归到 OBJ_FOLDER → 按钮视图查 FOLDER 行
+            // 永不命中: 矩阵勾了"删除/改名"、checkFile 实际放行, 双端按钮却不出现(视图与判定脱节)。
+            // 该循环对授权行一律按 OBJ_FILE 匹配; ctxObjectTypeOf 保留给夹自身动作入口(check 的夹上下文)。
             for (String p : List.of(P_VIEW, P_UPLOAD, P_DOWNLOAD, P_RENAME, P_REPLACE, P_SHARE, P_DELETE)) {
                 Set<Long> depts = matrixCache.computeIfAbsent(matrixActionOf(p), ma -> matrixDeptSet(userId, ma));
                 // 【2026-11-10 C区验收修复】null=全部(all档)放行, 对齐 FileService#255; 原写法致全员可看档在批量夹判定恒失效
                 if ((depts == null || (folder.getOrgId() != null && depts.contains(folder.getOrgId())))
-                        || grantHitIn(grants, ctxObjectTypeOf(p), folder.getFolderType(), folder.getId(), folder.getOrgId(), folder.getOwnerId(), p, userId)) {
+                        || grantHitIn(grants, OBJ_FILE, folder.getFolderType(), folder.getId(), folder.getOrgId(), folder.getOwnerId(), p, userId)) {
                     mergePerms(perms, p);
                 }
             }
