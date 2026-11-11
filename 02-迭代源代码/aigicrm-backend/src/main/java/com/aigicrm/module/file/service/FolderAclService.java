@@ -23,6 +23,8 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class FolderAclService {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(FolderAclService.class);
+
     private static final Set<String> ALLOWED = Set.of(
         FolderPermissionService.P_VIEW, FolderPermissionService.P_UPLOAD,
         FolderPermissionService.P_EDIT, FolderPermissionService.P_DELETE,
@@ -105,7 +107,8 @@ public class FolderAclService {
             aclMapper.insert(acl);
         }
         // 【体检P4】ACL 授权留痕(失败不阻断)
-        try { securityAudit.permissionChange("folder_acl_save", "folderAcl:" + folderId + " role:" + roleId + " perms:" + joined); } catch (Exception ignore) { }
+        try { securityAudit.permissionChange("folder_acl_save", "folderAcl:" + folderId + " role:" + roleId + " perms:" + joined); }
+        catch (Exception e) { log.warn("权限审计留痕失败(不阻断业务) folder_acl_save folderId={} roleId={}", folderId, roleId, e); }
     }
 
     public void removeAcl(Long folderId, Long roleId) {
@@ -113,7 +116,8 @@ public class FolderAclService {
         aclMapper.delete(new LambdaQueryWrapper<BizFolderAcl>()
                 .eq(BizFolderAcl::getFolderId, folderId).eq(BizFolderAcl::getRoleId, roleId));
         // 【体检P4】ACL 撤销留痕(失败不阻断)
-        try { securityAudit.permissionChange("folder_acl_remove", "folderAcl:" + folderId + " role:" + roleId); } catch (Exception ignore) { }
+        try { securityAudit.permissionChange("folder_acl_remove", "folderAcl:" + folderId + " role:" + roleId); }
+        catch (Exception e) { log.warn("权限审计留痕失败(不阻断业务) folder_acl_remove folderId={} roleId={}", folderId, roleId, e); }
     }
 
     public void setDownloadable(Long folderId, Integer downloadable) {
@@ -124,7 +128,8 @@ public class FolderAclService {
         folder.setDownloadable(downloadable);
         folderMapper.updateById(folder);
         // 【体检P4】下载开关留痕(失败不阻断)
-        try { securityAudit.permissionChange("folder_download_switch", "folderAcl:" + folderId + " downloadable:" + downloadable); } catch (Exception ignore) { }
+        try { securityAudit.permissionChange("folder_download_switch", "folderAcl:" + folderId + " downloadable:" + downloadable); }
+        catch (Exception e) { log.warn("权限审计留痕失败(不阻断业务) folder_download_switch folderId={}", folderId, e); }
     }
 
     public Map<String, Object> permissions(Long folderId, Long userId) {

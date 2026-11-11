@@ -30,6 +30,8 @@ import java.util.Set;
 @Service
 @RequiredArgsConstructor
 public class FolderTypeDefaultService {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(FolderTypeDefaultService.class);
+
 
     public static final String SUBJECT_ROLE = "ROLE";
     public static final String SUBJECT_USER = "USER";
@@ -155,7 +157,8 @@ public class FolderTypeDefaultService {
         try { securityAudit.permissionChange("file_grant_save",
                 "fileGrant:" + folderType + "/" + objectType + (folderId != null ? "#" + folderId : "")
                         + " subject:" + subjectType + ":" + subjectId + " perms:" + joined
-                        + " scope:" + scopeLevel + " expires:" + expiresAt); } catch (Exception ignore) { }
+                        + " scope:" + scopeLevel + " expires:" + expiresAt); }
+        catch (Exception e) { log.warn("权限审计留痕失败(不阻断业务) file_grant_save folderType={} subject={}:{}", folderType, subjectType, subjectId, e); }
     }
 
     /** 按 id 删除授权(立即收回) */
@@ -165,7 +168,8 @@ public class FolderTypeDefaultService {
         grantMapper.deleteById(id);
         try { securityAudit.permissionChange("file_grant_remove",
                 "fileGrant:" + g.getFolderType() + "/" + g.getObjectType() + "#" + id
-                        + " subject:" + g.getSubjectType() + ":" + g.getSubjectId()); } catch (Exception ignore) { }
+                        + " subject:" + g.getSubjectType() + ":" + g.getSubjectId()); }
+        catch (Exception e) { log.warn("权限审计留痕失败(不阻断业务) file_grant_remove grantId={}", id, e); }
     }
 
     /** 续期(顺延至指定时刻; 审计留痕) */
@@ -175,7 +179,8 @@ public class FolderTypeDefaultService {
         if (g == null) throw new BusinessException("授权不存在");
         g.setExpiresAt(expiresAt);
         grantMapper.updateById(g);
-        try { securityAudit.permissionChange("file_grant_renew", "fileGrant#" + id + " expires:" + expiresAt); } catch (Exception ignore) { }
+        try { securityAudit.permissionChange("file_grant_renew", "fileGrant#" + id + " expires:" + expiresAt); }
+        catch (Exception e) { log.warn("权限审计留痕失败(不阻断业务) file_grant_renew grantId={}", id, e); }
     }
 
     private String subjectNameOf(BizFolderTypeDefault g) {

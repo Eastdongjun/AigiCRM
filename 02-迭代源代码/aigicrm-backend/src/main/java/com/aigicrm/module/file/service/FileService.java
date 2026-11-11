@@ -507,7 +507,8 @@ public class FileService {
         // 【2026-11-10 拍板③】删除审计(高敏动作, 失败不阻断)
         try { securityAudit.permissionChange("file_delete",
                 "file:" + fileId + " name:" + file.getFileName() + " scope:" + file.getFileScope()
-                        + " by:" + SecurityUtils.getCurrentUsername()); } catch (Exception ignore) { }
+                        + " by:" + SecurityUtils.getCurrentUsername()); }
+        catch (Exception e) { log.warn("权限审计留痕失败(不阻断业务) file_delete fileId={}", fileId, e); }
         // 【性能 file-3】删除后清掉该文件所有版本的缩略图磁盘缓存（逻辑删只保留原图供回收站）
         evictThumbnailCache(fileId);
 

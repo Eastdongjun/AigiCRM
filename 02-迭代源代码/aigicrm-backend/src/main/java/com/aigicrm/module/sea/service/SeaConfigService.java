@@ -24,6 +24,8 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class SeaConfigService {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(SeaConfigService.class);
+
 
     private final BizSeaConfigMapper configMapper;
     private final BizSeaPoolMapper seaPoolMapper;
@@ -75,7 +77,8 @@ public class SeaConfigService {
         checkOfficeOverlap(config);
         configMapper.insert(config);
         // 【体检P4】池名单创建留痕(失败不阻断)
-        try { securityAudit.permissionChange("sea_pool_create", "seaPool:" + config.getPoolName()); } catch (Exception ignore) { }
+        try { securityAudit.permissionChange("sea_pool_create", "seaPool:" + config.getPoolName()); }
+        catch (Exception e) { log.warn("权限审计留痕失败(不阻断业务) sea_pool_create pool={}", config.getPoolName(), e); }
     }
 
     public void update(BizSeaConfig config) {
@@ -89,7 +92,8 @@ public class SeaConfigService {
         }
         configMapper.updateById(config);
         // 【体检P4】池名单变更留痕(失败不阻断)
-        try { securityAudit.permissionChange("sea_pool_update", "seaPool:" + config.getId()); } catch (Exception ignore) { }
+        try { securityAudit.permissionChange("sea_pool_update", "seaPool:" + config.getId()); }
+        catch (Exception e) { log.warn("权限审计留痕失败(不阻断业务) sea_pool_update poolId={}", config.getId(), e); }
     }
 
     /**
@@ -127,7 +131,8 @@ public class SeaConfigService {
         }
         configMapper.deleteById(id);
         // 【体检P4】池删除留痕(失败不阻断)
-        try { securityAudit.permissionChange("sea_pool_delete", "seaPool:" + id); } catch (Exception ignore) { }
+        try { securityAudit.permissionChange("sea_pool_delete", "seaPool:" + id); }
+        catch (Exception e) { log.warn("权限审计留痕失败(不阻断业务) sea_pool_delete poolId={}", id, e); }
     }
 
     /** 公海池权限类型 */

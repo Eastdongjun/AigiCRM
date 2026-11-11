@@ -11,6 +11,9 @@ import com.aigicrm.security.SecurityUtils;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 
 import java.util.List;
 import java.util.Map;
@@ -31,6 +34,36 @@ class FolderAclServiceTest {
 
     private static final Long USER_ID = 42L;
     private static final Long FOLDER_ID = 100L;
+
+    // ---------- 【T5 2026-11-11 审计整改】审计留痕失败: 不阻断业务 + log.warn 落告警 ----------
+
+    @Test
+    void saveAcl_auditFailure_doesNotBlock_andLogsWarn() {
+        // 审计服务抛异常 → ACL 授权必须照常成功(失败不阻断语义), 且失败本身可见(此前空吞,
+        // 权限变更发生而审计缺失时事后追责断链——审计 P1-5)
+        com.aigicrm.security.SecurityAuditService throwingAudit =
+                mock(com.aigicrm.security.SecurityAuditService.class);
+        doThrow(new RuntimeException("audit down")).when(throwingAudit).permissionChange(any(), any());
+        FolderAclService svcWithThrowingAudit = new FolderAclService(
+                aclMapper, folderMapper, roleMapper, permissionService, throwingAudit);
+        when(permissionService.check(FOLDER_ID, FolderPermissionService.P_EDIT, USER_ID)).thenReturn(true);
+        Logger logger = (Logger) org.slf4j.LoggerFactory.getLogger(FolderAclService.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::getCurrentUserId).thenReturn(USER_ID);
+            assertDoesNotThrow(() ->
+                    svcWithThrowingAudit.saveAcl(FOLDER_ID, 3L, List.of(FolderPermissionService.P_VIEW)));
+            verify(aclMapper).insert(any(BizFolderAcl.class));
+            assertTrue(appender.list.stream().anyMatch(e ->
+                            e.getLevel() == ch.qos.logback.classic.Level.WARN
+                                    && e.getFormattedMessage().contains("folder_acl_save")),
+                    "审计失败须 log.warn 留痕(不再空吞)");
+        } finally {
+            logger.detachAppender(appender);
+        }
+    }
 
     // ---------- requireEdit：无 P_EDIT 权限一律拒绝 ----------
 
