@@ -173,6 +173,34 @@
               <el-tag :type="preview.incentive.canEdit ? 'warning' : 'info'" size="small" class="pc-pill">编辑他人: {{ preview.incentive.canEdit ? '开' : '关' }}</el-tag>
               <el-tag :type="preview.incentive.canDelete ? 'danger' : 'info'" size="small" class="pc-pill">删除他人: {{ preview.incentive.canDelete ? '开' : '关' }}</el-tag>
             </div>
+            <!-- 【T8 2026-11-12】预览补齐: 文件授权/菜单可见性/规则指纹(数据缺失容错=旧后端) -->
+            <div class="pc-mini-sec">文件授权（类型/夹例外）</div>
+            <div class="pc-chips">
+              <template v-if="preview.fileGrants?.length">
+                <el-tag v-for="g in preview.fileGrants" :key="g.objectType + (g.folderId ?? g.folderType) + g.subjectName"
+                        :type="g.expired ? 'danger' : 'warning'" size="small" class="pc-pill">
+                  {{ g.expired ? '⛔已过期 ' : '' }}{{ g.subjectName }}·{{ g.objectType === 'FOLDER' ? '文件夹' : (g.folderId ? '夹级' : g.folderType + '空间') }}·{{ g.perms }}{{ g.expiresAt ? '·至' + String(g.expiresAt).slice(0, 10) : '' }}
+                </el-tag>
+              </template>
+              <span v-else class="pc-muted">无文件类型/夹例外授权</span>
+            </div>
+            <div class="pc-mini-sec">菜单可见性（{{ preview.menuVisibility?.menuCount ?? 0 }} 项）</div>
+            <div class="pc-chips">
+              <template v-if="preview.menuVisibility?.menus?.length">
+                <el-tag v-for="m in preview.menuVisibility.menus" :key="m.menu_name + (m.path || '')" size="small"
+                        :type="m.menu_type === 2 ? 'info' : 'success'" class="pc-pill">{{ m.menu_name }}</el-tag>
+              </template>
+              <span v-else class="pc-muted">无可见菜单（仅按钮级权限）</span>
+            </div>
+            <div class="pc-mini-sec">规则引擎</div>
+            <div class="pc-chips">
+              <el-tag size="small" :type="(preview.ruleEngine?.boundRules ?? 0) > 0 ? 'warning' : 'info'" class="pc-pill">绑定规则: {{ preview.ruleEngine?.boundRules ?? 0 }} 条</el-tag>
+              <span class="pc-muted">{{ preview.ruleEngine?.note || '规则条件不参与上方范围数字' }}</span>
+            </div>
+            <div v-if="preview.notCovered?.length" class="pc-mini-sec">未在预览计算（以实际页面为准）</div>
+            <div v-if="preview.notCovered?.length" class="pc-chips">
+              <span v-for="n in preview.notCovered" :key="n" class="pc-muted">· {{ n }}</span>
+            </div>
           </div>
           <el-empty v-else description="搜索并选择一个人，实时查看 TA 的全部真实权限" :image-size="80" />
         </div>

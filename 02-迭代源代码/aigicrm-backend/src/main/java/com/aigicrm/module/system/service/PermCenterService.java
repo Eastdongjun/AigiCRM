@@ -25,7 +25,9 @@ import java.util.Map;
  *         再喂给各引擎现成的解析方法(OrgScopeResolver/SeaConfigService/IncentiveService)
  * 【业务规则】只读不落库; 管理员目标用户全量可见; 数字=范围口径如实呈现
  *             (可见客户数不含运行时规则引擎条件, 预览只表达范围维度)
- * 【注意】不做任何写操作; 引擎全部复用, 与真实请求判定零漂移
+ * 【注意】不做任何写操作; 范围/功能/公海/激励/文件授权/菜单可见性走真实引擎同源解析;
+ *         对象级(本人恒管/上级链)与规则条件不在预览计算(notCovered 如实标注)——
+ *         【T8 2026-11-12】原"与真实请求判定零漂移"表述已改为上述诚实口径(未覆盖项显式列出)
  */
 @Service
 @RequiredArgsConstructor
@@ -37,6 +39,11 @@ public class PermCenterService {
     private final SeaConfigService seaConfigService;
     private final IncentiveService incentiveService;
     private final CustomerService customerService;
+    // 【T8 2026-11-12】预览补齐三块: 文件授权/菜单可见性/规则指纹(此前只 5 键, 注释却称"零漂移")
+    private final org.springframework.jdbc.core.JdbcTemplate jdbc;
+    private final com.aigicrm.module.file.mapper.BizFolderTypeDefaultMapper folderTypeDefaultMapper;
+    private final com.aigicrm.module.system.mapper.SysRoleMapper roleMapper;
+    private final com.aigicrm.module.system.mapper.SysPermissionRuleMapper permissionRuleMapper;
 
     /** 预览的范围解析目标(与前端权限矩阵 PERMISSION_SCOPE_TARGETS 映射同源; 2026-11-03 对账=摘死配置+补漏配) */
     private static final String[][] SCOPE_TARGETS = {
@@ -124,6 +131,61 @@ public class PermCenterService {
         grant.put("canEdit", row == null ? Boolean.FALSE : flag(row, "can_edit", false));
         grant.put("canDelete", row == null ? Boolean.FALSE : flag(row, "can_delete", false));
         data.put("incentive", grant);
+
+        // 【T8 2026-11-12】文件授权清单: 该用户命中的类型/夹例外授权行(ROLE 按角色码匹配/USER 按 id,
+        // 含已过期行如实展示 expired=true——与文件权限页红标同口径)
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
+        java.util.Set<Long> roleIds = new java.util.HashSet<>();
+        java.util.Map<Long, String> roleNames = new java.util.HashMap<>();
+        for (com.aigicrm.module.system.entity.SysRole r : roleMapper.selectList(null)) {
+            roleNames.put(r.getId(), r.getRoleName());
+            if (r.getRoleCode() != null && target.getRoleCodes().contains(r.getRoleCode())) roleIds.add(r.getId());
+        }
+        List<Map<String, Object>> fileGrants = new ArrayList<>();
+        for (com.aigicrm.module.file.entity.BizFolderTypeDefault g : folderTypeDefaultMapper.selectList(null)) {
+            boolean hit = "USER".equals(g.getSubjectType())
+                    ? userId.equals(g.getSubjectId())
+                    : ("ROLE".equals(g.getSubjectType()) && roleIds.contains(g.getSubjectId()));
+            if (!hit) continue;
+            Map<String, Object> fg = new LinkedHashMap<>();
+            fg.put("objectType", g.getObjectType());
+            fg.put("folderType", g.getFolderType());
+            fg.put("folderId", g.getFolderId());
+            fg.put("scopeLevel", g.getScopeLevel());
+            fg.put("perms", g.getPerms());
+            fg.put("subjectType", g.getSubjectType());
+            fg.put("subjectName", "USER".equals(g.getSubjectType()) ? target.getRealName() : roleNames.get(g.getSubjectId()));
+            fg.put("expiresAt", g.getExpiresAt());
+            fg.put("expired", g.getExpiresAt() != null && g.getExpiresAt().isBefore(now));
+            fileGrants.add(fg);
+        }
+        data.put("fileGrants", fileGrants);
+
+        // 【T8】菜单可见性: 该用户 role_menu 可见菜单行(名称/路径/类型), 与侧栏渲染同源(status=1)
+        List<Map<String, Object>> menus = jdbc.queryForList(
+                "SELECT DISTINCT m.menu_name, m.path, m.menu_type FROM sys_menu m " +
+                "JOIN sys_role_menu rm ON rm.menu_id = m.id " +
+                "JOIN sys_user_role ur ON ur.role_id = rm.role_id " +
+                "WHERE ur.user_id = ? AND m.status = 1 ORDER BY m.sort_order, m.id", userId);
+        Map<String, Object> menuVisibility = new LinkedHashMap<>();
+        menuVisibility.put("menuCount", menus.size());
+        menuVisibility.put("menus", menus);
+        data.put("menuVisibility", menuVisibility);
+
+        // 【T8】规则引擎指纹: 生产实况=零绑定(权限维度全面核查 2026-11-09 实证), 指纹恒空属正常;
+        // 明示"规则条件不参与上方范围数字"(此前注释宣称与真实判定零漂移, 未覆盖文件/菜单/规则三面)
+        List<com.aigicrm.module.system.entity.SysPermissionRule> rules = permissionRuleMapper.selectList(null);
+        Map<String, Object> ruleEngine = new LinkedHashMap<>();
+        ruleEngine.put("boundRules", rules == null ? 0 : rules.size());
+        ruleEngine.put("fingerprint", com.aigicrm.common.engine.PermissionRuleEngine
+                .evaluateForEntity(rules == null ? List.of() : rules, target, "customer"));
+        ruleEngine.put("note", "规则条件不参与上方范围数字；当前规则绑定数为 0 时指纹恒空属正常(生产实况)");
+        data.put("ruleEngine", ruleEngine);
+
+        // 【T8】诚实标注: 对象级(本人恒管/上级链)不在本预览计算——实际以文件页行级判定为准
+        data.put("notCovered", List.of(
+                "对象级授权(上传者本人恒管/上级链可管)：未在预览计算，实际以文件页行级判定(row.perms)为准",
+                "逐夹 ACL 历史转换行：已由类型默认授权体系取代，存量行只读展示于文件权限页"));
         return data;
     }
 
