@@ -1,6 +1,8 @@
 name: CI
 
 on:
+  schedule:
+    - cron: '0 21 * * *'  # 【N3】每日 05:00(北京时间) 带凭据跑文件权限端到端五段钉
   push:
     branches: [main]
   pull_request:
@@ -143,10 +145,31 @@ jobs:
           done
           [ "$bad" -eq 0 ] && echo "✅ 无硬编码密码" || exit 1
 
+  # 【N3 2026-11-11 审计整改】文件权限端到端钉的定时真跑:
+  # 治本④ 的五段闭环(勾→双端出→操作放行→收回复位)默认休眠(离线/CI push 不假红),
+  # 只在 schedule 事件带 secrets 真实执行——钉子只在真跑时才有防线价值。
+  # 需配置 secrets: PERM_E2E_BASE/USER/PASS/UID/FOLDER + HEALTH_CHECK_USER/PASS。
+  file-perm-e2e:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: 文件权限端到端五段钉(测试环境)
+        env:
+          AIGI_PERM_E2E: '1'
+          PERM_E2E_BASE: ${{ secrets.PERM_E2E_BASE }}
+          PERM_E2E_USER: ${{ secrets.PERM_E2E_USER }}
+          PERM_E2E_PASS: ${{ secrets.PERM_E2E_PASS }}
+          PERM_E2E_UID: ${{ secrets.PERM_E2E_UID }}
+          PERM_E2E_FOLDER: ${{ secrets.PERM_E2E_FOLDER }}
+          HEALTH_CHECK_USER: ${{ secrets.HEALTH_CHECK_USER }}
+          HEALTH_CHECK_PASS: ${{ secrets.HEALTH_CHECK_PASS }}
+        run: bash scripts/check-file-perm-e2e.sh
+
   # P0 汇总门禁：作为 GitHub 分支保护可要求的必过 job
   quality-gate:
     runs-on: ubuntu-latest
-    needs: [backend, frontend, miniprogram, sonarcloud, diff-check]
+    needs: [backend, frontend, miniprogram, sonarcloud, diff-check, file-perm-e2e]
     if: always()
     steps:
       - run: |
@@ -163,6 +186,16 @@ jobs:
           if [ "${{ needs.sonarcloud.outputs.ran }}" = "true" ]; then
             test "${{ needs.sonarcloud.result }}" = "success"
           else
-            echo "⚠️ SonarCloud 未运行：缺少 SONAR_TOKEN，不能声明 Quality Gate 通过"
+            # 【T9 2026-11-11 审计整改 P1-10】Sonar 缺失不再静默成功: 此前仅 echo 警告,
+            # job 仍 success——"跑过 Sonar"与"没跑 Sonar"在门禁汇总里不可区分。
+            # 未配置 SONAR_TOKEN = 质量门禁不完整 = 红。修复: 仓库 Settings→Secrets→Actions
+            # 配置 SONAR_TOKEN(SonarCloud 项目令牌)。
+            echo "❌ SonarCloud 未运行：缺少 SONAR_TOKEN —— Quality Gate 拒绝通过(非警告)"
+            echo "   修复: 仓库 Settings → Secrets and variables → Actions → 配置 SONAR_TOKEN"
+            exit 1
           fi
           test "${{ needs.diff-check.result }}" = "success"
+          # 【N3】e2e 钉只在 schedule 事件运行; 该事件下其失败必须挡门禁(push/PR 跳过不判)
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            test "${{ needs['file-perm-e2e'].result }}" = "success"
+          fi

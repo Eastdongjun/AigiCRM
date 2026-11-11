@@ -35,7 +35,7 @@ docker-compose up -d               # MySQL:3308, Redis:6379, Backend:8080, Front
 ```bash
 # Import with explicit charset to avoid Chinese double-encoding
 # 凭据经 ~/.aigicrm-deploy.env 注入（DB_PASSWORD），勿硬编码密码
-source ~/.aigicrm-deploy.env && mysql -h localhost -P 3308 -u root -p"$DB_PASSWORD" --default-character-set=utf8mb4 aigicrm < sql/init.sql
+source ~/.aigicrm-deploy.env && mysql -h localhost -P 3308 -u root -p"$DB_PASSWORD" --default-character-set=utf8mb4 aigicrm < aigicrm-backend/src/main/resources/db/migration/V1__baseline.sql  # sql/init.sql 是空目录,真基线=V1
 ```
 
 ## Architecture
@@ -72,7 +72,7 @@ Cross-cutting layers:
 
 ### Database (MySQL 8.0.28)
 
-19 tables defined in `sql/init.sql`. All tables use utf8mb4, soft delete (`deleted` column), and auto-managed `created_at`/`updated_at` timestamps. Tables prefixed `sys_` for system, `biz_` for business.
+56 tables defined in `V1__baseline.sql` (2026-08-11 production schema snapshot; `sql/init.sql` is an empty legacy directory, not a usable import). All tables use utf8mb4, soft delete (`deleted` column), and auto-managed `created_at`/`updated_at` timestamps. Tables prefixed `sys_` for system, `biz_` for business.
 
 ## Key Conventions
 

@@ -173,12 +173,22 @@ def simulate(codes, files):
                     status.setdefault(code, 1)
                     evidence[code] = f'{path.name} 常量插入'
             elif op == 'insert-dependent':
-                guards = {g for g in GUARD_PERMISSION.findall(statement)} - set(present)
-                if guards and guards <= registered:
+                # 【T7 2026-11-11 修复】条件插入的守卫判定:
+                # 原 `guards = findall - present; if guards and guards <= registered` 在守卫码
+                # 本身∈跟踪集(出现在语句任何位置都会进 present)时把 guards 减空 → 整句弃权,
+                # "删除后条件重登"形态(V2026.11.05.9 删 file:edit → .05.10 依 file:view 守卫重建)
+                # 被误杀; 值在 COALESCE 子查询/派生表之后的形态(V2026.10.18.1 等)同样从不被
+                # 此分支登记——此前绿全靠 op=insert 常量插入兜底。
+                # 新判定: 守卫码(findall 全集)须已登记、或即本语句同时在插的码(自引用 NOT
+                # EXISTS/同语句互锚); 未跟踪的守卫码(如 V26 的 legacy)仍未登记时保持不登记,
+                # 把关强度不降。
+                guards = {g for g in GUARD_PERMISSION.findall(statement)}
+                if guards <= (registered | set(present)):
                     for code in present:
                         registered.add(code)
                         status.setdefault(code, 1)
-                        evidence[code] = f'{path.name} 条件插入（前置 {",".join(sorted(guards))} 已登记）'
+                        unmet = guards - registered
+                        evidence[code] = f'{path.name} 条件插入（{"自锚" if not unmet else "前置 " + ",".join(sorted(unmet & registered)) + " 已登记"}）'
             elif op == 'status' and value is not None:
                 for code in present:
                     if code in registered:

@@ -11,7 +11,7 @@ AIGICRM（运筹马年）内部 CRM：客户/审批/激励/文件/公海池/提�
 - 后端：Spring Boot 4.1.0 / Java 21 / Maven / MyBatis-Plus；`cd aigicrm-backend && mvn clean spring-boot:run`（端口 8080）；打包 `mvn clean package -DskipTests`
 - 前端：Vue 3 / Vite / npm；`cd aigicrm-ui && npm run dev`（端口 3000，/api 代理到 8080）；`npm run build`
 - 全栈：`docker-compose up -d`（MySQL:3308 / Redis:6379 / 后端:8080 / 前端:80）
-- 数据库导入（本地）：`source ~/.aigicrm-deploy.env && mysql -h localhost -P 3308 -u root -p"$DB_PASSWORD" --default-character-set=utf8mb4 aigicrm < sql/init.sql`（凭据经 env 注入，勿硬编码）
+- 数据库初始化（本地空库）：`source ~/.aigicrm-deploy.env && mysql -h localhost -P 3308 -u root -p"$DB_PASSWORD" --default-character-set=utf8mb4 aigicrm < aigicrm-backend/src/main/resources/db/migration/V1__baseline.sql`，再由后端 Flyway（或 scripts/deploy-db-test.sh 同款容器通道）执行其余迁移。**sql/init.sql 是空目录（历史遗迹），不是可用导入文件**——真基线=V1__baseline.sql（2026-08-11 生产 schema 快照 56 表）；空库重放口径见 scripts/replay-empty-db.sh（V1+V12~V33+日期版，V2~V11 归档于 sql/migration/archive/）。
 
 ## 生产部署架构（2026-08-15 起，部署前必读）
 
