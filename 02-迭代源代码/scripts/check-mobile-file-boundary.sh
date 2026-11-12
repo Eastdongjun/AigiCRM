@@ -158,7 +158,9 @@ grep -Fq 'catchtap="openActionSheet"' "$WXML" || fail 'mobile file list download
 # 【钉随需求A 2026-10-16】行内可见性按钮全部收敛进「⋯」面板: 行级可见性归一化仍在 JS(buildFileRowView),
 # 但 WXML 不再引用 item.showXxx, 改为渲染 actionSheet.actions(下载/分享/替换/删除按归一化结果进面板)
 # 【2026-11-10 用户令"A"】下载可见性=PC 同口径(行级 canDownload 优先 ∧ 夹 download ∧ 开关) ∨ 是我传的
-grep -Fq 'const showDownload = (item.canDownload !== false' "$PAGE" || fail 'mobile file list download visibility is not normalized like PC'
+# 【T2-MP 2026-11-12 重锚】行级 perms 存在时按行级(download∨isOwn), 缺失回退夹级——双分支钉
+grep -Fq "rowPerms.includes('download') || isOwn" "$PAGE" || fail 'mobile file list download row-level branch missing'
+grep -Fq "item.canDownload !== false && downloadable && folderPerms.includes('download')" "$PAGE" || fail 'mobile file list download visibility is not normalized like PC'
 grep -Fq "if (showDownload) sheetActions.push({ key: 'download'" "$PAGE" || fail 'mobile file list download UI no longer hides non-downloadable rows like PC'
 # 【2026-10-26 重锚】用户令"三个点不需要替换"——面板替换项退役, 两钉改防复活
 ! grep -Fq "sheetActions.push({ key: 'replace'" "$PAGE" || fail 'file sheet replace action was retired by user order (2026-10-26)'
@@ -211,7 +213,8 @@ grep -Fq 'one-tap preview download missing' "$AUTOMATOR_SCRIPT" || fail 'file ce
 grep -Fq "canEditFile: globalData.demoMode || hasPermission('file:edit')" "$PAGE" || fail 'mobile file rename entry must pre-gate on the file:edit permission code'
 # 【2026-11-11 词表修复对齐】重命名入口兼容双词表: edit(旧伞词)∨rename(终版细词)∨isOwn
 # (树回填 perms=细词, 只认 edit 时非本人文件重命名入口恒不出现——NO001 验收实证)
-grep -Fq "if (data.canEditFile && (folderPerms.includes('edit') || folderPerms.includes('rename') || isOwn)) sheetActions.push({ key: 'rename', label: '重命名' })" "$PAGE" || fail 'mobile file rename sheet action must require file:edit code AND (folder edit OR rename bit OR own upload)'
+# 【T2-MP 2026-11-12 重锚】判定源升级 actionPerms(行级 row.perms 优先, 缺失回退夹 perms)
+grep -Fq "if (data.canEditFile && (actionPerms.includes('edit') || actionPerms.includes('rename') || isOwn)) sheetActions.push({ key: 'rename', label: '重命名' })" "$PAGE" || fail 'mobile file rename sheet action must require file:edit code AND (folder edit OR rename bit OR own upload)'
 ! grep -Fq 'replaceListFile' "$PAGE" || fail 'file list replace action was retired by user order (2026-10-26)'
 ! grep -Fq "replaceFile(item.id, file.path)" "$PAGE" || fail 'file list replace call was retired by user order (2026-10-26)'
 # 【钉随需求A】行内 replaceListFile 收敛到操作面板 onSheetAction(JS 方法保留)
