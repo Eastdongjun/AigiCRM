@@ -233,7 +233,8 @@ jobs:
           # 【P0-4 裁决同口径】前端 follow-redirects(axios Node 传输层, 浏览器 bundle 不含)过滤后再判级
           # 【五跑实测】bcprov-jdk15on 1.70(GHSA-wjxj 5.5)/ini4j 0.5.4(GHSA-jr6h 7.5)均 fixed=--
           # (上游无修复版, 升无可升)——入裁决过滤+REQUIREMENTS 台账跟踪上游修复后升级
-          grep -vE "follow-redirects" /tmp/osv-frontend.log > /tmp/osv-frontend-f0.log || true
+          # 前端判级与 npm audit --omit=dev 同口径: dev 依赖(“(dev)”标记)与已裁决项(server-renderer)过滤
+          grep -vE "follow-redirects|\(dev\)|@vue/server-renderer" /tmp/osv-frontend.log > /tmp/osv-frontend-f0.log || true
           grep -vE "bcprov-jdk15on|org.ini4j" /tmp/osv-maven.log > /tmp/osv-maven-f.log || true
           if grep -qE "([0-9]+ (High|Critical)|Severity: (High|Critical))" /tmp/osv-frontend-f0.log /tmp/osv-maven-f.log; then
             echo '❌ 发现 High/Critical 级依赖漏洞'; exit 1
