@@ -22,8 +22,25 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 MIG="$ROOT/aigicrm-backend/src/main/resources/db/migration"
 fail() { echo "FAIL: $1" >&2; exit 1; }
 
+# 【P1 修复 2026-11-12】负例自证通道(AIGI_NEGATIVE=1): 内存摘白名单一个存量多行码——
+# 不动真源码/真白名单; 存量违例(如 system:user:view 多页面行)必须触发红, 证明检测器有效。
+# 递归调用时显式清零 AIGI_NEGATIVE 防死循环; AIGI_NEG_STRIP 供递归实例从白名单摘码。
+if [ "${AIGI_NEGATIVE:-0}" = "1" ]; then
+  STRIP="system:user:view"
+  OUT=$(AIGI_NEGATIVE=0 AIGI_NEG_STRIP="$STRIP" bash "$0" 2>&1 || true)
+  if ! echo "$OUT" | grep -q "多页面行] $STRIP"; then
+    fail "[负例自证] 摘除白名单($STRIP)后存量违例未红——检测器失效"
+  fi
+  echo "FAIL: [负例自证] $STRIP 摘白名单后存量多页面行违例正确抓红" >&2
+  exit 1
+fi
+
 WHITELIST_23="customer:add incentive:stats:view"      # 2/3 混合白名单
 WHITELIST_MULTI2="system:config:view statistics:view score:view customer:view incentive:view sea:view system:user:view system:dept:view system:log:view"  # 多页面行白名单(有意多路由/隐藏字典行/时序重登记; config:view 除外=待裁决)
+# 【P1】负例递归实例: 从对应白名单内存摘码(不动真白名单源)
+if [ -n "${AIGI_NEG_STRIP:-}" ]; then
+  WHITELIST_MULTI2=" $WHITELIST_MULTI2 "; WHITELIST_MULTI2=${WHITELIST_MULTI2// $AIGI_NEG_STRIP / }
+fi
 
 # 抽取 (menu_type, perm, path) 三元组: 值行统一形态 "…, <2|3>, '<path>', '<component>', '<perm>', …"
 # (type, perm, path) 三维去重——同码不同 path 的多页面行须保留(仅同码同 path 的防重种子折叠)

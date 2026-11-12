@@ -15,6 +15,27 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 fail() { echo "FAIL: $1" >&2; exit 1; }
 
+# 【P1 修复 2026-11-12】负例自证通道(AIGI_NEGATIVE=1): 不动真源码——FileTable 沙箱副本回退为
+# 单词门控(根因1 形态), ①组断言在沙箱上必须红; 证明契约"改坏会红"而非只验"正例不红"。
+if [ "${AIGI_NEGATIVE:-0}" = "1" ]; then
+  NEG_DIR=$(mktemp -d /tmp/t9neg-fpv.XXXXXX); trap 'rm -rf "$NEG_DIR"' EXIT
+  cp "$ROOT/aigicrm-ui/src/views/file/FileTable.vue" "$NEG_DIR/FileTable.vue"
+  python3 - "$NEG_DIR/FileTable.vue" <<'PY'
+import sys
+from pathlib import Path
+p = Path(sys.argv[1]); t = p.read_text()
+t2 = t.replace("canFileAction(row, 'file:edit', 'edit', 'rename')", "canFileAction(row, 'file:edit', 'edit')")
+assert t2 != t, "变异未生效: 沙箱中未找到双词形态"
+p.write_text(t2)
+PY
+  FILE_TABLE="$NEG_DIR/FileTable.vue"
+  if rg -Fq "canFileAction(row, 'file:edit', 'edit', 'rename')" "$FILE_TABLE"; then
+    fail "[负例自证] 沙箱回退单词门控后断言未红——检测器失效"
+  fi
+  echo "FAIL: [负例自证] PC 改名门控已回退单词形态(沙箱变异)——契约正确抓红" >&2
+  exit 1
+fi
+
 FILE_TABLE="$ROOT/aigicrm-ui/src/views/file/FileTable.vue"
 MP_FILES="$ROOT/aigicrm-miniprogram/pages/files/index.js"
 FOLDER_PANEL="$ROOT/aigicrm-ui/src/views/file/FolderPanel.vue"

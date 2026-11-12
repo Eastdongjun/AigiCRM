@@ -8,6 +8,28 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 fail() { echo "FAIL: $1" >&2; exit 1; }
 
+# 【P1 修复 2026-11-12】负例自证通道(AIGI_NEGATIVE=1): 前端映射沙箱副本删一行——
+# 双源 diff 必须红; 证明对账器"改坏会红"。
+if [ "${AIGI_NEGATIVE:-0}" = "1" ]; then
+  NEG_DIR=$(mktemp -d /tmp/t9neg-par.XXXXXX); trap 'rm -rf "$NEG_DIR"' EXIT
+  cp "$ROOT/aigicrm-ui/src/views/system/PermScopeManager.vue" "$NEG_DIR/PermScopeManager.vue"
+  python3 - "$NEG_DIR/PermScopeManager.vue" <<'PY'
+import sys
+from pathlib import Path
+p = Path(sys.argv[1]); t = p.read_text()
+t2 = t.replace("  'sea:view': { module: 'sea', action: 'view' },\n", "")
+assert t2 != t, "变异未生效: 沙箱中未找到 sea:view 映射行"
+p.write_text(t2)
+PY
+  backend=$({ grep -oE '\{"[a-z]+", "[a-z_]+"' "$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/PermCenterService.java" || true; } | tr -d '{"' | tr -d ' ' | tr ',' '|' | sort -u)
+  frontend=$({ grep -oE "module: '[a-z]+', action: '[a-z_]+'" "$NEG_DIR/PermScopeManager.vue" || true; } | sed "s/module: '//; s/', action: '/|/; s/'$//" | sort -u)
+  if [ "$backend" = "$frontend" ]; then
+    fail "[负例自证] 前端映射删行后 diff 未红——对账器失效"
+  fi
+  echo "FAIL: [负例自证] 前端删 sea:view 映射(沙箱变异)后双源 diff 正确抓红" >&2
+  exit 1
+fi
+
 SVC="$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/PermCenterService.java"
 UI="$ROOT/aigicrm-ui/src/views/system/PermScopeManager.vue"
 [ -f "$SVC" ] && [ -f "$UI" ] || fail "映射双源文件缺失"

@@ -178,6 +178,11 @@ jobs:
           --health-interval=10s --health-timeout=5s --health-retries=30
     steps:
       - uses: actions/checkout@v4
+      # 【B2 修复 2026-11-12】runner 默认 JDK 17 跑不动 Java 21 字节码(UnsupportedClassVersionError)
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
       - name: 取 backend 构建的 jar
         uses: actions/download-artifact@v4
         with:
@@ -279,8 +284,9 @@ jobs:
       - name: 末态断言(码清单单一源, 0 failed)
         run: |
           # 【N7】断言码读 scripts/empty-replay-codes.txt(与 scripts/replay-empty-db.sh 共用单一源)
-          CODES_IN=$(grep -vE '^#|^$' scripts/empty-replay-codes.txt | awk "{printf "'%s',", \$1}" | sed 's/,$//')
-          TOTAL=$(grep -cE '^[a-z]' scripts/empty-replay-codes.txt)
+          # 【B2 修复 2026-11-12】路径补 02-迭代源代码/ 前缀(checkout 根≠源码根, 原相对路径必败)
+          CODES_IN=$(grep -vE '^#|^$' 02-迭代源代码/scripts/empty-replay-codes.txt | awk "{printf \"'%s',\", \$1}" | sed 's/,$//')
+          TOTAL=$(grep -cE '^[a-z]' 02-迭代源代码/scripts/empty-replay-codes.txt)
           echo "断言码 $TOTAL 个: $CODES_IN"
           docker run --rm --network host mysql:8.0 mysql -h127.0.0.1 -P3306 -uroot -preplay-root ycmn -N -e "
             SELECT IF(COUNT(*)=0,'flyway_failed=0','HAS_FAILED') FROM flyway_schema_history WHERE success<>1;
@@ -321,9 +327,21 @@ jobs:
         run: bash scripts/check-file-perm-e2e.sh
 
   # P0 汇总门禁：作为 GitHub 分支保护可要求的必过 job
+  # 【B2 修复 2026-11-12】本地契约全集(dev-verify contracts, 168+ 检查)纳入 CI 合并门禁——
+  # 此前只在本地 gate 跑, "CI 绿=质量绿"不成立。依赖 rg(多数 check-* 契约使用)。
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: 安装契约依赖(ripgrep)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ripgrep
+      - name: 本地契约全集(dev-verify.sh contracts)
+        working-directory: 02-迭代源代码
+        run: bash scripts/dev-verify.sh contracts
+
   quality-gate:
     runs-on: ubuntu-latest
-    needs: [backend, frontend, miniprogram, sonarcloud, diff-check, file-perm-e2e, empty-db-replay, boot-smoke, osv-scan]
+    needs: [backend, frontend, miniprogram, sonarcloud, diff-check, file-perm-e2e, empty-db-replay, boot-smoke, osv-scan, contracts]
     if: always()
     steps:
       - run: |
@@ -334,8 +352,10 @@ jobs:
           echo "sonarcloud   : ${{ needs.sonarcloud.result }}"
           echo "sonar-ran    : ${{ needs.sonarcloud.outputs.ran }}"
           echo "diff-check   : ${{ needs.diff-check.result }}"
+          echo "contracts    : ${{ needs.contracts.result }}"
           test "${{ needs.backend.result }}" = "success"
           test "${{ needs.frontend.result }}" = "success"
+          test "${{ needs.contracts.result }}" = "success"
           test "${{ needs.miniprogram.result }}" = "success"
           if [ "${{ needs.sonarcloud.outputs.ran }}" = "true" ]; then
             test "${{ needs.sonarcloud.result }}" = "success"

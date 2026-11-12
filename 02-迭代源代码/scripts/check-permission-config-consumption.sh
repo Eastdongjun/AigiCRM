@@ -22,18 +22,24 @@ if [ "$NEG" = "1" ]; then
   mkdir -p "$SANDBOX/aigicrm-backend/src/main/java"
   cp -R "$ROOT/aigicrm-backend/src/main/java/com" "$SANDBOX/aigicrm-backend/src/main/java/"
   cp "$ROOT/scripts/gen-permission-codes.py" "$SANDBOX/gen.py"
-  # 删掉 StatisticsController 的单键注解(注册表行 statistics:view 的后端消费锚)
+  # 【P1 修复 2026-11-12】变异改为"全锚剥离": 把 statistics:view 的所有注解锚整体移出后端源码
+  # (旧变异只删一个锚, 该码仍余多处锚 → 计数不降 → 负例自证失效)。
   python3 - "$SANDBOX" <<'PY'
 import sys
 from pathlib import Path
-p = next(Path(sys.argv[1]).rglob("StatisticsController.java"))
-t = p.read_text()
-t = t.replace('@PreAuthorize("hasAuthority(\'statistics:view\')")\n    public Result<Map<String, Object>> dashboard()', '@PreAuthorize("permitAll()")\n    public Result<Map<String, Object>> dashboard()')
-p.write_text(t)
+target = "'statistics:view'"
+touched = 0
+for p in Path(sys.argv[1]).rglob("*.java"):
+    t = p.read_text(errors="replace")
+    if target not in t:
+        continue
+    p.write_text(t.replace(target, "'mutation:removed-view'"))
+    touched += 1
+assert touched > 0, "变异未生效: 沙箱未找到 statistics:view 锚"
 PY
   BACKEND_SRC="$SANDBOX/aigicrm-backend/src/main/java"
   GEN_PY="$SANDBOX/gen.py"
-  echo "[负例] 沙箱已删除 statistics:view 的一个后端消费锚——契约必须红"
+  echo "[负例] 沙箱已剥离 statistics:view 的全部后端消费锚——契约必须红"
 else
   BACKEND_SRC="$ROOT/aigicrm-backend/src/main/java"
   GEN_PY="$ROOT/scripts/gen-permission-codes.py"
