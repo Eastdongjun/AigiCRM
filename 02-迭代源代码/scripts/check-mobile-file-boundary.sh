@@ -251,8 +251,10 @@ fi
 grep -Fq '@PostMapping("/{id}/share")' "$CONTROLLER" || fail 'backend file share route disappeared'
 grep -Fq '@PostMapping("/{id}/replace")' "$CONTROLLER" || fail 'backend file replace route disappeared'
 grep -Fq '`file.folderManage` | 文件 | 文件夹面板管理 | `pages/files/index` 与 `pages/files/folder-form/index`' "$MANIFEST" || fail 'file folderManage manifest does not point to mobile folder management'
-# 【2026-11-05 用户令】aclView 功能撤除, manifest 行改退役记录(防把"已实现"钉回来)
-grep -Fq '`file.aclView` | 文件 | 文件夹权限只读弹窗 ⟦原 pages/files/index 只读弹窗' "$MANIFEST" || fail 'file aclView manifest must record the 2026-11-05 removal (MP permission popup removed, PC kept)'
+# 【2026-11-05 用户令→2026-11-12 J9 裁决A】aclView/aclManage 两行已退役(整条改为 permConfig);
+# manifest 不得回退为"已实现"的 ACL 弹窗(防复活)
+! grep -q '`file.aclView`.*已实现' "$MANIFEST" || fail 'file aclView manifest must NOT be marked as implemented (retired 2026-11-05, replaced by permConfig 2026-11-12)'
+! grep -q '`file.aclManage`.*已实现' "$MANIFEST" || fail 'file aclManage manifest must NOT be marked as implemented (retired, replaced by permConfig 2026-11-12)'
 
 # 【手机文件上传 2026-11-02 用户令"调用上传手机文件的接口"】三入口+H5 选传页+web-view 容器:
 # 微信小程序无手机文件系统 API(官方仅 chooseMessageFile/chooseMedia), 经 H5 /mp-file-picker

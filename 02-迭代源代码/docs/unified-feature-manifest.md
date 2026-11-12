@@ -52,10 +52,9 @@
 | `file.upload` | 文件 | 文件工具栏/弹窗 | `pages/files/index`(2026-11-02 三入口 actionSheet: 手机文件/从相册 chooseMedia/从聊天 chooseMessageFile)+`pages/files/picker/index`(web-view H5 `/mp-file-picker`, 微信无手机文件系统 API 经 H5 `<input type=file>` 调起手机文件选择器直传) | `file:upload`+文件夹 ACL | 文件夹 ACL | 上传 | 已实现 |
 | `file.share` | 文件 | 文件行/弹窗分享 | `pages/files/index` 分享操作 | `file:share`+文件夹 ACL | 文件夹 ACL | 授予/分享 | 已实现 |
 | `file.replace` | 文件 | 文件行替换 | PC `pages/files/index` FileTable 行内替换入口(2026-11-05 曾令全链删除, **同日用户翻案恢复**——端点/服务/双端入口/权限码全部还原, MP 通道仍无 UI 为有意现状); ⟦2026-11-06 用户令增补: 同码(`file:edit`)新增**文件重命名** `PUT /api/file/{id}/rename`(只改展示名, ossKey/类型/版本不动, 夹 P_EDIT 与 replace 同门)——MP「⋯」面板「重命名」弹层 + 后端端点; PC 端复用同接口可接⟧ | `file:edit`+文件夹 ACL | 文件夹 ACL | 更新 | 已实现 |
-| `file.delete` | 文件 | 文件行删除 | `pages/files/index` 删除操作 | `file:delete`+文件夹 ACL | 文件夹 ACL | 删除 | 已实现 |
-| `file.folderManage` | 文件 | 文件夹面板管理 | `pages/files/index` 与 `pages/files/folder-form/index` | `file:folder:manage`+文件夹 ACL | 文件夹 ACL | 创建/更新/删除 | 已实现 |
-| `file.aclView` | 文件 | 文件夹权限只读弹窗 ⟦原 pages/files/index 只读弹窗; 2026-11-05 用户令"小程序上没有权限设置的操作,拿掉": MP 弹窗与只读通道撤除⟧ | PC 文件管理「权限设置」 | `file:acl:manage` | 文件夹管理 ACL | 读取权限 | PC-only |
-| `file.aclManage` | 文件 | 文件夹 ACL 弹窗授权 | 默认 `PC-only` | `file:acl:manage` | 文件夹管理 ACL | 授予/撤销 | `PC-only` |
+| `file.delete` | 文件 | 文件行删除 | `pages/files/index` 删除操作 | `file:delete`+类型默认授权(row.perms) | 类型默认授权+行级判定 | 删除 | 已实现 |
+| `file.folderManage` | 文件 | 文件夹面板管理 | `pages/files/index` 与 `pages/files/folder-form/index` | `file:folder:manage`+folderActions | 类型默认授权(FOLDER 行) | 创建/更新/删除 | 已实现 |
+| `file.permConfig` | 文件 | ⟦2026-11-12 J9 裁决A: 原"文件夹 ACL 弹窗"已退役(824bad90), 由"文件空间默认授权"(类型×角色×动作矩阵+整空间特批+夹级例外)取代; PC 权限中心→文件权限页签⟧ | PC 权限中心→文件权限(FileSpaceDefaults) | `file:acl:manage` | 类型默认授权(biz_folder_type_default) | 授予/撤销/过期管理 | PC-only |
 | `incentive.index` | 激励(四项激励) | `/incentive`(2026-10-23 拆分: 完整工作台不再是 tabBar 页,由应用中心「四项激励」组进入; 2026-11-05 用户令组名四项服务应用→四项激励) | `pages/incentive/index`、`pages/incentive/detail/index`、`pages/incentive/upload/index` | 读 `incentive:view`;上传 `incentive:add` | 激励分类/用户授权范围 | 读取/创建 | 已实现 |
 | `incentive.home` | 激励(四项服务) | tabBar 轻量客户记录(2026-10-23 用户令拆分: 只显示客户与记录,无分类树/统计/排行/阅读;2026-10-26 用户令改拨盘展示: 点客户直达既有 detail 年/月/日转盘页,一次上传=一条记录,不进一客一册档案;records 平铺清单页退役) | `pages/incentive/home/index`(点客户跳既有 `pages/incentive/detail/index`) | 读 `incentive:view`;上传 `incentive:add` | 激励分享制(本人全部+他人已分享) | 读取/跳转 | 已实现 |
 | `incentive.customerDetail` | 激励 | 客户激励档案页 ⟦2026-11-09 用户令移除⟧(2026-10-23 已令轻量页不得进档案界面;记录级操作/已读在拨盘详情页保留) | — | — | — | — | 已移除 |
