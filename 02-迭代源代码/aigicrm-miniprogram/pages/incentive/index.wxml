@@ -179,7 +179,7 @@
               <view class="stats-detail-customer">{{detail.customerName}}</view>
               <view class="stats-detail-sub">{{detail.metaText}}</view>
             </view>
-            <view class="ranking-score">{{detail.scoreText}}</view>
+            <!-- 【2026-11-12 用户令】展示面分值彻底隐藏(延续 11-02"展示页不呈现分值"): 详情弹层右上分值移除 -->
           </view>
           <view class="stats-detail-remark">{{detail.remarkText}}</view>
           <view class="record-file-wall compact grouped" wx:if="{{detail.showFiles}}">

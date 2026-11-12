@@ -173,7 +173,7 @@ function normalizeScoreRows(rows, type) {
     records: item.recordCount || item.count || item.totalRecords || 0,
     categoryCount: item.categoryCount || (item.byCategory ? Object.keys(item.byCategory).length : 0),
     metaText: `${item.recordCount || item.count || item.totalRecords || 0} 条记录 · ${item.categoryCount || (item.byCategory ? Object.keys(item.byCategory).length : 0)} 类`,
-    scoreText: `${item.totalScore || item.score || item.points || 0} 分`,
+    // 【2026-11-12 用户令】展示面分值隐藏: scoreText 死构造移除(wxml 消费点已删)
     // 【2026-11-02 用户令·PC 同款排行】表格化字段: 姓名首字头像/办事处/分数/合计/均分(与 PC 同构)
     avatarChar: String(item.realName || item.userName || item.deptName || item.name || '?').trim().charAt(0).toUpperCase(),
     officeText: item.officeName || item.deptName || '—',
@@ -196,7 +196,6 @@ function normalizeStatDetailRecord(item) {
     customerName: item.customerName || item.customer || item.name || '未命名客户',
     userName: item.userName || item.updatedByName || item.createByName || item.realName || '未命名',
     score: item.score || item.points || 0,
-    scoreText: `${item.score || item.points || 0} 分`,
     timeText: item.createdAt || item.createTime || item.updatedAt || '-',
     remarkText: item.remark || item.preInstallQuestion || item.description || item.summary || '-',
     metaText: `${item.userName || item.updatedByName || item.createByName || item.realName || '未命名'} · ${item.createdAt || item.createTime || item.updatedAt || '-'}`,
@@ -303,7 +302,6 @@ function buildChildRecordView(record) {
     readStatusText: record.unread ? '未读' : '已读',
     readStatusClass: record.unread ? 'tag-unread inline-read-status' : 'tag-read inline-read-status',
     metaText: `${record.period || '未设周期'} · ${record.userName || record.updatedByName || '未命名'} · ${record.createdAt || record.createTime || '-'}`,
-    scoreText: `${record.score || record.points || 0} 分`,
     summaryText: record.preInstallQuestion || record.remark || '',
     showSummary: Boolean(record.preInstallQuestion || record.remark),
     showFiles: fileGroupsView.length > 0,
@@ -327,7 +325,6 @@ function buildRecordView(record) {
   }
   return {
     ...rest,
-    scoreText: `${record.score || 0} 分`,
     countText: `${record.count || 0}条`,
     fileCountText: `${(record.files || []).length}文件`,
     fileCountTotal: fileGroupsView.reduce((sum, group) => sum + (group.files || []).length, 0),
