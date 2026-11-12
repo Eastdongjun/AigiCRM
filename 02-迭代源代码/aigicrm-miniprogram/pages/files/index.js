@@ -269,16 +269,22 @@ function buildFileRowView(item, data) {
   // 【mp-4 2026-10-17】行操作按当前文件夹 ACL + downloadable 收敛（与 PC FileTable 同口径）；
   // 后端列表不返回 canDownload/isEvidence，downloadable/perms 来自文件夹树（getFolderTree 逐夹回填）。
   const folderPerms = Array.isArray(data.folderPerms) ? data.folderPerms : []
+  // 【T2-MP 2026-11-12】行级优先: /file/list 每行返回 perms(permsForFiles 与 checkFile 同源,
+  // 类型级授权在公共根目录直接点亮行按钮)——存在即按行级判定, 缺失回退页级夹 perms(与 PC FileTable 同构)
+  const rowPerms = Array.isArray(item.perms) ? item.perms : null
+  const actionPerms = rowPerms || folderPerms
   const downloadable = data.folderDownloadable !== 0
   // 【2026-11-10 用户令"A"】上传者本人恒可管理自己上传的文件(改名/替换/删除/分享/下载)——
   // 行级 isOwn 与后端 checkFile 本人短路同口径, 夹权不再优先于上传人
   const cu = getApp().globalData.currentUser
   const isOwn = item.uploaderId !== undefined && item.uploaderId !== null && item.uploaderId !== '' && cu != null && String(item.uploaderId) === String(cu.id)
   // 行级 canDownload=false 仍然优先；再叠加当前文件夹的下载开关与 download 权限(∨ 是我传的)
-  const showDownload = (item.canDownload !== false && downloadable && folderPerms.includes('download')) || isOwn
+  const showDownload = rowPerms
+    ? (item.canDownload !== false && (rowPerms.includes('download') || isOwn))
+    : ((item.canDownload !== false && downloadable && folderPerms.includes('download')) || isOwn)
   // 【2026-10-26 用户令"三个点不需要替换"】替换入口从操作面板移除(详情页与后端 API 不动)
-  const showDelete = Boolean(data.canDelete && canMutateOwnTab && (folderPerms.includes('delete') || isOwn))
-  const showShare = Boolean(data.canShare && canMutateOwnTab && data.activeTab !== '公共' && (folderPerms.includes('share') || isOwn))
+  const showDelete = Boolean(data.canDelete && canMutateOwnTab && (actionPerms.includes('delete') || isOwn))
+  const showShare = Boolean(data.canShare && canMutateOwnTab && data.activeTab !== '公共' && (actionPerms.includes('share') || isOwn))
   // 【需求A】行内按钮全部收进「⋯」半屏面板;打开保留为整行首选操作(点行=打开)
   const sheetActions = [{ key: 'open', label: '打开' }]
   if (showDownload) sheetActions.push({ key: 'download', label: '下载' })
@@ -286,8 +292,8 @@ function buildFileRowView(item, data) {
   // checkFile P_RENAME); 【11-08 审计项3】码前置; 【2026-11-10 用户令"A"】∨ 是我传的(本人短路)
   // 【修复 2026-11-11 NO001 验收发现】文件夹树回填 perms 是权限终版细词(rename/replace),
   // 此前只认旧 'edit' 伞词 → 勾了"改名"的夹里非本人文件的重命名入口恒不出现(仅 isOwn 兜底);
-  // 兼容双词表: 'edit' ∨ 'rename' 均放行
-  if (data.canEditFile && (folderPerms.includes('edit') || folderPerms.includes('rename') || isOwn)) sheetActions.push({ key: 'rename', label: '重命名' })
+  // 兼容双词表: 'edit' ∨ 'rename' 均放行; 【T2-MP】行级 rowPerms 优先(公共根目录类型授权直达)
+  if (data.canEditFile && (actionPerms.includes('edit') || actionPerms.includes('rename') || isOwn)) sheetActions.push({ key: 'rename', label: '重命名' })
   if (showShare) sheetActions.push({ key: 'share', label: '分享' })
   if (showDelete) sheetActions.push({ key: 'delete', label: '删除', danger: true })
   const sizePrefix = item.size && item.size !== '-' ? `${item.size} · ` : ''
@@ -454,7 +460,16 @@ Page({
     return (this.data.folderPerms || []).includes(action)
   },
 
+  // 【T2-MP 2026-11-12】行级优先判定(与 buildFileRowView 同构): 行 perms 存在即按行级,
+  // 缺失回退页级夹 perms——公共根目录的类型授权对象不再被页级防御检查拦住(按钮亮而点击被拒)。
+  hasRowPermission(item, action) {
+    const src = Array.isArray(item && item.perms) ? item.perms : (this.data.folderPerms || [])
+    return src.includes(action)
+  },
+
   canDownloadItem(item) {
+    // 【T2-MP】下载防御同步行级优先(行 perms 有判定时不再受页级夹开关/夹词误拦)
+    if (Array.isArray(item && item.perms)) return item.perms.includes('download') && item.canDownload !== false
     if (this.data.folderDownloadable === 0 || !this.hasFolderPermission('download')) return false
     return !item || item.canDownload !== false
   },
@@ -1196,8 +1211,9 @@ Page({
     this.fetchFile(item, 'download')
   },
   removeFile(event) {
-    if (!this.data.canDelete || !this.hasFolderPermission('delete')) return wx.showToast({ title: '没有文件删除权限', icon: 'none' })
-    const item = this.findFile(event)
+    const delItem = this.findFile(event)
+    if (!this.data.canDelete || !this.hasRowPermission(delItem, 'delete')) return wx.showToast({ title: '没有文件删除权限', icon: 'none' })
+    const item = delItem
     if (!item || !item.id || String(item.id).startsWith('file-')) return wx.showToast({ title: '演示文件暂不可删除', icon: 'none' })
     wx.showModal({
       title: '删除文件',
@@ -1305,7 +1321,8 @@ Page({
     return wx.saveFile(options)
   },
   shareFile(event) {
-    if (!this.data.canShare || this.data.activeTab === '分享给我' || this.data.activeTab === '公共' || this.data.activeTab === '四项服务' || !this.hasFolderPermission('share')) return
+    const shareItem = this.findFile(event)
+    if (!this.data.canShare || this.data.activeTab === '分享给我' || this.data.activeTab === '公共' || this.data.activeTab === '四项服务' || !this.hasRowPermission(shareItem, 'share')) return
     const item = this.data.filteredFiles[event.currentTarget.dataset.index]
     if (!item || !item.id || String(item.id).startsWith('file-')) return wx.showToast({ title: '演示文件暂不可分享', icon: 'none' })
     getCustomerSimpleUsers().then((users) => {

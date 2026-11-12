@@ -49,8 +49,9 @@ rg -Fq "canFileAction(row, 'file:edit', 'edit', 'rename')" "$FILE_TABLE" || fail
 rg -Fq "canFileAction(row, 'file:edit', 'edit', 'replace')" "$FILE_TABLE" || fail "PC 替换门控未双词兼容(edit∨replace)——根因1回退"
 rg -Fq "perms.some((p) => src.includes(p))" "$FILE_TABLE" || fail "PC canFileAction 未多词化(some)——单词消费回退"
 
-# ② MP 双词(既有, 防回退)
-rg -Fq "folderPerms.includes('edit') || folderPerms.includes('rename')" "$MP_FILES" || fail "MP files 改名门控双词兼容被移除"
+# ② MP 双词+行级优先(既有双词钉随 T2-MP 升级为 actionPerms 形态)
+rg -Fq "actionPerms.includes('edit') || actionPerms.includes('rename')" "$MP_FILES" || fail "MP files 改名门控双词兼容被移除"
+rg -Fq "const rowPerms = Array.isArray(item.perms) ? item.perms : null" "$MP_FILES" || fail "MP files 行级 row.perms 优先消费缺失(T2-MP)"
 
 # ③ FolderPanel 消费 folderActions 分字段
 rg -Fq "folder.folderActions?.includes('rename')" "$FOLDER_PANEL" || fail "FolderPanel 夹改名未消费 folderActions 细词"
