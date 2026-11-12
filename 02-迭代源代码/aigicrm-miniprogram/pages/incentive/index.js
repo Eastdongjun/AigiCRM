@@ -646,11 +646,16 @@ Page({
     this.ensureDlToken().then(() => {
       this.loadRecords()
     })
-    this.loadCategories()
-    this.loadIndustryOptions()
-    this.loadDevTypeOptions()
-    this.loadUsers()
-    this.loadOrgs()
+    // 【NEW-001 2026-11-12 GoLive 审计修复】stats-only 角色只拉统计面板数据, 不再无条件
+    // 调全量查询族(categories/industry/devType/users/orgs 走 incentive:view 接口→403 弹窗风暴);
+    // query 模式才拉全量(与守卫分流 M-10 同口径)。
+    if (tabMode !== 'stats') {
+      this.loadCategories()
+      this.loadIndustryOptions()
+      this.loadDevTypeOptions()
+      this.loadUsers()
+      this.loadOrgs()
+    }
     this.loadScoreboard()
     this.loadReadStats()
     this.loadReadRanking()

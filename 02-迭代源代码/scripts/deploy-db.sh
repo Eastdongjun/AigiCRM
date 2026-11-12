@@ -77,6 +77,29 @@ ssh_prod "
   # 【D3 2026-10-21】Flyway 口令改经环境变量传递：export FLYWAY_PASSWORD 后 docker run -e FLYWAY_PASSWORD
   # (只给变量名，不带 =值)——旧写法 -password=\"\$PW\" 会把 root 口令写进远端 flyway 容器进程 argv(ps 可见)。
   export FLYWAY_PASSWORD=\"\$PW\"
+  # 【P0-4 2026-11-12 GoLive 审计加固】迁移前三防线:
+  # ① 迁移冻结契约(check-migration-contract)——已发布迁移被改时在此红, 不进 repair
+  # ② flyway validate(非 ignore)——校验已有迁移 checksum, 被 tamper 即停
+  # ③ repair 仅在 validate 明确报 checksum mismatch 时执行(不再无条件)
+  echo \"=== [3a] 迁移冻结契约 ===\"
+  bash \"\$SCRIPT_DIR/check-migration-contract.sh\" || { echo '❌ 迁移冻结契约违例——已发布迁移可能被修改, 拒绝继续'; exit 1; }
+  echo \"=== [3b] Flyway validate(迁移前校验) ===\"
+  VALIDATE_OUT=\$(docker run --rm --network ${APP_SLUG}_default -v $DEPLOY_DIR/flyway-sql:/flyway/sql \
+    -e FLYWAY_PASSWORD \
+    flyway/flyway:9.22.3-alpine \
+    -url='jdbc:mysql://${APP_SLUG}-mysql:3306/$DB_NAME?characterEncoding=UTF-8&connectionCollation=utf8mb4_general_ci&useSSL=false&allowPublicKeyRetrieval=true' \
+    -user=root \
+    -validateMigrationNaming=true \
+    -ignoreMigrationPatterns='*:missing' \
+    validate 2>&1) || true
+  echo \"\$VALIDATE_OUT\" | tail -3
+  if echo \"\$VALIDATE_OUT\" | grep -q 'checksum mismatch'; then
+    echo '⚠️  checksum mismatch 检出——执行 repair(有据可查)'
+  elif echo \"\$VALIDATE_OUT\" | grep -qiE 'error|failed'; then
+    echo '❌ Flyway validate 失败(非 checksum mismatch)——不执行 repair, 拒绝继续'; exit 1
+  else
+    echo '✅ validate 通过——跳过 repair'
+  fi
   REPAIR=\$(docker run --rm --network ${APP_SLUG}_default -v $DEPLOY_DIR/flyway-sql:/flyway/sql \
     -e FLYWAY_PASSWORD \
     flyway/flyway:9.22.3-alpine \

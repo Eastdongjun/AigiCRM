@@ -140,6 +140,14 @@ const togglePerm = async (role, item) => {
   permSaving.value = true
   try {
     await updateRole(role.id, { menuIds: [...set] })
+    // 【NEW-003 2026-11-12 GoLive 审计修复】保存成功后重读服务端终态——后端码级收敛会
+    // 自动补全同码行(H-1), 前端不回读则矩阵显示与库不一致(看着少勾了但实际都生效)
+    try {
+      const r = await request.get(`/system/roles/${role.id}`)
+      if (r.data?.menuIds) {
+        rolePermMap.value[role.id] = new Set(r.data.menuIds)
+      }
+    } catch { /* 回读失败不阻断——本地 set 已是提交集的近似 */ }
   } catch (e) {
     // 保存失败:回滚本地勾选状态,避免"界面已改、数据库没变"的假成功
     if (had) set.add(item.id); else set.delete(item.id)
