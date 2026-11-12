@@ -174,10 +174,10 @@ jobs:
       - name: 自起 mysql+redis(生产 collation)
         run: |
           docker network create smoke-net
-          docker run -d --name smoke-mysql --network smoke-net \
+          docker run -d --name smoke-mysql --network smoke-net -p 3306:3306 \
             -e MYSQL_ROOT_PASSWORD=smoke-root -e MYSQL_DATABASE=ycmn \
             mysql:8.0 --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci
-          docker run -d --name smoke-redis --network smoke-net redis:7-alpine
+          docker run -d --name smoke-redis --network smoke-net -p 6379:6379 redis:7-alpine
           for i in $(seq 1 40); do docker exec smoke-mysql mysqladmin ping -h localhost --silent 2>/dev/null && break; sleep 3; done
           docker exec smoke-mysql mysqladmin ping -h localhost
       - name: 灌库(空库重放集, V1+V12~V33+日期版)
@@ -192,8 +192,8 @@ jobs:
         run: |
           JAR=$(ls /tmp/jar/*.jar | head -1)
           echo "启动 $JAR"
-          DB_HOST=smoke-mysql DB_PORT=3306 DB_NAME=ycmn DB_USER=root DB_PASSWORD=smoke-root \
-          REDIS_HOST=smoke-redis REDIS_PORT=6379 JWT_SECRET=boot-smoke-secret-key-for-ci-only-32chars \
+          DB_HOST=127.0.0.1 DB_PORT=3306 DB_NAME=ycmn DB_USER=root DB_PASSWORD=smoke-root \
+          REDIS_HOST=127.0.0.1 REDIS_PORT=6379 JWT_SECRET=boot-smoke-secret-key-for-ci-only-32chars \
           STORAGE_TYPE=local TZ=Asia/Shanghai java -jar "$JAR" > /tmp/boot.log 2>&1 &
           APP_PID=$!
           for i in $(seq 1 60); do

@@ -199,6 +199,31 @@
         </dependency>
     </dependencies>
 
+    <!-- 【P0-3 续 2026-11-12 osv 四跑实测】传递依赖安全覆盖(引入链: aliyun dysmsapi→okhttp/okio,
+         poi-ooxml 4.1.2→commons-compress, poi/jjwt→commons-io)——只抬版本不改直接依赖:
+         okhttp 3.12.13→4.12.0(GHSA-3cqm 7.5, 4.x 对 3.x Java 调用面二进制兼容, tea SDK 兼容),
+         okio 随 okhttp 4 走 3.x 线(1.15 的 GHSA-w33c 影响范围外),
+         commons-compress 1.19→1.26.0(3 条 7.5), commons-io 2.11.0→2.14.0(GHSA-78wr 8.7) -->
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>com.squareup.okhttp3</groupId>
+                <artifactId>okhttp</artifactId>
+                <version>4.12.0</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-compress</artifactId>
+                <version>1.26.0</version>
+            </dependency>
+            <dependency>
+                <groupId>commons-io</groupId>
+                <artifactId>commons-io</artifactId>
+                <version>2.14.0</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
     <build>
         <plugins>
             <plugin>
