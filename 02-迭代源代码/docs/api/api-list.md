@@ -4,7 +4,7 @@
 > 本文件由 scripts/gen-api.py 自动生成,**禁止手改**;接口变更后重新运行。
 > 权限码与 docs/permission/permission-dict.md 对应。
 
-## 接口清单(227 个)
+## 接口清单(226 个)
 
 | 方法 | 路径 | 权限码 | 方法名 | 文件 |
 |---|---|---|---|---|
@@ -39,7 +39,6 @@
 | GET | `/api/customer/list` | `hasAuthority('customer:view')` | page | CustomerController.java |
 | GET | `/api/customer/list/counts` | `hasAuthority('customer:view')` | listCounts | CustomerController.java |
 | GET | `/api/customer/list/counts-by-filter` | `hasAuthority('customer:view')` | countsByFilter | CustomerController.java |
-| GET | `/api/customer/rankings` | `hasAuthority('score:view') or hasAuthority('statistics:view')` | rankings | CustomerController.java |
 | GET | `/api/customer/statistics` | `hasAuthority('customer:view')` | statistics | CustomerController.java |
 | GET | `/api/customer/users/simple` | `hasAuthority('customer:view')` | simpleUserList | CustomerController.java |
 | DELETE | `/api/customer/{id}` | `hasAuthority('customer:delete')` | delete | CustomerController.java |

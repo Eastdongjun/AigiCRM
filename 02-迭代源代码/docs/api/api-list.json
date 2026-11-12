@@ -1,6 +1,6 @@
 {
  "generated_at": "2026-11-12",
- "count": 227,
+ "count": 226,
  "endpoints": [
   {
    "method": "POST",
@@ -187,12 +187,6 @@
    "path": "/api/customer/list/counts-by-filter",
    "permission": "hasAuthority('customer:view')",
    "handler": "countsByFilter"
-  },
-  {
-   "method": "GET",
-   "path": "/api/customer/rankings",
-   "permission": "hasAuthority('score:view') or hasAuthority('statistics:view')",
-   "handler": "rankings"
   },
   {
    "method": "GET",

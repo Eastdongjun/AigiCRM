@@ -8,8 +8,10 @@
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
         <!-- Spring Boot 4 升级（2026-08-15，消除 3.5.x OSS 支持期告警）：
-             4.1.x 为当前免费支持线（OSS 至 ~2027-06）；Spring Framework 7 / Jakarta EE 11 -->
-        <version>4.1.0</version>
+             4.1.x 为当前免费支持线（OSS 至 ~2027-06）；Spring Framework 7 / Jakarta EE 11
+             【P0-3 2026-11-12 外部审计】4.1.0→4.1.2 补丁: 带 Tomcat 11.0.25(修 5 条 CRITICAL CVE,
+             11.0.22 基线)+Spring Framework 7.0.10(修 7.0.8 两条)+netty 4.2.17 线 -->
+        <version>4.1.2</version>
         <relativePath/>
     </parent>
 
@@ -24,6 +26,8 @@
         <!-- 【供应链修复 2026-11-12】osv-scanner CI 首跑实证: Boot 4.1.0 默认 jackson-bom 3.1.4 的
              jackson-databind 存在多个 GHSA(最高 7.5, GHSA-wv8q-qhhj-9h54 等)——覆盖 BOM 到 3.1.7 修复版 -->
         <jackson-bom.version>3.1.7</jackson-bom.version>
+        <!-- 【P0-3】Jackson 2 线(jjwt 传递引入)同步覆盖到 2.21.7(2.21.4 有 HIGH CVE) -->
+        <jackson-2-bom.version>2.21.7</jackson-2-bom.version>
         <!-- Boot 4 升级（2026-08-15）：MyBatis-Plus 换 Boot 4 专用 starter（3.5.17 官方支持 Spring 7） -->
         <mybatis-plus.version>3.5.17</mybatis-plus.version>
         <!-- mybatis-plus 3.5.9 起 jsqlparser 拆分为 mybatis-plus-jsqlparser 独立模块（项目代码直接用 net.sf.jsqlparser.*） -->

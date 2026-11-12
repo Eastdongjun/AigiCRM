@@ -152,13 +152,9 @@ public class CustomerController {
         return Result.ok(customerService.listGroupNames());
     }
 
-    // 【2026-11-12 裁决A】ranking:customer:view 孤儿码退役(V2026.11.12.1 删行)——前端/MP 零引用,
-    // 销售员原绑定由 score:view / statistics:view 双兜底, 端点可见集零变化。
-    @PreAuthorize("hasAuthority('score:view') or hasAuthority('statistics:view')")
-    @GetMapping("/rankings")
-    public Result<Map<String, Object>> rankings() {
-        return Result.ok(customerService.customerRankings());
-    }
+    // 【P0-2 2026-11-12 外部审计 HIGH 退役】GET /api/customer/rankings 已删除——双端零引用的
+    // 休眠端点, 三段原生 SQL 仅集团过滤、无数据范围/分享制收口(销售员可读全集团客户聚合),
+    // 属越权面; 现行排行入口=GET /api/statistics/customer-rankings(applyDataScope 收口, 前端在用)。
 
     @PreAuthorize("hasAuthority('customer:view')")
     @GetMapping("/{id}")

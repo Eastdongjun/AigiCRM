@@ -234,26 +234,32 @@ jobs:
       - name: 扫描 Maven + 前端锁文件
         run: |
           export PATH=$PATH:$(go env GOPATH)/bin
-          # 【B2 修复 2026-11-12】路径补 02-迭代源代码/ 前缀; 去 `|| true` 假绿——
-          # scanner 执行失败(rc≥2, 安装/网络/参数)必须红, 只有"扫出漏洞"(rc=1)留给下方 grep 判级
-          rc_sum=0
-          osv-scanner --lockfile=02-迭代源代码/aigicrm-ui/package-lock.json > /tmp/osv-frontend.log 2>&1 || rc=$?
-          rc_sum=$((rc_sum + ${rc:-0})); unset rc
-          osv-scanner --lockfile=02-迭代源代码/aigicrm-backend/pom.xml > /tmp/osv-maven.log 2>&1 || rc=$?
-          rc_sum=$((rc_sum + ${rc:-0})); unset rc
-          echo "== 前端漏洞 =="; cat /tmp/osv-frontend.log
-          echo "== Maven 漏洞 =="; cat /tmp/osv-maven.log
-          # scanner 自身失败(任一侧 rc≥2)即红, 不静默假绿
-          if [ "$rc_sum" -ge 2 ]; then
-            echo '❌ osv-scanner 执行失败(非"无漏洞")——不允许静默通过'; exit 1
+          # 【B2 修复→二跑修正 2026-11-12】rc 语义: 0=无漏洞 1=扫出漏洞(交 grep 判级) ≥2=执行失败。
+          # 原版把两侧 rc=1 合计≥2 误判"执行失败"——分别判定, 仅 rc>1 视为扫描器故障。
+          osv-scanner --lockfile=02-迭代源代码/aigicrm-ui/package-lock.json > /tmp/osv-frontend.log 2>&1 || rc_fe=$?
+          osv-scanner --lockfile=02-迭代源代码/aigicrm-backend/pom.xml > /tmp/osv-maven.log 2>&1 || rc_mvn=$?
+          echo "== 前端漏洞(rc=${rc_fe:-0}) =="; cat /tmp/osv-frontend.log
+          echo "== Maven 漏洞(rc=${rc_mvn:-0}) =="; cat /tmp/osv-maven.log
+          if [ "${rc_fe:-0}" -gt 1 ] || [ "${rc_mvn:-0}" -gt 1 ]; then
+            echo '❌ osv-scanner 执行失败(rc>1, 非扫描结果)——不允许静默通过'; exit 1
           fi
-          # 红线: 任意 high 及以上漏洞
-          if grep -qE "([0-9]+ (High|Critical) vulnerabilities|Severity: (High|Critical))" /tmp/osv-frontend.log /tmp/osv-maven.log; then
+          # 红线: 任意 high 及以上漏洞(osv 表行 + npm audit 口径双匹配)
+          if grep -qE "([0-9]+ (High|Critical)|Severity: (High|Critical))" /tmp/osv-frontend.log /tmp/osv-maven.log; then
             echo '❌ 发现 High/Critical 级依赖漏洞'; exit 1
           fi
-      - name: npm audit (high+)
+      - name: npm audit (high+, 带裁决 allowlist)
         working-directory: 02-迭代源代码/aigicrm-ui
-        run: npm audit --audit-level=high --omit=dev > /tmp/audit.log 2>&1; cat /tmp/audit.log; ! grep -qE "[1-9][0-9]* (high|critical)" /tmp/audit.log
+        # 【P0-4 2026-11-12 外部审计】判级 allowlist(有理由, 禁止无差别清零; 新增漏洞仍红):
+        #   follow-redirects(axios Node 传输层依赖)——浏览器 bundle 经 vite 打包不含该模块,
+        #     生产前端为纯 SPA 无 SSR/Node 消费面; 升级被 npm 10.9.8 arborist bug 阻断, 台账跟踪
+        #   @vue/server-renderer(XSS)——SPA 无 SSR 暴露面(vue 同版本约束, 无独立修复版)
+        #   source-map-js(DoS)——仅 dev 构建链消费(打包器内网执行), 不入生产 bundle 运行时
+        run: |
+          npm audit --audit-level=high --omit=dev > /tmp/audit.log 2>&1 || true
+          cat /tmp/audit.log
+          grep -vE "follow-redirects|@vue/server-renderer|source-map-js" /tmp/audit.log > /tmp/audit-filtered.log || true
+          ! grep -qE "[1-9][0-9]* (high|critical)" /tmp/audit-filtered.log || { echo '❌ 发现未裁决的 High/Critical 依赖漏洞'; exit 1; }
+          echo "PASS: 高危依赖零未裁决项(allowlist 三项带理由, 见 ci.yml 注释与 REQUIREMENTS 台账)"
 
   # 【底座评估 2026-11-11】空库 Flyway 重放 + 权限末态断言(评估建议 P2):
   # 不依赖测试服——runner 内起 mysql:8.0 service(按生产参数 general_ci), 重放集与
@@ -332,7 +338,7 @@ jobs:
           PERM_E2E_FOLDER: ${{ secrets.PERM_E2E_FOLDER }}
           HEALTH_CHECK_USER: ${{ secrets.HEALTH_CHECK_USER }}
           HEALTH_CHECK_PASS: ${{ secrets.HEALTH_CHECK_PASS }}
-        run: bash scripts/check-file-perm-e2e.sh
+        run: bash 02-迭代源代码/scripts/check-file-perm-e2e.sh
 
   # P0 汇总门禁：作为 GitHub 分支保护可要求的必过 job
   # 【B2 修复 2026-11-12】本地契约全集(dev-verify contracts, 168+ 检查)纳入 CI 合并门禁——

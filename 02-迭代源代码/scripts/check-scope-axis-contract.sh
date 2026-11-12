@@ -91,7 +91,9 @@ cnt=$(grep -c . <<<"$AXIS")
 # ④ 【T7 2026-11-12】Java 写入校验集双向对账: RolePermScopeService.CONSUMED_AXIS 必须与 AXIS 同集
 #   (写入面 400 校验依赖它; 两处漂移=活档被误拒炸保存 / 死档被放行)——不允许同一真值两处手写而不对账。
 SVC="$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/RolePermScopeService.java"
-java_axis=$(sed -n '/CONSUMED_AXIS = java.util.Set.of(/,/)"/p' "$SVC" | grep -oE '"[a-z]+\|[a-z_]+"' | tr -d '"' | sort)
+# 【CI 可移植性修复 2026-11-12】原 sed 范围地址在 GNU sed 报 Unmatched )(BSD 容忍)——
+# 改 awk 提取 CONSUMED_AXIS 集合段(到行首右括号止), 双平台一致。
+java_axis=$(awk '/CONSUMED_AXIS = java\.util\.Set\.of\(/{f=1} f{print} f&&/^\s*\);/{exit}' "$SVC" | grep -oE '"[a-z]+\|[a-z_]+"' | tr -d '"' | sort)
 shell_axis=$(grep -oE "^[a-z]+\|[a-z_]+" <<<"$AXIS" | sort)
 if [ "$java_axis" != "$shell_axis" ]; then
   echo "  [Java集≠Shell集] 差异:"; diff <(echo "$shell_axis") <(echo "$java_axis") || true

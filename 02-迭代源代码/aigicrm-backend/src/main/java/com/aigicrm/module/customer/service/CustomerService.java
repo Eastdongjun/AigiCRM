@@ -806,18 +806,24 @@ public class CustomerService {
         // 有效开票/回款/在途审批任一存在 → 拒绝(删前展示关联影响的最低实现)
         // 【PR-18 口径】此处计数刻意含已作废(voided)记录:作废仅取消金额效力,台账记录按
         // "保留原值、原因及操作者"留存,仍属客户的历史业务痕迹,不因作废而放开物理删除。
+        // 【P0-1 2026-11-12 外部审计 CRITICAL 修复】补入现行开票/回款主载体 biz_customer_stage_amount
+        // (2026-10-10 财务载体迁移后逐笔录入走阶段金额, legacy invoice/payment 对新建客户恒空——
+        // 原判定使"有票款拒删"(INV-02)对现行链路失效; 对照组 RecycleService:569 早已计入, 两口收口一致)
+        long stageCount = stageAmountMapper.selectCount(
+                new LambdaQueryWrapper<BizCustomerStageAmount>()
+                        .eq(BizCustomerStageAmount::getCustomerId, id));
         long invoiceCount = invoiceMapper.selectCount(
                 new LambdaQueryWrapper<com.aigicrm.module.customer.entity.BizInvoice>()
                         .eq(com.aigicrm.module.customer.entity.BizInvoice::getCustomerId, id));
         long paymentCount = paymentMapper.selectCount(
                 new LambdaQueryWrapper<com.aigicrm.module.customer.entity.BizPayment>()
                         .eq(com.aigicrm.module.customer.entity.BizPayment::getCustomerId, id));
-        if (invoiceCount > 0 || paymentCount > 0) {
+        if (invoiceCount > 0 || paymentCount > 0 || stageCount > 0) {
             // 【文案修复 2026-10-09 用户反馈】原指引"请使用'停用'"是断头路——系统客户域没有
             // 叫"停用"的功能,实际停止跟进的入口是"归档"(议题五.4:默认隐藏+不参与统计提醒,可恢复)
             throw new BusinessException(String.format(
-                    "该客户有 %d 笔开票、%d 笔回款,不允许删除;如需停止跟进请使用\"归档\"",
-                    invoiceCount, paymentCount));
+                    "该客户有 %d 笔开票、%d 笔回款、%d 条阶段金额记录,不允许删除;如需停止跟进请使用\"归档\"",
+                    invoiceCount, paymentCount, stageCount));
         }
         // 【议题五.3 裁决 2026-09-20 补齐】在途审批(reviewing/pending)任一存在同样拒删——
         // 审批通过后的动作(延期/转移/捞取)作用于已删客户会产生悬挂回写
@@ -1229,141 +1235,10 @@ public class CustomerService {
         return result;
     }
 
-    public Map<String, Object> customerRankings() {
-        Map<String, Object> result = new LinkedHashMap<>();
-        result.put("incentive", customerIncentiveRanking());
-        result.put("relationship", customerRelationshipRanking());
-        result.put("core", customerCoreIndicatorRanking());
-        return result;
-    }
-
-    private List<Map<String, Object>> customerIncentiveRanking() {
-        // 【PR-01 P0-01 2026-09-18】原生 SQL 绕过租户拦截器，必须显式套集团条件；
-        // 非 admin 无集团归属时 AND 1=0（fail-closed），admin 不过滤。
-        java.util.List<Object> args = new java.util.ArrayList<>();
-        String gc = groupCondition("c", args);
-        // 注意：文本块内容从换行符之后开始，gc 与 GROUP BY 之间必须显式补 "\n"，
-        // 否则拼出占位符紧贴关键字的语法错误（PR-22 活体验证 2026-09-19 发现）
-        String sql = """
-                SELECT c.id AS customerId, c.customer_name AS customerName, owner.real_name AS ownerName,
-                       c.industry AS industry, COALESCE(SUM(ir.score), 0) AS totalScore,
-                       COUNT(ir.id) AS uploadCount,
-                       SUM(CASE WHEN ir.file_pre_id IS NOT NULL AND ir.file_pre_id <> '' AND ir.file_pre_id <> '[]' THEN 1 ELSE 0 END) AS preCount,
-                       SUM(CASE WHEN ir.file_mid_id IS NOT NULL AND ir.file_mid_id <> '' AND ir.file_mid_id <> '[]' THEN 1 ELSE 0 END) AS midCount,
-                       SUM(CASE WHEN ir.file_post_id IS NOT NULL AND ir.file_post_id <> '' AND ir.file_post_id <> '[]' THEN 1 ELSE 0 END) AS postCount,
-                       SUM(CASE WHEN ir.file_track_id IS NOT NULL AND ir.file_track_id <> '' AND ir.file_track_id <> '[]' THEN 1 ELSE 0 END) AS trackCount
-                FROM biz_incentive_record ir
-                JOIN biz_customer c ON c.id = ir.customer_id AND c.deleted = 0
-                LEFT JOIN sys_user owner ON owner.id = c.owner_id
-                WHERE COALESCE(ir.score, 0) > 0""" + gc + "\n" + """
-                GROUP BY c.id, c.customer_name, owner.real_name, c.industry
-                ORDER BY totalScore DESC, uploadCount DESC, customerName ASC
-                LIMIT 100
-                """;
-        return jdbc.queryForList(sql, args.toArray());
-    }
-
-    private List<Map<String, Object>> customerRelationshipRanking() {
-        java.util.List<Object> args = new java.util.ArrayList<>();
-        String gc = groupCondition("c", args);
-        String sql = """
-                SELECT c.id AS customerId, c.customer_name AS customerName, owner.real_name AS ownerName,
-                       c.industry AS industry, COALESCE(i.relationship_score, 0) AS relationshipScore
-                FROM biz_customer c
-                JOIN biz_customer_indicator i ON i.customer_id = c.id
-                LEFT JOIN sys_user owner ON owner.id = c.owner_id
-                WHERE c.deleted = 0 AND COALESCE(i.relationship_score, 0) > 0""" + gc + "\n" + """
-                ORDER BY relationshipScore DESC, customerName ASC
-                LIMIT 100
-                """;
-        return jdbc.queryForList(sql, args.toArray());
-    }
-
-    private List<Map<String, Object>> customerCoreIndicatorRanking() {
-        // 【裁决 2026-10-10】金额源换阶段总额年度口径(逐笔发票/回款不再参与判定, 顺带消除旧 SQL
-        // 漏排除 voided 的口径差异); 真核心/争核心三态直接取 indicator.core_type 落库标记
-        // (与 recalculateCoreStatus 同源)。年度金额=最近有数据年, 全年行有数据优先否则 H1+H2。
-        java.util.List<Object> args = new java.util.ArrayList<>();
-        // 参数顺序与 SQL 占位符出现顺序一致: ann 子查询 tenant 条件在前, 外层 gc 在后(两值相同, 仍按序绑定)
-        String gcAnn;
-        String gcOuter;
-        if (com.aigicrm.security.SecurityUtils.isAdmin()) {
-            gcAnn = "";
-            gcOuter = "";
-        } else {
-            Long g = com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull();
-            if (g == null) {
-                gcAnn = "";
-                gcOuter = " AND 1=0";
-            } else {
-                gcAnn = " AND tenant_id = ?";
-                gcOuter = " AND c.tenant_id = ?";
-                args.add(g);
-                args.add(g);
-            }
-        }
-        String sql = """
-                SELECT c.id AS customerId, c.customer_name AS customerName, owner.real_name AS ownerName,
-                       c.industry AS industry,
-                       COALESCE(i.relationship_score, 0) AS relationshipScore,
-                       COALESCE(i.indicator_02, 0) AS indicator02,
-                       COALESCE(i.indicator_03, 0) AS indicator03,
-                       COALESCE(i.indicator_04, 0) AS indicator04,
-                       COALESCE(i.indicator_05, 0) AS indicator05,
-                       COALESCE(ann.invoiceAmount, 0) AS invoiceAmount,
-                       COALESCE(ann.paymentAmount, 0) AS paymentAmount,
-                       (COALESCE(i.relationship_score, 0) + COALESCE(i.indicator_02, 0) + COALESCE(i.indicator_03, 0)
-                        + COALESCE(i.indicator_04, 0) + COALESCE(i.indicator_05, 0)) AS totalScore,
-                       COALESCE(i.core_type, '') AS coreType,
-                       CASE WHEN COALESCE(i.core_type, '') = 'core' THEN 1 ELSE 0 END AS coreCustomer
-                FROM biz_customer c
-                JOIN biz_customer_indicator i ON i.customer_id = c.id
-                LEFT JOIN sys_user owner ON owner.id = c.owner_id
-                LEFT JOIN (
-                  SELECT b.customer_id,
-                         CASE WHEN fy.id IS NOT NULL THEN fy.invoice_amount
-                              ELSE IFNULL(h1.invoice_amount, 0) + IFNULL(h2.invoice_amount, 0) END AS invoiceAmount,
-                         CASE WHEN fy.id IS NOT NULL THEN fy.payment_amount
-                              ELSE IFNULL(h1.payment_amount, 0) + IFNULL(h2.payment_amount, 0) END AS paymentAmount
-                  FROM (
-                    SELECT customer_id, MAX(period_year) AS y
-                    FROM biz_customer_stage_amount
-                    WHERE deleted = 0 AND (invoice_amount > 0 OR payment_amount > 0)""" + gcAnn + "\n" + """
-                    GROUP BY customer_id
-                  ) b
-                  LEFT JOIN biz_customer_stage_amount fy ON fy.customer_id = b.customer_id AND fy.period_year = b.y
-                       AND fy.period_type = 'FY' AND fy.deleted = 0
-                       AND (fy.invoice_amount > 0 OR fy.payment_amount > 0)
-                  LEFT JOIN biz_customer_stage_amount h1 ON h1.customer_id = b.customer_id AND h1.period_year = b.y
-                       AND h1.period_type = 'H1' AND h1.deleted = 0
-                  LEFT JOIN biz_customer_stage_amount h2 ON h2.customer_id = b.customer_id AND h2.period_year = b.y
-                       AND h2.period_type = 'H2' AND h2.deleted = 0
-                ) ann ON ann.customer_id = c.id
-                WHERE c.deleted = 0""" + gcOuter + "\n" + """
-                  AND (COALESCE(i.relationship_score, 0) + COALESCE(i.indicator_02, 0) + COALESCE(i.indicator_03, 0)
-                       + COALESCE(i.indicator_04, 0) + COALESCE(i.indicator_05, 0)) > 0
-                ORDER BY totalScore DESC, coreCustomer DESC, customerName ASC
-                LIMIT 100
-                """;
-        return jdbc.queryForList(sql, args.toArray());
-    }
-
-    /**
-     * 【PR-01 P0-01 2026-09-18】原生 SQL 集团条件片段（参数化，groupId 来自会话非用户输入）：
-     * admin → 空串；有集团 → " AND {alias}.tenant_id = ?" 并追加参数；
-     * 无集团 → " AND 1=0"（fail-closed）。
-     */
-    private String groupCondition(String alias, java.util.List<Object> args) {
-        if (com.aigicrm.security.SecurityUtils.isAdmin()) {
-            return "";
-        }
-        Long g = com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull();
-        if (g == null) {
-            return " AND 1=0";
-        }
-        args.add(g);
-        return " AND " + alias + ".tenant_id = ?";
-    }
+    // 【P0-2 2026-11-12 外部审计 HIGH 退役】customerRankings 及三段排行原生 SQL(激励/客情/核心指标)
+    // 已随休眠端点 GET /api/customer/rankings 整体删除——仅集团过滤无数据范围/分享制收口(越权面);
+    // 现行排行=StatisticsQueryService.customerRankings(applyDataScope 收口)。
+    // groupCondition 集团条件片段随之失去唯一调用方, 一并退役(防死代码)。
 
     // ====== 数据范围核心方法（升级版：支持组织层级） ======
 

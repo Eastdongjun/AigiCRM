@@ -1463,60 +1463,7 @@ class CustomerServiceTest {
         assertEquals(9L, captor.getValue().getDeptId(), "owner 部门调整后 dept_id 跟随当前 owner(库内 200)部门");
     }
 
-    /**
-     * 【PR-22 活体验证 2026-09-19 回归】排行三段原生 SQL 的 gc 片段拼接曾拼出 "?GROUP BY"
-     * 语法错误(文本块内容从换行符之后开始, gc 与后续关键字之间无空白), 单测因 JdbcTemplate
-     * 全 mock 未拦截。此测试捕获真实下发的 SQL, 断言占位符与关键字之间必须有空白分隔。
-     */
-    @Test
-    void customerRankingsSqlKeepsWhitespaceBetweenPlaceholderAndKeywords() {
-        JdbcTemplate jdbc = mock(JdbcTemplate.class);
-        CustomerService svc = new CustomerService(
-                mock(BizCustomerMapper.class), mock(com.aigicrm.module.customer.mapper.BizCustomerLogMapper.class),
-                mock(BizInvoiceMapper.class), mock(com.aigicrm.module.customer.mapper.BizCustomerShareMapper.class),
-                mock(com.aigicrm.module.customer.mapper.BizCustomerIndicatorMapper.class),
-                mock(BizContactMapper.class), mock(BizPaymentMapper.class), mock(com.aigicrm.module.customer.mapper.BizCustomerStageAmountMapper.class), mock(com.aigicrm.module.sea.mapper.BizSeaPoolMapper.class),
-                mock(com.aigicrm.module.system.mapper.SysUserMapper.class),
-                mock(com.aigicrm.module.system.mapper.SysDeptMapper.class),
-                mock(com.aigicrm.module.reminder.mapper.BizReminderMapper.class),
-                jdbc, mock(com.aigicrm.module.system.service.SysConfigService.class),
-                mock(com.aigicrm.common.scope.OrgScopeResolver.class),
-                mock(CustomerAccessService.class),
-                mock(com.aigicrm.module.system.service.RolePermScopeService.class), mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class),
-                mock(com.aigicrm.module.system.mapper.SysLogMapper.class),
-                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
-        SecurityUser user = new SecurityUser();
-        user.setUserId(74L);
-        user.setCurrentGroupId(6L);
-
-        try (MockedStatic<SecurityUtils> security = mockStatic(SecurityUtils.class)) {
-            security.when(SecurityUtils::getCurrentUser).thenReturn(user);
-            security.when(SecurityUtils::isAdmin).thenReturn(false);
-            security.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of(6L));
-
-            svc.customerRankings();
-        }
-
-        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
-        org.mockito.ArgumentCaptor<Object[]> argCaptor = org.mockito.ArgumentCaptor.forClass(Object[].class);
-        verify(jdbc, org.mockito.Mockito.times(3)).queryForList(sqlCaptor.capture(), argCaptor.capture());
-        List<String> sqls = sqlCaptor.getAllValues();
-        assertEquals(3, sqls.size(), "排行三段 SQL(incentive/relationship/core)均经 JdbcTemplate 下发");
-        for (String sql : sqls) {
-            assertFalse(sql.matches("(?s).*\\?(GROUP|ORDER|HAVING|LIMIT).*"),
-                    "占位符后紧跟 SQL 关键字(缺空白分隔): " + sql);
-            assertTrue(sql.contains("tenant_id = ?"), "非 admin 排行 SQL 必须带集团过滤: " + sql);
-            assertTrue(sql.contains("LIMIT 100"), "【BS-D】排行聚合查询必须有行数上限(全表聚合防拖垮): " + sql);
-        }
-        for (Object[] args : argCaptor.getAllValues()) {
-            // incentive/relationship 各绑 1 个集团参数;core 段绑 2 个(阶段年度子查询/外层, 2026-10-10 金额源换 stage_amount 后)
-            assertTrue(args.length == 1 || args.length == 2,
-                    "排行 SQL 集团参数个数应为 1(incentive/relationship)或 2(core),实际 " + args.length);
-            for (Object arg : args) {
-                assertEquals(6L, arg, "所有集团参数均绑定当前会话集团");
-            }
-        }
-    }
+    // 【P0-2 2026-11-12】旧 rankings 集团过滤用例(PR-22)随休眠端点整体退役(端点/三段 SQL 已删)
 
     /** 【PR-22 批次四】共享不得跨集团:目标用户不在当前集团 → 拒绝,不落共享行/不发育误通知 */
     @Test
@@ -1740,6 +1687,45 @@ class CustomerServiceTest {
         // 【文案修复 2026-10-09】拒删指引必须指向真实存在的功能"归档"(系统无客户域"停用")
         assertTrue(ex.getMessage().contains("归档"), "指引须指向归档入口: " + ex.getMessage());
         assertFalse(ex.getMessage().contains("停用"), "不得再指引不存在的'停用': " + ex.getMessage());
+        verify(customerMapper, never()).deleteById(any(Long.class));
+    }
+
+    // 【P0-1 2026-11-12 外部审计 CRITICAL】现行载体负例: 仅阶段金额(legacy 空)也必须拒删——
+    // 2026-10-10 财务载体迁移后新建客户开票/回款只落 stage_amount, 原判定对其完全失效
+    @Test
+    void delete_withStageAmountsOnly_rejected() {
+        BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
+        when(customerMapper.selectById(601L)).thenReturn(new com.aigicrm.module.customer.entity.BizCustomer());
+        BizInvoiceMapper invoiceMapper = mock(BizInvoiceMapper.class);
+        when(invoiceMapper.selectCount(any())).thenReturn(0L); // legacy 开票恒空(迁移后新建客户)
+        BizPaymentMapper paymentMapper = mock(BizPaymentMapper.class);
+        when(paymentMapper.selectCount(any())).thenReturn(0L);
+        com.aigicrm.module.customer.mapper.BizCustomerStageAmountMapper stageAmountMapper =
+                mock(com.aigicrm.module.customer.mapper.BizCustomerStageAmountMapper.class);
+        when(stageAmountMapper.selectCount(any())).thenReturn(2L); // 现行载体有 2 条阶段金额
+        CustomerAccessService accessService = mock(CustomerAccessService.class);
+        when(accessService.canDelete(601L)).thenReturn(true);
+
+        CustomerService svc = new CustomerService(
+                customerMapper, mock(com.aigicrm.module.customer.mapper.BizCustomerLogMapper.class),
+                invoiceMapper, mock(com.aigicrm.module.customer.mapper.BizCustomerShareMapper.class),
+                mock(com.aigicrm.module.customer.mapper.BizCustomerIndicatorMapper.class),
+                mock(BizContactMapper.class), paymentMapper, stageAmountMapper, mock(com.aigicrm.module.sea.mapper.BizSeaPoolMapper.class),
+                mock(com.aigicrm.module.system.mapper.SysUserMapper.class),
+                mock(com.aigicrm.module.system.mapper.SysDeptMapper.class),
+                mock(com.aigicrm.module.reminder.mapper.BizReminderMapper.class),
+                mock(org.springframework.jdbc.core.JdbcTemplate.class),
+                mock(com.aigicrm.module.system.service.SysConfigService.class),
+                mock(com.aigicrm.common.scope.OrgScopeResolver.class),
+                accessService,
+                mock(com.aigicrm.module.system.service.RolePermScopeService.class), mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class),
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> svc.delete(601L));
+        assertTrue(ex.getMessage().contains("不允许删除"), "仅阶段金额也须拒删: " + ex.getMessage());
+        assertTrue(ex.getMessage().contains("2 条阶段金额记录"), "提示须含现行载体影响范围: " + ex.getMessage());
+        assertTrue(ex.getMessage().contains("归档"), "指引须指向归档入口: " + ex.getMessage());
         verify(customerMapper, never()).deleteById(any(Long.class));
     }
 
