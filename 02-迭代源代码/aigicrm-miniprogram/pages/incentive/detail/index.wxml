@@ -19,11 +19,7 @@
       </view>
     </view>
     <view class="customer-score">
-      <view class="customer-score-line">
-        <text class="customer-score-big">{{detailView.scoreText}}</text>
-        <text class="customer-score-unit">分</text>
-      </view>
-      <view class="customer-score-caption">{{detailView.scoreCaption}}</view>
+      <!-- 【2026-11-12 用户令】展示面分值隐藏: 汇总卡大数字分值+“客户累计学分”标题移除, 计数(记录/月份/未读)保留 -->
       <view class="customer-score-sub">
         <text>{{detailView.recordCountText}}</text>
         <text>{{detailView.monthCountText}}</text>
@@ -97,7 +93,7 @@
             <view class="stage-dot" style="background: {{item.stageColor}};"></view>
             <text class="stage-main">{{item.stageText}}</text>
             <text wx:if="{{item.stageSub}}" class="stage-sub">{{item.stageSub}}</text>
-            <text class="meta-score" style="color: {{item.scoreColor}};">{{item.scoreText}}</text>
+            <!-- 【2026-11-12 用户令】展示面分值隐藏: 记录行“+N分”徽章移除 -->
           </view>
           <view class="meta-chips">
             <view wx:for="{{item.chips}}" wx:for-item="chip" wx:for-index="chipIdx" wx:key="label" class="meta-chip">

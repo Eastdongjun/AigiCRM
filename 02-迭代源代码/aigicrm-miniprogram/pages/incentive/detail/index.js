@@ -192,7 +192,7 @@ function buildItemView(record, canDelete, canEdit, now, token) {
     stageColor,
     stageText: (record && (record.category || record.categoryName)) || '四项服务',
     stageSub: (record && record.categoryName) || '',
-    scoreText: `+${(record && (record.score || record.points)) || 0} 分`,
+    // 【2026-11-12 用户令】展示面分值隐藏: 记录行 +N分 徽章死构造移除(wxml 消费点已删)
     scoreColor: stageColor,
     chips: metaChips,
     showDetailBlock: Boolean(record && record.preInstallQuestion),
@@ -276,9 +276,7 @@ function buildDetailView(data, groups) {
   }, null)
   const latestDate = latest ? parseDate(latest.createdAt) : null
   const unreadCount = records.filter((record) => record.unread).length
-  const scoreValue = data.customerScore !== null && data.customerScore !== undefined
-    ? data.customerScore
-    : customer.totalScore || 0
+  // 【2026-11-12 用户令】展示面分值隐藏: scoreValue 计算随 scoreText 退役移除
   return {
     showLoading: loading,
     loadingText: '加载中...',
@@ -288,8 +286,7 @@ function buildDetailView(data, groups) {
     customerName,
     industryText: customer.industry || '',
     lastUpdateText: latestDate ? `${latestDate.getFullYear()}-${pad2(latestDate.getMonth() + 1)}-${pad2(latestDate.getDate())} ${pad2(latestDate.getHours())}:${pad2(latestDate.getMinutes())}` : '—',
-    scoreText: String(scoreValue),
-    scoreCaption: '客户累计学分',
+    // 【2026-11-12 用户令】展示面分值隐藏: 汇总卡分值死构造移除(wxml 消费点已删)
     recordCountText: `${records.length} 条记录`,
     monthCountText: `${recordGroups.length} 个月份`,
     showUnread: unreadCount > 0,
