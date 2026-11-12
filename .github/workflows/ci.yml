@@ -236,7 +236,8 @@ jobs:
           # 前端判级与 npm audit --omit=dev 同口径: dev 依赖(“(dev)”标记)与已裁决项(server-renderer)过滤
           grep -vE "follow-redirects|\(dev\)|@vue/server-renderer" /tmp/osv-frontend.log > /tmp/osv-frontend-f0.log || true
           grep -vE "bcprov-jdk15on|org.ini4j" /tmp/osv-maven.log > /tmp/osv-maven-f.log || true
-          if grep -qE "([0-9]+ (High|Critical)|Severity: (High|Critical))" /tmp/osv-frontend-f0.log /tmp/osv-maven-f.log; then
+          # 判级只认 GHSA 表行(osv 尾部汇总行"14 High"汇总已含被过滤项, 不得再触发)
+          if grep -E "GHSA" /tmp/osv-frontend-f0.log /tmp/osv-maven-f.log | grep -qE "\| (9\.\d|8\.\d|7\.\d|6\.\d|5\.\d|4\.\d|3\.\d) +\|"; then
             echo '❌ 发现 High/Critical 级依赖漏洞'; exit 1
           fi
       - name: npm audit (high+, 带裁决 allowlist)
