@@ -623,8 +623,16 @@ Page({
     this.setData({ tabMode, activeTab: initialTab, tabs: buildTabs(initialTab, tabMode, canStatsPanes), canStatsPanes })
     wx.setNavigationBarTitle({ title: TAB_MODE_TITLES[tabMode] })
     this.setData({ apiBase: (getApp().globalData && getApp().globalData.apiBaseUrl) || '' })
-    if (!getApp().globalData.demoMode && !hasPermission(PERMISSION_CODES.INCENTIVE_VIEW)) {
-      wx.showToast({ title: '没有四项服务查看权限', icon: 'none' })
+    // 【M-10 2026-11-12 外部审计修复】守卫按 tabMode 分流(与 PC router/index.js:103 同口径):
+    // query 模式=激励查看(incentive:view) / stats 模式=统计排行(incentive:stats:view ∨ rank:view)。
+    // 修前: 只勾 stats:view/rank:view 的合法角色被 incentive:view 门槛踢回首页("勾了不可用")。
+    const requiredCode = tabMode === 'stats'
+      ? (hasPermission(PERMISSION_CODES.INCENTIVE_VIEW)
+         || hasPermission(PERMISSION_CODES.INCENTIVE_STATS_VIEW)
+         || hasPermission(PERMISSION_CODES.INCENTIVE_RANK_VIEW))
+      : hasPermission(PERMISSION_CODES.INCENTIVE_VIEW)
+    if (!getApp().globalData.demoMode && !requiredCode) {
+      wx.showToast({ title: tabMode === 'stats' ? '没有激励统计查看权限' : '没有四项服务查看权限', icon: 'none' })
       wx.switchTab({ url: '/pages/home/index' })
       return
     }

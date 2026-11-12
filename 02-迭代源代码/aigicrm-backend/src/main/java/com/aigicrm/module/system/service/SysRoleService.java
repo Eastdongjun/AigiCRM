@@ -320,6 +320,26 @@ public class SysRoleService {
                 }
             }
         }
+        // 【H-1 2026-11-12 外部审计 HIGH 修复】码级收敛: 同一 permission 码在 sys_menu 有多行时
+        // (如 customer:view 页面行×2+按钮行), 只提交其中一行=码已授予 → 自动补全所有同码行。
+        // 码为原子单位(全有或全无): 取消最后一行=码收回; 保留任意一行=码生效+所有同码入口可见。
+        // 修前问题: 取消"主页面行"但"详情行"仍在 → 侧栏消失但接口仍放行(权限回收不彻底)。
+        Set<String> includedCodes = new java.util.HashSet<>();
+        for (Long menuId : expanded) {
+            com.aigicrm.module.system.entity.SysMenu m = menuMapper.selectById(menuId);
+            if (m != null && m.getPermission() != null && !m.getPermission().isBlank()) {
+                includedCodes.add(m.getPermission());
+            }
+        }
+        if (!includedCodes.isEmpty()) {
+            // 全量拉取按码过滤(避免 LambdaQueryWrapper 在测试上下文需 TableInfo 预初始化)
+            for (com.aigicrm.module.system.entity.SysMenu m : menuMapper.selectList(null)) {
+                if (m.getPermission() != null && !m.getPermission().isBlank()
+                        && includedCodes.contains(m.getPermission())) {
+                    expanded.add(m.getId());
+                }
+            }
+        }
         for (Long menuId : expanded) {
             SysRoleMenu rm = new SysRoleMenu();
             rm.setRoleId(roleId);

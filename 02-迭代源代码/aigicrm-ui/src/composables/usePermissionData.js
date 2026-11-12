@@ -120,21 +120,36 @@ const hasPerm = (role, item) => {
 // saveRoleMenus 闭包只补 type=1; 与 role.vue 权限弹窗同一契约, 杜绝"目录行入库→回显深传播"与静默授权。
 const togglePerm = async (role, item) => {
   const set = rolePermMap.value[role.id]
-  if (!set) return
+  // 【M-3 2026-11-12 外部审计修复】加载失败(set=undefined)不再静默 no-op——管理员疯狂点却没任何反馈
+  if (!set) {
+    ElMessage.error('该角色的权限明细加载失败，请刷新页面后重试')
+    return
+  }
   const had = set.has(item.id)
   if (had) {
     set.delete(item.id)
   } else {
     set.add(item.id)
   }
+  // 【M-1 2026-11-12 外部审计修复】串行化: 前一个保存未完成时不提交下一次(防乱序覆盖丢勾选)
+  if (permSaving.value) {
+    if (had) set.add(item.id); else set.delete(item.id)
+    ElMessage.warning('上一次保存仍在进行中，请稍候')
+    return
+  }
+  permSaving.value = true
   try {
     await updateRole(role.id, { menuIds: [...set] })
   } catch (e) {
     // 保存失败:回滚本地勾选状态,避免"界面已改、数据库没变"的假成功
     if (had) set.add(item.id); else set.delete(item.id)
     ElMessage.error('权限保存失败,已还原勾选')
+  } finally {
+    permSaving.value = false
   }
 }
+// 【M-1】保存互斥锁
+const permSaving = ref(false)
 
 const loadPermData = async () => {
   permLoadError.value = false
