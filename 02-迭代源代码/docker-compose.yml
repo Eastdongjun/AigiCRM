@@ -8,7 +8,9 @@ services:
       dockerfile: Dockerfile
     container_name: ${APP_SLUG:-aigicrm}-backend
     ports:
-      - "8080:8080"
+      # 【P0-5/OPS-001 2026-11-12 GoLive 审计】回环绑定(与 prod compose 一致)——
+      # 0.0.0.0 时测试服 API 明文绕过 nginx(8080 直暴)
+      - "127.0.0.1:8080:8080"
     networks:
       - default
       - shopjoy-net

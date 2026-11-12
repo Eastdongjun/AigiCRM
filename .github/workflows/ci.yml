@@ -367,13 +367,11 @@ jobs:
           if [ "${{ needs.sonarcloud.outputs.ran }}" = "true" ]; then
             test "${{ needs.sonarcloud.result }}" = "success"
           else
-            # 【T9 2026-11-11 审计整改 P1-10】Sonar 缺失不再静默成功: 此前仅 echo 警告,
-            # job 仍 success——"跑过 Sonar"与"没跑 Sonar"在门禁汇总里不可区分。
-            # 未配置 SONAR_TOKEN = 质量门禁不完整 = 红。修复: 仓库 Settings→Secrets→Actions
-            # 配置 SONAR_TOKEN(SonarCloud 项目令牌)。
-            echo "❌ SonarCloud 未运行：缺少 SONAR_TOKEN —— Quality Gate 拒绝通过(非警告)"
-            echo "   修复: 仓库 Settings → Secrets and variables → Actions → 配置 SONAR_TOKEN"
-            exit 1
+            # 【P0-2 2026-11-12 用户裁决】无 SONAR_TOKEN 时不再阻断——以本地 Docker SonarQube 扫描
+            # 或 PMD/SpotBugs 替代(用户明确"不用 token")。既有 7 job 门禁已构成质量底线:
+            # backend(992 tests) + frontend(324) + contracts(168+) + osv + empty-db-replay + boot-smoke + miniprogram
+            echo "⚠️  SonarCloud 未运行（无 SONAR_TOKEN）——以 7-job 门禁为质量底线"
+            echo "    如后续需 Sonar 覆盖率/代码度量, 配置 SONAR_TOKEN 后自动启用"
           fi
           test "${{ needs.diff-check.result }}" = "success"
           # 【N3】e2e 钉只在 schedule 事件运行; 该事件下其失败必须挡门禁(push/PR 跳过不判)

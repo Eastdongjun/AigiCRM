@@ -66,6 +66,9 @@ const isWechat = /MicroMessenger/i.test(navigator.userAgent)
 const folderLabel = computed(() => (folderId.value ? '（当前文件夹）' : ''))
 
 // web-view 内跳回小程序需微信 JSSDK; 动态加载仅本页使用
+// 【P0-5/FE-PC-001 2026-11-12 GoLive 审计】CSP 兼容加载: 先试本地缓存(npm 方式不可行——SPA
+// 无打包期注入), 退而求其次用 addEventListener('openatlasend') 不可行; 最终方案=动态加载 +
+// CSP 定向放行(nginx location /mp-file-picker 加 script-src 含 res.wx.qq.com)
 const wxReady = ref(false)
 onMounted(() => {
   token.value = String(route.query.token || '')
@@ -74,7 +77,10 @@ onMounted(() => {
   const s = document.createElement('script')
   s.src = 'https://res.wx.qq.com/open/js/jweixin-1.3.2.js'
   s.onload = () => { wxReady.value = true }
-  s.onerror = () => { wxReady.value = false }
+  s.onerror = () => {
+    wxReady.value = false
+    console.warn('JSSDK 加载失败(CSP/网络)——上传后需手动返回小程序')
+  }
   document.head.appendChild(s)
 })
 
