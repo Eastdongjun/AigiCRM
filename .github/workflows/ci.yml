@@ -251,7 +251,10 @@ jobs:
           npm audit --audit-level=high --omit=dev > /tmp/audit.log 2>&1 || true
           cat /tmp/audit.log
           grep -vE "follow-redirects|@vue/server-renderer|source-map-js" /tmp/audit.log > /tmp/audit-filtered.log || true
-          ! grep -qE "[1-9][0-9]* (high|critical)" /tmp/audit-filtered.log || { echo '❌ 发现未裁决的 High/Critical 依赖漏洞'; exit 1; }
+          # 判级只认 advisory 行(尾部计数汇总含被滤项, 同 osv 汇总行问题)
+          if grep -E "https://github.com/advisories/GHSA" /tmp/audit-filtered.log | grep -q .; then
+            echo '❌ 发现未裁决的 High/Critical 依赖漏洞'; exit 1
+          fi
           echo "PASS: 高危依赖零未裁决项(allowlist 三项带理由, 见 ci.yml 注释与 REQUIREMENTS 台账)"
 
   # 【底座评估 2026-11-11】空库 Flyway 重放 + 权限末态断言(评估建议 P2):
