@@ -165,17 +165,22 @@ jobs:
           MYSQL_ROOT_PASSWORD: smoke-root
           MYSQL_DATABASE: ycmn
         ports: ['3306:3306']
+        # 【CI 首跑修复 2026-11-12】官方形态: 引号包值+空格分隔(原等号+含空格值形式 docker create 解析炸 125)
         options: >-
-          --health-cmd="mysqladmin ping -h localhost"
-          --health-interval=10s --health-timeout=5s --health-retries=30
-          --character-set-server=utf8mb4
-          --collation-server=utf8mb4_general_ci
+          --health-cmd "mysqladmin ping -h localhost"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 30
+          --character-set-server utf8mb4
+          --collation-server utf8mb4_general_ci
       redis:
         image: redis:7-alpine
         ports: ['6379:6379']
         options: >-
-          --health-cmd="redis-cli ping"
-          --health-interval=10s --health-timeout=5s --health-retries=30
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 30
     steps:
       - uses: actions/checkout@v4
       # 【B2 修复 2026-11-12】runner 默认 JDK 17 跑不动 Java 21 字节码(UnsupportedClassVersionError)
@@ -263,11 +268,14 @@ jobs:
           MYSQL_ROOT_PASSWORD: replay-root
           MYSQL_DATABASE: ycmn
         ports: ['3306:3306']
+        # 【CI 首跑修复 2026-11-12】官方形态(同 boot-smoke, 原等号形式 docker create 125)
         options: >-
-          --health-cmd="mysqladmin ping -h localhost"
-          --health-interval=10s --health-timeout=5s --health-retries=30
-          --character-set-server=utf8mb4
-          --collation-server=utf8mb4_general_ci
+          --health-cmd "mysqladmin ping -h localhost"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 30
+          --character-set-server utf8mb4
+          --collation-server utf8mb4_general_ci
     steps:
       - uses: actions/checkout@v4
       - name: 打包空库重放集(仅排 V2~V11, 与 replay-empty-db.sh 同口径)
@@ -337,6 +345,9 @@ jobs:
         run: sudo apt-get update -qq && sudo apt-get install -y -qq ripgrep
       - name: 本地契约全集(dev-verify.sh contracts)
         working-directory: 02-迭代源代码
+        # 【CI 首跑修复 2026-11-12】vscode-diagnostics 契约校验本机诊断导出(硬编码本机路径), CI 跳过
+        env:
+          AIGI_SKIP_VSCODE: '1'
         run: bash scripts/dev-verify.sh contracts
 
   quality-gate:

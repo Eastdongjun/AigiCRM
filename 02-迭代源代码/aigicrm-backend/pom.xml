@@ -21,6 +21,9 @@
 
     <properties>
         <java.version>21</java.version>
+        <!-- 【供应链修复 2026-11-12】osv-scanner CI 首跑实证: Boot 4.1.0 默认 jackson-bom 3.1.4 的
+             jackson-databind 存在多个 GHSA(最高 7.5, GHSA-wv8q-qhhj-9h54 等)——覆盖 BOM 到 3.1.7 修复版 -->
+        <jackson-bom.version>3.1.7</jackson-bom.version>
         <!-- Boot 4 升级（2026-08-15）：MyBatis-Plus 换 Boot 4 专用 starter（3.5.17 官方支持 Spring 7） -->
         <mybatis-plus.version>3.5.17</mybatis-plus.version>
         <!-- mybatis-plus 3.5.9 起 jsqlparser 拆分为 mybatis-plus-jsqlparser 独立模块（项目代码直接用 net.sf.jsqlparser.*） -->
