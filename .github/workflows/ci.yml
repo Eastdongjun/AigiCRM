@@ -153,37 +153,15 @@ jobs:
           [ "$bad" -eq 0 ] && echo "✅ 无硬编码密码" || exit 1
 
   # 【检查体系四轴 2026-11-11】启动冒烟(评估点名的休眠资产转正第三件):
-  # backend job 构建出的 jar 在 mysql+redis service 上真实启动——健康检查 + 权限探针
+  # backend job 构建出的 jar 在 mysql+redis 上真实启动——健康检查 + 权限探针
   # (无 token 401 / 错 token 401), "上下文能起"从推断变证据。库用空库重放同款集灌入。
+  # 【CI 三跑重构 2026-11-12】弃 services(GitHub services options 只收 docker create 选项,
+  # --character-set-server 等 mysqld 镜像参数必致 create 125)——改 step 自起容器(参数后置自由)。
   boot-smoke:
     runs-on: ubuntu-latest
     needs: backend
-    services:
-      mysql:
-        image: mysql:8.0
-        env:
-          MYSQL_ROOT_PASSWORD: smoke-root
-          MYSQL_DATABASE: ycmn
-        ports: ['3306:3306']
-        # 【CI 首跑修复 2026-11-12】官方形态: 引号包值+空格分隔(原等号+含空格值形式 docker create 解析炸 125)
-        options: >-
-          --health-cmd "mysqladmin ping -h localhost"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 30
-          --character-set-server utf8mb4
-          --collation-server utf8mb4_general_ci
-      redis:
-        image: redis:7-alpine
-        ports: ['6379:6379']
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 30
     steps:
       - uses: actions/checkout@v4
-      # 【B2 修复 2026-11-12】runner 默认 JDK 17 跑不动 Java 21 字节码(UnsupportedClassVersionError)
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -193,20 +171,29 @@ jobs:
         with:
           name: backend-jar
           path: /tmp/jar
+      - name: 自起 mysql+redis(生产 collation)
+        run: |
+          docker network create smoke-net
+          docker run -d --name smoke-mysql --network smoke-net \
+            -e MYSQL_ROOT_PASSWORD=smoke-root -e MYSQL_DATABASE=ycmn \
+            mysql:8.0 --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci
+          docker run -d --name smoke-redis --network smoke-net redis:7-alpine
+          for i in $(seq 1 40); do docker exec smoke-mysql mysqladmin ping -h localhost --silent 2>/dev/null && break; sleep 3; done
+          docker exec smoke-mysql mysqladmin ping -h localhost
       - name: 灌库(空库重放集, V1+V12~V33+日期版)
         run: |
           mkdir -p /tmp/smoke-mig
           find 02-迭代源代码/aigicrm-backend/src/main/resources/db/migration -maxdepth 1 -name '*.sql' \
             ! -name 'V[2-9]__*' ! -name 'V10__*' ! -name 'V11__*' -exec cp {} /tmp/smoke-mig/ \;
-          docker run --rm --network host -v /tmp/smoke-mig:/flyway/sql flyway/flyway:9.22.3-alpine \
-            -url="jdbc:mysql://127.0.0.1:3306/ycmn?characterEncoding=UTF-8&connectionCollation=utf8mb4_general_ci&useSSL=false&allowPublicKeyRetrieval=true" \
+          docker run --rm --network smoke-net -v /tmp/smoke-mig:/flyway/sql flyway/flyway:9.22.3-alpine \
+            -url="jdbc:mysql://smoke-mysql:3306/ycmn?characterEncoding=UTF-8&connectionCollation=utf8mb4_general_ci&useSSL=false&allowPublicKeyRetrieval=true" \
             -user=root -password=smoke-root -connectRetries=30 -validateMigrationNaming=true migrate 2>&1 | tail -3
       - name: 启动应用并探活
         run: |
           JAR=$(ls /tmp/jar/*.jar | head -1)
           echo "启动 $JAR"
-          DB_HOST=127.0.0.1 DB_PORT=3306 DB_NAME=ycmn DB_USER=root DB_PASSWORD=smoke-root \
-          REDIS_HOST=127.0.0.1 REDIS_PORT=6379 JWT_SECRET=boot-smoke-secret-key-for-ci-only-32chars \
+          DB_HOST=smoke-mysql DB_PORT=3306 DB_NAME=ycmn DB_USER=root DB_PASSWORD=smoke-root \
+          REDIS_HOST=smoke-redis REDIS_PORT=6379 JWT_SECRET=boot-smoke-secret-key-for-ci-only-32chars \
           STORAGE_TYPE=local TZ=Asia/Shanghai java -jar "$JAR" > /tmp/boot.log 2>&1 &
           APP_PID=$!
           for i in $(seq 1 60); do
@@ -220,7 +207,6 @@ jobs:
           echo "无token=$CODE1(预期401) 错token=$CODE2(预期401)"
           [ "$CODE1" = "401" ] && [ "$CODE2" = "401" ] || { echo '❌ 认证语义探针失败'; tail -20 /tmp/boot.log; kill $APP_PID; exit 1; }
           kill $APP_PID
-
   # 【检查体系四轴 2026-11-11】依赖安全扫描(L1 供应链缺口): osv-scanner 扫 Maven(pom 直扫)
   # + package-lock, 另跑 npm audit high。发现漏洞即红(带修复指引), 治理决策归人。
   osv-scan:
@@ -244,7 +230,9 @@ jobs:
             echo '❌ osv-scanner 执行失败(rc>1, 非扫描结果)——不允许静默通过'; exit 1
           fi
           # 红线: 任意 high 及以上漏洞(osv 表行 + npm audit 口径双匹配)
-          if grep -qE "([0-9]+ (High|Critical)|Severity: (High|Critical))" /tmp/osv-frontend.log /tmp/osv-maven.log; then
+          # 【P0-4 裁决同口径】前端 follow-redirects(axios Node 传输层, 浏览器 bundle 不含)过滤后再判级
+          grep -vE "follow-redirects" /tmp/osv-frontend.log > /tmp/osv-frontend-f.log || true
+          if grep -qE "([0-9]+ (High|Critical)|Severity: (High|Critical))" /tmp/osv-frontend-f.log /tmp/osv-maven.log; then
             echo '❌ 发现 High/Critical 级依赖漏洞'; exit 1
           fi
       - name: npm audit (high+, 带裁决 allowlist)
@@ -267,23 +255,17 @@ jobs:
   # 8 审计码绑定全覆盖。本地另有 replay-empty-db.sh 走测试服一次性容器(可手动跑)。
   empty-db-replay:
     runs-on: ubuntu-latest
-    services:
-      mysql:
-        image: mysql:8.0
-        env:
-          MYSQL_ROOT_PASSWORD: replay-root
-          MYSQL_DATABASE: ycmn
-        ports: ['3306:3306']
-        # 【CI 首跑修复 2026-11-12】官方形态(同 boot-smoke, 原等号形式 docker create 125)
-        options: >-
-          --health-cmd "mysqladmin ping -h localhost"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 30
-          --character-set-server utf8mb4
-          --collation-server utf8mb4_general_ci
+    # 【CI 三跑重构 2026-11-12】弃 services(镜像参数必致 create 125)——step 自起(同 boot-smoke)
     steps:
       - uses: actions/checkout@v4
+      - name: 自起 mysql(生产 collation)
+        run: |
+          docker network create replay-net
+          docker run -d --name replay-mysql --network replay-net \
+            -e MYSQL_ROOT_PASSWORD=replay-root -e MYSQL_DATABASE=ycmn \
+            mysql:8.0 --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci
+          for i in $(seq 1 40); do docker exec replay-mysql mysqladmin ping -h localhost --silent 2>/dev/null && break; sleep 3; done
+          docker exec replay-mysql mysqladmin ping -h localhost
       - name: 打包空库重放集(仅排 V2~V11, 与 replay-empty-db.sh 同口径)
         run: |
           mkdir -p /tmp/replay-mig
@@ -292,8 +274,8 @@ jobs:
           echo "重放集: $(ls /tmp/replay-mig/*.sql | wc -l) 个"
       - name: Flyway 全链重放
         run: |
-          docker run --rm --network host -v /tmp/replay-mig:/flyway/sql flyway/flyway:9.22.3-alpine \
-            -url="jdbc:mysql://127.0.0.1:3306/ycmn?characterEncoding=UTF-8&connectionCollation=utf8mb4_general_ci&useSSL=false&allowPublicKeyRetrieval=true" \
+          docker run --rm --network replay-net -v /tmp/replay-mig:/flyway/sql flyway/flyway:9.22.3-alpine \
+            -url="jdbc:mysql://replay-mysql:3306/ycmn?characterEncoding=UTF-8&connectionCollation=utf8mb4_general_ci&useSSL=false&allowPublicKeyRetrieval=true" \
             -user=root -password=replay-root -connectRetries=30 -validateMigrationNaming=true migrate 2>&1 | tail -6
       - name: 末态断言(码清单单一源, 0 failed)
         run: |
@@ -302,17 +284,17 @@ jobs:
           CODES_IN=$(grep -vE '^#|^$' 02-迭代源代码/scripts/empty-replay-codes.txt | awk "{printf \"'%s',\", \$1}" | sed 's/,$//')
           TOTAL=$(grep -cE '^[a-z]' 02-迭代源代码/scripts/empty-replay-codes.txt)
           echo "断言码 $TOTAL 个: $CODES_IN"
-          docker run --rm --network host mysql:8.0 mysql -h127.0.0.1 -P3306 -uroot -preplay-root ycmn -N -e "
+          docker run --rm --network replay-net mysql:8.0 mysql -hreplay-mysql -P3306 -uroot -preplay-root ycmn -N -e "
             SELECT IF(COUNT(*)=0,'flyway_failed=0','HAS_FAILED') FROM flyway_schema_history WHERE success<>1;
             SELECT m.permission, m.status, COUNT(rm.role_id) FROM sys_menu m
             LEFT JOIN sys_role_menu rm ON rm.menu_id=m.id
             WHERE m.permission IN ($CODES_IN)
               AND m.menu_type=3 GROUP BY m.permission, m.status ORDER BY m.permission;"
-          BAD=$(docker run --rm --network host mysql:8.0 mysql -h127.0.0.1 -P3306 -uroot -preplay-root ycmn -N -e "
+          BAD=$(docker run --rm --network replay-net mysql:8.0 mysql -hreplay-mysql -P3306 -uroot -preplay-root ycmn -N -e "
             SELECT COUNT(*) FROM sys_menu m LEFT JOIN sys_role_menu rm ON rm.menu_id=m.id
             WHERE m.permission IN ($CODES_IN)
               AND m.menu_type=3 AND (m.status<>1 OR rm.id IS NULL);")
-          ADMIN_N=$(docker run --rm --network host mysql:8.0 mysql -h127.0.0.1 -P3306 -uroot -preplay-root ycmn -N -e "
+          ADMIN_N=$(docker run --rm --network replay-net mysql:8.0 mysql -hreplay-mysql -P3306 -uroot -preplay-root ycmn -N -e "
             SELECT COUNT(DISTINCT m.permission) FROM sys_role_menu rm
             JOIN sys_menu m ON m.id=rm.menu_id JOIN sys_role r ON r.id=rm.role_id
             WHERE r.role_code='admin' AND m.menu_type=3 AND m.permission IN ($CODES_IN);")

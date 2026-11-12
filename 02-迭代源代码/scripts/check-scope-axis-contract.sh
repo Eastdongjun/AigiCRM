@@ -41,21 +41,22 @@ system|view|resolveModuleUsersWithinGroup\(SecurityUtils\.getCurrentUser\(\), "s
 miss=0
 while IFS= read -r lit; do
   [ -n "$lit" ] || continue
-  mod=$(printf '%s' "$lit" | sed -E 's/.*\.module\("([a-z]+)").*/\1/')
+  mod=$(printf '%s' "$lit" | grep -oE '"[a-z]+"' | tr -d '"' | head -1)
   grep -q "^$mod|" <<<"$AXIS" || { echo "  [未声明模块] .$lit"; miss=$((miss+1)); }
 done < <( { grep -rhoE '\.module\("[a-z]+"\)' "$SRC" --include="*.java" | grep -vE "LogAspect" || true; } )
 while IFS= read -r lit; do
   [ -n "$lit" ] || continue
-  act=$(printf '%s' "$lit" | sed -E 's/.*\.action\("([a-z_]+)").*/\1/')
+  act=$(printf '%s' "$lit" | grep -oE '"[a-z_]+"' | tr -d '"' | head -1)
   grep -qE "^[a-z]+\|$act\|" <<<"$AXIS" || { echo "  [未声明动作] .$lit"; miss=$((miss+1)); }
 done < <( { grep -rhoE '\.action\("[a-z_]+"\)' "$SRC" --include="*.java" | grep -vE "LogAspect" || true; } )
 # 位置参数形态: resolveModuleUsers[WithinGroup](x, "mod"[, "action"]) —— action 缺省按 view 语义
+# 【CI 可移植性 2026-11-12】三处 sed -E 全部 grep -oE 化(BSD/GNU 对该 ERE 的 ")" 解析分歧)
 while IFS='|' read -r callmod callact; do
   [ -n "$callmod" ] || continue
   act="${callact:-view}"
   grep -q "^$callmod|$act|" <<<"$AXIS" || { echo "  [未声明消费] resolveModuleUsers*(…, \"$callmod\"${callact:+, \"$callact\"})"; miss=$((miss+1)); }
 done < <( { grep -rhoE 'resolveModuleUsers(WithinGroup)?\([^,]+, "[a-z]+"(, "[a-z_]+")?' "$SRC" --include="*.java" \
-  | sed -E 's/.*"([a-z]+)"(, "([a-z_]+)")?$/\1|\3/' || true; } )
+  | { grep -oE '"[a-z_]+"(, "[a-z_]+")?' || true; } | awk '{gsub(/"/,""); n=split($0,a,", "); print a[1] "|" (n>1?a[2]:"")}' || true; } )
 [ "$miss" -eq 0 ] || fail "源码出现未声明的 (module,action) 消费点——先在本脚本动作轴声明表登记档位与锚"
 
 # ② 枚举每档的源码锚必须命中(防声明腐化)
