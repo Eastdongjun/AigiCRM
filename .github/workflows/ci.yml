@@ -178,8 +178,8 @@ jobs:
             -e MYSQL_ROOT_PASSWORD=smoke-root -e MYSQL_DATABASE=ycmn \
             mysql:8.0 --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci
           docker run -d --name smoke-redis --network smoke-net -p 6379:6379 redis:7-alpine
-          for i in $(seq 1 40); do docker exec smoke-mysql mysqladmin ping -h localhost --silent 2>/dev/null && break; sleep 3; done
-          docker exec smoke-mysql mysqladmin ping -h localhost
+          for i in $(seq 1 40); do docker exec smoke-mysql mysqladmin ping -h 127.0.0.1 --silent 2>/dev/null && break; sleep 3; done
+          docker exec smoke-mysql mysqladmin ping -h 127.0.0.1
       - name: 灌库(空库重放集, V1+V12~V33+日期版)
         run: |
           mkdir -p /tmp/smoke-mig
