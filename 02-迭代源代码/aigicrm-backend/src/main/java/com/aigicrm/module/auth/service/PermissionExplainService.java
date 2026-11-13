@@ -2,6 +2,8 @@ package com.aigicrm.module.auth.service;
 
 import com.aigicrm.security.SecurityUser;
 import com.aigicrm.security.SecurityUtils;
+import com.aigicrm.common.scope.OrgScopeResolver;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -14,17 +16,39 @@ import java.util.TreeSet;
 /**
  * 【PR-21 2026-09-19】有效权限解释:把 SecurityUser 上已有的权限计算结果
  * (角色/数据范围/权限码/规则/字段级)结构化输出为"为什么有/没这个权限"。
+ * 【WP6 2026-11-13】explainUser(userId): admin 生效预览——真实 UserDetailsService 重建
+ * (登录时装载链原样), 展示动作/范围/可见人数(规格 WP6)。
  */
 @Service
+@RequiredArgsConstructor
 public class PermissionExplainService {
+
+    private final OrgScopeResolver scopeResolver;
+    private final com.aigicrm.security.UserDetailsServiceImpl userDetailsService;
+    private final com.aigicrm.module.system.mapper.SysUserMapper userMapper;
 
     public Map<String, Object> explain() {
         SecurityUser user = SecurityUtils.getCurrentUser();
         if (user == null) return Map.of("error", "无会话上下文");
+        return explainOn(user);
+    }
 
+    /** 【WP6】admin 生效预览: 按目标用户 ID 走真实装载链重建后解释 */
+    public Map<String, Object> explainUser(Long userId) {
+        com.aigicrm.module.system.entity.SysUser u = userMapper.selectById(userId);
+        if (u == null || u.getDeleted() == 1) throw new com.aigicrm.common.BusinessException("用户不存在");
+        SecurityUser rebuilt = (SecurityUser) userDetailsService.loadUserByUsername(String.valueOf(userId));
+        Map<String, Object> result = explainOn(rebuilt);
+        result.put("preview", true);
+        return result;
+    }
+
+    /** 解释主体(会话用户或预览重建用户共用) */
+    private Map<String, Object> explainOn(SecurityUser user) {
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("userId", user.getUserId());
         result.put("username", user.getUsername());
+        result.put("realName", user.getRealName());
         result.put("currentGroupId", user.getCurrentGroupId());
         result.put("groupIds", user.getGroupIds());
 
@@ -86,6 +110,36 @@ public class PermissionExplainService {
         if (user.getCurrentGroupId() == null) blockers.add("无有效集团归属:业务接口将 fail-closed 拒绝");
         result.put("commonBlockers", blockers);
 
+        // 【WP6 2026-11-13】可见人数(各域来源动作, 规格 WP6 生效预览"可见人数")
+        java.util.Map<String, Object> visibility = new LinkedHashMap<>();
+        visibility.put("customer", domainVisibleCount(user, "customer", "view"));
+        visibility.put("task", domainVisibleCount(user, "task", "view"));
+        visibility.put("score", domainVisibleCount(user, "score", "view"));
+        visibility.put("approval", domainVisibleCount(user, "approval", "view"));
+        result.put("visibleUserCounts", visibility);
+        result.put("permEpoch", epochNow());
+
         return result;
     }
+
+    /** 域可见人数(null=全量→-1 标记; 经双轨入口, 读开关生效) */
+    private Object domainVisibleCount(SecurityUser user, String module, String action) {
+        try {
+            List<Long> visible = scopeResolver.resolveModuleUsers(user, module, action);
+            return visible == null ? "全量" : visible.size();
+        } catch (Exception e) {
+            return "解析失败";
+        }
+    }
+
+    private long epochNow() {
+        try {
+            return epochProvider.getIfAvailable() == null ? -1 : epochProvider.getIfAvailable().current();
+        } catch (Exception e) {
+            return -1;
+        }
+    }
+
+    /** 权限版本号(ObjectProvider 断循环; 表未就绪回 -1) */
+    private final org.springframework.beans.factory.ObjectProvider<com.aigicrm.common.auth.PermEpochService> epochProvider;
 }

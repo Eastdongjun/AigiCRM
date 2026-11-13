@@ -112,6 +112,7 @@ import {
   getAssigneePermScopes, updateAssigneePermScopes,
   getPositionList, getUserList, updateRole,
 } from '@/api/system'
+import request from '@/utils/request'
 import './perm-common.css'
 
 const {
@@ -295,6 +296,20 @@ const saveScope = async (item, scopeLevel, anchor) => {
       )
     } catch { return }
   }
+  // 【WP6 影响分析 2026-11-13】保存前计算受影响用户(规格 WP6); 收窄(原=all/区域 → 更窄)且人数超阈值须确认
+  try {
+    const res = await request.get(`/system/perm-scopes/impact/${type}/${assigneeKey}`)
+    const { affectedUsers, confirmThreshold } = res.data || {}
+    const narrowing = ['all', 'region', 'office'].includes(prev.scope) && !['all', 'region', 'office'].includes(scopeLevel)
+    if (narrowing && affectedUsers >= (confirmThreshold || 20)) {
+      try {
+        await ElMessageBox.confirm(
+          `本次范围调整影响 ${affectedUsers} 人（${currentAssigneeLabel.value} · ${item.label}）——超 ${confirmThreshold} 人确认线，确定继续？`,
+          '影响分析确认', { type: 'warning', confirmButtonText: '确认调整', cancelButtonText: '取消' }
+        )
+      } catch { return }
+    }
+  } catch { /* 影响分析端点不可用不阻断保存(既有高危确认仍在) */ }
   scopeMap.value[key] = { ...(scopeMap.value[key] || {}), [entryKey]: { scope: scopeLevel, anchor: finalAnchor } }
   try {
     const cfg = [{ module: target.module, action: target.action, scopeLevel, anchor: finalAnchor }]

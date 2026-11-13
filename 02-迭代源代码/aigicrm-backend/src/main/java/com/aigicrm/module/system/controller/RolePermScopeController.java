@@ -64,6 +64,42 @@ public class RolePermScopeController {
         return Result.ok(saveAck());
     }
 
+    /** 【WP6 2026-11-13】影响分析(规格 WP6): 保存前计算受影响用户——主体绑定的在职用户数+角色清单 */
+    @PreAuthorize("hasAuthority('system:config:view')")
+    @GetMapping("/impact/{type}/{key}")
+    public Result<java.util.Map<String, Object>> impact(@PathVariable String type, @PathVariable String key) {
+        requireAdmin();
+        long affected;
+        String scopeDesc;
+        switch (type) {
+            case "ROLE" -> {
+                Long cnt = jdbc.queryForObject(
+                        "SELECT COUNT(*) FROM sys_user_role ur JOIN sys_user u ON u.id = ur.user_id " +
+                        "JOIN sys_role r ON r.id = ur.role_id WHERE r.role_code = ? AND u.deleted = 0 AND u.status = 1",
+                        Long.class, key);
+                affected = cnt != null ? cnt : 0;
+                scopeDesc = "角色 " + key;
+            }
+            case "POSITION" -> {
+                Long cnt = jdbc.queryForObject(
+                        "SELECT COUNT(*) FROM sys_user_position up JOIN sys_user u ON u.id = up.user_id " +
+                        "WHERE up.position_id = ? AND u.deleted = 0 AND u.status = 1",
+                        Long.class, Long.valueOf(key));
+                affected = cnt != null ? cnt : 0;
+                scopeDesc = "岗位 #" + key;
+            }
+            case "USER" -> {
+                affected = 1;
+                scopeDesc = "用户 #" + key;
+            }
+            default -> { throw new BusinessException("未知主体类型: " + type); }
+        }
+        return Result.ok(java.util.Map.of(
+                "affectedUsers", affected,
+                "scopeDesc", scopeDesc,
+                "confirmThreshold", 20)); // 超阈值前端须二次确认(规格 WP6 影响分析)
+    }
+
     /** 【WP5 2026-11-13】保存回执: 新版本号 + 受影响用户数(绑定该主体的在职用户) */
     private java.util.Map<String, Object> saveAck() {
         long epoch = permEpochService.current();
