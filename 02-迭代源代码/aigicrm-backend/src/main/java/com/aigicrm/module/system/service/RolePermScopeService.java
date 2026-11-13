@@ -448,14 +448,15 @@ public class RolePermScopeService {
      * 供 SysRoleService.saveRoleMenus 调用: 动作轴权威仍在 sys_role_menu(本批不迁移);
      * 新轨 perm.read.*=new 时范围解析按 sys_perm_grant——
      * ① 新绑槽码 upsert(scope=匹配 role_perm_scope 行 → 角色 data_scope → SELF, 与回填同优先级);
-     * ② 被移除的槽码 DELETE grant(防"幽灵授权": 取消勾选后新轨范围仍生效)。
+     * ② 被移除的槽码 DELETE grant(取消勾选即收权, 防幽灵授权)。
+     * 【P1-2 四轮修复】codes 为空(取消**全部**勾选)不再 early return——照样全量剪枝,
+     * 否则 sys_role_menu 清空后 sys_perm_grant 留下幽灵授权(动作轴迁移后会变成真权限)。
      */
     public void dualUpsertRoleSlotGrants(String roleCode, String dataScope, java.util.Collection<String> codes) {
-        if (codes == null || codes.isEmpty()) return;
         try {
-            java.util.Set<String> kept = new java.util.HashSet<>(codes);
+            java.util.Set<String> kept = codes == null ? java.util.Set.of() : new java.util.HashSet<>(codes);
             java.util.List<String> allSlotCodes = permActionRegistry.allSlotCodes();
-            for (String code : codes) {
+            for (String code : kept) {
                 String[] slot = permActionRegistry.slotOf(code);
                 if (slot == null) continue; // 非槽码(入口/路由)无范围语义, 无需授权行
                 String scopeLevel = null;
@@ -474,7 +475,7 @@ public class RolePermScopeService {
                         "ON DUPLICATE KEY UPDATE scope_type = VALUES(scope_type), anchor = VALUES(anchor)",
                         roleCode, code, mapped, anchor);
             }
-            // 【P1-2】剪枝: 槽码中不在本次勾选集的 → 删 grant(取消勾选即收权)
+            // 剪枝: 槽码中不在本次勾选集的 → 删 grant(取消勾选即收权; 空勾选集=全剪)
             for (String slotCode : allSlotCodes) {
                 if (!kept.contains(slotCode)) {
                     jdbc.update("DELETE FROM sys_perm_grant WHERE tenant_id=1 AND subject_type='ROLE' AND subject_id=? AND action_code=?",

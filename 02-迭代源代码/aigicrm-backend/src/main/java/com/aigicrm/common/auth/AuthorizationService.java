@@ -156,25 +156,28 @@ public class AuthorizationService {
 
     /**
      * 组织集合 → 在职用户集(维度补齐; 【P1-4 三轮修复】改走 sys_employment——决策#2 多任职:
-     * 按 sys_user.dept_id 会漏"兼职在 B 部门"的用户; 任职表由 KernelOrgSyncService 保鲜,
-     * 回退 sys_user.dept_id 兜底(表未就绪)。
+     * 按 sys_user.dept_id 会漏"兼职在 B 部门"的用户; 任职表由 KernelOrgSyncService 保鲜)。
+     * 【四轮 P2 修复】employment 与 sys_user.dept_id **恒并集**(不再"employment 空才回退")——
+     * 部分同步失败的用户由 dept_id 权威列兜底, 不漏人; dept_id 本是主职权威列, 并集不放大。
      */
     private List<Long> usersInDepts(Set<Long> deptIds) {
         if (deptIds == null || deptIds.isEmpty()) return List.of();
         try {
             String ph = String.join(",", deptIds.stream().map(x -> "?").toList());
             java.util.LinkedHashSet<Long> out = new java.util.LinkedHashSet<>();
-            out.addAll(jdbc.queryForList(
-                    "SELECT DISTINCT e.user_id FROM sys_employment e " +
-                    "WHERE e.org_id IN (" + ph + ") AND e.status = 1 " +
-                    "AND (e.valid_from IS NULL OR e.valid_from <= CURDATE()) " +
-                    "AND (e.valid_to IS NULL OR e.valid_to >= CURDATE())",
-                    Long.class, deptIds.toArray()));
-            if (out.isEmpty()) {
+            try {
                 out.addAll(jdbc.queryForList(
-                        "SELECT id FROM sys_user WHERE dept_id IN (" + ph + ") AND deleted = 0 AND status = 1",
+                        "SELECT DISTINCT e.user_id FROM sys_employment e " +
+                        "WHERE e.org_id IN (" + ph + ") AND e.status = 1 " +
+                        "AND (e.valid_from IS NULL OR e.valid_from <= CURDATE()) " +
+                        "AND (e.valid_to IS NULL OR e.valid_to >= CURDATE())",
                         Long.class, deptIds.toArray()));
+            } catch (Exception inner) {
+                log.warn("任职表用户展开失败(表未就绪?): {}", inner.getMessage());
             }
+            out.addAll(jdbc.queryForList(
+                    "SELECT id FROM sys_user WHERE dept_id IN (" + ph + ") AND deleted = 0 AND status = 1",
+                    Long.class, deptIds.toArray()));
             return new ArrayList<>(out);
         } catch (Exception e) {
             log.warn("部门用户展开失败: {}", e.getMessage());
@@ -255,6 +258,11 @@ public class AuthorizationService {
         List<ScopeSpec> ownerBased = new ArrayList<>(); // SELF / MY_TEAM / ALL(短路于下方)
         boolean anyAll = false;
         for (GrantReader.GrantRow g : grants) {
+            // 【P2 四轮修复 fail-closed】未知 scope_type 直接 none(旧行为=仅本人, 会把脏数据静默放行本人)
+            if (!isKnownScopeType(g.getScopeType())) {
+                log.warn("[PermEpochKernel] 未知 scope_type={} action={} → fail-closed none", g.getScopeType(), g.getActionCode());
+                return ScopeDecision.none();
+            }
             ScopeSpec s = specResolver.resolve(user, g);
             if (s.isAll()) { anyAll = true; break; }
             if (isDeptBasedScope(g.getScopeType())) deptBased.add(s);
@@ -262,15 +270,19 @@ public class AuthorizationService {
         }
         if (anyAll) return ScopeDecision.all(); // 任一 all → 本集团不过滤(锁定决策#6)
 
-        Set<Long> owners = new HashSet<>();
-        for (ScopeSpec s : ownerBased) owners.addAll(s.getOwnerIds());
+        // 【P1-1 四轮修复 2026-11-13】deptsOfUsers 只对 **nativeOwners**(OWNER 型授权+本人)反查——
+        // 若对"DEPT 型展开出来的部门用户"再反查部门, 同事的兼职部门会并入 ORG 锚可见集(二次放大:
+        // MY_DEPT+ORG 锚 会看到同事兼职部门的客户)。决策#2 的"全部任职组织"是**查看者**的属性,
+        // 不是"我部门里每个人的全部任职组织"。
+        Set<Long> nativeOwners = new HashSet<>();
+        for (ScopeSpec s : ownerBased) nativeOwners.addAll(s.getOwnerIds());
+        nativeOwners.add(user.getUserId());             // 本人恒含(旧轨 resolveUnion 同款)
+        Set<Long> owners = new HashSet<>(nativeOwners);
         Set<Long> depts = new HashSet<>();
         for (ScopeSpec s : deptBased) depts.addAll(s.getDeptIds());
         // 单向补齐(各一次, 无回灌):
         owners.addAll(usersInDepts(depts));             // DEPT 型 → OWNER 锚可见用户
-        owners.add(user.getUserId());                   // 本人恒含(旧轨 resolveUnion 同款)
-        Set<Long> ownerDepts = deptsOfUsers(owners);    // 含本人/团队 → 其组织(ORG 锚可见部门)
-        depts.addAll(ownerDepts);
+        depts.addAll(deptsOfUsers(nativeOwners));       // OWNER 型+本人 → ORG 锚可见部门(仅 native 反查)
 
         if (owners.isEmpty() && depts.isEmpty()) return ScopeDecision.none();
 
@@ -309,6 +321,16 @@ public class AuthorizationService {
             case "MY_DEPT", "MY_DEPT_SUB", "MY_PRIMARY_DEPT", "MY_PRIMARY_DEPT_SUB",
                  "MY_OFFICE", "MY_OFFICE_SUB", "MY_REGION", "MY_REGION_SUB", "CUSTOM" -> true;
             default -> false; // SELF / MY_TEAM / ALL / 未知
+        };
+    }
+
+    /** 【P2 四轮修复】已知 scope_type 全集(12 档; 未知 → fail-closed none) */
+    private static boolean isKnownScopeType(String scopeType) {
+        return switch (scopeType == null ? "" : scopeType) {
+            case "SELF", "MY_TEAM", "ALL",
+                 "MY_DEPT", "MY_DEPT_SUB", "MY_PRIMARY_DEPT", "MY_PRIMARY_DEPT_SUB",
+                 "MY_OFFICE", "MY_OFFICE_SUB", "MY_REGION", "MY_REGION_SUB", "CUSTOM" -> true;
+            default -> false;
         };
     }
 

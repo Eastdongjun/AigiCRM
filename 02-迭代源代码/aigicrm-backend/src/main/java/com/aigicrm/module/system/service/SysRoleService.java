@@ -288,7 +288,9 @@ public class SysRoleService {
      *    改为不注入后, 该旁路从构造上消除, 下方重校验降级为纵深防御(现仅校验提交集)。
      */
     private void saveRoleMenus(Long roleId, List<Long> menuIds) {
-        if (menuIds == null || menuIds.isEmpty()) return;
+        // 【P1-2 四轮修复 2026-11-13】null=未提供(保持现状); 空集合=取消全部勾选——**必须继续走**,
+        // 让 includedCodes 为空的剪枝逻辑清掉 sys_perm_grant 幽灵授权(此前 early return 导致残留)
+        if (menuIds == null) return;
         java.util.Set<Long> expanded = new java.util.LinkedHashSet<>(menuIds);
         for (Long menuId : menuIds) {
             Long cur = menuId;
@@ -349,7 +351,8 @@ public class SysRoleService {
         // 【P0-5 修复 2026-11-13 方案二】槽码授权双写: 动作轴权威仍在 sys_role_menu(本期不迁移),
         // 但新轨范围解析按 sys_perm_grant——新绑槽码的角色必须即时有授权行(否则切轨后范围恒空)。
         // scope 取 匹配 role_perm_scope → 角色 data_scope → SELF(与回填迁移同优先级)。
-        if (!includedCodes.isEmpty()) {
+        // 【P1-2 四轮修复】无条件调用: includedCodes 为空(取消全部勾选)时全量剪枝幽灵授权。
+        {
             com.aigicrm.module.system.entity.SysRole role = roleMapper.selectById(roleId);
             rolePermScopeService.dualUpsertRoleSlotGrants(
                     role != null ? role.getRoleCode() : null,

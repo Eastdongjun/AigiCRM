@@ -230,11 +230,13 @@ class KernelScopeTest {
         when(rolePermScopeService.anchorOf(any(), eq("customer"), eq("view")))
                 .thenReturn(ScopeRequest.AnchorType.ORG);
         AuthorizationService svc = auth(reader, registry);
-        // 闭包: 10 → [11](stub 供对照); ORG 锚用户维 = usersInDepts({10,11}) = [7,8]
+        // 闭包: 10 → [11]; ORG 锚用户维 = usersInDepts({10,11,10}) = [7,8](A6 口径)。
+        // varargs 桩规则: 通配 any(Object[]) 先注册兜底, 具体 eq(7L) 后注册优先覆盖
+        when(jdbc.queryForList(anyString(), eq(Long.class),
+                org.mockito.ArgumentMatchers.any(Object[].class))).thenReturn(List.of(7L, 8L));
         when(jdbc.queryForList(anyString(), eq(Long.class), eq(10L))).thenReturn(List.of(11L));
-        when(jdbc.queryForList(anyString(), eq(Long.class), eq(10L), eq(11L))).thenReturn(List.of(7L, 8L));
         when(jdbc.queryForList(anyString(), eq(Long.class), eq(7L))).thenReturn(List.of(10L));
-        when(legacyResolver.switchFlags()).thenReturn(new boolean[]{false, false});
+        // ORG 锚不追加上级/负责人开关(旧轨同款), 无需 switchFlags 桩
         SecurityUser su = suPerm(7L, "customer:view");
         su.setEmploymentOrgIds(List.of(10L));
         su.setPrimaryEmploymentOrgId(10L);
@@ -321,6 +323,56 @@ class KernelScopeTest {
             assertEquals(Set.of(10L), Set.copyOf(d.getVisibleDeptIds()),
                     "includeChildren=false 只到本组织(旧实现无条件 closure 越权放宽)");
             assertFalse(d.getVisibleDeptIds().contains(11L), "子部门 11 不得出现");
+        }
+    }
+
+    /**
+     * 【P1-1 四轮修复负例】MY_DEPT + ORG 锚 + 部门同事有兼职: 同事 B 的兼职部门 20 不得
+     * 并入可见部门(deptsOfUsers 只对 nativeOwners 反查, 不对"部门展开出来的用户"二次反查)。
+     * 查看 A(MY_DEPT, 任职 10); 同事 B(dept_id=10, 兼职 20)。可见部门必须只有 {10}。
+     */
+    @Test
+    void scopeNewTrack_myDept_orgAnchor_colleagueMoonlightDeptNotIncluded() {
+        PermActionRegistry registry = mock(PermActionRegistry.class);
+        when(registry.of("customer:view")).thenReturn(def("customer:view", "customer", true, true));
+        GrantReader reader = mock(GrantReader.class);
+        when(reader.grantsOf(any(), eq("customer:view"))).thenReturn(List.of(
+                new GrantReader.GrantRow("MY_DEPT", "OWNER", "ROLE", "sales")));
+        when(rolePermScopeService.anchorOf(any(), eq("customer"), eq("view")))
+                .thenReturn(ScopeRequest.AnchorType.ORG);
+        AuthorizationService svc = auth(reader, registry);
+        // usersInDepts({10}) = [A=7, B=8](B 兼职 20); deptsOfUsers(A 的 native owners={7}) = [10]
+        when(jdbc.queryForList(anyString(), eq(Long.class), eq(10L), eq(10L))).thenReturn(List.of(7L, 8L));
+        when(jdbc.queryForList(anyString(), eq(Long.class), eq(7L))).thenReturn(List.of(10L));
+        SecurityUser su = suPerm(7L, "customer:view");
+        su.setEmploymentOrgIds(List.of(10L));
+        su.setPrimaryEmploymentOrgId(10L);
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::getCurrentUser).thenReturn(su);
+            ScopeDecision d = svc.scopeNewTrack(su, "customer:view");
+            assertEquals(Set.of(10L), Set.copyOf(d.getVisibleDeptIds()),
+                    "MY_DEPT(ORG 锚): 同事 B 的兼职部门 20 不得并入(deptsOfUsers 仅对 nativeOwners)");
+            assertFalse(d.getVisibleDeptIds().contains(20L), "兼职部门 20 越权可见");
+        }
+    }
+
+    /** 【P2 四轮修复负例】未知 scope_type → fail-closed none(不静默降级为仅本人放行) */
+    @Test
+    void scopeNewTrack_unknownScopeType_failClosedNone() {
+        PermActionRegistry registry = mock(PermActionRegistry.class);
+        when(registry.of("customer:view")).thenReturn(def("customer:view", "customer", true, true));
+        GrantReader reader = mock(GrantReader.class);
+        when(reader.grantsOf(any(), eq("customer:view"))).thenReturn(List.of(
+                new GrantReader.GrantRow("DIRTY_TYPE", "OWNER", "ROLE", "sales")));
+        when(configService.getValue("perm.read.customer")).thenReturn("new");
+        AuthorizationService svc = auth(reader, registry);
+        SecurityUser su = suPerm(7L, "customer:view");
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::getCurrentUser).thenReturn(su);
+            ScopeDecision d = svc.scope("customer:view");
+            assertFalse(d.isAll());
+            assertTrue(d.getVisibleUserIds() != null && d.getVisibleUserIds().isEmpty(),
+                    "未知档 → fail-closed 空集(none), 不得静默按 SELF 放行本人");
         }
     }
 
