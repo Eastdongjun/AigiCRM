@@ -34,6 +34,7 @@ class IncentiveCustomerRecordsRecordIdTest {
                 mock(com.aigicrm.module.customer.mapper.BizCustomerMapper.class),
                 mock(com.aigicrm.module.system.mapper.SysDeptMapper.class),
                 mock(com.aigicrm.common.scope.OrgScopeResolver.class),
+                null,
                 mock(org.springframework.jdbc.core.JdbcTemplate.class));
     }
 

@@ -33,6 +33,8 @@ public class IncentiveService {
     private final BizCustomerMapper customerMapper;
     private final SysDeptMapper deptMapper;
     private final com.aigicrm.common.scope.OrgScopeResolver scopeResolver;
+    /** 【WP1.5 2026-11-13】客户可见性单一源((customer,view)) */
+    private final com.aigicrm.module.customer.service.CustomerVisibilityService customerVisibilityService;
     /** 激励专项授权表直查（2026-08-16 授权表化，替代载体角色+权限码判定） */
     private final org.springframework.jdbc.core.JdbcTemplate jdbc;
 
@@ -218,7 +220,9 @@ public class IncentiveService {
     private java.util.Set<Long> orgScopeVisibleCustomerIds() {
         com.aigicrm.security.SecurityUser user = SecurityUtils.getCurrentUser();
         if (user == null || SecurityUtils.isAdmin()) return null; // null=不过滤(全量)
-        java.util.List<Long> visibleUsers = scopeResolver.resolveModuleUsers(user, "customer");
+        // 【WP1.5 2026-11-13】单一源化: 可见负责人集合改走 CustomerVisibilityService((customer,view)),
+        // 客户过滤口径不变(未分配负责人的客户保持全员可见)
+        java.util.List<Long> visibleUsers = customerVisibilityService.visibleOwnerIds();
         java.util.Set<Long> ids = new java.util.HashSet<>();
         for (BizCustomer c : customerMapper.selectList(new LambdaQueryWrapper<BizCustomer>()
                 .eq(BizCustomer::getDeleted, 0))) {

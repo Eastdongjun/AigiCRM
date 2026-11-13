@@ -42,11 +42,12 @@ export function useUserList() {
   const formRef = ref(null)
   const orgPath = ref([])
   const cascaderProps = { label: 'deptName', value: 'id', children: 'children', checkStrictly: true, emitPath: true }
-  const editForm = reactive({ id: null, username: '', realName: '', phone: '', email: '', deptId: null, officeId: null, roleId: null, managerId: null, dataScopeOverride: '', status: 1, orgIds: [], positionIds: [] })
+  // 【WP1.1 2026-11-13 多角色并集】角色改多选(roleIds); 保留 roleId 字段兼容旧提交载荷
+  const editForm = reactive({ id: null, username: '', realName: '', phone: '', email: '', deptId: null, officeId: null, roleId: null, roleIds: [], managerId: null, dataScopeOverride: '', status: 1, orgIds: [], positionIds: [] })
   const formRules = {
     realName: [{ required: true, message: '请输入姓名', trigger: 'blur' }],
     username: [{ required: true, message: '请输入账号', trigger: 'blur' }],
-    roleId: [{ required: true, message: '请选择角色', trigger: 'change' }],
+    roleIds: [{ required: true, type: 'array', min: 1, message: '请选择角色', trigger: 'change' }],
     phone: [{ required: true, message: '请输入手机号', trigger: 'blur' }],
     email: [
       { type: 'email', message: '邮箱格式不正确', trigger: 'blur' }
@@ -232,15 +233,19 @@ export function useUserList() {
 
   const openDialog = async (row) => {
     if (row) {
-      Object.assign(editForm, { id: row.id, username: row.username, realName: row.realName, phone: row.phone, email: row.email || '', deptId: row.deptId, officeId: row.officeId, roleId: row.roleId, managerId: row.managerId || null, dataScopeOverride: row.dataScopeOverride || '', status: row.status, orgIds: row.orgIds || [], positionIds: [] })
+      Object.assign(editForm, { id: row.id, username: row.username, realName: row.realName, phone: row.phone, email: row.email || '', deptId: row.deptId, officeId: row.officeId, roleId: row.roleId, roleIds: row.roleId ? [row.roleId] : [], managerId: row.managerId || null, dataScopeOverride: row.dataScopeOverride || '', status: row.status, orgIds: row.orgIds || [], positionIds: [] })
       orgPath.value = pathOf(row.deptId)
       editForm.officeId = officeFromPath(orgPath.value)
       // 2026-08-08 用户级 custom 授权：拉取个人授权组织回显
-      if (row.dataScopeOverride === 'custom') {
-        try {
-          const res = await getUserById(row.id)
-          editForm.orgIds = (res.data?.orgIds) || []
-        } catch (e) {}
+      // 【WP1.1】回显改为始终拉详情: roleIds(全部角色)+orgIds(custom 授权组织)同源回填
+      try {
+        const res = await getUserById(row.id)
+        const detail = res.data || {}
+        if (Array.isArray(detail.roleIds) && detail.roleIds.length) editForm.roleIds = detail.roleIds
+        if (row.dataScopeOverride === 'custom') editForm.orgIds = detail.orgIds || []
+      } catch (e) {
+        console.error('回显用户详情失败', row.id, e)
+        ElMessage.warning('角色/授权组织回显失败，请刷新后重试')
       }
       // 【2026-08-11 岗位绑定】回显用户已绑岗位
       try {
@@ -252,7 +257,7 @@ export function useUserList() {
         ElMessage.warning('岗位回显失败，请刷新后重试')
       }
     } else {
-      Object.assign(editForm, { id: null, username: '', realName: '', phone: '', email: '', deptId: null, officeId: null, roleId: null, managerId: null, dataScopeOverride: '', status: 1, orgIds: [], positionIds: [] })
+      Object.assign(editForm, { id: null, username: '', realName: '', phone: '', email: '', deptId: null, officeId: null, roleId: null, roleIds: [], managerId: null, dataScopeOverride: '', status: 1, orgIds: [], positionIds: [] })
       orgPath.value = []
     }
     dialogVisible.value = true

@@ -43,6 +43,7 @@ class IncentiveScoreTest {
                 mock(BizCustomerMapper.class),
                 mock(SysDeptMapper.class),
                 mock(com.aigicrm.common.scope.OrgScopeResolver.class),
+                null,
                 jdbc);
     }
 

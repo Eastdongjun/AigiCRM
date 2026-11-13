@@ -71,7 +71,7 @@ class IncentiveRemoveFileTest {
 
     private IncentiveService newService() {
         return new IncentiveService(categoryMapper, recordMapper, userMapper,
-                fileMapper, customerMapper, deptMapper, scopeResolver, jdbc);
+                fileMapper, customerMapper, deptMapper, scopeResolver, null, jdbc);
     }
 
     private void stubUser(MockedStatic<SecurityUtils> m) {

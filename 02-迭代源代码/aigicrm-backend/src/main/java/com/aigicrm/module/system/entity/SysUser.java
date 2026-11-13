@@ -75,4 +75,7 @@ public class SysUser {
     /** 【2026-08-08 用户级 custom 授权】自定义数据范围时勾选的组织ID（瞬态，不入库） */
     @TableField(exist = false)
     private List<Long> orgIds;
+    /** 【WP1.1 2026-11-13 多角色并集】角色ID列表（瞬态，不入库）；空时回退单值 roleId 兼容旧客户端 */
+    @TableField(exist = false)
+    private List<Long> roleIds;
 }

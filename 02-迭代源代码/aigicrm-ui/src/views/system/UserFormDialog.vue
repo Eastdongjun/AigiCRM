@@ -46,8 +46,9 @@
       </el-row>
       <el-row :gutter="24">
         <el-col :span="12">
-          <el-form-item label="角色" prop="roleId">
-            <el-select v-model="editForm.roleId" style="width:100%" placeholder="选择角色">
+          <!-- 【WP1.1 2026-11-13 多角色并集】角色多选(动作并集+范围并集, 规格 WP1.1) -->
+          <el-form-item label="角色" prop="roleIds">
+            <el-select v-model="editForm.roleIds" multiple style="width:100%" placeholder="选择角色(可多选)">
               <el-option v-for="r in roles" :key="r.id" :label="r.roleName" :value="r.id" />
             </el-select>
           </el-form-item>

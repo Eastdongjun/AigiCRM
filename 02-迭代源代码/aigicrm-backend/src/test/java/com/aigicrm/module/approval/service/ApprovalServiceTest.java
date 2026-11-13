@@ -93,6 +93,7 @@ class ApprovalServiceTest {
     private static com.aigicrm.module.customer.service.CustomerService realCustomerService(BizCustomerMapper customerMapper) {
         return new com.aigicrm.module.customer.service.CustomerService(
                 customerMapper,
+                null,
                 mock(com.aigicrm.module.customer.mapper.BizCustomerLogMapper.class),
                 mock(com.aigicrm.module.customer.mapper.BizInvoiceMapper.class),
                 mock(com.aigicrm.module.customer.mapper.BizCustomerShareMapper.class),

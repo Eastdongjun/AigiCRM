@@ -26,6 +26,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -70,6 +71,15 @@ class StatisticsQueryServiceTest {
     private StatisticsQueryService service;
 
     @Mock private CustomerService customerService;
+    // 【WP1.5 2026-11-13】统计客户可见性单一源((customer,view))——用 @Spy 真实例(非 mock):
+    // filterVisible/visibleOwnerIds 走真过滤逻辑, 无安全上下文时"未桩=全量"与旧口径一致;
+    // 需要范围收窄的用例用 doReturn(...).when(spy).visibleOwnerIds() 显式钉范围
+    @org.mockito.Spy
+    private com.aigicrm.module.customer.service.CustomerVisibilityService customerVisibilityService =
+            new com.aigicrm.module.customer.service.CustomerVisibilityService(
+                    org.mockito.Mockito.mock(com.aigicrm.common.scope.OrgScopeResolver.class),
+                    org.mockito.Mockito.mock(com.aigicrm.module.system.service.RolePermScopeService.class),
+                    org.mockito.Mockito.mock(SysUserMapper.class));
     // 【G2 2026-09-21】visibleCustomers 依赖; 未 stub 时 resolveModuleUsers 返回 null(=全量),
     // 既有"全公司口径"聚合用例语义不变; 新政策行为由下方过滤用例单独钉住
     @Mock private com.aigicrm.common.scope.OrgScopeResolver orgScopeResolver;
@@ -121,7 +131,8 @@ class StatisticsQueryServiceTest {
     @Test
     void dailyStatsAppliesCurrentUserScopeToFileCounts() {
         when(customerService.dailyNewCustomers()).thenReturn(List.of());
-        when(customerService.getCurrentScopeUserIds()).thenReturn(List.of(7L, 8L));
+        // 【WP1.5】桩随单一源迁移
+        org.mockito.Mockito.doReturn(List.of(7L, 8L)).when(customerVisibilityService).visibleOwnerIds();
         when(fileMapper.selectCount(org.mockito.ArgumentMatchers.any())).thenReturn(0L);
 
         service.dailyStats();
@@ -138,7 +149,8 @@ class StatisticsQueryServiceTest {
     @Test
     void weeklyStatsAppliesCurrentUserScopeToFileCounts() {
         when(customerService.weeklyNewCustomers()).thenReturn(List.of());
-        when(customerService.getCurrentScopeUserIds()).thenReturn(List.of(7L));
+        // 【WP1.5】统计范围改走 CustomerVisibilityService((customer,view))——桩随单一源迁移
+        org.mockito.Mockito.doReturn(List.of(7L)).when(customerVisibilityService).visibleOwnerIds();
         when(fileMapper.selectCount(org.mockito.ArgumentMatchers.any())).thenReturn(0L);
 
         service.weeklyStats();
@@ -266,7 +278,8 @@ class StatisticsQueryServiceTest {
 
     @Test
     void teamActivitiesAppliesScopeToEveryActivitySource() {
-        when(customerService.getCurrentScopeUserIds()).thenReturn(List.of(7L));
+        // 【WP1.5】团队动态可见人员=客户可见负责人(customer:view 单一源)
+        org.mockito.Mockito.doReturn(List.of(7L)).when(customerVisibilityService).visibleOwnerIds();
         when(customerLogMapper.selectList(org.mockito.ArgumentMatchers.any())).thenReturn(List.of());
         when(incentiveRecordMapper.selectList(org.mockito.ArgumentMatchers.any())).thenReturn(List.of());
         when(fileMapper.selectList(org.mockito.ArgumentMatchers.any())).thenReturn(List.of());
@@ -433,8 +446,9 @@ class StatisticsQueryServiceTest {
             security.when(com.aigicrm.security.SecurityUtils::getCurrentUserId).thenReturn(7L);
             security.when(com.aigicrm.security.SecurityUtils::getCurrentUser).thenReturn(org.mockito.Mockito.mock(com.aigicrm.security.SecurityUser.class));
             security.when(com.aigicrm.security.SecurityUtils::isAdmin).thenReturn(false);
-            when(orgScopeResolver.resolveModuleUsers(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.eq("statistics")))
-                    .thenReturn(java.util.List.of(7L));
+            // 【WP1.5 2026-11-13 锁定决策#7】统计过滤来源动作=(customer,view) 单一源,
+            // (statistics,view) 档退役——桩随单一源迁移到 CustomerVisibilityService
+            org.mockito.Mockito.doReturn(java.util.List.of(7L)).when(customerVisibilityService).visibleOwnerIds();
 
             var result = service.indicatorStats();
 
@@ -449,7 +463,7 @@ class StatisticsQueryServiceTest {
      */
     @Test
     void analysis_emptyScopeSet_appliesFalsePredicateInsteadOfEmptyIn() {
-        when(customerService.getCurrentScopeUserIds()).thenReturn(List.of());
+        org.mockito.Mockito.doReturn(List.of()).when(customerVisibilityService).visibleOwnerIds();
         when(customerMapper.selectCount(org.mockito.ArgumentMatchers.any())).thenReturn(0L);
         when(fileMapper.selectCount(org.mockito.ArgumentMatchers.any())).thenReturn(0L);
         when(deptMapper.selectList(org.mockito.ArgumentMatchers.any())).thenReturn(List.of());
@@ -488,7 +502,7 @@ class StatisticsQueryServiceTest {
      */
     @Test
     void teamActivities_emptyScopeSet_returnsEmptyWithoutQueryingSources() {
-        when(customerService.getCurrentScopeUserIds()).thenReturn(List.of());
+        org.mockito.Mockito.doReturn(List.of()).when(customerVisibilityService).visibleOwnerIds();
 
         var result = service.teamActivities();
 

@@ -32,7 +32,7 @@ class IncentiveReadRankingTest {
     private final JdbcTemplate jdbc = mock(JdbcTemplate.class);
 
     private IncentiveService service() {
-        return new IncentiveService(null, null, null, null, null, null, null, jdbc);
+        return new IncentiveService(null, null, null, null, null, null, null, null, jdbc);
     }
 
     private Map<String, Object> row(long userId, String name, String dept, int published, int read, int unread) {

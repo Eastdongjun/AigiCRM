@@ -170,14 +170,16 @@ describe('PermScopeManager 权限码 → 后端 (module, action) 显式映射', 
 
   it('只对真实消费的权限码显示范围控件', async () => {
     const wrapper = await mountWithPermissions(['system:config:view'], ['admin'])
-    // 【2026-11-03 范围对账】incentive/file 为死配置已摘; statistics/score 真消费已补
+    // 【2026-11-03 范围对账】incentive/file 为死配置已摘; score 真消费已补
+    // 【WP1.5 2026-11-13 锁定决策#7】statistics:view 数据范围档退役(只做入口码, 统计走 customer:view 单一源)——
+    // 从可配范围清单摘除, 与后端 CONSUMED_AXIS 同步
     for (const p of ['customer:view', 'customer:edit', 'customer:delete', 'customer:finance:edit',
       'reminder:view', 'approval:view', 'task:view', 'sea:view', 'system:log:view',
-      'statistics:view', 'score:view']) {
+      'score:view']) {
       expect(wrapper.vm.isScopeDriven({ permission: p }), p).toBe(true)
     }
     for (const p of ['system:user:add', 'system:role:edit', 'sea:config', 'customer:date',
-      'incentive:view', 'file:view', 'system:menu:view']) {
+      'incentive:view', 'file:view', 'system:menu:view', 'statistics:view']) {
       expect(wrapper.vm.isScopeDriven({ permission: p }), p).toBe(false)
     }
     // 七档范围选项与角色/人员表单一致（含 custom）

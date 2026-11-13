@@ -98,14 +98,25 @@
         </div>
         <el-icon class="stat-icon" :size="22"><Reading /></el-icon>
       </div>
+      <!-- 【WP1.6 2026-11-13 徽标语义】标题=数字语义一致: "待我审批"=审批人本人的待办(pending),
+           原副行"本月通过/驳回"是数据范围级数字(审批总览语义), 不再挂在"待我审批"标题下——
+           拆出独立"审批总览"卡(approval:view 范围口径)承载范围级数字 -->
       <div class="stat-card drill" v-if="canViewApprovals" role="button" tabindex="0"
         @click="$router.push('/approval')" @keydown="onCardKeydown($event, () => $router.push('/approval'))">
         <div class="stat-info">
           <div class="stat-label">待我审批</div>
           <div class="stat-num">{{ stats.approvalStats?.pending || 0 }}</div>
-          <div class="stat-sub">本月通过 {{ stats.approvalStats?.approvedThisMonth || 0 }} · 驳回 {{ stats.approvalStats?.rejectedThisMonth || 0 }}</div>
+          <div class="stat-sub">我是审批人的待办单</div>
         </div>
         <el-icon class="stat-icon is-amber" :size="22"><Checked /></el-icon>
+      </div>
+      <div class="stat-card" v-if="canViewApprovals">
+        <div class="stat-info">
+          <div class="stat-label">审批总览</div>
+          <div class="stat-num">{{ stats.approvalStats?.reviewing || 0 }}</div>
+          <div class="stat-sub">范围内进行中 · 本月通过 {{ stats.approvalStats?.approvedThisMonth || 0 }} · 驳回 {{ stats.approvalStats?.rejectedThisMonth || 0 }}</div>
+        </div>
+        <el-icon class="stat-icon" :size="22"><DataAnalysis /></el-icon>
       </div>
       <div class="stat-card" v-if="!isSalesRole">
         <div class="stat-info">

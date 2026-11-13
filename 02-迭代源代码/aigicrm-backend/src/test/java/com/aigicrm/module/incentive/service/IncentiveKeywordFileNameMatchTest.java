@@ -61,6 +61,7 @@ class IncentiveKeywordFileNameMatchTest {
                 mock(com.aigicrm.module.customer.mapper.BizCustomerMapper.class),
                 mock(com.aigicrm.module.system.mapper.SysDeptMapper.class),
                 mock(com.aigicrm.common.scope.OrgScopeResolver.class),
+                null,
                 mock(org.springframework.jdbc.core.JdbcTemplate.class));
 
         try (MockedStatic<com.aigicrm.security.SecurityUtils> m = mockStatic(com.aigicrm.security.SecurityUtils.class)) {

@@ -452,6 +452,7 @@ class PermissionSecurityFixTest {
             when(rps.anchorOf(any(), any(), any())).thenReturn(com.aigicrm.common.scope.ScopeRequest.AnchorType.OWNER);
             com.aigicrm.module.customer.service.CustomerService cs = new com.aigicrm.module.customer.service.CustomerService(
                     mock(com.aigicrm.module.customer.mapper.BizCustomerMapper.class),
+                    null,
                     mock(com.aigicrm.module.customer.mapper.BizCustomerLogMapper.class),
                     mock(com.aigicrm.module.customer.mapper.BizInvoiceMapper.class),
                     mock(com.aigicrm.module.customer.mapper.BizCustomerShareMapper.class),

@@ -239,6 +239,10 @@ public class SysUserService {
             u.setOrgIds(userOrgMapper.selectByUserId(id).stream()
                     .map(com.aigicrm.module.system.entity.SysUserOrg::getOrgId).toList());
         }
+        // 【WP1.1 2026-11-13 多角色】回填全部角色 id 供编辑表单多选回显(列表行仅 LIMIT 1 单角色)
+        u.setRoleIds(userRoleMapper.selectList(
+                        new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getUserId, id))
+                .stream().map(SysUserRole::getRoleId).distinct().toList());
         return u;
     }
 
@@ -380,17 +384,18 @@ public class SysUserService {
         if (!StringUtils.hasText(user.getRealName())) {
             throw new BusinessException("姓名不能为空");
         }
-        if (user.getRoleId() == null) {
+        if (effectiveRoleIds(user) == null || effectiveRoleIds(user).isEmpty()) {
             throw new BusinessException("角色不能为空");
         }
         if (!StringUtils.hasText(user.getPhone())) {
             throw new BusinessException("手机号不能为空");
         }
-        if (!StringUtils.hasText(user.getDataScopeOverride())) {
-            throw new BusinessException("数据范围不能为空");
-        }
+        // 【WP1.1 2026-11-13】"数据范围不能为空"强制校验退役: 空覆盖=跟随角色并集(合法配置),
+        // 并集模型下角色各自携带范围, 用户级覆盖只是"额外范围"(只能加)
         validateDataScopeOverride(user.getDataScopeOverride());
-        validateGrantableRoleAndScope(user.getRoleId(), user.getDataScopeOverride());
+        for (Long rid : effectiveRoleIds(user)) {
+            validateGrantableRoleAndScope(rid, user.getDataScopeOverride());
+        }
         // 检查用户名唯一性
         Long count = userMapper.selectCount(
                 new LambdaQueryWrapper<SysUser>().eq(SysUser::getUsername, user.getUsername()).eq(SysUser::getDeleted, 0)
@@ -425,11 +430,11 @@ public class SysUserService {
         assertTargetOrgVisible(user.getDeptId(), user.getOfficeId(), user.getOrgId());
         userMapper.insert(user);
 
-        // 分配角色
-        if (user.getRoleId() != null) {
+        // 【WP1.1】分配角色(多角色并集, 去重顺序保留): roleIds 优先, 空时回退单值 roleId
+        for (Long rid : effectiveRoleIds(user)) {
             SysUserRole ur = new SysUserRole();
             ur.setUserId(user.getId());
-            ur.setRoleId(user.getRoleId());
+            ur.setRoleId(rid);
             userRoleMapper.insert(ur);
         }
         // 【2026-08-08 用户级 custom 授权】custom 时保存个人授权组织
@@ -440,17 +445,34 @@ public class SysUserService {
         return tempPassword;
     }
 
+    /**
+     * 【WP1.1 2026-11-13 多角色】生效角色列表: roleIds 非空优先(去重保序), 否则回退单值 roleId;
+     * 两者皆空返回 null(调用方判"角色不能为空"/跳过角色变更)。
+     */
+    private java.util.List<Long> effectiveRoleIds(SysUser user) {
+        if (user.getRoleIds() != null && !user.getRoleIds().isEmpty()) {
+            return new java.util.ArrayList<>(new java.util.LinkedHashSet<>(user.getRoleIds()));
+        }
+        if (user.getRoleId() != null) return java.util.List.of(user.getRoleId());
+        return null;
+    }
+
     @Transactional
     public void update(SysUser user) {
         SysUser existing = userMapper.selectById(user.getId());
         securityAudit.userAdminEvent("user_update", user.getId(),
                 existing != null ? existing.getUsername() : null);
         if (existing == null) throw new BusinessException("用户不存在");
-        if (!StringUtils.hasText(user.getDataScopeOverride())) {
-            throw new BusinessException("数据范围不能为空");
-        }
+        // 【WP1.1 2026-11-13】"数据范围不能为空"强制校验退役(与 create 同口径: 空覆盖=跟随角色并集)
         validateDataScopeOverride(user.getDataScopeOverride());
-        validateGrantableRoleAndScope(user.getRoleId(), user.getDataScopeOverride());
+        java.util.List<Long> targetRoleIds = effectiveRoleIds(user);
+        if (targetRoleIds != null) {
+            for (Long rid : targetRoleIds) {
+                validateGrantableRoleAndScope(rid, user.getDataScopeOverride());
+            }
+        } else {
+            validateGrantableRoleAndScope(user.getRoleId(), user.getDataScopeOverride());
+        }
 
         // 【P0 2026-10-17】非 admin 更新目标用户时，目标部门/办事处/组织必须在可见范围内；
         // orgId 与 create 同口径随部门重算（前端不传 orgId，不能作为唯一校验依据）。
@@ -478,17 +500,34 @@ public class SysUserService {
         existing.setPermVersion(null);
         userMapper.updateById(existing);
 
-        // 更新角色
-        if (user.getRoleId() != null) {
-            // 【2026-08-14 RBAC 收敛】单角色替换前保留该用户**当前已绑定**的激励载体角色(分享可见/全量查看)。
+        // 【WP1.1】更新角色(多角色并集): roleIds 优先整表替换; 空时保持旧单值 roleId 兼容路径
+        if (targetRoleIds != null && !targetRoleIds.isEmpty()) {
+            // 【2026-08-14 RBAC 收敛】替换前保留该用户**当前已绑定**的激励载体角色(分享可见/全量查看)。
             // ⚠️ 只回插现有绑定：若回插全部 incentive_% 角色，未授权"全量查看"的用户会被任意一次编辑静默提权，
             // 且面板 revoke 的解绑会在下次编辑时复活（评审 P1·静默提权，2026-08-14 修复）
             java.util.List<Long> existingIncentiveRoleIds = jdbc.queryForList(
                     "SELECT r.id FROM sys_role r JOIN sys_user_role ur ON ur.role_id = r.id " +
                             "WHERE ur.user_id = ? AND r.role_code LIKE 'incentive\\_%'", Long.class, existing.getId());
             userRoleMapper.delete(new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getUserId, user.getId()));
+            java.util.Set<Long> dedup = new java.util.LinkedHashSet<>(targetRoleIds);
+            for (Long rid : dedup) {
+                SysUserRole ur = new SysUserRole();
+                ur.setUserId(existing.getId());
+                ur.setRoleId(rid);
+                userRoleMapper.insert(ur);
+            }
+            for (Long irId : existingIncentiveRoleIds) {
+                jdbc.update("INSERT INTO sys_user_role (user_id, role_id) VALUES (?,?) ON DUPLICATE KEY UPDATE role_id=role_id",
+                        existing.getId(), irId);
+            }
+        } else if (user.getRoleId() != null) {
+            // 旧客户端单值兼容(不再插入多条)
+            java.util.List<Long> existingIncentiveRoleIds = jdbc.queryForList(
+                    "SELECT r.id FROM sys_role r JOIN sys_user_role ur ON ur.role_id = r.id " +
+                            "WHERE ur.user_id = ? AND r.role_code LIKE 'incentive\\_%'", Long.class, existing.getId());
+            userRoleMapper.delete(new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getUserId, user.getId()));
             SysUserRole ur = new SysUserRole();
-            ur.setUserId(user.getId());
+            ur.setUserId(existing.getId());
             ur.setRoleId(user.getRoleId());
             userRoleMapper.insert(ur);
             for (Long irId : existingIncentiveRoleIds) {

@@ -287,9 +287,11 @@ const loadConfigs = async () => {
     if (retentionRaw !== undefined && retentionRaw !== null && retentionRaw !== '' && Number.isFinite(retentionNum)) {
       configMap[RETENTION_KEY] = String(Math.min(RETENTION_MAX, Math.max(0, Math.trunc(retentionNum))))
     }
-    // 系统级数据范围开关:DB 无行时默认开启(与后端 getBooleanValue 缺省 true 一致),首存即持久化
-    configMap['perm.superior.see.subordinate'] = normalizeSwitchValue(configMap['perm.superior.see.subordinate'], 'true')
-    configMap['perm.org.leader.see.org'] = normalizeSwitchValue(configMap['perm.org.leader.see.org'], 'true')
+    // 【WP1.4 2026-11-13 锁定决策#8】系统级数据范围开关:缺行/脏值归一为**关**(与后端
+    // getBooleanValue 缺省 false 的 fail-closed 口径一致; 旧前端缺行归一 'true' 是 fail-open 假象)。
+    // 迁移 V2026.11.13.1 已为缺行环境补显式 'false', 此处口径仅兜底展示。
+    configMap['perm.superior.see.subordinate'] = normalizeSwitchValue(configMap['perm.superior.see.subordinate'], 'false')
+    configMap['perm.org.leader.see.org'] = normalizeSwitchValue(configMap['perm.org.leader.see.org'], 'false')
     // 客户默认共享规则:从 customer.auto_share(JSON 字符串)回填到 autoShare
     const asRaw = configMap['customer.auto_share']
     if (asRaw) {

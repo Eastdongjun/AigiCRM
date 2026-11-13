@@ -314,6 +314,7 @@ class SeaServiceTest {
         // cleanPendingReminders 仍可 verify(末尾两断言依赖)
         CustomerService customerService = org.mockito.Mockito.spy(new CustomerService(
                 custMapper,
+                null,
                 mock(com.aigicrm.module.customer.mapper.BizCustomerLogMapper.class),
                 mock(com.aigicrm.module.customer.mapper.BizInvoiceMapper.class),
                 mock(com.aigicrm.module.customer.mapper.BizCustomerShareMapper.class),

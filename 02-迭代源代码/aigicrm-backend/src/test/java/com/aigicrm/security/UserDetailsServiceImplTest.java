@@ -76,15 +76,17 @@ class UserDetailsServiceImplTest {
     }
 
     @Test
-    void overrideWinsWhenNonBlank() {
+    void overrideAppendsWhenNonBlank() {
         SysUser user = baseUser();
         user.setDataScopeOverride("team");
         stubCommonLoad(user, roleWithDeptScope());
 
         SecurityUser securityUser = (SecurityUser) service.loadUserByUsername("1");
 
-        // 用户级 override 覆盖角色级 dept
-        assertEquals("team", securityUser.getDataScope());
+        // 【WP1.1 2026-11-13 并集语义】覆盖=追加: dataScopes=[dept,team] 逐 code 并集解析;
+        // 展示字段取最宽值 dept(4)<team(7)。旧"override 整体取代角色"语义随锁定决策#1 退役。
+        assertEquals("dept", securityUser.getDataScope());
+        assertEquals(List.of("dept", "team"), securityUser.getDataScopes());
     }
 
     @Test
@@ -139,9 +141,10 @@ class UserDetailsServiceImplTest {
                 "单值兼容字段保留 min-rank 结果：dept(4) < team(7)");
     }
 
-    /** 用户级覆盖存在 → dataScopes 清空，并集路径失效（用户级 > 角色级，整体取代） */
+    /** 【WP1.1 2026-11-13 并集语义】用户级覆盖=追加到角色并集("额外范围只能加"), 不再清空 dataScopes;
+     *  展示用 dataScope 取并集最宽值(dept rank4 < team rank7 → dept) */
     @Test
-    void overrideClearsMultiRoleDataScopes() {
+    void overrideAppendsToMultiRoleDataScopes() {
         SysUser user = baseUser();
         user.setDataScopeOverride("team");
         SysRole deptRole = roleWithDeptScope();
@@ -160,9 +163,10 @@ class UserDetailsServiceImplTest {
 
         SecurityUser securityUser = (SecurityUser) service.loadUserByUsername("1");
 
-        assertEquals("team", securityUser.getDataScope());
-        assertTrue(securityUser.getDataScopes().isEmpty(),
-                "用户级覆盖应清空并集列表，OrgScopeResolver 走单值路径（覆盖整体取代角色并集）");
+        assertEquals("dept", securityUser.getDataScope(),
+                "展示字段取并集最宽值: dept(4) < team(7)");
+        assertEquals(List.of("dept", "team"), securityUser.getDataScopes(),
+                "覆盖改为追加(去重), 不再清空并集列表——锁定决策#1 数据范围并集");
     }
 
     // ==================== Redis 权限缓存：命中重组（2026-08-09）+ 版本自愈（2026-08-14） ====================

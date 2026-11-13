@@ -58,6 +58,7 @@ class CustomerFinanceAuditLogTest {
     private CustomerService newService() {
         return new CustomerService(
                 customerMapper,
+                null,
                 mock(com.aigicrm.module.customer.mapper.BizCustomerLogMapper.class),
                 invoiceMapper,
                 mock(com.aigicrm.module.customer.mapper.BizCustomerShareMapper.class),

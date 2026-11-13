@@ -43,6 +43,8 @@ public class CustomerService {
     private static final int GROUP_NAME_LIMIT = 200;
 
     private final BizCustomerMapper customerMapper;
+    /** 【WP1.5 2026-11-13】可见负责人单一源((customer,view)); 本类其余 (customer,view) 直查路径后续 WP 收敛 */
+    private final CustomerVisibilityService customerVisibilityService;
     private final BizCustomerLogMapper customerLogMapper;
     private final BizInvoiceMapper invoiceMapper;
     private final BizCustomerShareMapper shareMapper;
@@ -1294,24 +1296,11 @@ public class CustomerService {
      * 解析当前用户按数据范围可见的用户 ID 集合；返回 null 表示全部可见（all 范围）
      * 【用途】统计/报表等跨实体查询复用与 applyDataScope 同一口径（self/dept/dept_and_children/org/custom）
      * 【修复 FEAT-20260804-DICT-DEPT-READ】经营分析/日报周报此前全量查询，销售员可见全公司数据
+     * 【WP1.5 2026-11-13】口径切换: (statistics, view) 数据范围退役(锁定决策#7), 统一走
+     * CustomerVisibilityService 的 (customer, view) 单一源——可见负责人=客户可见负责人。
      */
     public List<Long> getCurrentScopeUserIds() {
-        // 【批② 2026-08-10 统一数据访问层】统计/报表口径: OWNER 锚点走统一解析。
-        // 语义与旧实现完全一致(未配置 role_perm_scope 时回退 dataScope 多角色并集+系统开关),
-        // 但实现单一化——不再有第二套 switch 分支(旧 org/org_and_children/dept_and_children/custom
-        // 分支已删除, 全部由 OrgScopeResolver.resolveScope 的 OWNER 解析覆盖)。
-        var user = SecurityUtils.getCurrentUser();
-        if (user == null) return List.of();
-        if (SecurityUtils.isAdmin()) return null; // null=全部
-        com.aigicrm.common.scope.ScopeRequest req = com.aigicrm.common.scope.ScopeRequest.builder()
-                .user(user)
-                .module("statistics")
-                .action("view")
-                // 【P2-3 2026-08-11】锚点与列表同源: 读 role_perm_scope.anchorOf 配置(未配置默认 OWNER),
-                // 此前硬编码 OWNER 使统计口径在管理员配置 ORG 锚点后与列表脱节。
-                .anchor(rolePermScopeService.anchorOf(user, "statistics", "view"))
-                .build();
-        return scopeResolver.resolveScope(req).getVisibleUserIds();
+        return customerVisibilityService.visibleOwnerIds();
     }
 
     /**

@@ -38,12 +38,14 @@ public class SysConfigService {
     }
 
     public void update(SysConfig config) {
+        assertConfigWriteAllowed(config.getConfigKey());
         configMapper.updateById(config);
     }
 
     public void batchUpdate(List<SysConfig> configs) {
         for (SysConfig config : configs) {
             if (config.getConfigKey() == null) continue;
+            assertConfigWriteAllowed(config.getConfigKey());
             // 按 configKey upsert:存在则更新值,不存在则插入(兼容生产缺失的配置键,如 system.logo)
             SysConfig existing = configMapper.selectOne(
                     new LambdaQueryWrapper<SysConfig>().eq(SysConfig::getConfigKey, config.getConfigKey()));
@@ -54,15 +56,42 @@ public class SysConfigService {
                         && !existing.getConfigValue().equals(config.getConfigValue())) {
                     recordRuleVersion(config.getConfigKey(), existing.getConfigValue(), config.getConfigValue());
                 }
+                // 【WP1.4】上级/负责人开关变更审计(旧值/新值/操作人)——权限语义键不静默变更;
+                // 旧值必须在 set 前捕获
+                String oldVal = existing.getConfigValue();
                 existing.setConfigValue(config.getConfigValue());
                 if (config.getDescription() != null) existing.setDescription(config.getDescription());
                 configMapper.updateById(existing);
+                if (ADMIN_ONLY_KEYS.contains(config.getConfigKey())
+                        && oldVal != null
+                        && !oldVal.equals(config.getConfigValue())) {
+                    securityAudit.permissionChange("perm_switch_changed",
+                            "key=" + config.getConfigKey()
+                                    + " old=" + oldVal
+                                    + " new=" + config.getConfigValue());
+                }
             } else {
                 config.setId(null);
                 configMapper.insert(config);
             }
         }
     }
+
+    /** 【WP1.4 2026-11-13 锁定决策#8】上级/负责人开关 admin-only: 非 admin 写入即 400, 并写审计 */
+    private static final java.util.Set<String> ADMIN_ONLY_KEYS = java.util.Set.of(
+            com.aigicrm.common.scope.OrgScopeResolver.KEY_SUPERIOR_SEE_SUBORDINATE,
+            com.aigicrm.common.scope.OrgScopeResolver.KEY_ORG_LEADER_SEE_ORG);
+
+    private void assertConfigWriteAllowed(String key) {
+        if (key == null || !ADMIN_ONLY_KEYS.contains(key)) return;
+        var user = com.aigicrm.security.SecurityUtils.getCurrentUser();
+        if (user != null && com.aigicrm.security.SecurityUtils.isAdmin()) return;
+        securityAudit.permissionChange("perm_switch_denied_non_admin",
+                "key=" + key + " actor=" + (user != null ? user.getUsername() : "anonymous"));
+        throw new com.aigicrm.common.BusinessException("该开关仅系统管理员可修改");
+    }
+
+    private final com.aigicrm.security.SecurityAuditService securityAudit;
 
     /** 规则键前缀(变更需记版本):客户规则/评分规则等 */
     private static boolean isRuleKey(String key) {

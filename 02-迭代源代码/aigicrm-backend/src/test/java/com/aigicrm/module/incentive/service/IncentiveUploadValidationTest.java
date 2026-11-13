@@ -69,7 +69,7 @@ class IncentiveUploadValidationTest {
 
     private IncentiveService newService() {
         return new IncentiveService(categoryMapper, recordMapper, userMapper,
-                fileMapper, customerMapper, deptMapper, scopeResolver, jdbc);
+                fileMapper, customerMapper, deptMapper, scopeResolver, null, jdbc);
     }
 
     /** 合法入参：分类+客户+一个安装前文件，visit 类积分 10 */

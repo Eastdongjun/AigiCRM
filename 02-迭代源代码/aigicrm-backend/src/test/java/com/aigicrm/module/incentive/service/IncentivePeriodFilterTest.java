@@ -60,7 +60,7 @@ class IncentivePeriodFilterTest {
 
     private IncentiveService service() {
         return new IncentiveService(categoryMapper, recordMapper, userMapper,
-                fileMapper, customerMapper, deptMapper, scopeResolver, jdbc);
+                fileMapper, customerMapper, deptMapper, scopeResolver, null, jdbc);
     }
 
     @SuppressWarnings("unchecked")

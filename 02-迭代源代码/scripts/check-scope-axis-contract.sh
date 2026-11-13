@@ -16,16 +16,16 @@ fail() { echo "FAIL: $1" >&2; exit 1; }
 
 # ---- 动作轴声明表: module|action|源码锚正则|声明 ----
 # 只列"进入 role_perm_scope / OrgScopeResolver"的档位; 每行锚正则必须在源码命中。
-# 【已知口径问题 2026-11-11(评估报告 P2#7 根因, 待拍板)】统计面一部分走 (customer,view)
-# 一部分走 (statistics,view)——本表如实双列, 拍板统一后删一行。
-AXIS='customer|view|\.module\("customer"\)|客户列表/详情/导出/统计基础口径
+# 【WP1.5 2026-11-13 锁定决策#7】(statistics,view) 数据范围档退役: statistics:view 只做入口码,
+# 统计面统一走 (customer,view) 单一源(CustomerVisibilityService)——原"双 key 并存待拍板"行删除,
+# 消费点已清零(grep 证), 存量配置行走 V2026.11.13.1 清理。
+AXIS='customer|view|\.module\("customer"\)|客户列表/详情/导出/统计基础口径(统计来源动作, WP1.5 单一源)
 customer|edit|canAccessCustomer\(SecurityUtils\.getCurrentUser\(\), "edit"|编辑范围(canEdit, 池内客户另走池 PERM_EDIT)
 customer|delete|canAccessCustomer\(SecurityUtils\.getCurrentUser\(\), "delete"|删除范围
 customer|finance_edit|canAccessCustomer\(SecurityUtils\.getCurrentUser\(\), "finance_edit"|开票回款编辑范围(2026-11-03 拆码)
 file|view|matrixActionOf\(action\)|文件组织矩阵 view 档(view/download 归此档)
 file|manage|case P_UPLOAD, P_RENAME, P_REPLACE, P_SHARE, P_EDIT -> "manage"|文件矩阵 manage 档(upload/rename/replace/share/edit)
 file|delete|case P_DELETE -> "delete"|文件矩阵 delete 档(拍板③独立)
-statistics|view|resolveModuleUsers\([a-zA-Z]+, "statistics"\)|统计/排行可见用户集(与 customer.view 双 key 并存, 待拍板归一)
 approval|view|resolveModuleUsers\(SecurityUtils\.getCurrentUser\(\), "approval"\)|审批待办可见集(仅 view 档)
 reminder|view|resolveModuleUsers\(SecurityUtils\.getCurrentUser\(\), "reminder"\)|提醒可见集(仅 view 档)
 sea|view|resolveModuleUsers\(SecurityUtils\.getCurrentUser\(\), "sea"\)|公海列表可见集(池级编辑走池名单, 不入此表)
@@ -102,4 +102,4 @@ if [ "$java_axis" != "$shell_axis" ]; then
 fi
 jcnt=$(echo "$java_axis" | grep -c .)
 
-echo "PASS: 配置面=消费面 对账($cnt 档位: customer×4 / file×3 / statistics+approval+reminder+sea 仅 view; 统计双 key 已声明待拍板; Java写入校验集 $jcnt 档对账一致)"
+echo "PASS: 配置面=消费面 对账($cnt 档位: customer×4 / file×3 / approval+reminder+sea 仅 view; statistics:view 数据范围档已退役(WP1.5 锁定决策#7, 统计走 customer:view 单一源); Java写入校验集 $jcnt 档对账一致)"

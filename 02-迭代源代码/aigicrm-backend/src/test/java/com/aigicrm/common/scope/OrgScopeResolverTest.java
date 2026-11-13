@@ -631,12 +631,51 @@ class OrgScopeResolverTest {
             return List.of();
         });
         SecurityUser user = su(9L, "custom", 10L);
-        user.setManagedOrgIds(List.of(10L, 20L));
+        // 【WP1.2 2026-11-13】解析改走原始行 refs(includeChildren=1 才展开); managedOrgIds 不再参与 custom 解析
+        user.setManagedOrgRefs(java.util.List.of(
+                new com.aigicrm.security.ManagedOrgRef(10L, 1),
+                new com.aigicrm.security.ManagedOrgRef(20L, 1)));
         OrgScopeResolver resolver = new OrgScopeResolver(userMapper, deptMapper, configService,
                 mock(com.aigicrm.module.system.mapper.SysRoleOrgMapper.class), null);
 
         assertEquals(Set.of(10L, 11L, 20L, 21L),
                 new LinkedHashSet<>(resolver.resolveDeptScope(user, "custom")));
+    }
+
+    /** 【WP1.2 2026-11-13 验收】includeChildren=0 只到本组织, 不展开子树(旧实现预展开丢失标志越权放宽) */
+    @Test
+    void resolveDeptScope_customStrictlyHonorsIncludeChildrenFalse() {
+        // 注: 不 stub deptMapper.selectList——includeChildren=0 时解析器不应发起子树查询(这也是断言的一部分)
+        org.mockito.Mockito.lenient().when(deptMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of());
+        SecurityUser user = su(9L, "custom", 10L);
+        user.setManagedOrgRefs(java.util.List.of(new com.aigicrm.security.ManagedOrgRef(10L, 0)));
+        OrgScopeResolver resolver = new OrgScopeResolver(userMapper, deptMapper, configService,
+                mock(com.aigicrm.module.system.mapper.SysRoleOrgMapper.class), null);
+
+        assertEquals(Set.of(10L),
+                new LinkedHashSet<>(resolver.resolveDeptScope(user, "custom")));
+    }
+
+    /** 【WP1.3 2026-11-13 验收】region 无大区祖先 fail-closed: 不再回退 findRoot 放大全集团(规格 1.3) */
+    @Test
+    void resolveDeptScope_regionWithoutAnchor_isInvisibleFailClosed() {
+        // dept 30 无任何 dept_type=2 祖先(parent=null 即到根)
+        org.mockito.Mockito.when(deptMapper.selectById(30L)).thenReturn(dept(30L, null));
+        SecurityUser user = su(9L, "region", 30L);
+        OrgScopeResolver resolver = new OrgScopeResolver(userMapper, deptMapper, configService,
+                mock(com.aigicrm.module.system.mapper.SysRoleOrgMapper.class), null);
+
+        assertEquals(List.of(), resolver.resolveDeptScope(user, "region"));
+    }
+
+    /** 【WP1.3 2026-11-13 验收】OWNER 锚 region 无祖先 → 空集(本解析器契约: 空=仅本人), 不回退集团根 */
+    @Test
+    void resolveRegion_withoutAncestor_returnsSelfOnly() {
+        org.mockito.Mockito.when(deptMapper.selectById(30L)).thenReturn(dept(30L, null));
+        OrgScopeResolver resolver = new OrgScopeResolver(userMapper, deptMapper, configService,
+                mock(com.aigicrm.module.system.mapper.SysRoleOrgMapper.class), null);
+
+        assertEquals(List.of(9L), resolver.resolveScope(su(9L, "region", 30L), "region"));
     }
 
     /** USER 级 `* *` 通配优先于 ROLE 级精确配置（主体层级 USER>ROLE, 如 NM100 场景） */

@@ -199,8 +199,9 @@ class SysUserDataScopeOverrideTest {
     }
 
     @Test
-    void updateRejectsBlankOverride() {
-        // 【2026-08-08 数据范围必选】空白/空 override 不再允许（"跟随角色/清空回写 NULL"行为已移除）
+    void updateBlankOverride_followsRolesAndNormalizesNull() {
+        // 【WP1.1 2026-11-13】"数据范围不能为空"强制校验退役(规格 1.1): 空白覆盖=跟随角色并集(合法配置),
+        // update 照常执行且归一为 null(配合 FieldStrategy.ALWAYS 落库清空)
         SysUserService service = newService();
         SysUser existing = new SysUser();
         existing.setId(1L);
@@ -210,7 +211,8 @@ class SysUserDataScopeOverrideTest {
         SysUser user = new SysUser();
         user.setId(1L);
         user.setDataScopeOverride("  ");
-        assertThrows(BusinessException.class, () -> service.update(user));
-        verify(userMapper, never()).updateById(any(SysUser.class));
+        service.update(user);
+        verify(userMapper).updateById(any(SysUser.class));
+        assertNull(existing.getDataScopeOverride(), "空白覆盖应归一为 null(跟随角色)");
     }
 }

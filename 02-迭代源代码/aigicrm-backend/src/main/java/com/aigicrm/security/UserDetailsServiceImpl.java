@@ -119,42 +119,44 @@ public class UserDetailsServiceImpl implements UserDetailsService {
             securityUser.setDataScope(bestScope.getCode());
 
             if (bestScope == DataScopeType.CUSTOM) {
-                List<Long> customOrgIds = new ArrayList<>();
-                List<SysRoleOrg> roleOrgs = roleOrgMapper.selectByUserId(uid);
-                for (SysRoleOrg ro : roleOrgs) {
-                    if (ro.getIncludeChildren() != null && ro.getIncludeChildren() == 1) {
-                        customOrgIds.addAll(deptMapper.selectDescendantIds(ro.getOrgId()));
-                    } else {
-                        customOrgIds.add(ro.getOrgId());
-                    }
-                }
-                securityUser.setManagedOrgIds(customOrgIds);
+                // 【WP1.2 2026-11-13】可见性解析改走原始行 refs(不预展开, 展开时机在 OrgScopeResolver);
+                // managedOrgIds 保持旧计算不动——它同时是 isOrgAdmin 管理通道
+                // (OrgAdminService.canManageUser/canManageOrg 消费), 本 WP 不改管理语义, 仅改数据解析。
+                securityUser.setManagedOrgIds(loadLegacyCustomOrgIds(uid));
+                securityUser.setManagedOrgRefs(loadCustomOrgRefs(uid));
             }
         }
 
         // ======================== 1b. 用户级数据范围覆盖（层2：用户级 > 角色级） ========================
-        // 仅覆盖 dataScope 字符串，不影响角色聚合的其他产物；空/未配置则跟随角色默认
-        // 覆盖存在时清空 dataScopes → OrgScopeResolver 走单值路径（用户级覆盖整体取代角色并集）
+        // 【WP1.1 2026-11-13 并集语义】override 改为**追加**到角色并集("额外范围只能加"),
+        // 不再清空 dataScopes 整体取代(旧"覆盖=替换"在并集模型下是收紧漏洞也是收紧假象)。
+        // 展示用 dataScope 同步取并集最宽值; 解析侧由 OrgScopeResolver 逐 code 并集。
         String override = user.getDataScopeOverride();
         if (override != null && !override.isBlank()) {
-            securityUser.setDataScope(override);
-            securityUser.setDataScopes(new ArrayList<>());
+            List<String> scopes = new ArrayList<>(securityUser.getDataScopes());
+            if (!scopes.contains(override)) scopes.add(override);
+            securityUser.setDataScopes(scopes);
+            securityUser.setDataScope(securityUser.getWidestDataScope());
         }
-        // 【2026-08-08 用户级自定义授权组织】override=custom 时加载个人授权组织（sys_user_org），
-        // 优先于角色级 sys_role_org（多个行政各配不同部门）。无个人授权则回退角色级。
+        // 【2026-08-08 用户级自定义授权组织】override=custom 时加载个人授权组织原始行（sys_user_org），
+        // 【WP1.2】refs 与角色级行**并集**装载(均不预展开), 不再"用户级行存在即取代角色级行";
+        // managedOrgIds(管理通道)保持旧"用户行存在即取代"语义不动。
         if ("custom".equals(override)) {
             List<com.aigicrm.module.system.entity.SysUserOrg> userOrgs = userOrgMapper.selectByUserId(uid);
             if (userOrgs != null && !userOrgs.isEmpty()) {
-                List<Long> customOrgIds = new ArrayList<>();
+                java.util.List<ManagedOrgRef> refs = new ArrayList<>(securityUser.getManagedOrgRefs());
+                List<Long> legacyIds = new ArrayList<>();
                 for (com.aigicrm.module.system.entity.SysUserOrg uo : userOrgs) {
                     if (uo.getOrgId() == null) continue;
+                    refs.add(new ManagedOrgRef(uo.getOrgId(), uo.getIncludeChildren()));
                     if (uo.getIncludeChildren() != null && uo.getIncludeChildren() == 1) {
-                        customOrgIds.addAll(deptMapper.selectDescendantIds(uo.getOrgId()));
+                        legacyIds.addAll(deptMapper.selectDescendantIds(uo.getOrgId()));
                     } else {
-                        customOrgIds.add(uo.getOrgId());
+                        legacyIds.add(uo.getOrgId());
                     }
                 }
-                securityUser.setManagedOrgIds(customOrgIds);
+                securityUser.setManagedOrgRefs(refs);
+                securityUser.setManagedOrgIds(legacyIds);
             }
         }
 
@@ -243,6 +245,33 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         return securityUser;
     }
 
+    /** 【WP1.2 2026-11-13】角色级自定义授权组织原始行(sys_role_org, 含 includeChildren, 不预展开) */
+    private java.util.List<ManagedOrgRef> loadCustomOrgRefs(Long uid) {
+        java.util.List<ManagedOrgRef> refs = new ArrayList<>();
+        for (SysRoleOrg ro : roleOrgMapper.selectByUserId(uid)) {
+            if (ro.getOrgId() == null) continue;
+            refs.add(new ManagedOrgRef(ro.getOrgId(), ro.getIncludeChildren()));
+        }
+        return refs;
+    }
+
+    /**
+     * 【WP1.2 2026-11-13】managedOrgIds 旧口径计算(预展开, 与重构前逐字节一致)——
+     * 仅供 isOrgAdmin 管理通道与 org_and_children 旧分支消费; 可见性解析已改走 refs。
+     */
+    private List<Long> loadLegacyCustomOrgIds(Long uid) {
+        List<Long> customOrgIds = new ArrayList<>();
+        for (SysRoleOrg ro : roleOrgMapper.selectByUserId(uid)) {
+            if (ro.getOrgId() == null) continue;
+            if (ro.getIncludeChildren() != null && ro.getIncludeChildren() == 1) {
+                customOrgIds.addAll(deptMapper.selectDescendantIds(ro.getOrgId()));
+            } else {
+                customOrgIds.add(ro.getOrgId());
+            }
+        }
+        return customOrgIds;
+    }
+
     /** 从 SecurityUser 提取可序列化的 PermissionContext（不含 password/authorities——由 permissions 重建） */
     private PermissionContext toContext(SecurityUser su) {
         PermissionContext ctx = new PermissionContext();
@@ -256,6 +285,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         ctx.setDataScope(su.getDataScope());
         ctx.setDataScopes(su.getDataScopes() != null ? su.getDataScopes() : new ArrayList<>());
         ctx.setManagedOrgIds(su.getManagedOrgIds() != null ? su.getManagedOrgIds() : new ArrayList<>());
+        ctx.setManagedOrgRefs(su.getManagedOrgRefs() != null ? su.getManagedOrgRefs() : new ArrayList<>());
         ctx.setGroupIds(su.getGroupIds() != null ? su.getGroupIds() : new ArrayList<>());
         ctx.setLegalEntityIds(su.getLegalEntityIds() != null ? su.getLegalEntityIds() : new ArrayList<>());
         ctx.setPositions(su.getPositions() != null ? su.getPositions() : new ArrayList<>());
@@ -281,6 +311,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         su.setDataScope(ctx.getDataScope());
         su.setDataScopes(ctx.getDataScopes());
         su.setManagedOrgIds(ctx.getManagedOrgIds());
+        su.setManagedOrgRefs(ctx.getManagedOrgRefs() != null ? ctx.getManagedOrgRefs() : new java.util.ArrayList<>());
         su.setPermVersion(ctx.getPermVersion());
         su.setGroupIds(ctx.getGroupIds());
         su.setLegalEntityIds(ctx.getLegalEntityIds());

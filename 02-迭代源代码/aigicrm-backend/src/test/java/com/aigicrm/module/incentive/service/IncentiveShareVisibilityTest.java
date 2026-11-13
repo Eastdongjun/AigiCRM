@@ -72,6 +72,7 @@ class IncentiveShareVisibilityTest {
                 mock(BizCustomerMapper.class),
                 mock(SysDeptMapper.class),
                 resolver,
+                null,
                 jdbc);
     }
 

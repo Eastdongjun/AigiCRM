@@ -49,7 +49,9 @@ public class RolePermScopeService {
     private static final java.util.Set<String> CONSUMED_AXIS = java.util.Set.of(
             "customer|view", "customer|edit", "customer|delete", "customer|finance_edit",
             "file|view", "file|manage", "file|delete",
-            "statistics|view", "sea|view", "incentive|stats_view",
+            // 【WP1.5 2026-11-13 锁定决策#7】statistics|view 数据范围档退役: statistics:view 只做入口码,
+            // 统计项按来源动作(customer:view 等)过滤——本表移除后写入面拒绝新增该档(存量行走清理迁移)
+            "sea|view", "incentive|stats_view",
             "task|view", "score|view", "system|view",
             "approval|view", "reminder|view");
 
@@ -303,6 +305,18 @@ public class RolePermScopeService {
                 throw new com.aigicrm.common.BusinessException(400,
                         "该档位(" + axisKey + ")后端未消费，禁止配置——请选择有效的功能×范围档");
             }
+            // 【WP1.3 2026-11-13 fail-closed】USER 级 region/office 档写入面拦截:
+            // 目标用户任职组织无对应 dept_type 祖先(大区=2/办事处=3)时拒绝配置(400)——
+            // 否则运行时解析 fail-closed 返回空集, 勾了等于没勾("配置成功但不生效"体验)
+            if (ScopeConfig.ASSIGNEE_USER.equals(assigneeType)
+                    && ("region".equals(scope) || "office".equals(scope))) {
+                int wantType = "region".equals(scope) ? 2 : 3;
+                if (!userHasAncestorOfType(assigneeKey, wantType)) {
+                    throw new com.aigicrm.common.BusinessException(400, wantType == 2
+                            ? "该用户不在任何大区下，无法配置“本大区”范围"
+                            : "该用户不在任何办事处下，无法配置“本办事处”范围");
+                }
+            }
             String anchor = cfg.get("anchor") != null ? cfg.get("anchor").toString() : "OWNER";
             if (!"OWNER".equalsIgnoreCase(anchor) && !"ORG".equalsIgnoreCase(anchor)) {
                 throw new com.aigicrm.common.BusinessException("非法的范围锚点取值: " + anchor);
@@ -344,6 +358,32 @@ public class RolePermScopeService {
         permissionCacheService.evictAll();
         // 【2026-08-14 缓存自愈】版本递增兜底：evict 漏网/Redis 写失败时缓存与 DB 版本比对自愈
         bumpAllPermVersions();
+    }
+
+    /**
+     * 【WP1.3 2026-11-13】用户任职组织链上是否存在指定 dept_type 祖先(大区=2/办事处=3)。
+     * 与 OrgScopeResolver.findAncestorOfType 同算法(parent_id 上行, 20 层防环), 独立 JDBC
+     * 实现避免反向依赖(Resolver 不依赖本服务, 本服务不注入 Mapper 树)。
+     */
+    private boolean userHasAncestorOfType(String userId, int deptType) {
+        try {
+            List<Long> deptIds = jdbc.queryForList(
+                    "SELECT dept_id FROM sys_user WHERE id=? AND deleted=0", Long.class, Long.valueOf(userId));
+            if (deptIds.isEmpty() || deptIds.get(0) == null) return false;
+            Long cur = deptIds.get(0);
+            for (int i = 0; i < 20 && cur != null; i++) {
+                List<Map<String, Object>> rows = jdbc.queryForList(
+                        "SELECT id, parent_id, dept_type FROM sys_dept WHERE id=?", cur);
+                if (rows.isEmpty()) return false;
+                Object t = rows.get(0).get("dept_type");
+                if (t != null && ((Number) t).intValue() == deptType) return true;
+                Object p = rows.get(0).get("parent_id");
+                cur = p != null ? ((Number) p).longValue() : null;
+            }
+            return false;
+        } catch (NumberFormatException e) {
+            return false; // assigneeKey 非法 → 视为无锚(fail-closed)
+        }
     }
 
     /** role_code 改名时迁移其全部范围配置(防止旧 code 孤儿化, 新 code 意外收紧) */

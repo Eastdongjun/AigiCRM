@@ -51,6 +51,7 @@ class CustomerStageAmountTest {
     private final SysConfigService configService = mock(SysConfigService.class);
     private final CustomerService service = new CustomerService(
             customerMapper,
+            null,
             mock(BizCustomerLogMapper.class),
             invoiceMapper,
             mock(BizCustomerShareMapper.class),

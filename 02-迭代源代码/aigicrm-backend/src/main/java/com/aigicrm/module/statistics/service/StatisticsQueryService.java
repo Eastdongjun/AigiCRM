@@ -173,6 +173,8 @@ public class StatisticsQueryService {
     }
 
     private final CustomerService customerService;
+    /** 【WP1.5 2026-11-13】客户可见性单一源(customer:view 口径), (statistics,view) 数据范围退役 */
+    private final com.aigicrm.module.customer.service.CustomerVisibilityService customerVisibilityService;
     // 【G2 2026-09-21】统计口径数据范围: 修复全员口径在租户插件关闭时跨集团泄露(审计Top1)
     private final com.aigicrm.common.scope.OrgScopeResolver orgScopeResolver;
     private final SeaService seaService;
@@ -422,21 +424,13 @@ public class StatisticsQueryService {
      */
 
     /**
-     * 【G2 2026-09-21】统计可见客户过滤(安全默认口径):
-     * admin 全量; 其余按 statistics 模块数据范围解析可见人员集合(resolveModuleUsers
-     * null=全量不过滤, 集团口径由租户插件/集团成员边界另行兜底), 客户按 ownerId 过滤,
-     * 未分配负责人的客户保持全员可见(否则任何范围下都不可见)。
-     * 原"核心指标全员可见不过滤"注释口径作废——统计范围必须 ≤ 明细可见范围(审计裁决)。
+     * 【G2 2026-09-21】统计可见客户过滤(安全默认口径)。
+     * 【WP1.5 2026-11-13】改走 CustomerVisibilityService 单一源(customer:view 来源动作):
+     * (statistics, view) 数据范围按锁定决策#7 退役, statistics:view 只做入口。
+     * 口径不变: admin 全量; 客户按 ownerId 过滤; 未分配负责人的客户保持全员可见。
      */
     private List<BizCustomer> visibleCustomers(List<BizCustomer> all) {
-        com.aigicrm.security.SecurityUser user = com.aigicrm.security.SecurityUtils.getCurrentUser();
-        if (user == null || com.aigicrm.security.SecurityUtils.isAdmin()) return all;
-        java.util.List<Long> visible = orgScopeResolver.resolveModuleUsers(user, "statistics");
-        if (visible == null) return all;
-        java.util.Set<Long> ids = new java.util.HashSet<>(visible);
-        return all.stream()
-                .filter(c -> c.getOwnerId() == null || ids.contains(c.getOwnerId()))
-                .collect(java.util.stream.Collectors.toList());
+        return customerVisibilityService.filterVisible(all);
     }
 
     public Map<String, Object> indicatorStats() {
@@ -844,8 +838,28 @@ public class StatisticsQueryService {
         var allDepts = deptMapper.selectList(
                 new LambdaQueryWrapper<SysDept>()
                         .eq(SysDept::getDeptType, 3));
+        // 【WP1.5 2026-11-13】办事处列表先按可见范围过滤(customer:view): 范围外办事处不再进入对比循环
+        // (此前靠 total==0 跳过, 范围外每处白跑 3 条 count; 输出口径不变, 只列有可见客户的办事处)
+        java.util.Set<Long> visibleOfficeIds = null;
+        {
+            List<Long> visOwners = customerVisibilityService.visibleOwnerIds();
+            if (visOwners != null) {
+                visibleOfficeIds = new java.util.HashSet<>();
+                if (!visOwners.isEmpty()) {
+                    LambdaQueryWrapper<BizCustomer> vwc = new LambdaQueryWrapper<>();
+                    vwc.eq(BizCustomer::getDeleted, 0)
+                       .notIn(BizCustomer::getStatus, "sea", "archived")
+                       .isNotNull(BizCustomer::getOfficeId)
+                       .in(BizCustomer::getOwnerId, visOwners);
+                    for (BizCustomer vc : customerMapper.selectList(vwc)) {
+                        visibleOfficeIds.add(vc.getOfficeId());
+                    }
+                }
+            }
+        }
         LocalDateTime monthStart = LocalDate.now().withDayOfMonth(1).atStartOfDay();
         for (var dept : allDepts) {
+            if (visibleOfficeIds != null && !visibleOfficeIds.contains(dept.getId())) continue; // 【WP1.5】范围外办事处不入列表
             LambdaQueryWrapper<BizCustomer> w = new LambdaQueryWrapper<>();
             w.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", "archived") // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
              .eq(BizCustomer::getOfficeId, dept.getId());
@@ -984,7 +998,8 @@ public class StatisticsQueryService {
         List<Map<String, Object>> activities = new ArrayList<>();
         // 【2026-08-08 设计规则（最终）：统计按账号数据范围】团队动态按当前账号数据范围过滤
         // （管理员全量 / 负责人本组织 / 销售本人）。visible=null 表示全量不过滤。
-        List<Long> visibleUserIds = customerService.getCurrentScopeUserIds();
+        // 【WP1.5 2026-11-13】口径切换 customer:view(可见人员=客户可见负责人集合)
+        List<Long> visibleUserIds = customerVisibilityService.visibleOwnerIds();
         boolean scopeAll = (visibleUserIds == null);
         // 【A6 2026-10-20 审计】空集守卫: ORG 锚点已在 OrgScopeResolver 展开为部门在职用户,
         // 但部门无在职用户/解析兜底返回空集时, in(空集合) 生成 IN () 语法错误(500)——
@@ -1096,7 +1111,8 @@ public class StatisticsQueryService {
      * 生成 IN () 语法错误→统计接口 500。空集语义=范围内无可见用户, 恒空结果, 不得报错也不得放行全量。
      */
     private void applyCustomerScope(LambdaQueryWrapper<BizCustomer> wrapper) {
-        List<Long> userIds = customerService.getCurrentScopeUserIds();
+        // 【WP1.5 2026-11-13】来源动作统一 (customer, view)——(statistics,view) 退役(锁定决策#7)
+        List<Long> userIds = customerVisibilityService.visibleOwnerIds();
         if (userIds == null) return; // all：不过滤
         if (userIds.isEmpty()) {
             wrapper.apply("1=0");
@@ -1107,7 +1123,8 @@ public class StatisticsQueryService {
 
     /** 同 applyCustomerScope 的空集守卫(上传者维度)【A6】 */
     private void applyFileScope(LambdaQueryWrapper<BizFile> wrapper) {
-        List<Long> userIds = customerService.getCurrentScopeUserIds();
+        // 【WP1.5】同口径切换 customer:view(WP4 再按来源动作细分为 file:view)
+        List<Long> userIds = customerVisibilityService.visibleOwnerIds();
         if (userIds == null) return; // all：不过滤
         if (userIds.isEmpty()) {
             wrapper.apply("1=0");

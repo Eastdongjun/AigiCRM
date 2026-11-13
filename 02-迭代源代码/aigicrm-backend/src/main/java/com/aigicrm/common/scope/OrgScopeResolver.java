@@ -34,6 +34,20 @@ public class OrgScopeResolver {
     /** 系统级开关配置键：组织负责人默认可见本组织整棵子树 */
     public static final String KEY_ORG_LEADER_SEE_ORG = "perm.org.leader.see.org";
 
+    /**
+     * 【WP1.4 2026-11-13】上级/负责人开关仅对 view_like 动作生效（锁定决策#8）：
+     * edit/delete/approve/share 等写动作解析时**不追加**开关集合——
+     * "customer|delete=self + 开关开 → 仍不能删下属客户"是验收红线。
+     * export 为只读语义（导出所见即列表所见）计入 view_like。
+     */
+    private static final java.util.Set<String> VIEW_LIKE_ACTIONS =
+            java.util.Set.of("view", "stats_view", "export", "rank_view");
+
+    /** 动作是否 view_like（null/空白动作按查看语义处理——存量调用多为查看路径） */
+    public static boolean isViewLikeAction(String action) {
+        return action == null || action.isBlank() || VIEW_LIKE_ACTIONS.contains(action);
+    }
+
     private final SysUserMapper userMapper;
     private final SysDeptMapper deptMapper;
     private final SysConfigService configService;
@@ -81,10 +95,15 @@ public class OrgScopeResolver {
 
     /** 按指定范围 code 解析可见 userIds（null=全部；含系统级开关）——权限体系重构: 每模块/动作独立范围 */
     public List<Long> resolveScope(SecurityUser user, String scope) {
+        return resolveScope(user, scope, "view");
+    }
+
+    /** 【WP1.4】带动作版: 系统开关仅 view_like 动作追加（写动作不放宽） */
+    public List<Long> resolveScope(SecurityUser user, String scope, String action) {
         if (user == null || scope == null) return List.of();
         List<Long> base = resolveSingle(user, scope);
         if (base == null) return null; // all
-        return appendSystemLevelScopes(user, base);
+        return appendSystemLevelScopes(user, base, action);
     }
 
     // ==================== 统一数据访问层入口(批② 2026-08-10) ====================
@@ -170,7 +189,8 @@ public class OrgScopeResolver {
         List<Long> visible = null;
         List<String> scopes = scopeCodes(req);
         for (String scope : scopes) {
-            List<Long> part = resolveScope(user, scope);
+            // 【WP1.4】动作贯通: 写动作不追加上级/负责人开关
+            List<Long> part = resolveScope(user, scope, req.getAction());
             if (part == null) { visible = null; break; }
             if (visible == null) visible = new ArrayList<>(part);
             else visible.addAll(part);
@@ -269,26 +289,32 @@ public class OrgScopeResolver {
         switch (scope) {
             case "all": return null;
             case "custom": {
-                List<Long> managed = user.getManagedOrgIds();
-                if (managed == null || managed.isEmpty()) {
-                    managed = loadRoleOrgs(user); // P1-06 回退(与 OWNER 口径一致)
+                // 【WP1.2 2026-11-13】严格按原始行 includeChildren: true 才展开子树, false 仅本组织。
+                // 旧实现消费预展开的 managedOrgIds 平铺表并对每个 id 无条件再展开 ⇒ 0 标志行越权放宽到子树。
+                java.util.List<com.aigicrm.security.ManagedOrgRef> refs = user.getManagedOrgRefs();
+                if (refs == null || refs.isEmpty()) {
+                    refs = loadRoleOrgRefs(user); // P1-06 回退(与 OWNER 口径一致)
                 }
-                if (managed == null || managed.isEmpty()) return List.of();
+                if (refs == null || refs.isEmpty()) return List.of();
                 Set<Long> deptIds = new LinkedHashSet<>();
-                for (Long orgId : managed) {
-                    if (orgId == null) continue;
-                    collectSubtree(orgId, deptIds);
+                for (com.aigicrm.security.ManagedOrgRef ref : refs) {
+                    if (ref == null || ref.getOrgId() == null) continue;
+                    if (ref.expandChildren()) collectSubtree(ref.getOrgId(), deptIds);
+                    else deptIds.add(ref.getOrgId());
                 }
                 return new ArrayList<>(deptIds);
             }
             case "region": {
+                // 【WP1.3 2026-11-13 fail-closed】无 dept_type=region 祖先 → 不可见(空集),
+                // 不再回退 findRoot(把总部用户放大到全集团)。写入面已拦截无锚配置(400)。
                 Long anchor = deptId == null ? null : findAncestorOfType(deptId, TYPE_REGION);
-                if (anchor == null) return deptId == null ? List.of() : collectSubtreeList(findRoot(deptId));
+                if (anchor == null) return List.of();
                 return collectSubtreeList(anchor);
             }
             case "office": {
+                // 【WP1.3 fail-closed】同 region: 无办事处祖先 → 不可见, 不再退化本部门子树
                 Long anchor = deptId == null ? null : findAncestorOfType(deptId, TYPE_OFFICE);
-                if (anchor == null) return deptId == null ? List.of() : collectSubtreeList(deptId);
+                if (anchor == null) return List.of();
                 return collectSubtreeList(anchor);
             }
             case "dept":
@@ -338,11 +364,22 @@ public class OrgScopeResolver {
      *   <li>开关2 KEY_ORG_LEADER_SEE_ORG（默认开）：组织负责人（任意层级 leader_id=本人）默认可见本组织整棵子树。</li>
      * </ul>
      * base 为 null（全量不过滤）时原样返回；供旁路（激励/客户统计的本地分支）显式调用以统一生效。
+     * 【WP1.4 2026-11-13】本重载为存量查看路径兼容入口（按 view_like 处理）；带动作的解析
+     * 走 {@link #appendSystemLevelScopes(SecurityUser, Collection, String)}——写动作不追加开关。
      */
     public List<Long> appendSystemLevelScopes(SecurityUser user, Collection<Long> base) {
+        return appendSystemLevelScopes(user, base, "view");
+    }
+
+    /**
+     * 【WP1.4 2026-11-13】带动作语义的系统开关追加：仅 view_like 动作生效（锁定决策#8）。
+     * 写动作(edit/delete/approve/share...)恒不追加——开关只放宽"看"，不放宽"改"。
+     */
+    public List<Long> appendSystemLevelScopes(SecurityUser user, Collection<Long> base, String action) {
         if (base == null) return null;
         if (user == null || user.getUserId() == null) return new ArrayList<>(base);
         if (configService == null) return new ArrayList<>(base); // 防御（测试匿名子类）
+        if (!isViewLikeAction(action)) return new ArrayList<>(base); // 写动作 fail-closed: 开关不生效
 
         boolean[] switches = readSwitchFlags();
         boolean superiorOn = switches[0];
@@ -469,52 +506,50 @@ public class OrgScopeResolver {
     private List<Long> resolveByAncestorType(Long userId, Long deptId, int targetType) {
         if (deptId == null) return List.of(userId);
         Long anchor = findAncestorOfType(deptId, targetType);
-        if (anchor == null) {
-            // 无标记：office 退化 dept 树；region 退化集团根（沿祖先链到 parent 为 null 的根）
-            return targetType == TYPE_OFFICE
-                    ? resolveDeptTree(userId, deptId)
-                    : resolveDeptTree(userId, findRoot(deptId));
-        }
+        // 【WP1.3 2026-11-13 fail-closed】无对应 dept_type 祖先 → 空集(本解析器契约: 空=仅本人),
+        // 不再回退(office 退化 dept 树 / region 沿根放大全集团)。验收: 总部用户选"本大区"→0 条他人数据。
+        if (anchor == null) return List.of(userId);
         Set<Long> deptIds = collectSubtree(anchor, null);
         List<Long> u = usersInDepts(deptIds);
         if (!u.contains(userId)) u.add(userId);
         return u;
     }
 
+    /** 【WP1.2】custom 解析: 严格按原始行 includeChildren(true 展开子树/false 仅本组织) */
     private List<Long> resolveCustom(SecurityUser user, Long userId) {
-        List<Long> managed = user.getManagedOrgIds();
-        if (managed == null || managed.isEmpty()) {
-            // 【修复 2026-08-10 P1-06】新模型 role_perm_scope 配 custom 时 managedOrgIds 未装载
+        java.util.List<com.aigicrm.security.ManagedOrgRef> refs = user.getManagedOrgRefs();
+        if (refs == null || refs.isEmpty()) {
+            // 【修复 2026-08-10 P1-06】新模型 role_perm_scope 配 custom 时 refs 未装载
             // (装载仅在 dataScope=custom / override=custom 时发生)——按用户角色现查 sys_role_org 回退,
             // 否则自定义范围对新模型配置静默退化为仅本人
-            managed = loadRoleOrgs(user);
-            if (managed == null || managed.isEmpty()) return List.of(userId);
+            refs = loadRoleOrgRefs(user);
+            if (refs == null || refs.isEmpty()) return List.of(userId);
         }
         Set<Long> deptIds = new LinkedHashSet<>();
-        for (Long orgId : managed) {
-            if (orgId == null) continue; // 脏数据防御
-            deptIds.addAll(collectSubtree(orgId, null));
+        for (com.aigicrm.security.ManagedOrgRef ref : refs) {
+            if (ref == null || ref.getOrgId() == null) continue; // 脏数据防御
+            if (ref.expandChildren()) {
+                deptIds.addAll(collectSubtree(ref.getOrgId(), null));
+            } else {
+                deptIds.add(ref.getOrgId());
+            }
         }
         List<Long> u = usersInDepts(deptIds);
         if (!u.contains(userId)) u.add(userId);
         return u;
     }
 
-    /** 按用户全部角色现查 sys_role_org 授权组织(含 include_children 展开)——custom 范围装载回退 */
-    private List<Long> loadRoleOrgs(SecurityUser user) {
+    /** 【WP1.2】按用户全部角色现查 sys_role_org 授权组织**原始行**(不预展开)——custom 范围装载回退 */
+    private java.util.List<com.aigicrm.security.ManagedOrgRef> loadRoleOrgRefs(SecurityUser user) {
         if (user.getUserId() == null) return null;
         java.util.List<com.aigicrm.module.system.entity.SysRoleOrg> rows = roleOrgMapper.selectByUserId(user.getUserId());
         if (rows == null || rows.isEmpty()) return null;
-        Set<Long> orgIds = new LinkedHashSet<>();
+        java.util.List<com.aigicrm.security.ManagedOrgRef> refs = new ArrayList<>();
         for (com.aigicrm.module.system.entity.SysRoleOrg ro : rows) {
             if (ro.getOrgId() == null) continue;
-            if (ro.getIncludeChildren() != null && ro.getIncludeChildren() == 1) {
-                orgIds.addAll(deptMapper.selectDescendantIds(ro.getOrgId()));
-            } else {
-                orgIds.add(ro.getOrgId());
-            }
+            refs.add(new com.aigicrm.security.ManagedOrgRef(ro.getOrgId(), ro.getIncludeChildren()));
         }
-        return new ArrayList<>(orgIds);
+        return refs;
     }
 
     /** org_and_children = 本人部门树 ∪ 组织管理员/自定义授权组织子树(与列表 applyDataScope 同口径) */
@@ -558,15 +593,7 @@ public class OrgScopeResolver {
         return null;
     }
 
-    private Long findRoot(Long deptId) {
-        Long cur = deptId;
-        for (int i = 0; i < 20 && cur != null; i++) {
-            SysDept d = deptMapper.selectById(cur);
-            if (d == null || d.getParentId() == null) return cur;
-            cur = d.getParentId();
-        }
-        return cur;
-    }
+    // 【WP1.3 2026-11-13】findRoot 已随 region/office fail-closed 一并退役（唯一调用方是旧回退路径）
 
     private List<Long> usersInDepts(Set<Long> deptIds) {
         if (deptIds.isEmpty()) return new ArrayList<>();

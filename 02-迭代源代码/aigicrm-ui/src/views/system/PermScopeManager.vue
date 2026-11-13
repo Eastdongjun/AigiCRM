@@ -174,9 +174,10 @@ const PERMISSION_SCOPE_TARGETS = Object.freeze({
   'sea:view': { module: 'sea', action: 'view' },
   'system:log:view': { module: 'system', action: 'view' },
   // 【2026-11-03 范围对账修复】摘 incentive:view/file:view(后端零消费的死配置:
-  // 激励可见性=分享制+授权面板, 文件=文件夹权限, 统计文件计数走 statistics×view);
-  // 补 statistics/score(后端真实消费却没露出入口的漏配)
-  'statistics:view': { module: 'statistics', action: 'view' },
+  // 激励可见性=分享制+授权面板, 文件=文件夹权限);
+  // 补 score(后端真实消费却没露出入口的漏配)。
+  // 【WP1.5 2026-11-13 锁定决策#7】摘 statistics:view——(statistics,view) 数据范围档退役,
+  // statistics:view 只做入口码, 统计项按来源动作(customer:view 等)过滤, 配置面不再露出该档
   'score:view': { module: 'score', action: 'view' },
   // 【2026-11-05 用户拍板 B"四项激励独立数据范围"】两码共用 (incentive, stats_view) 独立档位,
   // 与统计分析档位解耦; 存量由 V2026.11.05.7 回填拷贝, 后端 IncentiveService.statsVisibleUserIds 同步改读
@@ -195,7 +196,8 @@ const SCOPE_OWNER_HINTS = {
   task: '按经办人',
   dashboard: '跟随各模块',
   indicator: '统计分析口径',
-  statistics: '统计分析口径',
+  // 【WP1.5 2026-11-13】statistics:view 只做入口码: 数据按来源动作过滤(客户域=客户·查看)
+  statistics: '入口码(数据按来源动作, 如客户·查看)',
   score: '学分规则',
 }
 const isScopeDriven = (item) => scopeTargetOf(item.permission) !== null

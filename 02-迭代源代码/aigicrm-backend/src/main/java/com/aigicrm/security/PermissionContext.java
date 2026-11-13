@@ -35,6 +35,8 @@ public class PermissionContext {
     private String dataScope = "self";
     private List<String> dataScopes = new ArrayList<>();
     private List<Long> managedOrgIds = new ArrayList<>();
+    /** 【WP1.2 2026-11-13】自定义范围授权组织原始行(不预展开); 任何新增派生字段必须同步到此 DTO */
+    private List<ManagedOrgRef> managedOrgRefs = new ArrayList<>();
     private List<Long> groupIds = new ArrayList<>();
     private List<Long> legalEntityIds = new ArrayList<>();
 
