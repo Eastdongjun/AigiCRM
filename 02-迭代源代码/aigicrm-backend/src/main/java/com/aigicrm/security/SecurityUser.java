@@ -29,6 +29,10 @@ public class SecurityUser implements UserDetails {
     private List<Long> managedOrgIds = new ArrayList<>();
     /** 【WP1.2 2026-11-13】自定义范围授权组织原始行(含 includeChildren 标志, 不预展开)——解析统一走 OrgScopeResolver */
     private java.util.List<ManagedOrgRef> managedOrgRefs = new java.util.ArrayList<>();
+    /** 【WP3 2026-11-13】全部有效任职组织(sys_employment, 多任职=并集; 新内核 ScopeSpecResolver 消费) */
+    private java.util.List<Long> employmentOrgIds = new java.util.ArrayList<>();
+    /** 【WP3】主职任职组织(employment is_primary=1 的 org; MY_PRIMARY_DEPT(_SUB) 档解析用) */
+    private Long primaryEmploymentOrgId;
 
     // 集团制扩展：从岗位关联的组织推导出的集团和法人公司归属
     private List<Long> groupIds = new ArrayList<>();                // 用户所属的所有集团ID

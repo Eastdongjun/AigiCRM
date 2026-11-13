@@ -78,6 +78,11 @@ public class OrgScopeResolver {
         return new boolean[]{cachedSuperior, cachedLeader};
     }
 
+    /** 【WP3 2026-11-13】开关旗标单一源公开访问(新内核 AuthorizationService 与旧解析器共用, 不复制实现) */
+    public boolean[] switchFlags() {
+        return readSwitchFlags();
+    }
+
     /** 解析当前用户可见 userIds（恒含本人；all 返回 null） */
     public List<Long> resolve(SecurityUser user) {
         if (user == null) return List.of();

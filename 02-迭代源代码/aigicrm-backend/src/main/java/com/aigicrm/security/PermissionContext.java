@@ -37,6 +37,9 @@ public class PermissionContext {
     private List<Long> managedOrgIds = new ArrayList<>();
     /** 【WP1.2 2026-11-13】自定义范围授权组织原始行(不预展开); 任何新增派生字段必须同步到此 DTO */
     private List<ManagedOrgRef> managedOrgRefs = new ArrayList<>();
+    /** 【WP3】全部有效任职组织(sys_employment) + 主职组织——新内核 ScopeSpecResolver 消费 */
+    private List<Long> employmentOrgIds = new ArrayList<>();
+    private Long primaryEmploymentOrgId;
     private List<Long> groupIds = new ArrayList<>();
     private List<Long> legalEntityIds = new ArrayList<>();
 

@@ -34,6 +34,8 @@ public class UserDetailsServiceImpl implements UserDetailsService {
     private final SysPermissionRuleMapper permissionRuleMapper;
     private final PermissionCacheService permissionCacheService;
     private final com.aigicrm.module.system.service.RolePermScopeService rolePermScopeService;
+    /** 【WP3】任职组织装载(内核表 sys_employment 经 JDBC 直查, 避免为内核新增 Mapper 树) */
+    private final org.springframework.jdbc.core.JdbcTemplate jdbc;
 
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(UserDetailsServiceImpl.class);
 
@@ -164,6 +166,27 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         List<SysPosition> positions = positionMapper.selectByUserId(uid);
         securityUser.setPositions(positions);
 
+        // ======================== 2d.【WP3 2026-11-13】装载任职组织(sys_employment) ========================
+        // 新内核 ScopeSpecResolver 的"本部门"解析源(锁定决策#2: 本部门=全部有效任职组织, 主职/兼职都算)
+        try {
+            java.util.List<Long> empOrgs = jdbc.queryForList(
+                    "SELECT DISTINCT e.org_id FROM sys_employment e " +
+                    "JOIN sys_dept d ON d.id = e.org_id AND d.status = 1 " +
+                    "WHERE e.user_id = ? AND e.status = 1 " +
+                    "AND (e.valid_from IS NULL OR e.valid_from <= CURDATE()) " +
+                    "AND (e.valid_to IS NULL OR e.valid_to >= CURDATE()) " +
+                    "ORDER BY e.is_primary DESC, e.org_id", Long.class, uid);
+            securityUser.setEmploymentOrgIds(empOrgs);
+            Long primary = jdbc.queryForObject(
+                    "SELECT e.org_id FROM sys_employment e WHERE e.user_id = ? AND e.is_primary = 1 AND e.status = 1 " +
+                    "ORDER BY e.id LIMIT 1", Long.class, uid);
+            securityUser.setPrimaryEmploymentOrgId(primary);
+        } catch (Exception e) {
+            // 表尚未就绪(新内核表在灰度前可能缺失)→ 空集 fail-closed, 不阻断登录装载
+            log.warn("装载任职组织失败(内核表未就绪?) userId={}", uid, e);
+            securityUser.setEmploymentOrgIds(new ArrayList<>());
+        }
+
         // ======================== 2c. 【批③ 正交配置层】装载数据范围配置(USER>POSITION>ROLE 三级) ========================
         java.util.List<Long> positionIds = positions.stream().map(SysPosition::getId).toList();
         securityUser.setScopeConfigs(rolePermScopeService.loadScopeConfigs(uid,
@@ -286,6 +309,8 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         ctx.setDataScopes(su.getDataScopes() != null ? su.getDataScopes() : new ArrayList<>());
         ctx.setManagedOrgIds(su.getManagedOrgIds() != null ? su.getManagedOrgIds() : new ArrayList<>());
         ctx.setManagedOrgRefs(su.getManagedOrgRefs() != null ? su.getManagedOrgRefs() : new ArrayList<>());
+        ctx.setEmploymentOrgIds(su.getEmploymentOrgIds() != null ? su.getEmploymentOrgIds() : new ArrayList<>());
+        ctx.setPrimaryEmploymentOrgId(su.getPrimaryEmploymentOrgId());
         ctx.setGroupIds(su.getGroupIds() != null ? su.getGroupIds() : new ArrayList<>());
         ctx.setLegalEntityIds(su.getLegalEntityIds() != null ? su.getLegalEntityIds() : new ArrayList<>());
         ctx.setPositions(su.getPositions() != null ? su.getPositions() : new ArrayList<>());
@@ -312,6 +337,8 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         su.setDataScopes(ctx.getDataScopes());
         su.setManagedOrgIds(ctx.getManagedOrgIds());
         su.setManagedOrgRefs(ctx.getManagedOrgRefs() != null ? ctx.getManagedOrgRefs() : new java.util.ArrayList<>());
+        su.setEmploymentOrgIds(ctx.getEmploymentOrgIds() != null ? ctx.getEmploymentOrgIds() : new java.util.ArrayList<>());
+        su.setPrimaryEmploymentOrgId(ctx.getPrimaryEmploymentOrgId());
         su.setPermVersion(ctx.getPermVersion());
         su.setGroupIds(ctx.getGroupIds());
         su.setLegalEntityIds(ctx.getLegalEntityIds());

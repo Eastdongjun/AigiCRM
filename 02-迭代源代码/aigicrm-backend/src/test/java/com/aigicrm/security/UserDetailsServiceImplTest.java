@@ -43,7 +43,8 @@ class UserDetailsServiceImplTest {
         service = new UserDetailsServiceImpl(userMapper, menuMapper, roleMapper, deptMapper,
                 orgAdminMapper, roleOrgMapper, mock(com.aigicrm.module.system.mapper.SysUserOrgMapper.class),
                 positionMapper, permissionRuleMapper, permissionCacheService,
-                mock(com.aigicrm.module.system.service.RolePermScopeService.class));
+                mock(com.aigicrm.module.system.service.RolePermScopeService.class),
+                mock(org.springframework.jdbc.core.JdbcTemplate.class));
     }
 
     /** 构造基础用户：id=1、正常状态、无组织归属（跳过 2b 的 org 查询） */

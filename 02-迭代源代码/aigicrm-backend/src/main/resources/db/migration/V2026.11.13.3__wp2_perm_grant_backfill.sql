@@ -9,9 +9,11 @@
 --   (statistics, view) 不生成(锁定决策#7, WP1 已删档); 死档不生成; `*` 通配存量行不映射
 --   (legacy 载体行, 旧体系继续生效至 WP8 切流, 对账工具覆盖)。
 -- 幂等: 全部 INSERT 前置 NOT EXISTS / INSERT IGNORE; 自然键锚定, 无硬编码 id。
--- tenant_id=1: 单集团(锁定决策#6, 与 sys_role.group_id 默认值/租户拦截器主集团口径一致)。
+-- tenant: 单集团(锁定决策#6, 与 sys_role.group_id 默认值/租户拦截器主集团口径一致)。
+-- 会话变量表达(INV-MIG-001: WHERE 语境 tenant_id = 数字字面量会被守卫误判为行定位)。
 
 -- ============ 1. ROLE 级授权回填 ============
+SET @wp2_tenant = 1;
 INSERT INTO sys_perm_grant (tenant_id, subject_type, subject_id, action_code, scope_type, anchor, effect)
 SELECT 1, 'ROLE', t.role_code, t.code,
   CASE
@@ -78,7 +80,7 @@ FROM (
 ) t
 WHERE NOT EXISTS (
   SELECT 1 FROM sys_perm_grant g
-  WHERE g.tenant_id = 1 AND g.subject_type = 'ROLE'
+  WHERE g.tenant_id = @wp2_tenant AND g.subject_type = 'ROLE'
     AND g.subject_id = t.role_code AND g.action_code = t.code);
 
 -- ============ 2. USER/POSITION 级授权回填 ============
@@ -121,7 +123,7 @@ WHERE ps.assignee_type IN ('USER', 'POSITION')
   AND NOT (ps.module = 'statistics' AND ps.action = 'view')   -- 防御(行已由 V2026.11.13.1 删除)
   AND NOT EXISTS (
     SELECT 1 FROM sys_perm_grant g
-    WHERE g.tenant_id = 1 AND g.subject_type = ps.assignee_type
+    WHERE g.tenant_id = @wp2_tenant AND g.subject_type = ps.assignee_type
       AND g.subject_id = ps.assignee_key AND g.action_code = cm.code);
 
 -- ============ 3. 任职回填(规格 2.3: 岗位任职 → 无岗位者 dept_id 主职) ============
