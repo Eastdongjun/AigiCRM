@@ -1,15 +1,37 @@
-# 权限内核切流/回滚 Runbook（WP8）
+# 权限内核切流/回滚 Runbook（WP8 · 二轮审查修订）
 
 > 施工规格书 WP8 交付物。前置：**data_scope_override 变宽名单业务签字未完成前，禁止执行切流**（规格 §10 业务 Gate）。
 > 变宽名单：3 人（毛颖娜 NM100 / 李艳梅 TY100 / 肖赟 TY200，override=custom 且角色档=office），证据见中央执行目录
 > `runs/perm-kernel-20261113/evidence/wp2/override-analysis.md`。
 
-## 现状（本批交付后）
+## 动作轴声明（P0-5 方案二，二轮审查定案）
 
-- 双轨：旧轨（role_perm_scope + dataScopes 并集）为**权威**；新轨（sys_perm_grant）已回填+双写保鲜。
-- 读开关：`sys_config` 键 `perm.read.<module>`（缺省/old/脏值 = 旧轨），按模块灰度。
-- 对账端点：`GET /api/system/perm-scopes/reconcile?sample=50`（admin）——旧/新轨 (customer,view) 可见集逐用户对比。
-- 版本号：任何全局权限写点 → epoch+1 → 双端下一次请求自动拉新。
+**动作（谁能做什么）权威 = `sys_role_menu`（现有角色菜单矩阵），本期不迁移**；
+`sys_perm_grant` 承载**数据范围**（对谁的数据，槽码行）。规格"一张授权表"的完整含义
+（动作+范围同表）留待 P3 动作轴迁移批，本期以"范围表"运行。
+配套保障：角色勾选动作时 `SysRoleService.saveRoleMenus` 双写槽码授权行
+（scope=匹配 role_perm_scope → 角色 data_scope → SELF），新轨切流后新绑码角色范围不空。
+
+## 现状（二轮修复后）
+
+- 双轨：旧轨（role_perm_scope + dataScopes 并集）为**权威**；新轨（sys_perm_grant）回填+双写保鲜。
+- 读开关：`sys_config` 键 `perm.read.<module>`（缺省/old/脏值 = 旧轨），按模块灰度；
+  `new` 时 resolveModuleUsers/**resolveScope**（客户列表/详情）/CustomerVisibilityService（统计）
+  同走内核——卡片=列表=详情=导出 同轨。
+- 维度补齐：新轨 OWNER 锚=SELF/团队行本人 ∪ 部门档在职用户；ORG 锚=部门档 ∪ 用户所属部门
+  （P0-1 修复，切 new 不再"本部门数据变空"）。
+- CUSTOM：精确按行 scope_config（orgId+includeChildren），false 只到本组织（P0-3 修复）。
+- 对账端点：`GET /api/system/perm-scopes/reconcile?sample=50`（admin）——**9 槽全模块**
+  （customer/file/approval/reminder/sea/incentive 统计 + task/score/system 集团收口）逐用户双轨对比。
+- 版本号：全局权限写点经 evictAll 汇聚 → epoch+1（单自增点）→ 双端下一次请求自动拉新；
+  任职/闭包同步同汇聚触发（人员/组织写点后 sys_employment/sys_org_closure 自动保鲜）。
+
+## 挂账（切流前须补 / P3）
+
+- `sys_position_role`：本期无管理入口（动作轴未迁移），表就绪待动作轴批启用，当前零写入非死表误用。
+- `biz_task` 的 assignee_id 维度 / `biz_approval` 审批人列：sys_resource 列声明的对象级细化，
+  随对应模块切 new 前补（当前 OWNER 锚与旧轨等价，无行为差）。
+- `customer:export` 经视图别名跟随 customer:view 授权（P2-12 修复，运行期已处理）。
 
 ## 切流步骤（按模块灰度，禁止大爆炸）
 

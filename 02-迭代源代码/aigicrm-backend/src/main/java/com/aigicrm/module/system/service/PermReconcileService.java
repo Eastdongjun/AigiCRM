@@ -34,11 +34,25 @@ public class PermReconcileService {
     private final RolePermScopeService rolePermScopeService;
     private final JdbcTemplate jdbc;
 
-    /** 抽样对账: N 个在职用户逐个双轨对比 (customer, view) 可见负责人集与客户数 */
+    /** 对账槽清单(【P1-10 修复 2026-11-13】全模块; withinGroup=消费走 WithinGroup 集团收口) */
+    private static final List<Slot> SLOTS = List.of(
+            new Slot("customer", "view", false),
+            new Slot("file", "view", false),
+            new Slot("approval", "view", false),
+            new Slot("reminder", "view", false),
+            new Slot("sea", "view", false),
+            new Slot("incentive", "stats_view", false),
+            new Slot("task", "view", true),
+            new Slot("score", "view", true),
+            new Slot("system", "view", true));
+
+    private record Slot(String module, String action, boolean withinGroup) {}
+
+    /** 抽样对账: N 个在职用户 × 全部 9 槽, 旧/新轨可见负责人集对比(P1-10: 不再只对 customer) */
     public Map<String, Object> reconcile(int sample, Long onlyUserId) {
-        List<Long> targets = new ArrayList<>();
+        List<Long> targets;
         if (onlyUserId != null) {
-            targets.add(onlyUserId);
+            targets = List.of(onlyUserId);
         } else {
             targets = jdbc.queryForList(
                     "SELECT id FROM sys_user WHERE deleted = 0 AND status = 1 ORDER BY id LIMIT ?",
@@ -49,34 +63,54 @@ public class PermReconcileService {
         for (Long uid : targets) {
             try {
                 SecurityUser su = (SecurityUser) userDetailsService().loadUserByUsername(String.valueOf(uid));
-                Map<String, Object> row = reconcileUser(su);
-                boolean same = Boolean.TRUE.equals(row.get("match"));
-                if (!same) diff++;
-                rows.add(row);
+                for (Slot slot : SLOTS) {
+                    Map<String, Object> row = reconcileUser(su, slot);
+                    boolean same = Boolean.TRUE.equals(row.get("match"));
+                    if (!same) diff++;
+                    rows.add(row);
+                }
             } catch (Exception e) {
                 rows.add(Map.of("userId", uid, "error", String.valueOf(e.getMessage())));
             }
         }
         Map<String, Object> out = new LinkedHashMap<>();
-        out.put("sampled", rows.size());
+        out.put("sampled", targets.size());
+        out.put("slots", SLOTS.size());
         out.put("diffCount", diff);
         out.put("match", diff == 0);
         out.put("rows", rows);
         return out;
     }
 
-    /** 单用户双轨对比(customer:view) */
-    public Map<String, Object> reconcileUser(SecurityUser su) {
-        // 旧轨(锚点读 role_perm_scope 配置——与 CustomerVisibilityService 现行口径一致)
+    /** 单用户单槽双轨对比 */
+    public Map<String, Object> reconcileUser(SecurityUser su, Slot slot) {
+        // 旧轨: customer 域锚点读 role_perm_scope 配置(P2-3 口径), 其余 OWNER; WithinGroup 槽走集团收口
+        ScopeDecision oldD;
         ScopeRequest req = ScopeRequest.builder()
                 .user(su)
-                .module("customer")
-                .action("view")
-                .anchor(rolePermScopeService.anchorOf(su, "customer", "view"))
+                .module(slot.module())
+                .action(slot.action())
+                .anchor("customer".equals(slot.module())
+                        ? rolePermScopeService.anchorOf(su, slot.module(), slot.action())
+                        : ScopeRequest.AnchorType.OWNER)
                 .build();
-        ScopeDecision oldD = legacyResolver.resolveScope(req);
-        // 新轨(授予表; 绕过读开关显式对比)
-        ScopeDecision newD = authorizationService.scopeNewTrack(su, "customer:view");
+        oldD = legacyResolver.resolveScope(req);
+        if (slot.withinGroup() && oldD.isAll() && !hasAdminRole(su)) {
+            Long g = com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull();
+            if (g == null) {
+                oldD = ScopeDecision.none();
+            } else {
+                List<Long> members = com.aigicrm.common.scope.GroupScopeUtil.userIdsInGroup(jdbc, g);
+                ScopeDecision clamped = new ScopeDecision();
+                clamped.setVisibleUserIds(members.isEmpty() ? List.of() : members);
+                clamped.setVisibleDeptIds(List.of());
+                oldD = clamped;
+            }
+        }
+        // 新轨(授予表; 绕过读开关显式对比; WithinGroup 槽用收口版)
+        ScopeDecision newD = slot.withinGroup()
+                ? authorizationService.scopeWithinGroupForUser(su, codeOf(slot))
+                : authorizationService.scopeForUser(su, codeOf(slot));
 
         Set<Long> oldOwners = oldD.isAll() || oldD.getVisibleUserIds() == null ? null : new HashSet<>(oldD.getVisibleUserIds());
         Set<Long> newOwners = newD.isAll() || newD.getVisibleUserIds() == null ? null : new HashSet<>(newD.getVisibleUserIds());
@@ -84,6 +118,7 @@ public class PermReconcileService {
         Map<String, Object> row = new LinkedHashMap<>();
         row.put("userId", su.getUserId());
         row.put("username", su.getUsername());
+        row.put("slot", slot.module() + ":" + slot.action());
         row.put("oldAll", oldOwners == null);
         row.put("newAll", newOwners == null);
         row.put("oldSize", oldOwners == null ? "全量" : oldOwners.size());
@@ -106,6 +141,14 @@ public class PermReconcileService {
             row.put("onlyNew", onlyNew);
         }
         return row;
+    }
+
+    private String codeOf(Slot slot) {
+        return authorizationService.actionCodeOf(slot.module(), slot.action());
+    }
+
+    private boolean hasAdminRole(SecurityUser su) {
+        return su != null && su.hasRole("admin");
     }
 
     /** 避免直接注入 UserDetailsService 类型(实现类注入), 经 provider 惰性取 */

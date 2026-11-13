@@ -29,11 +29,16 @@
 List<Long> visible = scopeResolver.resolveModuleUsers(SecurityUtils.getCurrentUser(), "contract", "view");
 ```
 
-列表/统计/导出统一注入（推荐写法）：
+列表/统计/导出统一注入（新模块推荐写法）：
 
 ```java
 scopeQuery.apply(wrapper, "contract:view");   // OWNER→owner_column IN / ORG→dept_column IN / 空集→1=0 / all→不加条件
 ```
+
+> **存量模块定位（P0-6 二轮审查校正）**：存量 10 模块的范围走
+> `OrgScopeResolver.resolveModuleUsers / resolveScope` 的**双轨入口**（读开关内置于方法入口，
+> 旧轨逐字节不变、new 走内核）——ScopeQuery 是新模块的推荐写法，不是存量模块的改造令。
+> 两者最终同源（同一内核解析），卡片=列表=导出 语义一致。
 
 单条判定：
 
@@ -53,8 +58,14 @@ sys_config: perm.read.<module> = old(默认) | new
 
 ## 规约（违反即打回）
 
-1. 禁止模块自己写 `IN owner_id`——一律 ScopeQuery / resolveModuleUsers。
+1. 禁止模块自己写 `IN owner_id`——新模块一律 ScopeQuery；存量模块一律 resolveModuleUsers/resolveScope 双轨入口。
 2. 新码必须先注册 `sys_action`（uk_code 自然键）+ 菜单行，`scope_required` 按消费实况（入口/路由码=0）。
 3. view_like 只标只读动作（上级/负责人开关唯一作用面，锁定决策 #8；写动作绝不放宽）。
-4. 权限写点（角色/范围/岗位/组织/开关/菜单保存）统一调 `permEpochService.bump()`。
+4. 权限写点（角色/范围/岗位/组织/开关/菜单保存）经失效汇聚自动 bump epoch（无需手调）。
 5. 迁移全部走 Flyway 新迁移；自然键锚定；显式 utf8mb4_general_ci。
+
+## 动作轴声明（P0-5 方案二）
+
+**动作（谁能做）权威 = sys_role_menu**，本期不迁移；`sys_perm_grant` 只承载**数据范围**。
+角色勾选动作时 saveRoleMenus 自动双写槽码授权行（新轨范围不空）。动作+范围同表的完整
+"一张授权表"留待 P3 动作轴迁移批（Runbook 挂账）。

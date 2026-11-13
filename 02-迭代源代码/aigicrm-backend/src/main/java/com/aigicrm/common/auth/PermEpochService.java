@@ -59,24 +59,15 @@ public class PermEpochService {
         }
     }
 
-    /** 版本+1 + 全量失效(授权写点统一入口); 返回新版本号 */
+    /**
+     * 版本+1 入口(与 markChanged 同一实现——【P2-11 修复 2026-11-13】单一自增点:
+     * 全局权限写点统一经 PermissionCacheService.evictAll → afterCommit → markChanged,
+     * 不再有第二个自增路径(旧 bump 内嵌 evictAll 会双跳号)。
+     * 旧链路 perm_version 自愈由既有写点自身的 bumpAllPermVersions 负责(RolePermScopeService 等),
+     * 本服务不再做全表 UPDATE(规格"一个版本号"收敛)。
+     */
     public synchronized long bump() {
-        try {
-            jdbc.update("UPDATE sys_perm_epoch SET epoch = epoch + 1 WHERE id = 1");
-        } catch (Exception e) {
-            log.warn("epoch 自增失败(表未就绪?): {}", e.getMessage());
-        }
-        cachedAt = 0; // 立即重读
-        markChanged(); // 新内核缓存失效+广播(不含 evictAll, 防递归)
-        try {
-            permissionCacheService.evictAll();
-            jdbc.update("UPDATE sys_user SET perm_version = perm_version + 1");
-        } catch (Exception e) {
-            log.warn("旧链路失效兜底失败: {}", e.getMessage());
-        }
-        long epoch = current();
-        log.info("权限版本 bump → {} (全量失效完成)", epoch);
-        return epoch;
+        return markChanged();
     }
 
     /**

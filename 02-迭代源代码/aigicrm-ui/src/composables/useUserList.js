@@ -52,9 +52,9 @@ export function useUserList() {
     email: [
       { type: 'email', message: '邮箱格式不正确', trigger: 'blur' }
     ],
-    // 【C11 2026-10-08】数据范围星标=真校验：此前 el-form-item 只挂 required 星号而 formRules 无此规则，
-    // 星标与实际校验不符（保存靠 handleSave 全局 toast 兜底）；现在字段级红字与星标口径一致
-    dataScopeOverride: [{ required: true, message: '请选择数据范围', trigger: 'change' }],
+    // 【P1-9 修复 2026-11-13 并集语义】数据范围改"额外可见范围(可选, 只能加)":
+    // 留空=跟随角色(合法), 不再 required 强制(后端 WP1.1 已退役该强制校验)
+    dataScopeOverride: [],
   }
 
   // ---- 计算 ----
@@ -273,8 +273,7 @@ export function useUserList() {
       })
       return
     }
-    // 【2026-08-08 需求】数据范围必选，不允许跟随角色/留空（formRules 已有字段级校验，此处兜底防绕过）
-    if (!editForm.dataScopeOverride) { ElMessage.warning('请选择数据范围'); return }
+    // 【P1-9 修复 2026-11-13 并集语义】数据范围改可选: 留空=跟随角色(后端归一 null), 不再强制
     saving.value = true
     try {
       if (editForm.id) {

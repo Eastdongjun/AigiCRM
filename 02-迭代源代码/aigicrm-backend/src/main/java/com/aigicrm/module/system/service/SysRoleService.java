@@ -346,6 +346,16 @@ public class SysRoleService {
             rm.setMenuId(menuId);
             roleMenuMapper.insert(rm);
         }
+        // 【P0-5 修复 2026-11-13 方案二】槽码授权双写: 动作轴权威仍在 sys_role_menu(本期不迁移),
+        // 但新轨范围解析按 sys_perm_grant——新绑槽码的角色必须即时有授权行(否则切轨后范围恒空)。
+        // scope 取 匹配 role_perm_scope → 角色 data_scope → SELF(与回填迁移同优先级)。
+        if (!includedCodes.isEmpty()) {
+            com.aigicrm.module.system.entity.SysRole role = roleMapper.selectById(roleId);
+            rolePermScopeService.dualUpsertRoleSlotGrants(
+                    role != null ? role.getRoleCode() : null,
+                    role != null ? role.getDataScope() : null,
+                    includedCodes);
+        }
     }
 
     /**

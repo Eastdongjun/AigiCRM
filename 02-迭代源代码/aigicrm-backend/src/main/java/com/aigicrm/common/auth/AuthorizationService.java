@@ -101,6 +101,10 @@ public class AuthorizationService {
 
     // ==================== 槽→码映射(双轨守卫用) ====================
 
+    /** 【P2-12】视图别名(导出/排行跟随列表授权; 锁定决策#9): 自身无授权按别名码解析 */
+    private static final java.util.Map<String, String> VIEW_ALIASES = java.util.Map.of(
+            "customer:export", "customer:view");
+
     /**
      * 【WP7】(module, action) 槽 → 动作码(注册表首个命中); 无槽码返回 null(双轨恒旧轨)。
      * 覆盖表: (file,manage) 的两个门码(码 file:manage 已退役, 槽仍由 V2026.11.13.3 回填挂两码)。
@@ -132,32 +136,93 @@ public class AuthorizationService {
         return newTrackScope(user, def);
     }
 
-    /** 单条判定(OWNER/ORG 维度按主导锚点; 本人恒可=兼容现状) */
+    /** 单条判定(OWNER/ORG 维度按主导锚点; 仅本人自己的记录恒可) */
     public boolean assertData(String actionCode, Long targetOwnerId, Long targetDeptId) {
         ScopeDecision d = scope(actionCode);
         if (d == null) return false;
         if (d.isAll()) return true;
+        // 【P0-2 修复 2026-11-13】"本人恒可"仅指目标记录是本人的——旧写法
+        // canAccessOwner(self) || canAccessOwner(target) 中 self 恒在可见集(SELF/部门/团队都含本人),
+        // || 短路导致对任意目标放行(越权漏洞)。现只放行"目标=本人"。
+        Long self = SecurityUtils.getCurrentUserId();
+        if (self != null && self.equals(targetOwnerId)) return true;
         PermActionRegistry.ActionDef def = registry.of(actionCode);
         ScopeRequest.AnchorType anchor = dominantAnchor(actionCode, def);
         if (anchor == ScopeRequest.AnchorType.ORG) {
             return d.canAccessDept(targetDeptId);
         }
-        Long self = SecurityUtils.getCurrentUserId();
-        return d.canAccessOwner(self) || d.canAccessOwner(targetOwnerId);
+        return d.canAccessOwner(targetOwnerId);
+    }
+
+    /** 部门集合 → 在职用户集(维度补齐; 与旧轨 usersInDepts 同口径 deleted=0/status=1) */
+    private List<Long> usersInDepts(Set<Long> deptIds) {
+        if (deptIds == null || deptIds.isEmpty()) return List.of();
+        try {
+            String ph = String.join(",", deptIds.stream().map(x -> "?").toList());
+            return jdbc.queryForList(
+                    "SELECT id FROM sys_user WHERE dept_id IN (" + ph + ") AND deleted = 0 AND status = 1",
+                    Long.class, deptIds.toArray());
+        } catch (Exception e) {
+            log.warn("部门用户展开失败: {}", e.getMessage());
+            return List.of();
+        }
+    }
+
+    /** 用户集合 → 其所属部门集(维度补齐) */
+    private Set<Long> deptsOfUsers(Set<Long> userIds) {
+        if (userIds == null || userIds.isEmpty()) return Set.of();
+        try {
+            String ph = String.join(",", userIds.stream().map(x -> "?").toList());
+            List<Long> deptIds = jdbc.queryForList(
+                    "SELECT DISTINCT dept_id FROM sys_user WHERE id IN (" + ph + ") AND deleted = 0 AND dept_id IS NOT NULL",
+                    Long.class, userIds.toArray());
+            return new HashSet<>(deptIds);
+        } catch (Exception e) {
+            log.warn("用户部门回查失败: {}", e.getMessage());
+            return Set.of();
+        }
     }
 
     // ==================== 新轨(授予表)解析 ====================
 
-    /** 【WP8 对账】显式新轨解析(绕过读开关, 供对账工具/测试对比) */
-    public ScopeDecision scopeNewTrack(SecurityUser user, String actionCode) {
+    /** 【P0-6 修复】按指定用户的新轨解析(resolveScope 双轨守卫用——预览/对账等非会话用户) */
+    public ScopeDecision scopeForUser(SecurityUser user, String actionCode) {
         PermActionRegistry.ActionDef def = registry.of(actionCode);
         if (def == null) return ScopeDecision.none();
         if (!def.isScopeRequired()) return ScopeDecision.all();
         return newTrackScope(user, def);
     }
 
+    /** 【P1-10 修复】新轨+集团收口(对账 WithinGroup 槽用; 与 scopeWithinGroup 同口径, 显式绕过读开关) */
+    public ScopeDecision scopeWithinGroupForUser(SecurityUser user, String actionCode) {
+        ScopeDecision d = scopeForUser(user, actionCode);
+        if (d == null || !d.isAll()) return d;
+        if (user != null && user.hasRole("admin")) return d;
+        Long g = com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull();
+        if (g == null) return ScopeDecision.none();
+        List<Long> members = com.aigicrm.common.scope.GroupScopeUtil.userIdsInGroup(jdbc, g);
+        ScopeDecision out = new ScopeDecision();
+        out.setVisibleUserIds(members.isEmpty() ? List.of() : members);
+        out.setVisibleDeptIds(List.of());
+        return out;
+    }
+
+    /** 【WP8 对账】显式新轨解析(绕过读开关, 供对账工具/测试对比) */
+    public ScopeDecision scopeNewTrack(SecurityUser user, String actionCode) {
+        return scopeForUser(user, actionCode);
+    }
+
     private ScopeDecision newTrackScope(SecurityUser user, PermActionRegistry.ActionDef def) {
         List<GrantReader.GrantRow> grants = grantReader.grantsOf(user, def.getCode());
+        // 【P2-12 修复 2026-11-13】视图别名: 导出跟随列表(锁定决策#9 卡片=列表=导出)——
+        // customer:export 槽在回填映射为 SELF(无独立槽), 新轨若按自身授权解析会窄于列表。
+        // 自身无授权且有视图别名 → 按别名码的授权解析。
+        if (grants.isEmpty()) {
+            String alias = VIEW_ALIASES.get(def.getCode());
+            if (alias != null) {
+                grants = grantReader.grantsOf(user, alias);
+            }
+        }
         if (grants.isEmpty()) {
             return ScopeDecision.none(); // 无授权=无范围(fail-closed, 规格 §3.2 empty→NONE)
         }
@@ -166,6 +231,25 @@ public class AuthorizationService {
             parts.add(specResolver.resolve(user, g));
         }
         ScopeSpec spec = ScopeSpec.union(parts);
+        // 【P0-1 修复 2026-11-13】维度补齐: 消费方按锚点取单维(OWNER→ownerIds / ORG→deptIds),
+        // 授权行可能只携带单维(如 MY_DEPT_SUB 只有部门集)——不补齐则"本部门"客户在 OWNER 域
+        // 全部消失(切 new 即数据变空)。两维各自完备化:
+        //   deptIds → 其部门在职用户并入 ownerIds(与旧轨 resolveDeptTree 同口径)
+        //   ownerIds → 其所属部门并入 deptIds; 本人恒含; 本人任职部门并入(决策#2 多任职)
+        if (!spec.isAll()) {
+            if (!spec.getDeptIds().isEmpty()) {
+                spec.merge(ScopeSpec.ofOwners(usersInDepts(spec.getDeptIds())));
+            }
+            if (!spec.getOwnerIds().isEmpty()) {
+                spec.merge(ScopeSpec.ofDepts(deptsOfUsers(spec.getOwnerIds())));
+            }
+            if (user.getUserId() != null) {
+                spec.merge(ScopeSpec.ofOwners(List.of(user.getUserId())));
+            }
+            if (user.getEmploymentOrgIds() != null && !user.getEmploymentOrgIds().isEmpty()) {
+                spec.merge(ScopeSpec.ofDepts(user.getEmploymentOrgIds()));
+            }
+        }
         // 上级/负责人开关: 仅 view_like 动作追加(锁定决策#8; 写动作绝不放宽)
         if (def.isViewLike()) {
             boolean[] sw = legacyResolver.switchFlags();

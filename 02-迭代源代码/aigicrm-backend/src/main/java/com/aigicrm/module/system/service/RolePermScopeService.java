@@ -407,6 +407,39 @@ public class RolePermScopeService {
                 .warn("双写失败({}) {}/{}: {}", op, assigneeType, assigneeKey, e.getMessage());
     }
 
+    /**
+     * 【P0-5 修复 2026-11-13 方案二】角色菜单绑定的槽码授权 upsert(供 SysRoleService.saveRoleMenus 调用)。
+     * 动作轴权威仍在 sys_role_menu(本批不迁移); 但新轨 perm.read.*=new 时范围解析按 sys_perm_grant——
+     * 新绑槽码的角色若无授权行 → 范围恒空(fail-closed 误伤)。本方法保证: 菜单绑码即有槽授权,
+     * scope 取 匹配 role_perm_scope 行 → 角色 data_scope 映射 → SELF(与 V2026.11.13.3 回填同优先级)。
+     */
+    public void dualUpsertRoleSlotGrants(String roleCode, String dataScope, java.util.Collection<String> codes) {
+        if (codes == null || codes.isEmpty()) return;
+        try {
+            for (String code : codes) {
+                String[] slot = permActionRegistry.slotOf(code);
+                if (slot == null) continue; // 非槽码(入口/路由)无范围语义, 无需授权行
+                String scopeLevel = null;
+                String anchor = "OWNER";
+                for (var row : jdbc.queryForList(
+                        "SELECT scope_level, anchor FROM role_perm_scope WHERE assignee_type='ROLE' AND assignee_key=? AND module=? AND action=?",
+                        roleCode, slot[0], slot[1])) {
+                    scopeLevel = String.valueOf(row.get("scope_level"));
+                    anchor = String.valueOf(row.get("anchor"));
+                }
+                String mapped = scopeLevel != null ? scopeTypeOfLegacy(scopeLevel)
+                        : scopeTypeOfLegacy(dataScope != null ? dataScope : "self");
+                jdbc.update(
+                        "INSERT INTO sys_perm_grant (tenant_id, subject_type, subject_id, action_code, scope_type, anchor, effect) " +
+                        "VALUES (1, 'ROLE', ?, ?, ?, ?, 'ALLOW') " +
+                        "ON DUPLICATE KEY UPDATE scope_type = VALUES(scope_type), anchor = VALUES(anchor)",
+                        roleCode, code, mapped, anchor);
+            }
+        } catch (Exception e) {
+            logDualWriteFailure("slot-grants", "ROLE", roleCode, e);
+        }
+    }
+
     /** 删除某角色的全部范围配置(角色删除/重置时) */
     @Transactional
     public void deleteRoleScopes(String roleCode) {

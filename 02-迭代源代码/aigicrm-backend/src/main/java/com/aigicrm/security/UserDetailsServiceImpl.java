@@ -168,6 +168,9 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 
         // ======================== 2d.【WP3 2026-11-13】装载任职组织(sys_employment) ========================
         // 新内核 ScopeSpecResolver 的"本部门"解析源(锁定决策#2: 本部门=全部有效任职组织, 主职/兼职都算)
+        // 【P1-7 修复 2026-11-13】主职查询改 findFirst: queryForObject 在"有任职无主职"(历史脏数据)
+        // 时抛 EmptyResultDataAccessException, 旧 catch 会把全部任职组织清空 → 新轨 MY_DEPT 变空。
+        // 现异常只兜底主职, 不再清空任职列表。
         try {
             java.util.List<Long> empOrgs = jdbc.queryForList(
                     "SELECT DISTINCT e.org_id FROM sys_employment e " +
@@ -177,10 +180,10 @@ public class UserDetailsServiceImpl implements UserDetailsService {
                     "AND (e.valid_to IS NULL OR e.valid_to >= CURDATE()) " +
                     "ORDER BY e.is_primary DESC, e.org_id", Long.class, uid);
             securityUser.setEmploymentOrgIds(empOrgs);
-            Long primary = jdbc.queryForObject(
+            List<Long> primaries = jdbc.queryForList(
                     "SELECT e.org_id FROM sys_employment e WHERE e.user_id = ? AND e.is_primary = 1 AND e.status = 1 " +
                     "ORDER BY e.id LIMIT 1", Long.class, uid);
-            securityUser.setPrimaryEmploymentOrgId(primary);
+            securityUser.setPrimaryEmploymentOrgId(primaries.isEmpty() ? null : primaries.get(0));
         } catch (Exception e) {
             // 表尚未就绪(新内核表在灰度前可能缺失)→ 空集 fail-closed, 不阻断登录装载
             log.warn("装载任职组织失败(内核表未就绪?) userId={}", uid, e);

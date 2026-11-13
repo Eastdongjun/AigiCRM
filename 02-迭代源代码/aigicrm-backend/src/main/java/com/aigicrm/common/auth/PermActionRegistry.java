@@ -53,26 +53,32 @@ public class PermActionRegistry {
     public String codeOf(String module, String action) {
         if (module == null || action == null) return null;
         refreshIfNeeded();
-        String override = SLOT_CODE_OVERRIDES.get(module + "|" + action);
-        if (override != null && cache.containsKey(override)) return override;
-        for (ActionDef def : cache.values()) {
-            if (module.equals(def.getModule()) && action.equals(slotActionOf(def.getCode()))) {
-                return def.getCode();
-            }
-        }
-        return override; // 可能为 null
+        for (String c : codesOf(module, action)) return c;
+        return null;
+    }
+
+    /** 【P0-5 方案二】码 → [module, slotAction](槽码判定/范围匹配用; 非槽码返回 null) */
+    public String[] slotOf(String code) {
+        ActionDef def = of(code);
+        if (def == null || !def.isScopeRequired()) return null;
+        return new String[]{def.getModule(), slotActionOf(code)};
     }
 
     /**
-     * 【WP8 双写 2026-11-13】(module, action) 槽 → 全部动作码(双写需覆盖一槽多码,
-     * 如 (file,manage) → file:acl:manage + file:folder:manage)。
+     * 【WP8 双写 2026-11-13】(module, action) 槽 → 全部动作码(双写需覆盖一槽多码)。
+     * 【P2-12 修复】覆盖表改多码: (file,manage) 两门码全写; (system,view)→system:log:view
+     * (通用规则给 system:log:view 的动作是 log_view, 槽匹配不到 → system 模块永远切不了 new)。
      */
     public List<String> codesOf(String module, String action) {
         if (module == null || action == null) return List.of();
         refreshIfNeeded();
         java.util.LinkedHashSet<String> out = new java.util.LinkedHashSet<>();
-        String override = SLOT_CODE_OVERRIDES.get(module + "|" + action);
-        if (override != null && cache.containsKey(override)) out.add(override);
+        List<String> overrides = SLOT_CODE_OVERRIDES.get(module + "|" + action);
+        if (overrides != null) {
+            for (String c : overrides) {
+                if (cache.containsKey(c)) out.add(c);
+            }
+        }
         for (ActionDef def : cache.values()) {
             if (module.equals(def.getModule()) && action.equals(slotActionOf(def.getCode()))) {
                 out.add(def.getCode());
@@ -82,11 +88,13 @@ public class PermActionRegistry {
     }
 
     /**
-     * 槽动作特例覆盖(V2026.11.13.3 回填同表): file:manage 码已退役,
-     * (file,manage) 槽的两个门码仍挂该槽授权。
+     * 槽动作特例覆盖(V2026.11.13.3 回填同表): 
+     * file:manage 码已退役 → (file,manage) 槽的两门码;
+     * (system,view) 槽 → system:log:view(动作轴通用规则为 log_view, 需显式映射)。
      */
-    private static final Map<String, String> SLOT_CODE_OVERRIDES = Map.of(
-            "file|manage", "file:acl:manage");
+    private static final Map<String, List<String>> SLOT_CODE_OVERRIDES = Map.of(
+            "file|manage", List.of("file:acl:manage", "file:folder:manage"),
+            "system|view", List.of("system:log:view"));
 
     /** 码的槽动作(与迁移 .2 通用规则同构: 两段=尾段/三段=中段_尾段转义) */
     private static String slotActionOf(String code) {

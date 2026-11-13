@@ -193,6 +193,19 @@ public class OrgScopeResolver {
      */
     public ScopeDecision resolveScope(ScopeRequest req) {
         if (req == null || req.getUser() == null) return ScopeDecision.none();
+        // 【P0-6 修复 2026-11-13】双轨守卫(与 resolveModuleUsers 同款): 直查消费者
+        // (CustomerService.applyDataScope 客户列表 / CustomerAccessService 详情判定)在
+        // perm.read.<module>=new 时走内核授予表——保证 统计(已切)=列表=详情 同轨,
+        // 卡片=列表=导出 验收红线不因切轨破裂。旧轨(默认)逐字节不变。
+        com.aigicrm.common.auth.AuthorizationService auth =
+                authServiceProvider == null ? null : authServiceProvider.getIfAvailable();
+        if (auth != null && auth.isNewTrack(req.getModule())) {
+            String code = auth.actionCodeOf(req.getModule(),
+                    req.getAction() == null || req.getAction().isBlank() ? "view" : req.getAction());
+            if (code != null) {
+                return auth.scopeForUser(req.getUser(), code);
+            }
+        }
         SecurityUser user = req.getUser();
         ScopeRequest.AnchorType anchor = req.getAnchor() != null ? req.getAnchor() : ScopeRequest.AnchorType.OWNER;
         if (anchor == ScopeRequest.AnchorType.ORG) {

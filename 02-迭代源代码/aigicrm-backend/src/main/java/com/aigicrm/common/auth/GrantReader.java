@@ -26,7 +26,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @RequiredArgsConstructor
 public class GrantReader {
 
-    /** 单条授权(scope_type + anchor) */
+    /** 单条授权(scope_type + anchor + 归属动作 + 原始范围配置) */
     @Getter
     @RequiredArgsConstructor
     public static class GrantRow {
@@ -34,6 +34,15 @@ public class GrantReader {
         private final String anchor;
         private final String subjectType;   // USER/POSITION/ROLE
         private final String subjectId;
+        /** 【P0-3 修复 2026-11-13】归属动作码(CUSTOM 精确行取数用) */
+        private final String actionCode;
+        /** 【P0-3】原始范围配置(scope_config JSON 原文, CUSTOM 解析 orgId+includeChildren) */
+        private final String scopeConfig;
+
+        /** 兼容构造(测试/非 CUSTOM 场景; actionCode/scopeConfig 为空) */
+        public GrantRow(String scopeType, String anchor, String subjectType, String subjectId) {
+            this(scopeType, anchor, subjectType, subjectId, null, null);
+        }
     }
 
     private static final long TTL_MS = 30_000L;
@@ -95,7 +104,7 @@ public class GrantReader {
             String placeholders = String.join(",", subjects.stream().map(s -> "?").toList());
             Timestamp now = Timestamp.valueOf(LocalDateTime.now());
             jdbc.query(
-                    "SELECT subject_type, subject_id, action_code, scope_type, anchor FROM sys_perm_grant " +
+                    "SELECT subject_type, subject_id, action_code, scope_type, anchor, scope_config FROM sys_perm_grant " +
                     "WHERE tenant_id = 1 AND effect = 'ALLOW' " +
                     "AND (expire_at IS NULL OR expire_at > ?) " +
                     "AND CONCAT(subject_type, ':', subject_id) IN (" + placeholders + ")",
@@ -104,7 +113,9 @@ public class GrantReader {
                                 rs.getString("scope_type"),
                                 rs.getString("anchor"),
                                 rs.getString("subject_type"),
-                                rs.getString("subject_id"));
+                                rs.getString("subject_id"),
+                                rs.getString("action_code"),
+                                rs.getString("scope_config"));
                         out.computeIfAbsent(rs.getString("action_code"), k -> new ArrayList<>()).add(row);
                     }, prepend(now, subjects.toArray()));
             return out;

@@ -41,6 +41,8 @@ public class PermissionCacheService {
     private final SysUserPositionMapper userPositionMapper;
     /** 【WP5 2026-11-13】权限版本号(ObjectProvider 断循环: evictAll→markChanged, bump→evictAll) */
     private final org.springframework.beans.factory.ObjectProvider<com.aigicrm.common.auth.PermEpochService> permEpochServiceProvider;
+    /** 【P0-4 修复 2026-11-13】任职/闭包运行期维护(ObjectProvider; 组织/岗位/人员写点经本类汇聚触发) */
+    private final org.springframework.beans.factory.ObjectProvider<com.aigicrm.common.auth.KernelOrgSyncService> orgSyncServiceProvider;
 
     /** 读取缓存上下文；未命中返回 null（调用方回源构建） */
     public PermissionContext get(Long userId) {
@@ -65,7 +67,7 @@ public class PermissionCacheService {
         }
     }
 
-    /** 单用户失效（用户级写点：角色绑定/dataScopeOverride/orgs/禁用/返聘） */
+    /** 单用户失效（用户级写点：角色绑定/dataScopeOverride/orgs/禁用/返聘/部门/岗位变更） */
     public void evict(Long userId) {
         if (userId == null) return;
         // 【修复 2026-08-09 P2-3】事务内延后到 afterCommit 再 evict：
@@ -75,10 +77,21 @@ public class PermissionCacheService {
             org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
                     new org.springframework.transaction.support.TransactionSynchronization() {
                         @Override
-                        public void afterCommit() { doEvict(uid); }
+                        public void afterCommit() { doEvict(uid); syncEmployment(uid); }
                     });
         } else {
             doEvict(userId);
+            syncEmployment(userId);
+        }
+    }
+
+    /** 【P0-4 修复 2026-11-13】用户级写点(部门/岗位/角色变更)→ 任职表同步(幂等; 提交后执行; 失败不阻断) */
+    private void syncEmployment(Long userId) {
+        try {
+            com.aigicrm.common.auth.KernelOrgSyncService sync = orgSyncServiceProvider.getIfAvailable();
+            if (sync != null) sync.syncUserEmployment(userId);
+        } catch (Exception e) {
+            log.warn("任职同步触发失败 userId={}: {}", userId, e.getMessage());
         }
     }
 
@@ -114,18 +127,32 @@ public class PermissionCacheService {
         }
     }
 
-    /** 全量失效（规则/菜单定义等爆炸半径最大的写点，低频操作） */
+    /** 全量失效（规则/菜单定义/组织结构等爆炸半径最大的写点，低频操作） */
     public void evictAll() {
         // 【修复 2026-08-09 P2-3】与 evict 同理，事务内延后到 afterCommit
         if (org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive()) {
             org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
                     new org.springframework.transaction.support.TransactionSynchronization() {
                         @Override
-                        public void afterCommit() { doEvictAll(); afterCommitEpoch(); }
+                        public void afterCommit() { doEvictAll(); afterCommitEpoch(); rebuildOrgData(); }
                     });
         } else {
             doEvictAll();
             afterCommitEpoch();
+            rebuildOrgData();
+        }
+    }
+
+    /** 【P0-4 修复 2026-11-13】全局写点(组织/岗位结构变更)→ 闭包+全量任职重建(幂等; 失败不阻断) */
+    private void rebuildOrgData() {
+        try {
+            com.aigicrm.common.auth.KernelOrgSyncService sync = orgSyncServiceProvider.getIfAvailable();
+            if (sync != null) {
+                sync.rebuildClosure();
+                sync.rebuildAllEmployment();
+            }
+        } catch (Exception e) {
+            log.warn("组织数据重建触发失败: {}", e.getMessage());
         }
     }
 

@@ -70,59 +70,78 @@ public class ScopeSpecResolver {
         }
     }
 
-    /** CUSTOM: scope_config JSON(orgIds 数组)优先 → 回退 sys_user_org/sys_role_org 原始行 */
+    /** CUSTOM 授权组织行(orgId + includeChildren) */
+    private record CustomOrgRef(Long orgId, boolean includeChildren) {}
+
+    /**
+     * 【P0-3 修复 2026-11-13】CUSTOM 解析:
+     * ① 精确取当前授权行的 scope_config(subject+action 定位, 不再"按主体取首条"串档);
+     * ② 严格按行 includeChildren: false 只加本组织(不展开子树), true 展开闭包——
+     *    旧实现无条件 closure 把"指定部门(不含下级)"放大成整棵子树(越权放宽)。
+     * ③ scope_config 缺失回退旧表原始行(用户级∪角色级, 逐行 includeChildren 同语义)。
+     */
     private ScopeSpec resolveCustom(SecurityUser user, GrantReader.GrantRow grant) {
         Long self = user.getUserId();
-        List<Long> orgs = new ArrayList<>();
-        // 1) scope_config 形态: [{"orgId":1,"includeChildren":true},...] 或 [1,2] (后端管理端写入前者)
-        String cfg = jdbc.queryForObject(
-                "SELECT COALESCE(JSON_UNQUOTE(JSON_EXTRACT(scope_config, '$')), '') FROM sys_perm_grant " +
-                "WHERE tenant_id=1 AND subject_type=? AND subject_id=? AND action_code IN (SELECT action_code FROM sys_perm_grant WHERE tenant_id=1) LIMIT 1",
-                String.class, grant.getSubjectType(), grant.getSubjectId());
-        // 注: scope_config 按主体+动作定位需 action_code; GrantRow 未带 code——
-        // 管理端对 CUSTOM 档逐主体逐动作写入同一 org 集(主体维授权), 简化为按主体取首条 CUSTOM 配置
+        List<CustomOrgRef> refs = new ArrayList<>();
+        String cfg = grant.getScopeConfig();
         if (cfg != null && !cfg.isBlank() && !"null".equals(cfg)) {
-            orgs = parseOrgIdsLoose(cfg);
+            refs = parseOrgRefsLoose(cfg);
         }
-        if (orgs.isEmpty()) {
-            // 2) 回退旧表原始行(includeChildren 语义同 WP1.2): 用户级 sys_user_org 优先, 角色级兜底
-            orgs = legacyOrgRows(user);
+        if (refs.isEmpty()) {
+            refs = legacyOrgRefs(user);
         }
-        if (orgs.isEmpty()) return self == null ? ScopeSpec.none() : ScopeSpec.ofOwners(List.of(self));
+        if (refs.isEmpty()) return self == null ? ScopeSpec.none() : ScopeSpec.ofOwners(List.of(self));
 
-        // CUSTOM 行的 includeChildren: scope_config 对象带 flag 时按行展开; 旧表行按行展开
         Set<Long> deptIds = new LinkedHashSet<>();
-        for (Long orgId : orgs) {
-            if (orgId == null) continue;
-            deptIds.add(orgId);
-            deptIds.addAll(closure(orgId)); // 默认含子树——逐行 includeChildren=0 的窄化由管理端写入 scope_config 标志控制(WP6)
+        for (CustomOrgRef ref : refs) {
+            if (ref.orgId() == null) continue;
+            deptIds.add(ref.orgId());
+            if (ref.includeChildren()) {
+                deptIds.addAll(closure(ref.orgId()));
+            }
         }
         return ScopeSpec.ofDepts(deptIds);
     }
 
-    /** 从 scope_config JSON 宽松解析 orgId 列表(数字数组/对象数组皆可, 防脏格式) */
-    private List<Long> parseOrgIdsLoose(String json) {
-        List<Long> out = new ArrayList<>();
-        java.util.regex.Matcher m = java.util.regex.Pattern.compile("\"orgId\"\\s*:\\s*(\\d+)").matcher(json);
-        while (m.find()) out.add(Long.valueOf(m.group(1)));
+    /**
+     * scope_config 宽松解析: 对象数组 [{"orgId":1,"includeChildren":true},...] 优先(含标志),
+     * 纯数字数组 [1,2] 按含子树(管理端默认=勾组织含下级, 与旧 UI 语义一致)。
+     */
+    private List<CustomOrgRef> parseOrgRefsLoose(String json) {
+        List<CustomOrgRef> out = new ArrayList<>();
+        java.util.regex.Matcher obj = java.util.regex.Pattern
+                .compile("\\{\\s*\"orgId\"\\s*:\\s*(\\d+)\\s*(,\\s*\"includeChildren\"\\s*:\\s*(true|false|1|0))?\\s*\\}")
+                .matcher(json);
+        while (obj.find()) {
+            out.add(new CustomOrgRef(Long.valueOf(obj.group(1)),
+                    obj.group(3) == null || "true".equalsIgnoreCase(obj.group(3)) || "1".equals(obj.group(3))));
+        }
         if (out.isEmpty()) {
-            java.util.regex.Matcher m2 = java.util.regex.Pattern.compile("(^|[\\[,\\s])(\\d+)(?=[\\],\\s]|$)").matcher(json);
-            while (m2.find()) out.add(Long.valueOf(m2.group(2)));
+            java.util.regex.Matcher num = java.util.regex.Pattern
+                    .compile("(^|[\\[,\\s])(\\d+)(?=[\\],\\s]|$)").matcher(json);
+            while (num.find()) {
+                out.add(new CustomOrgRef(Long.valueOf(num.group(2)), true));
+            }
         }
         return out;
     }
 
-    /** 旧表 CUSTOM 授权组织原始行(用户级∪角色级, 不预展开) */
-    private List<Long> legacyOrgRows(SecurityUser user) {
-        List<Long> out = new ArrayList<>();
+    /** 旧表 CUSTOM 授权组织原始行(用户级∪角色级, 逐行 includeChildren, 不预展开) */
+    private List<CustomOrgRef> legacyOrgRefs(SecurityUser user) {
+        List<CustomOrgRef> out = new ArrayList<>();
         try {
-            out.addAll(jdbc.queryForList(
-                    "SELECT org_id FROM sys_user_org WHERE user_id = ?", Long.class, user.getUserId()));
+            jdbc.query("SELECT org_id, include_children FROM sys_user_org WHERE user_id = ?",
+                    rs -> {
+                        long orgId = rs.getLong(1);
+                        int flag = rs.getInt(2);
+                        out.add(new CustomOrgRef(orgId, flag == 1));
+                    }, user.getUserId());
             if (out.isEmpty() && user.getRoleCodes() != null && !user.getRoleCodes().isEmpty()) {
                 String ph = String.join(",", user.getRoleCodes().stream().map(r -> "?").toList());
-                out.addAll(jdbc.queryForList(
-                        "SELECT DISTINCT org_id FROM sys_role_org WHERE role_code IN (" + ph + ")",
-                        Long.class, user.getRoleCodes().toArray()));
+                jdbc.query("SELECT DISTINCT org_id, include_children FROM sys_role_org WHERE role_code IN (" + ph + ")",
+                        rs -> {
+                            out.add(new CustomOrgRef(rs.getLong(1), rs.getInt(2) == 1));
+                        }, user.getRoleCodes().toArray());
             }
         } catch (Exception e) {
             log.warn("CUSTOM 旧表行装载失败: {}", e.getMessage());

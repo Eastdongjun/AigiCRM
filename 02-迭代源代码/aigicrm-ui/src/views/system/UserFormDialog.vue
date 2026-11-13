@@ -74,9 +74,11 @@
       </el-form-item>
       <el-row :gutter="24">
         <el-col :span="12">
-          <!-- 【C11 2026-10-08】星标=真校验：补 prop 接入 formRules.dataScopeOverride，未选时字段下方红字（不再只靠保存时全局 toast） -->
-          <el-form-item label="数据范围" prop="dataScopeOverride">
-            <el-select v-model="editForm.dataScopeOverride" style="width:100%" placeholder="请选择数据范围">
+          <!-- 【P1-9 修复 2026-11-13 并集语义】数据范围改"额外可见范围(只能加)":
+               后端 override 已并入角色并集(WP1.1), 选"仅本人"不再收紧角色范围——
+               允许留空=跟随角色(默认), 去掉 required 强制(与规格 WP6 删除该字段的方向一致) -->
+          <el-form-item label="额外可见范围">
+            <el-select v-model="editForm.dataScopeOverride" style="width:100%" placeholder="跟随角色（默认）" clearable>
               <el-option label="仅本人" value="self" />
               <el-option label="本人及下级" value="team" />
               <el-option label="本部门及以下" value="dept" />
@@ -85,6 +87,7 @@
               <el-option label="全部(本集团)" value="all" />
               <el-option label="自定义组织" value="custom" />
             </el-select>
+            <div class="org-hint">留空=跟随角色；所选范围只会叠加(角色范围不会被收窄)</div>
           </el-form-item>
         </el-col>
         <el-col :span="12">
