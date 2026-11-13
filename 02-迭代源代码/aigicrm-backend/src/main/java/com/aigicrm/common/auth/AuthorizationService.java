@@ -243,7 +243,9 @@ public class AuthorizationService {
         if (alias != null) {
             resolveCode = alias;
         }
-        List<GrantReader.GrantRow> grants = grantReader.grantsOf(user, resolveCode);
+        // 【文件专项 P0 修复】槽级聚合: (file,manage) 槽五个动作码共享同一槽配置——
+        // 角色只勾其中任一码(如仅 file:upload)也有槽 grant, 不因"单码无 grant"变空集。
+        List<GrantReader.GrantRow> grants = grantsForSlot(user, resolveCode);
         if (grants.isEmpty()) {
             return ScopeDecision.none(); // 无授权=无范围(fail-closed, 规格 §3.2 empty→NONE)
         }
@@ -313,6 +315,25 @@ public class AuthorizationService {
             return ScopeDecision.none();
         }
         return d;
+    }
+
+    /**
+     * 【文件专项 P0 修复 2026-11-13】槽级授权聚合: 一槽多码(如 (file,manage) 五码)时,
+     * 合并槽内全部码的 grant 行(去重)——任一码有 grant 即代表槽配置生效;
+     * 单码槽退化为 grantsOf(code) 原语义。
+     */
+    private List<GrantReader.GrantRow> grantsForSlot(SecurityUser user, String actionCode) {
+        String[] slot = registry.slotOf(actionCode);
+        if (slot == null) return grantReader.grantsOf(user, actionCode);
+        List<GrantReader.GrantRow> out = new ArrayList<>();
+        Set<String> seen = new HashSet<>();
+        for (String c : registry.codesOf(slot[0], slot[1])) {
+            for (GrantReader.GrantRow g : grantReader.grantsOf(user, c)) {
+                String key = g.getSubjectType() + ":" + g.getSubjectId() + ":" + g.getScopeType() + ":" + g.getAnchor();
+                if (seen.add(key)) out.add(g);
+            }
+        }
+        return out;
     }
 
     /** DEPT 维授权(组织档): 解析产出部门集合, OWNER 锚消费时展开为部门用户 */
@@ -421,6 +442,11 @@ public class AuthorizationService {
             case "customer:delete": return "delete";
             case "customer:finance:edit": return "finance_edit";
             case "file:view": return "view";
+            // 【文件专项 P0 修复】manage 组五码(matrixActionOf 同表): upload/edit/share 旧表漏列,
+            // 槽锚(dominantAnchor/legacyScope)须与 FolderPermissionService 消费一致
+            case "file:upload":
+            case "file:edit":
+            case "file:share":
             case "file:acl:manage":
             case "file:folder:manage": return "manage";
             case "file:delete": return "delete";
@@ -457,19 +483,11 @@ public class AuthorizationService {
         return dominantAnchor(actionCode, def);
     }
 
-    /** 主导锚点: 授权行首个 anchor → 注册表 default_anchor → OWNER */
+    /** 主导锚点: 镜像旧轨 P2-3 口径——锚点以 role_perm_scope.anchorOf 配置为准(grant 行 anchor 仅双写参考) */
     private ScopeRequest.AnchorType dominantAnchor(String actionCode, PermActionRegistry.ActionDef def) {
         SecurityUser user = SecurityUtils.getCurrentUser();
-        if (user != null && "new".equals(readMode(def != null ? def.getModule() : ""))) {
-            for (GrantReader.GrantRow g : grantReader.grantsOf(user, actionCode)) {
-                if (g.getAnchor() != null) {
-                    return "ORG".equalsIgnoreCase(g.getAnchor())
-                            ? ScopeRequest.AnchorType.ORG : ScopeRequest.AnchorType.OWNER;
-                }
-            }
-        }
-        return rolePermScopeService.anchorOf(SecurityUtils.getCurrentUser(),
-                def != null ? def.getModule() : "", legacySlotAction(actionCode));
+        String module = def != null ? def.getModule() : legacyModuleOf(actionCode);
+        return rolePermScopeService.anchorOf(user, module, legacySlotAction(actionCode));
     }
 
     // ==================== 读开关 ====================

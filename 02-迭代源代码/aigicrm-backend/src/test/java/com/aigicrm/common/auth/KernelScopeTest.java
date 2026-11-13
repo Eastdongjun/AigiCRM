@@ -376,6 +376,39 @@ class KernelScopeTest {
         }
     }
 
+    /**
+     * 【文件专项 P0 修复负例】(file,manage) 槽五码共享槽配置:
+     * 角色仅勾 file:upload(grant=MY_DEPT_SUB 来自槽) → resolveModuleUsers("file","manage")
+     * 的双轨解析必须为 MY_DEPT_SUB(非 all/非 SELF)——修"scope_required=0 → all → 任意夹放行"。
+     */
+    @Test
+    void scope_fileManageSlot_uploadOnlyGrant_resolvesSlotScope() {
+        PermActionRegistry registry = mock(PermActionRegistry.class);
+        when(registry.of("file:upload")).thenReturn(
+                new PermActionRegistry.ActionDef("file:upload", "file", "file", "uploader_id", null, true, false));
+        when(registry.slotOf("file:upload")).thenReturn(new String[]{"file", "manage"});
+        when(registry.codesOf("file", "manage")).thenReturn(List.of("file:upload"));
+        when(configService.getValue("perm.read.file")).thenReturn("new");
+        when(rolePermScopeService.anchorOf(any(), eq("file"), eq("manage")))
+                .thenReturn(ScopeRequest.AnchorType.ORG);
+        GrantReader reader = mock(GrantReader.class);
+        // 槽聚合: file:upload 有 grant(MY_DEPT_SUB), 其余四码无
+        when(reader.grantsOf(any(), eq("file:upload"))).thenReturn(List.of(
+                new GrantReader.GrantRow("MY_DEPT_SUB", "OWNER", "ROLE", "sales")));
+        AuthorizationService svc = auth(reader, registry);
+        SecurityUser su = suPerm(7L, "customer:view");
+        su.setEmploymentOrgIds(List.of(10L));
+        su.setPrimaryEmploymentOrgId(10L);
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::getCurrentUser).thenReturn(su);
+            ScopeDecision d = svc.scope("file:upload");
+            // ORG 锚断言(桩无关): MY_DEPT_SUB 授权 → 部门维={10}——钉"manage 槽范围非 all/非 none"
+            assertFalse(d.isAll(), "槽范围不得回退 all");
+            assertEquals(Set.of(10L), Set.copyOf(d.getVisibleDeptIds()),
+                    "仅 file:upload 授权 → manage 槽范围(MY_DEPT_SUB)=部门 10");
+        }
+    }
+
     /** 【P1-3 三轮修复负例】导出无条件跟随列表授权(回填 SELF grant 不再架空别名, 卡片=列表=导出) */
     @Test
     void scopeNewTrack_export_alwaysFollowsViewAlias() {

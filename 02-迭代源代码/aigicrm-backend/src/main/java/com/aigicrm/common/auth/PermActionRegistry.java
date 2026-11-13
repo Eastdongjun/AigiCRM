@@ -98,16 +98,24 @@ public class PermActionRegistry {
     }
 
     /**
-     * 槽动作特例覆盖(V2026.11.13.3 回填同表): 
-     * file:manage 码已退役 → (file,manage) 槽的两门码;
+     * 槽动作特例覆盖(V2026.11.13.3 回填同表 + V2026.11.13.4 扩五码):
+     * file:manage 码已退役 → (file,manage) 槽的**全部五个动作码**
+     * (matrixActionOf: upload/rename/replace/share/edit→manage; acl/folder:manage 同组);
      * (system,view) 槽 → system:log:view(动作轴通用规则为 log_view, 需显式映射)。
      */
     private static final Map<String, List<String>> SLOT_CODE_OVERRIDES = Map.of(
-            "file|manage", List.of("file:acl:manage", "file:folder:manage"),
+            "file|manage", List.of("file:acl:manage", "file:folder:manage",
+                    "file:upload", "file:edit", "file:share"),
             "system|view", List.of("system:log:view"));
 
-    /** 码的槽动作(与迁移 .2 通用规则同构: 两段=尾段/三段=中段_尾段转义) */
+    /** 码的槽动作(与迁移 .2 通用规则同构: 两段=尾段/三段=中段_尾段转义)。
+     *  【V2026.11.13.4】file 家族 manage 组五码显式归 (file,manage) 槽(matrixActionOf 同表):
+     *  upload/rename 形态的通用规则会给出 upload/edit/... 等尾段, 统一归 manage。 */
     private static String slotActionOf(String code) {
+        if (code.equals("file:upload") || code.equals("file:edit") || code.equals("file:share")
+                || code.equals("file:acl:manage") || code.equals("file:folder:manage")) {
+            return "manage";
+        }
         int first = code.indexOf(':');
         int last = code.lastIndexOf(':');
         if (first == last) return code.substring(first + 1); // 两段

@@ -50,6 +50,18 @@ grep -q 'wrapper.apply("1=0")' "$BE/common/auth/ScopeQuery.java" || fail "⑤ Sc
 grep -q "isScopeRequired()" "$BE/common/auth/ScopeQuery.java" || fail "⑤ ScopeQuery 缺入口码 no-op"
 pass "⑤ ScopeQuery fail-closed(未注册 1=0 / 入口码 no-op)"
 
+# ---- ⑥ 文件 manage 槽修复契约(文件专项检查 P0): 五码 scope_required=1 + 槽覆盖五码 ----
+MIG4="$ROOT/aigicrm-backend/src/main/resources/db/migration/V2026.11.13.4__wp2_file_manage_slot_fix.sql"
+[ -f "$MIG4" ] || fail "⑥ 缺 V2026.11.13.4 修复迁移"
+grep -q "'file:acl:manage', 'file:folder:manage', 'file:upload', 'file:edit', 'file:share'" "$MIG4" \
+  || fail "⑥ 迁移缺五码 scope_required=1"
+grep -q '"file|manage", List.of("file:acl:manage", "file:folder:manage",' "$BE/common/auth/PermActionRegistry.java" \
+  || fail "⑥ Registry 缺 (file,manage) 槽五码覆盖"
+grep -q 'case "file:upload":' "$BE/common/auth/AuthorizationService.java" \
+  || fail "⑥ legacySlotAction 缺五码 manage 映射"
+grep -q "grantsForSlot" "$BE/common/auth/AuthorizationService.java" || fail "⑥ 缺槽级授权聚合"
+pass "⑥ 文件 manage 槽修复(五码 scope_required=1/槽覆盖/槽锚/槽聚合)"
+
 # ---- 负例自证: 构造违规内容必须被本契约抓出(防扫描器假绿) ----
 if [ "$NEG" = "1" ]; then
   TMP="$(mktemp -d)"
