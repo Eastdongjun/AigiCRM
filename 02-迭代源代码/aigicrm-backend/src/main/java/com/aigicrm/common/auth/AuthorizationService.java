@@ -148,6 +148,14 @@ public class AuthorizationService {
 
     // ==================== 新轨(授予表)解析 ====================
 
+    /** 【WP8 对账】显式新轨解析(绕过读开关, 供对账工具/测试对比) */
+    public ScopeDecision scopeNewTrack(SecurityUser user, String actionCode) {
+        PermActionRegistry.ActionDef def = registry.of(actionCode);
+        if (def == null) return ScopeDecision.none();
+        if (!def.isScopeRequired()) return ScopeDecision.all();
+        return newTrackScope(user, def);
+    }
+
     private ScopeDecision newTrackScope(SecurityUser user, PermActionRegistry.ActionDef def) {
         List<GrantReader.GrantRow> grants = grantReader.grantsOf(user, def.getCode());
         if (grants.isEmpty()) {
@@ -161,8 +169,10 @@ public class AuthorizationService {
         // 上级/负责人开关: 仅 view_like 动作追加(锁定决策#8; 写动作绝不放宽)
         if (def.isViewLike()) {
             boolean[] sw = legacyResolver.switchFlags();
-            if (sw[0]) spec.merge(ScopeSpec.ofOwners(specResolver.teamOf(user.getUserId())));
-            if (sw[1]) spec.merge(ledOrgSpec(user.getUserId()));
+            boolean superiorOn = sw != null && sw.length > 0 && sw[0];
+            boolean leaderOn = sw != null && sw.length > 1 && sw[1];
+            if (superiorOn) spec.merge(ScopeSpec.ofOwners(specResolver.teamOf(user.getUserId())));
+            if (leaderOn) spec.merge(ledOrgSpec(user.getUserId()));
         }
         if (spec.isEmpty()) return ScopeDecision.none();
         ScopeDecision d = new ScopeDecision();

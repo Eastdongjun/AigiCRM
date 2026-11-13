@@ -284,6 +284,7 @@ public class RolePermScopeService {
                         row.get("scope_level") + "/" + row.get("anchor"), "默认(未配置)");
             }
             jdbc.update("DELETE FROM role_perm_scope WHERE assignee_type=? AND assignee_key=?", assigneeType, assigneeKey);
+            dualDeleteGrants(assigneeType, assigneeKey); // 【WP8 双写】授予表同步删除
             invalidate(assigneeKey);
             permissionCacheService.evictAll();
             // 【2026-08-14 缓存自愈】版本递增兜底：evict 漏网/Redis 写失败时缓存与 DB 版本比对自愈
@@ -342,6 +343,7 @@ public class RolePermScopeService {
                     "ON DUPLICATE KEY UPDATE scope_level=VALUES(scope_level), anchor=VALUES(anchor), role_code=VALUES(role_code)",
                     roleCode, assigneeType, assigneeKey, module.toString(), action.toString(), scope, anchor.toUpperCase());
             recordScopeVersion(assigneeType, assigneeKey, module.toString(), action.toString(), oldScope, scope + "/" + anchor.toUpperCase());
+            dualUpsertGrants(assigneeType, assigneeKey, module.toString(), action.toString(), scope, anchor.toUpperCase()); // 【WP8 双写】
             invalidate(assigneeKey);
         }
         // 【2026-08-14 评审 P2】evictAll/bump 提升到循环外：批量 N 条配置只做一次全量失效+全表版本递增
@@ -350,10 +352,66 @@ public class RolePermScopeService {
         bumpAllPermVersions();
     }
 
+    // ==================== 【WP8 双写 2026-11-13】旧表保存同步写 sys_perm_grant ====================
+    // 切流(WP8)前 sys_perm_grant 非权威——双写保证新轨数据新鲜, 读开关翻转时零回填等待。
+    // 锚点保真: ROLE 级授权与 role_perm_scope 行一一对应; scope_type 映射与 V2026.11.13.3 同表。
+
+    private final com.aigicrm.common.auth.PermActionRegistry permActionRegistry;
+
+    private static String scopeTypeOfLegacy(String legacyScope) {
+        if (legacyScope == null) return "SELF";
+        switch (legacyScope) {
+            case "all": return "ALL";
+            case "custom": return "CUSTOM";
+            case "region": return "MY_REGION_SUB";
+            case "office": return "MY_OFFICE_SUB";
+            case "dept":
+            case "dept_and_children":
+            case "org_and_children": return "MY_DEPT_SUB";
+            case "org": return "MY_DEPT";
+            case "team": return "MY_TEAM";
+            default: return "SELF";
+        }
+    }
+
+    /** 槽保存 → 授予表 upsert(槽的全部码; effect=ALLOW; tenant=1) */
+    private void dualUpsertGrants(String assigneeType, String assigneeKey, String module, String action,
+                                   String scopeLevel, String anchor) {
+        try {
+            List<String> codes = permActionRegistry.codesOf(module, action);
+            for (String code : codes) {
+                jdbc.update(
+                        "INSERT INTO sys_perm_grant (tenant_id, subject_type, subject_id, action_code, scope_type, anchor, effect) " +
+                        "VALUES (1, ?, ?, ?, ?, ?, 'ALLOW') " +
+                        "ON DUPLICATE KEY UPDATE scope_type = VALUES(scope_type), anchor = VALUES(anchor)",
+                        assigneeType, assigneeKey, code, scopeTypeOfLegacy(scopeLevel), anchor);
+            }
+        } catch (Exception e) {
+            // 授予表未就绪/写失败不阻断旧表主流程(旧轨权威; 对账工具兜底差异)
+            logDualWriteFailure("upsert", assigneeType, assigneeKey, e);
+        }
+    }
+
+    /** 槽清空 → 授予表删除(该主体该槽全部码) */
+    private void dualDeleteGrants(String assigneeType, String assigneeKey) {
+        try {
+            jdbc.update("DELETE FROM sys_perm_grant WHERE tenant_id = 1 AND subject_type = ? AND subject_id = ?",
+                    assigneeType, assigneeKey);
+        } catch (Exception e) {
+            logDualWriteFailure("delete", assigneeType, assigneeKey, e);
+        }
+    }
+
+    private void logDualWriteFailure(String op, String assigneeType, String assigneeKey, Exception e) {
+        org.slf4j.LoggerFactory.getLogger(RolePermScopeService.class)
+                .warn("双写失败({}) {}/{}: {}", op, assigneeType, assigneeKey, e.getMessage());
+    }
+
     /** 删除某角色的全部范围配置(角色删除/重置时) */
     @Transactional
     public void deleteRoleScopes(String roleCode) {
         jdbc.update("DELETE FROM role_perm_scope WHERE assignee_type='ROLE' AND assignee_key=?", roleCode);
+        dualDeleteGrants("ROLE", roleCode); // 【WP8 双写】
         invalidate(roleCode);
         permissionCacheService.evictAll();
         // 【2026-08-14 缓存自愈】版本递增兜底：evict 漏网/Redis 写失败时缓存与 DB 版本比对自愈
@@ -391,6 +449,12 @@ public class RolePermScopeService {
     public void renameRoleCode(String oldCode, String newCode) {
         jdbc.update("UPDATE role_perm_scope SET role_code=?, assignee_key=? WHERE assignee_type='ROLE' AND assignee_key=?",
                 newCode, newCode, oldCode);
+        try { // 【WP8 双写】授予表主体改名
+            jdbc.update("UPDATE sys_perm_grant SET subject_id=? WHERE tenant_id=1 AND subject_type='ROLE' AND subject_id=?",
+                    newCode, oldCode);
+        } catch (Exception e) {
+            logDualWriteFailure("rename", oldCode, newCode, e);
+        }
         invalidate(oldCode);
         invalidate(newCode);
         permissionCacheService.evictAll();

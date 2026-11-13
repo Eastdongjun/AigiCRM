@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -55,11 +56,29 @@ public class PermActionRegistry {
         String override = SLOT_CODE_OVERRIDES.get(module + "|" + action);
         if (override != null && cache.containsKey(override)) return override;
         for (ActionDef def : cache.values()) {
-            if (module.equals(def.getModule()) && action.equals(slotActionOf(def.getCode(), def.getModule()))) {
+            if (module.equals(def.getModule()) && action.equals(slotActionOf(def.getCode()))) {
                 return def.getCode();
             }
         }
         return override; // 可能为 null
+    }
+
+    /**
+     * 【WP8 双写 2026-11-13】(module, action) 槽 → 全部动作码(双写需覆盖一槽多码,
+     * 如 (file,manage) → file:acl:manage + file:folder:manage)。
+     */
+    public List<String> codesOf(String module, String action) {
+        if (module == null || action == null) return List.of();
+        refreshIfNeeded();
+        java.util.LinkedHashSet<String> out = new java.util.LinkedHashSet<>();
+        String override = SLOT_CODE_OVERRIDES.get(module + "|" + action);
+        if (override != null && cache.containsKey(override)) out.add(override);
+        for (ActionDef def : cache.values()) {
+            if (module.equals(def.getModule()) && action.equals(slotActionOf(def.getCode()))) {
+                out.add(def.getCode());
+            }
+        }
+        return new ArrayList<>(out);
     }
 
     /**
@@ -70,13 +89,13 @@ public class PermActionRegistry {
             "file|manage", "file:acl:manage");
 
     /** 码的槽动作(与迁移 .2 通用规则同构: 两段=尾段/三段=中段_尾段转义) */
-    private static String slotActionOf(String code, String module) {
+    private static String slotActionOf(String code) {
         int first = code.indexOf(':');
         int last = code.lastIndexOf(':');
         if (first == last) return code.substring(first + 1); // 两段
         String mid = code.substring(first + 1, last);
         String tail = code.substring(last + 1);
-        if ("system".equals(module) && !code.startsWith("system:user:")
+        if (code.startsWith("system:") && !code.startsWith("system:user:")
                 && !code.startsWith("system:dept:") && !code.startsWith("system:log:")) {
             return mid + "_" + tail; // system_admin 复合动作
         }

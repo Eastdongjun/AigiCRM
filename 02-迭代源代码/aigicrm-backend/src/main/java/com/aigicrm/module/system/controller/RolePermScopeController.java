@@ -23,6 +23,8 @@ public class RolePermScopeController {
     private final RolePermScopeService rolePermScopeService;
     /** 【WP5】保存回执(epoch/受影响人数) */
     private final com.aigicrm.common.auth.PermEpochService permEpochService;
+    /** 【WP8】双轨对账 */
+    private final com.aigicrm.module.system.service.PermReconcileService reconcileService;
     private final org.springframework.jdbc.core.JdbcTemplate jdbc;
 
     @PreAuthorize("hasAuthority('system:config:view')")
@@ -98,6 +100,16 @@ public class RolePermScopeController {
                 "affectedUsers", affected,
                 "scopeDesc", scopeDesc,
                 "confirmThreshold", 20)); // 超阈值前端须二次确认(规格 WP6 影响分析)
+    }
+
+    /** 【WP8 对账 2026-11-13】抽样双轨对比(admin): 旧/新轨 (customer,view) 可见集 0 差异=切流门槛 */
+    @PreAuthorize("hasAuthority('system:config:view')")
+    @GetMapping("/reconcile")
+    public Result<java.util.Map<String, Object>> reconcile(
+            @RequestParam(defaultValue = "50") int sample,
+            @RequestParam(required = false) Long userId) {
+        requireAdmin();
+        return Result.ok(reconcileService.reconcile(sample, userId));
     }
 
     /** 【WP5 2026-11-13】保存回执: 新版本号 + 受影响用户数(绑定该主体的在职用户) */

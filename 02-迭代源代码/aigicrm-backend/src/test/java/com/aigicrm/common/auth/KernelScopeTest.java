@@ -217,6 +217,64 @@ class KernelScopeTest {
         }
     }
 
+    /** 【WP8 对账】显式新轨: 多授权行并集(SELF ∪ MY_DEPT_SUB 闭包); 未知码 fail-closed 空集 */
+    @Test
+    void scopeNewTrack_multiGrantUnion_andUnknownFailsClosed() {
+        PermActionRegistry registry = mock(PermActionRegistry.class);
+        when(registry.of("customer:view")).thenReturn(def("customer:view", "customer", true, true));
+        GrantReader reader = mock(GrantReader.class);
+        when(reader.grantsOf(any(), eq("customer:view"))).thenReturn(List.of(
+                new GrantReader.GrantRow("SELF", "OWNER", "ROLE", "sales"),
+                new GrantReader.GrantRow("MY_DEPT_SUB", "OWNER", "ROLE", "manager")));
+        AuthorizationService svc = auth(reader, registry);
+        // 闭包: 10 → [11]; 部门集合 10/11 在职用户 = 7/8(OWNER 维为空集, ORG 维即范围)
+        when(jdbc.queryForList(anyString(), eq(Long.class), eq(10L))).thenReturn(List.of(11L));
+        when(legacyResolver.switchFlags()).thenReturn(new boolean[]{false, false});
+        SecurityUser su = suPerm(7L, "customer:view");
+        su.setEmploymentOrgIds(List.of(10L));
+        su.setPrimaryEmploymentOrgId(10L);
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::getCurrentUser).thenReturn(su);
+            ScopeDecision d = svc.scopeNewTrack(su, "customer:view");
+            assertFalse(d.isAll());
+            assertEquals(List.of(7L), d.getVisibleUserIds(), "OWNER 维: SELF 行贡献本人(并集语义)");
+            assertEquals(Set.of(10L, 11L), Set.copyOf(d.getVisibleDeptIds()), "ORG 维: MY_DEPT_SUB 行贡献闭包{10,11}");
+
+            // 未知码 → fail-closed 空集
+            assertTrue(svc.scopeNewTrack(su, "ghost:x").getVisibleUserIds() instanceof List<?>);
+            assertTrue(svc.scopeNewTrack(su, "ghost:x").getVisibleUserIds().isEmpty());
+        }
+    }
+
+    /** 【WP8 对账】双轨显式对比: 新轨 view_like 动作受上级开关放宽, 写动作不受(锁定决策#8 内核面) */
+    @Test
+    void scopeNewTrack_switchAppliesOnlyToViewLike() {
+        PermActionRegistry registry = mock(PermActionRegistry.class);
+        when(registry.of("customer:view")).thenReturn(def("customer:view", "customer", true, true));
+        when(registry.of("customer:delete")).thenReturn(def("customer:delete", "customer", true, false));
+        GrantReader reader = mock(GrantReader.class);
+        when(reader.grantsOf(any(), eq("customer:view"))).thenReturn(List.of(
+                new GrantReader.GrantRow("SELF", "OWNER", "ROLE", "sales")));
+        when(reader.grantsOf(any(), eq("customer:delete"))).thenReturn(List.of(
+                new GrantReader.GrantRow("SELF", "OWNER", "ROLE", "sales")));
+        when(legacyResolver.switchFlags()).thenReturn(new boolean[]{true, false}); // 上级开关开
+        AuthorizationService svc = auth(reader, registry);
+        // team 链: 7 → 8
+        when(jdbc.queryForList(anyString(), eq(Long.class), eq(7L))).thenReturn(List.of(8L));
+        when(jdbc.queryForList(anyString(), eq(Long.class), eq(8L))).thenReturn(List.of());
+        SecurityUser su = suPerm(7L, "customer:view");
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::getCurrentUser).thenReturn(su);
+            var view = svc.scopeNewTrack(su, "customer:view");
+            assertTrue(view.getVisibleUserIds().containsAll(List.of(7L, 8L)),
+                    "view_like + 开关开 → 并入下属链");
+
+            var del = svc.scopeNewTrack(su, "customer:delete");
+            assertEquals(List.of(7L), del.getVisibleUserIds(),
+                    "写动作(delete) 开关开也不放宽——验收红线 customer|delete=self");
+        }
+    }
+
     // ==================== ScopeQuery 注入语义(规格 §3.3) ====================
 
     @Test

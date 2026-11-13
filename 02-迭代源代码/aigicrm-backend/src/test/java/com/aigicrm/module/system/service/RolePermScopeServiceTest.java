@@ -32,7 +32,8 @@ class RolePermScopeServiceTest {
         when(jdbc.queryForList(contains("scope_level"), eq(String.class), eq("admin"), eq("customer"), eq("view")))
                 .thenReturn(List.of());
         RolePermScopeService svc = new RolePermScopeService(jdbc, mock(com.aigicrm.security.PermissionCacheService.class),
-                mock(com.aigicrm.module.system.mapper.SysRuleVersionMapper.class));
+                mock(com.aigicrm.module.system.mapper.SysRuleVersionMapper.class),
+                mock(com.aigicrm.common.auth.PermActionRegistry.class));
         assertEquals(List.of("dept"), svc.effectiveScopes(user("admin"), "customer", "view"),
                 "查看未配置范围 → 沿用角色 data_scope");
     }
@@ -43,7 +44,8 @@ class RolePermScopeServiceTest {
         when(jdbc.queryForList(contains("scope_level"), eq(String.class), eq("admin"), eq("customer"), eq("edit")))
                 .thenReturn(List.of());
         RolePermScopeService svc = new RolePermScopeService(jdbc, mock(com.aigicrm.security.PermissionCacheService.class),
-                mock(com.aigicrm.module.system.mapper.SysRuleVersionMapper.class));
+                mock(com.aigicrm.module.system.mapper.SysRuleVersionMapper.class),
+                mock(com.aigicrm.common.auth.PermActionRegistry.class));
         assertEquals(List.of("self"), svc.effectiveScopes(user("admin"), "customer", "edit"),
                 "编辑未配置范围 → 默认仅本人(兼容现状)");
     }
@@ -54,7 +56,8 @@ class RolePermScopeServiceTest {
         when(jdbc.queryForList(contains("scope_level"), eq(String.class), eq("xingzheng"), eq("customer"), eq("delete")))
                 .thenReturn(List.of("dept"));
         RolePermScopeService svc = new RolePermScopeService(jdbc, mock(com.aigicrm.security.PermissionCacheService.class),
-                mock(com.aigicrm.module.system.mapper.SysRuleVersionMapper.class));
+                mock(com.aigicrm.module.system.mapper.SysRuleVersionMapper.class),
+                mock(com.aigicrm.common.auth.PermActionRegistry.class));
         assertEquals(List.of("dept"), svc.effectiveScopes(user("xingzheng"), "customer", "delete"),
                 "已配置范围 → 用配置值");
     }
@@ -63,7 +66,8 @@ class RolePermScopeServiceTest {
     void updateRoleScopes_upsertsConfig() {
         JdbcTemplate jdbc = mock(JdbcTemplate.class);
         RolePermScopeService svc = new RolePermScopeService(jdbc, mock(com.aigicrm.security.PermissionCacheService.class),
-                mock(com.aigicrm.module.system.mapper.SysRuleVersionMapper.class));
+                mock(com.aigicrm.module.system.mapper.SysRuleVersionMapper.class),
+                mock(com.aigicrm.common.auth.PermActionRegistry.class));
         svc.updateRoleScopes("xingzheng", List.of(
                 Map.of("module", "customer", "action", "delete", "scopeLevel", "dept")));
         verify(jdbc).update(contains("INSERT INTO role_perm_scope"),
@@ -78,7 +82,8 @@ class RolePermScopeServiceTest {
     void updateScopes_switchingAnchor_removesConflictingAnchorRows() {
         JdbcTemplate jdbc = mock(JdbcTemplate.class);
         RolePermScopeService svc = new RolePermScopeService(jdbc, mock(com.aigicrm.security.PermissionCacheService.class),
-                mock(com.aigicrm.module.system.mapper.SysRuleVersionMapper.class));
+                mock(com.aigicrm.module.system.mapper.SysRuleVersionMapper.class),
+                mock(com.aigicrm.common.auth.PermActionRegistry.class));
 
         svc.updateScopes(com.aigicrm.common.scope.ScopeConfig.ASSIGNEE_ROLE, "xingzheng",
                 List.of(Map.of("module", "customer", "action", "view",
@@ -96,7 +101,8 @@ class RolePermScopeServiceTest {
     void anchorOf_readsEarliestDeterministically() {
         JdbcTemplate jdbc = mock(JdbcTemplate.class);
         RolePermScopeService svc = new RolePermScopeService(jdbc, mock(com.aigicrm.security.PermissionCacheService.class),
-                mock(com.aigicrm.module.system.mapper.SysRuleVersionMapper.class));
+                mock(com.aigicrm.module.system.mapper.SysRuleVersionMapper.class),
+                mock(com.aigicrm.common.auth.PermActionRegistry.class));
         when(jdbc.queryForList(contains("SELECT anchor"), eq(String.class), eq("xingzheng"), eq("customer"), eq("view")))
                 .thenReturn(List.of("ORG"));
 
@@ -115,7 +121,8 @@ class RolePermScopeServiceTest {
     void lookup_readsEarliestDeterministically() {
         JdbcTemplate jdbc = mock(JdbcTemplate.class);
         RolePermScopeService svc = new RolePermScopeService(jdbc, mock(com.aigicrm.security.PermissionCacheService.class),
-                mock(com.aigicrm.module.system.mapper.SysRuleVersionMapper.class));
+                mock(com.aigicrm.module.system.mapper.SysRuleVersionMapper.class),
+                mock(com.aigicrm.common.auth.PermActionRegistry.class));
         when(jdbc.queryForList(contains("SELECT scope_level"), eq(String.class), eq("xingzheng"), eq("customer"), eq("view")))
                 .thenReturn(List.of("dept"));
 
@@ -132,7 +139,8 @@ class RolePermScopeServiceTest {
     void updateScopes_deadAxisRejectedWith400() {
         JdbcTemplate jdbc = mock(JdbcTemplate.class);
         RolePermScopeService svc = new RolePermScopeService(jdbc, mock(com.aigicrm.security.PermissionCacheService.class),
-                mock(com.aigicrm.module.system.mapper.SysRuleVersionMapper.class));
+                mock(com.aigicrm.module.system.mapper.SysRuleVersionMapper.class),
+                mock(com.aigicrm.common.auth.PermActionRegistry.class));
         // incentive|view 是生产死档(激励可见性走 grant 表)——写入面必须 400 拒绝, 防新增死配置
         List<Map<String, Object>> dead = List.of(Map.of("module", "incentive", "action", "view", "scopeLevel", "dept"));
         com.aigicrm.common.BusinessException ex = org.junit.jupiter.api.Assertions.assertThrows(
@@ -145,7 +153,8 @@ class RolePermScopeServiceTest {
     void updateScopes_consumedAxisAccepted() {
         JdbcTemplate jdbc = mock(JdbcTemplate.class);
         RolePermScopeService svc = new RolePermScopeService(jdbc, mock(com.aigicrm.security.PermissionCacheService.class),
-                mock(com.aigicrm.module.system.mapper.SysRuleVersionMapper.class));
+                mock(com.aigicrm.module.system.mapper.SysRuleVersionMapper.class),
+                mock(com.aigicrm.common.auth.PermActionRegistry.class));
         // 活档抽样(incentive|stats_view 拍板B档 + approval|view/reminder|view 两个易漏档)不抛且落库
         svc.updateScopes("ROLE", "06", List.of(
                 Map.of("module", "incentive", "action", "stats_view", "scopeLevel", "dept"),
