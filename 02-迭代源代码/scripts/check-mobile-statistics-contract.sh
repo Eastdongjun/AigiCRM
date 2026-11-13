@@ -136,7 +136,11 @@ grep -q "@PreAuthorize(\"hasAuthority('statistics:view')\")" "$backend" || { ech
 grep -q "customerService.dailyNewCustomers()" "$service" || { echo "FAIL: daily customer stats do not use scope-aware customer service" >&2; exit 1; }
 grep -q "customerService.weeklyNewCustomers()" "$service" || { echo "FAIL: weekly customer stats do not use scope-aware customer service" >&2; exit 1; }
 grep -q "applyFileScope(" "$service" || { echo "FAIL: file statistics do not apply account scope" >&2; exit 1; }
-grep -q "getCurrentScopeUserIds()" "$service" || { echo "FAIL: team activities do not resolve current account scope" >&2; exit 1; }
+# 【WP1.5/WP4 2026-11-13 统计单一源(锁定决策#7)】团队动态/客户过滤走 CustomerVisibilityService
+# ((customer,view) 单一源); 文件统计来源动作独立 (file,view); (statistics,view) 档退役反钉
+grep -q "customerVisibilityService.visibleOwnerIds()" "$service" || { echo "FAIL: team activities do not use customer:view single source" >&2; exit 1; }
+grep -q 'resolveModuleUsers(user, "file", "view")' "$service" || { echo "FAIL: file stats source action must be file:view" >&2; exit 1; }
+! grep -q 'customerService.getCurrentScopeUserIds()' "$service" || { echo "FAIL: retired statistics-slot call still present (WP1.5 单一源)" >&2; exit 1; }
 grep -q "visibleUserIds" "$service" || { echo "FAIL: team activities do not constrain visible user ids" >&2; exit 1; }
 
 echo "PASS: mobile team-activity statistics contract is aligned."

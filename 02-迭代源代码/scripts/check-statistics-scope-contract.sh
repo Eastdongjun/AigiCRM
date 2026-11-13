@@ -61,9 +61,14 @@ if "applyFileScope(" not in daily or "applyFileScope(" not in weekly:
 print("PASS: daily and weekly file stats apply account scope")
 
 team = method_body("teamActivities")
-if "getCurrentScopeUserIds()" not in team:
-    raise SystemExit("FAIL: team activities resolve current account scope")
-print("PASS: team activities resolve current account scope")
+# 【WP1.5/WP4 2026-11-13 统计单一源(锁定决策#7)】团队动态可见人员=客户可见负责人
+# (CustomerVisibilityService.visibleOwnerIds, (customer,view) 单一源);
+# 旧 (statistics,view) 槽调用 getCurrentScopeUserIds() 直调形态反钉防复活
+if "customerVisibilityService.visibleOwnerIds()" not in team:
+    raise SystemExit("FAIL: team activities do not use customer:view single source")
+if "getCurrentScopeUserIds()" in team:
+    raise SystemExit("FAIL: retired statistics-slot call still present in teamActivities (WP1.5)")
+print("PASS: team activities resolve current account scope (customer:view single source)")
 for wrapper in ("logWrapper", "incWrapper", "fileWrapper", "apprWrapper", "custWrapper", "sysWrapper"):
     if not re.search(rf"{wrapper}\.in\([^\n]*visibleUserIds", team):
         raise SystemExit(f"FAIL: team activity {wrapper} has scoped predicate")

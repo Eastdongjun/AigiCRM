@@ -1,10 +1,10 @@
 # AIGICRM API 清单(自动生成)
 
-> 生成时间: 2026-11-12 | 来源: 后端 controller 源码扫描
+> 生成时间: 2026-11-13 | 来源: 后端 controller 源码扫描
 > 本文件由 scripts/gen-api.py 自动生成,**禁止手改**;接口变更后重新运行。
 > 权限码与 docs/permission/permission-dict.md 对应。
 
-## 接口清单(226 个)
+## 接口清单(229 个)
 
 | 方法 | 路径 | 权限码 | 方法名 | 文件 |
 |---|---|---|---|---|
@@ -26,6 +26,7 @@
 | POST | `/api/auth/login` | `匿名` | login | AuthController.java |
 | POST | `/api/auth/logout` | `登录即可` | logout | AuthController.java |
 | GET | `/api/auth/permission-explain` | `isAuthenticated()` | explain | PermissionExplainController.java |
+| GET | `/api/auth/permission-explain/preview/{userId}` | `hasAuthority('system:config:view')` | preview | PermissionExplainController.java |
 | POST | `/api/auth/switch-group` | `登录即可` | switchGroup | AuthController.java |
 | GET | `/api/common/scope/depts` | `登录即可` | depts | ScopeController.java |
 | GET | `/api/common/scope/users` | `登录即可` | users | ScopeController.java |
@@ -183,6 +184,8 @@
 | GET | `/api/system/perm-center/preview` | `hasAuthority('system:config:view')` | preview | PermCenterController.java |
 | GET | `/api/system/perm-scopes/assignee/{type}/{key}` | `hasAuthority('system:config:view')` | getAssigneeScopes | RolePermScopeController.java |
 | PUT | `/api/system/perm-scopes/assignee/{type}/{key}` | `hasAuthority('system:config:edit')` | updateAssigneeScopes | RolePermScopeController.java |
+| GET | `/api/system/perm-scopes/impact/{type}/{key}` | `hasAuthority('system:config:view')` | impact | RolePermScopeController.java |
+| GET | `/api/system/perm-scopes/reconcile` | `hasAuthority('system:config:view')` | reconcile | RolePermScopeController.java |
 | GET | `/api/system/perm-scopes/{roleCode}` | `hasAuthority('system:config:view')` | getScopes | RolePermScopeController.java |
 | PUT | `/api/system/perm-scopes/{roleCode}` | `hasAuthority('system:config:edit')` | updateScopes | RolePermScopeController.java |
 | GET | `/api/system/positions` | `hasAuthority('system:position:view')` | list | SysPositionController.java |

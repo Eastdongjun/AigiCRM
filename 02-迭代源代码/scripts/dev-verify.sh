@@ -535,6 +535,8 @@ local_contracts() {
   run "$ROOT/scripts/check-permission-codes-generated.sh"
   # 【底座评估 2026-11-11】数据范围"配置面=消费面"动作轴声明对账
   run "$ROOT/scripts/check-scope-axis-contract.sh"
+  # 【WP9 2026-11-13】权限内核契约: epoch 消费链/开关只读/双轨守卫/双写四写点/ScopeQuery 防线
+  run "$ROOT/scripts/check-perm-kernel-contract.sh"
   run "$ROOT/scripts/check-migration-contract.sh"
   run "$ROOT/scripts/check-migration-chain-contract.sh"
   run "$ROOT/scripts/check-mobile-auth-contract.sh"

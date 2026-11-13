@@ -1,6 +1,6 @@
 {
- "generated_at": "2026-11-12",
- "count": 226,
+ "generated_at": "2026-11-13",
+ "count": 229,
  "endpoints": [
   {
    "method": "POST",
@@ -109,6 +109,12 @@
    "path": "/api/auth/permission-explain",
    "permission": "isAuthenticated()",
    "handler": "explain"
+  },
+  {
+   "method": "GET",
+   "path": "/api/auth/permission-explain/preview/{userId}",
+   "permission": "hasAuthority('system:config:view')",
+   "handler": "preview"
   },
   {
    "method": "POST",
@@ -1051,6 +1057,18 @@
    "path": "/api/system/perm-scopes/assignee/{type}/{key}",
    "permission": "hasAuthority('system:config:edit')",
    "handler": "updateAssigneeScopes"
+  },
+  {
+   "method": "GET",
+   "path": "/api/system/perm-scopes/impact/{type}/{key}",
+   "permission": "hasAuthority('system:config:view')",
+   "handler": "impact"
+  },
+  {
+   "method": "GET",
+   "path": "/api/system/perm-scopes/reconcile",
+   "permission": "hasAuthority('system:config:view')",
+   "handler": "reconcile"
   },
   {
    "method": "GET",

@@ -1111,7 +1111,8 @@ public class StatisticsQueryService {
      * （管理员全量 / 负责人本组织 / 销售本人，含系统级开关）。覆盖 dashboard/经营分析/日报周报等查询。
      * 【注释修正 2026-11-08】核心客户指标(indicatorStats)自 G2 起同受统计可见范围过滤
      * （visibleCustomers 按客户可见范围过滤, 见该方法内注释）, 原"六项指标全员可见不过滤"例外表述作废。
-     * getCurrentScopeUserIds 返回 null=全量不过滤。
+     * 【WP1.5 2026-11-13】可见负责人统一走 CustomerVisibilityService.visibleOwnerIds
+     * ((customer,view) 单一源, 锁定决策#7), null=全量不过滤。
      * 【A6 2026-10-20 审计】空集(非 null 空集合)显式 1=0: MyBatis-Plus 3.5.17 的 in(空集合)
      * 生成 IN () 语法错误→统计接口 500。空集语义=范围内无可见用户, 恒空结果, 不得报错也不得放行全量。
      */

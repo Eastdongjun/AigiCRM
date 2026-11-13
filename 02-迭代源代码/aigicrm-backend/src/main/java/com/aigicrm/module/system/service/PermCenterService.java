@@ -56,8 +56,10 @@ public class PermCenterService {
             {"task", "view", "任务·查看"},
             {"sea", "view", "公海·查看"},
             {"system", "view", "日志·查看(system:log:view, 审计日志共用)"},
-            // 【2026-11-03 范围对账】摘 incentive/file 死配置行, 补 statistics/score 真消费行
-            {"statistics", "view", "统计分析·查看(工作台/统计可见人员)"},
+            // 【2026-11-03 范围对账】摘 incentive/file 死配置行, 补 score 真消费行。
+            // 【WP1.5 2026-11-13 锁定决策#7】(statistics,view) 数据范围档退役: statistics:view
+            // 只做入口码, 统计可见人员改按来源动作 (customer,view) 单一源(CustomerVisibilityService),
+            // 与 PermScopeManager 前端映射/CONSUMED_AXIS/V2026.11.13.1 存量清理四处同步
             {"score", "view", "学分·查看"},
             // 【2026-11-05 用户拍板 B"四项激励独立数据范围"】incentive:stats:view/rank:view 两码
             // 共用 (incentive, stats_view) 独立档位(同一数据族), 与统计分析档位解耦
