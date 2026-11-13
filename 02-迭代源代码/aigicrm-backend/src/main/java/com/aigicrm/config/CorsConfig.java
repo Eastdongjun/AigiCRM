@@ -38,4 +38,22 @@ public class CorsConfig {
         source.registerCorsConfiguration("/**", config);
         return new CorsFilter(source);
     }
+
+    /**
+     * 【三轮修复 2026-11-13】X-Perm-Epoch 头显式注册(order=最高优先, chain 最外层):
+     * 最外层 filter 的 finally 在 security+servlet 全部返回后、响应提交前执行——setHeader 可靠。
+     * 原 @Component 自动注册 + LOWEST_PRECEDENCE(链最内层)实测响应头丢失(测试环境部署验证抓出)。
+     * 仅 /api/* 生效(静态资源与 actuator 无需版本头)。
+     */
+    @Bean
+    public org.springframework.boot.web.servlet.FilterRegistrationBean<com.aigicrm.security.PermEpochHeaderFilter> permEpochHeaderFilter(
+            com.aigicrm.common.auth.PermEpochService permEpochService) {
+        org.springframework.boot.web.servlet.FilterRegistrationBean<com.aigicrm.security.PermEpochHeaderFilter> reg =
+                new org.springframework.boot.web.servlet.FilterRegistrationBean<>(
+                        new com.aigicrm.security.PermEpochHeaderFilter(permEpochService));
+        reg.addUrlPatterns("/api/*");
+        reg.setOrder(org.springframework.core.Ordered.HIGHEST_PRECEDENCE + 10);
+        reg.setName("permEpochHeaderFilter");
+        return reg;
+    }
 }
