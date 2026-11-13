@@ -80,6 +80,8 @@ class StatisticsQueryServiceTest {
                     org.mockito.Mockito.mock(com.aigicrm.common.scope.OrgScopeResolver.class),
                     org.mockito.Mockito.mock(com.aigicrm.module.system.service.RolePermScopeService.class),
                     org.mockito.Mockito.mock(SysUserMapper.class));
+    // 【WP4/WP5】看板缓存签名的权限版本号维度(未桩时 current()=Mockito long 默认 0, 键稳定)
+    @Mock private com.aigicrm.common.auth.PermEpochService permEpochService;
     // 【G2 2026-09-21】visibleCustomers 依赖; 未 stub 时 resolveModuleUsers 返回 null(=全量),
     // 既有"全公司口径"聚合用例语义不变; 新政策行为由下方过滤用例单独钉住
     @Mock private com.aigicrm.common.scope.OrgScopeResolver orgScopeResolver;
@@ -131,11 +133,20 @@ class StatisticsQueryServiceTest {
     @Test
     void dailyStatsAppliesCurrentUserScopeToFileCounts() {
         when(customerService.dailyNewCustomers()).thenReturn(List.of());
-        // 【WP1.5】桩随单一源迁移
-        org.mockito.Mockito.doReturn(List.of(7L, 8L)).when(customerVisibilityService).visibleOwnerIds();
+        // 【WP4】文件统计来源动作=(file,view)——桩随来源动作细分迁移
+        when(orgScopeResolver.resolveModuleUsers(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.eq("file"), org.mockito.ArgumentMatchers.eq("view")))
+                .thenReturn(List.of(7L, 8L));
         when(fileMapper.selectCount(org.mockito.ArgumentMatchers.any())).thenReturn(0L);
 
-        service.dailyStats();
+        // applyFileScope 有会话前置检查(无会话=1=0), 须提供登录上下文
+        var su = new com.aigicrm.security.SecurityUser();
+        su.setUserId(7L);
+        try (MockedStatic<SecurityUtils> security = org.mockito.Mockito.mockStatic(SecurityUtils.class)) {
+            security.when(SecurityUtils::getCurrentUser).thenReturn(su);
+            security.when(SecurityUtils::isAdmin).thenReturn(false);
+
+            service.dailyStats();
+        }
 
         var captured = new AtomicReference<LambdaQueryWrapper<BizFile>>();
         verify(fileMapper, org.mockito.Mockito.atLeastOnce()).selectCount(
@@ -149,11 +160,20 @@ class StatisticsQueryServiceTest {
     @Test
     void weeklyStatsAppliesCurrentUserScopeToFileCounts() {
         when(customerService.weeklyNewCustomers()).thenReturn(List.of());
-        // 【WP1.5】统计范围改走 CustomerVisibilityService((customer,view))——桩随单一源迁移
-        org.mockito.Mockito.doReturn(List.of(7L)).when(customerVisibilityService).visibleOwnerIds();
+        // 【WP4】文件统计来源动作=(file,view)——桩随来源动作细分迁移
+        when(orgScopeResolver.resolveModuleUsers(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.eq("file"), org.mockito.ArgumentMatchers.eq("view")))
+                .thenReturn(List.of(7L));
         when(fileMapper.selectCount(org.mockito.ArgumentMatchers.any())).thenReturn(0L);
 
-        service.weeklyStats();
+        // applyFileScope 有会话前置检查(无会话=1=0), 须提供登录上下文
+        var su = new com.aigicrm.security.SecurityUser();
+        su.setUserId(7L);
+        try (MockedStatic<SecurityUtils> security = org.mockito.Mockito.mockStatic(SecurityUtils.class)) {
+            security.when(SecurityUtils::getCurrentUser).thenReturn(su);
+            security.when(SecurityUtils::isAdmin).thenReturn(false);
+
+            service.weeklyStats();
+        }
 
         verify(fileMapper, org.mockito.Mockito.atLeastOnce()).selectCount(
                 org.mockito.ArgumentMatchers.argThat(wrapper ->
@@ -548,7 +568,9 @@ class StatisticsQueryServiceTest {
             security.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of(2L));
 
             String withRule = service.dashboardScopeKey();
-            assertTrue(withRule.startsWith("g2:all|"), "键应为 集团前缀g2 + 范围all + 规则指纹, 实际: " + withRule);
+            // 【WP4/WP5】键首段为权限版本号前缀 e<epoch>: (permEpochService mock 未桩 → long 默认 0)
+            assertTrue(withRule.startsWith("e0:g2:all|"),
+                    "键应为 权限版本号e0 + 集团前缀g2 + 范围all + 规则指纹, 实际: " + withRule);
             org.junit.jupiter.api.Assertions.assertNotEquals("all",
                     withRule.substring(withRule.lastIndexOf('|') + 1),
                     "有 customer 规则时指纹不得是固定值 all(同集合不同规则会互串, C1)");
@@ -556,14 +578,14 @@ class StatisticsQueryServiceTest {
             // 无规则 → 指纹固定值 all
             user.setPermissionRules(List.of());
             String noRule = service.dashboardScopeKey();
-            assertTrue(noRule.startsWith("g2:all|all"), "无规则时指纹应为固定值 all, 实际: " + noRule);
+            assertTrue(noRule.startsWith("e0:g2:all|all"), "无规则时指纹应为固定值 all, 实际: " + noRule);
 
             // C2: 集团前缀随 currentGroupId 变化;取不到集团时=fail-closed 固定前缀
             user.setCurrentGroupId(3L);
-            assertTrue(service.dashboardScopeKey().startsWith("g3:"), "不同集团键前缀必须不同");
+            assertTrue(service.dashboardScopeKey().contains(":g3:"), "不同集团键前缀必须不同");
             user.setCurrentGroupId(null);
             security.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of());
-            assertTrue(service.dashboardScopeKey().startsWith("g-none:"),
+            assertTrue(service.dashboardScopeKey().contains(":g-none:"),
                     "取不到集团时必须用 fail-closed 固定前缀, 实际: " + service.dashboardScopeKey());
         }
     }

@@ -197,6 +197,8 @@ public class StatisticsQueryService {
     private final com.aigicrm.module.system.service.RolePermScopeService rolePermScopeService;
     // 【2026-11-03 门槛配置化】核心三态双门槛从 sys_config 读(键同 CustomerService, 不落死值)
     private final SysConfigService configService;
+    // 【WP4/WP5 2026-11-13】权限版本号(缓存签名即时失效: 保存授权→统计换轨不等 TTL)
+    private final com.aigicrm.common.auth.PermEpochService permEpochService;
 
     /**
      * 看板汇总
@@ -274,12 +276,15 @@ public class StatisticsQueryService {
     String dashboardScopeKey() { // 包可见:供同包单测直接断言键维度(C1/C2)
         var user = SecurityUtils.getCurrentUser();
         if (user == null) return "anon";
+        // 【WP4/WP5 2026-11-13】权限版本号入签名: 任何权限写点(epoch bump)后共享缓存段立即失效——
+        // "保存授权→统计口径即时换轨"(卡片=列表=导出 同 epoch), 不再等 30s TTL 陈旧窗
+        String epochPrefix = "e" + permEpochService.current() + ":";
         // 【C2】集团前缀:与 MybatisPlusConfig 租户拦截器取 tenant_id 同口径(currentGroupId→最小集团→fail-closed)
         String groupPrefix = com.aigicrm.common.scope.GroupScopeUtil.tenantCachePrefix();
         // 【C1】规则引擎指纹:与 applyDataScope→applyRuleEngineFilter 同一维度,admin 与非 admin 都并入
         String ruleFp = ruleFingerprint(user);
         if (SecurityUtils.isAdmin()) {
-            return groupPrefix + "adm:" + ruleFp;
+            return epochPrefix + groupPrefix + "adm:" + ruleFp;
         }
         com.aigicrm.common.scope.ScopeRequest req = com.aigicrm.common.scope.ScopeRequest.builder()
                 .user(user)
@@ -300,7 +305,7 @@ public class StatisticsQueryService {
             base = (ids == null || ids.isEmpty()) ? "own:none"
                     : "own:" + ids.stream().sorted().map(String::valueOf).collect(java.util.stream.Collectors.joining(","));
         }
-        return groupPrefix + base + "|" + ruleFp;
+        return epochPrefix + groupPrefix + base + "|" + ruleFp;
     }
 
     /**
@@ -1123,14 +1128,21 @@ public class StatisticsQueryService {
 
     /** 同 applyCustomerScope 的空集守卫(上传者维度)【A6】 */
     private void applyFileScope(LambdaQueryWrapper<BizFile> wrapper) {
-        // 【WP1.5】同口径切换 customer:view(WP4 再按来源动作细分为 file:view)
-        List<Long> userIds = customerVisibilityService.visibleOwnerIds();
-        if (userIds == null) return; // all：不过滤
-        if (userIds.isEmpty()) {
+        // 【WP4 2026-11-13 §4.1】文件统计来源动作=(file, view): 经营分析"本月文件上传"按文件可见负责人
+        // 过滤(不再借道 customer:view 停止血——客户域与文件域各自独立来源动作)
+        var user = com.aigicrm.security.SecurityUtils.getCurrentUser();
+        if (user == null) {
             wrapper.apply("1=0");
             return;
         }
-        wrapper.in(BizFile::getUploaderId, userIds);
+        if (com.aigicrm.security.SecurityUtils.isAdmin()) return; // admin 全量
+        List<Long> visible = orgScopeResolver.resolveModuleUsers(user, "file", "view");
+        if (visible == null) return; // all: 不过滤
+        if (visible.isEmpty()) {
+            wrapper.apply("1=0"); // 空集显式恒空(A6 防线)
+            return;
+        }
+        wrapper.in(BizFile::getUploaderId, visible);
     }
 
     private Map<String, Object> buildActivity(String title, SysUser user, LocalDateTime time) {
