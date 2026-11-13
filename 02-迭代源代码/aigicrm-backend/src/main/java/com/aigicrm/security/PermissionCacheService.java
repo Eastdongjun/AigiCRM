@@ -82,12 +82,12 @@ public class PermissionCacheService {
             org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
                     new org.springframework.transaction.support.TransactionSynchronization() {
                         @Override
-                        public void afterCommit() { doEvict(uid); syncEmployment(uid); afterCommitEpoch(); }
+                        public void afterCommit() { doEvict(uid); syncEmployment(uid); markEpochNow(); }
                     });
         } else {
             doEvict(userId);
             syncEmployment(userId);
-            afterCommitEpoch();
+            markEpochNow();
         }
     }
 
@@ -112,7 +112,8 @@ public class PermissionCacheService {
     /**
      * 角色级失效：反查该角色下所有用户逐个 evict（角色菜单/dataScope/orgs/删角色）。
      * 【P0-1 三轮修复】epoch 收敛: 批量用户各自 evict(不带 epoch), 末尾**一次** markChanged
-     * (30 人的角色改动 = 1 次版本号跳变, 不产生 N 次自增/广播风暴)。
+     * (30 人的角色改动 = 1 次版本号跳变); 【三轮检查 P1 修复】末尾走 afterCommit 注册
+     * (提交后才失效内核缓存, 防提交前旧数据重建缓存)。
      */
     public void evictByRole(Long roleId) {
         if (roleId == null) return;
@@ -125,7 +126,7 @@ public class PermissionCacheService {
         } catch (Exception e) {
             log.warn("角色级失效失败 roleId={}", roleId, e);
         }
-        if (any) afterCommitEpoch();
+        if (any) markEpochAfterCommit();
     }
 
     /** 岗位级失效：反查该岗位下所有用户逐个 evict（岗位-规则绑定/用户-岗位分配/删岗位）; epoch 同上收敛 */
@@ -140,7 +141,7 @@ public class PermissionCacheService {
         } catch (Exception e) {
             log.warn("岗位级失效失败 positionId={}", positionId, e);
         }
-        if (any) afterCommitEpoch();
+        if (any) markEpochAfterCommit();
     }
 
     /** 批量路径内部用: evict 不带 epoch(由批量方法末尾统一一次) */
@@ -165,11 +166,11 @@ public class PermissionCacheService {
             org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
                     new org.springframework.transaction.support.TransactionSynchronization() {
                         @Override
-                        public void afterCommit() { doEvictAll(); afterCommitEpoch(); rebuildOrgData(); }
+                        public void afterCommit() { doEvictAll(); markEpochNow(); rebuildOrgData(); }
                     });
         } else {
             doEvictAll();
-            afterCommitEpoch();
+            markEpochNow();
             rebuildOrgData();
         }
     }
@@ -187,13 +188,34 @@ public class PermissionCacheService {
         }
     }
 
-    /** 【WP5】全量权限写点 → 权限版本号+1(双端感知); 事务提交后执行, 失败不阻断 */
-    private void afterCommitEpoch() {
+    /**
+     * 【WP5】权限版本号+1——**立即执行**版。
+     * 仅限两处调用: ①事务 afterCommit 回调内(此时提交已完成, 立即安全);
+     * ②无事务上下文。事务内的批量失效末尾请用 {@link #markEpochAfterCommit()}。
+     */
+    private void markEpochNow() {
         try {
             com.aigicrm.common.auth.PermEpochService epoch = permEpochServiceProvider.getIfAvailable();
             if (epoch != null) epoch.markChanged();
         } catch (Exception e) {
             log.warn("权限版本 markChanged 失败(表未就绪?): {}", e.getMessage());
+        }
+    }
+
+    /**
+     * 【三轮检查 P1 修复 2026-11-13】事务感知版: 事务活跃时注册到 afterCommit(提交后才
+     * markChanged+失效内核缓存)——批量失效(evictByRole/Position)末尾直接执行会在**提交前**
+     * 清 grantReader/registry 缓存, 并发请求用旧数据重建缓存且提交后无第二次失效(30s 陈旧)。
+     */
+    private void markEpochAfterCommit() {
+        if (org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive()) {
+            org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+                    new org.springframework.transaction.support.TransactionSynchronization() {
+                        @Override
+                        public void afterCommit() { markEpochNow(); }
+                    });
+        } else {
+            markEpochNow();
         }
     }
 

@@ -38,10 +38,35 @@ class PermissionCacheServiceTest {
         roleMapper = mock(SysRoleMapper.class);
         userPositionMapper = mock(SysUserPositionMapper.class);
         when(redisTemplate.opsForValue()).thenReturn(valueOps);
+        epochService = mock(com.aigicrm.common.auth.PermEpochService.class);
+        org.springframework.beans.factory.ObjectProvider<com.aigicrm.common.auth.PermEpochService> epochProv =
+                mock(org.springframework.beans.factory.ObjectProvider.class);
+        when(epochProv.getIfAvailable()).thenReturn(epochService);
         svc = new PermissionCacheService(redisTemplate, roleMapper, userPositionMapper,
-                org.mockito.Mockito.mock(org.springframework.beans.factory.ObjectProvider.class),
+                epochProv,
                 org.mockito.Mockito.mock(org.springframework.beans.factory.ObjectProvider.class));
     }
+
+    /** 【三轮检查 P0-1 补测 2026-11-13】角色更新 → epoch 必须恰好跳变一次(批量收敛+事务后执行) */
+    @Test
+    @SuppressWarnings("unchecked")
+    void evictByRole_marksEpochExactlyOnce() {
+        when(roleMapper.selectUserIdsByRoleId(5L)).thenReturn(java.util.List.of(1L, 2L, 3L));
+        svc.evictByRole(5L);
+        verify(epochService, times(1)).markChanged();
+        verify(redisTemplate, times(3)).delete(org.mockito.ArgumentMatchers.contains("perm:ctx:"));
+    }
+
+    /** 【三轮检查 P1 补测】无事务上下文: evict(单用户) → epoch 也跳变一次(P0-1 三轮修复回归钉) */
+    @Test
+    @SuppressWarnings("unchecked")
+    void evict_marksEpochOnce() {
+        svc.evict(7L);
+        verify(epochService, times(1)).markChanged();
+        verify(redisTemplate).delete("perm:ctx:7");
+    }
+
+    private com.aigicrm.common.auth.PermEpochService epochService;
 
     @Test
     void put_usesPrefixedKeyWithTtl() {

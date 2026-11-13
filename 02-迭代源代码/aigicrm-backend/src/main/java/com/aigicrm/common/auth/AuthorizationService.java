@@ -244,50 +244,72 @@ public class AuthorizationService {
         if (grants.isEmpty()) {
             return ScopeDecision.none(); // 无授权=无范围(fail-closed, 规格 §3.2 empty→NONE)
         }
-        List<ScopeSpec> parts = new ArrayList<>();
+        // 【P0 三轮二修复 2026-11-13】按 grant **维度来源**分组解析, 废弃"合并后全局两遍补齐"——
+        // 旧两遍会把 SELF/MY_TEAM(OWNER 维授权) 经 deptsOfUsers→usersInDepts 两跳放大成"部门同事"
+        // (越权放宽; SELF 语义=仅本人, 决策#2 只定义 MY_DEPT 与 SELF 无关)。
+        // 分组后维度补齐**单向**:
+        //   DEPT 型授权(组织档) → usersInDepts 展开(OWNER 锚消费, 与旧轨 resolveDeptTree 同口径)
+        //   OWNER 型授权(本人/团队档) → deptsOfUsers 回填(ORG 锚消费, 与旧轨 self/team 的 dept 口径一致)
+        //   两条链**互不回灌**: DEPT 型展开出的用户不再转回部门, OWNER 型派生的部门不再展开用户。
+        List<ScopeSpec> deptBased = new ArrayList<>();  // MY_DEPT*/MY_PRIMARY*/MY_OFFICE*/MY_REGION*/CUSTOM
+        List<ScopeSpec> ownerBased = new ArrayList<>(); // SELF / MY_TEAM / ALL(短路于下方)
+        boolean anyAll = false;
         for (GrantReader.GrantRow g : grants) {
-            parts.add(specResolver.resolve(user, g));
+            ScopeSpec s = specResolver.resolve(user, g);
+            if (s.isAll()) { anyAll = true; break; }
+            if (isDeptBasedScope(g.getScopeType())) deptBased.add(s);
+            else ownerBased.add(s);
         }
-        ScopeSpec spec = ScopeSpec.union(parts);
-        // 【P0-1 修复 2026-11-13】维度补齐: 消费方按锚点取单维(OWNER→ownerIds / ORG→deptIds),
-        // 授权行可能只携带单维(如 MY_DEPT_SUB 只有部门集)——不补齐则"本部门"客户在 OWNER 域
-        // 全部消失(切 new 即数据变空)。两维各自完备化:
-        //   deptIds → 其组织在职用户并入 ownerIds(与旧轨 resolveDeptTree 同口径)
-        //   ownerIds → 其所属组织并入 deptIds; 本人恒含
-        // 【P1-5 三轮修复】不再对纯 SELF 授权无条件并入全部任职组织(ORG 锚被放大到兼职部门)——
-        //   任职组织维度经 deptsOfUsers(employment 表) 随 ownerIds 自然带入。
-        //   两遍收敛: SELF 的部门维在第一遍经 deptsOfUsers 物化, 第二遍才能展开其在职用户。
-        if (!spec.isAll()) {
-            for (int pass = 0; pass < 2; pass++) {
-                if (!spec.getDeptIds().isEmpty()) {
-                    spec.merge(ScopeSpec.ofOwners(usersInDepts(spec.getDeptIds())));
-                }
-                if (!spec.getOwnerIds().isEmpty()) {
-                    spec.merge(ScopeSpec.ofDepts(deptsOfUsers(spec.getOwnerIds())));
-                }
-                if (pass == 0 && user.getUserId() != null) {
-                    spec.merge(ScopeSpec.ofOwners(List.of(user.getUserId())));
+        if (anyAll) return ScopeDecision.all(); // 任一 all → 本集团不过滤(锁定决策#6)
+
+        Set<Long> owners = new HashSet<>();
+        for (ScopeSpec s : ownerBased) owners.addAll(s.getOwnerIds());
+        Set<Long> depts = new HashSet<>();
+        for (ScopeSpec s : deptBased) depts.addAll(s.getDeptIds());
+        // 单向补齐(各一次, 无回灌):
+        owners.addAll(usersInDepts(depts));             // DEPT 型 → OWNER 锚可见用户
+        owners.add(user.getUserId());                   // 本人恒含(旧轨 resolveUnion 同款)
+        Set<Long> ownerDepts = deptsOfUsers(owners);    // 含本人/团队 → 其组织(ORG 锚可见部门)
+        depts.addAll(ownerDepts);
+
+        if (owners.isEmpty() && depts.isEmpty()) return ScopeDecision.none();
+
+        ScopeRequest.AnchorType anchor = dominantAnchor(resolveCode, def);
+        ScopeDecision d = new ScopeDecision();
+        if (anchor == ScopeRequest.AnchorType.ORG) {
+            // ORG 锚: 部门维=DEPT 型部门 ∪ OWNER 型人员所属部门; 用户维=部门在职用户(A6 口径);
+            // 上级/负责人开关**不追加**(旧轨 ORG 分支同款)
+            d.setVisibleDeptIds(new ArrayList<>(depts));
+            d.setVisibleUserIds(new ArrayList<>(usersInDepts(depts)));
+        } else {
+            // OWNER 锚: 用户维=OWNER 型人员 ∪ DEPT 型部门用户 ∪ 本人; 上级/负责人开关仅此处追加
+            if (def.isViewLike()) {
+                boolean[] sw = legacyResolver.switchFlags();
+                boolean superiorOn = sw != null && sw.length > 0 && sw[0];
+                boolean leaderOn = sw != null && sw.length > 1 && sw[1];
+                if (superiorOn) owners.addAll(specResolver.teamOf(user.getUserId()));
+                if (leaderOn) {
+                    for (Long uid : ledOrgSpec(user.getUserId()).getOwnerIds()) owners.add(uid);
                 }
             }
+            owners.add(user.getUserId()); // 开关合并后重保本人
+            d.setVisibleUserIds(new ArrayList<>(owners));
+            d.setVisibleDeptIds(List.of()); // 镜像旧轨 OWNER 分支(deptIds 恒空 list)
         }
-        // 上级/负责人开关: 仅 view_like 动作追加(锁定决策#8; 写动作绝不放宽)
-        if (def.isViewLike()) {
-            boolean[] sw = legacyResolver.switchFlags();
-            boolean superiorOn = sw != null && sw.length > 0 && sw[0];
-            boolean leaderOn = sw != null && sw.length > 1 && sw[1];
-            if (superiorOn) spec.merge(ScopeSpec.ofOwners(specResolver.teamOf(user.getUserId())));
-            if (leaderOn) spec.merge(ledOrgSpec(user.getUserId()));
-        }
-        if (spec.isEmpty()) return ScopeDecision.none();
-        ScopeDecision d = new ScopeDecision();
-        if (spec.isAll()) {
-            d.setVisibleUserIds(null);
-            d.setVisibleDeptIds(null);
-        } else {
-            d.setVisibleUserIds(spec.visibleOwners());
-            d.setVisibleDeptIds(spec.visibleDepts());
+        if (d.getVisibleUserIds() != null && d.getVisibleUserIds().isEmpty()
+                && (d.getVisibleDeptIds() == null || d.getVisibleDeptIds().isEmpty())) {
+            return ScopeDecision.none();
         }
         return d;
+    }
+
+    /** DEPT 维授权(组织档): 解析产出部门集合, OWNER 锚消费时展开为部门用户 */
+    private static boolean isDeptBasedScope(String scopeType) {
+        return switch (scopeType == null ? "" : scopeType) {
+            case "MY_DEPT", "MY_DEPT_SUB", "MY_PRIMARY_DEPT", "MY_PRIMARY_DEPT_SUB",
+                 "MY_OFFICE", "MY_OFFICE_SUB", "MY_REGION", "MY_REGION_SUB", "CUSTOM" -> true;
+            default -> false; // SELF / MY_TEAM / ALL / 未知
+        };
     }
 
     /** 负责人开关: leader_id=本人 的组织子树(ORG 维=部门集; OWNER 维=部门内在职用户集) */

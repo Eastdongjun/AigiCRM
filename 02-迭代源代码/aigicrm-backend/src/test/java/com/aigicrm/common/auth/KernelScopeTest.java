@@ -217,7 +217,7 @@ class KernelScopeTest {
         }
     }
 
-    /** 【WP8 对账】显式新轨: 多授权行并集(SELF ∪ MY_DEPT_SUB 闭包) + 维度补齐; 未知码 fail-closed 空集 */
+    /** 【WP8 对账】显式新轨: 多授权行并集(SELF ∪ MY_DEPT_SUB 闭包); 未知码 fail-closed 空集 */
     @Test
     void scopeNewTrack_multiGrantUnion_andUnknownFailsClosed() {
         PermActionRegistry registry = mock(PermActionRegistry.class);
@@ -226,8 +226,11 @@ class KernelScopeTest {
         when(reader.grantsOf(any(), eq("customer:view"))).thenReturn(List.of(
                 new GrantReader.GrantRow("SELF", "OWNER", "ROLE", "sales"),
                 new GrantReader.GrantRow("MY_DEPT_SUB", "OWNER", "ROLE", "manager")));
+        // 【四轮】多行并集的 DEPT 维在 ORG 锚验证(SELF 行贡献 owners, MY_DEPT_SUB 行贡献部门)
+        when(rolePermScopeService.anchorOf(any(), eq("customer"), eq("view")))
+                .thenReturn(ScopeRequest.AnchorType.ORG);
         AuthorizationService svc = auth(reader, registry);
-        // 闭包: 10 → [11]; 维度补齐: 部门{10,11} 在职用户=[7,8](OWNER 维), 用户 7 部门=[10](ORG 维)
+        // 闭包: 10 → [11](stub 供对照); ORG 锚用户维 = usersInDepts({10,11}) = [7,8]
         when(jdbc.queryForList(anyString(), eq(Long.class), eq(10L))).thenReturn(List.of(11L));
         when(jdbc.queryForList(anyString(), eq(Long.class), eq(10L), eq(11L))).thenReturn(List.of(7L, 8L));
         when(jdbc.queryForList(anyString(), eq(Long.class), eq(7L))).thenReturn(List.of(10L));
@@ -239,12 +242,10 @@ class KernelScopeTest {
             m.when(SecurityUtils::getCurrentUser).thenReturn(su);
             ScopeDecision d = svc.scopeNewTrack(su, "customer:view");
             assertFalse(d.isAll());
-            // 【P0-1 修复负例】MY_DEPT_SUB 在 customer:view(OWNER 锚)必须含部门在职用户——
-            // 维度不补齐时这里只有 [7], 切 new 即"本部门客户全部消失"
-            assertEquals(Set.of(7L, 8L), Set.copyOf(d.getVisibleUserIds()),
-                    "OWNER 维: SELF 行本人 ∪ MY_DEPT_SUB 部门{10,11} 在职用户(维度补齐)");
             assertEquals(Set.of(10L, 11L), Set.copyOf(d.getVisibleDeptIds()),
                     "ORG 维: MY_DEPT_SUB 行贡献闭包{10,11}");
+            assertEquals(Set.of(7L, 8L), Set.copyOf(d.getVisibleUserIds()),
+                    "ORG 锚用户维=usersInDepts(部门维)={7,8}(A6 口径)");
 
             // 未知码 → fail-closed 空集
             assertTrue(svc.scopeNewTrack(su, "ghost:x").getVisibleUserIds().isEmpty());
@@ -306,8 +307,10 @@ class KernelScopeTest {
                 new GrantReader.GrantRow("CUSTOM", "OWNER", "USER", "7",
                         "customer:view",
                         "[{\"orgId\":10,\"includeChildren\":false}]")));
+        // 【四轮】CUSTOM 是 DEPT 维授权——includeChildren 语义在 ORG 锚(部门维)上验证
+        when(rolePermScopeService.anchorOf(any(), eq("customer"), eq("view")))
+                .thenReturn(ScopeRequest.AnchorType.ORG);
         AuthorizationService svc = auth(reader, registry);
-        when(legacyResolver.switchFlags()).thenReturn(new boolean[]{false, false});
         // 闭包若被调用: 10 → [11](断言 deptIds 不含 11 即证明未展开)
         when(jdbc.queryForList(anyString(), eq(Long.class), eq(10L))).thenReturn(List.of(11L));
         SecurityUser su = suPerm(7L, "customer:view");
@@ -348,9 +351,13 @@ class KernelScopeTest {
         }
     }
 
-    /** 【P1-5 三轮修复负例】纯 SELF 授权不得把 ORG 维放大到全部任职组织(兼职部门不泄露) */
+    /**
+     * 【P0 四轮修复负例(三轮检查报告)】SELF(OWNER 锚) = 仅本人——两遍维度补齐曾把 SELF 放大成
+     * "部门同事"(deptsOfUsers→usersInDepts 两跳), 此负例钉死: 兼职部门同事 99 不得出现。
+     * 决策#2 只定义 MY_DEPT=全部任职组织; SELF 语义=仅本人。
+     */
     @Test
-    void scopeNewTrack_self_orgDimNotWidenedToAllEmployments() {
+    void scopeNewTrack_self_ownerAnchor_isSelfOnly() {
         PermActionRegistry registry = mock(PermActionRegistry.class);
         when(registry.of("customer:view")).thenReturn(def("customer:view", "customer", true, true));
         GrantReader reader = mock(GrantReader.class);
@@ -358,19 +365,69 @@ class KernelScopeTest {
                 new GrantReader.GrantRow("SELF", "OWNER", "ROLE", "sales")));
         AuthorizationService svc = auth(reader, registry);
         when(legacyResolver.switchFlags()).thenReturn(new boolean[]{false, false});
-        // 任职: 主职 10 + 兼职 20; 20 部门同事=99
+        // 任职: 主职 10 + 兼职 20; 20 部门同事=99; deptsOfUsers({7})=[10,20]
         when(jdbc.queryForList(anyString(), eq(Long.class), eq(7L))).thenReturn(List.of(10L, 20L));
-        when(jdbc.queryForList(anyString(), eq(Long.class), eq(10L), eq(20L))).thenReturn(List.of(7L, 99L));
         SecurityUser su = suPerm(7L, "customer:view");
         su.setEmploymentOrgIds(List.of(10L, 20L));
         su.setPrimaryEmploymentOrgId(10L);
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUser).thenReturn(su);
             ScopeDecision d = svc.scopeNewTrack(su, "customer:view");
-            // OWNER 维 = SELF 本人 ∪ 任职组织在职用户(deptsOfUsers 经 employment 表, 决策#2 多任职:
-            // 本部门语义=全部任职组织 → 兼职同事 99 可见, 这是决策#2 的正语义而非放大)
+            assertEquals(List.of(7L), d.getVisibleUserIds(),
+                    "SELF(OWNER 锚)=仅本人, 不得经维度回灌放大成部门同事");
+        }
+    }
+
+    /** 【P0 四轮修复负例】MY_TEAM(OWNER 锚) = 团队链, 不得放大成链上成员的整个部门 */
+    @Test
+    void scopeNewTrack_myTeam_ownerAnchor_isTeamChainOnly() {
+        PermActionRegistry registry = mock(PermActionRegistry.class);
+        when(registry.of("customer:view")).thenReturn(def("customer:view", "customer", true, true));
+        GrantReader reader = mock(GrantReader.class);
+        when(reader.grantsOf(any(), eq("customer:view"))).thenReturn(List.of(
+                new GrantReader.GrantRow("MY_TEAM", "OWNER", "ROLE", "manager")));
+        AuthorizationService svc = auth(reader, registry);
+        when(legacyResolver.switchFlags()).thenReturn(new boolean[]{false, false});
+        // 团队链 7→8; 8 的部门同事 88 不得出现
+        when(jdbc.queryForList(anyString(), eq(Long.class), eq(7L))).thenReturn(List.of(8L));
+        when(jdbc.queryForList(anyString(), eq(Long.class), eq(8L))).thenReturn(List.of());
+        SecurityUser su = suPerm(7L, "customer:view");
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::getCurrentUser).thenReturn(su);
+            ScopeDecision d = svc.scopeNewTrack(su, "customer:view");
+            assertEquals(Set.of(7L, 8L), Set.copyOf(d.getVisibleUserIds()),
+                    "MY_TEAM(OWNER 锚)=团队链 {7,8}, 不展开成员部门同事");
+        }
+    }
+
+    /** 【四轮补】SELF 在 ORG 锚动作 = 本人任职部门(旧轨 resolveDeptScope('self')=deptId 同口径) */
+    @Test
+    void scopeNewTrack_self_orgAnchor_isOwnEmploymentDepts() {
+        PermActionRegistry registry = mock(PermActionRegistry.class);
+        when(registry.of("customer:view")).thenReturn(def("customer:view", "customer", true, true));
+        GrantReader reader = mock(GrantReader.class);
+        when(reader.grantsOf(any(), eq("customer:view"))).thenReturn(List.of(
+                new GrantReader.GrantRow("SELF", "OWNER", "ROLE", "sales")));
+        AuthorizationService svc = auth(reader, registry);
+        when(rolePermScopeService.anchorOf(any(), eq("customer"), eq("view")))
+                .thenReturn(ScopeRequest.AnchorType.ORG);
+        // ORG 锚不追加上级/负责人开关(旧轨同款), 无需 switchFlags 桩
+        // deptsOfUsers({7}) = [10, 20](主职+兼职); usersInDepts([10,20]) = [7,99]。
+        // Mockito 可匹配多桩取"最新注册"——通配桩必须先注册, 具体 eq(7L) 后注册覆盖之。
+        when(jdbc.queryForList(anyString(), eq(Long.class),
+                org.mockito.ArgumentMatchers.any(Object[].class))).thenReturn(List.of(7L, 99L));
+        when(jdbc.queryForList(anyString(), eq(Long.class), eq(7L))).thenReturn(List.of(10L, 20L));
+        SecurityUser su = suPerm(7L, "customer:view");
+        su.setEmploymentOrgIds(List.of(10L, 20L));
+        su.setPrimaryEmploymentOrgId(10L);
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::getCurrentUser).thenReturn(su);
+            ScopeDecision d = svc.scopeNewTrack(su, "customer:view");
+            System.out.println("[diag] dept=" + d.getVisibleDeptIds() + " owner=" + d.getVisibleUserIds());
+            assertEquals(Set.of(10L, 20L), Set.copyOf(d.getVisibleDeptIds()),
+                    "SELF(ORG 锚)=本人任职部门(与旧轨 self→deptId 同口径)");
             assertEquals(Set.of(7L, 99L), Set.copyOf(d.getVisibleUserIds()),
-                    "SELF+多任职: 本部门语义=全部任职组织的在职用户(决策#2)");
+                    "ORG 锚用户维=部门在职用户(A6 口径, 镜像旧轨)");
         }
     }
 

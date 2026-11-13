@@ -399,7 +399,12 @@ public class RolePermScopeService {
         }
     }
 
-    /** 槽清空 → 授予表删除(该主体该槽全部码) */
+    /**
+     * 槽清空 → 授予表删除。
+     * 【三轮检查 P2 语义声明】USER/POSITION 按主体全删 = **明确语义**: 该两类的 grant 全部
+     * 来自显式范围配置行(方案二下无其他来源), "清空=移除全部显式附加行"; ROLE 不走本方法
+     * (走 resetRoleGrantsToDefault 重置为 data_scope 默认档); deleteRoleScopes(角色删除)=全删。
+     */
     private void dualDeleteGrants(String assigneeType, String assigneeKey) {
         try {
             jdbc.update("DELETE FROM sys_perm_grant WHERE tenant_id = 1 AND subject_type = ? AND subject_id = ?",
