@@ -39,6 +39,8 @@ public class PermissionCacheService {
     private final RedisTemplate<String, Object> redisTemplate;
     private final SysRoleMapper roleMapper;
     private final SysUserPositionMapper userPositionMapper;
+    /** 【WP5 2026-11-13】权限版本号(ObjectProvider 断循环: evictAll→markChanged, bump→evictAll) */
+    private final org.springframework.beans.factory.ObjectProvider<com.aigicrm.common.auth.PermEpochService> permEpochServiceProvider;
 
     /** 读取缓存上下文；未命中返回 null（调用方回源构建） */
     public PermissionContext get(Long userId) {
@@ -119,10 +121,21 @@ public class PermissionCacheService {
             org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
                     new org.springframework.transaction.support.TransactionSynchronization() {
                         @Override
-                        public void afterCommit() { doEvictAll(); }
+                        public void afterCommit() { doEvictAll(); afterCommitEpoch(); }
                     });
         } else {
             doEvictAll();
+            afterCommitEpoch();
+        }
+    }
+
+    /** 【WP5】全量权限写点 → 权限版本号+1(双端感知); 事务提交后执行, 失败不阻断 */
+    private void afterCommitEpoch() {
+        try {
+            com.aigicrm.common.auth.PermEpochService epoch = permEpochServiceProvider.getIfAvailable();
+            if (epoch != null) epoch.markChanged();
+        } catch (Exception e) {
+            log.warn("权限版本 markChanged 失败(表未就绪?): {}", e.getMessage());
         }
     }
 

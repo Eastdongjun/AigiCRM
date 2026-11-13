@@ -67,9 +67,7 @@ public class PermEpochService {
             log.warn("epoch 自增失败(表未就绪?): {}", e.getMessage());
         }
         cachedAt = 0; // 立即重读
-        // 全量失效三件套: 新内核授权/注册表缓存 + 旧链路权限上下文(Redis evict)
-        grantReader.evictAll();
-        registry.invalidate();
+        markChanged(); // 新内核缓存失效+广播(不含 evictAll, 防递归)
         try {
             permissionCacheService.evictAll();
             jdbc.update("UPDATE sys_user SET perm_version = perm_version + 1");
@@ -78,6 +76,24 @@ public class PermEpochService {
         }
         long epoch = current();
         log.info("权限版本 bump → {} (全量失效完成)", epoch);
+        return epoch;
+    }
+
+    /**
+     * 【WP5 2026-11-13】版本+1 + 新内核缓存失效 + 广播——**不含** evictAll/perm_version
+     * (调用方=PermissionCacheService.evictAll, 旧链路失效已由其自身完成; 防递归)。
+     * 全部全局权限写点经 evictAll 汇聚至此, 双端下一次请求即感知。
+     */
+    public synchronized long markChanged() {
+        try {
+            jdbc.update("UPDATE sys_perm_epoch SET epoch = epoch + 1 WHERE id = 1");
+        } catch (Exception e) {
+            log.warn("epoch 自增失败(表未就绪?): {}", e.getMessage());
+        }
+        cachedAt = 0;
+        grantReader.evictAll();
+        registry.invalidate();
+        long epoch = current();
         publish();
         return epoch;
     }
@@ -87,7 +103,7 @@ public class PermEpochService {
         try {
             redisTemplate.convertAndSend(CHANNEL_PERM_CHANGED, String.valueOf(current()));
         } catch (Exception e) {
-            // Redis 不可用不阻断失效主流程(evict/perm_version 兜底已在 bump 内完成)
+            // Redis 不可用不阻断失效主流程(evict/perm_version 兜底已在调用方完成)
             log.warn("perm:changed 广播失败(Redis?): {}", e.getMessage());
         }
     }

@@ -25,4 +25,6 @@ public class UserInfoResponse {
     private java.util.Map<Long, String> groupNames;
     private Set<String> permissions;
     private List<SysMenu> menus;
+    /** 【WP5 2026-11-13】权限版本号: 双端比对, 变更即拉新用户信息(菜单/按钮即时生效) */
+    private Long permEpoch;
 }

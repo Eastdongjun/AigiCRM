@@ -13,6 +13,8 @@ const notify = (message) => ElMessage({ message, type: 'error', grouping: true }
 
 // 登录失效只处理一次（多个在途请求同时 401/403 时避免弹多条 / 多次跳转）
 let sessionExpiredHandled = false
+// 【WP5】权限版本号拉新在途标记(并发响应同 epoch 变化只触发一次 fetchUserInfo)
+let permRefreshing = false
 const handleSessionExpired = () => {
   clearToken()
   if (sessionExpiredHandled) return
@@ -47,6 +49,20 @@ request.interceptors.response.use(
     // 【2026-11-05 用户选 C"保持登录"】滑动续期: 后端在剩余寿命<半周期时回 X-New-Token, 静默换新
     const newToken = response.headers && (response.headers['x-new-token'] || response.headers['X-New-Token'])
     if (newToken) localStorage.setItem('token', newToken)
+    // 【WP5 双端生效 2026-11-13】权限版本号比对: 与本地不一致 → 静默拉新用户信息
+    // (管理员保存授权 → 用户不刷新页面, 下一次请求后菜单/按钮/数据范围更新)
+    const permEpoch = response.headers && (response.headers['x-perm-epoch'] || response.headers['X-Perm-Epoch'])
+    if (permEpoch && isTokenValid()) {
+      const KEY = 'permEpoch'
+      const prev = localStorage.getItem(KEY)
+      if (prev && prev !== String(permEpoch) && !permRefreshing) {
+        permRefreshing = true
+        import('@/store/user').then(({ useUserStore }) => {
+          return useUserStore().fetchUserInfo(true)
+        }).catch(() => {}).finally(() => { permRefreshing = false })
+      }
+      localStorage.setItem(KEY, String(permEpoch))
+    }
     // 【C2 2026-10-04】成功响应不再无条件重置 401 去重标记：
     // 过期临界窗口内，过期前发出、服务端在过期前已处理完的在途 200，其响应可能
     // 晚于同一批请求的 401 到达——无条件重置会让去重护栏失效，同批后续 401 再次
@@ -103,5 +119,17 @@ request.interceptors.response.use(
     return Promise.reject(wrapped)
   }
 )
+
+// 【WP5 双端生效】visibilitychange 兜底: 页面重新可见时主动拉一次用户信息
+// (覆盖"无 API 流量期间授权被管理员修改"的场景; 与 epoch 响应头比对双保险)
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && isTokenValid()) {
+      import('@/store/user').then(({ useUserStore }) => {
+        return useUserStore().fetchUserInfo(true)
+      }).catch(() => {})
+    }
+  })
+}
 
 export default request

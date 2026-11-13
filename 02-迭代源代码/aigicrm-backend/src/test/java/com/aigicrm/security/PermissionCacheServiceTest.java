@@ -38,7 +38,8 @@ class PermissionCacheServiceTest {
         roleMapper = mock(SysRoleMapper.class);
         userPositionMapper = mock(SysUserPositionMapper.class);
         when(redisTemplate.opsForValue()).thenReturn(valueOps);
-        svc = new PermissionCacheService(redisTemplate, roleMapper, userPositionMapper);
+        svc = new PermissionCacheService(redisTemplate, roleMapper, userPositionMapper,
+                org.mockito.Mockito.mock(org.springframework.beans.factory.ObjectProvider.class));
     }
 
     @Test

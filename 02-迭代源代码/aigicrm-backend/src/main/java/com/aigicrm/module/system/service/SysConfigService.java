@@ -69,6 +69,9 @@ public class SysConfigService {
                             "key=" + config.getConfigKey()
                                     + " old=" + oldVal
                                     + " new=" + config.getConfigValue());
+                    // 【WP5】开关变更即时感知: 30s TTL 缓存外, 双端 epoch 比对即刻拉新
+                    com.aigicrm.common.auth.PermEpochService epoch = permEpochServiceProvider.getIfAvailable();
+                    if (epoch != null) epoch.markChanged();
                 }
             } else {
                 config.setId(null);
@@ -92,6 +95,8 @@ public class SysConfigService {
     }
 
     private final com.aigicrm.security.SecurityAuditService securityAudit;
+    /** 【WP5 2026-11-13】开关变更即时感知(ObjectProvider 防依赖环; 表未就绪安全) */
+    private final org.springframework.beans.factory.ObjectProvider<com.aigicrm.common.auth.PermEpochService> permEpochServiceProvider;
 
     /** 规则键前缀(变更需记版本):客户规则/评分规则等 */
     private static boolean isRuleKey(String key) {

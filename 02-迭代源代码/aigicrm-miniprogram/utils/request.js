@@ -79,6 +79,20 @@ function request(options) {
         const newToken = res.header && (res.header['X-New-Token'] || res.header['x-new-token'])
         // 须走 setToken(分环境组合键 token::apiBase), 直写 'token' 键会跨环境串用
         if (newToken && typeof setToken === 'function') { try { setToken(newToken) } catch (e) {} }
+        // 【WP5 双端生效 2026-11-13】权限版本号比对: 与本地不一致 → 静默拉新用户信息
+        // (管理员保存授权 → 小程序端下一次请求后菜单/按钮/数据范围更新; app.onShow 刷新保留为兜底)
+        const permEpoch = res.header && (res.header['X-Perm-Epoch'] || res.header['x-perm-epoch'])
+        if (permEpoch && typeof getToken === 'function' && getToken()) {
+          let prev = null
+          try { prev = wx.getStorageSync('permEpoch') } catch (e) {}
+          if (prev && String(prev) !== String(permEpoch)) {
+            try {
+              const { loadCurrentUser } = require('../api/auth')
+              loadCurrentUser().catch(() => {})
+            } catch (e) {}
+          }
+          try { wx.setStorageSync('permEpoch', String(permEpoch)) } catch (e) {}
+        }
         const body = res.data || {}
         if (res.statusCode >= 200 && res.statusCode < 300 && (body.code === undefined || body.code === 200)) {
           resolve(body.data !== undefined ? body.data : body)

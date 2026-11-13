@@ -21,6 +21,9 @@ import java.util.Map;
 public class RolePermScopeController {
 
     private final RolePermScopeService rolePermScopeService;
+    /** 【WP5】保存回执(epoch/受影响人数) */
+    private final com.aigicrm.common.auth.PermEpochService permEpochService;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbc;
 
     @PreAuthorize("hasAuthority('system:config:view')")
     @GetMapping("/{roleCode}")
@@ -30,11 +33,12 @@ public class RolePermScopeController {
 
     @PreAuthorize("hasAuthority('system:config:edit')")
     @PutMapping("/{roleCode}")
-    public Result<Void> updateScopes(@PathVariable String roleCode,
+    public Result<java.util.Map<String, Object>> updateScopes(@PathVariable String roleCode,
                                      @RequestBody List<Map<String, Object>> configs) {
         requireAdmin();
         rolePermScopeService.updateRoleScopes(roleCode, configs);
-        return Result.ok();
+        // 【WP5 2026-11-13】保存授权返回 {epoch, affectedUsers}(规格 WP5; 前端可提示生效人数)
+        return Result.ok(saveAck());
     }
 
     // ==================== 【批③ 正交配置层】主体三级通用端点 ====================
@@ -49,7 +53,7 @@ public class RolePermScopeController {
     /** 岗位级/用户级范围配置保存(assigneeType=POSITION/USER; 角色级走 /{roleCode}) */
     @PreAuthorize("hasAuthority('system:config:edit')")
     @PutMapping("/assignee/{type}/{key}")
-    public Result<Void> updateAssigneeScopes(@PathVariable String type, @PathVariable String key,
+    public Result<java.util.Map<String, Object>> updateAssigneeScopes(@PathVariable String type, @PathVariable String key,
                                              @RequestBody List<Map<String, Object>> configs) {
         requireAdmin();
         if (!com.aigicrm.common.scope.ScopeConfig.ASSIGNEE_POSITION.equals(type)
@@ -57,7 +61,17 @@ public class RolePermScopeController {
             throw new BusinessException("仅支持岗位(POSITION)/用户(USER)级配置, 角色级请走 /{roleCode}");
         }
         rolePermScopeService.updateScopes(type, key, configs);
-        return Result.ok();
+        return Result.ok(saveAck());
+    }
+
+    /** 【WP5 2026-11-13】保存回执: 新版本号 + 受影响用户数(绑定该主体的在职用户) */
+    private java.util.Map<String, Object> saveAck() {
+        long epoch = permEpochService.current();
+        Long affected = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM sys_user u WHERE u.deleted = 0 AND u.status = 1 AND EXISTS (" +
+                "SELECT 1 FROM sys_user_role ur JOIN sys_role r ON r.id = ur.role_id WHERE ur.user_id = u.id)",
+                Long.class);
+        return java.util.Map.of("epoch", epoch, "affectedUsers", affected != null ? affected : 0L);
     }
 
     private void requireAdmin() {

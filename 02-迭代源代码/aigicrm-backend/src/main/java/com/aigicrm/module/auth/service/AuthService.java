@@ -68,6 +68,8 @@ public class AuthService {
     private final Client smsClient;
     private final SmsConfig smsConfig;
     private final com.aigicrm.security.SecurityAuditService securityAudit;
+    /** 【WP5 2026-11-13】权限版本号(/auth/info 回传双端比对) */
+    private final com.aigicrm.common.auth.PermEpochService permEpochService;
 
     public LoginResponse login(LoginRequest request, String clientIp) {
         String username = request.getUsername() != null ? request.getUsername().trim() : "";
@@ -258,6 +260,8 @@ public class AuthService {
         response.setCurrentGroupName(response.getGroupNames().get(response.getCurrentGroupId()));
         response.setPermissions(permissions);
         response.setMenus(menuTree);
+        // 【WP5 2026-11-13】权限版本号(/auth/info 回传; 双端比对变更即拉新用户信息)
+        response.setPermEpoch(permEpochService.current());
         return response;
     }
 
