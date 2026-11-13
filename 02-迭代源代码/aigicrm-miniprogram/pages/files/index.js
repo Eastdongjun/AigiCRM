@@ -265,7 +265,11 @@ function formatDateTimeText(value) {
 }
 
 function buildFileRowView(item, data) {
-  const canMutateOwnTab = data.activeTab !== '分享给我' && data.activeTab !== '四项服务'
+  // 【对齐 PC 2026-11-13】四项服务 tab 不再排除写动作——PC FileTable 四项服务 tab 有
+  // 改名/删除/分享按钮(仅 share 排除 public/shared_to_me), 后端 checkFile 对激励附件
+  // 按上级链/授权正常放行(生产 API 实证 NO001 对郑磊附件返回全量 perms), MP 只读硬编码
+  // 属显示层与 PC/后端不一致("勾了权限看不到")。分享给我 tab 保留只读(他人分享浏览)。
+  const canMutateOwnTab = data.activeTab !== '分享给我'
   // 【mp-4 2026-10-17】行操作按当前文件夹 ACL + downloadable 收敛（与 PC FileTable 同口径）；
   // 后端列表不返回 canDownload/isEvidence，downloadable/perms 来自文件夹树（getFolderTree 逐夹回填）。
   const folderPerms = Array.isArray(data.folderPerms) ? data.folderPerms : []
@@ -1322,7 +1326,7 @@ Page({
   },
   shareFile(event) {
     const shareItem = this.findFile(event)
-    if (!this.data.canShare || this.data.activeTab === '分享给我' || this.data.activeTab === '公共' || this.data.activeTab === '四项服务' || !this.hasRowPermission(shareItem, 'share')) return
+    if (!this.data.canShare || this.data.activeTab === '分享给我' || this.data.activeTab === '公共' || !this.hasRowPermission(shareItem, 'share')) return
     const item = this.data.filteredFiles[event.currentTarget.dataset.index]
     if (!item || !item.id || String(item.id).startsWith('file-')) return wx.showToast({ title: '演示文件暂不可分享', icon: 'none' })
     getCustomerSimpleUsers().then((users) => {
