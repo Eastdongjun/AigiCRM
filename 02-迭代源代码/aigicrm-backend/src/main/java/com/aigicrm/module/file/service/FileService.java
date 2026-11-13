@@ -81,6 +81,8 @@ public class FileService {
     // 【2026-11-09 类型级默认权限】建夹门槛(公共根=admin∨类型默认create)+新夹继承默认ACL
     // 【2026-10-27 深度检查修复】shareFile 集团边界校验需要(同 CustomerService.addShares 范式)
     private final JdbcTemplate jdbc;
+    // 【BIZ-007 2026-11-13】删除激励佐证联动: 反查引用记录→剔除槽位→重算学分(与 removeFile 同不变量)
+    private final com.aigicrm.module.incentive.service.IncentiveService incentiveService;
 
     @Value("${file.storage-type:local}")
     private String storageType;
@@ -499,6 +501,13 @@ public class FileService {
             } else {
                 throw new BusinessException(403, "无权删除该文件");
             }
+        }
+
+        // 【BIZ-007 2026-11-13 外部审计修复】删除激励佐证必须联动重算学分:
+        // 反查引用该文件的激励记录 → 剔除槽位引用 → calcScore 重算(与记录侧 removeFile 同一套
+        // 不变量与空壳守卫)。守卫抛 400 时本事务回滚、文件保留——修前"佐证已删、分数还在"。
+        if ("incentive".equals(scope)) {
+            incentiveService.detachFileFromRecords(fileId);
         }
 
         // 【文件回收站 2026-10-18 用户裁决】删除不再物理清除字节: 文件进入回收站,

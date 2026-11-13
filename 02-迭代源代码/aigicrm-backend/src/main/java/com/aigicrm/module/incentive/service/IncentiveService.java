@@ -639,6 +639,80 @@ public class IncentiveService {
         evictScoreboardCache();
     }
 
+    /**
+     * 【BIZ-007 2026-11-13 外部审计修复】文件中心删除激励佐证后的联动重算。
+     *
+     * 【背景】FileService.deleteFile(incentive scope) 此前只删 biz_file 行，不触碰激励记录的
+     * 五槽引用与学分——出现"佐证已删、分数还在"（证据没了分照拿，违反记录佐证不变量）。
+     * 【方法】反查引用该文件的全部记录(JSON_CONTAINS 精确数字匹配, JSON_VALID 防脏格式) →
+     *         逐条从对应槽位剔除 → 按移除后口径 calcScore 重算 → 显式 SET 写回（含清空 NULL）。
+     * 【不变量】与 removeFile 同款空壳守卫: 剔除后五槽合计 <1 → 抛 400（调用方事务回滚,
+     *          文件保留），文案指引先处理激励记录——不引入"空壳记录 0 分"新语义。
+     * 【事务】REQUIRED 合并进调用方(FileService.deleteFile)事务; scoreboard 缓存失效一次。
+     */
+    @Transactional
+    public void detachFileFromRecords(Long fileId) {
+        if (fileId == null) return;
+        List<Long> recordIds = jdbc.queryForList(
+                "SELECT id FROM biz_incentive_record WHERE " +
+                        "(JSON_VALID(file_id) AND JSON_CONTAINS(file_id, CAST(? AS CHAR))) OR " +
+                        "(JSON_VALID(file_pre_id) AND JSON_CONTAINS(file_pre_id, CAST(? AS CHAR))) OR " +
+                        "(JSON_VALID(file_mid_id) AND JSON_CONTAINS(file_mid_id, CAST(? AS CHAR))) OR " +
+                        "(JSON_VALID(file_post_id) AND JSON_CONTAINS(file_post_id, CAST(? AS CHAR))) OR " +
+                        "(JSON_VALID(file_track_id) AND JSON_CONTAINS(file_track_id, CAST(? AS CHAR)))",
+                Long.class, fileId, fileId, fileId, fileId, fileId);
+        if (recordIds == null || recordIds.isEmpty()) return;
+
+        for (Long recordId : recordIds) {
+            BizIncentiveRecord r = recordMapper.selectByIdForUpdate(recordId);
+            if (r == null) continue;
+            Map<String, List<Long>> slots = new LinkedHashMap<>();
+            slots.put("file", r.getFileIds() == null ? new ArrayList<>() : new ArrayList<>(r.getFileIds()));
+            slots.put("pre", r.getFilePreIds() == null ? new ArrayList<>() : new ArrayList<>(r.getFilePreIds()));
+            slots.put("mid", r.getFileMidIds() == null ? new ArrayList<>() : new ArrayList<>(r.getFileMidIds()));
+            slots.put("post", r.getFilePostIds() == null ? new ArrayList<>() : new ArrayList<>(r.getFilePostIds()));
+            slots.put("track", r.getFileTrackIds() == null ? new ArrayList<>() : new ArrayList<>(r.getFileTrackIds()));
+            boolean touched = false;
+            int totalAfter = 0;
+            for (List<Long> list : slots.values()) {
+                if (list.removeIf(id -> id.equals(fileId))) touched = true;
+                totalAfter += list.size();
+            }
+            if (!touched) continue; // JSON_CONTAINS 命中但解析后无此 id(脏格式兜底)
+
+            if (totalAfter < 1) {
+                throw new BusinessException(400, "该文件是激励记录 " + recordId
+                        + " 的唯一佐证，无法删除；请先在激励记录中更换佐证或删除该记录");
+            }
+            // 应用到内存实体供 calcScore 按移除后口径评分
+            r.setFileIds(slots.get("file"));
+            r.setFilePreIds(slots.get("pre"));
+            r.setFileMidIds(slots.get("mid"));
+            r.setFilePostIds(slots.get("post"));
+            r.setFileTrackIds(slots.get("track"));
+            BizIncentiveCategory category = categoryMapper.selectById(r.getCategoryId());
+            int base = (category != null && category.getScore() != null) ? category.getScore() : 0;
+            r.setScore(calcScore(r, category, base));
+
+            com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<BizIncentiveRecord> uw =
+                    new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<BizIncentiveRecord>()
+                            .eq(BizIncentiveRecord::getId, recordId)
+                            .set(BizIncentiveRecord::getScore, r.getScore())
+                            .set(BizIncentiveRecord::getUpdatedBy, SecurityUtils.getCurrentUserId())
+                            .set(BizIncentiveRecord::getFileId, slots.get("file").isEmpty() ? null : toJsonArray(slots.get("file")))
+                            .set(BizIncentiveRecord::getFilePreId, slots.get("pre").isEmpty() ? null : toJsonArray(slots.get("pre")))
+                            .set(BizIncentiveRecord::getFileMidId, slots.get("mid").isEmpty() ? null : toJsonArray(slots.get("mid")))
+                            .set(BizIncentiveRecord::getFilePostId, slots.get("post").isEmpty() ? null : toJsonArray(slots.get("post")))
+                            .set(BizIncentiveRecord::getFileTrackId, slots.get("track").isEmpty() ? null : toJsonArray(slots.get("track")));
+            recordMapper.update(null, uw);
+        }
+        evictScoreboardCache();
+    }
+
+    private String toJsonArray(List<Long> ids) {
+        return "[" + ids.stream().map(String::valueOf).collect(Collectors.joining(",")) + "]";
+    }
+
     // 【死码清理 2026-11-08】recalculateAllScores 已随 POST /records/recalculate 端点删除：
     // 双端零调用（11-08 审计确证），单记录重算由 updateRecord/removeFile 内联完成。
 

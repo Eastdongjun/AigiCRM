@@ -60,7 +60,8 @@ class FileServicePermissionTest {
     private final FileService svc = new FileService(fileMapper, folderMapper, fileShareMapper, folderAclMapper,
             incentiveRecordMapper, userMapper, providerOf(ossClient), ossConfig, folderPermissionService,
             mock(com.aigicrm.security.SecurityAuditService.class),
-            mock(org.springframework.jdbc.core.JdbcTemplate.class)); // 2026-10-27 shareFile 集团边界校验新增依赖
+            mock(org.springframework.jdbc.core.JdbcTemplate.class),
+            mock(com.aigicrm.module.incentive.service.IncentiveService.class)); // BIZ-007 删佐证联动重算 // 2026-10-27 shareFile 集团边界校验新增依赖
 
     private java.nio.file.Path thumbCacheDir;
 
