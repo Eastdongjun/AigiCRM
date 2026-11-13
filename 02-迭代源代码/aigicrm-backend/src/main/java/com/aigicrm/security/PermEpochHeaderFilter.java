@@ -24,6 +24,8 @@ import java.io.IOException;
 public class PermEpochHeaderFilter extends OncePerRequestFilter {
 
     public static final String HEADER = "X-Perm-Epoch";
+    private static final org.slf4j.Logger log =
+            org.slf4j.LoggerFactory.getLogger(PermEpochHeaderFilter.class);
 
     private final PermEpochService permEpochService;
 
@@ -31,20 +33,23 @@ public class PermEpochHeaderFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
         // 【三轮部署实测修复】头必须在 doFilter **之前**设定——大响应(auth/info JSON>8KB)
-        // 在 body 写出时即提交 headers(chunked 首块), 外层 finally 里 setHeader 已 committed 无效
-        // (实测 /login 定长小响应有头、/auth/info 大响应无头)。
+        // 在 body 写出时即提交 headers(chunked 首块), 外层 finally 里 setHeader 已 committed 无效。
         // 语义: 头=请求开始时的版本号; 若处理期间权限变更, 下一次请求带新值(30s 缓存内)。
+        boolean committedBefore = response.isCommitted();
         try {
-            response.setHeader(HEADER, String.valueOf(permEpochService.current()));
-        } catch (Exception ignore) {
-            // epoch 不可用(表未就绪)不阻断响应
+            String v = String.valueOf(permEpochService.current());
+            response.setHeader(HEADER, v);
+            log.debug("[PermEpochFilter] uri={} setHeader={} committedBefore={}", request.getRequestURI(), v, committedBefore);
+        } catch (Exception e) {
+            log.warn("[PermEpochFilter] uri={} current()失败: {}", request.getRequestURI(), e.getMessage());
         }
         try {
             filterChain.doFilter(request, response);
         } finally {
-            // 兜底: 若 chain 中 epoch 被推进(本请求内 bump), 用最新值覆盖
             try {
                 response.setHeader(HEADER, String.valueOf(permEpochService.current()));
+                log.debug("[PermEpochFilter] uri={} finally header={} committed={}", request.getRequestURI(),
+                        response.containsHeader(HEADER), response.isCommitted());
             } catch (Exception ignore) {
                 // 已提交时无效, 由下一次请求携带
             }
