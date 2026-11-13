@@ -67,11 +67,24 @@ grep -q "scopeForUser(SecurityUser user, String actionCode," "$BE/common/auth/Au
   || fail "⑦ 缺带锚点覆盖的 scopeForUser 重载"
 grep -q "anchorOverride != null" "$BE/common/auth/AuthorizationService.java" \
   || fail "⑦ newTrackScope 缺请求锚优先逻辑"
-grep -q "auth.scopeForUser(req.getUser(), code, req.getAnchor())" "$BE/common/scope/OrgScopeResolver.java" \
+grep -q "auth.scopeForUser(req.getUser(), code, requested)" "$BE/common/scope/OrgScopeResolver.java" \
   || fail "⑦ resolveScope 未透传请求锚点"
 grep -q "auth.scopeForUser(user, code, ScopeRequest.AnchorType.OWNER)" "$BE/common/scope/OrgScopeResolver.java" \
   || fail "⑦ resolveModuleUsers 新轨未固定 OWNER 锚(旧轨同口径)"
 pass "⑦ 锚点透传(resolveScope 请求锚/resolveModuleUsers 恒 OWNER/锚覆盖重载)"
+
+# ---- ⑧ FILE-11/12 复检二补强: null 锚兜底 OWNER + 测试钉生产码/生产链 + 对账槽覆盖 ----
+grep -q "req.getAnchor() != null" "$BE/common/scope/OrgScopeResolver.java" \
+  && grep -q "? req.getAnchor() : ScopeRequest.AnchorType.OWNER" "$BE/common/scope/OrgScopeResolver.java" \
+  || fail "⑧ resolveScope 缺 null 锚兜底 OWNER(FILE-11)"
+grep -q '"file:acl:manage"' "$ROOT/aigicrm-backend/src/test/java/com/aigicrm/common/auth/KernelScopeTest.java" \
+  || fail "⑧ 锚点用例未钉生产码 file:acl:manage(FILE-12, 不得用退役死码 file:manage)"
+TEST_M="$ROOT/aigicrm-backend/src/test/java/com/aigicrm/module/file/service/FolderPermissionMatrixOrgChannelTest.java"
+[ -f "$TEST_M" ] || fail "⑧ 缺 matrixDeptSet→check 生产链回归钉(FolderPermissionMatrixOrgChannelTest)"
+grep -q 'new Slot("file", "manage"' "$BE/module/system/service/PermReconcileService.java" \
+  && grep -q 'new Slot("file", "delete"' "$BE/module/system/service/PermReconcileService.java" \
+  || fail "⑧ 对账 SLOTS 缺 file|manage / file|delete 槽(FILE-12)"
+pass "⑧ 复检二补强(null 锚兜底/生产码用例/matrixDeptSet 生产链钉/对账槽覆盖)"
 
 # ---- 负例自证: 构造违规内容必须被本契约抓出(防扫描器假绿) ----
 if [ "$NEG" = "1" ]; then

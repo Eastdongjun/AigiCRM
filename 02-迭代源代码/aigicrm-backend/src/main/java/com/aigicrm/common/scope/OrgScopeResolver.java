@@ -209,8 +209,11 @@ public class OrgScopeResolver {
                 // 【FILE-07 P0 修复 2026-11-14】请求锚点透传: ScopeRequest.anchor 是调用方显式语义
                 // (FolderPermissionService.matrixDeptSet 固定 ORG 拿部门集); 新轨不得丢弃,
                 // 否则配置锚=OWNER 时 ORG 通道 visibleDeptIds 恒空 → 文件夹矩阵全 403。
-                // 旧轨 resolveScopeLegacy 本就按 req.getAnchor() 分支(上方 L220), 新轨同语义。
-                return auth.scopeForUser(req.getUser(), code, req.getAnchor());
+                // 【FILE-11 P2 修复 2026-11-14】null 兜底 OWNER 与旧轨 resolveScopeLegacy 同口径——
+                // 未来调用方省略 anchor 时, 双轨不得分叉(新轨配置锚 vs 旧轨 OWNER 的静默漂移)。
+                ScopeRequest.AnchorType requested = req.getAnchor() != null
+                        ? req.getAnchor() : ScopeRequest.AnchorType.OWNER;
+                return auth.scopeForUser(req.getUser(), code, requested);
             }
         }
         return resolveScopeLegacy(req);

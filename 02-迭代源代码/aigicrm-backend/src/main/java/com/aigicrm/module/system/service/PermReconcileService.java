@@ -38,6 +38,8 @@ public class PermReconcileService {
     private static final List<Slot> SLOTS = List.of(
             new Slot("customer", "view", false),
             new Slot("file", "view", false),
+            new Slot("file", "manage", false),   // 【FILE-12 P2 2026-11-14】锚点修复后 manage/delete 纳入对账面
+            new Slot("file", "delete", false),
             new Slot("approval", "view", false),
             new Slot("reminder", "view", false),
             new Slot("sea", "view", false),

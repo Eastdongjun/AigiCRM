@@ -50,6 +50,11 @@
    UPDATE sys_config SET config_value='new' WHERE config_key='perm.read.customer';
    ```
    观察窗口 ≥24h：403 率 / 错误率 / 慢查询（ScopeQuery 大集合告警日志）/ 用户工单。
+   **【切前实测铁律 2026-11-14 用户立规】翻开关前后各跑一次"非 admin + 窄范围"账号
+   （如 NO001：file|manage=dept 档、任职单部门），双端口径逐字对比（PC 按钮 perms 接口 +
+   列表行数）；admin/全量账号恒真短路，测不出锚点/部门维/槽聚合问题，只做冒烟不做验收。
+   测试用例同规：钉生产语义（真实码+默认配置），禁 mock 假锚/死码（教训=slotsIsolated
+   mock ORG 掩盖 403 回归、锚点用例用死码 file:manage 绕过槽聚合）。**
 6. **逐模块推进**：customer → file → approval/reminder/task → sea/incentive/score → system。
    每模块重复步骤 3-5。
 7. **旧表只读**：全模块 new 且稳定一周后，`role_perm_scope` 仅读（管理端保存仍双写，不删）。

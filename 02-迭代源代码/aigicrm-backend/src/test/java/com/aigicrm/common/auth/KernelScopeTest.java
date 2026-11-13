@@ -506,25 +506,27 @@ class KernelScopeTest {
                 "新轨 resolveModuleUsers 恒 OWNER 维: DEPT 型部门用户{7,88}+上级开关追加下属{8}——配置 ORG 不漂移");
     }
 
-    /** 【FILE-07 P0 正例】resolveScope 请求锚 ORG 透传(配置 OWNER): ORG 通道部门维非空——
-     *  FolderPermissionService.matrixDeptSet 的生产链路(修复前此处恒空集=文件夹矩阵全 403)。 */
+    /** 【FILE-07 P0 正例 / FILE-12 改生产码】resolveScope 请求锚 ORG 透传(配置 OWNER): ORG 通道
+     *  部门维非空——FolderPermissionService.matrixDeptSet 的生产链路(修复前此处恒空集=全 403)。
+     *  用生产码 file:acl:manage(V2026.11.10.1 实码; file:manage 已退役) + 槽聚合真实五码映射。 */
     @Test
     void resolveScope_newTrack_honorsRequestedOrgAnchor() {
         PermActionRegistry registry = mock(PermActionRegistry.class);
-        when(registry.of("file:manage")).thenReturn(
-                new PermActionRegistry.ActionDef("file:manage", "file", "file", "uploader_id", null, true, false));
-        when(registry.codeOf("file", "manage")).thenReturn("file:manage");
-        when(registry.slotOf("file:manage")).thenReturn(new String[]{"file", "manage"});
-        when(registry.codesOf("file", "manage")).thenReturn(List.of("file:manage"));
+        when(registry.of("file:acl:manage")).thenReturn(
+                new PermActionRegistry.ActionDef("file:acl:manage", "file", "file", "uploader_id", null, true, false));
+        when(registry.codeOf("file", "manage")).thenReturn("file:acl:manage");
+        when(registry.slotOf("file:acl:manage")).thenReturn(new String[]{"file", "manage"});
+        when(registry.codesOf("file", "manage")).thenReturn(List.of(
+                "file:acl:manage", "file:folder:manage", "file:upload", "file:edit", "file:share"));
         when(configService.getValue("perm.read.file")).thenReturn("new");
         when(jdbc.queryForList(org.mockito.ArgumentMatchers.contains("sys_org_closure"), eq(Long.class), eq(10L)))
                 .thenReturn(List.of(11L));
         when(jdbc.queryForList(org.mockito.ArgumentMatchers.contains("dept_id IN"), eq(Long.class), eq(10L), eq(11L)))
                 .thenReturn(List.of(7L, 88L));
         when(rolePermScopeService.anchorOf(any(), eq("file"), eq("manage")))
-                .thenReturn(ScopeRequest.AnchorType.OWNER); // 生产默认
+                .thenReturn(ScopeRequest.AnchorType.OWNER); // 生产默认(V2026.11.10.1 种子)
         GrantReader reader = mock(GrantReader.class);
-        when(reader.grantsOf(any(), eq("file:manage"))).thenReturn(List.of(
+        when(reader.grantsOf(any(), eq("file:acl:manage"))).thenReturn(List.of(
                 new GrantReader.GrantRow("MY_DEPT_SUB", "OWNER", "ROLE", "sales")));
         AuthorizationService svc = auth(reader, registry);
         org.springframework.beans.factory.ObjectProvider<AuthorizationService> provider =
@@ -545,6 +547,49 @@ class KernelScopeTest {
         ScopeDecision d = resolver.resolveScope(req);
         assertEquals(Set.of(10L, 11L), Set.copyOf(d.getVisibleDeptIds()),
                 "matrixDeptSet 生产链路: 请求 ORG + 配置 OWNER → 部门维=闭包{10,11}(修复前恒空=全 403)");
+    }
+
+    /** 【FILE-11 P2 负例】req.getAnchor()==null 时新轨默认 OWNER(与旧轨 resolveScopeLegacy
+     *  同口径)——防未来调用方省略 anchor 时双轨静默分叉(新轨配置锚 vs 旧轨 OWNER)。 */
+    @Test
+    void resolveScope_newTrack_nullRequestAnchor_defaultsOwner_likeLegacy() {
+        PermActionRegistry registry = mock(PermActionRegistry.class);
+        when(registry.of("file:view")).thenReturn(
+                new PermActionRegistry.ActionDef("file:view", "file", "file", "uploader_id", null, true, true));
+        when(registry.codeOf("file", "view")).thenReturn("file:view");
+        when(registry.slotOf("file:view")).thenReturn(new String[]{"file", "view"});
+        when(registry.codesOf("file", "view")).thenReturn(List.of("file:view"));
+        when(configService.getValue("perm.read.file")).thenReturn("new");
+        when(jdbc.queryForList(org.mockito.ArgumentMatchers.contains("sys_org_closure"), eq(Long.class), eq(10L)))
+                .thenReturn(List.of(11L));
+        when(jdbc.queryForList(org.mockito.ArgumentMatchers.contains("dept_id IN"), eq(Long.class), eq(10L), eq(11L)))
+                .thenReturn(List.of(7L, 88L));
+        // 配置锚故意 ORG——null 请求锚必须兜底 OWNER(不吞配置锚也不漂向 ORG)
+        when(rolePermScopeService.anchorOf(any(), eq("file"), eq("view"))).thenReturn(ScopeRequest.AnchorType.ORG);
+        GrantReader reader = mock(GrantReader.class);
+        when(reader.grantsOf(any(), eq("file:view"))).thenReturn(List.of(
+                new GrantReader.GrantRow("MY_DEPT_SUB", "OWNER", "ROLE", "sales")));
+        AuthorizationService svc = auth(reader, registry);
+        org.springframework.beans.factory.ObjectProvider<AuthorizationService> provider =
+                mock(org.springframework.beans.factory.ObjectProvider.class);
+        when(provider.getIfAvailable()).thenReturn(svc);
+        OrgScopeResolver resolver = new OrgScopeResolver(
+                mock(com.aigicrm.module.system.mapper.SysUserMapper.class),
+                mock(com.aigicrm.module.system.mapper.SysDeptMapper.class),
+                configService,
+                mock(com.aigicrm.module.system.mapper.SysRoleOrgMapper.class),
+                jdbc, provider);
+        SecurityUser su = suPerm(7L, "customer:view");
+        su.setEmploymentOrgIds(List.of(10L));
+        su.setPrimaryEmploymentOrgId(10L);
+        ScopeRequest req = ScopeRequest.builder()
+                .user(su).module("file").action("view")
+                .build(); // 不设 anchor
+        ScopeDecision d = resolver.resolveScope(req);
+        assertTrue(d.getVisibleDeptIds().isEmpty(),
+                "null 请求锚 → OWNER 分支: 部门维恒空(镜像旧轨; 若吞配置锚 ORG 此处=闭包非空)");
+        assertEquals(Set.of(7L, 88L), Set.copyOf(d.getVisibleUserIds()),
+                "null 请求锚 → OWNER 分支: 用户维=本人∪DEPT 型部门在职{7,88}");
     }
 
     /** 【P1-3 三轮修复负例】导出无条件跟随列表授权(回填 SELF grant 不再架空别名, 卡片=列表=导出) */
