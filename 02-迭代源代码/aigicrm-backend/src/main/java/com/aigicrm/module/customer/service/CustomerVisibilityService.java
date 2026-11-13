@@ -35,9 +35,12 @@ public class CustomerVisibilityService {
     private final RolePermScopeService rolePermScopeService;
     @SuppressWarnings("unused")
     private final SysUserMapper userMapper; // 预留: WP4 可见负责人白名单扩展
+    /** 【WP7】内核门面(ObjectProvider 断循环; 测试直构为 null → 恒旧轨) */
+    private final org.springframework.beans.factory.ObjectProvider<com.aigicrm.common.auth.AuthorizationService> authServiceProvider;
 
     /**
      * 可见负责人集合(按 (customer, view) 数据范围解析, 锚点读 role_perm_scope 配置)。
+     * 【WP7】双轨读开关: perm.read.customer=new → 内核授予表; old(默认) → 本方法既有解析。
      *
      * @return null=全量不过滤(admin/all); 非空=可见负责人 userIds(恒含本人; 空集=范围内无人,
      *         调用方按 1=0/恒空 处理, 不得回退全量)
@@ -46,6 +49,15 @@ public class CustomerVisibilityService {
         var user = SecurityUtils.getCurrentUser();
         if (user == null) return List.of();
         if (SecurityUtils.isAdmin()) return null; // null=全部
+        com.aigicrm.common.auth.AuthorizationService auth =
+                authServiceProvider == null ? null : authServiceProvider.getIfAvailable();
+        if (auth != null && auth.isNewTrack("customer")) {
+            String code = auth.actionCodeOf("customer", "view");
+            if (code != null) {
+                var d = auth.scope(code);
+                return d.isAll() ? null : d.getVisibleUserIds();
+            }
+        }
         ScopeRequest req = ScopeRequest.builder()
                 .user(user)
                 .module("customer")

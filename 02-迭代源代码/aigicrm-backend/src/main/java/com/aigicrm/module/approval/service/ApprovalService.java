@@ -823,6 +823,7 @@ public class ApprovalService {
         // 【修复 2026-08-08 审批范围】在"本人申请 ∨ 本人参与"基础上并入数据范围可见用户(含系统级开关)，
         // 上级/组织负责人可见下级审批；all 范围(null)不过滤。
         // 【2026-09-19 接入权限矩阵】(approval,view) 显式配置优先，未配置回退角色数据范围
+        // 【WP7】双轨读开关已内置于 resolveModuleUsers 入口(perm.read.approval=new 切内核)
         List<Long> visible = scopeResolver.resolveModuleUsers(SecurityUtils.getCurrentUser(), "approval");
         if (visible == null) return; // all 范围：全量可见
         List<Long> involved = myInvolvedApprovalIds(userId);

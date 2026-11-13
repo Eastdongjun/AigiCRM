@@ -1188,7 +1188,8 @@ class CustomerServiceTest {
         com.aigicrm.module.customer.service.CustomerVisibilityService visibility =
                 new com.aigicrm.module.customer.service.CustomerVisibilityService(resolver,
                         mock(com.aigicrm.module.system.service.RolePermScopeService.class),
-                        mock(SysUserMapper.class));
+                        mock(SysUserMapper.class),
+                        null);
         return new CustomerService(
                 mock(BizCustomerMapper.class),
                 visibility,

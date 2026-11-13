@@ -132,6 +132,19 @@ public class OrgScopeResolver {
      * 独立档位, 不再跟随 (statistics, view); 存量由 V2026.11.05.7 回填拷贝, 行为不变。
      */
     public List<Long> resolveModuleUsers(SecurityUser user, String module, String action) {
+        // 【WP7 模块接入 2026-11-13】双轨读开关(统一入口守卫, 调用点/单测桩零迁移):
+        // perm.read.<module>=new → 内核授予表(sys_perm_grant 经 AuthorizationService);
+        // old(默认/内核未就绪/无槽码) → 本方法既有解析逐字节不变。
+        // WithinGroup 消费方内部走本方法, 新轨的 all 已是"本集团"语义(决策#6)。
+        com.aigicrm.common.auth.AuthorizationService auth =
+                authServiceProvider == null ? null : authServiceProvider.getIfAvailable();
+        if (auth != null && auth.isNewTrack(module)) {
+            String code = auth.actionCodeOf(module, action);
+            if (code != null) {
+                var d = auth.scope(code);
+                return d.isAll() ? null : d.getVisibleUserIds();
+            }
+        }
         ScopeRequest req = ScopeRequest.builder()
                 .user(user)
                 .module(module)
@@ -141,6 +154,12 @@ public class OrgScopeResolver {
         ScopeDecision d = resolveScope(req);
         return d.isAll() ? null : d.getVisibleUserIds();
     }
+
+    // ==================== 【WP7 模块接入 2026-11-13】双轨基建 ====================
+
+    /** 内核门面(经 ObjectProvider 惰性获取, 打破 Resolver↔AuthorizationService 构造循环;
+     *  测试直构/内核未就绪时为 null → 恒走旧轨) */
+    private final org.springframework.beans.factory.ObjectProvider<com.aigicrm.common.auth.AuthorizationService> authServiceProvider;
 
     /**
      * 【GPT三轮 ACL-P1-001 修复 2026-09-22】全局表安全版。

@@ -79,7 +79,8 @@ class StatisticsQueryServiceTest {
             new com.aigicrm.module.customer.service.CustomerVisibilityService(
                     org.mockito.Mockito.mock(com.aigicrm.common.scope.OrgScopeResolver.class),
                     org.mockito.Mockito.mock(com.aigicrm.module.system.service.RolePermScopeService.class),
-                    org.mockito.Mockito.mock(SysUserMapper.class));
+                    org.mockito.Mockito.mock(SysUserMapper.class),
+                    null);
     // 【WP4/WP5】看板缓存签名的权限版本号维度(未桩时 current()=Mockito long 默认 0, 键稳定)
     @Mock private com.aigicrm.common.auth.PermEpochService permEpochService;
     // 【G2 2026-09-21】visibleCustomers 依赖; 未 stub 时 resolveModuleUsers 返回 null(=全量),

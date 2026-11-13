@@ -62,6 +62,8 @@ public class ReminderService {
     private final SysDeptMapper deptMapper;
     private final SysConfigService configService;
     private final com.aigicrm.common.scope.OrgScopeResolver scopeResolver;
+    // 【WP7 2026-11-13】模块接入零改动: 可见负责人解析仍走 resolveModuleUsers(双轨读开关
+    // 已内置于 OrgScopeResolver.resolveModuleUsers 入口), perm.read.reminder=new 即切内核授予表。
 
     /**
      * 【修复 提醒模块越权】此前 page()/expiringPage()/pendingCount() 的 ownerId 仅在调用方

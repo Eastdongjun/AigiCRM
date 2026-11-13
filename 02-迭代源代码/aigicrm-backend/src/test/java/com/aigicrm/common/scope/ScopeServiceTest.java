@@ -110,7 +110,7 @@ class ScopeServiceTest {
     @Test
     void selfScopeReturnsOnlySelf() {
         OrgScopeResolver realResolver = new OrgScopeResolver(userMapper, deptMapper, null,
-                mock(com.aigicrm.module.system.mapper.SysRoleOrgMapper.class), null); // configService=null → 开关不生效，保持仅本人
+                mock(com.aigicrm.module.system.mapper.SysRoleOrgMapper.class), null, null); // configService=null → 开关不生效，保持仅本人
         when(userMapper.selectByIds(anyList())).thenReturn(List.of(user(1L, 11L, "本人")));
         ScopeService svc = new ScopeService(realResolver, userMapper, deptMapper, mock(org.springframework.jdbc.core.JdbcTemplate.class));
         List<Map<String, Object>> users = svc.visibleUsers(su(1L, "self", 11L), null);

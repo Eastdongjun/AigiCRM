@@ -68,6 +68,47 @@ public class AuthorizationService {
         }
     }
 
+    // ==================== 双轨包装器(WP7 模块接入统一入口) ====================
+
+    /**
+     * 【WP7 模块接入】可见用户集双轨: 读开关=old(默认) → 执行 legacyFallback(现有调用原样闭包,
+     * 锚点/集团语义由调用方保留, 测试桩不迁移); =new → 内核授予表解析(scope(actionCode))。
+     * 语义契约: 返回 null=全量不过滤; 空集=范围无人(fail-closed); 非空=可见负责人集合。
+     */
+    public List<Long> visibleUsersDualTrack(String actionCode, java.util.function.Supplier<List<Long>> legacyFallback) {
+        PermActionRegistry.ActionDef def = registry.of(actionCode);
+        if (def != null && "new".equals(readMode(def.getModule()))) {
+            ScopeDecision d = scope(actionCode);
+            return d.isAll() ? null : d.getVisibleUserIds();
+        }
+        return legacyFallback.get();
+    }
+
+    /** 【WP7】WithinGroup 变体: 同上, 集团收口语义由 legacyFallback 闭包保留 */
+    public List<Long> visibleUsersWithinGroupDualTrack(String actionCode, java.util.function.Supplier<List<Long>> legacyFallback) {
+        PermActionRegistry.ActionDef def = registry.of(actionCode);
+        if (def != null && "new".equals(readMode(def.getModule()))) {
+            ScopeDecision d = scopeWithinGroup(actionCode);
+            return d.isAll() ? null : d.getVisibleUserIds();
+        }
+        return legacyFallback.get();
+    }
+
+    /** 【WP7】范围判定双轨(供"加了范围条件没有?"的模块本地分支): true=走了内核新轨(调用方跳过旧逻辑) */
+    public boolean isNewTrack(String module) {
+        return "new".equals(readMode(module));
+    }
+
+    // ==================== 槽→码映射(双轨守卫用) ====================
+
+    /**
+     * 【WP7】(module, action) 槽 → 动作码(注册表首个命中); 无槽码返回 null(双轨恒旧轨)。
+     * 覆盖表: (file,manage) 的两个门码(码 file:manage 已退役, 槽仍由 V2026.11.13.3 回填挂两码)。
+     */
+    public String actionCodeOf(String module, String action) {
+        return registry.codeOf(module, action);
+    }
+
     // ==================== 范围解析 ====================
 
     /**
@@ -170,13 +211,45 @@ public class AuthorizationService {
                     .user(user)
                     .module(module)
                     .action(action)
-                    .anchor(rolePermScopeService.anchorOf(user, module, action))
+                    // 【WP7 锚点保真】旧轨逐模块复刻现有锚点语义: 仅 customer 域读 anchorOf
+                    // (P2-3 起列表/统计同源); 其余模块现有消费=resolveModuleUsers 2参 OWNER 硬编码,
+                    // 切轨不得改变默认行为, 否则"默认轨=零行为变化"承诺即破。
+                    .anchor(legacyAnchor(module, action))
                     .build();
             return legacyResolver.resolveScope(req);
         } catch (Exception e) {
             log.warn("旧轨范围解析失败 code={}: {}", actionCode, e.getMessage());
             return ScopeDecision.none();
         }
+    }
+
+    /** 旧轨锚点保真: customer=anchorOf 配置; 其余模块=OWNER(与 resolveModuleUsers 2参现状一致) */
+    private ScopeRequest.AnchorType legacyAnchor(String module, String action) {
+        if ("customer".equals(module)) {
+            SecurityUser u = SecurityUtils.getCurrentUser();
+            return rolePermScopeService.anchorOf(u, module, action);
+        }
+        return ScopeRequest.AnchorType.OWNER;
+    }
+
+    // ==================== 集团收口(复刻 resolveModuleUsersWithinGroup) ====================
+
+    /**
+     * scope() + WithinGroup 语义: 非 admin 的 all 收口到本集团成员集(无集团 fail-closed 空集);
+     * admin 的 all 保持 null(平台全量)。供 task/score/system 等现有 WithinGroup 消费方切轨。
+     */
+    public ScopeDecision scopeWithinGroup(String actionCode) {
+        ScopeDecision d = scope(actionCode);
+        if (d == null || !d.isAll()) return d;
+        SecurityUser user = SecurityUtils.getCurrentUser();
+        if (user != null && user.hasRole("admin")) return d; // admin 全量保持
+        Long g = com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull();
+        if (g == null) return ScopeDecision.none();
+        ScopeDecision out = new ScopeDecision();
+        List<Long> members = com.aigicrm.common.scope.GroupScopeUtil.userIdsInGroup(jdbc, g);
+        out.setVisibleUserIds(members.isEmpty() ? List.of() : members);
+        out.setVisibleDeptIds(List.of());
+        return out;
     }
 
     /**
