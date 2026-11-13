@@ -284,7 +284,14 @@ public class RolePermScopeService {
                         row.get("scope_level") + "/" + row.get("anchor"), "默认(未配置)");
             }
             jdbc.update("DELETE FROM role_perm_scope WHERE assignee_type=? AND assignee_key=?", assigneeType, assigneeKey);
-            dualDeleteGrants(assigneeType, assigneeKey); // 【WP8 双写】授予表同步删除
+            // 【P1-2 三轮修复 2026-11-13】清空范围的授予表语义按主体分型:
+            // ROLE = "恢复默认" → 重置为 data_scope 档(菜单仍绑码, 全删会让新轨范围恒空);
+            // USER/POSITION = 显式附加行 → 清除即移除
+            if (ScopeConfig.ASSIGNEE_ROLE.equals(assigneeType)) {
+                resetRoleGrantsToDefault(assigneeKey);
+            } else {
+                dualDeleteGrants(assigneeType, assigneeKey);
+            }
             invalidate(assigneeKey);
             permissionCacheService.evictAll();
             // 【2026-08-14 缓存自愈】版本递增兜底：evict 漏网/Redis 写失败时缓存与 DB 版本比对自愈
@@ -408,14 +415,41 @@ public class RolePermScopeService {
     }
 
     /**
-     * 【P0-5 修复 2026-11-13 方案二】角色菜单绑定的槽码授权 upsert(供 SysRoleService.saveRoleMenus 调用)。
-     * 动作轴权威仍在 sys_role_menu(本批不迁移); 但新轨 perm.read.*=new 时范围解析按 sys_perm_grant——
-     * 新绑槽码的角色若无授权行 → 范围恒空(fail-closed 误伤)。本方法保证: 菜单绑码即有槽授权,
-     * scope 取 匹配 role_perm_scope 行 → 角色 data_scope 映射 → SELF(与 V2026.11.13.3 回填同优先级)。
+     * 【P1-2 三轮修复】角色清空范围 → 重置为 data_scope 默认档(菜单绑定的槽码逐码 upsert+
+     * 剪枝, 复用 dualUpsertRoleSlotGrants; 角色不存在则全删兜底)。
+     */
+    private void resetRoleGrantsToDefault(String roleCode) {
+        try {
+            Map<String, Object> role = jdbc.queryForMap(
+                    "SELECT id, data_scope FROM sys_role WHERE role_code = ?", roleCode);
+            String dataScope = String.valueOf(role.get("data_scope"));
+            List<String> boundCodes = jdbc.queryForList(
+                    "SELECT DISTINCT m.permission FROM sys_role_menu rm " +
+                    "JOIN sys_menu m ON m.id = rm.menu_id " +
+                    "JOIN sys_role r ON r.id = rm.role_id " +
+                    "WHERE r.role_code = ? AND m.permission IS NOT NULL AND m.permission <> ''",
+                    String.class, roleCode);
+            dualUpsertRoleSlotGrants(roleCode, dataScope, boundCodes);
+        } catch (org.springframework.dao.IncorrectResultSizeDataAccessException e) {
+            // 角色已不存在(queryForMap 空/多行) → 该主体授予行全删兜底
+            dualDeleteGrants("ROLE", roleCode);
+        } catch (Exception e) {
+            logDualWriteFailure("reset-default", "ROLE", roleCode, e);
+        }
+    }
+
+    /**
+     * 【P0-5 修复 2026-11-13 方案二】角色菜单绑定的槽码授权 upsert + 【P1-2 三轮修复】取消勾选剪枝。
+     * 供 SysRoleService.saveRoleMenus 调用: 动作轴权威仍在 sys_role_menu(本批不迁移);
+     * 新轨 perm.read.*=new 时范围解析按 sys_perm_grant——
+     * ① 新绑槽码 upsert(scope=匹配 role_perm_scope 行 → 角色 data_scope → SELF, 与回填同优先级);
+     * ② 被移除的槽码 DELETE grant(防"幽灵授权": 取消勾选后新轨范围仍生效)。
      */
     public void dualUpsertRoleSlotGrants(String roleCode, String dataScope, java.util.Collection<String> codes) {
         if (codes == null || codes.isEmpty()) return;
         try {
+            java.util.Set<String> kept = new java.util.HashSet<>(codes);
+            java.util.List<String> allSlotCodes = permActionRegistry.allSlotCodes();
             for (String code : codes) {
                 String[] slot = permActionRegistry.slotOf(code);
                 if (slot == null) continue; // 非槽码(入口/路由)无范围语义, 无需授权行
@@ -434,6 +468,13 @@ public class RolePermScopeService {
                         "VALUES (1, 'ROLE', ?, ?, ?, ?, 'ALLOW') " +
                         "ON DUPLICATE KEY UPDATE scope_type = VALUES(scope_type), anchor = VALUES(anchor)",
                         roleCode, code, mapped, anchor);
+            }
+            // 【P1-2】剪枝: 槽码中不在本次勾选集的 → 删 grant(取消勾选即收权)
+            for (String slotCode : allSlotCodes) {
+                if (!kept.contains(slotCode)) {
+                    jdbc.update("DELETE FROM sys_perm_grant WHERE tenant_id=1 AND subject_type='ROLE' AND subject_id=? AND action_code=?",
+                            roleCode, slotCode);
+                }
             }
         } catch (Exception e) {
             logDualWriteFailure("slot-grants", "ROLE", roleCode, e);

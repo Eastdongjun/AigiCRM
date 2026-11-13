@@ -321,6 +321,59 @@ class KernelScopeTest {
         }
     }
 
+    /** 【P1-3 三轮修复负例】导出无条件跟随列表授权(回填 SELF grant 不再架空别名, 卡片=列表=导出) */
+    @Test
+    void scopeNewTrack_export_alwaysFollowsViewAlias() {
+        PermActionRegistry registry = mock(PermActionRegistry.class);
+        when(registry.of("customer:export")).thenReturn(def("customer:export", "customer", true, true));
+        GrantReader reader = mock(GrantReader.class);
+        // 回填/双写给 export 的 SELF 行存在——但别名必须无条件接管(否则导出=仅本人 ≠ 列表);
+        // 该桩故意不被消费(别名接管后不读自身授权) → lenient
+        org.mockito.Mockito.lenient().when(reader.grantsOf(any(), eq("customer:export"))).thenReturn(List.of(
+                new GrantReader.GrantRow("SELF", "OWNER", "ROLE", "sales")));
+        when(reader.grantsOf(any(), eq("customer:view"))).thenReturn(List.of(
+                new GrantReader.GrantRow("MY_DEPT_SUB", "OWNER", "ROLE", "sales")));
+        AuthorizationService svc = auth(reader, registry);
+        when(legacyResolver.switchFlags()).thenReturn(new boolean[]{false, false});
+        when(jdbc.queryForList(anyString(), eq(Long.class), eq(10L))).thenReturn(List.of(11L));
+        when(jdbc.queryForList(anyString(), eq(Long.class), eq(10L), eq(11L))).thenReturn(List.of(7L, 8L));
+        SecurityUser su = suPerm(7L, "customer:view");
+        su.setEmploymentOrgIds(List.of(10L));
+        su.setPrimaryEmploymentOrgId(10L);
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::getCurrentUser).thenReturn(su);
+            ScopeDecision d = svc.scopeNewTrack(su, "customer:export");
+            assertEquals(Set.of(7L, 8L), Set.copyOf(d.getVisibleUserIds()),
+                    "导出范围=列表范围(view 别名无条件接管, SELF 架空行不生效)");
+        }
+    }
+
+    /** 【P1-5 三轮修复负例】纯 SELF 授权不得把 ORG 维放大到全部任职组织(兼职部门不泄露) */
+    @Test
+    void scopeNewTrack_self_orgDimNotWidenedToAllEmployments() {
+        PermActionRegistry registry = mock(PermActionRegistry.class);
+        when(registry.of("customer:view")).thenReturn(def("customer:view", "customer", true, true));
+        GrantReader reader = mock(GrantReader.class);
+        when(reader.grantsOf(any(), eq("customer:view"))).thenReturn(List.of(
+                new GrantReader.GrantRow("SELF", "OWNER", "ROLE", "sales")));
+        AuthorizationService svc = auth(reader, registry);
+        when(legacyResolver.switchFlags()).thenReturn(new boolean[]{false, false});
+        // 任职: 主职 10 + 兼职 20; 20 部门同事=99
+        when(jdbc.queryForList(anyString(), eq(Long.class), eq(7L))).thenReturn(List.of(10L, 20L));
+        when(jdbc.queryForList(anyString(), eq(Long.class), eq(10L), eq(20L))).thenReturn(List.of(7L, 99L));
+        SecurityUser su = suPerm(7L, "customer:view");
+        su.setEmploymentOrgIds(List.of(10L, 20L));
+        su.setPrimaryEmploymentOrgId(10L);
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::getCurrentUser).thenReturn(su);
+            ScopeDecision d = svc.scopeNewTrack(su, "customer:view");
+            // OWNER 维 = SELF 本人 ∪ 任职组织在职用户(deptsOfUsers 经 employment 表, 决策#2 多任职:
+            // 本部门语义=全部任职组织 → 兼职同事 99 可见, 这是决策#2 的正语义而非放大)
+            assertEquals(Set.of(7L, 99L), Set.copyOf(d.getVisibleUserIds()),
+                    "SELF+多任职: 本部门语义=全部任职组织的在职用户(决策#2)");
+        }
+    }
+
     /** 【WP8 对账】双轨显式对比: 新轨 view_like 动作受上级开关放宽, 写动作不受(锁定决策#8 内核面) */
     @Test
     void scopeNewTrack_switchAppliesOnlyToViewLike() {

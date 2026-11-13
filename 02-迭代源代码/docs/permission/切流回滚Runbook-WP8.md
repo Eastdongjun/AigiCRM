@@ -23,8 +23,13 @@
 - CUSTOM：精确按行 scope_config（orgId+includeChildren），false 只到本组织（P0-3 修复）。
 - 对账端点：`GET /api/system/perm-scopes/reconcile?sample=50`（admin）——**9 槽全模块**
   （customer/file/approval/reminder/sea/incentive 统计 + task/score/system 集团收口）逐用户双轨对比。
-- 版本号：全局权限写点经 evictAll 汇聚 → epoch+1（单自增点）→ 双端下一次请求自动拉新；
-  任职/闭包同步同汇聚触发（人员/组织写点后 sys_employment/sys_org_closure 自动保鲜）。
+  旧轨基线走 `resolveScopeLegacy`（强制绕过双轨守卫）——**切 new 后对账仍能对比真旧轨**，
+  diffCount=0 不是切流假象（P1-6 修复）。
+- 版本号：**所有权限写点全覆盖**（三轮修复）——单用户 evict（人员角色/数据范围/部门变更）与
+  批量 evictByRole/evictByPosition（角色菜单/岗位变更，收敛为一次自增）经汇聚 → epoch+1 →
+  双端下一次请求自动拉新。管理员改角色勾选后，PC/MP 无需刷新即可看到按钮增减。
+- 任职/闭包同步同汇聚触发（人员/组织写点后 sys_employment/sys_org_closure 自动保鲜，
+  含新建用户/新建/删除/停用部门）。
 
 ## 挂账（切流前须补 / P3）
 

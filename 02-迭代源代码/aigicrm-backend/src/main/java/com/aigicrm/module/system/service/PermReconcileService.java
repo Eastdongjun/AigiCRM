@@ -94,7 +94,7 @@ public class PermReconcileService {
                         ? rolePermScopeService.anchorOf(su, slot.module(), slot.action())
                         : ScopeRequest.AnchorType.OWNER)
                 .build();
-        oldD = legacyResolver.resolveScope(req);
+        oldD = legacyResolver.resolveScopeLegacy(req); // 【P1-6 三轮修复】强制旧轨(切 new 后 resolveScope 已是新轨, 直调会假 0 差异)
         if (slot.withinGroup() && oldD.isAll() && !hasAdminRole(su)) {
             Long g = com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull();
             if (g == null) {

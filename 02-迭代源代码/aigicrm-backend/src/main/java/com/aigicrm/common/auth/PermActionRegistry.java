@@ -64,6 +64,16 @@ public class PermActionRegistry {
         return new String[]{def.getModule(), slotActionOf(code)};
     }
 
+    /** 【P1-2 三轮修复】全部槽码(取消勾选剪枝/清空重置用) */
+    public List<String> allSlotCodes() {
+        refreshIfNeeded();
+        List<String> out = new ArrayList<>();
+        for (ActionDef def : cache.values()) {
+            if (def.isScopeRequired()) out.add(def.getCode());
+        }
+        return out;
+    }
+
     /**
      * 【WP8 双写 2026-11-13】(module, action) 槽 → 全部动作码(双写需覆盖一槽多码)。
      * 【P2-12 修复】覆盖表改多码: (file,manage) 两门码全写; (system,view)→system:log:view

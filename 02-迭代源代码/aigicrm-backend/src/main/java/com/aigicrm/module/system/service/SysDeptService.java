@@ -99,6 +99,10 @@ public class SysDeptService {
             throw new BusinessException(403, "无权在该集团创建部门");
         }
         deptMapper.insert(dept);
+        // 【P1-1 三轮修复 2026-11-13】新建部门 → 闭包/任职全量重建+epoch(evictAll 汇聚),
+        // 否则新部门不在 sys_org_closure, 新轨 MY_DEPT_SUB 漏新部门
+        permissionCacheService.evictAll();
+        bumpAllPermVersions();
     }
 
     public void update(SysDept dept) {
@@ -146,6 +150,9 @@ public class SysDeptService {
             throw new BusinessException("该部门下存在用户，请先转移用户后再删除");
         }
         deptMapper.deleteById(id);
+        // 【P1-1 三轮修复 2026-11-13】删除部门 → 闭包重建+失效(同 create 口径)
+        permissionCacheService.evictAll();
+        bumpAllPermVersions();
     }
 
     /** 软删除（置 status=0，保留记录）——/api/org 兼容层使用，语义=旧 SysOrgService.delete */
@@ -154,6 +161,9 @@ public class SysDeptService {
         dept.setId(id);
         dept.setStatus(0);
         deptMapper.updateById(dept);
+        // 【P1-1 三轮修复】status=0 改变闭包/树有效性 → 同 hard delete 口径失效+重建
+        permissionCacheService.evictAll();
+        bumpAllPermVersions();
     }
 
     private List<SysDept> buildTree(List<SysDept> list, Long parentId) {

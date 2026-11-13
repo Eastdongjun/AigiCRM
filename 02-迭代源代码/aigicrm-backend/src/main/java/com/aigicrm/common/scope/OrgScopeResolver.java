@@ -206,6 +206,16 @@ public class OrgScopeResolver {
                 return auth.scopeForUser(req.getUser(), code);
             }
         }
+        return resolveScopeLegacy(req);
+    }
+
+    /**
+     * 【P1-6 三轮修复 2026-11-13】强制旧轨解析(绕过双轨守卫)——供对账工具使用:
+     * 切 new 后 resolveScope 已走新轨, 对账若再用它当"旧轨"则 diffCount=0 是假象;
+     * 对账必须显式调本方法才能拿到真正的旧轨基线。
+     */
+    public ScopeDecision resolveScopeLegacy(ScopeRequest req) {
+        if (req == null || req.getUser() == null) return ScopeDecision.none();
         SecurityUser user = req.getUser();
         ScopeRequest.AnchorType anchor = req.getAnchor() != null ? req.getAnchor() : ScopeRequest.AnchorType.OWNER;
         if (anchor == ScopeRequest.AnchorType.ORG) {

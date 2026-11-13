@@ -67,7 +67,12 @@ public class PermissionCacheService {
         }
     }
 
-    /** 单用户失效（用户级写点：角色绑定/dataScopeOverride/orgs/禁用/返聘/部门/岗位变更） */
+    /**
+     * 单用户失效（用户级写点：角色绑定/dataScopeOverride/orgs/禁用/返聘/部门/岗位变更）。
+     * 【P0-1 三轮修复 2026-11-13】提交后 markChanged——角色/用户级写点同样推进全局版本号,
+     * PC/MP 响应头比对即触发 fetchUserInfo(true)(此前只有 evictAll 路径 bump,
+     * "改角色勾选→后端已生效→前端按钮不出现/取消的还能点"即本缺口)。
+     */
     public void evict(Long userId) {
         if (userId == null) return;
         // 【修复 2026-08-09 P2-3】事务内延后到 afterCommit 再 evict：
@@ -77,11 +82,12 @@ public class PermissionCacheService {
             org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
                     new org.springframework.transaction.support.TransactionSynchronization() {
                         @Override
-                        public void afterCommit() { doEvict(uid); syncEmployment(uid); }
+                        public void afterCommit() { doEvict(uid); syncEmployment(uid); afterCommitEpoch(); }
                     });
         } else {
             doEvict(userId);
             syncEmployment(userId);
+            afterCommitEpoch();
         }
     }
 
@@ -103,27 +109,52 @@ public class PermissionCacheService {
         }
     }
 
-    /** 角色级失效：反查该角色下所有用户逐个 evict（角色菜单/dataScope/orgs/删角色） */
+    /**
+     * 角色级失效：反查该角色下所有用户逐个 evict（角色菜单/dataScope/orgs/删角色）。
+     * 【P0-1 三轮修复】epoch 收敛: 批量用户各自 evict(不带 epoch), 末尾**一次** markChanged
+     * (30 人的角色改动 = 1 次版本号跳变, 不产生 N 次自增/广播风暴)。
+     */
     public void evictByRole(Long roleId) {
         if (roleId == null) return;
+        boolean any = false;
         try {
             for (Long uid : roleMapper.selectUserIdsByRoleId(roleId)) {
-                evict(uid);
+                evictQuiet(uid);
+                any = true;
             }
         } catch (Exception e) {
             log.warn("角色级失效失败 roleId={}", roleId, e);
         }
+        if (any) afterCommitEpoch();
     }
 
-    /** 岗位级失效：反查该岗位下所有用户逐个 evict（岗位-规则绑定/用户-岗位分配/删岗位） */
+    /** 岗位级失效：反查该岗位下所有用户逐个 evict（岗位-规则绑定/用户-岗位分配/删岗位）; epoch 同上收敛 */
     public void evictByPosition(Long positionId) {
         if (positionId == null) return;
+        boolean any = false;
         try {
             for (Long uid : userPositionMapper.selectUserIdsByPositionId(positionId)) {
-                evict(uid);
+                evictQuiet(uid);
+                any = true;
             }
         } catch (Exception e) {
             log.warn("岗位级失效失败 positionId={}", positionId, e);
+        }
+        if (any) afterCommitEpoch();
+    }
+
+    /** 批量路径内部用: evict 不带 epoch(由批量方法末尾统一一次) */
+    private void evictQuiet(Long userId) {
+        if (org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive()) {
+            Long uid = userId;
+            org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+                    new org.springframework.transaction.support.TransactionSynchronization() {
+                        @Override
+                        public void afterCommit() { doEvict(uid); syncEmployment(uid); }
+                    });
+        } else {
+            doEvict(userId);
+            syncEmployment(userId);
         }
     }
 

@@ -19,7 +19,8 @@ public class KernelOrgSyncService {
 
     private final JdbcTemplate jdbc;
 
-    /** 单用户任职同步(岗位任职→无岗位者 dept_id 主职; 与 V2026.11.13.3 回填同口径) */
+    /** 单用户任职同步(岗位任职→无岗位者 dept_id 主职; 与 V2026.11.13.3 回填同口径; 事务原子=并发登录不见空窗) */
+    @org.springframework.transaction.annotation.Transactional
     public void syncUserEmployment(Long userId) {
         if (userId == null) return;
         try {
@@ -42,7 +43,8 @@ public class KernelOrgSyncService {
         }
     }
 
-    /** 组织闭包全量重建(组织写点后; parent_id 递归, 深度护栏 20) */
+    /** 组织闭包全量重建(组织写点后; parent_id 递归, 深度护栏 20; 事务原子) */
+    @org.springframework.transaction.annotation.Transactional
     public void rebuildClosure() {
         try {
             jdbc.update("DELETE FROM sys_org_closure");
@@ -60,7 +62,8 @@ public class KernelOrgSyncService {
         }
     }
 
-    /** 全量任职重建(组织/岗位结构变更后) */
+    /** 全量任职重建(组织/岗位结构变更后; 事务原子) */
+    @org.springframework.transaction.annotation.Transactional
     public void rebuildAllEmployment() {
         try {
             jdbc.update("DELETE FROM sys_employment");

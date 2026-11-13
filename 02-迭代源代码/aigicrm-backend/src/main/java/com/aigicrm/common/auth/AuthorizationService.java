@@ -154,29 +154,48 @@ public class AuthorizationService {
         return d.canAccessOwner(targetOwnerId);
     }
 
-    /** 部门集合 → 在职用户集(维度补齐; 与旧轨 usersInDepts 同口径 deleted=0/status=1) */
+    /**
+     * 组织集合 → 在职用户集(维度补齐; 【P1-4 三轮修复】改走 sys_employment——决策#2 多任职:
+     * 按 sys_user.dept_id 会漏"兼职在 B 部门"的用户; 任职表由 KernelOrgSyncService 保鲜,
+     * 回退 sys_user.dept_id 兜底(表未就绪)。
+     */
     private List<Long> usersInDepts(Set<Long> deptIds) {
         if (deptIds == null || deptIds.isEmpty()) return List.of();
         try {
             String ph = String.join(",", deptIds.stream().map(x -> "?").toList());
-            return jdbc.queryForList(
-                    "SELECT id FROM sys_user WHERE dept_id IN (" + ph + ") AND deleted = 0 AND status = 1",
-                    Long.class, deptIds.toArray());
+            java.util.LinkedHashSet<Long> out = new java.util.LinkedHashSet<>();
+            out.addAll(jdbc.queryForList(
+                    "SELECT DISTINCT e.user_id FROM sys_employment e " +
+                    "WHERE e.org_id IN (" + ph + ") AND e.status = 1 " +
+                    "AND (e.valid_from IS NULL OR e.valid_from <= CURDATE()) " +
+                    "AND (e.valid_to IS NULL OR e.valid_to >= CURDATE())",
+                    Long.class, deptIds.toArray()));
+            if (out.isEmpty()) {
+                out.addAll(jdbc.queryForList(
+                        "SELECT id FROM sys_user WHERE dept_id IN (" + ph + ") AND deleted = 0 AND status = 1",
+                        Long.class, deptIds.toArray()));
+            }
+            return new ArrayList<>(out);
         } catch (Exception e) {
             log.warn("部门用户展开失败: {}", e.getMessage());
             return List.of();
         }
     }
 
-    /** 用户集合 → 其所属部门集(维度补齐) */
+    /** 用户集合 → 其所属组织集(维度补齐; 【P1-4】employment ∪ sys_user.dept_id) */
     private Set<Long> deptsOfUsers(Set<Long> userIds) {
         if (userIds == null || userIds.isEmpty()) return Set.of();
         try {
             String ph = String.join(",", userIds.stream().map(x -> "?").toList());
-            List<Long> deptIds = jdbc.queryForList(
+            java.util.LinkedHashSet<Long> out = new java.util.LinkedHashSet<>();
+            out.addAll(jdbc.queryForList(
+                    "SELECT DISTINCT e.org_id FROM sys_employment e " +
+                    "WHERE e.user_id IN (" + ph + ") AND e.status = 1",
+                    Long.class, userIds.toArray()));
+            out.addAll(jdbc.queryForList(
                     "SELECT DISTINCT dept_id FROM sys_user WHERE id IN (" + ph + ") AND deleted = 0 AND dept_id IS NOT NULL",
-                    Long.class, userIds.toArray());
-            return new HashSet<>(deptIds);
+                    Long.class, userIds.toArray()));
+            return out;
         } catch (Exception e) {
             log.warn("用户部门回查失败: {}", e.getMessage());
             return Set.of();
@@ -213,16 +232,15 @@ public class AuthorizationService {
     }
 
     private ScopeDecision newTrackScope(SecurityUser user, PermActionRegistry.ActionDef def) {
-        List<GrantReader.GrantRow> grants = grantReader.grantsOf(user, def.getCode());
-        // 【P2-12 修复 2026-11-13】视图别名: 导出跟随列表(锁定决策#9 卡片=列表=导出)——
-        // customer:export 槽在回填映射为 SELF(无独立槽), 新轨若按自身授权解析会窄于列表。
-        // 自身无授权且有视图别名 → 按别名码的授权解析。
-        if (grants.isEmpty()) {
-            String alias = VIEW_ALIASES.get(def.getCode());
-            if (alias != null) {
-                grants = grantReader.grantsOf(user, alias);
-            }
+        // 【P1-3 三轮修复 2026-11-13】视图别名无条件生效: 导出跟随列表(锁定决策#9 卡片=列表=导出)。
+        // 旧写法"自身无授权才走别名"被回填/双写的 SELF grant 架空——导出范围=仅本人 ≠ 列表。
+        // 视图别名的码直接按别名码的授权解析(自身行不参与)。
+        String resolveCode = def.getCode();
+        String alias = VIEW_ALIASES.get(resolveCode);
+        if (alias != null) {
+            resolveCode = alias;
         }
+        List<GrantReader.GrantRow> grants = grantReader.grantsOf(user, resolveCode);
         if (grants.isEmpty()) {
             return ScopeDecision.none(); // 无授权=无范围(fail-closed, 规格 §3.2 empty→NONE)
         }
@@ -234,20 +252,22 @@ public class AuthorizationService {
         // 【P0-1 修复 2026-11-13】维度补齐: 消费方按锚点取单维(OWNER→ownerIds / ORG→deptIds),
         // 授权行可能只携带单维(如 MY_DEPT_SUB 只有部门集)——不补齐则"本部门"客户在 OWNER 域
         // 全部消失(切 new 即数据变空)。两维各自完备化:
-        //   deptIds → 其部门在职用户并入 ownerIds(与旧轨 resolveDeptTree 同口径)
-        //   ownerIds → 其所属部门并入 deptIds; 本人恒含; 本人任职部门并入(决策#2 多任职)
+        //   deptIds → 其组织在职用户并入 ownerIds(与旧轨 resolveDeptTree 同口径)
+        //   ownerIds → 其所属组织并入 deptIds; 本人恒含
+        // 【P1-5 三轮修复】不再对纯 SELF 授权无条件并入全部任职组织(ORG 锚被放大到兼职部门)——
+        //   任职组织维度经 deptsOfUsers(employment 表) 随 ownerIds 自然带入。
+        //   两遍收敛: SELF 的部门维在第一遍经 deptsOfUsers 物化, 第二遍才能展开其在职用户。
         if (!spec.isAll()) {
-            if (!spec.getDeptIds().isEmpty()) {
-                spec.merge(ScopeSpec.ofOwners(usersInDepts(spec.getDeptIds())));
-            }
-            if (!spec.getOwnerIds().isEmpty()) {
-                spec.merge(ScopeSpec.ofDepts(deptsOfUsers(spec.getOwnerIds())));
-            }
-            if (user.getUserId() != null) {
-                spec.merge(ScopeSpec.ofOwners(List.of(user.getUserId())));
-            }
-            if (user.getEmploymentOrgIds() != null && !user.getEmploymentOrgIds().isEmpty()) {
-                spec.merge(ScopeSpec.ofDepts(user.getEmploymentOrgIds()));
+            for (int pass = 0; pass < 2; pass++) {
+                if (!spec.getDeptIds().isEmpty()) {
+                    spec.merge(ScopeSpec.ofOwners(usersInDepts(spec.getDeptIds())));
+                }
+                if (!spec.getOwnerIds().isEmpty()) {
+                    spec.merge(ScopeSpec.ofDepts(deptsOfUsers(spec.getOwnerIds())));
+                }
+                if (pass == 0 && user.getUserId() != null) {
+                    spec.merge(ScopeSpec.ofOwners(List.of(user.getUserId())));
+                }
             }
         }
         // 上级/负责人开关: 仅 view_like 动作追加(锁定决策#8; 写动作绝不放宽)

@@ -441,6 +441,9 @@ public class SysUserService {
         if ("custom".equals(user.getDataScopeOverride())) {
             saveUserOrgs(user.getId(), user.getOrgIds());
         }
+        // 【P1-1 三轮修复 2026-11-13】新建用户触发失效+任职同步(evict 汇聚: sys_employment 落行
+        // + epoch 推进), 否则新用户新轨 MY_DEPT 为空
+        permissionCacheService.evict(user.getId());
         // 【2026-08-16 授权表化】新用户无需绑定载体角色——激励分享可见=授权表无记录时的默认语义(开)
         return tempPassword;
     }
