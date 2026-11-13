@@ -408,6 +408,55 @@ class KernelScopeTest {
                     "仅 file:upload 授权 → manage 槽范围(MY_DEPT_SUB)=部门 10");
         }
     }
+    /** 【文件专项 P0 负例】槽隔离: upload 走 manage 槽、delete 走独立槽, 同角色双授权不串 */
+    @Test
+    void scope_fileFamily_uploadManage_deleteDelete_slotsIsolated() {
+        PermActionRegistry registry = mock(PermActionRegistry.class);
+        when(registry.of("file:upload")).thenReturn(
+                new PermActionRegistry.ActionDef("file:upload", "file", "file", "uploader_id", null, true, false));
+        when(registry.of("file:delete")).thenReturn(
+                new PermActionRegistry.ActionDef("file:delete", "file", "file", "uploader_id", null, true, false));
+        when(registry.slotOf("file:upload")).thenReturn(new String[]{"file", "manage"});
+        when(registry.slotOf("file:delete")).thenReturn(new String[]{"file", "delete"});
+        when(registry.codesOf("file", "manage")).thenReturn(List.of("file:upload"));
+        when(registry.codesOf("file", "delete")).thenReturn(List.of("file:delete"));
+        when(configService.getValue("perm.read.file")).thenReturn("new");
+        // usersInDepts({10}) = [7, 88](部门 10 在职用户, 含同事 88)
+        // 闭包查询(子代=11) 与 usersInDepts 查询(闭包部门{10,11}在职=7,88) 精确区分;
+        // deptsOfUsers({7}) 回查无桩 → null 被容错吞掉 → 空(本人兼职部门不放大)
+        when(jdbc.queryForList(org.mockito.ArgumentMatchers.contains("sys_org_closure"), eq(Long.class), eq(10L)))
+                .thenReturn(List.of(11L));
+        when(jdbc.queryForList(org.mockito.ArgumentMatchers.contains("dept_id IN"), eq(Long.class), eq(10L), eq(11L)))
+                .thenReturn(List.of(7L, 88L));
+        // 【四轮改 ORG 锚】upload 的 MY_DEPT_SUB 是 DEPT 维授权——部门维/用户维在 ORG 锚下稳定断言;
+        // delete 用 OWNER 锚(SELF=仅本人, 与 upload 语义可判别, 两槽互不串)
+        when(rolePermScopeService.anchorOf(any(), eq("file"), eq("manage")))
+                .thenReturn(ScopeRequest.AnchorType.ORG);
+        when(rolePermScopeService.anchorOf(any(), eq("file"), eq("delete")))
+                .thenReturn(ScopeRequest.AnchorType.OWNER);
+        GrantReader reader = mock(GrantReader.class);
+        when(reader.grantsOf(any(), eq("file:upload"))).thenReturn(List.of(
+                new GrantReader.GrantRow("MY_DEPT_SUB", "OWNER", "ROLE", "sales")));
+        when(reader.grantsOf(any(), eq("file:delete"))).thenReturn(List.of(
+                new GrantReader.GrantRow("SELF", "OWNER", "ROLE", "sales")));
+        AuthorizationService svc = auth(reader, registry);
+        SecurityUser su = suPerm(7L, "customer:view");
+        su.setEmploymentOrgIds(List.of(10L));
+        su.setPrimaryEmploymentOrgId(10L);
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::getCurrentUser).thenReturn(su);
+            ScopeDecision up = svc.scope("file:upload");
+            // ORG 锚: 部门维=MY_DEPT_SUB 闭包{10,11}, 用户维=闭包部门在职用户{7,88}(usersInDepts, A6 口径)
+            assertEquals(Set.of(10L, 11L), Set.copyOf(up.getVisibleDeptIds()),
+                    "upload(ORG 锚) 部门维=MY_DEPT_SUB 闭包{10,11}");
+            assertEquals(Set.of(7L, 88L), Set.copyOf(up.getVisibleUserIds()),
+                    "upload 用户维=usersInDepts(闭包)={7,88}(A6 口径)");
+            ScopeDecision del = svc.scope("file:delete");
+            // OWNER 锚: SELF=仅本人 {7}——与 upload 的部门用户 {88} 互不串
+            assertEquals(List.of(7L), del.getVisibleUserIds(),
+                    "delete(SELF 槽 OWNER 锚)=仅本人 {7}, 不含 upload 的部门用户 {88}——两槽互不串");
+        }
+    }
 
     /** 【P1-3 三轮修复负例】导出无条件跟随列表授权(回填 SELF grant 不再架空别名, 卡片=列表=导出) */
     @Test

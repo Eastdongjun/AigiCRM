@@ -283,8 +283,10 @@ public class AuthorizationService {
         Set<Long> depts = new HashSet<>();
         for (ScopeSpec s : deptBased) depts.addAll(s.getDeptIds());
         // 单向补齐(各一次, 无回灌):
-        owners.addAll(usersInDepts(depts));             // DEPT 型 → OWNER 锚可见用户
-        depts.addAll(deptsOfUsers(nativeOwners));       // OWNER 型+本人 → ORG 锚可见部门(仅 native 反查)
+        // DEPT 型部门 → 在职用户并入 OWNER 集合(OWNER 锚消费, 与旧轨 resolveUnion 同口径);
+        // OWNER 型人员 → 兼职部门反查并入部门集合(ORG 锚消费)。DEPT 型用户的兼职部门**不**回灌。
+        owners.addAll(usersInDepts(depts));
+        depts.addAll(deptsOfUsers(nativeOwners));
 
         if (owners.isEmpty() && depts.isEmpty()) return ScopeDecision.none();
 

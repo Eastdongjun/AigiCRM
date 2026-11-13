@@ -51,6 +51,9 @@ ssh_prod "
 
 echo "=== [2/4] 上传迁移目录到生产 ==="
 ssh_prod "rm -rf $DEPLOY_DIR/flyway-sql && mkdir -p $DEPLOY_DIR/flyway-sql"
+# 【P0-4 修复 2026-11-12】迁移冻结契约在【本地】执行(远端无 scripts/ 目录, \$SCRIPT_DIR 为空致误拦)
+#   —— 本地迁移文件就是将要上传的同一份, 在本地校验等价且更早失败
+bash "$SCRIPT_DIR/check-migration-contract.sh" || { echo '❌ 迁移冻结契约违例——已发布迁移可能被修改, 拒绝继续'; exit 1; }
 # 逐个上传迁移文件（tar 管道避免 scp 目录传输的权限问题）
 # macOS AppleDouble 元数据: BSD tar 的 --exclude 按 './' 前缀全路径匹配, 需 '*/._*' 才生效;
 # 上传后再远端兜底删一遍(2026-08-15 实测 '._*' 写法失效导致 ._V*.sql 混入 flyway-sql)
@@ -78,11 +81,7 @@ ssh_prod "
   # (只给变量名，不带 =值)——旧写法 -password=\"\$PW\" 会把 root 口令写进远端 flyway 容器进程 argv(ps 可见)。
   export FLYWAY_PASSWORD=\"\$PW\"
   # 【P0-4 2026-11-12 GoLive 审计加固】迁移前三防线:
-  # ① 迁移冻结契约(check-migration-contract)——已发布迁移被改时在此红, 不进 repair
-  # ② flyway validate(非 ignore)——校验已有迁移 checksum, 被 tamper 即停
-  # ③ repair 仅在 validate 明确报 checksum mismatch 时执行(不再无条件)
-  echo \"=== [3a] 迁移冻结契约 ===\"
-  bash \"\$SCRIPT_DIR/check-migration-contract.sh\" || { echo '❌ 迁移冻结契约违例——已发布迁移可能被修改, 拒绝继续'; exit 1; }
+  # ① 迁移冻结契约已在本地执行(上传前); ② validate; ③ 条件 repair
   echo \"=== [3b] Flyway validate(迁移前校验) ===\"
   VALIDATE_OUT=\$(docker run --rm --network ${APP_SLUG}_default -v $DEPLOY_DIR/flyway-sql:/flyway/sql \
     -e FLYWAY_PASSWORD \
