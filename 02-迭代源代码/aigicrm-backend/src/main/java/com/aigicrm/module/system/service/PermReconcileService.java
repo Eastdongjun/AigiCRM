@@ -108,9 +108,14 @@ public class PermReconcileService {
             }
         }
         // 新轨(授予表; 绕过读开关显式对比; WithinGroup 槽用收口版)
+        // 【FILE-07 P0 修复 2026-11-14】对账锚点与旧轨 req 同源(customer=配置锚, 其余 OWNER),
+        // 否则同槽双轨因锚点不同出假差异(旧轨 OWNER 用户维 vs 新轨配置锚 ORG 部门维)。
+        ScopeRequest.AnchorType slotAnchor = "customer".equals(slot.module())
+                ? rolePermScopeService.anchorOf(su, slot.module(), slot.action())
+                : ScopeRequest.AnchorType.OWNER;
         ScopeDecision newD = slot.withinGroup()
-                ? authorizationService.scopeWithinGroupForUser(su, codeOf(slot))
-                : authorizationService.scopeForUser(su, codeOf(slot));
+                ? authorizationService.scopeWithinGroupForUser(su, codeOf(slot), slotAnchor)
+                : authorizationService.scopeForUser(su, codeOf(slot), slotAnchor);
 
         Set<Long> oldOwners = oldD.isAll() || oldD.getVisibleUserIds() == null ? null : new HashSet<>(oldD.getVisibleUserIds());
         Set<Long> newOwners = newD.isAll() || newD.getVisibleUserIds() == null ? null : new HashSet<>(newD.getVisibleUserIds());

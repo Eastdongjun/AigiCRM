@@ -62,6 +62,17 @@ grep -q 'case "file:upload":' "$BE/common/auth/AuthorizationService.java" \
 grep -q "grantsForSlot" "$BE/common/auth/AuthorizationService.java" || fail "⑥ 缺槽级授权聚合"
 pass "⑥ 文件 manage 槽修复(五码 scope_required=1/槽覆盖/槽锚/槽聚合)"
 
+# ---- ⑦ 锚点透传契约(文件专项复检 FILE-07 P0): 新轨不得丢调用方请求锚 ----
+grep -q "scopeForUser(SecurityUser user, String actionCode," "$BE/common/auth/AuthorizationService.java" \
+  || fail "⑦ 缺带锚点覆盖的 scopeForUser 重载"
+grep -q "anchorOverride != null" "$BE/common/auth/AuthorizationService.java" \
+  || fail "⑦ newTrackScope 缺请求锚优先逻辑"
+grep -q "auth.scopeForUser(req.getUser(), code, req.getAnchor())" "$BE/common/scope/OrgScopeResolver.java" \
+  || fail "⑦ resolveScope 未透传请求锚点"
+grep -q "auth.scopeForUser(user, code, ScopeRequest.AnchorType.OWNER)" "$BE/common/scope/OrgScopeResolver.java" \
+  || fail "⑦ resolveModuleUsers 新轨未固定 OWNER 锚(旧轨同口径)"
+pass "⑦ 锚点透传(resolveScope 请求锚/resolveModuleUsers 恒 OWNER/锚覆盖重载)"
+
 # ---- 负例自证: 构造违规内容必须被本契约抓出(防扫描器假绿) ----
 if [ "$NEG" = "1" ]; then
   TMP="$(mktemp -d)"

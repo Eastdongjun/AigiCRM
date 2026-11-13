@@ -141,7 +141,10 @@ public class OrgScopeResolver {
         if (auth != null && auth.isNewTrack(module)) {
             String code = auth.actionCodeOf(module, action);
             if (code != null) {
-                var d = auth.scope(code);
+                // 【FILE-07 P0 修复 2026-11-14】旧轨路径(下方)固定 .anchor(OWNER) 拿**用户维**;
+                // 新轨同口径显式传 OWNER——若按配置锚(可能被管理员改成 ORG), 本方法返回的
+                // visibleUserIds 会漂移成空/部门集, 消费方(WithinGroup/统计卡片)口径断裂。
+                var d = auth.scopeForUser(user, code, ScopeRequest.AnchorType.OWNER);
                 return d.isAll() ? null : d.getVisibleUserIds();
             }
         }
@@ -203,7 +206,11 @@ public class OrgScopeResolver {
             String code = auth.actionCodeOf(req.getModule(),
                     req.getAction() == null || req.getAction().isBlank() ? "view" : req.getAction());
             if (code != null) {
-                return auth.scopeForUser(req.getUser(), code);
+                // 【FILE-07 P0 修复 2026-11-14】请求锚点透传: ScopeRequest.anchor 是调用方显式语义
+                // (FolderPermissionService.matrixDeptSet 固定 ORG 拿部门集); 新轨不得丢弃,
+                // 否则配置锚=OWNER 时 ORG 通道 visibleDeptIds 恒空 → 文件夹矩阵全 403。
+                // 旧轨 resolveScopeLegacy 本就按 req.getAnchor() 分支(上方 L220), 新轨同语义。
+                return auth.scopeForUser(req.getUser(), code, req.getAnchor());
             }
         }
         return resolveScopeLegacy(req);

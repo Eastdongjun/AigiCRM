@@ -133,7 +133,7 @@ public class AuthorizationService {
         if (!"new".equals(readMode(def.getModule()))) {
             return legacyScope(user, actionCode);
         }
-        return newTrackScope(user, def);
+        return newTrackScope(user, def, null);
     }
 
     /** 单条判定(OWNER/ORG 维度按主导锚点; 仅本人自己的记录恒可) */
@@ -207,17 +207,37 @@ public class AuthorizationService {
 
     // ==================== 新轨(授予表)解析 ====================
 
-    /** 【P0-6 修复】按指定用户的新轨解析(resolveScope 双轨守卫用——预览/对账等非会话用户) */
+    /** 【P0-6 修复】按指定用户的新轨解析(resolveScope 双轨守卫用——预览/对账等非会话用户)。
+     *  锚点=role_perm_scope 配置锚(dominantAnchor)。 */
     public ScopeDecision scopeForUser(SecurityUser user, String actionCode) {
+        return scopeForUser(user, actionCode, null);
+    }
+
+    /**
+     * 【FILE-07 P0 修复 2026-11-14】带调用方锚点覆盖的新轨解析。
+     * anchorOverride != null 时**优先于** role_perm_scope 配置锚——resolveScope 的
+     * ScopeRequest.anchor 是调用方的显式语义(如 FolderPermissionService.matrixDeptSet
+     * 固定传 ORG 拿部门集), 新轨不得因配置锚=OWNER 把它丢掉, 否则 ORG 通道
+     * (visibleDeptIds)恒空 → 文件夹矩阵全 403(功能回归)。scope(actionCode) 无请求
+     * 锚点, 仍走配置锚, 行为不变。
+     */
+    public ScopeDecision scopeForUser(SecurityUser user, String actionCode,
+                                      ScopeRequest.AnchorType anchorOverride) {
         PermActionRegistry.ActionDef def = registry.of(actionCode);
         if (def == null) return ScopeDecision.none();
         if (!def.isScopeRequired()) return ScopeDecision.all();
-        return newTrackScope(user, def);
+        return newTrackScope(user, def, anchorOverride);
     }
 
     /** 【P1-10 修复】新轨+集团收口(对账 WithinGroup 槽用; 与 scopeWithinGroup 同口径, 显式绕过读开关) */
     public ScopeDecision scopeWithinGroupForUser(SecurityUser user, String actionCode) {
-        ScopeDecision d = scopeForUser(user, actionCode);
+        return scopeWithinGroupForUser(user, actionCode, null);
+    }
+
+    /** 【FILE-07】带锚点覆盖的集团收口版(对账锚点与旧轨 req 同源, 防双轨假差异) */
+    public ScopeDecision scopeWithinGroupForUser(SecurityUser user, String actionCode,
+                                                 ScopeRequest.AnchorType anchorOverride) {
+        ScopeDecision d = scopeForUser(user, actionCode, anchorOverride);
         if (d == null || !d.isAll()) return d;
         if (user != null && user.hasRole("admin")) return d;
         Long g = com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull();
@@ -234,7 +254,8 @@ public class AuthorizationService {
         return scopeForUser(user, actionCode);
     }
 
-    private ScopeDecision newTrackScope(SecurityUser user, PermActionRegistry.ActionDef def) {
+    private ScopeDecision newTrackScope(SecurityUser user, PermActionRegistry.ActionDef def,
+                                        ScopeRequest.AnchorType anchorOverride) {
         // 【P1-3 三轮修复 2026-11-13】视图别名无条件生效: 导出跟随列表(锁定决策#9 卡片=列表=导出)。
         // 旧写法"自身无授权才走别名"被回填/双写的 SELF grant 架空——导出范围=仅本人 ≠ 列表。
         // 视图别名的码直接按别名码的授权解析(自身行不参与)。
@@ -290,7 +311,9 @@ public class AuthorizationService {
 
         if (owners.isEmpty() && depts.isEmpty()) return ScopeDecision.none();
 
-        ScopeRequest.AnchorType anchor = dominantAnchor(resolveCode, def);
+        // 【FILE-07】调用方显式锚点优先; 无请求锚点(会话入口 scope())按配置锚
+        ScopeRequest.AnchorType anchor = anchorOverride != null
+                ? anchorOverride : dominantAnchor(resolveCode, def);
         ScopeDecision d = new ScopeDecision();
         if (anchor == ScopeRequest.AnchorType.ORG) {
             // ORG 锚: 部门维=DEPT 型部门 ∪ OWNER 型人员所属部门; 用户维=部门在职用户(A6 口径);
