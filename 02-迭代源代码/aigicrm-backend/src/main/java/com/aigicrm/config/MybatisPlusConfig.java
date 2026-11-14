@@ -41,7 +41,12 @@ public class MybatisPlusConfig {
             // 活口径=biz_incentive_grant; 29 行留档 out/归档-biz_incentive_permission死表29行-20261109.txt)
             "biz_incentive_category", "biz_incentive_record",
             "biz_invoice", "biz_payment", "biz_reminder", "biz_score_entry", "biz_score_item",
-            "biz_score_participant", "biz_sea_config", "biz_sea_pool", "biz_task");
+            "biz_score_participant", "biz_sea_config", "biz_sea_pool", "biz_task",
+            // 【法布施一期 2026-11-15】V2026.11.15.1 建 12 张 biz_fabushi_* 表, 全部承载按集团隔离
+            // 业务数据 → 进白名单(实体无 tenantId 字段, 租户列由插件维护, 与其余白名单表同范式)
+            "biz_fabushi_book", "biz_fabushi_section", "biz_fabushi_post", "biz_fabushi_post_attachment",
+            "biz_fabushi_comment", "biz_fabushi_like", "biz_fabushi_read_status", "biz_fabushi_user_setting",
+            "biz_fabushi_shelf", "biz_fabushi_reading_progress", "biz_fabushi_activity", "biz_fabushi_activity_join");
     // 【体检 H4 2026-10-12】biz_customer_stage_amount(V2026.10.10.1 新表, tenant_id NOT NULL DEFAULT '1')
     // 此前漏白名单: 新录行走 MP insert 不自动补租户恒落默认 1, 而排行子查询手动按租户过滤——
     // 集团≠1 的阶段金额被滤为 0 且污染核心客户判定金额源(2026-10-12 生产摸底: 单集团 16 行全对, 0 行受害)。

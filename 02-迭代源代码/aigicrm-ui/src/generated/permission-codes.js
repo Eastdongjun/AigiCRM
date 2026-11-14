@@ -14,6 +14,8 @@ export const PERMISSION_CODES = Object.freeze({
   CUSTOMER_IMPORT: 'customer:import',
   CUSTOMER_INVOICE_DATE_EDIT: 'customer:invoice-date:edit',
   CUSTOMER_VIEW: 'customer:view',
+  FABUSHI_STATS_VIEW: 'fabushi:stats:view',
+  FABUSHI_VIEW: 'fabushi:view',
   FILE_ACL_MANAGE: 'file:acl:manage',
   FILE_DELETE: 'file:delete',
   FILE_EDIT: 'file:edit',

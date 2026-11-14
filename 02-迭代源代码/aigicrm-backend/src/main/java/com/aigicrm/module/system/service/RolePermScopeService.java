@@ -53,7 +53,10 @@ public class RolePermScopeService {
             // 统计项按来源动作(customer:view 等)过滤——本表移除后写入面拒绝新增该档(存量行走清理迁移)
             "sea|view", "incentive|stats_view",
             "task|view", "score|view", "system|view",
-            "approval|view", "reminder|view");
+            "approval|view", "reminder|view",
+            // 【法布施一期 2026-11-15】团队统计独立数据范围档(照 incentive stats_view 拍板 B 模式,
+            // V2026.11.15.1 从 (incentive,stats_view) 逐行拷贝回填; 内容流社区型全员可见不设范围档)
+            "fabushi|stats_view");
 
     private final JdbcTemplate jdbc;
     private final com.aigicrm.security.PermissionCacheService permissionCacheService;

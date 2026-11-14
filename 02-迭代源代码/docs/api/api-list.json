@@ -1,6 +1,6 @@
 {
- "generated_at": "2026-11-14",
- "count": 245,
+ "generated_at": "2026-11-15",
+ "count": 247,
  "endpoints": [
   {
    "method": "POST",
@@ -385,6 +385,18 @@
    "path": "/api/draft/{draftType}/force",
    "permission": "isAuthenticated()",
    "handler": "forceSave"
+  },
+  {
+   "method": "GET",
+   "path": "/api/fabushi/stats/personal",
+   "permission": "hasAuthority('fabushi:view')",
+   "handler": "personal"
+  },
+  {
+   "method": "GET",
+   "path": "/api/fabushi/stats/team",
+   "permission": "hasAuthority('fabushi:stats:view')",
+   "handler": "team"
   },
   {
    "method": "POST",

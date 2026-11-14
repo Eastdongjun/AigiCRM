@@ -1,10 +1,10 @@
 # AIGICRM API 清单(自动生成)
 
-> 生成时间: 2026-11-14 | 来源: 后端 controller 源码扫描
+> 生成时间: 2026-11-15 | 来源: 后端 controller 源码扫描
 > 本文件由 scripts/gen-api.py 自动生成,**禁止手改**;接口变更后重新运行。
 > 权限码与 docs/permission/permission-dict.md 对应。
 
-## 接口清单(245 个)
+## 接口清单(247 个)
 
 | 方法 | 路径 | 权限码 | 方法名 | 文件 |
 |---|---|---|---|---|
@@ -72,6 +72,8 @@
 | GET | `/api/draft/{draftType}` | `isAuthenticated()` | get | FormDraftController.java |
 | PUT | `/api/draft/{draftType}` | `isAuthenticated()` | save | FormDraftController.java |
 | PUT | `/api/draft/{draftType}/force` | `isAuthenticated()` | forceSave | FormDraftController.java |
+| GET | `/api/fabushi/stats/personal` | `hasAuthority('fabushi:view')` | personal | FabushiStatsController.java |
+| GET | `/api/fabushi/stats/team` | `hasAuthority('fabushi:stats:view')` | team | FabushiStatsController.java |
 | POST | `/api/file/batch-delete` | `hasAuthority('file:delete')` | batchDelete | FileController.java |
 | POST | `/api/file/batch-download` | `hasAuthority('file:view')` | batchDownload | FileController.java |
 | GET | `/api/file/download-token` | `登录即可` | downloadToken | FileController.java |

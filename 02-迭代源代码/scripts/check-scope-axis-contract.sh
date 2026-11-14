@@ -32,7 +32,8 @@ sea|view|resolveModuleUsers\(SecurityUtils\.getCurrentUser\(\), "sea"\)|公海�
 incentive|stats_view|resolveModuleUsers\(user, "incentive", "stats_view"\)|四项激励独立数据范围(2026-11-05 拍板B, V2026.11.05.7 回填; 其余 7 档为生产死配置见 design.md 已知问题#2)
 task|view|resolveModuleUsersWithinGroup\(SecurityUtils\.getCurrentUser\(\), "task"\)|任务分派可见集(仅 view, WithinGroup 集团收口)
 score|view|resolveModuleUsersWithinGroup\(SecurityUtils\.getCurrentUser\(\), "score"\)|学分录入/排行可见集(仅 view, WithinGroup 集团收口)
-system|view|resolveModuleUsersWithinGroup\(SecurityUtils\.getCurrentUser\(\), "system"\)|系统日志可见集(仅 view, admin 全集团; WithinGroup 集团收口)'
+system|view|resolveModuleUsersWithinGroup\(SecurityUtils\.getCurrentUser\(\), "system"\)|系统日志可见集(仅 view, admin 全集团; WithinGroup 集团收口)
+fabushi|stats_view|resolveModuleUsers\(user, "fabushi", "stats_view"\)|法布施团队统计可见集(2026-11-15 一期, 照 incentive stats_view 模式; 内容流社区型全员可见不设范围档)'
 
 # ① 源码消费字面量 ⊆ 枚举
 # 【N6 2026-11-11 修复】链式 .module()/.action() 之外, resolveModuleUsers/WithinGroup 的

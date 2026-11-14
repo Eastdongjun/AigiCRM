@@ -64,6 +64,9 @@ public class PermCenterService {
             // 【2026-11-05 用户拍板 B"四项激励独立数据范围"】incentive:stats:view/rank:view 两码
             // 共用 (incentive, stats_view) 独立档位(同一数据族), 与统计分析档位解耦
             {"incentive", "stats_view", "四项激励·统计/排行数据范围(激励统计查看+激励排行查看共用)"},
+            // 【法布施一期 2026-11-15】团队统计独立档(照 incentive stats_view 模式), 与前端
+            // PermScopeManager.PERMISSION_SCOPE_TARGETS 的 fabushi:stats:view 行 parity 同步
+            {"fabushi", "stats_view", "法布施·团队统计数据范围"},
     };
 
     public Map<String, Object> preview(Long userId) {

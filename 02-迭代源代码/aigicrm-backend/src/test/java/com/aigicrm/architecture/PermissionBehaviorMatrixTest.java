@@ -62,7 +62,9 @@ class PermissionBehaviorMatrixTest {
             com.aigicrm.module.incentive.controller.IncentiveController.class,
             com.aigicrm.module.sea.controller.SeaController.class,
             com.aigicrm.module.reminder.controller.ReminderController.class,
-            com.aigicrm.module.system.controller.SysMenuController.class})
+            com.aigicrm.module.system.controller.SysMenuController.class,
+            // 【法布施一期 2026-11-15】统计端点入行为矩阵(401/403/200 + 错码负例)
+            com.aigicrm.module.fabushi.controller.FabushiStatsController.class})
     static class Ctx {
     }
 
@@ -102,6 +104,8 @@ class PermissionBehaviorMatrixTest {
     @MockitoBean com.aigicrm.module.incentive.service.IncentiveService incentiveService;
     @MockitoBean com.aigicrm.module.reminder.service.ReminderService reminderService;
     @MockitoBean com.aigicrm.module.system.service.SysMenuService sysMenuService;
+    // 【法布施一期 2026-11-15】
+    @MockitoBean com.aigicrm.module.fabushi.service.FabushiStatsService fabushiStatsService;
     @MockitoBean com.aigicrm.module.sea.service.SeaConfigService seaConfigService;
     @MockitoBean com.aigicrm.module.approval.mapper.BizApprovalMapper bizApprovalMapper;
     @MockitoBean com.aigicrm.module.approval.mapper.BizApprovalNodeMapper bizApprovalNodeMapper;
@@ -360,5 +364,38 @@ class PermissionBehaviorMatrixTest {
         mockMvc.perform(get("/api/system/menus/tree").accept(MediaType.APPLICATION_JSON).with(as("system:menu:view")))
                 .andExpect(status().isOk());
         verify(sysMenuService).tree();
+    }
+
+    // ==================== 矩阵 I: 法布施统计(2026-11-15 一期) ====================
+
+    @Test
+    void fabushiTeamStats_unauthenticated_401() throws Exception {
+        mockMvc.perform(get("/api/fabushi/stats/team").accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isUnauthorized());
+        verifyNoInteractions(fabushiStatsService);
+    }
+
+    /** 负例: 持入口码 fabushi:view 不能过团队统计门(独立码, 无越权)。 */
+    @Test
+    void fabushiTeamStats_withEntryCodeOnly_403() throws Exception {
+        mockMvc.perform(get("/api/fabushi/stats/team").accept(MediaType.APPLICATION_JSON).with(as("fabushi:view")))
+                .andExpect(status().isForbidden());
+        verifyNoInteractions(fabushiStatsService);
+    }
+
+    @Test
+    void fabushiTeamStats_withStatsView_200() throws Exception {
+        org.mockito.Mockito.when(fabushiStatsService.team()).thenReturn(java.util.Collections.emptyMap());
+        mockMvc.perform(get("/api/fabushi/stats/team").accept(MediaType.APPLICATION_JSON).with(as("fabushi:stats:view")))
+                .andExpect(status().isOk());
+        verify(fabushiStatsService).team();
+    }
+
+    @Test
+    void fabushiPersonalStats_withEntryCode_200() throws Exception {
+        org.mockito.Mockito.when(fabushiStatsService.personal()).thenReturn(java.util.Collections.emptyMap());
+        mockMvc.perform(get("/api/fabushi/stats/personal").accept(MediaType.APPLICATION_JSON).with(as("fabushi:view")))
+                .andExpect(status().isOk());
+        verify(fabushiStatsService).personal();
     }
 }

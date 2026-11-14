@@ -184,6 +184,9 @@ const PERMISSION_SCOPE_TARGETS = Object.freeze({
   // 与统计分析档位解耦; 存量由 V2026.11.05.7 回填拷贝, 后端 IncentiveService.statsVisibleUserIds 同步改读
   'incentive:stats:view': { module: 'incentive', action: 'stats_view' },
   'incentive:rank:view': { module: 'incentive', action: 'stats_view' },
+  // 【法布施一期 2026-11-15】团队统计独立档(与后端 PermCenterService.SCOPE_TARGETS 的
+  // {fabushi, stats_view} 行 parity 同步, check-perm-scope-targets-parity.sh 双侧对账)
+  'fabushi:stats:view': { module: 'fabushi', action: 'stats_view' },
 })
 const scopeTargetOf = (permission) => PERMISSION_SCOPE_TARGETS[permission] || null
 

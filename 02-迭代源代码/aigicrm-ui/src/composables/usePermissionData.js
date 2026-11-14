@@ -25,6 +25,8 @@ const permModules = computed(() => {
     // incentive 全家族码(view/add/edit/delete/统计/排行/导出/阅读)归位此组(与 PC 侧栏新组对齐),
     // 其中 incentive:stats:view/rank:view 带 (incentive,stats_view) 独立范围行(用户拍板 B)
     { name: '四项激励', items: [] },
+    // 【法布施一期 2026-11-15】fabushi 9 码归组; fabushi:stats:view 带 (fabushi,stats_view) 独立范围行
+    { name: '法布施', items: [] },
     { name: '提醒管理', items: [] },
     { name: '公海管理', items: [] },
     { name: '审批管理', items: [] },
@@ -38,6 +40,8 @@ const permModules = computed(() => {
     'dashboard': '工作台', 'customer': '客户管理', 'file': '文件管理', 'incentive': '四项激励',
     'reminder': '提醒管理', 'sea': '公海管理', 'approval': '审批管理', 'statistics': '统计分析',
     'score': '学分管理', 'indicator': '核心客户指标', 'task': '任务管理', 'system': '系统管理',
+    // 【法布施一期 2026-11-15】fabushi 前缀归「法布施」组, 防掉兜底"系统管理"组
+    'fabushi': '法布施',
     // 【2026-11-03 权限中心修复】finance:*(客户财务查看/管理)与 contact:*(联系人)业务上属客户域,
     // 但权限码前缀不在上表 → 此前掉进兜底"系统管理"组, 管理员在客户管理里找不到这两个码
     'finance': '客户管理', 'contact': '客户管理',
