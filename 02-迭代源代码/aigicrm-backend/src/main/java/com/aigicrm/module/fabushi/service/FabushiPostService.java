@@ -44,8 +44,23 @@ public class FabushiPostService {
 
     private static final Set<String> SCOPE_TYPES = Set.of("heart", "recitation", "znl");
 
-    /** 内容分页(fabushi:view 门): published 按时间倒序 + 联显/互动计数。 */
-    public Page<BizFabushiPost> page(String scopeType, Long bookId, Long viewerId, long current, long size) {
+    /**
+     * 内容分页(fabushi:view 门): 默认 published 按时间倒序 + 联显/互动计数。
+     * status 传参仅治理门生效: 持 fabushi:content:manage 者可查 offline 记录(内容治理页),
+     * 其余调用方一律强制 published——防越权翻看下架内容。
+     */
+    public Page<BizFabushiPost> page(String scopeType, Long bookId, String status, boolean manageAllowed,
+                                     Long viewerId, long current, long size) {
+        boolean publishedOnly = !manageAllowed || status == null || status.isBlank() || "published".equals(status);
+        LambdaQueryWrapper<BizFabushiPost> qw = new LambdaQueryWrapper<BizFabushiPost>()
+                .eq(BizFabushiPost::getStatus, publishedOnly ? "published" : status)
+                .eq(scopeType != null && !scopeType.isBlank(), BizFabushiPost::getScopeType, scopeType)
+                .eq(bookId != null, BizFabushiPost::getBookId, bookId)
+                .orderByDesc(BizFabushiPost::getCreatedAt);
+        Page<BizFabushiPost> page = postMapper.selectPage(new Page<>(current, size), qw);
+        fillInteractions(page.getRecords(), viewerId);
+        return page;
+    }
         LambdaQueryWrapper<BizFabushiPost> qw = new LambdaQueryWrapper<BizFabushiPost>()
                 .eq(BizFabushiPost::getStatus, "published")
                 .eq(scopeType != null && !scopeType.isBlank(), BizFabushiPost::getScopeType, scopeType)

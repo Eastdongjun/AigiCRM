@@ -117,6 +117,26 @@ const routes = [
         // 【2026-11-05 用户令"PC端还是叫四项激励"】parentTitle 归位四项激励(V2026.11.05.1 组名纠偏)
         meta: { title: '激励查询', parentTitle: '四项激励', icon: 'Search', permission: 'incentive:view' }
       },
+      // 【法布施一期 2026-11-15】三页路由(侧栏组由迁移 sys_menu「法布施」组下发, 前端零菜单改动);
+      // 权限码=迁移注册码(V2026.11.15.1), 绑定默认 admin 三页
+      {
+        path: 'fabushi/book',
+        name: 'FabushiBook',
+        component: () => import('@/views/fabushi/book.vue'),
+        meta: { title: '书目管理', parentTitle: '法布施', icon: 'Collection', permission: 'fabushi:book:view' }
+      },
+      {
+        path: 'fabushi/content',
+        name: 'FabushiContent',
+        component: () => import('@/views/fabushi/content.vue'),
+        meta: { title: '内容治理', parentTitle: '法布施', icon: 'Document', permission: 'fabushi:content:view' }
+      },
+      {
+        path: 'fabushi/stats',
+        name: 'FabushiStats',
+        component: () => import('@/views/fabushi/stats.vue'),
+        meta: { title: '统计看板', parentTitle: '法布施', icon: 'TrendCharts', permission: 'fabushi:stats:view' }
+      },
       {
         // 【2026-11-05 用户令"四项服务的定位是给客户展示案例库的"】PC 端四项服务=案例库:
         // 照片墙案例展示面(照片墙卡片+筛选+大图预览), 数据走 /incentive/customer-records

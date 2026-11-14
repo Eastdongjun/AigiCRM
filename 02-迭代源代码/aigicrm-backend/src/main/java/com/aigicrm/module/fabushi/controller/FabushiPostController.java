@@ -23,15 +23,21 @@ public class FabushiPostController {
 
     private final FabushiPostService postService;
 
-    /** 内容分页(heart/recitation/znl, 全员社区流)。 */
+    /**
+     * 内容分页(heart/recitation/znl, 全员社区流)。status 传参仅治理门生效
+     * (fabushi:content:manage 可查下架记录, 其余强制 published 防越权翻看下架内容)。
+     */
     @GetMapping
     @PreAuthorize("hasAuthority('fabushi:view')")
     public Result<com.baomidou.mybatisplus.extension.plugins.pagination.Page<BizFabushiPost>> page(
             @RequestParam(required = false) String scopeType,
             @RequestParam(required = false) Long bookId,
+            @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "1") long current,
             @RequestParam(defaultValue = "10") long size) {
-        return Result.ok(postService.page(scopeType, bookId, SecurityUtils.getCurrentUserId(), current, size));
+        boolean manageAllowed = SecurityUtils.hasAuthority("fabushi:content:manage");
+        return Result.ok(postService.page(scopeType, bookId, status, manageAllowed,
+                SecurityUtils.getCurrentUserId(), current, size));
     }
 
     /** 内容详情(帖+附件+互动计数)。 */
