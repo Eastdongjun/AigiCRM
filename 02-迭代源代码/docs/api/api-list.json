@@ -1,6 +1,6 @@
 {
  "generated_at": "2026-11-14",
- "count": 242,
+ "count": 245,
  "endpoints": [
   {
    "method": "POST",
@@ -1267,6 +1267,24 @@
    "path": "/api/system/recycle/files/{id}/restore",
    "permission": "hasAuthority('system:recycle:restore')",
    "handler": "restoreFile"
+  },
+  {
+   "method": "GET",
+   "path": "/api/system/recycle/folders",
+   "permission": "hasAuthority('system:recycle:view')",
+   "handler": "deletedFolders"
+  },
+  {
+   "method": "POST",
+   "path": "/api/system/recycle/folders/{id}/purge",
+   "permission": "hasAuthority('system:recycle:purge')",
+   "handler": "hardDeleteFolder"
+  },
+  {
+   "method": "POST",
+   "path": "/api/system/recycle/folders/{id}/restore",
+   "permission": "hasAuthority('system:recycle:restore')",
+   "handler": "restoreFolder"
   },
   {
    "method": "GET",

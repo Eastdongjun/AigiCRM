@@ -137,6 +137,32 @@ public class RecycleController {
     }
 
     /** 【文件回收站 2026-10-18】管理员手动清空: 物理删除全部已删文件的存储内容与台账行 */
+    // ==================== 【V2026.11.14.3 P2 4.2】文件夹回收站(admin 全量视角) ====================
+
+    @PreAuthorize("hasAuthority('system:recycle:view')")
+    @GetMapping("/folders")
+    public Result<RecycleService.PageResult<RecycleService.DeletedFolderRow>> deletedFolders(
+            @RequestParam(defaultValue = "1") int current,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String keyword) {
+        requireAdmin();
+        return Result.ok(recycleService.deletedFolders(current, size, keyword));
+    }
+
+    @PreAuthorize("hasAuthority('system:recycle:restore')")
+    @PostMapping("/folders/{id}/restore")
+    public Result<Map<String, String>> restoreFolder(@PathVariable Long id) {
+        requireAdmin();
+        return Result.ok(Map.of("message", recycleService.restoreFolder(id)));
+    }
+
+    @PreAuthorize("hasAuthority('system:recycle:purge')")
+    @PostMapping("/folders/{id}/purge")
+    public Result<Map<String, String>> hardDeleteFolder(@PathVariable Long id) {
+        requireAdmin();
+        return Result.ok(Map.of("message", recycleService.hardDeleteFolder(id)));
+    }
+
     @PreAuthorize("hasAuthority('system:recycle:purge')")
     @PostMapping("/files/purge")
     public Result<Map<String, Object>> purgeFiles() {

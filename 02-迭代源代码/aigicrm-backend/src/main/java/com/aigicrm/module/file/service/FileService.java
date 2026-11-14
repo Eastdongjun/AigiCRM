@@ -917,14 +917,23 @@ public class FileService {
         }
     }
 
+    /** 版本列表行(对外 DTO, 【V2026.11.14.3 P2】不暴露 ossKey/ossUrl——存储路由面不外泄) */
+    public record VersionRow(Long id, Integer versionNo, Long fileSize, String fileType,
+                             String fileName, Long uploadedBy, LocalDateTime createdAt) {
+        static VersionRow of(BizFileVersion v) {
+            return new VersionRow(v.getId(), v.getVersionNo(), v.getFileSize(), v.getFileType(),
+                    v.getFileName(), v.getUploadedBy(), v.getCreatedAt());
+        }
+    }
+
     /** 版本列表(新→旧)。查看权限=checkFile view; 当前主行不在列表内(它就是"现行版") */
-    public List<BizFileVersion> listVersions(Long fileId) {
+    public List<VersionRow> listVersions(Long fileId) {
         if (fileMapper.selectById(fileId) == null) throw new BusinessException("文件不存在");
         Long userId = SecurityUtils.getCurrentUserId();
         if (!folderPermissionService.checkFile(fileId, FolderPermissionService.P_VIEW, userId)) {
             throw new BusinessException(403, "没有访问权限，请联系管理员授权");
         }
-        return fileVersionMapper.listByFileId(fileId);
+        return fileVersionMapper.listByFileId(fileId).stream().map(VersionRow::of).toList();
     }
 
     /** 版本内容下载(字节来自归档行, 与回收站详情下载同一存储通道) */
@@ -991,11 +1000,26 @@ public class FileService {
 
     // ==================== 【V2026.11.14.1 批量操作】(用户拍板 2026-11-14) ====================
 
+    /** 【V2026.11.14.3 P2】zip 条目名清洗: 路径穿越(..)/分隔符/控制字符 → '_'; 空名回退 file-{id} */
+    private String sanitizeZipEntryName(String name, Long fallbackId) {
+        String n = name == null || name.isBlank() ? ("file-" + fallbackId) : name;
+        n = n.replaceAll("\\p{Cntrl}", "_").replace("..", "_").replace("/", "_").replace("\\", "_").trim();
+        return n.isBlank() ? ("file-" + fallbackId) : n;
+    }
+
+    /** 【V2026.11.14.3 P2】批量上限(防误操作与超大请求), 超出直接 400 */
+    private void requireBatchLimit(List<Long> ids) {
+        if (ids != null && ids.size() > 100) {
+            throw new BusinessException("批量操作一次最多 100 项，请分批进行");
+        }
+    }
+
     /**
      * 批量删除: 逐条走 deleteFile(权限/佐证守卫/配额归还全部单条同链), 部分成功不回滚已成功项——
      * 返回逐条结果 {id: "OK"|"失败原因"}, 前端逐行展示。激励佐证文件按单条守卫报 400 跳过。
      */
     public java.util.Map<Long, String> batchDeleteFiles(List<Long> fileIds) {
+        requireBatchLimit(fileIds);
         java.util.Map<Long, String> out = new java.util.LinkedHashMap<>();
         for (Long id : fileIds == null ? List.<Long>of() : fileIds) {
             try {
@@ -1020,6 +1044,7 @@ public class FileService {
      * 同名文件 zip 内自动加序号后缀。全被剔除 → 400。
      */
     public void batchDownload(List<Long> fileIds, jakarta.servlet.http.HttpServletResponse response) {
+        requireBatchLimit(fileIds);
         Long userId = SecurityUtils.getCurrentUserId();
         List<BizFile> allowed = new ArrayList<>();
         for (Long id : fileIds == null ? List.<Long>of() : fileIds) {
@@ -1038,8 +1063,8 @@ public class FileService {
             java.util.Set<String> used = new java.util.HashSet<>();
             try (java.util.zip.ZipOutputStream zos = new java.util.zip.ZipOutputStream(response.getOutputStream())) {
                 for (BizFile f : allowed) {
-                    String base = f.getFileName() == null || f.getFileName().isBlank()
-                            ? "file-" + f.getId() : f.getFileName();
+                    // 【V2026.11.14.3 P2】条目名清洗: 路径穿越(..)/分隔符/控制字符 → '_'(zip slip 防线)
+                    String base = sanitizeZipEntryName(f.getFileName(), f.getId());
                     String unique = base;
                     int i = 1;
                     while (!used.add(unique)) {

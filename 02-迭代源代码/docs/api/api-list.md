@@ -4,7 +4,7 @@
 > 本文件由 scripts/gen-api.py 自动生成,**禁止手改**;接口变更后重新运行。
 > 权限码与 docs/permission/permission-dict.md 对应。
 
-## 接口清单(242 个)
+## 接口清单(245 个)
 
 | 方法 | 路径 | 权限码 | 方法名 | 文件 |
 |---|---|---|---|---|
@@ -219,6 +219,9 @@
 | GET | `/api/system/recycle/files/{id}/content` | `hasAuthority('system:recycle:view')` | fileContent | RecycleController.java |
 | POST | `/api/system/recycle/files/{id}/purge` | `hasAuthority('system:recycle:purge')` | hardDeleteFile | RecycleController.java |
 | POST | `/api/system/recycle/files/{id}/restore` | `hasAuthority('system:recycle:restore')` | restoreFile | RecycleController.java |
+| GET | `/api/system/recycle/folders` | `hasAuthority('system:recycle:view')` | deletedFolders | RecycleController.java |
+| POST | `/api/system/recycle/folders/{id}/purge` | `hasAuthority('system:recycle:purge')` | hardDeleteFolder | RecycleController.java |
+| POST | `/api/system/recycle/folders/{id}/restore` | `hasAuthority('system:recycle:restore')` | restoreFolder | RecycleController.java |
 | GET | `/api/system/recycle/users` | `hasAuthority('system:recycle:view')` | deletedUsers | RecycleController.java |
 | GET | `/api/system/recycle/users/{id}` | `hasAuthority('system:recycle:view')` | deletedUserDetail | RecycleController.java |
 | POST | `/api/system/recycle/users/{id}/purge` | `hasAuthority('system:recycle:purge')` | hardDeleteUser | RecycleController.java |

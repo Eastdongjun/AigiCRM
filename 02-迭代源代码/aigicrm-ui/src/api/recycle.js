@@ -54,3 +54,16 @@ export function hardDeleteUser(id) {
 export function hardDeleteFile(id) {
   return request.post(`/system/recycle/files/${id}/purge`)
 }
+
+// ==================== 【V2026.11.14.3 P2】文件夹回收站(admin 全量) ====================
+export function getDeletedFolders(params) {
+  return request.get('/system/recycle/folders', { params })
+}
+
+export function restoreDeletedFolder(id) {
+  return request.post(`/system/recycle/folders/${id}/restore`)
+}
+
+export function hardDeleteFolder(id) {
+  return request.post(`/system/recycle/folders/${id}/purge`)
+}

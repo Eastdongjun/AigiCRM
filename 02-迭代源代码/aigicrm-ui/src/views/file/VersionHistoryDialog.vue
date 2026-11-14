@@ -15,8 +15,8 @@
       </el-table-column>
       <el-table-column label="操作" width="130" align="center">
         <template #default="{ row }">
-          <el-button size="small" link type="primary" @click="doDownload(row)">下载</el-button>
-          <el-button size="small" link type="warning" @click="doRollback(row)">回滚</el-button>
+          <el-button v-if="canDownload" size="small" link type="primary" @click="doDownload(row)">下载</el-button>
+          <el-button v-if="canRollback" size="small" link type="warning" @click="doRollback(row)">回滚</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -37,12 +37,17 @@ const emit = defineEmits(['rolled-back'])
 const visible = ref(false)
 const loading = ref(false)
 const fileId = ref(null)
-const fileName = ref('')
-const versions = ref([])
+const fileName = ref("")
+// 【V2026.11.14.3 P2】按钮按真实行权限分控(入口=file:view+行 view 已在 FileTable 收口):
+// 下载=行 download / 回滚=file:edit+行 replace——与后端 checkFile 双门同口径
+const canDownload = ref(false)
+const canRollback = ref(false)
 
-const open = (row) => {
+const open = (row, perms) => {
   fileId.value = row.id
   fileName.value = row.fileName
+  canDownload.value = !!(perms && perms.canDownload)
+  canRollback.value = !!(perms && perms.canRollback)
   visible.value = true
   load()
 }

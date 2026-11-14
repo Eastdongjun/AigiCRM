@@ -31,6 +31,13 @@ public class FileRecycleController {
 
     private final RecycleService recycleService;
 
+    /** 【V2026.11.14.3 P2】批量上限(防误操作与超大请求) */
+    private void requireBatchLimit(List<Long> fileIds, List<Long> folderIds) {
+        if (fileIds.size() + folderIds.size() > 100) {
+            throw new BusinessException("批量操作一次最多 100 项，请分批进行");
+        }
+    }
+
     /** 归属闸门: 非 admin 只能动自己删除的行(deleted_by=me); admin 全量 */
     private void requireOwner(Long deletedBy) {
         if (!SecurityUtils.isAdmin() && !SecurityUtils.getCurrentUserId().equals(deletedBy)) {
@@ -96,6 +103,7 @@ public class FileRecycleController {
     public Result<Map<String, Object>> batchRestore(@RequestBody Map<String, List<Long>> body) {
         List<Long> fileIds = body.getOrDefault("fileIds", List.of());
         List<Long> folderIds = body.getOrDefault("folderIds", List.of());
+        requireBatchLimit(fileIds, folderIds);
         Map<String, String> results = new LinkedHashMap<>();
         int ok = 0;
         for (Long id : fileIds) {
@@ -131,6 +139,7 @@ public class FileRecycleController {
     public Result<Map<String, Object>> batchPurge(@RequestBody Map<String, List<Long>> body) {
         List<Long> fileIds = body.getOrDefault("fileIds", List.of());
         List<Long> folderIds = body.getOrDefault("folderIds", List.of());
+        requireBatchLimit(fileIds, folderIds);
         Map<String, String> results = new LinkedHashMap<>();
         int ok = 0;
         for (Long id : fileIds) {

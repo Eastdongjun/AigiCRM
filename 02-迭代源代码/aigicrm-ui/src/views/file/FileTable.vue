@@ -62,8 +62,9 @@
             <el-tooltip v-if="canFileAction(row, 'file:edit', 'edit', 'replace')" content="替换" placement="top">
               <el-icon class="act-icon" @click.stop="openReplaceFile(row)"><Refresh /></el-icon>
             </el-tooltip>
-            <!-- 【V2026.11.14.1 版本历史】历史版本入口(查看/下载/回滚)——有历史版本或可替换权限者可见 -->
-            <el-tooltip v-if="canFileAction(row, 'file:edit', 'edit', 'replace')" content="历史版本" placement="top">
+            <!-- 【V2026.11.14.3 P2 门禁口径】历史版本入口=file:view 全局码 ∧(行 view ∨ 我传的)——
+                 与后端 listVersions(checkFile view) 同口径; 此前用 file:edit 过严, 口径与权限中心打架 -->
+            <el-tooltip v-if="canFileAction(row, 'file:view', 'view')" content="历史版本" placement="top">
               <el-icon class="act-icon" @click.stop="openVersionHistory(row)"><Clock /></el-icon>
             </el-tooltip>
             <!-- 【2026-11-08 PC 补文件改名入口】后端 PUT /file/{id}/rename（FileController file:edit +
@@ -218,7 +219,11 @@ const tableRef = ref(null)
 const versionDialogRef = ref(null)
 
 const openVersionHistory = (row) => {
-  versionDialogRef.value?.open(row)
+  // 【V2026.11.14.3 P2】弹窗内按钮按真实行权限分控: 下载=行 download, 回滚=file:edit+行 replace
+  const canDownload = (folderPerms.value.includes('download') || isOwn(row)) && folderDownloadable === 1
+      || canFileAction(row, 'file:view', 'download')
+  const canRollback = canFileAction(row, 'file:edit', 'edit', 'replace')
+  versionDialogRef.value?.open(row, { canDownload, canRollback })
 }
 
 const clearSelection = () => {

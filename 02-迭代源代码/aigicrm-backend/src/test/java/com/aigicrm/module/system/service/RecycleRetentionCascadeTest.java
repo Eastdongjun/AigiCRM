@@ -53,11 +53,13 @@ class RecycleRetentionCascadeTest {
         when(jdbc.queryForList(anyString(), eq(Long.class), any(LocalDateTime.class)))
                 .thenReturn(List.of());
         svc.purgeExpiredFilesWithStats(30);
-        ArgumentCaptor<String> sqlCap = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<LocalDateTime> cutoffCap = ArgumentCaptor.forClass(LocalDateTime.class);
-        verify(jdbc).queryForList(sqlCap.capture(), eq(Long.class), cutoffCap.capture());
-        assertTrue(sqlCap.getValue().contains("COALESCE(deleted_at, updated_at)"),
-                "保留期必须认 deleted_at(COALESCE 兜底存量)——回归回 updated_at 则老文件会被立即清空");
+        // 【V2026.11.14.3】保留期清理含文件+夹两段查询——按 SQL 精确钉文件段
+        verify(jdbc, org.mockito.Mockito.times(1))
+                .queryForList(org.mockito.ArgumentMatchers.contains("biz_file WHERE deleted = 1"),
+                        eq(Long.class), cutoffCap.capture());
+        assertTrue(cutoffCap.getValue().isBefore(LocalDateTime.now()),
+                "cutoff = now - retentionDays");
         assertTrue(cutoffCap.getValue().isBefore(LocalDateTime.now()),
                 "cutoff = now - retentionDays");
     }

@@ -18,6 +18,7 @@ export const PERMISSION_CODES = Object.freeze({
   FILE_DELETE: 'file:delete',
   FILE_EDIT: 'file:edit',
   FILE_FOLDER_MANAGE: 'file:folder:manage',
+  FILE_PURGE: 'file:purge',
   FILE_SHARE: 'file:share',
   FILE_UPLOAD: 'file:upload',
   FILE_VIEW: 'file:view',

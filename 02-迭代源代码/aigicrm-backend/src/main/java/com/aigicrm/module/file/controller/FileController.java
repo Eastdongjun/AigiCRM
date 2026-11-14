@@ -123,10 +123,10 @@ public class FileController {
 
     // ==================== 【V2026.11.14.1 版本历史 + 批量操作】(用户拍板 2026-11-14) ====================
 
-    /** 版本列表(新→旧, 不含现行主行); 权限=checkFile view */
+    /** 版本列表(新→旧, 不含现行主行; 脱敏 DTO 不含存储路由); 权限=checkFile view */
     @PreAuthorize("hasAuthority('file:view')")
     @GetMapping("/{id}/versions")
-    public Result<java.util.List<com.aigicrm.module.file.entity.BizFileVersion>> listVersions(@PathVariable Long id) {
+    public Result<java.util.List<com.aigicrm.module.file.service.FileService.VersionRow>> listVersions(@PathVariable Long id) {
         return Result.ok(fileService.listVersions(id));
     }
 

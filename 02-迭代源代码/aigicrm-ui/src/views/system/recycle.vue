@@ -35,7 +35,7 @@
             @click="switchTab(tab.key)"
           >
             {{ tab.label }}
-            <span class="seg-count">{{ tab.key === 'customers' ? counts.customers : tab.key === 'users' ? counts.users : counts.files }}</span>
+            <span class="seg-count">{{ counts[tab.key] }}</span>
           </button>
         </div>
         <div class="panel-actions">
@@ -221,6 +221,33 @@
           </el-table-column>
         </el-table>
 
+        <!-- 【V2026.11.14.3 P2 4.2】已删除文件夹(空夹软删; 恢复挂根; 彻底删除清授权) -->
+        <el-table v-if="activeTab === 'folders'" v-loading="loading" :data="rows" class="recycle-table"
+          style="width:100%" :empty-text="emptyText">
+          <el-table-column label="文件夹名称" min-width="280">
+            <template #default="{ row }">
+              <span class="cell-title">{{ row.folderName || '未命名文件夹' }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="类型" width="110" align="center">
+            <template #default="{ row }">
+              <span class="status-chip" :class="row.folderType === 'public' ? 'on' : 'off'">
+                {{ row.folderType === 'public' ? '公共' : '私人' }}
+              </span>
+            </template>
+          </el-table-column>
+          <el-table-column label="删除时间" min-width="165">
+            <template #default="{ row }"><span class="time-text">{{ formatTime(row.deletedAt) }}</span></template>
+          </el-table-column>
+          <el-table-column v-if="canRestore || canPurge" label="操作" width="225" align="right" fixed="right">
+            <template #default="{ row }">
+              <el-button v-if="canRestore" link type="primary" size="small" :icon="RefreshLeft" @click.stop="handleRestoreFolder(row)">恢复</el-button>
+              <el-button v-if="canPurge" link type="danger" size="small" @click.stop="handleHardDeleteFolder(row)">彻底删除</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+
+
         <div class="pager-row">
           <span class="pager-hint">共 <b>{{ total }}</b> 条</span>
           <el-pagination
@@ -333,10 +360,10 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  Avatar, Document, Delete, Download, InfoFilled, Refresh, RefreshLeft, Search, User, WarningFilled,
-} from '@element-plus/icons-vue'
+  Avatar, Document, Delete, Download, Folder, InfoFilled, Refresh, RefreshLeft, Search, User, WarningFilled } from '@element-plus/icons-vue'
 import {
   getDeletedCustomers, getDeletedUsers, getDeletedFiles,
+  getDeletedFolders, restoreDeletedFolder, hardDeleteFolder,
   restoreDeletedCustomer, restoreDeletedUser, restoreDeletedFile, purgeDeletedFiles,
   getDeletedCustomerDetail, getDeletedUserDetail, getDeletedFileDetail,
   hardDeleteCustomer, hardDeleteUser, hardDeleteFile,
@@ -354,11 +381,13 @@ const tabs = [
   { key: 'customers', label: '已删除客户' },
   { key: 'users', label: '已删除人员' },
   { key: 'files', label: '已删除文件' },
+  { key: 'folders', label: '已删除文件夹' },
 ]
 const statItems = [
   { key: 'customers', label: '已删除客户', icon: User },
   { key: 'users', label: '已删除人员', icon: Avatar },
   { key: 'files', label: '已删除文件', icon: Document },
+  { key: 'folders', label: '已删除文件夹', icon: Folder },
 ]
 const activeTab = ref('customers')
 const keyword = ref('')
@@ -374,7 +403,7 @@ const listError = ref(false)
 const appliedKeyword = ref('')
 // 计数仅由 loadCounts（全量口径）与增删动作后的全量刷新维护，loadData/搜索不得改写，
 // 避免搜索列表把页头/页签计数改成匹配条数
-const counts = reactive({ customers: 0, users: 0, files: 0 })
+const counts = reactive({ customers: 0, users: 0, files: 0, folders: 0 })
 
 // 列表/详情请求序号：旧响应（含错误）不得覆盖当前页签/当前详情
 let listSeq = 0
@@ -433,7 +462,9 @@ async function loadData() {
       ? await getDeletedCustomers(params)
       : tab === 'users'
         ? await getDeletedUsers(params)
-        : await getDeletedFiles(params)
+        : tab === 'folders'
+          ? await getDeletedFolders(params)
+          : await getDeletedFiles(params)
     if (seq !== listSeq || tab !== activeTab.value) return
     rows.value = res.data?.records || []
     total.value = res.data?.total || 0
@@ -454,14 +485,16 @@ async function loadData() {
 // 全量计数（无 keyword）：供页头统计卡/页签徽标使用，也是清空回收站前的确认口径
 async function loadCounts() {
   try {
-    const [customers, users, files] = await Promise.all([
+    const [customers, users, files, folders] = await Promise.all([
       getDeletedCustomers({ current: 1, size: 1 }),
       getDeletedUsers({ current: 1, size: 1 }),
       getDeletedFiles({ current: 1, size: 1 }),
+      getDeletedFolders({ current: 1, size: 1 }),
     ])
     counts.customers = customers.data?.total || 0
     counts.users = users.data?.total || 0
     counts.files = files.data?.total || 0
+    counts.folders = folders.data?.total || 0
     return true
   } catch (e) {
     // 计数失败不阻断列表；保留上一次全量计数（仍不含搜索条件）
@@ -549,6 +582,44 @@ async function handleRestoreFile(row) {
   try {
     const res = await restoreDeletedFile(row.id)
     ElMessage.success(res.data?.message || '文件已恢复')
+    await Promise.all([loadData(), loadCounts()])
+  } catch (e) {
+    // 错误提示由 request 拦截器统一弹出
+  }
+}
+
+async function handleRestoreFolder(row) {
+  try {
+    await ElMessageBox.confirm(
+      `确认恢复文件夹“${row.folderName}”？原上级文件夹已删除时将恢复到根目录；其授权配置随夹恢复。`,
+      '恢复文件夹',
+      { confirmButtonText: '确认恢复', cancelButtonText: '取消' }
+    )
+  } catch (e) {
+    return
+  }
+  try {
+    const res = await restoreDeletedFolder(row.id)
+    ElMessage.success(res.data?.message || '文件夹已恢复')
+    await Promise.all([loadData(), loadCounts()])
+  } catch (e) {
+    // 错误提示由 request 拦截器统一弹出
+  }
+}
+
+async function handleHardDeleteFolder(row) {
+  try {
+    await ElMessageBox.confirm(
+      `确认彻底删除文件夹“${row.folderName}”？其授权配置将一并清除，删除后无法恢复。`,
+      '彻底删除文件夹',
+      { confirmButtonText: '确认彻底删除', cancelButtonText: '取消', type: 'warning' }
+    )
+  } catch (e) {
+    return
+  }
+  try {
+    const res = await hardDeleteFolder(row.id)
+    ElMessage.success(res.data?.message || '文件夹已彻底删除')
     await Promise.all([loadData(), loadCounts()])
   } catch (e) {
     // 错误提示由 request 拦截器统一弹出

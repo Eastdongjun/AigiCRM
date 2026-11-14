@@ -410,6 +410,19 @@ public class RecycleService {
                 "SELECT id FROM biz_file WHERE deleted = 1 "
                         + "AND COALESCE(deleted_at, updated_at) < ?", Long.class, cutoff);
         PurgeFilesResult result = purgeFileRows(ids);
+        // 【V2026.11.14.3 P2 4.2】夹回收站同保留期清理(空夹软删无内容, 直接清台账+授权行)
+        List<Long> folderIds = jdbc.queryForList(
+                "SELECT id FROM biz_file_folder WHERE deleted = 1 "
+                        + "AND COALESCE(deleted_at, updated_at) < ?", Long.class, cutoff);
+        for (Long fid : folderIds) {
+            try {
+                jdbc.update("DELETE FROM biz_folder_acl WHERE folder_id = ?", fid);
+                jdbc.update("DELETE FROM biz_folder_type_default WHERE folder_id = ?", fid);
+                jdbc.update("DELETE FROM biz_file_folder WHERE id = ? AND deleted = 1", fid);
+            } catch (Exception ignore) {
+                // 单夹清理失败不影响其余(下次任务重试)
+            }
+        }
         if (!result.isEmpty()) {
             writeAuditLog("清理文件回收站", "biz_file", null,
                     "保留期" + retentionDays + "天, 清理" + result.purged()
@@ -789,6 +802,7 @@ public class RecycleService {
                         + "WHERE id = ? AND deleted = 1",
                 parentId == null ? 0L : parentId, id);
         if (updated == 0) throw new BusinessException("恢复失败（并发状态已变化），请刷新后重试");
+        writeAuditLog("恢复文件夹", "biz_file_folder", id, "文件夹名=" + f.getFolderName());
         return "文件夹「" + f.getFolderName() + "」已恢复";
     }
 
@@ -800,6 +814,7 @@ public class RecycleService {
         jdbc.update("DELETE FROM biz_folder_type_default WHERE folder_id = ?", id);
         int deleted = jdbc.update("DELETE FROM biz_file_folder WHERE id = ? AND deleted = 1", id);
         if (deleted == 0) throw new BusinessException("彻底删除失败（并发状态已变化），请刷新后重试");
+        writeAuditLog("彻底删除文件夹", "biz_file_folder", id, "文件夹名=" + f.getFolderName());
         return "文件夹「" + f.getFolderName() + "」已彻底删除";
     }
 
