@@ -1,6 +1,6 @@
 {
  "generated_at": "2026-11-15",
- "count": 247,
+ "count": 262,
  "endpoints": [
   {
    "method": "POST",
@@ -385,6 +385,96 @@
    "path": "/api/draft/{draftType}/force",
    "permission": "isAuthenticated()",
    "handler": "forceSave"
+  },
+  {
+   "method": "GET",
+   "path": "/api/fabushi/books",
+   "permission": "hasAuthority('fabushi:view')",
+   "handler": "page"
+  },
+  {
+   "method": "POST",
+   "path": "/api/fabushi/books",
+   "permission": "hasAuthority('fabushi:create')",
+   "handler": "submit"
+  },
+  {
+   "method": "GET",
+   "path": "/api/fabushi/books/pending",
+   "permission": "hasAuthority('fabushi:book:manage')",
+   "handler": "pending"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/fabushi/books/{id}/approve",
+   "permission": "hasAuthority('fabushi:book:manage')",
+   "handler": "approve"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/fabushi/books/{id}/disable",
+   "permission": "hasAuthority('fabushi:book:manage')",
+   "handler": "disable"
+  },
+  {
+   "method": "POST",
+   "path": "/api/fabushi/books/{id}/pdf",
+   "permission": "hasAuthority('fabushi:book:manage')",
+   "handler": "attachPdf"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/fabushi/books/{id}/reject",
+   "permission": "hasAuthority('fabushi:book:manage')",
+   "handler": "reject"
+  },
+  {
+   "method": "GET",
+   "path": "/api/fabushi/posts",
+   "permission": "hasAuthority('fabushi:view')",
+   "handler": "page"
+  },
+  {
+   "method": "POST",
+   "path": "/api/fabushi/posts",
+   "permission": "hasAuthority('fabushi:create')",
+   "handler": "create"
+  },
+  {
+   "method": "GET",
+   "path": "/api/fabushi/posts/{id}",
+   "permission": "hasAuthority('fabushi:view')",
+   "handler": "detail"
+  },
+  {
+   "method": "GET",
+   "path": "/api/fabushi/posts/{id}/comments",
+   "permission": "hasAuthority('fabushi:view')",
+   "handler": "listComments"
+  },
+  {
+   "method": "POST",
+   "path": "/api/fabushi/posts/{id}/comments",
+   "permission": "hasAuthority('fabushi:create')",
+   "handler": "addComment"
+  },
+  {
+   "method": "POST",
+   "path": "/api/fabushi/posts/{id}/like",
+   "permission": "hasAuthority('fabushi:create')",
+   "handler": "toggleLike"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/fabushi/posts/{id}/offline",
+   "permission": "hasAuthority('fabushi:content:manage')",
+   "handler": "offline"
+  },
+  {
+   "method": "POST",
+   "path": "/api/fabushi/reads",
+   "permission": "hasAuthority('fabushi:view')",
+   "handler": "markRead"
   },
   {
    "method": "GET",

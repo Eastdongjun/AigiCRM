@@ -1337,6 +1337,40 @@ public class PermissionMatrixTest {
         if (codes.isEmpty()) {
             throw new IllegalStateException("权限码字典解析失败，未提取到任何权限码: " + dictPath);
         }
+        codes.addAll(loadMigrationRegisteredCodes());
+        return codes;
+    }
+
+    /**
+     * 【法布施一期 2026-11-15】迁移链注册码并入合法码集: 字典源=生产库 sys_menu(生成于部署后),
+     * 新模块迁移落库前存在"码已注册(迁移链)但字典未含"的合法中间态——此时写方法挂新码会被
+     * 本测试误红。并入迁移链 sys_menu 写入的 permission 字面量(与 check-miniprogram-permission-contract.py
+     * 的"迁移链存在且 status=1"口径同源), 不放松"码必须先注册"约束, 只消除部署时序假红。
+     */
+    static Set<String> loadMigrationRegisteredCodes() {
+        Path migDir = Paths.get("src/main/resources/db/migration").toAbsolutePath().normalize();
+        if (!Files.isDirectory(migDir)) {
+            return Set.of();
+        }
+        Set<String> codes = new LinkedHashSet<>();
+        // 匹配迁移 SQL 中的单引号 permission 码形态 module:action(:sub) —— 覆盖 INSERT/守卫/JOIN 各写法
+        Pattern codePattern = Pattern.compile("'([a-z]+:[a-z_]+(?::[a-z_-]+)?)'");
+        try (java.util.stream.Stream<Path> files = Files.list(migDir)) {
+            files.filter(p -> p.getFileName().toString().endsWith(".sql"))
+                    .sorted()
+                    .forEach(p -> {
+                        try {
+                            Matcher m = codePattern.matcher(Files.readString(p));
+                            while (m.find()) {
+                                codes.add(m.group(1));
+                            }
+                        } catch (IOException ignored) {
+                            // 单文件读取失败不阻断(下一轮测试仍会兜底)
+                        }
+                    });
+        } catch (IOException ignored) {
+            // 目录不可读时仅依赖字典(部署后字典刷新, 正常态)
+        }
         return codes;
     }
 

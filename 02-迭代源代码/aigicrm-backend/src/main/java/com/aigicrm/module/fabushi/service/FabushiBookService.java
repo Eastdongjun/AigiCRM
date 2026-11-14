@@ -1,0 +1,165 @@
+package com.aigicrm.module.fabushi.service;
+
+import com.aigicrm.common.BusinessException;
+import com.aigicrm.module.fabushi.entity.BizFabushiBook;
+import com.aigicrm.module.fabushi.mapper.BizFabushiBookMapper;
+import com.aigicrm.module.system.entity.SysDictData;
+import com.aigicrm.module.system.entity.SysUser;
+import com.aigicrm.module.system.mapper.SysUserMapper;
+import com.aigicrm.module.system.service.SysDictService;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+/**
+ * 法布施书目服务(一期 2026-11-15): 人人提交(pending) + admin 审核制(需求 A2 防泛滥)。
+ * 类别校验走字典 fabushi_category(字典驱动裁决: admin 在字典管理改类别, 停用不删内容)。
+ */
+@Service
+@RequiredArgsConstructor
+public class FabushiBookService {
+
+    private final BizFabushiBookMapper bookMapper;
+    private final com.aigicrm.module.file.mapper.BizFileMapper fileMapper;
+    private final SysUserMapper userMapper;
+    private final SysDictService dictService;
+    private final com.aigicrm.security.SecurityAuditService securityAuditService;
+
+    /** 提交人/类别名联显(字典 label + sys_user real_name)。 */
+    private void fillDisplay(List<BizFabushiBook> books) {
+        if (books.isEmpty()) {
+            return;
+        }
+        Map<String, String> catNames = dictService.listDataByCode("fabushi_category").stream()
+                .collect(Collectors.toMap(SysDictData::getDictValue, SysDictData::getDictLabel, (a, b) -> a));
+        Set<Long> userIds = books.stream().map(BizFabushiBook::getCreatedBy).collect(Collectors.toSet());
+        Map<Long, String> userNames = userMapper.selectBatchIds(userIds).stream()
+                .collect(Collectors.toMap(SysUser::getId, SysUser::getRealName, (a, b) -> a));
+        for (BizFabushiBook b : books) {
+            b.setCategoryName(catNames.get(b.getCategoryCode()));
+            b.setSubmitterName(userNames.get(b.getCreatedBy()));
+        }
+    }
+
+    /** 书目列表(fabushi:view 门): approved 全员可见; manage 门可用 status 传参查全态。 */
+    public Page<BizFabushiBook> page(String categoryCode, String keyword, String status, long current, long size) {
+        String st = (status == null || status.isBlank()) ? "approved" : status;
+        LambdaQueryWrapper<BizFabushiBook> qw = new LambdaQueryWrapper<BizFabushiBook>()
+                .eq(BizFabushiBook::getStatus, st)
+                .eq(categoryCode != null && !categoryCode.isBlank(), BizFabushiBook::getCategoryCode, categoryCode)
+                .like(keyword != null && !keyword.isBlank(), BizFabushiBook::getTitle, keyword)
+                .orderByDesc(BizFabushiBook::getCreatedAt);
+        Page<BizFabushiBook> page = bookMapper.selectPage(new Page<>(current, size), qw);
+        fillDisplay(page.getRecords());
+        return page;
+    }
+
+    /** 人人提交书目(fabushi:create 门): 一律 pending 待审核。 */
+    public BizFabushiBook submit(BizFabushiBook book) {
+        com.aigicrm.security.SecurityUser user = com.aigicrm.security.SecurityUtils.getCurrentUser();
+        if (user == null) {
+            throw new BusinessException(401, "未登录");
+        }
+        validateCategory(book.getCategoryCode());
+        if (book.getTitle() == null || book.getTitle().isBlank()) {
+            throw new BusinessException(400, "书名不能为空");
+        }
+        book.setId(null);
+        book.setStatus("pending");
+        book.setCreatedBy(user.getUserId());
+        book.setApprovedBy(null);
+        book.setApprovedAt(null);
+        book.setRejectReason(null);
+        bookMapper.insert(book);
+        return book;
+    }
+
+    /** 审核通过(fabushi:book:manage 门; G3 留痕: LogAspect 切面 + PERMISSION_CHANGE 时间线)。 */
+    @Transactional
+    public void approve(Long id) {
+        BizFabushiBook book = requireBook(id);
+        book.setStatus("approved");
+        book.setApprovedBy(com.aigicrm.security.SecurityUtils.getCurrentUserId());
+        book.setApprovedAt(LocalDateTime.now());
+        book.setRejectReason(null);
+        bookMapper.updateById(book);
+        securityAuditService.permissionChange("fabushi_book_approve", "book:" + id + ":" + book.getTitle());
+    }
+
+    /** 驳回(fabushi:book:manage 门; 驳回原因必填留痕)。 */
+    @Transactional
+    public void reject(Long id, String reason) {
+        if (reason == null || reason.isBlank()) {
+            throw new BusinessException(400, "驳回原因不能为空");
+        }
+        BizFabushiBook book = requireBook(id);
+        book.setStatus("rejected");
+        book.setRejectReason(reason);
+        book.setApprovedBy(com.aigicrm.security.SecurityUtils.getCurrentUserId());
+        bookMapper.updateById(book);
+        securityAuditService.permissionChange("fabushi_book_reject", "book:" + id + ":" + book.getTitle());
+    }
+
+    /** 停用(fabushi:book:manage 门; 停用不删内容, 书目从全员列表消失)。 */
+    @Transactional
+    public void disable(Long id) {
+        BizFabushiBook book = requireBook(id);
+        book.setStatus("disabled");
+        bookMapper.updateById(book);
+        securityAuditService.permissionChange("fabushi_book_disable", "book:" + id + ":" + book.getTitle());
+    }
+
+    /** PDF 挂载/替换(fabushi:book:manage 门; fileId 须为 scope=fabushi 的已上传文件)。 */
+    @Transactional
+    public void attachPdf(Long id, Long fileId) {
+        BizFabushiBook book = requireBook(id);
+        if (fileId == null) {
+            throw new BusinessException(400, "PDF 文件 id 不能为空");
+        }
+        com.aigicrm.module.file.entity.BizFile f = fileMapper.selectById(fileId);
+        if (f == null || (f.getDeleted() != null && f.getDeleted() == 1)) {
+            throw new BusinessException(404, "文件不存在");
+        }
+        if (!"fabushi".equals(f.getFileScope())) {
+            throw new BusinessException(400, "PDF 须上传到法布施空间(scope=fabushi)");
+        }
+        book.setPdfFileId(fileId);
+        bookMapper.updateById(book);
+    }
+
+    /** 待审核队列(fabushi:book:manage 门)。 */
+    public List<BizFabushiBook> pendingList() {
+        List<BizFabushiBook> books = bookMapper.selectList(new LambdaQueryWrapper<BizFabushiBook>()
+                .eq(BizFabushiBook::getStatus, "pending")
+                .orderByAsc(BizFabushiBook::getCreatedAt));
+        fillDisplay(books);
+        return books;
+    }
+
+    private void validateCategory(String categoryCode) {
+        if (categoryCode == null || categoryCode.isBlank()) {
+            throw new BusinessException(400, "类别不能为空");
+        }
+        boolean valid = dictService.listDataByCode("fabushi_category").stream()
+                .anyMatch(d -> categoryCode.equals(d.getDictValue()) && Integer.valueOf(1).equals(d.getStatus()));
+        if (!valid) {
+            throw new BusinessException(400, "类别不存在或已停用");
+        }
+    }
+
+    private BizFabushiBook requireBook(Long id) {
+        BizFabushiBook book = bookMapper.selectById(id);
+        if (book == null) {
+            throw new BusinessException(404, "书目不存在");
+        }
+        return book;
+    }
+}

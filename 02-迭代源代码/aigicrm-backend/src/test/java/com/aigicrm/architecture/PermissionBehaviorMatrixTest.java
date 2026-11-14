@@ -63,8 +63,11 @@ class PermissionBehaviorMatrixTest {
             com.aigicrm.module.sea.controller.SeaController.class,
             com.aigicrm.module.reminder.controller.ReminderController.class,
             com.aigicrm.module.system.controller.SysMenuController.class,
-            // 【法布施一期 2026-11-15】统计端点入行为矩阵(401/403/200 + 错码负例)
-            com.aigicrm.module.fabushi.controller.FabushiStatsController.class})
+            // 【法布施一期 2026-11-15】统计+书目+内容端点入行为矩阵(401/403/200 + 错码负例)
+            com.aigicrm.module.fabushi.controller.FabushiStatsController.class,
+            com.aigicrm.module.fabushi.controller.FabushiBookController.class,
+            com.aigicrm.module.fabushi.controller.FabushiPostController.class,
+            com.aigicrm.module.fabushi.controller.FabushiReadController.class})
     static class Ctx {
     }
 
@@ -106,6 +109,8 @@ class PermissionBehaviorMatrixTest {
     @MockitoBean com.aigicrm.module.system.service.SysMenuService sysMenuService;
     // 【法布施一期 2026-11-15】
     @MockitoBean com.aigicrm.module.fabushi.service.FabushiStatsService fabushiStatsService;
+    @MockitoBean com.aigicrm.module.fabushi.service.FabushiBookService fabushiBookService;
+    @MockitoBean com.aigicrm.module.fabushi.service.FabushiPostService fabushiPostService;
     @MockitoBean com.aigicrm.module.sea.service.SeaConfigService seaConfigService;
     @MockitoBean com.aigicrm.module.approval.mapper.BizApprovalMapper bizApprovalMapper;
     @MockitoBean com.aigicrm.module.approval.mapper.BizApprovalNodeMapper bizApprovalNodeMapper;
@@ -397,5 +402,85 @@ class PermissionBehaviorMatrixTest {
         mockMvc.perform(get("/api/fabushi/stats/personal").accept(MediaType.APPLICATION_JSON).with(as("fabushi:view")))
                 .andExpect(status().isOk());
         verify(fabushiStatsService).personal();
+    }
+
+    // ==================== 矩阵 J: 法布施书目/内容(2026-11-15 一期卡2) ====================
+
+    /** 负例: 提交书目必须 fabushi:create——只持 view 不能发(防"能看不能发"越权)。 */
+    @Test
+    void fabushiBookSubmit_withViewOnly_403() throws Exception {
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .post("/api/fabushi/books").accept(MediaType.APPLICATION_JSON)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"title\":\"x\"}")
+                        .with(as("fabushi:view")))
+                .andExpect(status().isForbidden());
+        verifyNoInteractions(fabushiBookService);
+    }
+
+    @Test
+    void fabushiBookSubmit_withCreate_200() throws Exception {
+        org.mockito.Mockito.when(fabushiBookService.submit(any()))
+                .thenReturn(new com.aigicrm.module.fabushi.entity.BizFabushiBook());
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .post("/api/fabushi/books").accept(MediaType.APPLICATION_JSON)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"title\":\"x\"}")
+                        .with(as("fabushi:create")))
+                .andExpect(status().isOk());
+        verify(fabushiBookService).submit(any());
+    }
+
+    /** 负例: 审核是 book:manage 专用——持 create 不能审(发布/治理分权)。 */
+    @Test
+    void fabushiBookApprove_withCreateOnly_403() throws Exception {
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .put("/api/fabushi/books/1/approve").accept(MediaType.APPLICATION_JSON)
+                        .with(as("fabushi:create")))
+                .andExpect(status().isForbidden());
+        verifyNoInteractions(fabushiBookService);
+    }
+
+    @Test
+    void fabushiBookApprove_withManage_200() throws Exception {
+        org.mockito.Mockito.doNothing().when(fabushiBookService).approve(1L);
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .put("/api/fabushi/books/1/approve").accept(MediaType.APPLICATION_JSON)
+                        .with(as("fabushi:book:manage")))
+                .andExpect(status().isOk());
+        verify(fabushiBookService).approve(1L);
+    }
+
+    /** 负例: 内容下架是治理码——发布者本人也不能下架(治理与创作分权, 需求 A4)。 */
+    @Test
+    void fabushiPostOffline_withCreateOnly_403() throws Exception {
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .put("/api/fabushi/posts/1/offline").accept(MediaType.APPLICATION_JSON)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"reason\":\"x\"}")
+                        .with(as("fabushi:create")))
+                .andExpect(status().isForbidden());
+        verifyNoInteractions(fabushiPostService);
+    }
+
+    @Test
+    void fabushiPostOffline_withContentManage_200() throws Exception {
+        org.mockito.Mockito.doNothing().when(fabushiPostService).offline(org.mockito.ArgumentMatchers.eq(1L), any());
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .put("/api/fabushi/posts/1/offline").accept(MediaType.APPLICATION_JSON)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"reason\":\"x\"}")
+                        .with(as("fabushi:content:manage")))
+                .andExpect(status().isOk());
+        verify(fabushiPostService).offline(org.mockito.ArgumentMatchers.eq(1L), any());
+    }
+
+    /** 已读标记=浏览行为, view 码即可(POST 但非创作)。 */
+    @Test
+    void fabushiMarkRead_withView_200() throws Exception {
+        org.mockito.Mockito.doNothing().when(fabushiPostService)
+                .markRead(org.mockito.ArgumentMatchers.eq(1L), any());
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .post("/api/fabushi/reads").accept(MediaType.APPLICATION_JSON)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"postId\":1}")
+                        .with(as("fabushi:view")))
+                .andExpect(status().isOk());
+        verify(fabushiPostService).markRead(org.mockito.ArgumentMatchers.eq(1L), any());
     }
 }

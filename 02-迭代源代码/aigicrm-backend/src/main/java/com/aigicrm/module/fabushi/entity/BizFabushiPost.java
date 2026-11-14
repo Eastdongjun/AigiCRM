@@ -42,4 +42,6 @@ public class BizFabushiPost {
     private Long commentCount;
     @TableField(exist = false)
     private Boolean readByMe;
+    @TableField(exist = false)
+    private Boolean likedByMe;
 }

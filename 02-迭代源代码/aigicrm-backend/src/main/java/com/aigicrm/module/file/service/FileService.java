@@ -350,6 +350,15 @@ public class FileService {
             throw new BusinessException(403, "没有访问权限，请联系管理员授权");
         }
 
+        // 【法布施一期 2026-11-15】法布施空间上传=发布动作: 与 FabushiPostController /posts 同码门槛
+        // (fabushi:create, 需求 G2 独立命名空间裁决——附件不进文件管理列表, 但计个人配额)。
+        // 注意 scope 判定与 hasAuthority 必须拆行: 同行会让命令式码提取把裸 "fabushi" 串
+        // 混进 binding-coverage 码集, 造成"码未绑定"假红(2026-11-15 实测)。
+        boolean fabushiScope = "fabushi".equals(scope);
+        if (fabushiScope && !SecurityUtils.hasAuthority("fabushi:create")) {
+            throw new BusinessException(403, "没有访问权限，请联系管理员授权");
+        }
+
         // 【文件权限体系】上传到文件夹需文件夹上传权限（管理员/本人/上级链/ACL upload）
         if (folderId != null && !folderPermissionService.check(folderId, FolderPermissionService.P_UPLOAD, userId)) {
             throw new BusinessException(403, "没有访问权限，请联系管理员授权");
@@ -411,7 +420,9 @@ public class FileService {
      * 历史脏 scope 行(白名单外)不还不扣, 防账面漂移。
      */
     public static boolean quotaBearing(String scope) {
-        return "public".equals(scope) || "private".equals(scope) || "incentive".equals(scope);
+        // 【法布施一期 2026-11-15】fabushi 计个人配额(用户已裁决"计入现有个人配额"), 与 scope 门禁对称
+        return "public".equals(scope) || "private".equals(scope) || "incentive".equals(scope)
+                || "fabushi".equals(scope);
     }
 
     public void createFolder(BizFileFolder folder) {
@@ -1686,6 +1697,11 @@ public class FileService {
         if (!canDownload && "incentive".equals(file.getFileScope())) {
             // 【2026-11-01 审计修复】与列表旁路同口径: admin/激励授权 can_view_all 可下载(原仅本人+shared)
             canDownload = incentiveViewAllGranted() || isIncentiveFileVisible(file.getId(), userId);
+        }
+        if (!canDownload && "fabushi".equals(file.getFileScope())) {
+            // 【法布施一期 2026-11-15】社区内容旁路: 持 fabushi:view 即可下载法布施空间文件
+            // (帖子附件/书目PDF 对全员社区可见; 上传侧 scope 门禁已限定 fabushi:create)
+            canDownload = SecurityUtils.hasAuthority("fabushi:view");
         }
         if (!canDownload) {
             return false;

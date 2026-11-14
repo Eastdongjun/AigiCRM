@@ -1,0 +1,79 @@
+package com.aigicrm.module.fabushi.controller;
+
+import com.aigicrm.common.Result;
+import com.aigicrm.module.fabushi.entity.BizFabushiComment;
+import com.aigicrm.module.fabushi.entity.BizFabushiPost;
+import com.aigicrm.module.fabushi.service.FabushiPostService;
+import com.aigicrm.security.SecurityUtils;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Map;
+
+/**
+ * 法布施内容端点(一期 2026-11-15): 浏览/详情/评论列表=view, 发布/评论/木鱼=create,
+ * 下架=content:manage, 已读=view(浏览行为)。
+ */
+@RestController
+@RequestMapping("/api/fabushi/posts")
+@RequiredArgsConstructor
+public class FabushiPostController {
+
+    private final FabushiPostService postService;
+
+    /** 内容分页(heart/recitation/znl, 全员社区流)。 */
+    @GetMapping
+    @PreAuthorize("hasAuthority('fabushi:view')")
+    public Result<com.baomidou.mybatisplus.extension.plugins.pagination.Page<BizFabushiPost>> page(
+            @RequestParam(required = false) String scopeType,
+            @RequestParam(required = false) Long bookId,
+            @RequestParam(defaultValue = "1") long current,
+            @RequestParam(defaultValue = "10") long size) {
+        return Result.ok(postService.page(scopeType, bookId, SecurityUtils.getCurrentUserId(), current, size));
+    }
+
+    /** 内容详情(帖+附件+互动计数)。 */
+    @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('fabushi:view')")
+    public Result<Map<String, Object>> detail(@PathVariable Long id) {
+        return Result.ok(postService.detail(id, SecurityUtils.getCurrentUserId()));
+    }
+
+    /** 发布(人人; scope_type 白名单校验在服务层)。 */
+    @PostMapping
+    @PreAuthorize("hasAuthority('fabushi:create')")
+    public Result<BizFabushiPost> create(@RequestBody BizFabushiPost post) {
+        return Result.ok(postService.create(post));
+    }
+
+    /** 下架(治理, 原因必填留痕)。 */
+    @PutMapping("/{id}/offline")
+    @PreAuthorize("hasAuthority('fabushi:content:manage')")
+    public Result<Void> offline(@PathVariable Long id, @RequestBody Map<String, String> body) {
+        postService.offline(id, body == null ? null : body.get("reason"));
+        return Result.ok();
+    }
+
+    /** 评论(文字; 二期扩 highlight/audio)。 */
+    @PostMapping("/{id}/comments")
+    @PreAuthorize("hasAuthority('fabushi:create')")
+    public Result<BizFabushiComment> addComment(@PathVariable Long id, @RequestBody BizFabushiComment comment) {
+        return Result.ok(postService.addComment(id, comment));
+    }
+
+    /** 评论列表。 */
+    @GetMapping("/{id}/comments")
+    @PreAuthorize("hasAuthority('fabushi:view')")
+    public Result<List<BizFabushiComment>> listComments(@PathVariable Long id) {
+        return Result.ok(postService.listComments(id));
+    }
+
+    /** 木鱼点赞 toggle(点赞=敲木鱼; 唯一键幂等)。 */
+    @PostMapping("/{id}/like")
+    @PreAuthorize("hasAuthority('fabushi:create')")
+    public Result<Map<String, Object>> toggleLike(@PathVariable Long id) {
+        return Result.ok(postService.toggleLike(id, SecurityUtils.getCurrentUserId()));
+    }
+}

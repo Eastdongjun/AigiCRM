@@ -1,0 +1,244 @@
+package com.aigicrm.module.fabushi.service;
+
+import com.aigicrm.common.BusinessException;
+import com.aigicrm.module.fabushi.entity.BizFabushiComment;
+import com.aigicrm.module.fabushi.entity.BizFabushiLike;
+import com.aigicrm.module.fabushi.entity.BizFabushiPost;
+import com.aigicrm.module.fabushi.entity.BizFabushiPostAttachment;
+import com.aigicrm.module.fabushi.entity.BizFabushiReadStatus;
+import com.aigicrm.module.fabushi.mapper.BizFabushiCommentMapper;
+import com.aigicrm.module.fabushi.mapper.BizFabushiLikeMapper;
+import com.aigicrm.module.fabushi.mapper.BizFabushiPostAttachmentMapper;
+import com.aigicrm.module.fabushi.mapper.BizFabushiPostMapper;
+import com.aigicrm.module.fabushi.mapper.BizFabushiReadStatusMapper;
+import com.aigicrm.module.system.entity.SysUser;
+import com.aigicrm.module.system.mapper.SysUserMapper;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+/**
+ * 法布施统一内容服务(一期 2026-11-15): 心得/诵读(文字版)/正能量 共用 fb_post 形态(需求 G4)。
+ * 附件(图/音/视)二期激活, 表与实体一期就绪; 互动(评论/木鱼/已读)一期全量。
+ */
+@Service
+@RequiredArgsConstructor
+public class FabushiPostService {
+
+    private final BizFabushiPostMapper postMapper;
+    private final BizFabushiCommentMapper commentMapper;
+    private final BizFabushiLikeMapper likeMapper;
+    private final BizFabushiReadStatusMapper readStatusMapper;
+    private final BizFabushiPostAttachmentMapper attachmentMapper;
+    private final SysUserMapper userMapper;
+    private final com.aigicrm.security.SecurityAuditService securityAuditService;
+
+    private static final Set<String> SCOPE_TYPES = Set.of("heart", "recitation", "znl");
+
+    /** 内容分页(fabushi:view 门): published 按时间倒序 + 联显/互动计数。 */
+    public Page<BizFabushiPost> page(String scopeType, Long bookId, Long viewerId, long current, long size) {
+        LambdaQueryWrapper<BizFabushiPost> qw = new LambdaQueryWrapper<BizFabushiPost>()
+                .eq(BizFabushiPost::getStatus, "published")
+                .eq(scopeType != null && !scopeType.isBlank(), BizFabushiPost::getScopeType, scopeType)
+                .eq(bookId != null, BizFabushiPost::getBookId, bookId)
+                .orderByDesc(BizFabushiPost::getCreatedAt);
+        Page<BizFabushiPost> page = postMapper.selectPage(new Page<>(current, size), qw);
+        fillInteractions(page.getRecords(), viewerId);
+        return page;
+    }
+
+    /** 内容详情(fabushi:view 门): 帖+附件+互动计数(无 per-id 范围判定需求: 社区内容全员可见)。 */
+    public Map<String, Object> detail(Long id, Long viewerId) {
+        BizFabushiPost post = postMapper.selectById(id);
+        if (post == null || !"published".equals(post.getStatus())) {
+            throw new BusinessException(404, "内容不存在或已下架");
+        }
+        fillInteractions(List.of(post), viewerId);
+        List<BizFabushiPostAttachment> attachments = attachmentMapper.selectList(
+                new LambdaQueryWrapper<BizFabushiPostAttachment>()
+                        .eq(BizFabushiPostAttachment::getPostId, id)
+                        .orderByAsc(BizFabushiPostAttachment::getSortOrder));
+        return Map.of(
+                "post", post,
+                "attachments", attachments,
+                "likeCount", post.getLikeCount() == null ? 0L : post.getLikeCount(),
+                "likedByMe", isLikedBy(id, viewerId));
+    }
+
+    /** 发布(fabushi:create 门): scope_type 白名单; 书目须为 approved(挂书内容)。 */
+    public BizFabushiPost create(BizFabushiPost post) {
+        com.aigicrm.security.SecurityUser user = com.aigicrm.security.SecurityUtils.getCurrentUser();
+        if (user == null) {
+            throw new BusinessException(401, "未登录");
+        }
+        if (post.getScopeType() == null || !SCOPE_TYPES.contains(post.getScopeType())) {
+            throw new BusinessException(400, "内容类型不合法");
+        }
+        if ((post.getContent() == null || post.getContent().isBlank())
+                && (post.getTitle() == null || post.getTitle().isBlank())) {
+            throw new BusinessException(400, "内容不能为空");
+        }
+        post.setId(null);
+        post.setUserId(user.getUserId());
+        post.setStatus("published");
+        postMapper.insert(post);
+        return post;
+    }
+
+    /** 下架(fabushi:content:manage 门; G3 留痕: 原因必填 + 审计切面 + PERMISSION_CHANGE 时间线)。 */
+    @Transactional
+    public void offline(Long id, String reason) {
+        if (reason == null || reason.isBlank()) {
+            throw new BusinessException(400, "下架原因不能为空");
+        }
+        BizFabushiPost post = postMapper.selectById(id);
+        if (post == null) {
+            throw new BusinessException(404, "内容不存在");
+        }
+        post.setStatus("offline");
+        post.setOfflineBy(com.aigicrm.security.SecurityUtils.getCurrentUserId());
+        post.setOfflineAt(LocalDateTime.now());
+        post.setOfflineReason(reason);
+        postMapper.updateById(post);
+        securityAuditService.permissionChange("fabushi_post_offline", "post:" + id);
+    }
+
+    /** 评论(fabushi:create 门): 帖须 published。 */
+    public BizFabushiComment addComment(Long postId, BizFabushiComment comment) {
+        BizFabushiPost post = postMapper.selectById(postId);
+        if (post == null || !"published".equals(post.getStatus())) {
+            throw new BusinessException(404, "内容不存在或已下架");
+        }
+        if (comment.getContent() == null || comment.getContent().isBlank()) {
+            throw new BusinessException(400, "评论内容不能为空");
+        }
+        com.aigicrm.security.SecurityUser user = com.aigicrm.security.SecurityUtils.getCurrentUser();
+        comment.setId(null);
+        comment.setPostId(postId);
+        comment.setUserId(user == null ? null : user.getUserId());
+        comment.setType("text");
+        comment.setStatus("published");
+        commentMapper.insert(comment);
+        return comment;
+    }
+
+    /** 评论列表(fabushi:view 门): published 按时间正序。 */
+    public List<BizFabushiComment> listComments(Long postId) {
+        List<BizFabushiComment> comments = commentMapper.selectList(new LambdaQueryWrapper<BizFabushiComment>()
+                .eq(BizFabushiComment::getPostId, postId)
+                .eq(BizFabushiComment::getStatus, "published")
+                .orderByAsc(BizFabushiComment::getCreatedAt));
+        if (!comments.isEmpty()) {
+            Set<Long> uids = comments.stream().map(BizFabushiComment::getUserId).collect(Collectors.toSet());
+            Map<Long, String> names = userMapper.selectBatchIds(uids).stream()
+                    .collect(Collectors.toMap(SysUser::getId, SysUser::getRealName, (a, b) -> a));
+            comments.forEach(c -> c.setUserName(names.get(c.getUserId())));
+        }
+        return comments;
+    }
+
+    /** 木鱼点赞 toggle(fabushi:create 门; 唯一键幂等: 存在即取消, 不存在即点赞)。 */
+    @Transactional
+    public Map<String, Object> toggleLike(Long postId, Long userId) {
+        BizFabushiPost post = postMapper.selectById(postId);
+        if (post == null || !"published".equals(post.getStatus())) {
+            throw new BusinessException(404, "内容不存在或已下架");
+        }
+        Long existing = likeMapper.selectCount(new LambdaQueryWrapper<BizFabushiLike>()
+                .eq(BizFabushiLike::getPostId, postId).eq(BizFabushiLike::getUserId, userId));
+        boolean liked;
+        if (existing > 0) {
+            likeMapper.delete(new LambdaQueryWrapper<BizFabushiLike>()
+                    .eq(BizFabushiLike::getPostId, postId).eq(BizFabushiLike::getUserId, userId));
+            liked = false;
+        } else {
+            BizFabushiLike like = new BizFabushiLike();
+            like.setPostId(postId);
+            like.setUserId(userId);
+            likeMapper.insert(like);
+            liked = true;
+        }
+        long total = likeMapper.selectCount(new LambdaQueryWrapper<BizFabushiLike>()
+                .eq(BizFabushiLike::getPostId, postId));
+        return Map.of("liked", liked, "likeCount", total);
+    }
+
+    /**
+     * 已读标记(fabushi:view 门; 浏览行为幂等)。
+     * 【2026-11-15 刻意偏离 IncentiveService.markRead 样板】激励样板用 JdbcTemplate 原生
+     * upsert——原生 SQL 不经租户拦截器, INSERT 漏 tenant_id 列(评审 R7 家族教训)。改走
+     * MP insert(拦截器自动补租户) + 唯一键防重(并发撞键捕获忽略=幂等), 语义等价且租户正确。
+     */
+    public void markRead(Long postId, Long userId) {
+        BizFabushiPost post = postMapper.selectById(postId);
+        if (post == null) {
+            throw new BusinessException(404, "内容不存在");
+        }
+        Long existing = readStatusMapper.selectCount(new LambdaQueryWrapper<BizFabushiReadStatus>()
+                .eq(BizFabushiReadStatus::getUserId, userId).eq(BizFabushiReadStatus::getPostId, postId));
+        if (existing > 0) {
+            // 重复浏览刷新 read_at(统计口径"今日已读人数"依赖当日时间戳)
+            BizFabushiReadStatus patch = new BizFabushiReadStatus();
+            patch.setReadAt(LocalDateTime.now());
+            readStatusMapper.update(patch, new LambdaQueryWrapper<BizFabushiReadStatus>()
+                    .eq(BizFabushiReadStatus::getUserId, userId).eq(BizFabushiReadStatus::getPostId, postId));
+            return;
+        }
+        try {
+            BizFabushiReadStatus rs = new BizFabushiReadStatus();
+            rs.setUserId(userId);
+            rs.setPostId(postId);
+            readStatusMapper.insert(rs);
+        } catch (org.springframework.dao.DuplicateKeyException e) {
+            // 并发浏览撞唯一键: 已被并发请求标记, 幂等忽略
+        }
+    }
+
+    /** 列表/详情互动联显: 发帖人名 + 木鱼数 + 本人点赞/已读标记。 */
+    private void fillInteractions(List<BizFabushiPost> posts, Long viewerId) {
+        if (posts.isEmpty()) {
+            return;
+        }
+        Set<Long> postIds = posts.stream().map(BizFabushiPost::getId).collect(Collectors.toSet());
+        Set<Long> userIds = posts.stream().map(BizFabushiPost::getUserId).collect(Collectors.toSet());
+        Map<Long, String> names = userMapper.selectBatchIds(userIds).stream()
+                .collect(Collectors.toMap(SysUser::getId, SysUser::getRealName, (a, b) -> a));
+
+        Map<Long, Long> likeCounts = likeMapper.selectList(new LambdaQueryWrapper<BizFabushiLike>()
+                        .in(BizFabushiLike::getPostId, postIds)).stream()
+                .collect(Collectors.groupingBy(BizFabushiLike::getPostId, Collectors.counting()));
+        Set<Long> myLiked = viewerId == null ? Collections.emptySet()
+                : likeMapper.selectList(new LambdaQueryWrapper<BizFabushiLike>()
+                        .eq(BizFabushiLike::getUserId, viewerId).in(BizFabushiLike::getPostId, postIds)).stream()
+                .map(BizFabushiLike::getPostId).collect(Collectors.toSet());
+        Set<Long> myRead = viewerId == null ? Collections.emptySet()
+                : readStatusMapper.selectList(new LambdaQueryWrapper<BizFabushiReadStatus>()
+                        .eq(BizFabushiReadStatus::getUserId, viewerId).in(BizFabushiReadStatus::getPostId, postIds)).stream()
+                .map(BizFabushiReadStatus::getPostId).collect(Collectors.toSet());
+        Map<Long, Long> commentCounts = commentMapper.selectList(new LambdaQueryWrapper<BizFabushiComment>()
+                        .eq(BizFabushiComment::getStatus, "published").in(BizFabushiComment::getPostId, postIds)).stream()
+                .collect(Collectors.groupingBy(BizFabushiComment::getPostId, Collectors.counting()));
+
+        for (BizFabushiPost p : posts) {
+            p.setUserName(names.get(p.getUserId()));
+            p.setLikeCount(likeCounts.getOrDefault(p.getId(), 0L));
+            p.setCommentCount(commentCounts.getOrDefault(p.getId(), 0L));
+            p.setReadByMe(myRead.contains(p.getId()));
+            p.setLikedByMe(myLiked.contains(p.getId()));
+        }
+    }
+
+    private boolean isLikedBy(Long postId, Long viewerId) {
+        return viewerId != null && likeMapper.selectCount(new LambdaQueryWrapper<BizFabushiLike>()
+                .eq(BizFabushiLike::getPostId, postId).eq(BizFabushiLike::getUserId, viewerId)) > 0;
+    }
+}
