@@ -84,7 +84,11 @@ TEST_M="$ROOT/aigicrm-backend/src/test/java/com/aigicrm/module/file/service/Fold
 grep -q 'new Slot("file", "manage"' "$BE/module/system/service/PermReconcileService.java" \
   && grep -q 'new Slot("file", "delete"' "$BE/module/system/service/PermReconcileService.java" \
   || fail "⑧ 对账 SLOTS 缺 file|manage / file|delete 槽(FILE-12)"
-pass "⑧ 复检二补强(null 锚兜底/生产码用例/matrixDeptSet 生产链钉/对账槽覆盖)"
+# 【FILE-13 P2 复检三】对账 ORG 通道: file manage/delete 必须有显式 ORG 锚槽行(与 matrixDeptSet 同源)
+grep -q 'new Slot("file", "manage", false, ScopeRequest.AnchorType.ORG)' "$BE/module/system/service/PermReconcileService.java" \
+  && grep -q 'new Slot("file", "delete", false, ScopeRequest.AnchorType.ORG)' "$BE/module/system/service/PermReconcileService.java" \
+  || fail "⑧ 对账槽缺 ORG 锚行(FILE-13, 否则 0 差异只覆盖 OWNER 通道)"
+pass "⑧ 复检二/三补强(null 锚兜底/生产码用例/matrixDeptSet 生产链钉/对账槽覆盖+ORG 锚行)"
 
 # ---- 负例自证: 构造违规内容必须被本契约抓出(防扫描器假绿) ----
 if [ "$NEG" = "1" ]; then

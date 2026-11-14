@@ -35,20 +35,31 @@ public class PermReconcileService {
     private final JdbcTemplate jdbc;
 
     /** 对账槽清单(【P1-10 修复 2026-11-13】全模块; withinGroup=消费走 WithinGroup 集团收口) */
+    /**
+     * 对账槽清单。anchor 字段【FILE-13 P2 2026-11-14】: 显式锚=该槽**生产消费方实际请求锚**
+     * (file manage/delete 的 ORG 行对齐 FolderPermissionService.matrixDeptSet 固定 ORG 的
+     * 文件夹矩阵通道; OWNER 行对齐 matrixSet 无夹文件/上传人维度), null=动态
+     * (customer 按 anchorOf 配置, 其余 OWNER)。同槽双行=同槽双消费锚各对一次,
+     * 防"对账 0 差异只覆盖 OWNER 通道"的验证盲区(FILE-07 的 ORG 通道回归对账抓不到)。
+     */
     private static final List<Slot> SLOTS = List.of(
-            new Slot("customer", "view", false),
-            new Slot("file", "view", false),
-            new Slot("file", "manage", false),   // 【FILE-12 P2 2026-11-14】锚点修复后 manage/delete 纳入对账面
-            new Slot("file", "delete", false),
-            new Slot("approval", "view", false),
-            new Slot("reminder", "view", false),
-            new Slot("sea", "view", false),
-            new Slot("incentive", "stats_view", false),
-            new Slot("task", "view", true),
-            new Slot("score", "view", true),
-            new Slot("system", "view", true));
+            new Slot("customer", "view", false, null),
+            new Slot("file", "view", false, null),
+            new Slot("file", "manage", false, ScopeRequest.AnchorType.ORG),
+            new Slot("file", "delete", false, ScopeRequest.AnchorType.ORG),
+            new Slot("file", "manage", false, ScopeRequest.AnchorType.OWNER),
+            new Slot("file", "delete", false, ScopeRequest.AnchorType.OWNER),
+            new Slot("approval", "view", false, null),
+            new Slot("reminder", "view", false, null),
+            new Slot("sea", "view", false, null),
+            new Slot("incentive", "stats_view", false, null),
+            new Slot("task", "view", true, null),
+            new Slot("score", "view", true, null),
+            new Slot("system", "view", true, null));
 
-    private record Slot(String module, String action, boolean withinGroup) {}
+    /** 包级可见: reconcileUser 是 public 方法, 参数类型不得是 private(测试需构造同款槽钉锚点同源) */
+    record Slot(String module, String action, boolean withinGroup,
+                ScopeRequest.AnchorType anchor) {}
 
     /** 抽样对账: N 个在职用户 × 全部 9 槽, 旧/新轨可见负责人集对比(P1-10: 不再只对 customer) */
     public Map<String, Object> reconcile(int sample, Long onlyUserId) {
@@ -86,15 +97,20 @@ public class PermReconcileService {
 
     /** 单用户单槽双轨对比 */
     public Map<String, Object> reconcileUser(SecurityUser su, Slot slot) {
+        // 【FILE-13 P2】对账锚=槽显式锚优先(ORG 行与生产矩阵消费方同源); null=动态
+        // (customer 按 anchorOf 配置, 其余 OWNER)——新旧两轨同锚, 防锚点不同出假差异
+        ScopeRequest.AnchorType slotAnchor = slot.anchor() != null
+                ? slot.anchor()
+                : ("customer".equals(slot.module())
+                        ? rolePermScopeService.anchorOf(su, slot.module(), slot.action())
+                        : ScopeRequest.AnchorType.OWNER);
         // 旧轨: customer 域锚点读 role_perm_scope 配置(P2-3 口径), 其余 OWNER; WithinGroup 槽走集团收口
         ScopeDecision oldD;
         ScopeRequest req = ScopeRequest.builder()
                 .user(su)
                 .module(slot.module())
                 .action(slot.action())
-                .anchor("customer".equals(slot.module())
-                        ? rolePermScopeService.anchorOf(su, slot.module(), slot.action())
-                        : ScopeRequest.AnchorType.OWNER)
+                .anchor(slotAnchor)
                 .build();
         oldD = legacyResolver.resolveScopeLegacy(req); // 【P1-6 三轮修复】强制旧轨(切 new 后 resolveScope 已是新轨, 直调会假 0 差异)
         if (slot.withinGroup() && oldD.isAll() && !hasAdminRole(su)) {
@@ -110,11 +126,7 @@ public class PermReconcileService {
             }
         }
         // 新轨(授予表; 绕过读开关显式对比; WithinGroup 槽用收口版)
-        // 【FILE-07 P0 修复 2026-11-14】对账锚点与旧轨 req 同源(customer=配置锚, 其余 OWNER),
-        // 否则同槽双轨因锚点不同出假差异(旧轨 OWNER 用户维 vs 新轨配置锚 ORG 部门维)。
-        ScopeRequest.AnchorType slotAnchor = "customer".equals(slot.module())
-                ? rolePermScopeService.anchorOf(su, slot.module(), slot.action())
-                : ScopeRequest.AnchorType.OWNER;
+        // 【FILE-07/13】对账锚点与旧轨 req 同源(槽显式锚/动态锚), 防双轨假差异。
         ScopeDecision newD = slot.withinGroup()
                 ? authorizationService.scopeWithinGroupForUser(su, codeOf(slot), slotAnchor)
                 : authorizationService.scopeForUser(su, codeOf(slot), slotAnchor);
@@ -126,6 +138,7 @@ public class PermReconcileService {
         row.put("userId", su.getUserId());
         row.put("username", su.getUsername());
         row.put("slot", slot.module() + ":" + slot.action());
+        row.put("anchor", String.valueOf(slotAnchor)); // 【FILE-13】同槽 OWNER/ORG 两行靠此区分
         row.put("oldAll", oldOwners == null);
         row.put("newAll", newOwners == null);
         row.put("oldSize", oldOwners == null ? "全量" : oldOwners.size());
