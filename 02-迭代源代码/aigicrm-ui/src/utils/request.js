@@ -46,6 +46,11 @@ request.interceptors.request.use(
 // 响应拦截器
 request.interceptors.response.use(
   response => {
+    // 【V2026.11.14.1 批量/版本下载】blob 响应直通: 走通用 res.code 判定会被 Blob 误杀(无 code 字段)
+    if (response.config?.responseType === 'blob') {
+      if (response.status !== 200) return Promise.reject(new Error('下载失败(' + response.status + ')'))
+      return response
+    }
     // 【2026-11-05 用户选 C"保持登录"】滑动续期: 后端在剩余寿命<半周期时回 X-New-Token, 静默换新
     const newToken = response.headers && (response.headers['x-new-token'] || response.headers['X-New-Token'])
     if (newToken) localStorage.setItem('token', newToken)

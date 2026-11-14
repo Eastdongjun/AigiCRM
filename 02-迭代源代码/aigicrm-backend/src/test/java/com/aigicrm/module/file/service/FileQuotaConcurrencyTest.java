@@ -59,6 +59,7 @@ class FileQuotaConcurrencyTest {
         };
         svc = new FileService(fileMapper, mock(BizFileFolderMapper.class), mock(BizFileShareMapper.class),
                 mock(com.aigicrm.module.file.mapper.BizFolderAclMapper.class),
+                mock(com.aigicrm.module.file.mapper.BizFileVersionMapper.class),
                 mock(com.aigicrm.module.incentive.mapper.BizIncentiveRecordMapper.class),
                 userMapper, provider, null /* ossConfig 本地模式不触 */, folderPermissionService,
                 mock(com.aigicrm.security.SecurityAuditService.class),

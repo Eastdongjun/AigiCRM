@@ -87,6 +87,21 @@ ALLOW = {
     'system/recycle.vue': (
         [("contentAvailable", "回收站文件内容查看: recycle:view 页面码兜底")],
         "回收站"),
+    'file/RecycleBinDialog.vue': (
+        [("doRestoreFile", "对话框内部动作: 上层回收站入口已按 file:delete 门禁+后端 @PreAuthorize 同码+归属闸门"),
+         ("doPurgeFile", "同上(彻底删除另经激励佐证守卫)"),
+         ("doRestoreFolder", "同上"),
+         ("doPurgeFolder", "同上"),
+         ("doBatchRestore", "同上"),
+         ("doBatchPurge", "同上")],
+        "文件回收站弹窗(V2026.11.14.1: 入口按钮已按码, 弹窗内逐条动作由后端归属闸门兜底)"),
+    'file/VersionHistoryDialog.vue': (
+        [("doDownload", "对话框内部动作: 历史版本入口已按 file:edit(canFileAction) 门禁, 后端 checkFile(download) 双门"),
+         ("doRollback", "同上(回滚后端=checkFile replace+佐证锁定)")],
+        "文件版本历史弹窗(V2026.11.14.1)"),
+    'file/FileTable.vue': (
+        [("doBatchDownload", "批量下载: 后端逐文件 checkFile(download) 校验, 无权限项自动剔除(不可先验的行级混合集合)")],
+        "文件批量操作栏(V2026.11.14.1: 批量删除已按 file:delete 门禁)"),
 }
 MP_ALLOW = {
     'approval/detail/index.wxml': (

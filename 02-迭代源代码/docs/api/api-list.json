@@ -1,6 +1,6 @@
 {
- "generated_at": "2026-11-13",
- "count": 229,
+ "generated_at": "2026-11-14",
+ "count": 242,
  "endpoints": [
   {
    "method": "POST",
@@ -387,6 +387,18 @@
    "handler": "forceSave"
   },
   {
+   "method": "POST",
+   "path": "/api/file/batch-delete",
+   "permission": "hasAuthority('file:delete')",
+   "handler": "batchDelete"
+  },
+  {
+   "method": "POST",
+   "path": "/api/file/batch-download",
+   "permission": "hasAuthority('file:view')",
+   "handler": "batchDownload"
+  },
+  {
    "method": "GET",
    "path": "/api/file/download-token",
    "permission": "登录即可",
@@ -483,6 +495,54 @@
    "handler": "reconcile"
   },
   {
+   "method": "POST",
+   "path": "/api/file/recycle/batch-purge",
+   "permission": "hasAuthority('file:delete')",
+   "handler": "batchPurge"
+  },
+  {
+   "method": "POST",
+   "path": "/api/file/recycle/batch-restore",
+   "permission": "hasAuthority('file:delete')",
+   "handler": "batchRestore"
+  },
+  {
+   "method": "GET",
+   "path": "/api/file/recycle/files",
+   "permission": "hasAuthority('file:delete')",
+   "handler": "myDeletedFiles"
+  },
+  {
+   "method": "POST",
+   "path": "/api/file/recycle/files/{id}/purge",
+   "permission": "hasAuthority('file:delete')",
+   "handler": "purgeFile"
+  },
+  {
+   "method": "POST",
+   "path": "/api/file/recycle/files/{id}/restore",
+   "permission": "hasAuthority('file:delete')",
+   "handler": "restoreFile"
+  },
+  {
+   "method": "GET",
+   "path": "/api/file/recycle/folders",
+   "permission": "hasAuthority('file:delete')",
+   "handler": "myDeletedFolders"
+  },
+  {
+   "method": "POST",
+   "path": "/api/file/recycle/folders/{id}/purge",
+   "permission": "hasAuthority('file:delete')",
+   "handler": "purgeFolder"
+  },
+  {
+   "method": "POST",
+   "path": "/api/file/recycle/folders/{id}/restore",
+   "permission": "hasAuthority('file:delete')",
+   "handler": "restoreFolder"
+  },
+  {
    "method": "GET",
    "path": "/api/file/shared-to-me",
    "permission": "hasAuthority('file:view')",
@@ -535,6 +595,24 @@
    "path": "/api/file/{id}/share",
    "permission": "hasAuthority('file:share')",
    "handler": "shareFile"
+  },
+  {
+   "method": "GET",
+   "path": "/api/file/{id}/versions",
+   "permission": "hasAuthority('file:view')",
+   "handler": "listVersions"
+  },
+  {
+   "method": "GET",
+   "path": "/api/file/{id}/versions/{versionNo}/download",
+   "permission": "hasAuthority('file:view')",
+   "handler": "downloadVersion"
+  },
+  {
+   "method": "POST",
+   "path": "/api/file/{id}/versions/{versionNo}/rollback",
+   "permission": "hasAuthority('file:edit')",
+   "handler": "rollbackToVersion"
   },
   {
    "method": "GET",

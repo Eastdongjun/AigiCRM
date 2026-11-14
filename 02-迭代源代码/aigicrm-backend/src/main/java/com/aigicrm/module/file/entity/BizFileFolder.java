@@ -19,6 +19,11 @@ public class BizFileFolder {
     private Integer sortOrder;
     private Integer downloadable;   // 新增：下载开关 1=允许 0=仅预览（默认1）
     private LocalDateTime createdAt;
+    /** 【V2026.11.14.1 回收站】软删三件套(@TableLogic=MP 全查询自动过滤已删夹, deleteById=UPDATE deleted=1) */
+    @TableLogic
+    private Integer deleted;
+    private LocalDateTime deletedAt;
+    private Long deletedBy;
 
     @TableField(exist = false)
     private List<BizFileFolder> children;

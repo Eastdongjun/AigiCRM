@@ -57,7 +57,10 @@ class FileServicePermissionTest {
     private final OssConfig ossConfig = mock(OssConfig.class);
     private final FolderPermissionService folderPermissionService = mock(FolderPermissionService.class);
     private final BizFolderAclMapper folderAclMapper = mock(BizFolderAclMapper.class);
+    private final com.aigicrm.module.file.mapper.BizFileVersionMapper fileVersionMapper =
+            mock(com.aigicrm.module.file.mapper.BizFileVersionMapper.class);
     private final FileService svc = new FileService(fileMapper, folderMapper, fileShareMapper, folderAclMapper,
+                fileVersionMapper,
             incentiveRecordMapper, userMapper, providerOf(ossClient), ossConfig, folderPermissionService,
             mock(com.aigicrm.security.SecurityAuditService.class),
             mock(org.springframework.jdbc.core.JdbcTemplate.class),
@@ -77,6 +80,8 @@ class FileServicePermissionTest {
         // 纯 mock 环境初始化 Lambda 缓存，使 LambdaQueryWrapper.getSqlSegment() 可用
         TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), BizFile.class);
         TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), BizFileShare.class);
+        // 【V2026.11.14.1】deleteFolder 软删的 LambdaUpdateWrapper 需要 BizFileFolder lambda 缓存
+        TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), BizFileFolder.class);
     }
 
     @AfterEach
@@ -761,8 +766,10 @@ class FileServicePermissionTest {
 
     @Test
     void deleteFolder_aclGranted_succeedsAndCascadesAclDeletion() {
-        // I-1 + M-1：ACL 授权角色删除成功（不再被遗留门槛拦截），
-        // 且同步删除该文件夹的 biz_folder_acl 记录（设计 §8 删除级联）
+        // I-1 + M-1：ACL 授权角色删除成功（不再被遗留门槛拦截）。
+        // 【V2026.11.14.1 翻案】删除改软删进回收站(用户拍板"删除→到回收站可恢复"):
+        // ACL 行**保留**(授权跟随夹生命周期——恢复即原授权生效; 彻底删除时才清,
+        // 见 RecycleService.hardDeleteFolder), 此处钉"软删 + ACL 不被清"。
         BizFileFolder folder = new BizFileFolder();
         folder.setId(100L);
         folder.setFolderType("private");
@@ -776,7 +783,7 @@ class FileServicePermissionTest {
             when(folderPermissionService.check(100L, FolderPermissionService.P_DELETE, 2L)).thenReturn(true);
             svc.deleteFolder(100L);
             verify(folderMapper).deleteById(100L);
-            verify(folderAclMapper).delete(any());
+            org.mockito.Mockito.verify(folderAclMapper, org.mockito.Mockito.never()).delete(any());
         }
     }
 
@@ -1328,13 +1335,19 @@ class FileServicePermissionTest {
                 assertTrue(java.nio.file.Files.exists(oldFile),
                         "afterCommit 前不得物理删除旧文件(否则回滚后文件不可恢复)");
                 assertTrue(java.nio.file.Files.exists(root.resolve(result.getOssKey())));
+                // 【V2026.11.14.1 翻案】旧字节不再物理删除——已归档 biz_file_version 供回滚:
+                // 无 afterCommit 删除回调注册 + 提交后旧文件仍在 + 归档行落库。
                 var syncs = org.springframework.transaction.support.TransactionSynchronizationManager
                         .getSynchronizations();
-                assertEquals(1, syncs.size(), "应恰好注册一个 afterCommit 删除回调");
+                assertEquals(0, syncs.size(), "版本归档后不得再注册旧字节删除回调");
 
-                // 模拟提交: 回调触发旧文件物理删除
+                // 模拟提交: 旧文件仍在(版本历史可回滚的前提)
                 syncs.forEach(org.springframework.transaction.support.TransactionSynchronization::afterCommit);
-                assertFalse(java.nio.file.Files.exists(oldFile), "提交后旧文件应被物理删除");
+                assertTrue(java.nio.file.Files.exists(oldFile), "提交后旧文件应保留(版本归档, 不再物理删除)");
+                ArgumentCaptor<com.aigicrm.module.file.entity.BizFileVersion> vcap =
+                        ArgumentCaptor.forClass(com.aigicrm.module.file.entity.BizFileVersion.class);
+                org.mockito.Mockito.verify(fileVersionMapper).insert(vcap.capture());
+                assertEquals("old.txt", vcap.getValue().getFileName(), "归档行=旧版本快照");
             }
         } finally {
             org.springframework.transaction.support.TransactionSynchronizationManager.clearSynchronization();
@@ -1400,14 +1413,18 @@ class FileServicePermissionTest {
             BizFile result = svc.replaceFile(9L, mf);
 
             verify(userMapper, times(2)).adjustStorageUsed(1L, 1L);
-            // 终态: 旧文件已删(无事务同步环境, afterCommit 退化为立即执行), 新文件在
-            assertFalse(java.nio.file.Files.exists(oldFile), "成功后旧文件应删除");
+            // 【V2026.11.14.1 翻案】终态: 旧文件保留(版本归档), 新文件在
+            assertTrue(java.nio.file.Files.exists(oldFile), "成功后旧文件应保留(版本历史)");
             assertTrue(java.nio.file.Files.exists(root.resolve(result.getOssKey())));
-            // 无孤儿: 目录内只有新文件一个条目
+            // 无孤儿: 目录内 = 旧文件 + 新文件 两个条目(归档保留语义)
             try (java.util.stream.Stream<java.nio.file.Path> dir =
                          java.nio.file.Files.list(oldFile.getParent())) {
-                assertEquals(1, dir.count(), "重试成功后目录内只应有新媒体, 无孤儿残留");
+                assertEquals(2, dir.count(), "重试成功后目录内应有旧(归档)+新两文件, 无其他孤儿残留");
             }
+            // 两次 replace(一次回滚一次成功)各先归档——单测 mock 层面 insert 调 2 次
+            // (第一次失败路径的归档行在真实事务下会随回滚消失, mock 不回滚故计入)
+            org.mockito.Mockito.verify(fileVersionMapper, org.mockito.Mockito.times(2))
+                    .insert(org.mockito.ArgumentMatchers.<com.aigicrm.module.file.entity.BizFileVersion>any());
         }
     }
 

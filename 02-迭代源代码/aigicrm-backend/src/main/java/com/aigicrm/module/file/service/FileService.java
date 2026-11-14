@@ -8,6 +8,7 @@ import com.aigicrm.common.BusinessException;
 import com.aigicrm.config.OssConfig;
 import com.aigicrm.module.file.entity.BizFile;
 import com.aigicrm.module.file.entity.BizFileFolder;
+import com.aigicrm.module.file.entity.BizFileVersion;
 import com.aigicrm.module.file.entity.BizFileShare;
 import com.aigicrm.module.file.entity.BizFolderAcl;
 import com.aigicrm.module.file.mapper.BizFileMapper;
@@ -71,6 +72,8 @@ public class FileService {
     private final BizFileFolderMapper folderMapper;
     private final BizFileShareMapper fileShareMapper;
     private final BizFolderAclMapper folderAclMapper;
+    /** 【V2026.11.14.1 版本历史】replace 归档/版本列表/回滚 */
+    private final com.aigicrm.module.file.mapper.BizFileVersionMapper fileVersionMapper;
     private final BizIncentiveRecordMapper incentiveRecordMapper;
     private final SysUserMapper userMapper;
     private final ObjectProvider<OSS> ossClientProvider;
@@ -489,9 +492,14 @@ public class FileService {
             throw new BusinessException("文件夹内还有子文件夹，请先清空后再删除");
         }
 
-        // 【文件权限体系 设计§8 删除级联】同步删除该文件夹的 ACL 记录（防孤儿）
-        folderAclMapper.delete(new LambdaQueryWrapper<BizFolderAcl>().eq(BizFolderAcl::getFolderId, folderId));
-
+        // 【V2026.11.14.1 回收站补全】夹删除改软删(此前物理删, 误删无救): @TableLogic 令
+        // deleteById=UPDATE deleted=1, MP 全查询自动过滤已删夹(树/列表/子夹计数零改动)。
+        // ACL 与类型授权行**保留**(授权跟随夹生命周期——恢复即原授权生效; 彻底删除时才清 ACL)。
+        // deleted_at/by 显式填(我的回收站归属口径), deleteById 只翻 deleted 标志。
+        folderMapper.update(null, new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<BizFileFolder>()
+                .eq(BizFileFolder::getId, folderId)
+                .set(BizFileFolder::getDeletedAt, java.time.LocalDateTime.now())
+                .set(BizFileFolder::getDeletedBy, SecurityUtils.getCurrentUserId()));
         folderMapper.deleteById(folderId);
     }
 
@@ -542,7 +550,11 @@ public class FileService {
         // 由保留期任务(FileRecycleCleanupTask)到期或管理员手动清空时再调 deleteStoredContent。
         // 逻辑删除 + 配额归还保持原语义(私有文件删除即归还配额, 恢复时重新占用)。
 
-        // 逻辑删除
+        // 逻辑删除(【V2026.11.14.1】先填删除人/时间——"我的回收站"归属口径, deleteById 只翻标志)
+        fileMapper.update(null, new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<BizFile>()
+                .eq(BizFile::getId, fileId)
+                .set(BizFile::getDeletedAt, LocalDateTime.now())
+                .set(BizFile::getDeletedBy, userId));
         int affected = fileMapper.deleteById(fileId);
         if (affected != 1) {
             // 并发/重复删除: 台账已不在活跃态, 不得二次归还配额; 幂等返回成功(前端不报错)
@@ -640,6 +652,20 @@ public class FileService {
             newKey = uploadStorage(newFile, scope, file.getUploaderId(), extOf(file.getFileName()));
             String oldKey = file.getOssKey();
             long oldSize = file.getFileSize() != null ? file.getFileSize() : 0L;
+            // 【V2026.11.14.1 版本历史】主行覆盖前先快照旧版本(旧 key/type/size/version):
+            // 归档行与主行更新同事务, 台账与归档原子一致; 旧字节不再物理删除(下方 deleteStorage 拔除)。
+            BizFileVersion archived = new BizFileVersion();
+            archived.setTenantId(1L);
+            archived.setFileId(fileId);
+            archived.setVersionNo(file.getVersion() == null ? 1 : file.getVersion());
+            archived.setOssKey(oldKey);
+            archived.setOssUrl(isLocal() ? "/api/file/download/" + oldKey
+                    : "https://" + ossConfig.getBucketName() + "." + ossConfig.getEndpoint() + "/" + oldKey);
+            archived.setFileSize(oldSize);
+            archived.setFileType(file.getFileType());
+            archived.setFileName(file.getFileName());
+            archived.setUploadedBy(userId);
+            fileVersionMapper.insert(archived);
             // ossUrl 与 upload 的 URL 方案一致：本地走 key 下载路由，OSS 走桶地址（保证替换后两种模式均可下载）
             String newOssUrl = isLocal()
                     ? "/api/file/download/" + newKey
@@ -663,10 +689,8 @@ public class FileService {
             if (quotaBearing(scope) && file.getUploaderId() != null) {
                 userMapper.adjustStorageUsed(file.getUploaderId(), newFile.getSize() - oldSize);
             }
-            // 【A7】旧文件物理删除必须等事务提交: 注册 afterCommit, 回滚路径不执行
-            // (无事务上下文时——如直连调用/单测——退化为立即清理, 与旧行为一致)
-            String oldKeyToDelete = oldKey;
-            runAfterCommit(() -> deleteStorage(oldKeyToDelete));
+            // 【V2026.11.14.1 版本历史】旧字节不再物理删除——已归档 biz_file_version, 供版本下载/回滚。
+            // 原 afterCommit deleteStorage(oldKey) 拔除; 旧对象生命周期归回收站保留期任务管理。
             return file;
         } catch (BusinessException e) {
             cleanupOrphanMedia(newKey);
@@ -838,6 +862,162 @@ public class FileService {
         } catch (Exception e) {
             log.warn("回收站文件内容写出失败 fileKey={}: {}", fileKey, e.getMessage());
             response.setStatus(500);
+        }
+    }
+
+    /** 存储对象字节写出到任意流(版本 zip 打包通道; 本地 Files.copy / OSS 流拷贝) */
+    private void writeStoredContentTo(String fileKey, java.io.OutputStream out) throws java.io.IOException {
+        if (isLocal()) {
+            Path path = Paths.get(uploadDir, fileKey);
+            if (!Files.exists(path)) throw new java.io.FileNotFoundException(fileKey);
+            Files.copy(path, out);
+        } else {
+            com.aliyun.oss.model.OSSObject obj = ossClient().getObject(ossConfig.getBucketName(), fileKey);
+            try (java.io.InputStream in = obj.getObjectContent()) {
+                in.transferTo(out);
+            } finally {
+                obj.close();
+            }
+        }
+    }
+
+    // ==================== 【V2026.11.14.1 版本历史】(用户拍板 2026-11-14) ====================
+
+    /** 版本列表(新→旧)。查看权限=checkFile view; 当前主行不在列表内(它就是"现行版") */
+    public List<BizFileVersion> listVersions(Long fileId) {
+        if (fileMapper.selectById(fileId) == null) throw new BusinessException("文件不存在");
+        Long userId = SecurityUtils.getCurrentUserId();
+        if (!folderPermissionService.checkFile(fileId, FolderPermissionService.P_VIEW, userId)) {
+            throw new BusinessException(403, "没有访问权限，请联系管理员授权");
+        }
+        return fileVersionMapper.listByFileId(fileId);
+    }
+
+    /** 版本内容下载(字节来自归档行, 与回收站详情下载同一存储通道) */
+    public void downloadVersion(Long fileId, Integer versionNo, jakarta.servlet.http.HttpServletResponse response) {
+        Long userId = SecurityUtils.getCurrentUserId();
+        if (!folderPermissionService.checkFile(fileId, FolderPermissionService.P_DOWNLOAD, userId)) {
+            throw new BusinessException(403, "没有访问权限，请联系管理员授权");
+        }
+        BizFileVersion v = fileVersionMapper.byVersionNo(fileId, versionNo);
+        if (v == null) throw new BusinessException("版本不存在");
+        if (!contentExists(v.getOssKey())) throw new BusinessException("该版本内容已过保留期清除");
+        writeStoredContent(v.getOssKey(),
+                v.getFileName() != null ? v.getFileName() : "version-" + versionNo, v.getFileType(), response);
+    }
+
+    /**
+     * 回滚到指定版本(用户拍板"文件版本历史加上"的回滚面): 当前主行内容**先归档**(回滚前的样子不丢),
+     * 再把目标版本内容写回主行(version+1, 配额差额原子调整)。佐证文件禁回滚(与 replace 同一锁定裁决)。
+     */
+    @org.springframework.transaction.annotation.Transactional
+    public BizFile rollbackToVersion(Long fileId, Integer versionNo) {
+        BizFile file = fileMapper.selectById(fileId);
+        if (file == null) throw new BusinessException("文件不存在");
+        Long userId = SecurityUtils.getCurrentUserId();
+        if (!folderPermissionService.checkFile(fileId, FolderPermissionService.P_REPLACE, userId)) {
+            throw new BusinessException(403, "没有访问权限，请联系管理员授权");
+        }
+        assertNotIncentiveEvidence(fileId);
+        BizFileVersion v = fileVersionMapper.byVersionNo(fileId, versionNo);
+        if (v == null) throw new BusinessException("版本不存在");
+        if (!contentExists(v.getOssKey())) throw new BusinessException("该版本内容已过保留期清除，无法回滚");
+        int curVersion = file.getVersion() == null ? 1 : file.getVersion();
+        // ① 回滚前的现行内容归档(数据不丢; 与 replace 归档同构)
+        BizFileVersion cur = new BizFileVersion();
+        cur.setTenantId(1L);
+        cur.setFileId(fileId);
+        cur.setVersionNo(curVersion);
+        cur.setOssKey(file.getOssKey());
+        cur.setOssUrl(file.getOssUrl());
+        cur.setFileSize(file.getFileSize());
+        cur.setFileType(file.getFileType());
+        cur.setFileName(file.getFileName());
+        cur.setUploadedBy(userId);
+        fileVersionMapper.insert(cur);
+        // ② 目标版本写回主行(存储对象沿用归档行的 key——它自归档起一直存活)
+        long oldSize = file.getFileSize() != null ? file.getFileSize() : 0L;
+        file.setOssKey(v.getOssKey());
+        file.setOssUrl(v.getOssUrl());
+        file.setFileSize(v.getFileSize());
+        file.setFileType(v.getFileType());
+        file.setVersion(curVersion + 1);
+        file.setReplaceBy(userId);
+        file.setReplacedAt(LocalDateTime.now());
+        fileMapper.updateById(file);
+        evictThumbnailCache(fileId);
+        if (quotaBearing(file.getFileScope()) && file.getUploaderId() != null) {
+            long newSize = v.getFileSize() != null ? v.getFileSize() : 0L;
+            userMapper.adjustStorageUsed(file.getUploaderId(), newSize - oldSize);
+        }
+        return file;
+    }
+
+    // ==================== 【V2026.11.14.1 批量操作】(用户拍板 2026-11-14) ====================
+
+    /**
+     * 批量删除: 逐条走 deleteFile(权限/佐证守卫/配额归还全部单条同链), 部分成功不回滚已成功项——
+     * 返回逐条结果 {id: "OK"|"失败原因"}, 前端逐行展示。激励佐证文件按单条守卫报 400 跳过。
+     */
+    public java.util.Map<Long, String> batchDeleteFiles(List<Long> fileIds) {
+        java.util.Map<Long, String> out = new java.util.LinkedHashMap<>();
+        for (Long id : fileIds == null ? List.<Long>of() : fileIds) {
+            try {
+                if (fileMapper.selectById(id) == null) {
+                    out.put(id, "文件不存在");
+                    continue;
+                }
+                deleteFile(id);
+                out.put(id, "OK");
+            } catch (Exception e) {
+                out.put(id, e.getMessage() == null ? "删除失败" : e.getMessage());
+            }
+        }
+        return out;
+    }
+
+    /**
+     * 批量下载(zip 流式打包): 逐个过 checkFile download 校验+内容存在性, 无权限/缺内容的静默剔除;
+     * 同名文件 zip 内自动加序号后缀。全被剔除 → 400。
+     */
+    public void batchDownload(List<Long> fileIds, jakarta.servlet.http.HttpServletResponse response) {
+        Long userId = SecurityUtils.getCurrentUserId();
+        List<BizFile> allowed = new ArrayList<>();
+        for (Long id : fileIds == null ? List.<Long>of() : fileIds) {
+            BizFile f = fileMapper.selectById(id);
+            if (f == null) continue;
+            if (!folderPermissionService.checkFile(id, FolderPermissionService.P_DOWNLOAD, userId)) continue;
+            if (!contentExists(f.getOssKey())) continue;
+            allowed.add(f);
+        }
+        if (allowed.isEmpty()) throw new BusinessException("无可下载文件（不存在或无下载权限）");
+        try {
+            response.setContentType("application/zip");
+            String zipName = "files-" + java.time.LocalDate.now() + ".zip";
+            String encoded = java.net.URLEncoder.encode(zipName, java.nio.charset.StandardCharsets.UTF_8).replace("+", "%20");
+            response.setHeader("Content-Disposition", "attachment; filename*=UTF-8''" + encoded);
+            java.util.Set<String> used = new java.util.HashSet<>();
+            try (java.util.zip.ZipOutputStream zos = new java.util.zip.ZipOutputStream(response.getOutputStream())) {
+                for (BizFile f : allowed) {
+                    String base = f.getFileName() == null || f.getFileName().isBlank()
+                            ? "file-" + f.getId() : f.getFileName();
+                    String unique = base;
+                    int i = 1;
+                    while (!used.add(unique)) {
+                        unique = base.replaceFirst("(\\.[^.]+)?$",
+                                base.matches(".*\\.[^.]+") ? "-" + i + "$1" : "-" + i);
+                        i++;
+                    }
+                    zos.putNextEntry(new java.util.zip.ZipEntry(unique));
+                    writeStoredContentTo(f.getOssKey(), zos);
+                    zos.closeEntry();
+                }
+            }
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.warn("批量下载打包失败: {}", e.getMessage());
+            throw new BusinessException("批量下载失败，请重试");
         }
     }
 

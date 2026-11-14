@@ -121,6 +121,45 @@ public class FileController {
         return Result.ok(fileService.replaceFile(id, file));
     }
 
+    // ==================== 【V2026.11.14.1 版本历史 + 批量操作】(用户拍板 2026-11-14) ====================
+
+    /** 版本列表(新→旧, 不含现行主行); 权限=checkFile view */
+    @PreAuthorize("hasAuthority('file:view')")
+    @GetMapping("/{id}/versions")
+    public Result<java.util.List<com.aigicrm.module.file.entity.BizFileVersion>> listVersions(@PathVariable Long id) {
+        return Result.ok(fileService.listVersions(id));
+    }
+
+    /** 版本内容下载; 权限=checkFile download */
+    @PreAuthorize("hasAuthority('file:view')")
+    @GetMapping("/{id}/versions/{versionNo}/download")
+    public void downloadVersion(@PathVariable Long id, @PathVariable Integer versionNo,
+                                jakarta.servlet.http.HttpServletResponse response) {
+        fileService.downloadVersion(id, versionNo, response);
+    }
+
+    /** 回滚到指定版本(当前内容先归档不丢); 权限=checkFile replace, 佐证文件禁回滚 */
+    @PreAuthorize("hasAuthority('file:edit')")
+    @PostMapping("/{id}/versions/{versionNo}/rollback")
+    public Result<BizFile> rollbackToVersion(@PathVariable Long id, @PathVariable Integer versionNo) {
+        return Result.ok(fileService.rollbackToVersion(id, versionNo));
+    }
+
+    /** 批量删除(ids[]): 逐条走单文件守卫链, 部分成功不回滚, 返回 {id:"OK"|"原因"} */
+    @PreAuthorize("hasAuthority('file:delete')")
+    @PostMapping("/batch-delete")
+    public Result<java.util.Map<Long, String>> batchDelete(@RequestBody Map<String, List<Long>> body) {
+        return Result.ok(fileService.batchDeleteFiles(body == null ? null : body.get("ids")));
+    }
+
+    /** 批量下载(zip 流式打包, 逐个过下载权限, 无权限项静默剔除) */
+    @PreAuthorize("hasAuthority('file:view')")
+    @PostMapping("/batch-download")
+    public void batchDownload(@RequestBody Map<String, List<Long>> body,
+                              jakarta.servlet.http.HttpServletResponse response) {
+        fileService.batchDownload(body == null ? null : body.get("ids"), response);
+    }
+
     /** 【2026-11-06 用户令"加一个可以修改文件名称的"】文件重命名（【文件权限 v2】细粒度动作 rename，checkFile(P_RENAME)） */
     @PreAuthorize("hasAuthority('file:edit')")
     @PutMapping("/{id}/rename")

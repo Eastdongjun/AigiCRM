@@ -46,6 +46,7 @@ class FilePublicDownloadMapperTest {
             mock(BizFileFolderMapper.class),
             mock(BizFileShareMapper.class),
             mock(BizFolderAclMapper.class),
+            mock(com.aigicrm.module.file.mapper.BizFileVersionMapper.class),
             mock(BizIncentiveRecordMapper.class),
             mock(SysUserMapper.class),
             providerOf(mock(OSS.class)),

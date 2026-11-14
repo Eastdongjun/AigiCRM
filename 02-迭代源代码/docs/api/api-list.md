@@ -1,10 +1,10 @@
 # AIGICRM API 清单(自动生成)
 
-> 生成时间: 2026-11-13 | 来源: 后端 controller 源码扫描
+> 生成时间: 2026-11-14 | 来源: 后端 controller 源码扫描
 > 本文件由 scripts/gen-api.py 自动生成,**禁止手改**;接口变更后重新运行。
 > 权限码与 docs/permission/permission-dict.md 对应。
 
-## 接口清单(229 个)
+## 接口清单(242 个)
 
 | 方法 | 路径 | 权限码 | 方法名 | 文件 |
 |---|---|---|---|---|
@@ -72,6 +72,8 @@
 | GET | `/api/draft/{draftType}` | `isAuthenticated()` | get | FormDraftController.java |
 | PUT | `/api/draft/{draftType}` | `isAuthenticated()` | save | FormDraftController.java |
 | PUT | `/api/draft/{draftType}/force` | `isAuthenticated()` | forceSave | FormDraftController.java |
+| POST | `/api/file/batch-delete` | `hasAuthority('file:delete')` | batchDelete | FileController.java |
+| POST | `/api/file/batch-download` | `hasAuthority('file:view')` | batchDownload | FileController.java |
 | GET | `/api/file/download-token` | `登录即可` | downloadToken | FileController.java |
 | GET | `/api/file/download/**` | `hasAuthority('file:view')` | download | FileController.java |
 | GET | `/api/file/download/public/**` | `匿名` | downloadPublic | FileController.java |
@@ -88,6 +90,14 @@
 | GET | `/api/file/folders/{id}/permissions` | `hasAuthority('file:view')` | permissions | FolderAclController.java |
 | GET | `/api/file/list` | `hasAuthority('file:view')` | pageFiles | FileController.java |
 | GET | `/api/file/reconciliation` | `hasAuthority('file:folder:manage')` | reconcile | FileReconciliationController.java |
+| POST | `/api/file/recycle/batch-purge` | `hasAuthority('file:delete')` | batchPurge | FileRecycleController.java |
+| POST | `/api/file/recycle/batch-restore` | `hasAuthority('file:delete')` | batchRestore | FileRecycleController.java |
+| GET | `/api/file/recycle/files` | `hasAuthority('file:delete')` | myDeletedFiles | FileRecycleController.java |
+| POST | `/api/file/recycle/files/{id}/purge` | `hasAuthority('file:delete')` | purgeFile | FileRecycleController.java |
+| POST | `/api/file/recycle/files/{id}/restore` | `hasAuthority('file:delete')` | restoreFile | FileRecycleController.java |
+| GET | `/api/file/recycle/folders` | `hasAuthority('file:delete')` | myDeletedFolders | FileRecycleController.java |
+| POST | `/api/file/recycle/folders/{id}/purge` | `hasAuthority('file:delete')` | purgeFolder | FileRecycleController.java |
+| POST | `/api/file/recycle/folders/{id}/restore` | `hasAuthority('file:delete')` | restoreFolder | FileRecycleController.java |
 | GET | `/api/file/shared-to-me` | `hasAuthority('file:view')` | sharedToMe | FileController.java |
 | GET | `/api/file/shared-to-me/count` | `hasAuthority('file:view')` | sharedToMeCount | FileController.java |
 | GET | `/api/file/storage` | `hasAuthority('file:view')` | getStorageInfo | FileController.java |
@@ -97,6 +107,9 @@
 | PUT | `/api/file/{id}/rename` | `hasAuthority('file:edit')` | renameFile | FileController.java |
 | POST | `/api/file/{id}/replace` | `hasAuthority('file:edit')` | replaceFile | FileController.java |
 | POST | `/api/file/{id}/share` | `hasAuthority('file:share')` | shareFile | FileController.java |
+| GET | `/api/file/{id}/versions` | `hasAuthority('file:view')` | listVersions | FileController.java |
+| GET | `/api/file/{id}/versions/{versionNo}/download` | `hasAuthority('file:view')` | downloadVersion | FileController.java |
+| POST | `/api/file/{id}/versions/{versionNo}/rollback` | `hasAuthority('file:edit')` | rollbackToVersion | FileController.java |
 | GET | `/api/incentive/categories` | `hasAuthority('incentive:view')` | getCategoryTree | IncentiveController.java |
 | POST | `/api/incentive/categories` | `hasAuthority('incentive:edit')` | createCategory | IncentiveController.java |
 | DELETE | `/api/incentive/categories/{id}` | `hasAuthority('incentive:edit')` | deleteCategory | IncentiveController.java |

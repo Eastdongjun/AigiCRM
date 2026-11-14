@@ -33,6 +33,8 @@
       </el-tooltip>
       <div class="st-actions">
         <el-input v-model="keyword" placeholder="搜索文件名/上传人/所在文件夹..." class="st-search" clearable prefix-icon="Search" @keyup.enter="searchFiles" />
+        <!-- 【V2026.11.14.1 回收站】入口: 普通用户恢复自己删除的文件/文件夹(码门禁 file:delete, 与回收站端点同码) -->
+        <el-button v-if="userStore.hasPermission('file:delete')" class="st-recycle" :icon="Delete" @click="openRecycleBin">回收站</el-button>
         <!-- 【2026-10-17 客户反馈】新建文件夹从左侧文件夹树底部移到顶部操作区(原位置不合适) -->
         <el-button v-if="canCreateFolder" class="st-folder-add" :icon="FolderAdd" @click="openCreateFolder">新建文件夹</el-button>
         <!-- 【2026-11-08 审计修复】公共+根目录+非管理员: 后端恒拒("公共根目录文件仅管理员可上传"),
@@ -87,27 +89,31 @@
     <CreateFolderDialog />
     <RenameFolderDialog />
     <ShareDialog />
+    <RecycleBinDialog ref="recycleBinRef" @restored="onRecycleRestored" />
     <FilePreview v-model:visible="previewVisible" :url="previewUrl" :type="previewType" :file-name="previewName" :file-size="previewSize" />
     <StorageApplyDialog />
   </div>
 </template>
 
 <script setup>
-import { provide, onMounted, computed } from 'vue'
-import { Upload, FolderAdd, Plus } from '@element-plus/icons-vue'
+import { provide, onMounted, computed, ref } from 'vue'
+import { Upload, FolderAdd, Plus, Delete } from '@element-plus/icons-vue'
 import { useFilePage, FilePageKey } from '@/composables/useFilePage'
+import { useUserStore } from '@/store/user'
 import FolderPanel from './FolderPanel.vue'
 import FileTable from './FileTable.vue'
 import UploadDialog from './UploadDialog.vue'
 import CreateFolderDialog from './CreateFolderDialog.vue'
 import RenameFolderDialog from './RenameFolderDialog.vue'
 import ShareDialog from './ShareDialog.vue'
+import RecycleBinDialog from './RecycleBinDialog.vue'
 import StorageApplyDialog from './StorageApplyDialog.vue'
 import FilePreview from '@/components/FilePreview.vue'
 
 // 共享上下文: 父级实例化一次并 provide,各面板/弹窗 inject
 const filePage = useFilePage()
 provide(FilePageKey, filePage)
+const userStore = useUserStore()
 
 const {
   activeTab, keyword, tabs, storageUsed, storageQuota, storageApplyInfo,
@@ -134,6 +140,15 @@ const usagePercent = computed(() => {
   if (used === null || !total) return null
   return Math.min(100, Math.round(used / total * 100))
 })
+
+// —— 【V2026.11.14.1 回收站】入口与恢复后刷新(树/列表/计数全量重拉) ——
+const recycleBinRef = ref(null)
+const openRecycleBin = () => recycleBinRef.value?.open()
+const onRecycleRestored = () => {
+  loadFolders()
+  loadFiles()
+  loadTabCounts()
+}
 
 onMounted(() => {
   loadFolders()
@@ -204,6 +219,12 @@ onMounted(() => {
   color: rgba(255, 255, 255, .85);
   border-color: rgba(255, 255, 255, .26);
 }
+/* 【V2026.11.14.1 回收站】三级描边样式(与新建文件夹同语言) */
+.st-recycle {
+  background: rgba(255, 255, 255, .12); color: #fff; font-weight: 600;
+  border: 1px solid rgba(255, 255, 255, .4);
+}
+.st-recycle:hover, .st-recycle:focus { background: rgba(255, 255, 255, .22); color: #fff }
 
 .section-box { background: #fff; border: 1px solid #e4e7ed; border-radius: var(--radius-md); padding: 14px 20px; flex-shrink: 0 }
 .section-box.table-box { flex: 1; padding: 0; display: flex; flex-direction: column; overflow: hidden }

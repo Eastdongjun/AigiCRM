@@ -1,8 +1,16 @@
 <template>
   <div class="file-list-panel">
+    <!-- 【V2026.11.14.1 批量操作】多选批量栏: 选中即显示 批量下载/批量删除 -->
+    <div class="batch-bar" v-if="selection.length">
+      <span class="batch-count">已选 {{ selection.length }} 项</span>
+      <el-button size="small" type="primary" plain :icon="Download" @click="doBatchDownload">批量下载</el-button>
+      <el-button v-if="userStore.hasPermission('file:delete')" size="small" type="danger" plain :icon="Delete" @click="doBatchDelete">批量删除</el-button>
+      <el-button size="small" link @click="clearSelection">取消选择</el-button>
+    </div>
     <!-- 【C12/D13 2026-10-08 二轮】列表请求期间 v-loading，与其他 18 处列表加载反馈对齐 -->
-    <el-table v-loading="filesLoading" :data="files" style="width: 100%" size="small"
-              :row-class-name="rowClassName" @row-click="onRowClick">
+    <el-table ref="tableRef" v-loading="filesLoading" :data="files" style="width: 100%" size="small"
+              :row-class-name="rowClassName" @row-click="onRowClick" @selection-change="s => selection = s">
+      <el-table-column type="selection" width="40" />
       <!-- 【2026-10-17 客户反馈】文件名必须看全: 去 show-overflow-tooltip 截断,列内自动换行(word-break) -->
       <el-table-column label="文件名称" min-width="220" class-name="name-col">
         <template #default="{ row }">
@@ -39,7 +47,7 @@
       <el-table-column label="更新时间" min-width="95" align="center">
         <template #default="{ row }">{{ (row.createdAt || '').substring(0, 10) }}</template>
       </el-table-column>
-      <el-table-column label="操作" min-width="100" align="center">
+      <el-table-column label="操作" min-width="110" align="center">
         <template #default="{ row }">
           <div class="action-icons">
             <el-tooltip content="打开" placement="top">
@@ -53,6 +61,10 @@
             </el-tooltip>
             <el-tooltip v-if="canFileAction(row, 'file:edit', 'edit', 'replace')" content="替换" placement="top">
               <el-icon class="act-icon" @click.stop="openReplaceFile(row)"><Refresh /></el-icon>
+            </el-tooltip>
+            <!-- 【V2026.11.14.1 版本历史】历史版本入口(查看/下载/回滚)——有历史版本或可替换权限者可见 -->
+            <el-tooltip v-if="canFileAction(row, 'file:edit', 'edit', 'replace')" content="历史版本" placement="top">
+              <el-icon class="act-icon" @click.stop="openVersionHistory(row)"><Clock /></el-icon>
             </el-tooltip>
             <!-- 【2026-11-08 PC 补文件改名入口】后端 PUT /file/{id}/rename（FileController file:edit +
                  checkFile(P_RENAME) 双门），显隐按"全局码 file:edit ∧ (夹内 edit ∨ 是我传的)"
@@ -85,6 +97,9 @@
 
     <!-- 替换文件隐藏选择器 -->
     <input ref="replaceFileInputRef" type="file" style="display:none" @change="handleReplaceChosen" />
+
+    <!-- 【V2026.11.14.1】版本历史弹窗 -->
+    <VersionHistoryDialog ref="versionDialogRef" @rolled-back="loadFiles" />
   </div>
 </template>
 
@@ -94,11 +109,13 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { getDownloadToken, refreshDownloadToken } from '@/utils/token'
 // 【D16】View 图标已由 main.js menuIconList 全局注册(app.component)，本地 import 冗余已删；模板 <View/> 仍可解析
 // （EditPen 同为 menuIconList 白名单成员，模板 <EditPen/> 直接解析）
-import { replaceFile, renameFile } from '@/api/file'
+import { replaceFile, renameFile, batchDeleteFiles, batchDownloadFiles } from '@/api/file'
 import { injectFilePage } from '@/composables/useFilePage'
 import { useUserStore } from '@/store/user'
 import { pageSizes } from '@/utils/pagination'
 import { previewKindOf } from '@/utils/media-type'
+import VersionHistoryDialog from './VersionHistoryDialog.vue'
+import { Download, Delete, Clock } from '@element-plus/icons-vue'
 
 const {
   files, fileTotal, filesLoading, query, activeTab, folderPerms, folderDownloadable,
@@ -192,6 +209,64 @@ const handleRenameFile = async (row) => {
 const openReplaceFile = (row) => {
   replaceFileTarget.value = row
   replaceFileInputRef.value?.click()
+}
+
+// ==================== 【V2026.11.14.1 批量操作 + 版本历史入口】(用户拍板 2026-11-14) ====================
+
+const selection = ref([])
+const tableRef = ref(null)
+const versionDialogRef = ref(null)
+
+const openVersionHistory = (row) => {
+  versionDialogRef.value?.open(row)
+}
+
+const clearSelection = () => {
+  tableRef.value?.clearSelection()
+  selection.value = []
+}
+
+const saveBlobDownload = (res, fallbackName) => {
+  const headers = res?.headers || {}
+  const cd = headers['content-disposition'] || headers['Content-Disposition'] || ''
+  const m = cd.match(/filename\*=UTF-8''([^;]+)/i)
+  let name = fallbackName
+  if (m) name = decodeURIComponent(m[1])
+  const url = URL.createObjectURL(new Blob([res?.data || res]))
+  const a = document.createElement('a')
+  a.href = url
+  a.download = name
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+const doBatchDownload = async () => {
+  const ids = selection.value.map(r => r.id)
+  if (!ids.length) return
+  const res = await batchDownloadFiles(ids)
+  saveBlobDownload(res, 'files.zip')
+  ElMessage.success(`已打包下载 ${ids.length} 个文件（无权限/缺内容的已自动跳过）`)
+}
+
+const doBatchDelete = async () => {
+  const ids = selection.value.map(r => r.id)
+  if (!ids.length) return
+  await ElMessageBox.confirm(
+    `删除选中的 ${ids.length} 个文件？删除后进入回收站，可在回收站恢复。`,
+    '批量删除', { type: 'warning', confirmButtonText: '删除' }
+  )
+  const res = await batchDeleteFiles(ids)
+  const results = res?.data || {}
+  const okCount = Object.values(results).filter(v => v === 'OK').length
+  const failLines = Object.entries(results).filter(([, v]) => v !== 'OK').map(([k, v]) => `文件 ${k}：${v}`)
+  if (failLines.length) {
+    ElMessageBox.alert(failLines.join('\n'), `已删除 ${okCount} 个，${failLines.length} 个失败`, { type: 'warning' })
+  } else {
+    ElMessage.success(`已删除 ${okCount} 个文件（进入回收站）`)
+  }
+  clearSelection()
+  loadFiles()
+  loadTabCounts()
 }
 
 const handleReplaceChosen = async (e) => {
@@ -303,4 +378,11 @@ const handleReplaceChosen = async (e) => {
 :deep(.row-click-preview) { cursor: pointer; }
 /* 【2026-11-08】文件名列缩略图(图片行): 40px 方块, 加载失败由模板 error 槽退化类型徽标 */
 .file-thumb { width: 40px; height: 40px; border-radius: 6px; flex: 0 0 40px; overflow: hidden; }
+/* 【V2026.11.14.1 批量操作】多选批量栏 */
+.batch-bar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px; margin-bottom: 4px;
+  background: #eef4ff; border-radius: 8px;
+}
+.batch-count { font-size: 13px; font-weight: 600; color: #1d4ed8 }
 </style>

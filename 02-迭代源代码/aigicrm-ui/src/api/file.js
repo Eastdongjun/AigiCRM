@@ -91,3 +91,63 @@ export function replaceFile(id, formData) {
 export function renameFile(id, fileName) {
   return request.put(`/file/${id}/rename`, { fileName })
 }
+
+// ==================== 【V2026.11.14.1 回收站/版本历史/批量操作】(用户拍板 2026-11-14) ====================
+
+// —— 我的回收站(FileRecycleController, file:delete 码) ——
+export function myRecycleFiles(params) {
+  return request.get('/file/recycle/files', { params })
+}
+
+export function myRecycleFolders(params) {
+  return request.get('/file/recycle/folders', { params })
+}
+
+export function restoreRecycleFile(id) {
+  return request.post(`/file/recycle/files/${id}/restore`)
+}
+
+export function purgeRecycleFile(id) {
+  return request.post(`/file/recycle/files/${id}/purge`)
+}
+
+export function restoreRecycleFolder(id) {
+  return request.post(`/file/recycle/folders/${id}/restore`)
+}
+
+export function purgeRecycleFolder(id) {
+  return request.post(`/file/recycle/folders/${id}/purge`)
+}
+
+export function batchRestoreRecycle(data) {
+  return request.post('/file/recycle/batch-restore', data)
+}
+
+export function batchPurgeRecycle(data) {
+  return request.post('/file/recycle/batch-purge', data)
+}
+
+// —— 版本历史 ——
+export function listFileVersions(id) {
+  return request.get(`/file/${id}/versions`)
+}
+
+// 版本内容下载(blob 流, 调用方 createObjectURL 触发保存)
+export function downloadFileVersion(id, versionNo) {
+  return request.get(`/file/${id}/versions/${versionNo}/download`, { responseType: 'blob' })
+}
+
+// 回滚到指定版本(当前内容先归档不丢)
+export function rollbackFileVersion(id, versionNo) {
+  return request.post(`/file/${id}/versions/${versionNo}/rollback`)
+}
+
+// —— 批量操作 ——
+export function batchDeleteFiles(ids) {
+  return request.post('/file/batch-delete', { ids })
+}
+
+// 批量下载(zip 流式打包, 逐个过下载权限, 无权限项静默剔除)
+export function batchDownloadFiles(ids) {
+  return request.post('/file/batch-download', { ids }, { responseType: 'blob' })
+}

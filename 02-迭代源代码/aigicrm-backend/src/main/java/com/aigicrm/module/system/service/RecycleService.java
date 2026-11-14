@@ -652,4 +652,124 @@ public class RecycleService {
 
     public record DeletedFileDetail(DeletedFileRow file, String fileType, LocalDateTime createdAt, String url) {
     }
+
+    // ==================== 【V2026.11.14.1 文件夹回收站 + 我的回收站】(用户拍板 2026-11-14) ====================
+
+    public record DeletedFolderRow(Long id, String folderName, String folderType, Long ownerId,
+                                   Long deletedBy, LocalDateTime deletedAt) {
+    }
+
+    private static final RowMapper<BizFileFolder> FOLDER_ROW_MAPPER = new BeanPropertyRowMapper<>(BizFileFolder.class);
+
+    /** 回收站归属查询(归属闸门用): 文件的删除人(未填=存量行 NULL, 仅 admin 可动; 不在回收站=null) */
+    public Long fileDeletedBy(Long id) {
+        List<Long> rows = jdbc.queryForList(
+                "SELECT deleted_by FROM biz_file WHERE id = ? AND deleted = 1", Long.class, id);
+        return rows.isEmpty() ? null : rows.get(0);
+    }
+
+    /** 回收站归属查询(归属闸门用): 夹的删除人(不在回收站=null) */
+    public Long folderDeletedBy(Long id) {
+        List<Long> rows = jdbc.queryForList(
+                "SELECT deleted_by FROM biz_file_folder WHERE id = ? AND deleted = 1", Long.class, id);
+        return rows.isEmpty() ? null : rows.get(0);
+    }
+
+    /** admin 全量夹回收站分页(与 deletedFiles 同口径; system/recycle 页用) */
+    public PageResult<DeletedFolderRow> deletedFolders(int current, int size, String keyword) {
+        int pageSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
+        int offset = (Math.max(current, 1) - 1) * pageSize;
+        String pattern = "%" + (keyword == null ? "" : keyword.trim()) + "%";
+        List<DeletedFolderRow> rows = jdbc.query(
+                "SELECT id, folder_name, folder_type, owner_id, deleted_by, deleted_at "
+                        + "FROM biz_file_folder WHERE deleted = 1 AND folder_name LIKE ? "
+                        + "ORDER BY deleted_at DESC LIMIT ?, ?",
+                (rs, i) -> new DeletedFolderRow(rs.getLong(1), rs.getString(2), rs.getString(3),
+                        rs.getLong(4), rs.getLong(5),
+                        rs.getTimestamp(6) == null ? null : rs.getTimestamp(6).toLocalDateTime()),
+                pattern, offset, pageSize);
+        long total = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM biz_file_folder WHERE deleted = 1 AND folder_name LIKE ?",
+                Long.class, pattern);
+        return new PageResult<>(rows, total);
+    }
+
+    private BizFileFolder lockDeletedFolder(Long id) {
+        List<BizFileFolder> rows = jdbc.query(
+                "SELECT * FROM biz_file_folder WHERE id = ? AND deleted = 1 FOR UPDATE", FOLDER_ROW_MAPPER, id);
+        return rows.isEmpty() ? null : rows.get(0);
+    }
+
+    /** 我的回收站·夹(非 admin 视角): 只列本人删除的(deleted_by 归属口径); admin 全量走 system/recycle 页 */
+    public PageResult<DeletedFolderRow> deletedFoldersBy(Long userId, int current, int size, String keyword) {
+        int pageSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
+        int offset = (Math.max(current, 1) - 1) * pageSize;
+        String pattern = "%" + (keyword == null ? "" : keyword.trim()) + "%";
+        List<DeletedFolderRow> rows = jdbc.query(
+                "SELECT id, folder_name, folder_type, owner_id, deleted_by, deleted_at "
+                        + "FROM biz_file_folder WHERE deleted = 1 AND deleted_by = ? "
+                        + "AND folder_name LIKE ? ORDER BY deleted_at DESC LIMIT ?, ?",
+                (rs, i) -> new DeletedFolderRow(rs.getLong(1), rs.getString(2), rs.getString(3),
+                        rs.getLong(4), rs.getLong(5),
+                        rs.getTimestamp(6) == null ? null : rs.getTimestamp(6).toLocalDateTime()),
+                userId, pattern, offset, pageSize);
+        long total = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM biz_file_folder WHERE deleted = 1 AND deleted_by = ? "
+                        + "AND folder_name LIKE ?", Long.class, userId, pattern);
+        return new PageResult<>(rows, total);
+    }
+
+    /** 恢复夹(锁内复核 deleted=1): 父夹已删/不存在 → 挂根(parentId=0)。空夹软删, 无文件级联问题 */
+    public String restoreFolder(Long id) {
+        BizFileFolder f = lockDeletedFolder(id);
+        if (f == null) throw new BusinessException("该文件夹不在回收站（可能已被恢复或已被彻底删除）");
+        Long parentId = f.getParentId();
+        if (parentId != null && parentId != 0) {
+            // MP @TableLogic: selectById 恒过滤已删父夹 → 非 null 即父夹在用
+            if (fileFolderMapper.selectById(parentId) == null) parentId = 0L;
+        }
+        int updated = jdbc.update(
+                "UPDATE biz_file_folder SET deleted = 0, deleted_at = NULL, deleted_by = NULL, parent_id = ? "
+                        + "WHERE id = ? AND deleted = 1",
+                parentId == null ? 0L : parentId, id);
+        if (updated == 0) throw new BusinessException("恢复失败（并发状态已变化），请刷新后重试");
+        return "文件夹「" + f.getFolderName() + "」已恢复";
+    }
+
+    /** 彻底删除夹(空夹软删, 无文件级联): 清 ACL 与逐夹定向授权行(授权随夹消亡)后删台账行 */
+    public String hardDeleteFolder(Long id) {
+        BizFileFolder f = lockDeletedFolder(id);
+        if (f == null) throw new BusinessException("该文件夹不在回收站（可能已被恢复或已被彻底删除）");
+        jdbc.update("DELETE FROM biz_folder_acl WHERE folder_id = ?", id);
+        jdbc.update("DELETE FROM biz_folder_type_default WHERE folder_id = ?", id);
+        int deleted = jdbc.update("DELETE FROM biz_file_folder WHERE id = ? AND deleted = 1", id);
+        if (deleted == 0) throw new BusinessException("彻底删除失败（并发状态已变化），请刷新后重试");
+        return "文件夹「" + f.getFolderName() + "」已彻底删除";
+    }
+
+    /** 我的回收站·文件(非 admin 视角): 只列本人删除的(deleted_by 归属口径; V2026.11.14.1 补列) */
+    public PageResult<DeletedFileRow> deletedFilesBy(Long userId, int current, int size, String keyword) {
+        int pageSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
+        int offset = (Math.max(current, 1) - 1) * pageSize;
+        String pattern = "%" + (keyword == null ? "" : keyword.trim()) + "%";
+        List<DeletedFileRow> rows = jdbc.query(
+                "SELECT f.id, f.file_name, f.file_size, f.file_scope, f.uploader_id, u.real_name, "
+                        + "f.folder_id, fo.folder_name, f.deleted_at "
+                        + "FROM biz_file f "
+                        + "LEFT JOIN sys_user u ON u.id = f.uploader_id "
+                        + "LEFT JOIN biz_file_folder fo ON fo.id = f.folder_id "
+                        + "WHERE f.deleted = 1 AND f.deleted_by = ? "
+                        + "AND (f.file_name LIKE ? OR f.oss_key LIKE ?) "
+                        + "ORDER BY f.deleted_at DESC LIMIT ?, ?",
+                (rs, i) -> new DeletedFileRow(rs.getLong(1), rs.getString(2), rs.getLong(3), rs.getString(4),
+                        rs.getLong(5), rs.getString(6), rs.getObject(7) == null ? null : rs.getLong(7),
+                        rs.getString(8),
+                        rs.getTimestamp(9) == null ? null : rs.getTimestamp(9).toLocalDateTime(), true),
+                userId, pattern, pattern, offset, pageSize);
+        long total = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM biz_file WHERE deleted = 1 AND deleted_by = ? "
+                        + "AND (file_name LIKE ? OR oss_key LIKE ?)",
+                Long.class, userId, pattern, pattern);
+        return new PageResult<>(rows, total);
+    }
 }
