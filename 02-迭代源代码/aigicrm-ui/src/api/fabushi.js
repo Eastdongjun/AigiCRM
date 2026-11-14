@@ -58,7 +58,7 @@ export function toggleFabushiLike(postId) {
 }
 
 export function markFabushiRead(postId) {
-  return request.post('/fabushi/reads', { postId })
+  return request.post('/fabushi/reads/mark', { postId })
 }
 
 export function getFabushiTeamStats() {

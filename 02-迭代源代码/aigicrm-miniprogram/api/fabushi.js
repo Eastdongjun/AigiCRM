@@ -30,7 +30,7 @@ function toggleFabushiLike(postId) {
 }
 
 function markFabushiRead(postId) {
-  return request({ url: '/api/fabushi/reads', method: 'POST', data: { postId } })
+  return request({ url: '/api/fabushi/reads/mark', method: 'POST', data: { postId } })
 }
 
 function getFabushiPersonalStats() {

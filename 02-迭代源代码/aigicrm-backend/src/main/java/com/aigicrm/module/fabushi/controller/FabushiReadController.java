@@ -20,8 +20,8 @@ public class FabushiReadController {
 
     private final FabushiPostService postService;
 
-    /** 标记已读(postId; 幂等, 重复标记刷新 read_at)。 */
-    @PostMapping
+    /** 标记已读(postId; 幂等, 重复标记刷新 read_at)。显式子路径(gen-api 扫描需要方法级路径值)。 */
+    @PostMapping("/mark")
     @PreAuthorize("hasAuthority('fabushi:view')")
     public Result<Void> markRead(@RequestBody Map<String, Long> body) {
         postService.markRead(body == null ? null : body.get("postId"), SecurityUtils.getCurrentUserId());

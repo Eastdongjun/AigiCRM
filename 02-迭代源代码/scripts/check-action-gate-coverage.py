@@ -47,6 +47,9 @@ ALLOW = {
         [("downloadTemplate", "对话框内部动作: 入口按钮已按 customer:import 门禁(TopBar)"),
          ("doImport", "同上")],
         "客户批量导入对话框"),
+    'fabushi/book.vue': (
+        [("doReject", "驳回确认弹窗footer按钮: 操作列入口行已按 fabushi:book:manage 门禁, 弹窗仅从入口可达+后端 book:manage 守卫兜底(照 approval 注记#1 取舍, 2026-11-15)")],
+        "法布施书目管理: 驳回弹窗确认步骤"),
     'customer/MainTable.vue': (
         [("hasActiveFilter", "清空筛选=视图操作")],
         "客户列表"),

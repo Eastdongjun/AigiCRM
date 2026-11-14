@@ -362,13 +362,16 @@ WHERE NOT EXISTS (SELECT 1 FROM `sys_menu` s WHERE s.`permission` = 'fabushi:act
 INSERT INTO `sys_menu` (`parent_id`, `menu_name`, `menu_type`, `path`, `component`, `permission`,
                         `icon`, `sort_order`, `visible`, `status`)
 SELECT p.id, '法布施书目审核', 3, '', '', 'fabushi:book:manage', '', 1, 1, 1
-FROM (SELECT id FROM sys_menu WHERE permission = 'fabushi:book:view' AND menu_type = 2 LIMIT 1) p
+-- 父锚用 path(页面行 path 唯一且先插): permission 码锚会让登记契约把"路由级消费码"当
+-- 未跟踪守卫拦下(book:view 只在 PC 路由 meta 消费, 无 @PreAuthorize, 不进在用码集)
+FROM (SELECT id FROM sys_menu WHERE path = '/fabushi/book' AND menu_type = 2 LIMIT 1) p
 WHERE NOT EXISTS (SELECT 1 FROM `sys_menu` s WHERE s.`permission` = 'fabushi:book:manage');
 
 INSERT INTO `sys_menu` (`parent_id`, `menu_name`, `menu_type`, `path`, `component`, `permission`,
                         `icon`, `sort_order`, `visible`, `status`)
 SELECT p.id, '法布施内容下架', 3, '', '', 'fabushi:content:manage', '', 1, 1, 1
-FROM (SELECT id FROM sys_menu WHERE permission = 'fabushi:content:view' AND menu_type = 2 LIMIT 1) p
+-- 父锚用 path(同上: 路由级消费码不进登记契约在用码集, permission 码锚会被未跟踪守卫拦下)
+FROM (SELECT id FROM sys_menu WHERE path = '/fabushi/content' AND menu_type = 2 LIMIT 1) p
 WHERE NOT EXISTS (SELECT 1 FROM `sys_menu` s WHERE s.`permission` = 'fabushi:content:manage');
 
 INSERT INTO `sys_menu` (`parent_id`, `menu_name`, `menu_type`, `path`, `component`, `permission`,

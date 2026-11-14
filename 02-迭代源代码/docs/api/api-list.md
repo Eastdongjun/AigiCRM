@@ -86,7 +86,7 @@
 | POST | `/api/fabushi/posts/{id}/comments` | `hasAuthority('fabushi:create')` | addComment | FabushiPostController.java |
 | POST | `/api/fabushi/posts/{id}/like` | `hasAuthority('fabushi:create')` | toggleLike | FabushiPostController.java |
 | PUT | `/api/fabushi/posts/{id}/offline` | `hasAuthority('fabushi:content:manage')` | offline | FabushiPostController.java |
-| POST | `/api/fabushi/reads` | `hasAuthority('fabushi:view')` | markRead | FabushiReadController.java |
+| POST | `/api/fabushi/reads/mark` | `hasAuthority('fabushi:view')` | markRead | FabushiReadController.java |
 | GET | `/api/fabushi/stats/personal` | `hasAuthority('fabushi:view')` | personal | FabushiStatsController.java |
 | GET | `/api/fabushi/stats/team` | `hasAuthority('fabushi:stats:view')` | team | FabushiStatsController.java |
 | POST | `/api/file/batch-delete` | `hasAuthority('file:delete')` | batchDelete | FileController.java |

@@ -1,5 +1,6 @@
 const { hasPermission, requireLogin } = require('../../../utils/auth')
 const { getFabushiPersonalStats } = require('../../../api/fabushi')
+const { showError } = require('../../../utils/feedback')
 
 // 【法布施一期 2026-11-15】MP 工作台: 书目/发布入口 + 个人统计卡
 Page({
@@ -28,6 +29,8 @@ Page({
   loadPersonal() {
     getFabushiPersonalStats().then((res) => {
       this.setData({ personal: (res && res.data) || {} })
+    }).catch((err) => {
+      showError(err, '个人统计加载失败')
     })
   },
 

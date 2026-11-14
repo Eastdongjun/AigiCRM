@@ -1,6 +1,7 @@
 const { hasPermission, requireLogin } = require('../../../../utils/auth')
 const { getFabushiBooks } = require('../../../../api/fabushi')
-const request = require('../../../../utils/request')
+const { getDictData } = require('../../../../api/system')
+const { showError } = require('../../../../utils/feedback')
 
 // 【法布施一期 2026-11-15】MP 书目列表: 分类条(字典)+搜索+分页; 提交入口走 create 门
 Page({
@@ -28,7 +29,7 @@ Page({
   },
 
   loadCategories() {
-    request({ url: '/api/system/dict/data/fabushi_category' }).then((res) => {
+    getDictData('fabushi_category').then((res) => {
       this.setData({ categories: (res && res.data) || [] })
     })
   },
@@ -51,7 +52,10 @@ Page({
         total: Number(data.total) || 0,
         loading: false
       })
-    }).catch(() => this.setData({ loading: false }))
+    }).catch((err) => {
+      this.setData({ loading: false })
+      showError(err, '书目加载失败')
+    })
   },
 
   onCategoryTap(e) {

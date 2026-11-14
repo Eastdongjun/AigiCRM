@@ -37,8 +37,10 @@
       <el-table-column label="操作" width="200" fixed="right">
         <template #default="{ row }">
           <template v-if="userStore.hasPermission('fabushi:book:manage')">
-            <el-button v-if="row.status === 'pending'" link type="primary" @click="doApprove(row)">通过</el-button>
-            <el-button v-if="row.status === 'pending'" link type="warning" @click="openReject(row)">驳回</el-button>
+            <el-button v-if="row.status === 'pending' && userStore.hasPermission('fabushi:book:manage')"
+                       link type="primary" @click="doApprove(row)">通过</el-button>
+            <el-button v-if="row.status === 'pending' && userStore.hasPermission('fabushi:book:manage')"
+                       link type="warning" @click="openReject(row)">驳回</el-button>
             <el-button v-if="row.status === 'approved'" link type="primary" @click="openPdf(row)">挂PDF</el-button>
             <el-button v-if="row.status === 'approved'" link type="danger" @click="doDisable(row)">停用</el-button>
           </template>

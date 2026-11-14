@@ -472,7 +472,7 @@
   },
   {
    "method": "POST",
-   "path": "/api/fabushi/reads",
+   "path": "/api/fabushi/reads/mark",
    "permission": "hasAuthority('fabushi:view')",
    "handler": "markRead"
   },
