@@ -236,14 +236,22 @@ public class FileService {
                 }
             } else if (visibleIds.isEmpty()) {
                 if ("private".equals(scope)) {
+                    // 【拍板 A 2026-11-14】私人无夹文件=本人 ∪ manager 链下属(上级可见下属, 链上其余人不可见)
+                    java.util.Set<Long> subs = folderPermissionService.subordinateUserIds(userId);
+                    java.util.List<Long> owners = new java.util.ArrayList<>(subs);
+                    owners.add(userId);
                     wrapper.and(w -> w.isNull(BizFile::getFolderId)
-                            .and(w2 -> w2.eq(BizFile::getUploaderId, userId)));
+                            .and(w2 -> w2.in(BizFile::getUploaderId, owners)));
                 } else {
                     wrapper.isNull(BizFile::getFolderId);
                 }
             } else if ("private".equals(scope)) {
+                // 【拍板 A 2026-11-14】私人无夹文件=本人 ∪ 下属(原仅本人); 私人夹内文件=夹 ∈ visibleIds(本人/上级链/ACL)
+                java.util.Set<Long> subs = folderPermissionService.subordinateUserIds(userId);
+                java.util.List<Long> owners = new java.util.ArrayList<>(subs);
+                owners.add(userId);
                 wrapper.and(w -> w.isNull(BizFile::getFolderId)
-                        .and(w2 -> w2.eq(BizFile::getUploaderId, userId))
+                        .and(w2 -> w2.in(BizFile::getUploaderId, owners))
                         .or().in(BizFile::getFolderId, visibleIds));
             } else {
                 wrapper.and(w -> w.isNull(BizFile::getFolderId)
@@ -251,24 +259,44 @@ public class FileService {
             }
             // 【2026-11-10 终版二段·拍板①②】逐文件过滤(夹可见≠夹内全部文件可见):
             // 夹内文件跟夹走(夹.org ∈ view 可见部门集) ∨ 无夹文件跟上传人(view 可见用户集) ∨ 本人 ∨ FILE view 定向授权(整夹覆盖)
+            // 【拍板 A 2026-11-14 私人空间收口】private scope 不再走部门/用户矩阵——
+            // 夹内文件=夹 ∈ visibleIds(本人/上级链/ACL) ∨ FILE view 授权整夹; 无夹=上传人 ∈ 本人∪下属。
+            // 原逻辑把"夹.org ∈ deptSet"的同部门他人私人夹文件捞进列表(与树口径打架), 本批拔除。
             if (!SecurityUtils.isAdmin()) {
-                java.util.Set<Long> deptSet = folderPermissionService.matrixDeptSet(userId, "view");
-                java.util.Set<Long> upSet = folderPermissionService.matrixSet(userId, "view");
-                java.util.Set<Long> orgAllowed = new java.util.HashSet<>();
-                java.util.Set<Long> grantCovered = new java.util.HashSet<>();
-                for (BizFileFolder f : folders) {
-                    if (deptSet == null || (f.getOrgId() != null && deptSet.contains(f.getOrgId()))) orgAllowed.add(f.getId());
-                    if (folderPermissionService.grantCoversFolderFiles(f.getFolderType(), f.getId(), f.getOrgId(), userId)) {
-                        grantCovered.add(f.getId());
+                if ("private".equals(scope)) {
+                    java.util.Set<Long> subs = folderPermissionService.subordinateUserIds(userId);
+                    java.util.List<Long> owners = new java.util.ArrayList<>(subs);
+                    owners.add(userId);
+                    java.util.Set<Long> grantCovered = new java.util.HashSet<>();
+                    for (BizFileFolder f : folders) {
+                        if (folderPermissionService.grantCoversFolderFiles(f.getFolderType(), f.getId(), f.getOrgId(), userId)) {
+                            grantCovered.add(f.getId());
+                        }
                     }
-                }
-                if (upSet != null || !orgAllowed.isEmpty() || !grantCovered.isEmpty()) {
                     wrapper.and(w -> {
-                        w.eq(BizFile::getUploaderId, userId);
-                        if (!orgAllowed.isEmpty()) w.or().in(BizFile::getFolderId, orgAllowed);
-                        if (upSet != null && !upSet.isEmpty()) w.or().in(BizFile::getUploaderId, upSet);
+                        w.in(BizFile::getUploaderId, owners);
                         if (!grantCovered.isEmpty()) w.or().in(BizFile::getFolderId, grantCovered);
+                        if (!visibleIds.isEmpty()) w.or().in(BizFile::getFolderId, visibleIds);
                     });
+                } else {
+                    java.util.Set<Long> deptSet = folderPermissionService.matrixDeptSet(userId, "view");
+                    java.util.Set<Long> upSet = folderPermissionService.matrixSet(userId, "view");
+                    java.util.Set<Long> orgAllowed = new java.util.HashSet<>();
+                    java.util.Set<Long> grantCovered = new java.util.HashSet<>();
+                    for (BizFileFolder f : folders) {
+                        if (deptSet == null || (f.getOrgId() != null && deptSet.contains(f.getOrgId()))) orgAllowed.add(f.getId());
+                        if (folderPermissionService.grantCoversFolderFiles(f.getFolderType(), f.getId(), f.getOrgId(), userId)) {
+                            grantCovered.add(f.getId());
+                        }
+                    }
+                    if (upSet != null || !orgAllowed.isEmpty() || !grantCovered.isEmpty()) {
+                        wrapper.and(w -> {
+                            w.eq(BizFile::getUploaderId, userId);
+                            if (!orgAllowed.isEmpty()) w.or().in(BizFile::getFolderId, orgAllowed);
+                            if (upSet != null && !upSet.isEmpty()) w.or().in(BizFile::getUploaderId, upSet);
+                            if (!grantCovered.isEmpty()) w.or().in(BizFile::getFolderId, grantCovered);
+                        });
+                    }
                 }
             }
         }

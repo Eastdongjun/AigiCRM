@@ -81,7 +81,11 @@ public class FolderPermissionService {
         if (Objects.equals(folder.getOwnerId(), userId)) return true;
         if (isManagerChain(userId, folder.getOwnerId())) return true;
         if (grantGranted(ctxObjectTypeOf(action), folder.getFolderType(), folder.getId(), folder.getOrgId(), folder.getOwnerId(), action, userId)) return true;
-        // 【拍板②文件跟夹走】矩阵通道锚定夹归属组织(夹.org ∈ 我的可见部门集), 不再按创建人
+        // 【拍板 A 2026-11-14 私人空间收口】私人夹不走组织矩阵——仅本人/上级链/例外授权
+        // (ACL+类型授权, 均在其前 return true)。同部门普通同事不得因 dept 档看到他人私人夹
+        // (FILE-08 P1 用户拍板: "普通同事不应该看到别人私人夹的文件")。
+        if ("private".equals(folder.getFolderType())) return false;
+        // 【拍板②】矩阵通道锚定夹归属组织(夹.org ∈ 我的可见部门集), 不再按创建人
         return deptVisible(folder.getOrgId(), userId, matrixActionOf(action));
     }
 
@@ -106,9 +110,14 @@ public class FolderPermissionService {
         // 空间锚后类型授权不跨空间(生产实测无夹文件 fileScope 无 NULL: incentive 2553/public 2)。
         if (folderType == null && file.getFileScope() != null) folderType = file.getFileScope();
         if (grantGranted(OBJ_FILE, folderType, folderRef, file.getOrgId(), file.getUploaderId(), action, userId)) return true;
-        // 【拍板②】夹内文件跟夹走(夹.org ∈ 可见部门集); 无夹文件(激励附件/私人无夹)跟上传人(OWNER 锚)
-        if (ref != null) return deptVisible(ref.getOrgId(), userId, matrixActionOf(action));
+        // 【拍板 A 2026-11-14 私人空间收口】私人文件不走组织矩阵——仅本人/上级链/例外授权(已在前)。
+        // 有夹跟夹(夹=private); 无夹跟空间锚(fileScope=private)。同部门普通同事不得因 dept 档
+        // 看到他人私人夹内文件/他人无夹私人文件。
+        if (ref != null && "private".equals(ref.getFolderType())) return false;
         // 【2026-11-10 三层定型】无夹文件按 fileScope 定型(激励附件只吃 incentive 类型授权, 公共/私人授权不再误盖)
+        if (ref == null && "private".equals(file.getFileScope())) return false;
+        // 【拍板②】夹内文件跟夹走(夹.org ∈ 可见部门集); 无夹文件(激励附件/公共无夹)跟上传人(OWNER 锚)
+        if (ref != null) return deptVisible(ref.getOrgId(), userId, matrixActionOf(action));
         Long uploader = file.getUploaderId();
         return uploader != null && matrixVisible(uploader, userId, matrixActionOf(action));
     }
@@ -124,9 +133,30 @@ public class FolderPermissionService {
         return userId != null && leaderOrgId(userId) != null;
     }
 
+    /**
+     * 【拍板 A 2026-11-14 私人空间收口】manager 链正查: userId 的全部下属(逐层 BFS, MAX_HOP 层封顶)。
+     * 私人无夹文件列表用——私人=仅本人/上级链/例外授权, 上级查列表需要"哪些下属的私人文件对我可见"。
+     * isManagerChain 是逐用户反向爬链(判定"我是否他的上级"), 本方法是给定上级一次取全量下属(列表 SQL IN 用)。
+     */
+    public Set<Long> subordinateUserIds(Long userId) {
+        if (userId == null) return Set.of();
+        Set<Long> out = new HashSet<>();
+        List<Long> current = List.of(userId);
+        for (int depth = 0; depth < MAX_HOP && !current.isEmpty(); depth++) {
+            List<SysUser> subs = userMapper.selectList(
+                    new LambdaQueryWrapper<SysUser>().in(SysUser::getManagerId, current));
+            if (subs == null || subs.isEmpty()) break;
+            List<Long> next = new ArrayList<>();
+            for (SysUser s : subs) {
+                if (s.getId() != null && out.add(s.getId())) next.add(s.getId());
+            }
+            current = next;
+        }
+        return out;
+    }
+
     /** 用户担任负责人的最高组织节点 id(公共夹 org 快照用; 未任负责人=null) */
-    public Long leaderOrgId(Long userId) {
-        List<SysDept> led = deptMapper.selectList(
+    public Long leaderOrgId(Long userId) {        List<SysDept> led = deptMapper.selectList(
                 new LambdaQueryWrapper<SysDept>().eq(SysDept::getLeaderId, userId));
         if (led == null || led.isEmpty()) return null;
         // 最高=祖先链最短: 逐节点算深度取最浅
@@ -301,11 +331,16 @@ public class FolderPermissionService {
             }
             BizFileFolder ref = file.getFolderId() != null ? refCache.get(file.getFolderId()) : null;
             String anchorType = ref != null ? ref.getFolderType() : file.getFileScope(); // 无夹=空间锚(修4 同口径)
+            boolean privateScope = "private".equals(anchorType); // 【拍板 A】私人空间不进矩阵(仅授权行)
             List<String> perms = new ArrayList<>();
             for (String p : FILE_ROW_ACTIONS) {
                 // 矩阵档位集按动作缓存一次(部门集=有夹 org 锚 / 人员集=无夹 uploader 锚, 分键)
                 boolean hit;
-                if (ref != null) {
+                if (privateScope) {
+                    // 【拍板 A 2026-11-14】私人文件按钮=仅本人/上级链(上方已全动作)+例外授权行, 部门/用户矩阵不参与
+                    hit = grantHitIn(grants, OBJ_FILE, anchorType, ref != null ? ref.getId() : null,
+                            ref != null ? ref.getOrgId() : file.getOrgId(), uploader, p, userId);
+                } else if (ref != null) {
                     Set<Long> depts = matrixCache.computeIfAbsent("org:" + matrixActionOf(p), k -> matrixDeptSet(userId, matrixActionOf(p)));
                     hit = grantHitIn(grants, OBJ_FILE, anchorType, ref.getId(), ref.getOrgId(), ref.getOwnerId(), p, userId)
                             || depts == null || (ref.getOrgId() != null && depts.contains(ref.getOrgId()));
@@ -342,7 +377,10 @@ public class FolderPermissionService {
             // 永不命中: 矩阵勾了"删除/改名"、checkFile 实际放行, 双端按钮却不出现(视图与判定脱节)。
             // 该循环对授权行一律按 OBJ_FILE 匹配; ctxObjectTypeOf 保留给夹自身动作入口(check 的夹上下文)。
             for (String p : List.of(P_VIEW, P_UPLOAD, P_DOWNLOAD, P_RENAME, P_REPLACE, P_SHARE, P_DELETE)) {
-                Set<Long> depts = matrixCache.computeIfAbsent(matrixActionOf(p), ma -> matrixDeptSet(userId, ma));
+                // 【拍板 A 2026-11-14】私人夹按钮视图跳过部门矩阵(仅授权行)——同部门同事不得亮他人私人夹按钮;
+                // 树可见性(visibleFolderIds 经 permsFor)随之收口, 树/列表/按钮三方同口径。
+                Set<Long> depts = "private".equals(folder.getFolderType())
+                        ? Set.of() : matrixCache.computeIfAbsent(matrixActionOf(p), ma -> matrixDeptSet(userId, ma));
                 // 【2026-11-10 C区验收修复】null=全部(all档)放行, 对齐 FileService#255; 原写法致全员可看档在批量夹判定恒失效
                 if ((depts == null || (folder.getOrgId() != null && depts.contains(folder.getOrgId())))
                         || grantHitIn(grants, OBJ_FILE, folder.getFolderType(), folder.getId(), folder.getOrgId(), folder.getOwnerId(), p, userId)) {
