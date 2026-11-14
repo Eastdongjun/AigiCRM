@@ -477,7 +477,7 @@ class PermissionBehaviorMatrixTest {
         org.mockito.Mockito.doNothing().when(fabushiPostService)
                 .markRead(org.mockito.ArgumentMatchers.eq(1L), any());
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
-                        .post("/api/fabushi/reads").accept(MediaType.APPLICATION_JSON)
+                        .post("/api/fabushi/reads/mark").accept(MediaType.APPLICATION_JSON)
                         .contentType(MediaType.APPLICATION_JSON).content("{\"postId\":1}")
                         .with(as("fabushi:view")))
                 .andExpect(status().isOk());
