@@ -419,14 +419,14 @@ class PermissionBehaviorMatrixTest {
 
     @Test
     void fabushiBookSubmit_withCreate_200() throws Exception {
-        org.mockito.Mockito.when(fabushiBookService.submit(any()))
-                .thenReturn(new com.aigicrm.module.fabushi.entity.BizFabushiBook());
+        org.mockito.Mockito.when(fabushiBookService.submitData(any()))
+                .thenReturn(java.util.Collections.emptyMap());
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
                         .post("/api/fabushi/books").accept(MediaType.APPLICATION_JSON)
                         .contentType(MediaType.APPLICATION_JSON).content("{\"title\":\"x\"}")
                         .with(as("fabushi:create")))
                 .andExpect(status().isOk());
-        verify(fabushiBookService).submit(any());
+        verify(fabushiBookService).submitData(any());
     }
 
     /** 负例: 审核是 book:manage 专用——持 create 不能审(发布/治理分权)。 */

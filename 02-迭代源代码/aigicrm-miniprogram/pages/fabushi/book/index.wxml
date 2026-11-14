@@ -1,0 +1,24 @@
+<scroll-view class="cat-bar" scroll-x>
+  <view class="cat-chip {{activeCategory === '' ? 'active' : ''}}" data-code="" bindtap="onCategoryTap">全部</view>
+  <view class="cat-chip {{activeCategory === item.dictValue ? 'active' : ''}}"
+        wx:for="{{categories}}" wx:key="dictValue"
+        data-code="{{item.dictValue}}" bindtap="onCategoryTap">{{item.dictLabel}}</view>
+</scroll-view>
+
+<view class="search-bar">
+  <input class="search-input" placeholder="搜书名" value="{{keyword}}" bindinput="onKeywordInput" confirm-type="search" bindconfirm="onSearch" />
+  <view class="search-btn" bindtap="onSearch">搜索</view>
+</view>
+
+<view class="book-card" wx:for="{{books}}" wx:key="id">
+  <view class="book-title">{{item.title}}</view>
+  <view class="book-meta">
+    <text wx:if="{{item.categoryName}}">{{item.categoryName}}</text>
+    <text wx:if="{{item.author}}"> · {{item.author}}</text>
+    <text wx:if="{{item.pages}}"> · {{item.pages}}页</text>
+    <text wx:if="{{item.pdfFileId}}" class="book-pdf"> · 📱电子书</text>
+  </view>
+</view>
+
+<view class="empty" wx:if="{{!loading && books.length === 0}}">暂无书目</view>
+<view class="loading" wx:if="{{loading}}">加载中…</view>

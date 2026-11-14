@@ -1,8 +1,6 @@
 package com.aigicrm.module.fabushi.controller;
 
 import com.aigicrm.common.Result;
-import com.aigicrm.module.fabushi.entity.BizFabushiComment;
-import com.aigicrm.module.fabushi.entity.BizFabushiPost;
 import com.aigicrm.module.fabushi.service.FabushiPostService;
 import com.aigicrm.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +13,7 @@ import java.util.Map;
 /**
  * 法布施内容端点(一期 2026-11-15): 浏览/详情/评论列表=view, 发布/评论/木鱼=create,
  * 下架=content:manage, 已读=view(浏览行为)。
+ * 【ArchUnit controller_must_not_depend_on_entity】本类不 import 实体——body/返回全走 Map。
  */
 @RestController
 @RequestMapping("/api/fabushi/posts")
@@ -29,18 +28,18 @@ public class FabushiPostController {
      */
     @GetMapping
     @PreAuthorize("hasAuthority('fabushi:view')")
-    public Result<com.baomidou.mybatisplus.extension.plugins.pagination.Page<BizFabushiPost>> page(
+    public Result<Map<String, Object>> page(
             @RequestParam(required = false) String scopeType,
             @RequestParam(required = false) Long bookId,
             @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "1") long current,
             @RequestParam(defaultValue = "10") long size) {
         boolean manageAllowed = SecurityUtils.hasAuthority("fabushi:content:manage");
-        return Result.ok(postService.page(scopeType, bookId, status, manageAllowed,
+        return Result.ok(postService.pageData(scopeType, bookId, status, manageAllowed,
                 SecurityUtils.getCurrentUserId(), current, size));
     }
 
-    /** 内容详情(帖+附件+互动计数)。 */
+    /** 内容详情(帖+附件+互动计数; service 返回 Map)。 */
     @GetMapping("/{id}")
     @PreAuthorize("hasAuthority('fabushi:view')")
     public Result<Map<String, Object>> detail(@PathVariable Long id) {
@@ -50,8 +49,8 @@ public class FabushiPostController {
     /** 发布(人人; scope_type 白名单校验在服务层)。 */
     @PostMapping
     @PreAuthorize("hasAuthority('fabushi:create')")
-    public Result<BizFabushiPost> create(@RequestBody BizFabushiPost post) {
-        return Result.ok(postService.create(post));
+    public Result<Map<String, Object>> create(@RequestBody Map<String, Object> body) {
+        return Result.ok(postService.createData(body));
     }
 
     /** 下架(治理, 原因必填留痕)。 */
@@ -65,15 +64,15 @@ public class FabushiPostController {
     /** 评论(文字; 二期扩 highlight/audio)。 */
     @PostMapping("/{id}/comments")
     @PreAuthorize("hasAuthority('fabushi:create')")
-    public Result<BizFabushiComment> addComment(@PathVariable Long id, @RequestBody BizFabushiComment comment) {
-        return Result.ok(postService.addComment(id, comment));
+    public Result<Map<String, Object>> addComment(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+        return Result.ok(postService.addCommentData(id, body));
     }
 
-    /** 评论列表。 */
+    /** 评论列表(service 返回 List<Map>; 编译期无实体引用)。 */
     @GetMapping("/{id}/comments")
     @PreAuthorize("hasAuthority('fabushi:view')")
-    public Result<List<BizFabushiComment>> listComments(@PathVariable Long id) {
-        return Result.ok(postService.listComments(id));
+    public Result<List<Map<String, Object>>> listComments(@PathVariable Long id) {
+        return Result.ok(postService.commentData(id));
     }
 
     /** 木鱼点赞 toggle(点赞=敲木鱼; 唯一键幂等)。 */

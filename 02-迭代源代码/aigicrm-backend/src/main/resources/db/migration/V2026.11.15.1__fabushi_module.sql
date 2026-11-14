@@ -325,13 +325,13 @@ INSERT INTO `sys_menu` (`parent_id`, `menu_name`, `menu_type`, `path`, `componen
                         `icon`, `sort_order`, `visible`, `status`)
 SELECT 0, '法布施', 1, '', '', '', 'Reading', 99, 1, 1
 FROM DUAL
-WHERE NOT EXISTS (SELECT 1 FROM `sys_menu` x WHERE x.`menu_name` = '法布施' AND x.`menu_type` = 1 AND x.`parent_id` = 0);
+WHERE NOT EXISTS (SELECT 1 FROM `sys_menu` x WHERE x.`menu_name` = '法布施' AND x.`menu_type` = 1 AND COALESCE(x.`parent_id`, 0) = 0);
 
 -- 4.2 页面行(type2, parent=「法布施」组; 一码一页面行)
 INSERT INTO `sys_menu` (`parent_id`, `menu_name`, `menu_type`, `path`, `component`, `permission`,
                         `icon`, `sort_order`, `visible`, `status`)
 SELECT g.id, x.menu_name, 2, x.path, x.component, x.permission, x.icon, x.sort, 1, 1
-FROM (SELECT id FROM sys_menu WHERE menu_name = '法布施' AND menu_type = 1 AND parent_id = 0 LIMIT 1) g
+FROM (SELECT id FROM sys_menu WHERE menu_name = '法布施' AND menu_type = 1 AND COALESCE(parent_id, 0) = 0 LIMIT 1) g
 JOIN (
   SELECT '书目管理' AS menu_name, '/fabushi/book'     AS path, 'fabushi/book'     AS component, 'fabushi:book:view'     AS permission, 'Collection' AS icon, 1 AS sort UNION ALL
   SELECT '内容治理',       '/fabushi/content', 'fabushi/content', 'fabushi:content:view', 'Document',        2 UNION ALL
@@ -343,19 +343,19 @@ WHERE NOT EXISTS (SELECT 1 FROM `sys_menu` s WHERE s.`permission` = x.permission
 INSERT INTO `sys_menu` (`parent_id`, `menu_name`, `menu_type`, `path`, `component`, `permission`,
                         `icon`, `sort_order`, `visible`, `status`)
 SELECT g.id, '法布施内容浏览', 3, '', '', 'fabushi:view', '', 1, 1, 1
-FROM (SELECT id FROM sys_menu WHERE menu_name = '法布施' AND menu_type = 1 AND parent_id = 0 LIMIT 1) g
+FROM (SELECT id FROM sys_menu WHERE menu_name = '法布施' AND menu_type = 1 AND COALESCE(parent_id, 0) = 0 LIMIT 1) g
 WHERE NOT EXISTS (SELECT 1 FROM `sys_menu` s WHERE s.`permission` = 'fabushi:view');
 
 INSERT INTO `sys_menu` (`parent_id`, `menu_name`, `menu_type`, `path`, `component`, `permission`,
                         `icon`, `sort_order`, `visible`, `status`)
 SELECT g.id, '法布施发布互动', 3, '', '', 'fabushi:create', '', 2, 1, 1
-FROM (SELECT id FROM sys_menu WHERE menu_name = '法布施' AND menu_type = 1 AND parent_id = 0 LIMIT 1) g
+FROM (SELECT id FROM sys_menu WHERE menu_name = '法布施' AND menu_type = 1 AND COALESCE(parent_id, 0) = 0 LIMIT 1) g
 WHERE NOT EXISTS (SELECT 1 FROM `sys_menu` s WHERE s.`permission` = 'fabushi:create');
 
 INSERT INTO `sys_menu` (`parent_id`, `menu_name`, `menu_type`, `path`, `component`, `permission`,
                         `icon`, `sort_order`, `visible`, `status`)
 SELECT g.id, '法布施活动管理', 3, '', '', 'fabushi:activity:manage', '', 3, 1, 1
-FROM (SELECT id FROM sys_menu WHERE menu_name = '法布施' AND menu_type = 1 AND parent_id = 0 LIMIT 1) g
+FROM (SELECT id FROM sys_menu WHERE menu_name = '法布施' AND menu_type = 1 AND COALESCE(parent_id, 0) = 0 LIMIT 1) g
 WHERE NOT EXISTS (SELECT 1 FROM `sys_menu` s WHERE s.`permission` = 'fabushi:activity:manage');
 
 -- 页面下按钮行(父=对应页面行)

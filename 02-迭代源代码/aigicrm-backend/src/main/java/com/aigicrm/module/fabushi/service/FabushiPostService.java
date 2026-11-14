@@ -61,14 +61,42 @@ public class FabushiPostService {
         fillInteractions(page.getRecords(), viewerId);
         return page;
     }
-        LambdaQueryWrapper<BizFabushiPost> qw = new LambdaQueryWrapper<BizFabushiPost>()
-                .eq(BizFabushiPost::getStatus, "published")
-                .eq(scopeType != null && !scopeType.isBlank(), BizFabushiPost::getScopeType, scopeType)
-                .eq(bookId != null, BizFabushiPost::getBookId, bookId)
-                .orderByDesc(BizFabushiPost::getCreatedAt);
-        Page<BizFabushiPost> page = postMapper.selectPage(new Page<>(current, size), qw);
-        fillInteractions(page.getRecords(), viewerId);
-        return page;
+
+    // ===== Controller 层 Map 化输出(ArchUnit: controller_must_not_depend_on_entity) =====
+
+    /** 内容分页 Map 化(records/total)。 */
+    public Map<String, Object> pageData(String scopeType, Long bookId, String status, boolean manageAllowed,
+                                        Long viewerId, long current, long size) {
+        Page<BizFabushiPost> p = page(scopeType, bookId, status, manageAllowed, viewerId, current, size);
+        Map<String, Object> data = new java.util.LinkedHashMap<>();
+        data.put("records", p.getRecords());
+        data.put("total", p.getTotal());
+        return data;
+    }
+
+    /** 发布 Map 化(body → 实体组装收在 service)。 */
+    public Map<String, Object> createData(Map<String, Object> body) {
+        BizFabushiPost post = new BizFabushiPost();
+        post.setScopeType(body.get("scopeType") == null ? null : String.valueOf(body.get("scopeType")));
+        post.setTitle(body.get("title") == null ? null : String.valueOf(body.get("title")));
+        post.setContent(body.get("content") == null ? null : String.valueOf(body.get("content")));
+        if (body.get("bookId") != null) {
+            post.setBookId(Long.valueOf(String.valueOf(body.get("bookId"))));
+        }
+        if (body.get("sectionId") != null) {
+            post.setSectionId(Long.valueOf(String.valueOf(body.get("sectionId"))));
+        }
+        BizFabushiPost created = create(post);
+        return Map.of("id", created.getId());
+    }
+
+    /** 评论 Map 化。 */
+    public Map<String, Object> addCommentData(Long postId, Map<String, Object> body) {
+        BizFabushiComment c = new BizFabushiComment();
+        Object content = body == null ? null : body.get("content");
+        c.setContent(content == null ? null : String.valueOf(content));
+        BizFabushiComment created = addComment(postId, c);
+        return Map.of("id", created.getId());
     }
 
     /** 内容详情(fabushi:view 门): 帖+附件+互动计数(无 per-id 范围判定需求: 社区内容全员可见)。 */
@@ -159,6 +187,17 @@ public class FabushiPostService {
             comments.forEach(c -> c.setUserName(names.get(c.getUserId())));
         }
         return comments;
+    }
+
+    /** 评论列表 Map 化(controller 脱实体; Jackson convertValue 保字段全量含 LocalDateTime ISO 格式)。 */
+    public List<Map<String, Object>> commentData(Long postId) {
+        com.fasterxml.jackson.databind.ObjectMapper om = new com.fasterxml.jackson.databind.ObjectMapper()
+                .registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule())
+                .disable(com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        return listComments(postId).stream()
+                .<Map<String, Object>>map(c -> om.convertValue(c,
+                        new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {}))
+                .collect(Collectors.toList());
     }
 
     /** 木鱼点赞 toggle(fabushi:create 门; 唯一键幂等: 存在即取消, 不存在即点赞)。 */

@@ -4,24 +4,24 @@ Generated from local source: `02-迭代源代码`
 
 ## Summary
 
-- PC routes: 35
-- PC API functions: 205
-- Mini Program pages: 42
-- Mini Program API functions: 108
-- Backend endpoints: 230
-- PC UI actions: 263
-- Mini Program UI actions: 250
-- Backend permission tokens: 69
-- Permission dictionary tokens: 81
-- Runtime permission dictionary tokens: 73
+- PC routes: 38
+- PC API functions: 235
+- Mini Program pages: 45
+- Mini Program API functions: 117
+- Backend endpoints: 262
+- PC UI actions: 296
+- Mini Program UI actions: 257
+- Backend permission tokens: 73
+- Permission dictionary tokens: 84
+- Runtime permission dictionary tokens: 76
 - Compatibility/deprecated dictionary tokens: 8
-- Local migration permission tokens: 48
+- Local migration permission tokens: 95
 - Backend permissions missing in dictionary or local migrations: 0
-- Runtime dictionary permissions not directly seen in backend annotations: 6
-- Runtime dictionary permissions referenced outside backend annotations: 3
-- Runtime dictionary permissions not seen in backend annotations or code references: 3
+- Runtime dictionary permissions not directly seen in backend annotations: 8
+- Runtime dictionary permissions referenced outside backend annotations: 4
+- Runtime dictionary permissions not seen in backend annotations or code references: 4
 - UI permission tokens missing in backend, dictionary, and local migrations: 0
-- Frontend code permission tokens: 59
+- Frontend code permission tokens: 62
 - Frontend code permission tokens missing in known sources: 0
 - PC API wrappers without backend endpoint match: 0
 - Mini Program API wrappers without backend endpoint match: 4
@@ -34,7 +34,7 @@ Generated from local source: `02-迭代源代码`
 | `/403` | 无权限 | `` | `aigicrm-ui/src/router/index.js` |
 | `/mp-file-picker` | 手机文件上传 | `` | `aigicrm-ui/src/router/index.js` |
 | `/:pathMatch(.*)*` | 页面不存在 | `` | `aigicrm-ui/src/router/index.js` |
-| `/` | 工作台 | `dashboard:view` | `aigicrm-ui/src/router/index.js` |
+| `/` | 工作台 | `statistics:view` | `aigicrm-ui/src/router/index.js` |
 | `customer` | 客户列表 | `customer:view` | `aigicrm-ui/src/router/index.js` |
 | `customer/add` | 新增客户 | `customer:add` | `aigicrm-ui/src/router/index.js` |
 | `customer/edit/:id` | 编辑客户 | `customer:edit` | `aigicrm-ui/src/router/index.js` |
@@ -43,6 +43,9 @@ Generated from local source: `02-迭代源代码`
 | `incentive` | 激励上传 | `incentive:add` | `aigicrm-ui/src/router/index.js` |
 | `incentive/stats` | 激励统计 | `incentive:stats:view` | `aigicrm-ui/src/router/index.js` |
 | `incentive/search` | 激励查询 | `incentive:view` | `aigicrm-ui/src/router/index.js` |
+| `fabushi/book` | 书目管理 | `fabushi:book:view` | `aigicrm-ui/src/router/index.js` |
+| `fabushi/content` | 内容治理 | `fabushi:content:view` | `aigicrm-ui/src/router/index.js` |
+| `fabushi/stats` | 统计看板 | `fabushi:stats:view` | `aigicrm-ui/src/router/index.js` |
 | `incentive/ranking` | 学分排行 | `score:view` | `aigicrm-ui/src/router/index.js` |
 | `task` | 我的任务 | `task:view` | `aigicrm-ui/src/router/index.js` |
 | `reminder` | 提醒管理 | `reminder:view` | `aigicrm-ui/src/router/index.js` |
@@ -112,6 +115,9 @@ Generated from local source: `02-迭代源代码`
 | `pages/reminder/index` |
 | `pages/sea/index` |
 | `pages/sea/claim-detail/index` |
+| `pages/fabushi/index` |
+| `pages/fabushi/book/index` |
+| `pages/fabushi/upload/index` |
 
 ## PC UI Actions
 
@@ -186,15 +192,37 @@ Generated from local source: `02-迭代源代码`
 | 确认分享 | `handleAddShare` | `` | `aigicrm-ui/src/views/customer/detail.vue:157` |
 | 重试 | `loadAll` | `` | `aigicrm-ui/src/views/customer/detail.vue:167` |
 | (icon/button) | `goBack` | `` | `aigicrm-ui/src/views/customer/detail.vue:168` |
-| 通过 | `doApprove(item.id)` | `canApprove` | `aigicrm-ui/src/views/dashboard/index.vue:231` |
-| 驳回 | `doReject(item.id)` | `canReject` | `aigicrm-ui/src/views/dashboard/index.vue:232` |
+| 通过 | `doApprove(item.id)` | `canApprove` | `aigicrm-ui/src/views/dashboard/index.vue:242` |
+| 驳回 | `doReject(item.id)` | `canReject` | `aigicrm-ui/src/views/dashboard/index.vue:243` |
 | 返回登录 | `goLogin` | `` | `aigicrm-ui/src/views/error/403.vue:7` |
 | 返回工作台 | `goHome` | `` | `aigicrm-ui/src/views/error/NotFound.vue:9` |
 | 返回上一页 | `goBack` | `` | `aigicrm-ui/src/views/error/NotFound.vue:10` |
-| 保存授权 | `saveAcl` | `` | `aigicrm-ui/src/views/file/AclDialog.vue:14` |
-| 移除 | `removeAcl(row)` | `` | `aigicrm-ui/src/views/file/AclDialog.vue:36` |
+| 查询 | `loadData` | `` | `aigicrm-ui/src/views/fabushi/book.vue:15` |
+| 提交书目 | `submitVisible = true` | `userStore.hasPermission('fabushi:create')` | `aigicrm-ui/src/views/fabushi/book.vue:16` |
+| 通过 | `doApprove(row)` | `` | `aigicrm-ui/src/views/fabushi/book.vue:40` |
+| 驳回 | `openReject(row)` | `` | `aigicrm-ui/src/views/fabushi/book.vue:41` |
+| 挂PDF | `openPdf(row)` | `` | `aigicrm-ui/src/views/fabushi/book.vue:42` |
+| 停用 | `doDisable(row)` | `` | `aigicrm-ui/src/views/fabushi/book.vue:43` |
+| 取消 | `submitVisible = false` | `` | `aigicrm-ui/src/views/fabushi/book.vue:75` |
+| 提交 | `doSubmit` | `` | `aigicrm-ui/src/views/fabushi/book.vue:76` |
+| 取消 | `rejectVisible = null` | `` | `aigicrm-ui/src/views/fabushi/book.vue:84` |
+| 确认驳回 | `doReject` | `` | `aigicrm-ui/src/views/fabushi/book.vue:85` |
+| 刷新 | `loadData` | `` | `aigicrm-ui/src/views/fabushi/content.vue:11` |
+| 下架 | `openOffline(row)` | `row.status === 'published' && userStore.hasPermission('fabushi:content:manage')` | `aigicrm-ui/src/views/fabushi/content.vue:40` |
+| 取消 | `offlineVisible = null` | `` | `aigicrm-ui/src/views/fabushi/content.vue:55` |
+| 确认下架 | `doOffline` | `` | `aigicrm-ui/src/views/fabushi/content.vue:56` |
 | 取消 | `createFolderVisible = false` | `` | `aigicrm-ui/src/views/file/CreateFolderDialog.vue:9` |
 | 创建 | `handleCreateFolder` | `` | `aigicrm-ui/src/views/file/CreateFolderDialog.vue:10` |
+| 批量下载 | `doBatchDownload` | `` | `aigicrm-ui/src/views/file/FileTable.vue:6` |
+| 批量删除 | `doBatchDelete` | `userStore.hasPermission('file:delete')` | `aigicrm-ui/src/views/file/FileTable.vue:7` |
+| 取消选择 | `clearSelection` | `` | `aigicrm-ui/src/views/file/FileTable.vue:8` |
+| 批量恢复() | `doBatchRestore` | `` | `aigicrm-ui/src/views/file/RecycleBinDialog.vue:8` |
+| 批量彻底删除() | `doBatchPurge` | `userStore.hasPermission('file:purge')` | `aigicrm-ui/src/views/file/RecycleBinDialog.vue:9` |
+| 恢复 | `doRestoreFile(row)` | `` | `aigicrm-ui/src/views/file/RecycleBinDialog.vue:20` |
+| 彻底删除 | `doPurgeFile(row)` | `userStore.hasPermission('file:purge')` | `aigicrm-ui/src/views/file/RecycleBinDialog.vue:21` |
+| 恢复 | `doRestoreFolder(row)` | `` | `aigicrm-ui/src/views/file/RecycleBinDialog.vue:49` |
+| 彻底删除 | `doPurgeFolder(row)` | `userStore.hasPermission('file:purge')` | `aigicrm-ui/src/views/file/RecycleBinDialog.vue:50` |
+| 关闭 | `visible = false` | `` | `aigicrm-ui/src/views/file/RecycleBinDialog.vue:61` |
 | 取消 | `renameFolderVisible = false` | `` | `aigicrm-ui/src/views/file/RenameFolderDialog.vue:9` |
 | 保存 | `handleRenameFolder` | `` | `aigicrm-ui/src/views/file/RenameFolderDialog.vue:10` |
 | 取消 | `shareDialogVisible = false` | `` | `aigicrm-ui/src/views/file/ShareDialog.vue:10` |
@@ -203,11 +231,16 @@ Generated from local source: `02-迭代源代码`
 | 提交申请 | `handleSubmit` | `` | `aigicrm-ui/src/views/file/StorageApplyDialog.vue:51` |
 | 取消 | `uploadVisible = false` | `` | `aigicrm-ui/src/views/file/UploadDialog.vue:22` |
 | 开始上传{{ pendingFiles.length ? `（${pendingFiles.length} 个）` : '' }} | `startUploads` | `` | `aigicrm-ui/src/views/file/UploadDialog.vue:23` |
+| 下载 | `doDownload(row)` | `canDownload` | `aigicrm-ui/src/views/file/VersionHistoryDialog.vue:18` |
+| 回滚 | `doRollback(row)` | `canRollback` | `aigicrm-ui/src/views/file/VersionHistoryDialog.vue:19` |
+| 关闭 | `visible = false` | `` | `aigicrm-ui/src/views/file/VersionHistoryDialog.vue:25` |
 | 申请扩容 | `openStorageApply` | `` | `aigicrm-ui/src/views/file/index.vue:26` |
-| 新建文件夹 | `openCreateFolder` | `canCreateFolder` | `aigicrm-ui/src/views/file/index.vue:37` |
-| 上传文件 | `openUpload` | `` | `aigicrm-ui/src/views/file/index.vue:48` |
+| 回收站 | `openRecycleBin` | `userStore.hasPermission('file:delete')` | `aigicrm-ui/src/views/file/index.vue:37` |
+| 新建文件夹 | `openCreateFolder` | `canCreateFolder` | `aigicrm-ui/src/views/file/index.vue:39` |
+| 上传文件 | `openUpload` | `` | `aigicrm-ui/src/views/file/index.vue:50` |
 | 导出 | `exportPersonRank` | `userStore.hasPermission('incentive:person-rank:export')` | `aigicrm-ui/src/views/incentive/PersonRankTableView.vue:9` |
 | 导出 | `exportRank()` | `userStore.hasPermission('incentive:rank:export')` | `aigicrm-ui/src/views/incentive/RankTableView.vue:11` |
+| 客户完整档案 | `goCustomer` | `` | `aigicrm-ui/src/views/incentive/RecordDetailDialog.vue:13` |
 | 追加 | `startReplace(row)` | `` | `aigicrm-ui/src/views/incentive/RecordTable.vue:68` |
 | 删除 | `handleDeleteRecord(row)` | `` | `aigicrm-ui/src/views/incentive/RecordTable.vue:69` |
 | 清除 | `detailKeyword=''` | `` | `aigicrm-ui/src/views/incentive/SearchDetailDialog.vue:51` |
@@ -269,12 +302,12 @@ Generated from local source: `02-迭代源代码`
 | 上传Logo | `` | `` | `aigicrm-ui/src/views/system/BasicSettings.vue:28` |
 | 清除 | `configMap['system.logo'] = ''` | `canEditConfig && configMap['system.logo']` | `aigicrm-ui/src/views/system/BasicSettings.vue:30` |
 | 保存设置 | `handleSave` | `canEditConfig` | `aigicrm-ui/src/views/system/BasicSettings.vue:174` |
-| 新增类别 | `openCategoryDialog()` | `userStore.hasPermission('incentive:edit')` | `aigicrm-ui/src/views/system/CategoryManager.vue:13` |
-| 编辑 | `openCategoryDialog(top)` | `userStore.hasPermission('incentive:edit')` | `aigicrm-ui/src/views/system/CategoryManager.vue:27` |
-| 子项 | `openCategoryDialog(null, top.id)` | `userStore.hasPermission('incentive:edit')` | `aigicrm-ui/src/views/system/CategoryManager.vue:28` |
-| 删除 | `handleDeleteCategory(top)` | `userStore.hasPermission('incentive:edit')` | `aigicrm-ui/src/views/system/CategoryManager.vue:29` |
-| 编辑 | `openCategoryDialog(row)` | `userStore.hasPermission('incentive:edit')` | `aigicrm-ui/src/views/system/CategoryManager.vue:63` |
-| 删除 | `handleDeleteCategory(row)` | `userStore.hasPermission('incentive:edit')` | `aigicrm-ui/src/views/system/CategoryManager.vue:64` |
+| 新增类别 | `openCategoryDialog()` | `userStore.hasPermission(PERMISSION_CODES.INCENTIVE_EDIT)` | `aigicrm-ui/src/views/system/CategoryManager.vue:13` |
+| 编辑 | `openCategoryDialog(top)` | `userStore.hasPermission(PERMISSION_CODES.INCENTIVE_EDIT)` | `aigicrm-ui/src/views/system/CategoryManager.vue:27` |
+| 子项 | `openCategoryDialog(null, top.id)` | `userStore.hasPermission(PERMISSION_CODES.INCENTIVE_EDIT)` | `aigicrm-ui/src/views/system/CategoryManager.vue:28` |
+| 删除 | `handleDeleteCategory(top)` | `userStore.hasPermission(PERMISSION_CODES.INCENTIVE_EDIT)` | `aigicrm-ui/src/views/system/CategoryManager.vue:29` |
+| 编辑 | `openCategoryDialog(row)` | `userStore.hasPermission(PERMISSION_CODES.INCENTIVE_EDIT)` | `aigicrm-ui/src/views/system/CategoryManager.vue:63` |
+| 删除 | `handleDeleteCategory(row)` | `userStore.hasPermission(PERMISSION_CODES.INCENTIVE_EDIT)` | `aigicrm-ui/src/views/system/CategoryManager.vue:64` |
 | 取消 | `categoryDialogVisible = false` | `` | `aigicrm-ui/src/views/system/CategoryManager.vue:108` |
 | 保存 | `submitCategory` | `` | `aigicrm-ui/src/views/system/CategoryManager.vue:109` |
 | 新增 | `handleAddType` | `canEditConfig` | `aigicrm-ui/src/views/system/DictManager.vue:7` |
@@ -287,10 +320,14 @@ Generated from local source: `02-迭代源代码`
 | 确定 | `submitType` | `` | `aigicrm-ui/src/views/system/DictManager.vue:80` |
 | 取消 | `dataDialogVisible = false` | `` | `aigicrm-ui/src/views/system/DictManager.vue:101` |
 | 确定 | `submitData` | `` | `aigicrm-ui/src/views/system/DictManager.vue:102` |
-| 删除 | `removeRow(t.value, scope?.row?.roleId)` | `canEdit` | `aigicrm-ui/src/views/system/FileSpaceDefaults.vue:21` |
-| 保存 | `saveRow(t.value)` | `` | `aigicrm-ui/src/views/system/FileSpaceDefaults.vue:33` |
-| 添加授权 | `openPermDialog` | `canEdit` | `aigicrm-ui/src/views/system/PermCenter.vue:28` |
-| 撤销 | `revokePerm(scope?.row?.id)` | `canEdit` | `aigicrm-ui/src/views/system/PermCenter.vue:48` |
+| ＋ 添加授权 | `openAdd(null)` | `canEdit` | `aigicrm-ui/src/views/system/FileSpaceDefaults.vue:11` |
+| ＋加人 | `openAdd(fg)` | `canEdit` | `aigicrm-ui/src/views/system/FileSpaceDefaults.vue:60` |
+| 全选 | `checkAll` | `` | `aigicrm-ui/src/views/system/FileSpaceDefaults.vue:107` |
+| 清空 | `clearUsers` | `` | `aigicrm-ui/src/views/system/FileSpaceDefaults.vue:108` |
+| 取消 | `addVisible = false` | `` | `aigicrm-ui/src/views/system/FileSpaceDefaults.vue:178` |
+| 保存授权 | `save` | `` | `aigicrm-ui/src/views/system/FileSpaceDefaults.vue:179` |
+| 添加授权 | `openPermDialog` | `canEdit` | `aigicrm-ui/src/views/system/PermCenter.vue:62` |
+| 撤销 | `revokePerm(scope?.row?.id)` | `canEdit` | `aigicrm-ui/src/views/system/PermCenter.vue:82` |
 | 全选 | `checkAllUsers` | `` | `aigicrm-ui/src/views/system/PermGrantDialog.vue:23` |
 | 清空 | `clearUsers` | `` | `aigicrm-ui/src/views/system/PermGrantDialog.vue:24` |
 | 清空 | `clearEditUsers` | `` | `aigicrm-ui/src/views/system/PermGrantDialog.vue:70` |
@@ -311,8 +348,8 @@ Generated from local source: `02-迭代源代码`
 | 取消 | `poolDialogVisible = false` | `` | `aigicrm-ui/src/views/system/SeaConfigManager.vue:161` |
 | 确定 | `submitPool` | `` | `aigicrm-ui/src/views/system/SeaConfigManager.vue:162` |
 | 新增用户 | `openDialog()` | `userStore.hasPermission('system:user:add')` | `aigicrm-ui/src/views/system/UserFilterBar.vue:8` |
-| 取消 | `dialogVisible = false` | `` | `aigicrm-ui/src/views/system/UserFormDialog.vue:107` |
-| 保存 | `handleSave` | `` | `aigicrm-ui/src/views/system/UserFormDialog.vue:108` |
+| 取消 | `dialogVisible = false` | `` | `aigicrm-ui/src/views/system/UserFormDialog.vue:111` |
+| 保存 | `handleSave` | `` | `aigicrm-ui/src/views/system/UserFormDialog.vue:112` |
 | 重试 | `retryLoad` | `` | `aigicrm-ui/src/views/system/UserTable.vue:7` |
 | 编辑 | `openDialog(row)` | `userStore.hasPermission('system:user:edit')` | `aigicrm-ui/src/views/system/UserTable.vue:69` |
 | 重置密码 | `handleResetPwd(row)` | `userStore.hasPermission('system:user:edit')` | `aigicrm-ui/src/views/system/UserTable.vue:70` |
@@ -357,10 +394,12 @@ Generated from local source: `02-迭代源代码`
 | 详情 | `openFileDetail(row)` | `` | `aigicrm-ui/src/views/system/recycle.vue:217` |
 | 恢复 | `handleRestoreFile(row)` | `canRestore && row.contentAvailable` | `aigicrm-ui/src/views/system/recycle.vue:218` |
 | 彻底删除 | `handleHardDeleteFile(row)` | `canPurge` | `aigicrm-ui/src/views/system/recycle.vue:219` |
-| 下载文件 | `downloadRecycleFile(detailData.file)` | `` | `aigicrm-ui/src/views/system/recycle.vue:314` |
-| 关闭 | `detailVisible = false` | `` | `aigicrm-ui/src/views/system/recycle.vue:323` |
-| 恢复 | `restoreFromDetail` | `canRestore && detailData && detailCanRestore` | `aigicrm-ui/src/views/system/recycle.vue:324` |
-| 彻底删除 | `hardDeleteFromDetail` | `canPurge && detailData` | `aigicrm-ui/src/views/system/recycle.vue:325` |
+| 恢复 | `handleRestoreFolder(row)` | `canRestore` | `aigicrm-ui/src/views/system/recycle.vue:244` |
+| 彻底删除 | `handleHardDeleteFolder(row)` | `canPurge` | `aigicrm-ui/src/views/system/recycle.vue:245` |
+| 下载文件 | `downloadRecycleFile(detailData.file)` | `` | `aigicrm-ui/src/views/system/recycle.vue:341` |
+| 关闭 | `detailVisible = false` | `` | `aigicrm-ui/src/views/system/recycle.vue:350` |
+| 恢复 | `restoreFromDetail` | `canRestore && detailData && detailCanRestore` | `aigicrm-ui/src/views/system/recycle.vue:351` |
+| 彻底删除 | `hardDeleteFromDetail` | `canPurge && detailData` | `aigicrm-ui/src/views/system/recycle.vue:352` |
 | 新增角色 | `openDialog()` | `canAddRole` | `aigicrm-ui/src/views/system/role.vue:5` |
 | 编辑 | `openDialog(row)` | `canEditRole` | `aigicrm-ui/src/views/system/role.vue:30` |
 | 权限 | `openPermDialog(row)` | `canEditRole` | `aigicrm-ui/src/views/system/role.vue:31` |
@@ -454,6 +493,13 @@ Generated from local source: `02-迭代源代码`
 | 撤回共享 | `removeShare` | `{{canEdit}}` | `aigicrm-miniprogram/pages/customer/share/index.wxml:16` |
 | (button) | `goBack` | `` | `aigicrm-miniprogram/pages/customer/share/index.wxml:27` |
 | (button) | `addShares` | `` | `aigicrm-miniprogram/pages/customer/share/index.wxml:28` |
+| 全部 | `onCategoryTap` | `` | `aigicrm-miniprogram/pages/fabushi/book/index.wxml:2` |
+| (button) | `onCategoryTap` | `` | `aigicrm-miniprogram/pages/fabushi/book/index.wxml:3` |
+| 搜索 | `onSearch` | `` | `aigicrm-miniprogram/pages/fabushi/book/index.wxml:10` |
+| 📚 书目浏览 按类别浏览书目与心得 › | `goBook` | `` | `aigicrm-miniprogram/pages/fabushi/index.wxml:21` |
+| ✍️ 发布 心得 / 诵读 / 正能量 › | `goUpload` | `{{canCreate}}` | `aigicrm-miniprogram/pages/fabushi/index.wxml:30` |
+| (button) | `onScope` | `` | `aigicrm-miniprogram/pages/fabushi/upload/index.wxml:2` |
+| (button) | `submit` | `` | `aigicrm-miniprogram/pages/fabushi/upload/index.wxml:18` |
 | (button) | `submit` | `` | `aigicrm-miniprogram/pages/files/folder-form/index.wxml:9` |
 | 取消 | `back` | `` | `aigicrm-miniprogram/pages/files/folder-form/index.wxml:10` |
 | ＋ 上传 | `uploadFile` | `{{fileView.showUploadAction}}` | `aigicrm-miniprogram/pages/files/index.wxml:8` |
@@ -499,14 +545,14 @@ Generated from local source: `02-迭代源代码`
 | 全部提醒 › | `openReminder` | `` | `aigicrm-miniprogram/pages/home/index.wxml:82` |
 | › | `openCustomer` | `` | `aigicrm-miniprogram/pages/home/index.wxml:87` |
 | 返回 | `goBack` | `` | `aigicrm-miniprogram/pages/incentive/detail/index.wxml:8` |
-| 回到今天 | `goToday` | `` | `aigicrm-miniprogram/pages/incentive/detail/index.wxml:42` |
-| ▶ | `previewAttachment` | `` | `aigicrm-miniprogram/pages/incentive/detail/index.wxml:134` |
-| (button) | `previewAttachment` | `` | `aigicrm-miniprogram/pages/incentive/detail/index.wxml:144` |
-| 打开 | `previewAttachment` | `` | `aigicrm-miniprogram/pages/incentive/detail/index.wxml:156` |
-| 下载 | `downloadAttachment` | `` | `aigicrm-miniprogram/pages/incentive/detail/index.wxml:157` |
-| 编辑 / 追加文件 | `editRecord` | `{{item.showEditAction}}` | `aigicrm-miniprogram/pages/incentive/detail/index.wxml:164` |
-| 删除记录 | `removeRecord` | `{{item.showDeleteAction}}` | `aigicrm-miniprogram/pages/incentive/detail/index.wxml:165` |
-| 关闭视频 | `closeVideoPreview` | `` | `aigicrm-miniprogram/pages/incentive/detail/index.wxml:175` |
+| 回到今天 | `goToday` | `` | `aigicrm-miniprogram/pages/incentive/detail/index.wxml:38` |
+| ▶ | `previewAttachment` | `` | `aigicrm-miniprogram/pages/incentive/detail/index.wxml:130` |
+| (button) | `previewAttachment` | `` | `aigicrm-miniprogram/pages/incentive/detail/index.wxml:140` |
+| 打开 | `previewAttachment` | `` | `aigicrm-miniprogram/pages/incentive/detail/index.wxml:152` |
+| 下载 | `downloadAttachment` | `` | `aigicrm-miniprogram/pages/incentive/detail/index.wxml:153` |
+| 编辑 / 追加文件 | `editRecord` | `{{item.showEditAction}}` | `aigicrm-miniprogram/pages/incentive/detail/index.wxml:160` |
+| 删除记录 | `removeRecord` | `{{item.showDeleteAction}}` | `aigicrm-miniprogram/pages/incentive/detail/index.wxml:161` |
+| 关闭视频 | `closeVideoPreview` | `` | `aigicrm-miniprogram/pages/incentive/detail/index.wxml:171` |
 | ↻ 刷新 | `refresh` | `` | `aigicrm-miniprogram/pages/incentive/home/index.wxml:11` |
 | ＋ 上传 | `goUpload` | `{{canUploadEvidence}}` | `aigicrm-miniprogram/pages/incentive/home/index.wxml:12` |
 | (button) | `searchRecords` | `` | `aigicrm-miniprogram/pages/incentive/home/index.wxml:19` |
@@ -693,6 +739,23 @@ Generated from local source: `02-迭代源代码`
 | `getPayments` | `GET` | `/customer/${id}/payments` | `aigicrm-ui/src/api/customer.js` |
 | `getPaymentSummary` | `GET` | `/customer/${id}/payments/summary` | `aigicrm-ui/src/api/customer.js` |
 | `importCustomers` | `POST` | `/customer/import` | `aigicrm-ui/src/api/customer.js` |
+| `getFabushiBooks` | `GET` | `/fabushi/books` | `aigicrm-ui/src/api/fabushi.js` |
+| `getPendingFabushiBooks` | `GET` | `/fabushi/books/pending` | `aigicrm-ui/src/api/fabushi.js` |
+| `submitFabushiBook` | `POST` | `/fabushi/books` | `aigicrm-ui/src/api/fabushi.js` |
+| `approveFabushiBook` | `PUT` | `/fabushi/books/${id}/approve` | `aigicrm-ui/src/api/fabushi.js` |
+| `rejectFabushiBook` | `PUT` | `/fabushi/books/${id}/reject` | `aigicrm-ui/src/api/fabushi.js` |
+| `disableFabushiBook` | `PUT` | `/fabushi/books/${id}/disable` | `aigicrm-ui/src/api/fabushi.js` |
+| `attachBookPdf` | `POST` | `/fabushi/books/${id}/pdf` | `aigicrm-ui/src/api/fabushi.js` |
+| `getFabushiPosts` | `GET` | `/fabushi/posts` | `aigicrm-ui/src/api/fabushi.js` |
+| `getFabushiPostDetail` | `GET` | `/fabushi/posts/${id}` | `aigicrm-ui/src/api/fabushi.js` |
+| `createFabushiPost` | `POST` | `/fabushi/posts` | `aigicrm-ui/src/api/fabushi.js` |
+| `offlineFabushiPost` | `PUT` | `/fabushi/posts/${id}/offline` | `aigicrm-ui/src/api/fabushi.js` |
+| `addFabushiComment` | `POST` | `/fabushi/posts/${postId}/comments` | `aigicrm-ui/src/api/fabushi.js` |
+| `getFabushiComments` | `GET` | `/fabushi/posts/${postId}/comments` | `aigicrm-ui/src/api/fabushi.js` |
+| `toggleFabushiLike` | `POST` | `/fabushi/posts/${postId}/like` | `aigicrm-ui/src/api/fabushi.js` |
+| `markFabushiRead` | `POST` | `/fabushi/reads` | `aigicrm-ui/src/api/fabushi.js` |
+| `getFabushiTeamStats` | `GET` | `/fabushi/stats/team` | `aigicrm-ui/src/api/fabushi.js` |
+| `getFabushiPersonalStats` | `GET` | `/fabushi/stats/personal` | `aigicrm-ui/src/api/fabushi.js` |
 | `getFolderTree` | `GET` | `/file/folders` | `aigicrm-ui/src/api/file.js` |
 | `getFileList` | `GET` | `/file/list` | `aigicrm-ui/src/api/file.js` |
 | `createFolder` | `POST` | `/file/folders` | `aigicrm-ui/src/api/file.js` |
@@ -704,17 +767,27 @@ Generated from local source: `02-迭代源代码`
 | `shareFile` | `POST` | `/file/${fileId}/share` | `aigicrm-ui/src/api/file.js` |
 | `getSharedToMe` | `GET` | `/file/shared-to-me` | `aigicrm-ui/src/api/file.js` |
 | `getSharedToMeCount` | `GET` | `/file/shared-to-me/count` | `aigicrm-ui/src/api/file.js` |
-| `getFolderAcl` | `GET` | `/file/folders/${id}/acl` | `aigicrm-ui/src/api/file.js` |
 | `getAclRoles` | `GET` | `/file/folders/acl-roles` | `aigicrm-ui/src/api/file.js` |
-| `saveFolderAcl` | `POST` | `/file/folders/${id}/acl` | `aigicrm-ui/src/api/file.js` |
-| `removeFolderAcl` | `DELETE` | `/file/folders/${id}/acl/${roleId}` | `aigicrm-ui/src/api/file.js` |
-| `setFolderDownloadable` | `PUT` | `/file/folders/${id}/download` | `aigicrm-ui/src/api/file.js` |
 | `getFolderPermissions` | `GET` | `/file/folders/${id}/permissions` | `aigicrm-ui/src/api/file.js` |
 | `getFolderTypeDefaults` | `GET` | `/file/folders/type-defaults` | `aigicrm-ui/src/api/file.js` |
 | `saveFolderTypeDefault` | `POST` | `/file/folders/type-defaults` | `aigicrm-ui/src/api/file.js` |
-| `removeFolderTypeDefault` | `DELETE` | `/file/folders/type-defaults/${folderType}/${roleId}` | `aigicrm-ui/src/api/file.js` |
+| `renewFolderTypeDefault` | `PUT` | `/file/folders/type-defaults/${id}/renew` | `aigicrm-ui/src/api/file.js` |
+| `removeFolderTypeDefault` | `DELETE` | `/file/folders/type-defaults/${id}` | `aigicrm-ui/src/api/file.js` |
 | `replaceFile` | `POST` | `/file/${id}/replace` | `aigicrm-ui/src/api/file.js` |
 | `renameFile` | `PUT` | `/file/${id}/rename` | `aigicrm-ui/src/api/file.js` |
+| `myRecycleFiles` | `GET` | `/file/recycle/files` | `aigicrm-ui/src/api/file.js` |
+| `myRecycleFolders` | `GET` | `/file/recycle/folders` | `aigicrm-ui/src/api/file.js` |
+| `restoreRecycleFile` | `POST` | `/file/recycle/files/${id}/restore` | `aigicrm-ui/src/api/file.js` |
+| `purgeRecycleFile` | `POST` | `/file/recycle/files/${id}/purge` | `aigicrm-ui/src/api/file.js` |
+| `restoreRecycleFolder` | `POST` | `/file/recycle/folders/${id}/restore` | `aigicrm-ui/src/api/file.js` |
+| `purgeRecycleFolder` | `POST` | `/file/recycle/folders/${id}/purge` | `aigicrm-ui/src/api/file.js` |
+| `batchRestoreRecycle` | `POST` | `/file/recycle/batch-restore` | `aigicrm-ui/src/api/file.js` |
+| `batchPurgeRecycle` | `POST` | `/file/recycle/batch-purge` | `aigicrm-ui/src/api/file.js` |
+| `listFileVersions` | `GET` | `/file/${id}/versions` | `aigicrm-ui/src/api/file.js` |
+| `downloadFileVersion` | `GET` | `/file/${id}/versions/${versionNo}/download` | `aigicrm-ui/src/api/file.js` |
+| `rollbackFileVersion` | `POST` | `/file/${id}/versions/${versionNo}/rollback` | `aigicrm-ui/src/api/file.js` |
+| `batchDeleteFiles` | `POST` | `/file/batch-delete` | `aigicrm-ui/src/api/file.js` |
+| `batchDownloadFiles` | `POST` | `/file/batch-download` | `aigicrm-ui/src/api/file.js` |
 | `getCategoryTree` | `GET` | `/incentive/categories` | `aigicrm-ui/src/api/incentive.js` |
 | `createCategory` | `POST` | `/incentive/categories` | `aigicrm-ui/src/api/incentive.js` |
 | `updateCategory` | `PUT` | `/incentive/categories/${id}` | `aigicrm-ui/src/api/incentive.js` |
@@ -746,6 +819,9 @@ Generated from local source: `02-迭代源代码`
 | `hardDeleteCustomer` | `POST` | `/system/recycle/customers/${id}/purge` | `aigicrm-ui/src/api/recycle.js` |
 | `hardDeleteUser` | `POST` | `/system/recycle/users/${id}/purge` | `aigicrm-ui/src/api/recycle.js` |
 | `hardDeleteFile` | `POST` | `/system/recycle/files/${id}/purge` | `aigicrm-ui/src/api/recycle.js` |
+| `getDeletedFolders` | `GET` | `/system/recycle/folders` | `aigicrm-ui/src/api/recycle.js` |
+| `restoreDeletedFolder` | `POST` | `/system/recycle/folders/${id}/restore` | `aigicrm-ui/src/api/recycle.js` |
+| `hardDeleteFolder` | `POST` | `/system/recycle/folders/${id}/purge` | `aigicrm-ui/src/api/recycle.js` |
 | `getReminderList` | `GET` | `/reminder/list` | `aigicrm-ui/src/api/reminder.js` |
 | `getExpiringList` | `GET` | `/reminder/expiring-list` | `aigicrm-ui/src/api/reminder.js` |
 | `ensureExpiring` | `POST` | `/reminder/ensure-expiring` | `aigicrm-ui/src/api/reminder.js` |
@@ -902,6 +978,15 @@ Generated from local source: `02-迭代源代码`
 | `saveFormDraft` | `PUT` | `/api/draft/' + draftType` | `aigicrm-miniprogram/api/draft.js` |
 | `forceSaveFormDraft` | `PUT` | `/api/draft/' + draftType + '/force` | `aigicrm-miniprogram/api/draft.js` |
 | `deleteFormDraft` | `DELETE` | `/api/draft/' + draftType` | `aigicrm-miniprogram/api/draft.js` |
+| `getFabushiBooks` | `GET` | `/api/fabushi/books` | `aigicrm-miniprogram/api/fabushi.js` |
+| `submitFabushiBook` | `POST` | `/api/fabushi/books` | `aigicrm-miniprogram/api/fabushi.js` |
+| `getFabushiPosts` | `GET` | `/api/fabushi/posts` | `aigicrm-miniprogram/api/fabushi.js` |
+| `getFabushiPostDetail` | `GET` | `/api/fabushi/posts/${id` | `aigicrm-miniprogram/api/fabushi.js` |
+| `createFabushiPost` | `POST` | `/api/fabushi/posts` | `aigicrm-miniprogram/api/fabushi.js` |
+| `addFabushiComment` | `GET` | `/api/fabushi/posts/${postId` | `aigicrm-miniprogram/api/fabushi.js` |
+| `toggleFabushiLike` | `GET` | `/api/fabushi/posts/${postId` | `aigicrm-miniprogram/api/fabushi.js` |
+| `markFabushiRead` | `POST` | `/api/fabushi/reads` | `aigicrm-miniprogram/api/fabushi.js` |
+| `getFabushiPersonalStats` | `GET` | `/api/fabushi/stats/personal` | `aigicrm-miniprogram/api/fabushi.js` |
 | `encodeDownloadPath` | `GET` | `/api/file/list` | `aigicrm-miniprogram/api/file.js` |
 | `getStorageInfo` | `GET` | `/api/file/storage` | `aigicrm-miniprogram/api/file.js` |
 | `getStorageApplyInfo` | `GET` | `/api/file/storage/apply-info` | `aigicrm-miniprogram/api/file.js` |
@@ -982,6 +1067,7 @@ Generated from local source: `02-迭代源代码`
 | `POST` | `/api/auth/forgot-password/send-code` | `` | `aigicrm-backend/src/main/java/com/aigicrm/module/auth/controller/AuthController.java` |
 | `POST` | `/api/auth/forgot-password/reset` | `` | `aigicrm-backend/src/main/java/com/aigicrm/module/auth/controller/AuthController.java` |
 | `GET` | `/api/auth/permission-explain` | `isAuthenticated()` | `aigicrm-backend/src/main/java/com/aigicrm/module/auth/controller/PermissionExplainController.java` |
+| `GET` | `/api/auth/permission-explain/preview/{userId}` | `hasAuthority('system:config:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/auth/controller/PermissionExplainController.java` |
 | `GET` | `/api/draft/{draftType}` | `isAuthenticated()` | `aigicrm-backend/src/main/java/com/aigicrm/module/common/controller/FormDraftController.java` |
 | `PUT` | `/api/draft/{draftType}` | `isAuthenticated()` | `aigicrm-backend/src/main/java/com/aigicrm/module/common/controller/FormDraftController.java` |
 | `PUT` | `/api/draft/{draftType}/force` | `isAuthenticated()` | `aigicrm-backend/src/main/java/com/aigicrm/module/common/controller/FormDraftController.java` |
@@ -992,7 +1078,6 @@ Generated from local source: `02-迭代源代码`
 | `GET` | `/api/customer/list/counts-by-filter` | `hasAuthority('customer:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java` |
 | `GET` | `/api/customer/list/counts` | `hasAuthority('customer:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java` |
 | `GET` | `/api/customer/group-names` | `hasAuthority('customer:add') or hasAuthority('customer:edit')` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java` |
-| `GET` | `/api/customer/rankings` | `hasAuthority('score:view') or hasAuthority('statistics:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java` |
 | `GET` | `/api/customer/{id}` | `hasAuthority('customer:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java` |
 | `POST` | `/api/customer/add` | `hasAuthority('customer:add')` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java` |
 | `PUT` | `/api/customer/{id}` | `hasAuthority('customer:edit')` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java` |
@@ -1027,6 +1112,23 @@ Generated from local source: `02-迭代源代码`
 | `GET` | `/api/customer/import/template` | `hasAuthority('customer:import')` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java` |
 | `GET` | `/api/customer/export` | `hasAuthority('customer:export')` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java` |
 | `GET` | `/api/customer/check-name` | `hasAuthority('customer:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java` |
+| `GET` | `/api/fabushi/books` | `hasAuthority('fabushi:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiBookController.java` |
+| `GET` | `/api/fabushi/books/pending` | `hasAuthority('fabushi:book:manage')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiBookController.java` |
+| `POST` | `/api/fabushi/books` | `hasAuthority('fabushi:create')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiBookController.java` |
+| `PUT` | `/api/fabushi/books/{id}/approve` | `hasAuthority('fabushi:book:manage')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiBookController.java` |
+| `PUT` | `/api/fabushi/books/{id}/reject` | `hasAuthority('fabushi:book:manage')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiBookController.java` |
+| `PUT` | `/api/fabushi/books/{id}/disable` | `hasAuthority('fabushi:book:manage')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiBookController.java` |
+| `POST` | `/api/fabushi/books/{id}/pdf` | `hasAuthority('fabushi:book:manage')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiBookController.java` |
+| `GET` | `/api/fabushi/posts` | `hasAuthority('fabushi:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiPostController.java` |
+| `GET` | `/api/fabushi/posts/{id}` | `hasAuthority('fabushi:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiPostController.java` |
+| `POST` | `/api/fabushi/posts` | `hasAuthority('fabushi:create')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiPostController.java` |
+| `PUT` | `/api/fabushi/posts/{id}/offline` | `hasAuthority('fabushi:content:manage')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiPostController.java` |
+| `POST` | `/api/fabushi/posts/{id}/comments` | `hasAuthority('fabushi:create')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiPostController.java` |
+| `GET` | `/api/fabushi/posts/{id}/comments` | `hasAuthority('fabushi:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiPostController.java` |
+| `POST` | `/api/fabushi/posts/{id}/like` | `hasAuthority('fabushi:create')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiPostController.java` |
+| `POST` | `/api/fabushi/reads` | `hasAuthority('fabushi:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiReadController.java` |
+| `GET` | `/api/fabushi/stats/team` | `hasAuthority('fabushi:stats:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiStatsController.java` |
+| `GET` | `/api/fabushi/stats/personal` | `hasAuthority('fabushi:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiStatsController.java` |
 | `GET` | `/api/file/download-token` | `` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java` |
 | `GET` | `/api/file/folders` | `hasAuthority('file:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java` |
 | `GET` | `/api/file/list` | `hasAuthority('file:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java` |
@@ -1036,6 +1138,11 @@ Generated from local source: `02-迭代源代码`
 | `DELETE` | `/api/file/folders/{id}` | `hasAuthority('file:folder:manage')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java` |
 | `DELETE` | `/api/file/{id}` | `hasAuthority('file:delete')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java` |
 | `POST` | `/api/file/{id}/replace` | `hasAuthority('file:edit')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java` |
+| `GET` | `/api/file/{id}/versions` | `hasAuthority('file:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java` |
+| `GET` | `/api/file/{id}/versions/{versionNo}/download` | `hasAuthority('file:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java` |
+| `POST` | `/api/file/{id}/versions/{versionNo}/rollback` | `hasAuthority('file:edit')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java` |
+| `POST` | `/api/file/batch-delete` | `hasAuthority('file:delete')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java` |
+| `POST` | `/api/file/batch-download` | `hasAuthority('file:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java` |
 | `PUT` | `/api/file/{id}/rename` | `hasAuthority('file:edit')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java` |
 | `GET` | `/api/file/storage` | `hasAuthority('file:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java` |
 | `GET` | `/api/file/storage/apply-info` | `hasAuthority('file:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java` |
@@ -1046,15 +1153,20 @@ Generated from local source: `02-迭代源代码`
 | `GET` | `/api/file/shared-to-me` | `hasAuthority('file:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java` |
 | `GET` | `/api/file/shared-to-me/count` | `hasAuthority('file:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java` |
 | `GET` | `/api/file/reconciliation` | `hasAuthority('file:folder:manage')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileReconciliationController.java` |
-| `GET` | `/api/file/folders/{id}/acl` | `hasAuthority('file:acl:manage')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FolderAclController.java` |
-| `POST` | `/api/file/folders/{id}/acl` | `hasAuthority('file:acl:manage')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FolderAclController.java` |
-| `DELETE` | `/api/file/folders/{id}/acl/{roleId}` | `hasAuthority('file:acl:manage')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FolderAclController.java` |
-| `PUT` | `/api/file/folders/{id}/download` | `hasAuthority('file:acl:manage')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FolderAclController.java` |
+| `GET` | `/api/file/recycle/files` | `hasAuthority('file:delete')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileRecycleController.java` |
+| `GET` | `/api/file/recycle/folders` | `hasAuthority('file:delete')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileRecycleController.java` |
+| `POST` | `/api/file/recycle/files/{id}/restore` | `hasAuthority('file:delete')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileRecycleController.java` |
+| `POST` | `/api/file/recycle/files/{id}/purge` | `hasAuthority('file:purge')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileRecycleController.java` |
+| `POST` | `/api/file/recycle/folders/{id}/restore` | `hasAuthority('file:delete')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileRecycleController.java` |
+| `POST` | `/api/file/recycle/folders/{id}/purge` | `hasAuthority('file:purge')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileRecycleController.java` |
+| `POST` | `/api/file/recycle/batch-restore` | `hasAuthority('file:delete')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileRecycleController.java` |
+| `POST` | `/api/file/recycle/batch-purge` | `hasAuthority('file:purge')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileRecycleController.java` |
 | `GET` | `/api/file/folders/{id}/permissions` | `hasAuthority('file:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FolderAclController.java` |
 | `GET` | `/api/file/folders/acl-roles` | `hasAuthority('file:acl:manage')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FolderAclController.java` |
 | `GET` | `/api/file/folders/type-defaults` | `hasAuthority('file:acl:manage')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FolderAclController.java` |
 | `POST` | `/api/file/folders/type-defaults` | `hasAuthority('file:acl:manage')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FolderAclController.java` |
-| `DELETE` | `/api/file/folders/type-defaults/{folderType}/{roleId}` | `hasAuthority('file:acl:manage')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FolderAclController.java` |
+| `PUT` | `/api/file/folders/type-defaults/{id}/renew` | `hasAuthority('file:acl:manage')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FolderAclController.java` |
+| `DELETE` | `/api/file/folders/type-defaults/{id}` | `hasAuthority('file:acl:manage')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FolderAclController.java` |
 | `GET` | `/api/incentive/categories` | `hasAuthority('incentive:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/incentive/controller/IncentiveController.java` |
 | `POST` | `/api/incentive/categories` | `hasAuthority('incentive:edit')` | `aigicrm-backend/src/main/java/com/aigicrm/module/incentive/controller/IncentiveController.java` |
 | `PUT` | `/api/incentive/categories/{id}` | `hasAuthority('incentive:edit')` | `aigicrm-backend/src/main/java/com/aigicrm/module/incentive/controller/IncentiveController.java` |
@@ -1103,13 +1215,13 @@ Generated from local source: `02-迭代源代码`
 | `PUT` | `/api/sea/configs/{id}` | `hasAuthority('sea:config:edit')` | `aigicrm-backend/src/main/java/com/aigicrm/module/sea/controller/SeaController.java` |
 | `DELETE` | `/api/sea/configs/{id}` | `hasAuthority('sea:config:edit')` | `aigicrm-backend/src/main/java/com/aigicrm/module/sea/controller/SeaController.java` |
 | `GET` | `/api/sea/claim-records` | `hasAuthority('sea:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/sea/controller/SeaController.java` |
-| `GET` | `/api/statistics/dashboard` | `hasAnyAuthority('statistics:view','dashboard:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/statistics/controller/StatisticsController.java` |
-| `GET` | `/api/statistics/daily-stats` | `hasAnyAuthority('statistics:view','dashboard:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/statistics/controller/StatisticsController.java` |
-| `GET` | `/api/statistics/weekly-stats` | `hasAnyAuthority('statistics:view','dashboard:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/statistics/controller/StatisticsController.java` |
+| `GET` | `/api/statistics/dashboard` | `hasAuthority('statistics:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/statistics/controller/StatisticsController.java` |
+| `GET` | `/api/statistics/daily-stats` | `hasAuthority('statistics:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/statistics/controller/StatisticsController.java` |
+| `GET` | `/api/statistics/weekly-stats` | `hasAuthority('statistics:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/statistics/controller/StatisticsController.java` |
 | `GET` | `/api/statistics/indicator-stats` | `hasAuthority('statistics:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/statistics/controller/StatisticsController.java` |
 | `GET` | `/api/statistics/customer-rankings` | `hasAuthority('statistics:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/statistics/controller/StatisticsController.java` |
 | `GET` | `/api/statistics/analysis` | `hasAuthority('statistics:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/statistics/controller/StatisticsController.java` |
-| `GET` | `/api/statistics/team-activities` | `hasAnyAuthority('statistics:view','dashboard:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/statistics/controller/StatisticsController.java` |
+| `GET` | `/api/statistics/team-activities` | `hasAuthority('statistics:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/statistics/controller/StatisticsController.java` |
 | `GET` | `/api/system/perm-center/preview` | `hasAuthority('system:config:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/PermCenterController.java` |
 | `GET` | `/api/system/recycle/customers` | `hasAuthority('system:recycle:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/RecycleController.java` |
 | `GET` | `/api/system/recycle/customers/{id}` | `hasAuthority('system:recycle:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/RecycleController.java` |
@@ -1124,11 +1236,16 @@ Generated from local source: `02-迭代源代码`
 | `GET` | `/api/system/recycle/files/{id}/content` | `hasAuthority('system:recycle:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/RecycleController.java` |
 | `POST` | `/api/system/recycle/files/{id}/restore` | `hasAuthority('system:recycle:restore')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/RecycleController.java` |
 | `POST` | `/api/system/recycle/files/{id}/purge` | `hasAuthority('system:recycle:purge')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/RecycleController.java` |
+| `GET` | `/api/system/recycle/folders` | `hasAuthority('system:recycle:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/RecycleController.java` |
+| `POST` | `/api/system/recycle/folders/{id}/restore` | `hasAuthority('system:recycle:restore')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/RecycleController.java` |
+| `POST` | `/api/system/recycle/folders/{id}/purge` | `hasAuthority('system:recycle:purge')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/RecycleController.java` |
 | `POST` | `/api/system/recycle/files/purge` | `hasAuthority('system:recycle:purge')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/RecycleController.java` |
 | `GET` | `/api/system/perm-scopes/{roleCode}` | `hasAuthority('system:config:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/RolePermScopeController.java` |
 | `PUT` | `/api/system/perm-scopes/{roleCode}` | `hasAuthority('system:config:edit')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/RolePermScopeController.java` |
 | `GET` | `/api/system/perm-scopes/assignee/{type}/{key}` | `hasAuthority('system:config:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/RolePermScopeController.java` |
 | `PUT` | `/api/system/perm-scopes/assignee/{type}/{key}` | `hasAuthority('system:config:edit')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/RolePermScopeController.java` |
+| `GET` | `/api/system/perm-scopes/impact/{type}/{key}` | `hasAuthority('system:config:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/RolePermScopeController.java` |
+| `GET` | `/api/system/perm-scopes/reconcile` | `hasAuthority('system:config:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/RolePermScopeController.java` |
 | `GET` | `/api/system/audit-logs` | `hasAuthority('system:log:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysAuditLogController.java` |
 | `GET` | `/api/system/configs` | `hasAuthority('system:config:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysConfigController.java` |
 | `PUT` | `/api/system/configs` | `hasAuthority('system:config:edit')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysConfigController.java` |
@@ -1198,26 +1315,45 @@ Generated from local source: `02-迭代源代码`
 
 | Permission | Source |
 | --- | --- |
+| `approval:approve` | 审批通过 (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
+| `approval:reject` | 审批驳回 (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
 | `approval:view` | approval/index (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
 | `contact:manage` | 联系人管理 (V2026.09.19.6__permission_separation.sql) |
 | `contact:view` | 客户联系人查看 (V2026.09.13.1__register_missing_used_permission_codes.sql) |
 | `customer:add` | customer/add (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
 | `customer:date:edit` | 客户日期编辑 (V2026.09.13.1__register_missing_used_permission_codes.sql) |
+| `customer:delete` | 客户删除 (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
+| `customer:edit` | 客户编辑 (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
+| `customer:export` | 客户导出 (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
 | `customer:finance:edit` | 开票回款编辑 (V2026.11.03.3__customer_finance_edit_permission.sql) |
+| `customer:import` | 客户导入 (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
 | `customer:invoice-date:edit` | 最近开票日编辑 (V2026.11.02.3__invoice_date_edit_permission.sql) |
+| `customer:share` | 客户分享 (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
 | `customer:view` | customer/list (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
 | `dashboard:view` | dashboard/index (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
+| `fabushi:activity:manage` | 法布施活动管理 (V2026.11.15.1__fabushi_module.sql) |
+| `fabushi:book:manage` | 法布施书目审核 (V2026.11.15.1__fabushi_module.sql) |
+| `fabushi:book:view` | fabushi/book (V2026.11.15.1__fabushi_module.sql) |
+| `fabushi:content:manage` | 法布施内容下架 (V2026.11.15.1__fabushi_module.sql) |
+| `fabushi:content:view` | fabushi/content (V2026.11.15.1__fabushi_module.sql) |
+| `fabushi:create` | 法布施发布互动 (V2026.11.15.1__fabushi_module.sql) |
+| `fabushi:stats:export` | 法布施统计导出 (V2026.11.15.1__fabushi_module.sql) |
+| `fabushi:stats:view` | fabushi/stats (V2026.11.15.1__fabushi_module.sql) |
+| `fabushi:view` | 法布施内容浏览 (V2026.11.15.1__fabushi_module.sql) |
 | `file:acl:manage` | 文件ACL管理 (V16__add_sys_user_security_columns_and_menu_permissions.sql) |
 | `file:delete` | 文件删除 (V2026.09.11.3__restore_file_mutation_permission_bindings.sql) |
 | `file:edit` | 文件编辑 (V2026.09.11.3__restore_file_mutation_permission_bindings.sql) |
 | `file:folder:manage` | 文件夹管理 (V2026.09.11.3__restore_file_mutation_permission_bindings.sql) |
+| `file:purge` | 文件彻底删除 (V2026.11.14.3__file_purge_code_and_version_limits.sql) |
 | `file:share` | 文件分享 (V2026.09.11.3__restore_file_mutation_permission_bindings.sql) |
 | `file:upload` | 文件上传 (V2026.09.11.3__restore_file_mutation_permission_bindings.sql) |
 | `file:view` | 文件ACL管理 (V16__add_sys_user_security_columns_and_menu_permissions.sql) |
 | `finance:manage` | 财务管理 (V2026.09.19.6__permission_separation.sql) |
 | `finance:view` | 客户财务查看 (V2026.09.13.1__register_missing_used_permission_codes.sql) |
 | `incentive:add` | 激励新增 (V16__add_sys_user_security_columns_and_menu_permissions.sql) |
-| `incentive:manage` | 激励管理(他人记录) (V2026.11.08.2__drop_dead_incentive_manage.sql) |
+| `incentive:delete` | 激励删除 (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
+| `incentive:edit` | 激励编辑 (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
+| `incentive:manage` | 激励管理(他人记录) (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
 | `incentive:person-rank:export` | 个人排行导出 (V2026.09.23.7__person_rank_export_permission.sql) |
 | `incentive:rank:export` | 客户排行导出 (V2026.11.05.8__customer_rank_export_permission.sql) |
 | `incentive:rank:view` | 激励排行查看 (V2026.11.04.1__incentive_stats_rank_permission_codes.sql) |
@@ -1225,24 +1361,52 @@ Generated from local source: `02-迭代源代码`
 | `incentive:read-stats` | 激励查询已读统计 (V2026.09.13.1__register_missing_used_permission_codes.sql) |
 | `incentive:stats:view` | 激励统计查看 (V2026.11.04.1__incentive_stats_rank_permission_codes.sql) |
 | `incentive:view` | 激励新增 (V16__add_sys_user_security_columns_and_menu_permissions.sql) |
-| ~~`ranking:customer:view`~~ | 客户排行查看 (V2026.09.11.4 登记; 2026-11-12 裁决A退役, V2026.11.12.1 删行, rankings 端点改 score:view ∨ statistics:view 双码) |
+| `incentive:view-all` | 激励查看(全部) (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
+| `incentive:view-shared` | 激励查看(已分享) (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
+| `ranking:customer:view` | 客户排行查看 (V2026.09.11.4__register_orphan_customer_ranking_permission.sql) |
 | `reminder:view` | reminder/index (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
 | `score:entry` | score/entry (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
+| `score:manage` | 积分管理 (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
 | `score:ranking` | score/ranking (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
+| `score:view` | 积分查看 (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
+| `sea:claim` | 公海捞取 (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
+| `sea:config:edit` | 公海配置编辑 (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
+| `sea:config:view` | 公海配置查看 (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
 | `sea:import` | 公海导入 (V16__add_sys_user_security_columns_and_menu_permissions.sql) |
+| `sea:pool:delete` | 公海删除 (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
 | `sea:view` | 公海导入 (V16__add_sys_user_security_columns_and_menu_permissions.sql) |
 | `statistics:scoreboard` | statistics/scoreboard (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
 | `statistics:view` | statistics/index (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
+| `system:config:edit` | 系统配置编辑 (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
 | `system:config:view` | system/config (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
+| `system:dept:edit` | 部门编辑 (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
 | `system:dept:view` | system/org (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
+| `system:group:add` | 集团新增 (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
+| `system:group:delete` | 删除集团 (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
+| `system:group:edit` | 集团编辑 (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
 | `system:group:view` | system/group/index (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
 | `system:log:view` | system/log (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
+| `system:menu:edit` | 菜单编辑 (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
+| `system:menu:view` | 菜单查看 (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
+| `system:org:admin` | 组织管理员 (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
+| `system:position:add` | 岗位新增 (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
+| `system:position:delete` | 删除岗位 (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
+| `system:position:edit` | 岗位编辑 (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
 | `system:position:view` | system/position/index (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
 | `system:recycle:purge` | 清空文件回收站 (V2026.10.18.2__file_recycle_retention_and_purge.sql) |
 | `system:recycle:restore` | 恢复已删除数据 (V2026.10.18.1__recycle_bin_menu_and_permissions.sql) |
 | `system:recycle:view` | /system/recycle (V2026.10.18.1__recycle_bin_menu_and_permissions.sql) |
+| `system:role:add` | 角色新增 (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
+| `system:role:delete` | 删除角色 (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
+| `system:role:edit` | 角色编辑 (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
 | `system:role:view` | system/role (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
+| `system:rule:add` | 规则新增 (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
+| `system:rule:delete` | 删除规则 (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
+| `system:rule:edit` | 规则编辑 (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
 | `system:rule:view` | system/rule/index (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
+| `system:user:add` | 用户新增 (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
+| `system:user:delete` | 删除用户 (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
+| `system:user:edit` | 用户编辑 (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
 | `system:user:view` | system/user (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
 | `task:manage` | 任务管理 (V2026.09.19.8__task_module.sql) |
 | `task:view` | 任务查看 (V2026.09.19.8__task_module.sql) |
@@ -1259,24 +1423,28 @@ Generated from local source: `02-迭代源代码`
 
 ### Runtime Dictionary Permissions Not Directly Seen In Backend Annotations
 
-- `contact:manage`: 客户联系人管理
 - `contact:view`: 客户联系人查看
 - `customer:date:edit`: 修改客户保护日期
-- `incentive:manage`: 激励管理(他人记录)
-- `incentive:person-rank:export`: 个人排行导出
+- `customer:invoice-date:edit`: 最近开票日编辑
+- `dashboard:view`: 工作台
+- `incentive:person-rank:export`: 个人排行导出（前端导出门码, 后端不作为端点守卫(用户裁决 2026-09-23 独立导出码, 前端 CSV 导出, 与消费侧契约白名单同口径)）
+- `incentive:rank:export`: 客户排行导出（前端导出门码, 后端不作为端点守卫(用户裁决 2026-11-05 独立导出码, 前端 CSV 导出, 与消费侧契约白名单同口径)）
+- `ranking:customer:view`: 客户排行查看
 - `sea:claim`: 公海捞取
 
 ### Runtime Dictionary Permissions Referenced Outside Backend Annotations
 
 - `contact:view`: 客户联系人查看
 - `customer:date:edit`: 修改客户保护日期
+- `customer:invoice-date:edit`: 最近开票日编辑
 - `sea:claim`: 公海捞取
 
 ### Runtime Dictionary Permissions Not Seen In Backend Annotations Or Code References
 
-- `contact:manage`: 客户联系人管理
-- `incentive:manage`: 激励管理(他人记录)
-- `incentive:person-rank:export`: 个人排行导出
+- `dashboard:view`: 工作台
+- `incentive:person-rank:export`: 个人排行导出（前端导出门码, 后端不作为端点守卫(用户裁决 2026-09-23 独立导出码, 前端 CSV 导出, 与消费侧契约白名单同口径)）
+- `incentive:rank:export`: 客户排行导出（前端导出门码, 后端不作为端点守卫(用户裁决 2026-11-05 独立导出码, 前端 CSV 导出, 与消费侧契约白名单同口径)）
+- `ranking:customer:view`: 客户排行查看
 
 ### Compatibility Or Deprecated Dictionary Permissions Excluded From Runtime Drift
 
@@ -1293,8 +1461,9 @@ Generated from local source: `02-迭代源代码`
 
 | Permission | Code Reference | Context |
 | --- | --- | --- |
-| `contact:view` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java:467` | `if (!SecurityUtils.hasAuthority("contact:view")) return Result.ok(List.of());` |
-| `customer:date:edit` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/service/CustomerService.java:731` | `return SecurityUtils.isAdmin() \|\| SecurityUtils.hasAuthority("customer:date:edit");` |
+| `contact:view` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java:465` | `if (!SecurityUtils.hasAuthority("contact:view")) return Result.ok(List.of());` |
+| `customer:date:edit` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/service/CustomerService.java:733` | `return SecurityUtils.isAdmin() \|\| SecurityUtils.hasAuthority("customer:date:edit");` |
+| `customer:invoice-date:edit` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/service/CustomerService.java:738` | `return SecurityUtils.isAdmin() \|\| SecurityUtils.hasAuthority("customer:invoice-date:edit");` |
 | `sea:claim` | `aigicrm-backend/src/main/java/com/aigicrm/module/approval/service/ApprovalService.java:286` | `&& !SecurityUtils.hasAuthority("sea:claim")) {` |
 
 ### UI Permission Tokens Missing In Known Sources

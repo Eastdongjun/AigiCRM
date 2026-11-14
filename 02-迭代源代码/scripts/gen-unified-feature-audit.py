@@ -237,7 +237,11 @@ def extract_migration_permissions(migration_dir: Path) -> dict[str, str]:
         r"INSERT\s+INTO\s+`?sys_menu`?\s*\((?P<columns>.*?)\)\s*(?P<body>.*?);",
         re.S | re.I,
     )
-    quoted_re = re.compile(r"'([^']+)'")
+    # 【法布施一期 2026-11-15 修复】[^']+ → [^']*: 值序列含连续空串 ''(按钮行 path/component 约定)
+    # 时, 旧正则把空串两侧引号错位配对, 其后的权限码字符串被吞进跨串大匹配——码提取丢失
+    # (manifest 契约报"码不在迁移"假红; 白名单 incentive:read-ranking:view 的"形态识别待增强"
+    # 注记即同一缺陷的历史痕迹)。空串本身被 permission_re 拒绝, 对 name 兜底无影响。
+    quoted_re = re.compile(r"'([^']*)'")
     permission_re = re.compile(r"^[a-z][a-z0-9-]*(?::[a-z][a-z0-9-]*)+$")
     for path in sorted(migration_dir.glob("V*.sql")):
         text = read(path)

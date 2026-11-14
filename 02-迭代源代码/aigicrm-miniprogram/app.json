@@ -44,7 +44,10 @@
     "pages/approval/detail/index",
     "pages/reminder/index",
     "pages/sea/index",
-    "pages/sea/claim-detail/index"
+    "pages/sea/claim-detail/index",
+    "pages/fabushi/index",
+    "pages/fabushi/book/index",
+    "pages/fabushi/upload/index"
   ],
   "window": {
     "navigationBarTitleText": "AIGICRM",

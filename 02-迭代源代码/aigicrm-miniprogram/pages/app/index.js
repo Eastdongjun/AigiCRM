@@ -1,6 +1,7 @@
 const { hasPermission, requireLogin } = require('../../utils/auth')
 
 const APP_ICONS = {
+  fabushi: '读',
   customer: '人',
   customerCreate: '增',
   customerRanking: '排',
@@ -17,6 +18,7 @@ const APP_ICONS = {
 
 // 半宽卡片里的副标题要能一行放下，完整副标题仍保留在 apps 数据里供无障碍/契约使用。
 const TILE_SUBTITLES = {
+  fabushi: '读书 · 心得 · 正能量',
   customer: '客户列表与新增',
   customerCreate: '录入客户档案',
   customerRanking: '客户四项排行',
@@ -39,6 +41,8 @@ const APP_MODULES = [
   //   收纳 学分排行+统计分析+核心客户六项指标)/流程协同=公海·审批·提醒 协作面; 原「经营分析」组撤销。
   // 【2026-11-06 用户令"客户排行归客户模块 学分排行归学分模块"】客户排行卡入客户经营组(对齐 PC
   // 客户管理·客户排行), 学分排行卡留学分管理组(对齐 PC 学分管理·学分排行); 两卡带 ?tab= 直达同页
+  // 【法布施一期 2026-11-15】独立模块组(需求裁决: 入口与客户管理平级、宫格第一位; 对齐 PC 侧栏组)
+  { key: 'fabushi', title: '法布施', subtitle: '读书 · 心得 · 正能量', apps: ['fabushi'] },
   { key: 'customer', title: '客户经营', subtitle: '客户列表、详情与新增', apps: ['customer', 'customerCreate', 'customerRanking', 'indicator'] },
   // 【2026-11-03 用户令"应用与 PC 对齐"】补文件管理(PC 正式菜单 file:view; tabBar 页 switchTab 直达)
   { key: 'files', title: '文件管理', subtitle: '文件库、文件夹与分享', apps: ['files'] },
@@ -100,6 +104,8 @@ Page({
   onLoad() {
     if (!requireLogin()) return
     const apps = [
+      // 【法布施一期 2026-11-15】需求裁决①: 入口在「应用」宫格权限卡第一位(与客户管理平级, tabBar 零改动)
+      { key: 'fabushi', title: '法布施', subtitle: '读书 · 心得 · 正能量', color: 'blue', permission: 'fabushi:view' },
       // 【A4 2026-10-08 二轮】宫格命名与 PC 生产菜单名对齐（客户列表/核心客户六项指标），消除跨端页面名漂移
       { key: 'customer', title: '客户列表', subtitle: '客户列表、详情与新增', color: 'blue', permission: 'customer:view' },
       // 【2026-11-03 用户令"应用与 PC 对齐"】补新增客户直达卡(PC 该入口在列表页「+」按钮, 手机上给直达);

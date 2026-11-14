@@ -34,6 +34,8 @@ DICTS=(
   "core_indicator_05|核心指标05-产品品类|wired"
   "core_indicator_06|核心指标06-项目类型|wired"
   "industry|行业类型|wired"
+  "fabushi_category|法布施内容类别|wired"
+  "fabushi_edition_type|法布施版本类型|wired"
 )
 
 echo "=== [字典对账] 每个字典类型必须有业务引用(retired 须有停用迁移) ==="

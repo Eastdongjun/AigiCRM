@@ -144,6 +144,38 @@ public class FabushiBookService {
         return books;
     }
 
+    // ===== Controller 层 Map 化输出(ArchUnit: controller_must_not_depend_on_entity——
+    //      Controller 不直用 Entity, 实体组装/转换收在 service; records 元素运行时实体、编译期 Map) =====
+
+    /** 书目分页 Map 化(records/total)。 */
+    public Map<String, Object> pageData(String categoryCode, String keyword, String status, long current, long size) {
+        Page<BizFabushiBook> p = page(categoryCode, keyword, status, current, size);
+        Map<String, Object> data = new java.util.LinkedHashMap<>();
+        data.put("records", p.getRecords());
+        data.put("total", p.getTotal());
+        return data;
+    }
+
+    /** 提交书目 Map 化(前端 body → 实体组装收在 service)。 */
+    public Map<String, Object> submitData(Map<String, Object> body) {
+        BizFabushiBook book = new BizFabushiBook();
+        book.setCategoryCode(body.get("categoryCode") == null ? null : String.valueOf(body.get("categoryCode")));
+        book.setTitle(body.get("title") == null ? null : String.valueOf(body.get("title")));
+        book.setAuthor(body.get("author") == null ? null : String.valueOf(body.get("author")));
+        book.setPublisher(body.get("publisher") == null ? null : String.valueOf(body.get("publisher")));
+        book.setEditionType(body.get("editionType") == null ? null : String.valueOf(body.get("editionType")));
+        if (body.get("pages") != null) {
+            book.setPages(Integer.valueOf(String.valueOf(body.get("pages"))));
+        }
+        BizFabushiBook created = submit(book);
+        return Map.of("id", created.getId(), "status", created.getStatus());
+    }
+
+    /** 待审核队列 Map 化。 */
+    public Map<String, Object> pendingData() {
+        return Map.of("records", pendingList());
+    }
+
     private void validateCategory(String categoryCode) {
         if (categoryCode == null || categoryCode.isBlank()) {
             throw new BusinessException(400, "类别不能为空");

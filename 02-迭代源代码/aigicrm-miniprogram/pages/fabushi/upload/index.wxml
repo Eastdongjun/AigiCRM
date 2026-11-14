@@ -1,0 +1,21 @@
+<view class="scope-row">
+  <view class="scope-chip {{scopeType === item.value ? 'active' : ''}}"
+        wx:for="{{scopeOptions}}" wx:key="value"
+        data-value="{{item.value}}" bindtap="onScope">{{item.label}}</view>
+</view>
+
+<view class="form-card">
+  <picker mode="selector" range="{{books}}" range-key="title" value="{{bookIndex}}" bindchange="onBookChange">
+    <view class="form-row">
+      <text class="form-label">关联书目</text>
+      <text class="form-value">{{bookIndex >= 0 && books[bookIndex] ? books[bookIndex].title : '可选'}}</text>
+    </view>
+  </picker>
+  <input class="form-input" placeholder="标题(可选)" value="{{title}}" bindinput="onTitle" />
+  <textarea class="form-textarea" placeholder="写点什么…" value="{{content}}" bindinput="onContent" maxlength="2000" />
+</view>
+
+<view class="submit-btn {{submitting || (!title && !content) ? 'disabled' : ''}}" bindtap="submit">
+  {{submitting ? '发布中…' : '发布'}}
+</view>
+<view class="tip">附件(图/音/视)与诵读结构二期开放</view>
