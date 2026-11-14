@@ -24,8 +24,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -281,20 +283,9 @@ public class RecycleService {
         if (isIncentiveEvidence(id)) {
             throw new BusinessException("该文件仍被激励记录引用，不能彻底删除；请先在激励模块处理记录");
         }
-        String ossKey = f.getOssKey();
-        if (ossKey != null && !ossKey.isBlank() && !hasActiveDuplicateKey(ossKey, id)) {
-            fileService.deleteStoredContent(ossKey);
-            // deleteStoredContent 尽力而为不抛错; 仍存在说明物理删除失败, 保留台账待重试
-            if (fileService.contentExists(ossKey)) {
-                throw new BusinessException("文件内容物理删除失败，已保留删除记录，请稍后重试");
-            }
-        }
-        // 文件分享无外键, 随文件台账一并清理
-        jdbc.update("DELETE FROM biz_file_share WHERE file_id = ?", id);
-        int deleted = jdbc.update("DELETE FROM biz_file WHERE id = ? AND deleted = 1", id);
-        if (deleted != 1) {
-            throw new BusinessException("彻底删除失败：数据状态已变化，请刷新后重试");
-        }
+        // 【V2026.11.14.2 P0 修正】级联改走 purgeFileCascade: 主行+全部版本+分享+台账,
+        // 引用计数防误删——此前只删当前 ossKey, 版本行与旧字节全留(隐私/存储双重泄漏)。
+        purgeFileCascade(f);
         writeAuditLog("彻底删除文件", "biz_file", id,
                 "文件名=" + f.getFileName() + ", scope=" + f.getFileScope());
         return "文件已彻底删除（不可恢复）";
@@ -332,7 +323,8 @@ public class RecycleService {
                         f.getId(), f.getFileName(), f.getFileSize(), f.getFileScope(),
                         f.getUploaderId(), uploaderNames.get(f.getUploaderId()),
                         f.getFolderId(), folderNames.get(f.getFolderId()),
-                        f.getUpdatedAt(), fileService.contentExists(f.getOssKey())))
+                        f.getDeletedAt() != null ? f.getDeletedAt() : f.getUpdatedAt(),
+                        fileService.contentExists(f.getOssKey())))
                 .toList();
         return new PageResult<>(records, total);
     }
@@ -411,8 +403,12 @@ public class RecycleService {
     public PurgeFilesResult purgeExpiredFilesWithStats(int retentionDays) {
         if (retentionDays <= 0) return new PurgeFilesResult(0, 0, 0);
         LocalDateTime cutoff = LocalDateTime.now().minusDays(retentionDays);
+        // 【V2026.11.14.2 P0 修正】保留期只认 deleted_at(进回收站时刻)——原 updated_at 是
+        // "最后修改时间"(改名/替换都会刷新), 老文件今天删除明天即被清空, 回收站承诺失效。
+        // COALESCE 兜底存量 NULL 行(V2026.11.14.2 已回填, 双保险)。
         List<Long> ids = jdbc.queryForList(
-                "SELECT id FROM biz_file WHERE deleted = 1 AND updated_at < ?", Long.class, cutoff);
+                "SELECT id FROM biz_file WHERE deleted = 1 "
+                        + "AND COALESCE(deleted_at, updated_at) < ?", Long.class, cutoff);
         PurgeFilesResult result = purgeFileRows(ids);
         if (!result.isEmpty()) {
             writeAuditLog("清理文件回收站", "biz_file", null,
@@ -460,23 +456,55 @@ public class RecycleService {
                 skipped++;
                 continue;
             }
-            String ossKey = f.getOssKey();
-            if (ossKey != null && !ossKey.isBlank() && !hasActiveDuplicateKey(ossKey, id)) {
-                fileService.deleteStoredContent(ossKey);
-                if (fileService.contentExists(ossKey)) {
-                    failed++;
-                    continue;
-                }
-            }
-            jdbc.update("DELETE FROM biz_file_share WHERE file_id = ?", id);
-            int deleted = jdbc.update("DELETE FROM biz_file WHERE id = ? AND deleted = 1", id);
-            if (deleted == 1) {
+            try {
+                purgeFileCascade(f);
                 purged++;
-            } else {
-                skipped++;
+            } catch (BusinessException e) {
+                failed++;
             }
         }
         return new PurgeFilesResult(purged, skipped, failed);
+    }
+
+    /**
+     * 【V2026.11.14.2 P0 修正】彻底删除级联 = 主行 + **全部版本历史** + 分享 + 台账。
+     * 此前只删当前 ossKey——biz_file_version 行与其旧字节全留(隐私+存储双重泄漏);
+     * 回滚产生的"主行 key=版本行 key"场景按 key 去重, 引用计数防误删他文件仍在用的对象。
+     * 先删内容再删台账: 内容删不掉则保留记录待重试(绝不"台账没了字节还在")。
+     * hardDeleteFile 与 purgeFileRows(保留期清理)共用本方法。
+     */
+    private void purgeFileCascade(BizFile f) {
+        Long id = f.getId();
+        // ① 收集本文件全部存储 key(主行+版本行, 去重)
+        Set<String> keys = new LinkedHashSet<>();
+        if (f.getOssKey() != null && !f.getOssKey().isBlank()) keys.add(f.getOssKey());
+        jdbc.query("SELECT oss_key FROM biz_file_version WHERE file_id = ?", rs -> {
+            String k = rs.getString("oss_key");
+            if (k != null && !k.isBlank()) keys.add(k);
+        }, id);
+        // ② 逐 key 引用计数后删内容(其他活跃文件或其他文件的版本仍引用 → 跳过)
+        for (String key : keys) {
+            if (hasActiveDuplicateKey(key, id) || hasVersionDuplicateKey(key, id)) continue;
+            fileService.deleteStoredContent(key);
+            if (fileService.contentExists(key)) {
+                throw new BusinessException("版本内容物理删除失败，已保留记录，请稍后重试");
+            }
+        }
+        // ③ 内容清完才动台账: 版本行 → 分享 → 主行(顺序保证"删失败可重试"不产生孤儿表)
+        jdbc.update("DELETE FROM biz_file_version WHERE file_id = ?", id);
+        jdbc.update("DELETE FROM biz_file_share WHERE file_id = ?", id);
+        int deleted = jdbc.update("DELETE FROM biz_file WHERE id = ? AND deleted = 1", id);
+        if (deleted != 1) {
+            throw new BusinessException("彻底删除失败：数据状态已变化，请刷新后重试");
+        }
+    }
+
+    /** 版本 key 引用计数: 其他文件的版本行是否仍引用该 key(是→不可物理删) */
+    private boolean hasVersionDuplicateKey(String key, Long excludeFileId) {
+        Long n = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM biz_file_version WHERE oss_key = ? AND file_id <> ?",
+                Long.class, key, excludeFileId);
+        return n != null && n > 0;
     }
 
     // ==================== 内部 ====================

@@ -26,7 +26,7 @@ public interface BizFileMapper extends BaseMapper<BizFile> {
 
     @Select("SELECT * FROM biz_file WHERE deleted = 1 "
             + "AND (file_name LIKE #{pattern} OR oss_key LIKE #{pattern}) "
-            + "ORDER BY updated_at DESC LIMIT #{offset}, #{size}")
+            + "ORDER BY COALESCE(deleted_at, updated_at) DESC LIMIT #{offset}, #{size}")
     List<BizFile> selectDeletedPage(@Param("pattern") String pattern,
                                     @Param("offset") int offset,
                                     @Param("size") int size);
@@ -39,8 +39,10 @@ public interface BizFileMapper extends BaseMapper<BizFile> {
     @Select("SELECT * FROM biz_file WHERE id = #{id}")
     BizFile selectByIdIncludingDeleted(@Param("id") Long id);
 
-    /** 恢复文件元数据(只更新 deleted=1 的行, 并发重复恢复返回 0) */
-    @Update("UPDATE biz_file SET deleted = 0 WHERE id = #{id} AND deleted = 1")
+    /** 恢复文件元数据(只更新 deleted=1 的行, 并发重复恢复返回 0);
+     *  【V2026.11.14.2 P0】同步清 deleted_at/deleted_by——恢复后不应残留删除人/时间
+     *  (否则管理员列表、审计、二次删除归属全脏) */
+    @Update("UPDATE biz_file SET deleted = 0, deleted_at = NULL, deleted_by = NULL WHERE id = #{id} AND deleted = 1")
     int restoreDeleted(@Param("id") Long id);
 
     /**
@@ -48,6 +50,6 @@ public interface BizFileMapper extends BaseMapper<BizFile> {
      * 文件夹是硬删除且 ID 不会复用, 保留旧 folder_id 会让恢复出的文件挂在不存在目录下;
      * 同一条件更新内清空 folder_id, 原子恢复且不要求用户重建旧 ID。
      */
-    @Update("UPDATE biz_file SET deleted = 0, folder_id = NULL WHERE id = #{id} AND deleted = 1")
+    @Update("UPDATE biz_file SET deleted = 0, deleted_at = NULL, deleted_by = NULL, folder_id = NULL WHERE id = #{id} AND deleted = 1")
     int restoreDeletedToRoot(@Param("id") Long id);
 }
