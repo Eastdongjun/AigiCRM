@@ -497,7 +497,7 @@
   {
    "method": "POST",
    "path": "/api/file/recycle/batch-purge",
-   "permission": "hasAuthority('file:delete')",
+   "permission": "hasAuthority('file:purge')",
    "handler": "batchPurge"
   },
   {
@@ -515,7 +515,7 @@
   {
    "method": "POST",
    "path": "/api/file/recycle/files/{id}/purge",
-   "permission": "hasAuthority('file:delete')",
+   "permission": "hasAuthority('file:purge')",
    "handler": "purgeFile"
   },
   {
@@ -533,7 +533,7 @@
   {
    "method": "POST",
    "path": "/api/file/recycle/folders/{id}/purge",
-   "permission": "hasAuthority('file:delete')",
+   "permission": "hasAuthority('file:purge')",
    "handler": "purgeFolder"
   },
   {

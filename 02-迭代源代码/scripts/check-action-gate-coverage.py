@@ -89,9 +89,9 @@ ALLOW = {
         "回收站"),
     'file/RecycleBinDialog.vue': (
         [("doRestoreFile", "对话框内部动作: 上层回收站入口已按 file:delete 门禁+后端 @PreAuthorize 同码+归属闸门"),
-         ("doPurgeFile", "同上(彻底删除另经激励佐证守卫)"),
+         ("doPurgeFile", "已按码(v-if file:purge 独立码 V2026.11.14.3)+后端 @PreAuthorize 同码+归属闸门+佐证守卫"),
          ("doRestoreFolder", "同上"),
-         ("doPurgeFolder", "同上"),
+         ("doPurgeFolder", "已按码(v-if file:purge, 同上)"),
          ("doBatchRestore", "同上"),
          ("doBatchPurge", "同上")],
         "文件回收站弹窗(V2026.11.14.1: 入口按钮已按码, 弹窗内逐条动作由后端归属闸门兜底)"),

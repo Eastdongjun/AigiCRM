@@ -74,6 +74,10 @@ public class FileService {
     private final BizFolderAclMapper folderAclMapper;
     /** 【V2026.11.14.1 版本历史】replace 归档/版本列表/回滚 */
     private final com.aigicrm.module.file.mapper.BizFileVersionMapper fileVersionMapper;
+    /** 【V2026.11.14.3 P1】批量删除逐条事务(内部 this 调用绕过 @Transactional 代理, 须显式模板) */
+    private final org.springframework.transaction.support.TransactionTemplate transactionTemplate;
+    /** 【V2026.11.14.3 P1】版本上限/保留期配置读取 */
+    private final com.aigicrm.module.system.service.SysConfigService configService;
     private final BizIncentiveRecordMapper incentiveRecordMapper;
     private final SysUserMapper userMapper;
     private final ObjectProvider<OSS> ossClientProvider;
@@ -466,6 +470,7 @@ public class FileService {
         folderMapper.updateById(folder);
     }
 
+    @org.springframework.transaction.annotation.Transactional
     public void deleteFolder(Long folderId) {
         BizFileFolder folder = folderMapper.selectById(folderId);
         if (folder == null) {
@@ -680,6 +685,8 @@ public class FileService {
             file.setReplaceBy(userId);
             file.setReplacedAt(LocalDateTime.now());
             fileMapper.updateById(file);
+            // 【V2026.11.14.3 P1】归档后按上限裁剪最旧版本(默认 20, 配置可调)
+            pruneVersionsIfNeeded(fileId);
             // 【性能 file-3】版本/ossKey 已变化，旧版本缩略图不再命中新 key；主动清掉避免磁盘残留
             // (缓存清理幂等: 回滚场景只是多一次 miss, 无损)
             evictThumbnailCache(fileId);
@@ -883,6 +890,33 @@ public class FileService {
 
     // ==================== 【V2026.11.14.1 版本历史】(用户拍板 2026-11-14) ====================
 
+    /** 【V2026.11.14.3 P1】版本上限裁剪: 保留最新 max-per-file 条, 超出旧版删内容+行(引用计数防误删)。
+     *  止住"无限替换=无限磁盘"; 版本计入用户配额为第二版产品决策(本版不改配额口径)。 */
+    private void pruneVersionsIfNeeded(Long fileId) {
+        int max = resolveIntConfig("file.version.max-per-file", 20);
+        if (max <= 0) return; // 0/负 = 不限制
+        List<BizFileVersion> all = fileVersionMapper.listByFileId(fileId); // 新→旧
+        if (all.size() <= max) return;
+        BizFile main = fileMapper.selectById(fileId);
+        String mainKey = main != null ? main.getOssKey() : null;
+        for (int i = max; i < all.size(); i++) {
+            BizFileVersion v = all.get(i);
+            if (v.getOssKey() == null || v.getOssKey().equals(mainKey)) continue; // 主行字节不可删
+            if (fileVersionMapper.countOtherRefs(v.getOssKey(), fileId, v.getId()) > 0) continue; // 同文件他版本仍引用
+            deleteStoredContent(v.getOssKey());
+            fileVersionMapper.deleteById(v.getId());
+        }
+    }
+
+    private int resolveIntConfig(String key, int def) {
+        try {
+            String v = configService.getValue(key);
+            return (v == null || v.isBlank()) ? def : Integer.parseInt(v.trim());
+        } catch (Exception e) {
+            return def;
+        }
+    }
+
     /** 版本列表(新→旧)。查看权限=checkFile view; 当前主行不在列表内(它就是"现行版") */
     public List<BizFileVersion> listVersions(Long fileId) {
         if (fileMapper.selectById(fileId) == null) throw new BusinessException("文件不存在");
@@ -946,6 +980,8 @@ public class FileService {
         file.setReplacedAt(LocalDateTime.now());
         fileMapper.updateById(file);
         evictThumbnailCache(fileId);
+        // 【V2026.11.14.3 P1】回滚归档后同样按上限裁剪
+        pruneVersionsIfNeeded(fileId);
         if (quotaBearing(file.getFileScope()) && file.getUploaderId() != null) {
             long newSize = v.getFileSize() != null ? v.getFileSize() : 0L;
             userMapper.adjustStorageUsed(file.getUploaderId(), newSize - oldSize);
@@ -967,7 +1003,10 @@ public class FileService {
                     out.put(id, "文件不存在");
                     continue;
                 }
-                deleteFile(id);
+                // 【V2026.11.14.3 P1】逐条事务: 内部 this 调用不走 @Transactional 代理(自调用失效),
+                // 原"每条自动提交"会在配额更新失败时留下'文件已删未退款'的半删态——
+                // TransactionTemplate 保证单条内部原子; 不包整批=保留"部分成功不回滚已成功项"。
+                transactionTemplate.executeWithoutResult(status -> deleteFile(id));
                 out.put(id, "OK");
             } catch (Exception e) {
                 out.put(id, e.getMessage() == null ? "删除失败" : e.getMessage());

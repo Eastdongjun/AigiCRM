@@ -507,6 +507,34 @@ public class RecycleService {
         return n != null && n > 0;
     }
 
+    /**
+     * 【V2026.11.14.3 P1】版本历史过期清理(每日任务): 归档超 retention-days 的版本行
+     * 删内容+删行。字节保护三重守卫: 活跃主行仍引用 / 同 key 较新版本行仍引用 / 其他文件
+     * 版本仍引用——任一命中只删行不删字节。版本计入用户配额为第二版产品决策。
+     */
+    public int purgeExpiredVersions(int retentionDays) {
+        LocalDateTime cutoff = LocalDateTime.now().minusDays(retentionDays);
+        record VRow(Long id, String ossKey) {}
+        List<VRow> rows = jdbc.query(
+                "SELECT v.id, v.oss_key FROM biz_file_version v "
+                        + "WHERE v.created_at < ? "
+                        + "AND NOT EXISTS (SELECT 1 FROM biz_file b WHERE b.oss_key = v.oss_key AND b.deleted = 0) "
+                        + "AND NOT EXISTS (SELECT 1 FROM biz_file_version v2 WHERE v2.oss_key = v.oss_key AND v2.created_at >= ?) "
+                        + "AND NOT EXISTS (SELECT 1 FROM biz_file_version v3 WHERE v3.oss_key = v.oss_key AND v3.file_id <> v.file_id)",
+                (rs, i) -> new VRow(rs.getLong("id"), rs.getString("oss_key")),
+                cutoff, cutoff);
+        int purged = 0;
+        for (VRow row : rows) {
+            String key = row.ossKey();
+            if (key != null && !key.isBlank() && fileService.contentExists(key)) {
+                fileService.deleteStoredContent(key);
+                if (fileService.contentExists(key)) continue; // 字节删失败→保留行待重试
+            }
+            purged += jdbc.update("DELETE FROM biz_file_version WHERE id = ?", row.id());
+        }
+        return purged;
+    }
+
     // ==================== 内部 ====================
 
     private Map<Long, String> ownerNamesOf(List<BizCustomer> rows) {

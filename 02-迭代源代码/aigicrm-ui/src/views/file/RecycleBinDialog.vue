@@ -6,7 +6,7 @@
           <span class="rb-hint">仅显示我删除的项目；管理员在「系统设置 → 回收站」管理全量。</span>
           <div class="rb-batch" v-if="fileSelection.length">
             <el-button size="small" type="primary" @click="doBatchRestore">批量恢复({{ fileSelection.length }})</el-button>
-            <el-button size="small" type="danger" @click="doBatchPurge">批量彻底删除({{ fileSelection.length }})</el-button>
+            <el-button v-if="userStore.hasPermission('file:purge')" size="small" type="danger" @click="doBatchPurge">批量彻底删除({{ fileSelection.length }})</el-button>
           </div>
         </div>
         <el-table :data="files" v-loading="loading" size="small" max-height="420" @selection-change="s => fileSelection = s">
@@ -18,7 +18,7 @@
           <el-table-column label="操作" width="130" align="center">
             <template #default="{ row }">
               <el-button size="small" link type="primary" @click="doRestoreFile(row)">恢复</el-button>
-              <el-button size="small" link type="danger" @click="doPurgeFile(row)">彻底删除</el-button>
+              <el-button v-if="userStore.hasPermission('file:purge')" size="small" link type="danger" @click="doPurgeFile(row)">彻底删除</el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -47,7 +47,7 @@
           <el-table-column label="操作" width="130" align="center">
             <template #default="{ row }">
               <el-button size="small" link type="primary" @click="doRestoreFolder(row)">恢复</el-button>
-              <el-button size="small" link type="danger" @click="doPurgeFolder(row)">彻底删除</el-button>
+              <el-button v-if="userStore.hasPermission('file:purge')" size="small" link type="danger" @click="doPurgeFolder(row)">彻底删除</el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -66,6 +66,7 @@
 <script setup>
 import { ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { useUserStore } from '@/store/user'
 import {
   myRecycleFiles, myRecycleFolders,
   restoreRecycleFile, purgeRecycleFile,
@@ -74,6 +75,9 @@ import {
 } from '@/api/file'
 
 const emit = defineEmits(['restored'])
+const userStore = useUserStore()
+// 【V2026.11.14.3 P1】彻底删除=不可逆动作, 独立权限码 file:purge(默认仅 admin, 权限中心按需授权);
+// 恢复仍按 file:delete(可逆动作)。无 purge 码者只见"恢复"。
 
 const visible = ref(false)
 const tab = ref('files')

@@ -52,6 +52,8 @@ class FileServicePermissionTest {
     private final BizFileFolderMapper folderMapper = mock(BizFileFolderMapper.class);
     private final BizFileShareMapper fileShareMapper = mock(BizFileShareMapper.class);
     private final BizIncentiveRecordMapper incentiveRecordMapper = mock(BizIncentiveRecordMapper.class);
+    private final com.aigicrm.module.system.service.SysConfigService configService =
+            mock(com.aigicrm.module.system.service.SysConfigService.class);
     private final SysUserMapper userMapper = mock(SysUserMapper.class);
     private final OSS ossClient = mock(OSS.class);
     private final OssConfig ossConfig = mock(OssConfig.class);
@@ -61,6 +63,8 @@ class FileServicePermissionTest {
             mock(com.aigicrm.module.file.mapper.BizFileVersionMapper.class);
     private final FileService svc = new FileService(fileMapper, folderMapper, fileShareMapper, folderAclMapper,
                 fileVersionMapper,
+                mock(org.springframework.transaction.support.TransactionTemplate.class),
+                configService,
             incentiveRecordMapper, userMapper, providerOf(ossClient), ossConfig, folderPermissionService,
             mock(com.aigicrm.security.SecurityAuditService.class),
             mock(org.springframework.jdbc.core.JdbcTemplate.class),

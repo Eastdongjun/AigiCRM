@@ -43,16 +43,29 @@ public class FileRecycleCleanupTask {
             // 定时任务失败不影响主流程, 留痕待人工核查(下次运行会重试同一批)
             log.error("文件回收站自动清理失败: {}", e.getMessage(), e);
         }
+        // 【V2026.11.14.3 P1】版本历史过期清理(file.version.retention-days, 默认 180, 0=不清理)
+        int versionDays = resolveIntConfig("file.version.retention-days", 180);
+        if (versionDays <= 0) return;
+        try {
+            int purged = recycleService.purgeExpiredVersions(versionDays);
+            if (purged > 0) log.info("版本历史过期清理完成: 保留期={}天, 清理={}个版本", versionDays, purged);
+        } catch (Exception e) {
+            log.error("版本历史过期清理失败: {}", e.getMessage(), e);
+        }
     }
 
-    private int resolveRetentionDays() {
-        String value = configService.getValue("file.recycle.retention.days");
-        if (value == null || value.isBlank()) return DEFAULT_RETENTION_DAYS;
+    private int resolveIntConfig(String key, int def) {
+        String value = configService.getValue(key);
+        if (value == null || value.isBlank()) return def;
         try {
             return Integer.parseInt(value.trim());
         } catch (NumberFormatException e) {
-            log.warn("file.recycle.retention.days 配置脏值({}), 回退默认{}天", value, DEFAULT_RETENTION_DAYS);
-            return DEFAULT_RETENTION_DAYS;
+            log.warn("{} 配置脏值({}), 回退默认{}", key, value, def);
+            return def;
         }
+    }
+
+    private int resolveRetentionDays() {
+        return resolveIntConfig("file.recycle.retention.days", DEFAULT_RETENTION_DAYS);
     }
 }

@@ -58,6 +58,10 @@ class FolderFileVersionBatchTest {
     private final SysUserMapper userMapper = mock(SysUserMapper.class);
     private final com.aigicrm.module.file.service.FolderPermissionService folderPermissionService =
             mock(com.aigicrm.module.file.service.FolderPermissionService.class);
+    private final com.aigicrm.module.system.service.SysConfigService configService =
+            mock(com.aigicrm.module.system.service.SysConfigService.class);
+    private final org.springframework.transaction.support.TransactionTemplate transactionTemplate =
+            mock(org.springframework.transaction.support.TransactionTemplate.class);
     private FileService svc;
 
     @BeforeEach
@@ -79,7 +83,9 @@ class FolderFileVersionBatchTest {
             @Override public com.aliyun.oss.OSS getIfUnique() { return null; }
         };
         svc = new FileService(fileMapper, folderMapper, mock(com.aigicrm.module.file.mapper.BizFileShareMapper.class),
-                folderAclMapper, fileVersionMapper, incentiveRecordMapper,
+                folderAclMapper, fileVersionMapper,
+                transactionTemplate, configService,
+                incentiveRecordMapper,
                 userMapper, provider, null /* ossConfig 本地模式不触 */, folderPermissionService,
                 mock(com.aigicrm.security.SecurityAuditService.class),
                 mock(org.springframework.jdbc.core.JdbcTemplate.class),
@@ -87,6 +93,11 @@ class FolderFileVersionBatchTest {
         org.springframework.test.util.ReflectionTestUtils.setField(svc, "storageType", "local");
         org.springframework.test.util.ReflectionTestUtils.setField(svc, "uploadDir", root.toString());
         when(incentiveRecordMapper.selectList(any())).thenReturn(List.of()); // 非激励佐证
+        // TransactionTemplate mock 默认不执行回调——直通执行(与真实逐条事务语义一致)
+        org.mockito.Mockito.doAnswer(inv -> {
+            ((java.util.function.Consumer<org.springframework.transaction.TransactionStatus>) inv.getArgument(0)).accept(null);
+            return null;
+        }).when(transactionTemplate).executeWithoutResult(any());
     }
 
     private SecurityUser su(Long id) {

@@ -90,13 +90,13 @@
 | GET | `/api/file/folders/{id}/permissions` | `hasAuthority('file:view')` | permissions | FolderAclController.java |
 | GET | `/api/file/list` | `hasAuthority('file:view')` | pageFiles | FileController.java |
 | GET | `/api/file/reconciliation` | `hasAuthority('file:folder:manage')` | reconcile | FileReconciliationController.java |
-| POST | `/api/file/recycle/batch-purge` | `hasAuthority('file:delete')` | batchPurge | FileRecycleController.java |
+| POST | `/api/file/recycle/batch-purge` | `hasAuthority('file:purge')` | batchPurge | FileRecycleController.java |
 | POST | `/api/file/recycle/batch-restore` | `hasAuthority('file:delete')` | batchRestore | FileRecycleController.java |
 | GET | `/api/file/recycle/files` | `hasAuthority('file:delete')` | myDeletedFiles | FileRecycleController.java |
-| POST | `/api/file/recycle/files/{id}/purge` | `hasAuthority('file:delete')` | purgeFile | FileRecycleController.java |
+| POST | `/api/file/recycle/files/{id}/purge` | `hasAuthority('file:purge')` | purgeFile | FileRecycleController.java |
 | POST | `/api/file/recycle/files/{id}/restore` | `hasAuthority('file:delete')` | restoreFile | FileRecycleController.java |
 | GET | `/api/file/recycle/folders` | `hasAuthority('file:delete')` | myDeletedFolders | FileRecycleController.java |
-| POST | `/api/file/recycle/folders/{id}/purge` | `hasAuthority('file:delete')` | purgeFolder | FileRecycleController.java |
+| POST | `/api/file/recycle/folders/{id}/purge` | `hasAuthority('file:purge')` | purgeFolder | FileRecycleController.java |
 | POST | `/api/file/recycle/folders/{id}/restore` | `hasAuthority('file:delete')` | restoreFolder | FileRecycleController.java |
 | GET | `/api/file/shared-to-me` | `hasAuthority('file:view')` | sharedToMe | FileController.java |
 | GET | `/api/file/shared-to-me/count` | `hasAuthority('file:view')` | sharedToMeCount | FileController.java |

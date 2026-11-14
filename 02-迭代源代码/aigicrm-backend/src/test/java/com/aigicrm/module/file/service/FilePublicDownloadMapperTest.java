@@ -47,6 +47,8 @@ class FilePublicDownloadMapperTest {
             mock(BizFileShareMapper.class),
             mock(BizFolderAclMapper.class),
             mock(com.aigicrm.module.file.mapper.BizFileVersionMapper.class),
+                mock(org.springframework.transaction.support.TransactionTemplate.class),
+                mock(com.aigicrm.module.system.service.SysConfigService.class),
             mock(BizIncentiveRecordMapper.class),
             mock(SysUserMapper.class),
             providerOf(mock(OSS.class)),

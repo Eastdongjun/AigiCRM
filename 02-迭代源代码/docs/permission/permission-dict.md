@@ -27,6 +27,7 @@
 | `dashboard:view` | 工作台 | 2 | `/dashboard` | 启用 | 系统管理员,行政,销售员,销售总监 |
 | `file:acl:manage` | 文件ACL管理 | 3 | `NULL` | 启用 | 系统管理员,行政,销售员,销售总监 |
 | `file:delete` | 文件删除 | 3 | `` | 启用 | 系统管理员,行政,销售员,销售总监 |
+| `file:purge` | 文件彻底删除(不可逆, 默认仅管理员, 权限中心按需授权) | 3 | `NULL` | 启用 | 系统管理员 |
 | `file:edit` | 文件编辑 | 3 | `NULL` | 启用 | 系统管理员,行政,销售员,销售总监 |
 | `file:folder:manage` | 文件夹管理 | 3 | `NULL` | 启用 | 系统管理员,行政,销售员,销售总监 |
 | `file:share` | 文件分享 | 3 | `` | 启用 | 系统管理员,行政,销售员,销售总监 |
@@ -116,6 +117,7 @@
 | `dashboard:view` | ✅ | ✅ | ✅ | ✅ |
 | `file:acl:manage` | ✅ | ✅ | ✅ | ✅ |
 | `file:delete` | ✅ | ✅ | ✅ | ✅ |
+| `file:purge` | ✅ | ✅ | ✅ | ✅ |
 | `file:edit` | ✅ | ✅ | ✅ | ✅ |
 | `file:folder:manage` | ✅ | ✅ | ✅ | ✅ |
 | `file:share` | ✅ | ✅ | ✅ | ✅ |

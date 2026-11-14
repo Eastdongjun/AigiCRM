@@ -69,7 +69,7 @@ public class FileRecycleController {
         return Result.ok(Map.of("message", recycleService.restoreFile(id)));
     }
 
-    @PreAuthorize("hasAuthority('file:delete')")
+    @PreAuthorize("hasAuthority('file:purge')")
     @PostMapping("/files/{id}/purge")
     public Result<Map<String, String>> purgeFile(@PathVariable Long id) {
         requireOwner(recycleService.fileDeletedBy(id));
@@ -83,7 +83,7 @@ public class FileRecycleController {
         return Result.ok(Map.of("message", recycleService.restoreFolder(id)));
     }
 
-    @PreAuthorize("hasAuthority('file:delete')")
+    @PreAuthorize("hasAuthority('file:purge')")
     @PostMapping("/folders/{id}/purge")
     public Result<Map<String, String>> purgeFolder(@PathVariable Long id) {
         requireOwner(recycleService.folderDeletedBy(id));
@@ -126,7 +126,7 @@ public class FileRecycleController {
     }
 
     /** 批量彻底删除(文件+夹混合 ids): 逐条归属校验+守卫(激励佐证跳过), 返回逐条结果 */
-    @PreAuthorize("hasAuthority('file:delete')")
+    @PreAuthorize("hasAuthority('file:purge')")
     @PostMapping("/batch-purge")
     public Result<Map<String, Object>> batchPurge(@RequestBody Map<String, List<Long>> body) {
         List<Long> fileIds = body.getOrDefault("fileIds", List.of());
