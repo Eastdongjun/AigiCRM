@@ -25,7 +25,9 @@ Page({
     shelf: [],
     activities: [],
     records: { days: [], readDays: 0, readCount: 0 },
-    team: null
+    recordEmpty: true,
+    team: null,
+    teamRanking: []
   },
 
   onPermissionChanged() {
@@ -104,13 +106,13 @@ Page({
         this.setData({ posts: (res && res.records) || [] })
       }).catch(() => {})
     } else if (value === 'shelf') {
-      getFabushiShelf().then((res) => this.setData({ shelf: (res && res.records) || [] })).catch(() => {})
+      getFabushiShelf().then((res) => { const rows = (res && res.records) || []; this.setData({ shelf: rows.map((x) => ({ ...x, progress: x.totalPages ? Math.min(100, Math.round(Number(x.lastPage || 1) * 100 / Number(x.totalPages))) : 0 })) }) }).catch(() => {})
     } else if (value === 'rec') {
-      getFabushiRecords().then((res) => this.setData({ records: res || { days: [], readDays: 0, readCount: 0 } })).catch(() => {})
+      getFabushiRecords().then((res) => { const r = res || { days: [], readDays: 0, readCount: 0 }; this.setData({ records: r, recordEmpty: !((r.days || []).length) }) }).catch(() => {})
     } else if (value === 'stats') {
       getFabushiPersonalStats().then((res) => this.setData({ personal: res || {} })).catch(() => {})
       if (hasPermission('fabushi:stats:view')) {
-        getFabushiDashboard('week').then((res) => this.setData({ team: res || null })).catch(() => {})
+        getFabushiDashboard('week').then((res) => { const t = res || null; this.setData({ team: t, teamRanking: (t && t.ranking || []).slice(0, 5) }) }).catch(() => {})
       }
     }
   },

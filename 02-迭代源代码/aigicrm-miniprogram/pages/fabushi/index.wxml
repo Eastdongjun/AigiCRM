@@ -73,7 +73,7 @@
       <view class="shelf-main">
         <view class="shelf-title">{{item.title}}</view>
         <view class="shelf-meta">{{item.author || '—'}}<text wx:if="{{item.pages}}"> · {{item.pages}} 页</text><text wx:if="{{item.lastPage}}"> · 读到第 {{item.lastPage}} 页</text></view>
-        <view class="shelf-progress"><view style="width: {{item.totalPages ? (item.lastPage * 100 / item.totalPages) : 0}}%;"></view></view>
+        <view class="shelf-progress"><view style="width: {{item.progress || 0}}%;"></view></view>
       </view>
       <text class="shelf-status">{{item.status === 'finished' ? '已读完' : item.status === 'favorite' ? '收藏' : '在读'}}</text>
     </view>
@@ -82,7 +82,7 @@
   <block wx:if="{{activeTab === 'rec'}}">
     <view class="card">
       <view class="rec-head"><text>本月阅读</text><text class="rec-sum">{{records.readDays || 0}} 天 · {{records.readCount || 0}} 次</text></view>
-      <view wx:if="{{!(records.days || []).length}}" class="ghost-sub">本月暂无阅读记录</view>
+      <view wx:if="{{recordEmpty}}" class="ghost-sub">本月暂无阅读记录</view>
       <view wx:for="{{records.days}}" wx:key="date" class="rec-row"><text>{{item.date}}</text><b>{{item.count}} 次</b></view>
     </view>
   </block>
@@ -101,10 +101,10 @@
     <view wx:if="{{team}}" class="card">
       <view class="stats-title">团队阅读 · 本周</view>
       <view class="team-sum">今日已读 {{team.todayReadUsers || 0}} 人<text wx:if="{{team.coveragePct != null}}"> · 覆盖率 {{team.coveragePct}}%</text></view>
-      <view wx:for="{{team.ranking}}" wx:key="userId" wx:if="{{index < 5}}" class="rank-row">
+      <view wx:for="{{teamRanking}}" wx:key="userId" class="rank-row">
         <text class="rank-no">{{index + 1}}</text><text class="rank-name">{{item.userName}}</text><text class="rank-dept">{{item.deptName}}</text><b>{{item.postCount}}</b>
       </view>
-      <view wx:if="{{!(team.ranking || []).length}}" class="ghost-sub">本周期暂无团队数据</view>
+      <view wx:if="{{teamRanking.length === 0}}" class="ghost-sub">本周期暂无团队数据</view>
     </view>
   </block>
 

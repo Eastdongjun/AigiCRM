@@ -79,3 +79,11 @@
 - **无权限 2xx = 0；无未解释的有权限 401/403 = 0**
 - 二期定向权限 48 例全过
 - 证据：`test-results/permission-matrix/result.json`、`summary.md`、`phase2-role-smoke.json`
+
+## MP 运行态收口（2026-11-16 Round 4）
+
+- DevTools automator 改为独立 auto-port 9425 启动后连接成功
+- 发现并修复 `pages/fabushi/index.wxml` 编译错误：WXML 不接受 `!(records.days || []).length` 类表达式，改为 JS 计算 `recordEmpty/teamRanking`，书架进度改为 `progress` 字段
+- MP 实测通过：5 页签、书架 1 条、记录 1 天、统计团队 1 条、A4 详情可见且章节 1 条、提醒设置 20:00/每天、发布页 canCreate
+- 截图：`test-results/fabushi-complete/mp-round4-settings.png`、`mp-round4-upload.png`
+- 证据：`test-results/fabushi-complete/mp-round4.json`
