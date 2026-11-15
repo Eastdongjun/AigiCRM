@@ -28,9 +28,9 @@
 
 ## 未完成/阻塞
 
-1. **小程序 UI 自动化 BLOCKED**：开发者工具 automator 重启后不再监听 9420–9423，无法完成页面级实测；`wx.request` 直连 `/api/fabushi/posts` 已返回 200 和种子数据，但页面 UI 未验证。
-2. **PC 浏览器实测未做**：只验证构建产物/菜单/接口；未做浏览器登录后三页点击回归。
-3. **源码与测试工作树仍分叉**：正式源码树缺已部署的 V15.1–V15.5 权限迁移/后端修复；测试工作树缺小程序内容流页面。合并评审仍需完成。
+1. **小程序 UI 自动化（2026-11-16 01:25 已解除）**：`cli auto --auto-port 9424` 启动成功，automator `ws://127.0.0.1:9424` 可连接；工作台/内容流/详情/评论/木鱼/已读全部 PASS。证据：`test-results/fabushi/mp-evidence-20261116.json`。撤 `fabushi:view+create` 后应用中心入口与发布按钮消失、恢复后回归 PASS：`mp-revoke-evidence-20261116.json`。
+2. **PC 权限中心 9 码回归（2026-11-16 已解除）**：在权限中心「法布施」组逐个勾选 9 码（每次 PUT 200，依赖置灰生效），全部勾选后再逐项恢复原始 2 码状态 PASS。证据：`test-results/fabushi/pc-perm-center-evidence-20261116.json`。
+3. **源码与测试工作树分叉（2026-11-16 已解除）**：已收敛到集成分支 `integration/perm-fabushi-20261116`，后端 1,099 tests / 0 failures；详见 `docs/tree-convergence-20261116.md`。
 4. 一期未做：附件图/音/视上传、共读活动 UI（表/权限码已预留）。
 
 ## 证据
@@ -60,10 +60,14 @@ Playwright + 测试环境真实登录态：
 - `/fabushi/content`、`/fabushi/stats` 均正常加载；
 - 截图：`test-results/fabushi/pc-fabushi-{book,content,stats}.png`。
 
-### 4. MP 验收状态
-- 开发者工具 automator 无法启动/监听端口，**BLOCKED**；
-- 已验证直连 `/api/fabushi/posts` 返回 200 和种子数据；
-- 页面代码语法通过，但未做真实点击验收，不能宣称 MP UI PASS。
+### 4. MP 验收状态（2026-11-16 01:25 PASS）
+- 开发者工具 `cli auto --auto-port 9424` 启动成功，automator 连接 `ws://127.0.0.1:9424`。
+- 工作台：3 个入口（内容流/书目浏览/发布），个人统计 `myPosts=1/myComments=1/myReadCount=1`。
+- 内容流：1 条种子内容（id=1），tab/分页加载正常；详情：正文/评论/木鱼计数正确。
+- 木鱼：`liked 1→0→1`、计数同步；评论：新增 1 条并回显；已读：回内容流 `readByMe=true`。
+- 撤权：临时隔离角色移除 `fabushi:view+create` 后，应用中心「法布施」组消失、工作台发布入口消失（3→2）、`canCreate=false`；恢复后全部回归。
+- 验收中发现并修复 2 个小程序运行时缺陷：① 法布施 5 页 `require` 相对路径多一级 `../`（页面 JS 加载失败）；② 5 页误用 `res.data`，而 `utils/request.js` 已解包为 `body.data`（列表恒空）。修复后 `node --check` 92/92。
+- 证据：`test-results/fabushi/mp-evidence-20261116.json`、`mp-revoke-evidence-20261116.json`、`mp-{workbench,feed,detail,detail-commented,revoked}.png`。
 
 ## 权限中心接入核查（2026-11-16）
 
@@ -88,4 +92,4 @@ Playwright + 测试环境真实登录态：
 - `FileService` 三方合并后同时保留：法布施 `fabushi:create` 上传门禁 + `fabushi:view` 下载旁路 + 11-14 版本字节清理修复（`FileService.java:335/358/1740`）。
 - 权限中心范围目标已补 `fabushi:stats:view → (fabushi, stats_view)`（`PermCenterService.java:69`、`PermScopeManager.vue:193`），双源对账脚本 PASS。
 - 收敛验证：后端 1,099 tests / 0 failures；前端 324 tests；UI build；小程序 92 JS 语法；权限码生成物 90 码独立真值 PASS；API 清单 264 接口新鲜度 PASS。
-- 仍未完成：小程序页面级 UI 验收（BLOCKED）、PC 权限中心 9 码逐项勾选/撤权回归。明细见 `docs/tree-convergence-20261116.md`。
+- 已补齐：小程序页面级 UI 验收 PASS、PC 权限中心 9 码逐项勾选/撤权回归 PASS；明细与证据见 `docs/tree-convergence-20261116.md`。

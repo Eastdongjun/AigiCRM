@@ -1,6 +1,6 @@
-const { hasPermission, requireLogin } = require('../../../../utils/auth')
-const { getFabushiBooks, createFabushiPost } = require('../../../../api/fabushi')
-const { showError } = require('../../../../utils/feedback')
+const { hasPermission, requireLogin } = require('../../../utils/auth')
+const { getFabushiBooks, createFabushiPost } = require('../../../api/fabushi')
+const { showError } = require('../../../utils/feedback')
 
 // 【法布施一期 2026-11-15】发布页: 心得/诵读(文字版)/正能量; 书目可选挂靠
 // (附件图/音/视二期; 提交成功回书目列表/工作台)
@@ -45,7 +45,7 @@ Page({
 
   loadBooks() {
     getFabushiBooks({ status: 'approved', current: 1, size: 100 }).then((res) => {
-      const data = (res && res.data) || {}
+      const data = res || {}
       this.setData({ books: data.records || [] })
     })
   },

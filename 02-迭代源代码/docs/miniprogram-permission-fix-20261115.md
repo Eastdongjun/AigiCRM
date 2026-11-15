@@ -120,5 +120,5 @@ PC 改权限/数据范围后，小程序不再只在“下一次请求”静默�
 
 - 小程序权限修复已从源码树整体移植到测试部署基线，集成分支 `integration/perm-fabushi-20261116`。
 - 收敛后小程序前端 `node --check` 92/92 通过；源码树后端 `mvn test` **1,099 tests / 0 failures**；PC `npm test` **324/324**、`npm run build` exit 0。
-- 小程序 UI 真机/DevTools 验收仍 **BLOCKED**（Automator 端口），不能以语法/接口直连替代页面 PASS。
+- 小程序 UI DevTools 验收 **PASS**（2026-11-16 01:25）：automator 9424；法布施工作台/内容流/详情/评论/木鱼/已读 + 撤权/恢复入口消失均实测通过。证据 `test-results/fabushi/mp-evidence-20261116.json`、`mp-revoke-evidence-20261116.json`。
 - 合并明细与证据见 `docs/tree-convergence-20261116.md`。

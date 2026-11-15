@@ -1,6 +1,6 @@
-const { hasPermission, requireLogin } = require('../../../../utils/auth')
-const { getFabushiPosts } = require('../../../../api/fabushi')
-const { showError } = require('../../../../utils/feedback')
+const { hasPermission, requireLogin } = require('../../../utils/auth')
+const { getFabushiPosts } = require('../../../api/fabushi')
+const { showError } = require('../../../utils/feedback')
 
 const TABS = [
   { value: 'heart', label: '心得' },
@@ -62,7 +62,7 @@ Page({
       size: this.data.pageSize
     }).then((res) => {
       if (seq !== this._seq) return
-      const data = (res && res.data) || {}
+      const data = res || {}
       const records = data.records || []
       this.setData({
         posts: this.data.page > 1 ? this.data.posts.concat(records) : records,

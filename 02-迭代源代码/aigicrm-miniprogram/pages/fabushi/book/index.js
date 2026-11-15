@@ -1,7 +1,7 @@
-const { hasPermission, requireLogin } = require('../../../../utils/auth')
-const { getFabushiBooks } = require('../../../../api/fabushi')
-const { getDictData } = require('../../../../api/system')
-const { showError } = require('../../../../utils/feedback')
+const { hasPermission, requireLogin } = require('../../../utils/auth')
+const { getFabushiBooks } = require('../../../api/fabushi')
+const { getDictData } = require('../../../api/system')
+const { showError } = require('../../../utils/feedback')
 
 // 【法布施一期 2026-11-15】MP 书目列表: 分类条(字典)+搜索+分页; 提交入口走 create 门
 Page({
@@ -40,7 +40,7 @@ Page({
 
   loadCategories() {
     getDictData('fabushi_category').then((res) => {
-      this.setData({ categories: (res && res.data) || [] })
+      this.setData({ categories: res || [] })
     })
   },
 
@@ -55,7 +55,7 @@ Page({
       size: this.data.pageSize
     }).then((res) => {
       if (seq !== this._seq) return // 慢请求守卫: 旧响应丢弃
-      const data = (res && res.data) || {}
+      const data = res || {}
       const records = data.records || []
       this.setData({
         books: this.data.page > 1 ? this.data.books.concat(records) : records,

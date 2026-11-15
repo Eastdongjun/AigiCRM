@@ -103,11 +103,28 @@ V2026.11.15.5__admin_all_active_menus.sql
 4. `SysUserService` 取测试树语义：源码树的 `isAdmin() return` 会绕过 V15 显式授权模型；测试树用 `system:role:grant` 显式码，与“admin 通过迁移持有全部菜单”的新口径一致。
 5. 生成物不手写：权限码由 `gen-permission-codes.py` 从合并后后端重生成；API 清单由 `gen-api.py` 重生成，避免码表/接口漂移。
 
-## 4. 仍未收敛/未验证
+## 4. P0-2 / P0-3 验收（2026-11-16 01:25–01:35）
+
+### 4.1 小程序 DevTools 自动化（PASS）
+
+- 根因：DevTools 36.6.0 的 `cli` HTTP 服务占用 9420，automator 需显式 `cli auto --auto-port 9424`；此前脚本固定连 9420–9423 因而误判 BLOCKED。
+- 页面级：工作台 3 入口、内容流 1 条、详情/评论/木鱼/已读全部 PASS。
+- 撤权：隔离临时角色移除 `fabushi:view+create` → `onShow → refreshPermissions` 后权限码 38 个、fabushi 0 个；应用中心「法布施」组消失、工作台发布入口 3→2、`canCreate=false`；恢复后 40 码、入口回归。
+- 修复 2 个运行时缺陷：法布施 5 页 `require` 路径多一级；5 页误用 `res.data`（请求层已解包）。
+- 证据：`test-results/fabushi/mp-evidence-20261116.json`、`mp-revoke-evidence-20261116.json`。
+
+### 4.2 PC 权限中心 9 码（PASS）
+
+- 测试环境前端已部署收敛后构建（备份：测试服 `/data/aigicrm/backup/frontend-20261116-pre.tgz`）。
+- 权限中心「法布施」组显示 9 码；用隔离角色逐个勾选，每次 `PUT /api/system/roles/102` 200；依赖置灰实测（book:manage/content:manage/stats:export 在父码未勾时禁用）。
+- 全部 9 码勾选后逐项恢复原始 2 码（view/create）状态，PASS。
+- 证据：`test-results/fabushi/pc-perm-center-evidence-20261116.json`、`pc-perm-center-fabushi-9.png`、`pc-perm-center-fabushi-restored.png`。
+
+## 5. 仍未收敛/未验证
 
 - `docs/unified-feature-audit.md` 两树差异约 393 行、`scripts/miniprogram/verify-*.mjs` 仍有版本差；不影响构建与权限门禁，但下次文档门禁前需再对齐。
-- 小程序 UI 真机/DevTools 验收仍为 BLOCKED（Automator 端口问题），见 `docs/fabushi-implementation-20261116.md` 的 MP 验收段。
 - 生产未做任何部署；生产前必须预建 `/app/uploads/fabushi` 并授权、执行 Flyway 到 `2026.11.16.3`、跑双口径迁移。
+- 临时验收角色/账号 `zz_mp_probe`（role id 102 / user id 83）已删除，role 06 法布施绑定仍为 2 码。
 
 ## 5. 回滚
 

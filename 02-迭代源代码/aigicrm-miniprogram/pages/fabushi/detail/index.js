@@ -1,6 +1,6 @@
-const { hasPermission, requireLogin } = require('../../../../utils/auth')
-const { getFabushiPostDetail, getFabushiComments, addFabushiComment, toggleFabushiLike, markFabushiRead } = require('../../../../api/fabushi')
-const { showError } = require('../../../../utils/feedback')
+const { hasPermission, requireLogin } = require('../../../utils/auth')
+const { getFabushiPostDetail, getFabushiComments, addFabushiComment, toggleFabushiLike, markFabushiRead } = require('../../../api/fabushi')
+const { showError } = require('../../../utils/feedback')
 
 Page({
   data: {
@@ -42,7 +42,7 @@ Page({
     if (!id) return
     this.setData({ loading: true })
     getFabushiPostDetail(id).then((res) => {
-      const data = (res && res.data) || {}
+      const data = res || {}
       this.setData({
         post: data.post || {},
         attachments: data.attachments || [],
@@ -60,14 +60,14 @@ Page({
 
   loadComments() {
     getFabushiComments(this.data.id).then((res) => {
-      this.setData({ comments: (res && res.data) || [] })
+      this.setData({ comments: res || [] })
     }).catch(() => {})
   },
 
   toggleLike() {
     if (!this.data.canCreate) return
     toggleFabushiLike(this.data.id).then((res) => {
-      const data = (res && res.data) || {}
+      const data = res || {}
       this.setData({ liked: Boolean(data.liked), likeCount: Number(data.likeCount) || 0 })
     }).catch((err) => showError(err, '操作失败'))
   },
