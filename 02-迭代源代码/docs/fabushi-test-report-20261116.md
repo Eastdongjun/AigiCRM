@@ -69,3 +69,13 @@
 - 二期定向权限：48 例（admin/0/05/06 × 12 场景）全过
 - API 288；MP 50 页；gate PASS=9；后端 1103
 - MP DevTools automator 当前无法连接（IDE 需重开项目窗口），MP 视觉验收待下一轮
+
+## 24,024 全量权限矩阵（2026-11-16 最终轮）
+
+- 28 用户 × 286 端点 × 3 认证态 = 24,024
+- 22,978 通过；1,046 异常
+- 异常：790 资源 ID 403、250 鉴权前 400、4 组织守卫、2 个 `PUT /draft/{type}/force` 空 body 500
+- 2 个 500 已修：入口补 draftData 非空校验；NO001/TY016 复测 400
+- **无权限 2xx = 0；无未解释的有权限 401/403 = 0**
+- 二期定向权限 48 例全过
+- 证据：`test-results/permission-matrix/result.json`、`summary.md`、`phase2-role-smoke.json`
