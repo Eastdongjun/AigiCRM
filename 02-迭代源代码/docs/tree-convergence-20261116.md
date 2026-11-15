@@ -138,7 +138,7 @@ V2026.11.15.5__admin_all_active_menus.sql
 - 测试工作树：`integration/perm-fabushi-20261116`，HEAD `3f138db`（`1b07f25` + `f400039` + `3f138db`）。
 - 逐文件对账：`aigicrm-backend/src`、`aigicrm-ui/src`、`aigicrm-miniprogram` 两树 **0 diff**。
 - 源码树剩余未提交改动仅历史项：`00-项目管理/法布施原型图`、`docs/unified-feature-audit.md`、`scripts/test-miniprogram-incentive-dial.js`（均非本轮产生，未纳入提交）。
-- 测试环境：前端已部署收敛构建（备份 `/data/aigicrm/backup/frontend-20261116-pre.tgz`）；Flyway `2026.11.16.3`；临时验收角色/账号 `zz_mp_probe`（role 102 / user 83）已删除，role 06 法布施绑定恢复为 2 码。
+- 测试环境：前端已部署收敛构建（备份 `/data/aigicrm/backup/frontend-20261116-pre.tgz`）；后端已部署收敛 jar md5 `b6975b9d172d3d64add8a01f04b34f12`（备份 `/data/aigicrm/backup/app-20261116-pre.jar`），启动 `Started AigicrmApplication`，smoke 登录/posts/personal/`scope=fabushi` 上传（fileId 2687）均 200；Flyway `2026.11.16.3`；临时验收角色/账号 `zz_mp_probe`（role 102 / user 83）已删除，role 06 法布施绑定恢复为 2 码。
 - 最终验收矩阵：
 
 | 项 | 结果 | 证据 |

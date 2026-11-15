@@ -76,8 +76,15 @@ try {
     }
   })
 
+  // 总是用目标账号重新登录：本地可能残留已被删除/失效账号的 token 与 globalData
+  await mini.evaluate(() => {
+    try { wx.removeStorageSync('AIGICRM_TOKEN::http://111.229.37.220') } catch (e) {}
+    const g = getApp().globalData
+    g.currentUser = null
+    g.permissions = []
+  })
   let state = await appState()
-  if (!state.user || !state.permissions.length) {
+  {
     const page = await mini.reLaunch('/pages/login/index')
     await page.setData({ username: USER, password: PASS, agreed: true })
     await page.callMethod('submit')
