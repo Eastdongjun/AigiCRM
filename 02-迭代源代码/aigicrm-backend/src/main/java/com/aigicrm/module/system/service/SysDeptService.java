@@ -60,8 +60,13 @@ public class SysDeptService {
      *  【参数】all 全量启用部门
      *  【返回】过滤后的部门列表;dept_id 为空时返回空列表 */
     private List<SysDept> scopeFilter(List<SysDept> all) {
+        // 单集团：admin 也按当前集团过滤(不再跨集团返回全部)。
         if (SecurityUtils.isAdmin()) {
-            return all;
+            List<Long> groups = com.aigicrm.common.scope.GroupScopeUtil.visibleGroupIds();
+            if (groups == null || groups.isEmpty()) return all;
+            Set<Long> groupSet = new HashSet<>(groups);
+            return all.stream().filter(d -> d.getGroupId() != null && groupSet.contains(d.getGroupId()))
+                    .collect(Collectors.toList());
         }
         Long myDeptId = SecurityUtils.getCurrentDeptId();
         if (myDeptId == null) {

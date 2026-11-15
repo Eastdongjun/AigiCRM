@@ -23,6 +23,7 @@ import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import java.util.List;
 import com.aigicrm.security.SecurityUtils;
 import com.aigicrm.module.system.entity.SysRole;
 
@@ -56,6 +57,7 @@ class SysUserDataScopeOverrideTest {
     @Mock SysRoleMapper roleMapper;
     @Mock SeaService seaService;
     @Mock SysDeptMapper deptMapper;
+    @Mock com.aigicrm.common.scope.OrgScopeResolver scopeResolver;
 
     @BeforeAll
     static void initTableInfo() {
@@ -99,7 +101,7 @@ class SysUserDataScopeOverrideTest {
                 customerMapper, shareMapper, jdbc, roleMapper, seaService, deptMapper, mock(com.aigicrm.module.system.mapper.SysUserOrgMapper.class),
                 mock(com.aigicrm.security.PermissionCacheService.class),
                 mock(com.aigicrm.security.JwtTokenProvider.class),
-                mock(com.aigicrm.common.scope.OrgScopeResolver.class),
+                scopeResolver,
                 mock(com.aigicrm.security.SecurityAuditService.class),
                 mock(com.aigicrm.module.common.service.FormDraftService.class));
     }
@@ -174,8 +176,10 @@ class SysUserDataScopeOverrideTest {
         SysUserService service = newService();
         SysUser user = validCreatePayload();
         user.setRoleId(99L);
+        when(scopeResolver.resolveVisibleDeptIds(any())).thenReturn(List.of(1L));
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(true);
+            m.when(() -> SecurityUtils.hasAuthority("system:role:grant")).thenReturn(true);
             service.create(user); // 不应抛异常
         }
         verify(userMapper).insert(any(SysUser.class));

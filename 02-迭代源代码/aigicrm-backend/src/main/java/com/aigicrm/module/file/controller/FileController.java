@@ -35,6 +35,7 @@ public class FileController {
 
     /** F2: 签发短时下载专用 token（1h，scope=download，仅下载/导出路径可用）——主 JWT 不再进 URL/日志。
      *  【2026-10-27 深度检查修复】dlToken 携带当前主 token 的 jti: 登出拉黑主 token 后, 派生下载 token 联动失效 */
+    @PreAuthorize("hasAuthority('file:download')")
     @GetMapping("/download-token")
     public Result<Map<String, Object>> downloadToken(jakarta.servlet.http.HttpServletRequest request) {
         Map<String, Object> data = new java.util.HashMap<>();
@@ -81,21 +82,21 @@ public class FileController {
         return Result.ok(fileService.upload(file, folderId, scope));
     }
 
-    @PreAuthorize("hasAuthority('file:folder:manage')")
+    @PreAuthorize("hasAnyAuthority('file:folder:create','file:folder:manage')")
     @PostMapping("/folders")
     public Result<Void> createFolder(@RequestBody BizFileFolder folder) {
         fileService.createFolder(folder);
         return Result.ok();
     }
 
-    @PreAuthorize("hasAuthority('file:folder:manage')")
+    @PreAuthorize("hasAnyAuthority('file:folder:rename','file:folder:manage')")
     @PutMapping("/folders/{id}")
     public Result<Void> renameFolder(@PathVariable Long id, @RequestBody Map<String, String> body) {
         fileService.renameFolder(id, body.get("folderName"));
         return Result.ok();
     }
 
-    @PreAuthorize("hasAuthority('file:folder:manage')")
+    @PreAuthorize("hasAnyAuthority('file:folder:delete','file:folder:manage')")
     @DeleteMapping("/folders/{id}")
     public Result<Void> deleteFolder(@PathVariable Long id) {
         fileService.deleteFolder(id);
@@ -131,7 +132,7 @@ public class FileController {
     }
 
     /** 版本内容下载; 权限=checkFile download */
-    @PreAuthorize("hasAuthority('file:view')")
+    @PreAuthorize("hasAuthority('file:download')")
     @GetMapping("/{id}/versions/{versionNo}/download")
     public void downloadVersion(@PathVariable Long id, @PathVariable Integer versionNo,
                                 jakarta.servlet.http.HttpServletResponse response) {
@@ -153,7 +154,7 @@ public class FileController {
     }
 
     /** 批量下载(zip 流式打包, 逐个过下载权限, 无权限项静默剔除) */
-    @PreAuthorize("hasAuthority('file:view')")
+    @PreAuthorize("hasAuthority('file:download')")
     @PostMapping("/batch-download")
     public void batchDownload(@RequestBody Map<String, List<Long>> body,
                               jakarta.servlet.http.HttpServletResponse response) {
@@ -194,7 +195,7 @@ public class FileController {
         return Result.ok(info);
     }
 
-    @PreAuthorize("hasAuthority('file:view')")
+    @PreAuthorize("hasAuthority('file:download')")
     @GetMapping("/download/{id}")
     public void downloadById(@PathVariable Long id,
                              @RequestHeader(value = "Range", required = false) String range,
@@ -255,7 +256,7 @@ public class FileController {
         }
     }
 
-    @PreAuthorize("hasAuthority('file:view')")
+    @PreAuthorize("hasAuthority('file:download')")
     @GetMapping("/download/**")
     public ResponseEntity<Resource> download(jakarta.servlet.http.HttpServletRequest request) {
         try {

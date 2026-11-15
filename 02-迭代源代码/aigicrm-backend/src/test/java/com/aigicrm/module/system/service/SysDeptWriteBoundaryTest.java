@@ -140,7 +140,7 @@ class SysDeptWriteBoundaryTest {
     }
 
     @Test
-    void update_ownGroupAllowed_adminAlwaysAllowed() {
+    void update_ownGroupAllowed_adminAlsoLimitedToCurrentGroup() {
         when(deptMapper.selectById(10L)).thenReturn(deptOf(10L, 1L));
         SysDept d = new SysDept();
         d.setId(10L);
@@ -151,14 +151,14 @@ class SysDeptWriteBoundaryTest {
         }
         SysDept any = new SysDept();
         any.setId(55L);
-        any.setDeptName("admin 改任意");
+        any.setDeptName("admin 改其他集团");
         when(deptMapper.selectById(55L)).thenReturn(deptOf(55L, 9002L));
         try (MockedStatic<SecurityUtils> security = mockStatic(SecurityUtils.class)) {
             security.when(SecurityUtils::isAdmin).thenReturn(true);
-            security.when(SecurityUtils::getCurrentGroupIds).thenReturn(null);
-            assertDoesNotThrow(() -> svc.update(any));
+            security.when(SecurityUtils::getCurrentGroupIds).thenReturn(java.util.List.of(1L));
+            assertThrows(BusinessException.class, () -> svc.update(any), "单集团部署下 admin 也不能改其他集团部门");
         }
-        verify(deptMapper, org.mockito.Mockito.times(2)).updateById(any(SysDept.class)); // 本集团1次+admin跨集团1次
+        verify(deptMapper, org.mockito.Mockito.times(1)).updateById(any(SysDept.class));
     }
 
     // ---------- delete ----------

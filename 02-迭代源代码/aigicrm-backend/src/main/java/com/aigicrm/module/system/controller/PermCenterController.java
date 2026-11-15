@@ -3,6 +3,7 @@ package com.aigicrm.module.system.controller;
 import com.aigicrm.common.BusinessException;
 import com.aigicrm.common.Result;
 import com.aigicrm.module.system.service.PermCenterService;
+import com.aigicrm.module.system.service.PermissionMetadataService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -10,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -26,6 +28,14 @@ import java.util.Map;
 public class PermCenterController {
 
     private final PermCenterService permCenterService;
+    private final PermissionMetadataService permissionMetadataService;
+
+    /** 权限点元数据(2026-11-15): 类型/父码/范围轴/adminOnly/requiresOrgAdmin/废弃/依赖, 供权限中心渲染 */
+    @GetMapping("/meta")
+    @PreAuthorize("hasAnyAuthority('system:menu:view','system:role:view','system:scope:grant')")
+    public Result<List<Map<String, Object>>> meta() {
+        return Result.ok(permissionMetadataService.list());
+    }
 
     @GetMapping("/preview")
     @PreAuthorize("hasAuthority('system:config:view')")

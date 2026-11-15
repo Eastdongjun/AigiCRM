@@ -29,11 +29,10 @@ public final class GroupScopeUtil {
      * </ul>
      */
     public static List<Long> visibleGroupIds() {
-        if (SecurityUtils.isAdmin()) {
-            return null;
-        }
         List<Long> groupIds = SecurityUtils.getCurrentGroupIds();
-        return (groupIds == null || groupIds.isEmpty()) ? List.of() : groupIds;
+        if (groupIds != null && !groupIds.isEmpty()) return groupIds;
+        // 单集团部署：admin 无显式集团归属时落到主集团；普通用户仍 fail-closed。
+        return SecurityUtils.isAdmin() ? List.of(DEFAULT_GROUP_ID) : List.of();
     }
 
     /**
@@ -45,18 +44,16 @@ public final class GroupScopeUtil {
      * </ul>
      */
     public static Long currentGroupOrNull() {
-        if (SecurityUtils.isAdmin()) {
-            return null;
-        }
         var user = SecurityUtils.getCurrentUser();
         if (user != null && user.getCurrentGroupId() != null) {
             return user.getCurrentGroupId();
         }
         List<Long> groupIds = SecurityUtils.getCurrentGroupIds();
-        if (groupIds == null || groupIds.isEmpty()) {
-            return null;
+        if (groupIds != null && !groupIds.isEmpty()) {
+            return groupIds.stream().sorted().findFirst().orElse(null);
         }
-        return groupIds.stream().sorted().findFirst().orElse(null);
+        // 单集团部署：admin 无显式集团归属时落到主集团；普通用户仍 fail-closed。
+        return SecurityUtils.isAdmin() ? DEFAULT_GROUP_ID : null;
     }
 
     /**
@@ -91,7 +88,7 @@ public final class GroupScopeUtil {
      * 必须返回空集或拒绝访问，禁止回退到任意集团。
      */
     public static boolean isGroupFailClosed() {
-        return !SecurityUtils.isAdmin() && currentGroupOrNull() == null;
+        return currentGroupOrNull() == null;
     }
 
     /**
@@ -125,16 +122,10 @@ public final class GroupScopeUtil {
      * </ul>
      */
     public static boolean canAccessGroup(Long groupId) {
-        if (SecurityUtils.isAdmin()) {
-            return true;
-        }
-        if (groupId == null) {
-            return false;
-        }
+        if (groupId == null) return false;
+        Long current = currentGroupOrNull();
+        if (current != null && current.equals(groupId)) return true;
         List<Long> groupIds = SecurityUtils.getCurrentGroupIds();
-        if (groupIds == null || groupIds.isEmpty()) {
-            return false;
-        }
-        return groupIds.contains(groupId);
+        return groupIds != null && groupIds.contains(groupId);
     }
 }

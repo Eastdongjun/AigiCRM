@@ -665,6 +665,10 @@ Page({
 
   // 【PR-12 2026-09-19 首批】上传/追加成功 switchTab 回列表即见结果:每次显示刷新记录与统计
   // 【修复 2026-09-20】分类树随 onShow 刷新(此前仅 onLoad, 登录前失败后一直空树); 统计由树完成后串联
+  onPermissionChanged() {
+    this.loadRecords();
+  },
+
   onShow() {
     if (this._loadedOnce) {
       // 【PR-12 契约修复 2026-10-07】写后回流的强制刷新: 上传/追加(upload finishSubmit)与

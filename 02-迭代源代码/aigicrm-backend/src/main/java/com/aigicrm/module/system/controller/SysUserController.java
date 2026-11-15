@@ -41,9 +41,16 @@ public class SysUserController {
     @PostMapping
     @PreAuthorize("hasAnyAuthority('system:user:add','system:org:admin')")
     public Result<String> create(@RequestBody SysUser user) {
-        // 组织管理员只能在管理范围内创建用户（新用户无 id，按目标组织校验）
-        if (SecurityUtils.isOrgAdmin() && user.getOrgId() != null && !orgAdminService.canManageOrg(user.getOrgId())) {
-            throw new BusinessException(403, "无权在该组织下创建用户");
+        // 【P1 修复 2026-11-15】requiresOrgAdmin 必须在入口强制：非平台 admin 且非组织管理员，
+        // 即使持有 system:user:add 也不得创建（此前仅 isOrgAdmin 时校验，code-only 用户可绕过）。
+        if (!SecurityUtils.isAdmin()) {
+            if (!SecurityUtils.isOrgAdmin()) {
+                throw new BusinessException(403, "仅平台管理员或组织管理员可新增用户");
+            }
+            // 组织管理员只能在管理范围内创建用户（新用户无 id，按目标组织校验）
+            if (user.getOrgId() == null || !orgAdminService.canManageOrg(user.getOrgId())) {
+                throw new BusinessException(403, "无权在该组织下创建用户");
+            }
         }
         // 【2026-08-14 安全 P0】随机初始口令随响应返回，管理员转交用户并提醒首登改密
         return Result.ok(userService.create(user));
@@ -56,7 +63,7 @@ public class SysUserController {
         // 整体短路——持 system:user:edit 的行政角色实测可 PUT /api/system/users/1 禁用/篡改 admin。
         // 反转为: 非平台 admin 一律过 canManageUser(内部: 非 orgAdmin 恒 false / orgAdmin 受组织范围+
         // H1 admin 目标保护), 语义与 create 的 canManageOrg 同构
-        if (!SecurityUtils.isAdmin() && !orgAdminService.canManageUser(id)) throw new BusinessException(403, "无权操作该用户");
+        if (!orgAdminService.canManageUser(id)) throw new BusinessException(403, "无权操作该用户");
         user.setId(id);
         userService.update(user);
         return Result.ok();
@@ -67,7 +74,7 @@ public class SysUserController {
     @AigicrmLog(module = "人员", action = "重置密码", targetType = "user")
     public Result<String> resetPassword(@PathVariable Long id) {
         // 同 P0-1: 非 admin 一律过 canManageUser(服务层另有 H1 admin 目标兜底, 此处双闸)
-        if (!SecurityUtils.isAdmin() && !orgAdminService.canManageUser(id)) throw new BusinessException(403, "无权操作该用户");
+        if (!orgAdminService.canManageUser(id)) throw new BusinessException(403, "无权操作该用户");
         // 【2026-08-14 安全 P0】随机临时口令随响应返回，管理员转交用户并提醒首登改密
         return Result.ok(userService.resetPassword(id));
     }
@@ -83,7 +90,7 @@ public class SysUserController {
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {
         // 同 P0-1: 非 admin 一律过 canManageUser
-        if (!SecurityUtils.isAdmin() && !orgAdminService.canManageUser(id)) throw new BusinessException(403, "无权操作该用户");
+        if (!orgAdminService.canManageUser(id)) throw new BusinessException(403, "无权操作该用户");
         userService.deleteUser(id);
         return Result.ok();
     }

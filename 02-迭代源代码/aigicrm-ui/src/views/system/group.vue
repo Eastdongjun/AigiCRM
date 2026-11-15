@@ -42,7 +42,9 @@
           <el-input-number v-model="editForm.sortOrder" :min="0" />
         </el-form-item>
         <el-form-item label="状态">
-          <el-switch v-model="editForm.status" :active-value="1" :inactive-value="0" active-text="启用" inactive-text="禁用" />
+          <el-switch v-model="editForm.status" :active-value="1" :inactive-value="0"
+                     :disabled="!canToggleStatus" active-text="启用" inactive-text="禁用" />
+          <div v-if="!canToggleStatus" class="form-tip">唯一集团不可禁用</div>
         </el-form-item>
         <el-form-item label="描述">
           <el-input v-model="editForm.description" type="textarea" :rows="3" placeholder="集团说明" />
@@ -65,11 +67,15 @@ import { getGroupList, createGroup, updateGroup, deleteGroup } from '@/api/syste
 import { useUserStore } from '@/store/user'
 
 const userStore = useUserStore()
-const canAddGroup = computed(() => userStore.hasPermission('system:group:add'))
-const canEditGroup = computed(() => userStore.hasPermission('system:group:edit'))
-const canDeleteGroup = computed(() => userStore.hasPermission('system:group:delete'))
-
 const groups = ref([])
+// 【产品口径 2026-11-15】集团仅管理员可写；系统只有一个集团：无集团时才显示新增
+const isAdmin = computed(() => userStore.isAdmin())
+const activeGroupCount = computed(() => groups.value.filter(g => g.status === 1).length)
+const canAddGroup = computed(() => isAdmin.value && groups.value.length === 0)
+const canEditGroup = computed(() => isAdmin.value)
+// 单集团不可删除/禁用：仅当存在第二个活跃集团时才展示"禁用"入口
+const canDeleteGroup = computed(() => isAdmin.value && activeGroupCount.value > 1)
+const canToggleStatus = computed(() => isAdmin.value && (!!editForm.id ? activeGroupCount.value > 1 : true))
 const dialogVisible = ref(false)
 const saving = ref(false)
 

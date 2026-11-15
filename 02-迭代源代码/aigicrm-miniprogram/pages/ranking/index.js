@@ -272,6 +272,10 @@ Page({
     }
   },
 
+  onPermissionChanged() {
+    this.loadRanking();
+  },
+
   onLoad(options) {
     if (!requireLogin()) return
     // 【2026-11-04 注册表对齐重构】页内三榜各绑权限中心注册码（映射见 utils/ranking-tabs.js，

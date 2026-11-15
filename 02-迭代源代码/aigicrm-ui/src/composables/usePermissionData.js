@@ -4,7 +4,7 @@
 //   allRoles/allUsers 被基本设置+权限矩阵共用；permList/openPermDialog 被激励类别+权限共用。
 import { ref, reactive, computed } from 'vue'
 import { ElMessage } from 'element-plus'
-import { getRoleList, getMenuTree, updateRole } from '@/api/system'
+import { getRoleList, getMenuTree, updateRole, getPermissionMeta } from '@/api/system'
 import request from '@/utils/request'
 import { confirmAction } from '@/utils/confirm'
 
@@ -15,6 +15,21 @@ const permLoadError = ref(false)
 const allRoles = ref([])
 const menuTree = ref([])
 const rolePermMap = ref({}) // roleId -> Set of menuIds
+const permissionMeta = ref([]) // 权限点元数据(2026-11-15)
+const metaByCode = computed(() => {
+  const m = {}
+  for (const x of permissionMeta.value) m[x.code] = x
+  return m
+})
+
+// 【权限体系 2026-11-15】字段/附属码元数据(先前端常量, P1 改由后端 meta 下发)
+const FIELD_CODES = new Set(['customer:date:edit', 'customer:invoice-date:edit'])
+const PERMISSION_DEPENDS_ON = {
+  'customer:date:edit': 'customer:edit',
+  'customer:invoice-date:edit': 'customer:edit',
+  'contact:view': 'customer:view',
+  'finance:view': 'customer:view',
+}
 
 const permModules = computed(() => {
   const groups = [
@@ -59,7 +74,16 @@ const permModules = computed(() => {
           return false
         })
         const target = group || groups[groups.length - 1]
-        target.items.push({ id: n.id, label: n.menuName, permission: n.permission })
+        const meta = metaByCode.value[n.permission] || {}
+        target.items.push({
+          id: n.id, label: n.menuName, permission: n.permission,
+          isField: meta.type === 'FIELD' || FIELD_CODES.has(n.permission),
+          dependsOn: meta.dependsOn || PERMISSION_DEPENDS_ON[n.permission] || null,
+          adminOnly: !!meta.adminOnly,
+          requiresOrgAdmin: !!meta.requiresOrgAdmin,
+          scopeAxis: meta.scopeAxis || null,
+          scopeMode: meta.scopeMode || null,
+        })
       }
       if (n.children) flatten(n.children)
     }
@@ -155,7 +179,7 @@ const togglePerm = async (role, item) => {
   } catch (e) {
     // 保存失败:回滚本地勾选状态,避免"界面已改、数据库没变"的假成功
     if (had) set.add(item.id); else set.delete(item.id)
-    ElMessage.error('权限保存失败,已还原勾选')
+    ElMessage.error(e?.response?.data?.message || '权限保存失败,已还原勾选')
   } finally {
     permSaving.value = false
   }
@@ -167,6 +191,7 @@ const loadPermData = async () => {
   permLoadError.value = false
   try { const res = await getRoleList(); allRoles.value = res.data || [] } catch { permLoadError.value = true }
   try { const res = await getMenuTree(); menuTree.value = res.data || [] } catch { permLoadError.value = true }
+  try { const res = await getPermissionMeta(); permissionMeta.value = res.data || [] } catch { permissionMeta.value = [] }
   // 加载每个角色的菜单权限
   // 【性能 2026-10-04】各角色的菜单绑定互不依赖，串行 for 改为 Promise.all 并发（参照 reminder 页 2026-08-08 改法）
   await Promise.all(allRoles.value.map(async (role) => {
@@ -346,7 +371,7 @@ const revokePerm = async (id) => {
 export function usePermissionData() {
   return {
     activeTab,
-    permOverview, allRoles, menuTree, rolePermMap, permModules, hasPerm, togglePerm, loadPermData,
+    permOverview, allRoles, menuTree, rolePermMap, permissionMeta, metaByCode, permModules, hasPerm, togglePerm, loadPermData,
     permList, showPermDialog, permForm, grantRoleIds, allUsers, orgUserTree, userTreeRef, selectedUserCount,
     permOpenSections, editRoleIds, deleteRoleIds, editUserTreeRef, deleteUserTreeRef, editUserCount, deleteUserCount,
     loadPermList, loadAllUsers, loadOrgUserTree, checkAllUsers, clearUsers, onTreeCheck, openPermDialog, grantPerm, revokePerm,

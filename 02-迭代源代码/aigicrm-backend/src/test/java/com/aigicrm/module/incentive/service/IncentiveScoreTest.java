@@ -155,14 +155,15 @@ class IncentiveScoreTest {
     }
 
     @Test
-    void canEdit_adminRoleInAnyPosition_grantsFullPermission() {
-        // admin 在角色列表第二位：修复前取首角色会误判为销售员
+    void canEdit_adminRoleRequiresExplicitGrant() {
+        // admin 在角色列表第二位；全系统 admin 收口后不再隐式 canEdit，必须显式 grant
         SecurityUser u = new SecurityUser();
         u.setUserId(5L);
         u.setRoleCodes(java.util.Arrays.asList("sales_engineer", "admin"));
         setCurrentUser(u);
 
-        IncentiveService service = newService(mock(BizIncentiveCategoryMapper.class), mock(JdbcTemplate.class));
+        IncentiveService service = newService(mock(BizIncentiveCategoryMapper.class),
+                jdbcWithRow(null, null, true, true));
         assertTrue(service.canEdit());
         assertTrue(service.canDelete());
     }

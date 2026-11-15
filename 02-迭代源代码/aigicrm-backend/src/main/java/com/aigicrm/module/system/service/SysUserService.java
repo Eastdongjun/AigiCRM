@@ -154,7 +154,6 @@ public class SysUserService {
      * </ul>
      */
     private String applyVisibleDeptScope(String deptIds) {
-        if (SecurityUtils.isAdmin()) return StringUtils.hasText(deptIds) ? deptIds : "";
         java.util.List<Long> visibleDeptIds = scopeResolver.resolveVisibleDeptIds(SecurityUtils.getCurrentUser());
         if (visibleDeptIds == null) {
             // all 范围：仍须落在当前用户集团的组织集合内（与 getById 的 all 分支同口径）
@@ -197,12 +196,8 @@ public class SysUserService {
      * 返回 null 表示本次查询无任何可见部门，调用方应直接返回空结果。
      */
     private String applyGroupScope(String deptIds) {
-        // 【修复 2026-08-07 生产回归】admin 未传 deptIds 时透传 null，会被上层 page() 误判为
-        // "本集团无可见部门"直接返回空页（管理员看不到人员数据）。归一为空串：mapper SQL 中
-        // `#{deptIds} = ''` 与 IS NULL 等价（均视为"不按部门过滤"），且区别于"确无可见部门"的 null。
-        if (SecurityUtils.isAdmin()) return StringUtils.hasText(deptIds) ? deptIds : "";
-        java.util.List<Long> groupIds = SecurityUtils.getCurrentGroupIds();
-        // 【PR-01 P0-02 fail-closed】无集团归属不再回退主集团 1：allowedDeptIds 为空 → 上层返回空页
+        // 单集团：admin 无显式集团时 GroupScopeUtil 回落主集团 1；普通用户无集团仍 fail-closed。
+        java.util.List<Long> groupIds = com.aigicrm.common.scope.GroupScopeUtil.visibleGroupIds();
         if (groupIds == null || groupIds.isEmpty()) return null;
         java.util.List<Long> allowedDeptIds = deptMapper.selectList(
                         new LambdaQueryWrapper<com.aigicrm.module.system.entity.SysDept>()
@@ -231,7 +226,7 @@ public class SysUserService {
         // 持 system:user:view/org:admin 者可按 ID 枚举任意用户全量 PII(0801 泄漏事件同源残留)。
         // 守卫: admin 全量; 本人恒可读; 其余目标用户必须落在当前用户的数据范围可见部门内
         // (self/team/office/region/dept/custom 各范围经 OrgScopeResolver 解析)。
-        if (!SecurityUtils.isAdmin() && !id.equals(SecurityUtils.getCurrentUserId()) && !isUserVisible(u)) {
+        if (!id.equals(SecurityUtils.getCurrentUserId()) && !isUserVisible(u)) {
             throw new BusinessException(403, "无权查看该用户");
         }
         if ("custom".equals(u.getDataScopeOverride())) {
@@ -255,7 +250,6 @@ public class SysUserService {
         if (userId == null) throw new BusinessException("用户不存在");
         SysUser target = userMapper.selectById(userId);
         if (target == null) throw new BusinessException("用户不存在");
-        if (SecurityUtils.isAdmin()) return;
         if (userId.equals(SecurityUtils.getCurrentUserId())) return;
         if (!isUserVisible(target)) {
             throw new BusinessException(403, "无权操作该用户");
@@ -292,7 +286,7 @@ public class SysUserService {
      * 规则：非超管不可授予 admin 角色；授予角色的数据范围与 dataScopeOverride 不得宽于调用者自身范围。
      */
     private void validateGrantableRoleAndScope(Long roleId, String dataScopeOverride) {
-        if (SecurityUtils.isAdmin()) return;
+        if (SecurityUtils.hasAuthority("system:role:grant")) return;
         DataScopeType callerScope = DataScopeType.fromCode(SecurityUtils.getCurrentDataScope());
         if (roleId != null) {
             SysRole role = roleMapper.selectById(roleId);
@@ -341,7 +335,6 @@ public class SysUserService {
      * 【审查 perm-3 2026-10-18】公开复用：岗位分配时校验岗位所属组织也在同一可见口径内。
      */
     public void assertTargetOrgVisible(Long deptId, Long officeId, Long orgId) {
-        if (SecurityUtils.isAdmin()) return;
         Set<Long> targets = new LinkedHashSet<>();
         if (deptId != null) targets.add(deptId);
         if (officeId != null) targets.add(officeId);
@@ -560,7 +553,7 @@ public class SysUserService {
         if (user == null) throw new BusinessException("用户不存在");
         // 【2026-08-15 安全审计 H1 纵深防御】非 admin 操作者禁止重置 admin 角色账号口令——
         // 临时口令明文随响应返回, 得手即接管全系统(不依赖 controller 的 canManageUser 守卫, 服务层独立兜底)
-        if (!SecurityUtils.isAdmin() && hasAdminRole(userId)) {
+        if (!SecurityUtils.hasAuthority("system:role:grant") && hasAdminRole(userId)) {
             throw new BusinessException(403, "无权操作该用户");
         }
         // 【2026-08-14 安全 P0】随机临时口令 + 首登强制改密 + DB 级改密时刻(旧 token 立即失效)。
@@ -584,9 +577,7 @@ public class SysUserService {
         }
         // 【工作流复核确认修复】后端补长度校验: 前端三入口口径分裂(顶栏≥6/首登与忘记密码≥8),
         // 后端此前零校验——顶栏可成功设置 6-7 位弱密码。统一 8-30(与首登改密/忘记密码同口径)
-        if (newPassword == null || newPassword.length() < 8 || newPassword.length() > 30) {
-            throw new BusinessException("新密码长度须为 8-30 位");
-        }
+        com.aigicrm.common.security.PasswordPolicy.validate(newPassword);
         user.setPassword(passwordEncoder.encode(newPassword));
         // 【2026-08-14 安全 P0】DB 级改密时刻(旧 token 失效依据) + 清除首登强制改密标记。
         // 截断到秒：MySQL DATETIME(0) 对小数秒**四舍五入**，不截断会把改密时刻进位到下一秒，
@@ -784,7 +775,7 @@ public class SysUserService {
         SysUser user = userMapper.selectById(userId);
         if (user == null) throw new BusinessException("用户不存在");
         // 【2026-08-15 安全审计 H1 纵深防御】非 admin 操作者禁止删除 admin 角色账号(服务层兜底, 不依赖 controller 守卫)
-        if (!SecurityUtils.isAdmin() && hasAdminRole(userId)) {
+        if (!SecurityUtils.hasAuthority("system:role:grant") && hasAdminRole(userId)) {
             throw new BusinessException(403, "无权操作该用户");
         }
         securityAudit.userAdminEvent("user_delete", userId, null);

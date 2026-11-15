@@ -95,21 +95,15 @@ public class ApprovalService {
             wrapper.eq(BizApproval::getApplicantId, userId);
         } else if ("reviewing".equals(tab) || "approved".equals(tab) || "rejected".equals(tab)) {
             wrapper.eq(BizApproval::getStatus, tab);
-            // 历史/进行中数据范围：非 admin 仅见本人申请或本人参与审批的记录
-            if (!SecurityUtils.isAdmin()) {
-                applyDataScope(wrapper, userId);
-            }
+            // 历史/进行中数据范围：所有人（含 admin）都按角色数据范围过滤
+            applyDataScope(wrapper, userId);
         } else if ("all".equals(tab)) {
-            // 非 admin 仅见本人申请或本人参与审批的记录
-            if (!SecurityUtils.isAdmin()) {
-                applyDataScope(wrapper, userId);
-            }
+            // 所有人（含 admin）都按角色数据范围过滤
+            applyDataScope(wrapper, userId);
         } else {
             // 【DeepSeek四审 P1 修复 2026-09-22】未知/空 tab 不再落入"无范围过滤"分支
-            // (旧代码传 tab=x 可越过个人过滤看全集团列表)。白名单外按最窄口径: 非 admin 套本人相关范围
-            if (!SecurityUtils.isAdmin()) {
-                applyDataScope(wrapper, userId);
-            }
+            // (旧代码传 tab=x 可越过个人过滤看全集团列表)。白名单外按最窄口径套本人相关范围
+            applyDataScope(wrapper, userId);
         }
 
         if (StringUtils.hasText(type)) {
@@ -192,7 +186,7 @@ public class ApprovalService {
 
     public Map<String, Object> detail(Long approvalId, Long userId) {
         BizApproval approval = approvalMapper.selectById(approvalId);
-        if (approval == null || (!SecurityUtils.isAdmin() && !canViewApproval(approval, userId))) {
+        if (approval == null || !canViewApproval(approval, userId)) {
             throw new BusinessException("资源不存在或无权访问");
         }
         fillApprovalNames(approval);
@@ -327,7 +321,7 @@ public class ApprovalService {
                 if (guard == null) {
                     throw new BusinessException("客户不存在, 无法发起保护期延期");
                 }
-                if (!SecurityUtils.isAdmin() && !customerAccessService.canView(customerId)) {
+                if (!customerAccessService.canView(customerId)) {
                     throw new BusinessException(403, "您没有该客户的查看权限, 无法发起保护期延期");
                 }
                 // 【审查 backend-3 2026-10-18】同一客户只允许一张在途延期单:
@@ -359,14 +353,12 @@ public class ApprovalService {
                     || (newOwner.getDeleted() != null && newOwner.getDeleted() == 1)) {
                 throw new BusinessException("接收人不存在或已停用,转移失败;请转交后重试");
             }
-            if (!SecurityUtils.isAdmin()) {
-                Long sessionGroup = com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull();
-                if (sessionGroup != null) {
-                    List<Long> groupMembers = com.aigicrm.common.scope.GroupScopeUtil
-                            .userIdsInGroup(jdbc, sessionGroup);
-                    if (!groupMembers.contains(newOwnerId)) {
-                        throw new BusinessException("接收人不在当前集团,跨集团转移需平台管理员处理");
-                    }
+            Long sessionGroup = com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull();
+            if (sessionGroup != null) {
+                List<Long> groupMembers = com.aigicrm.common.scope.GroupScopeUtil
+                        .userIdsInGroup(jdbc, sessionGroup);
+                if (!groupMembers.contains(newOwnerId)) {
+                    throw new BusinessException("接收人不在当前集团");
                 }
             }
             // 【P0 2026-10-17 体检修复】transfer 提交侧归属校验(与 extend 同口径):
@@ -375,7 +367,7 @@ public class ApprovalService {
             if (transferGuard == null) {
                 throw new BusinessException("客户不存在, 无法发起客户转移");
             }
-            if (!SecurityUtils.isAdmin() && !customerAccessService.canView(customerId)) {
+            if (!customerAccessService.canView(customerId)) {
                 throw new BusinessException(403, "您没有该客户的查看权限, 无法发起客户转移");
             }
         }
@@ -541,8 +533,8 @@ public class ApprovalService {
      */
     @Transactional
     public void transferNode(Long approvalId, Long nodeId, Long newApproverId) {
-        if (!SecurityUtils.isAdmin()) {
-            throw new BusinessException(403, "仅平台管理员可转交审批节点");
+        if (!SecurityUtils.hasAuthority("approval:transfer")) {
+            throw new BusinessException(403, "无审批节点转交权限(approval:transfer)");
         }
         BizApproval approval = approvalMapper.selectByIdForUpdate(approvalId);
         if (approval == null
@@ -852,11 +844,9 @@ public class ApprovalService {
         stats.put("mine", approvalMapper.selectCount(
                 new LambdaQueryWrapper<BizApproval>().eq(BizApproval::getApplicantId, userId)));
 
-        // 数据范围：非 admin 仅统计本人申请或本人参与审批的记录（与列表口径一致）
+        // 数据范围：所有人（含 admin）都按角色数据范围统计（与列表口径一致）
         LambdaQueryWrapper<BizApproval> scoped = new LambdaQueryWrapper<>();
-        if (!SecurityUtils.isAdmin()) {
-            applyDataScope(scoped, userId);
-        }
+        applyDataScope(scoped, userId);
 
         stats.put("reviewing", approvalMapper.selectCount(
                 scoped.clone().eq(BizApproval::getStatus, "reviewing")));
@@ -950,16 +940,13 @@ public class ApprovalService {
                                     || (newOwner.getDeleted() != null && newOwner.getDeleted() == 1)) {
                                 throw new BusinessException("接收人不存在或已停用,转移失败;请转交后重试");
                             }
-                            // 【PR-09】集团边界:非 admin 时,接收人须与当前会话同集团
-                            // (客户 tenant_id 由拦截器管理,实体无字段;用会话集团做边界判定)
-                            if (!SecurityUtils.isAdmin()) {
-                                Long sessionGroup = com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull();
-                                if (sessionGroup != null) {
-                                    List<Long> groupMembers = com.aigicrm.common.scope.GroupScopeUtil
-                                            .userIdsInGroup(jdbc, sessionGroup);
-                                    if (!groupMembers.contains(newOwnerId)) {
-                                        throw new BusinessException("接收人不在当前集团,跨集团转移需平台管理员处理");
-                                    }
+                            // 【PR-09】集团边界:接收人须与当前会话同集团
+                            Long sessionGroup = com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull();
+                            if (sessionGroup != null) {
+                                List<Long> groupMembers = com.aigicrm.common.scope.GroupScopeUtil
+                                        .userIdsInGroup(jdbc, sessionGroup);
+                                if (!groupMembers.contains(newOwnerId)) {
+                                    throw new BusinessException("接收人不在当前集团");
                                 }
                             }
                             customer.setOwnerId(newOwnerId);

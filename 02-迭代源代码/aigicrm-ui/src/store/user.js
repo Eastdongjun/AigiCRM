@@ -18,6 +18,7 @@ export const useUserStore = defineStore('user', {
     roleName: '',
     dataScope: 'self',
     permissions: new Set(),
+    orgAdmin: false,
     menus: [],
     managedOrgIds: [],
     // 侧边栏角标
@@ -60,6 +61,7 @@ export const useUserStore = defineStore('user', {
       this.roleName = data.roleName
       this.dataScope = data.dataScope || 'self'
       this.permissions = new Set(data.permissions)
+      this.orgAdmin = data.orgAdmin === true
       this.menus = data.menus
       this.managedOrgIds = data.managedOrgIds || []
       this.applyGroupInfo(data.groupIds, data.currentGroupId, data.groupNames, data.currentGroupName)
@@ -105,6 +107,9 @@ export const useUserStore = defineStore('user', {
       localStorage.setItem('token', res.data.token)
       this.applyGroupInfo(res.data.groupIds, res.data.currentGroupId, res.data.groupNames, res.data.currentGroupName)
       await this.fetchUserInfo(true)
+    },
+    isOrgAdmin() {
+      return this.orgAdmin
     },
     isAdmin() {
       return this.roles.includes('admin') || this.username === 'admin'

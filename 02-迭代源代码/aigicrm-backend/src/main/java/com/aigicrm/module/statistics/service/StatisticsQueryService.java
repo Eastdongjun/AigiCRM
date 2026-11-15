@@ -283,9 +283,6 @@ public class StatisticsQueryService {
         String groupPrefix = com.aigicrm.common.scope.GroupScopeUtil.tenantCachePrefix();
         // 【C1】规则引擎指纹:与 applyDataScope→applyRuleEngineFilter 同一维度,admin 与非 admin 都并入
         String ruleFp = ruleFingerprint(user);
-        if (SecurityUtils.isAdmin()) {
-            return epochPrefix + groupPrefix + "adm:" + ruleFp;
-        }
         com.aigicrm.common.scope.ScopeRequest req = com.aigicrm.common.scope.ScopeRequest.builder()
                 .user(user)
                 .module("customer")
@@ -1136,7 +1133,6 @@ public class StatisticsQueryService {
             wrapper.apply("1=0");
             return;
         }
-        if (com.aigicrm.security.SecurityUtils.isAdmin()) return; // admin 全量
         List<Long> visible = orgScopeResolver.resolveModuleUsers(user, "file", "view");
         if (visible == null) return; // all: 不过滤
         if (visible.isEmpty()) {

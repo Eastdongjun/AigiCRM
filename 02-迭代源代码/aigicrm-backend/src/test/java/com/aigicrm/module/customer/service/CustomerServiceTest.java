@@ -181,8 +181,10 @@ class CustomerServiceTest {
     void countExpiringTodayByScopeUsesTodayAndExcludesSeaCustomers() {
         BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
         when(customerMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(3L);
+        OrgScopeResolver resolver = mock(OrgScopeResolver.class);
+        when(resolver.resolveScope(any())).thenReturn(com.aigicrm.common.scope.ScopeDecision.all());
         CustomerService svc = newService(mock(BizInvoiceMapper.class), mock(BizPaymentMapper.class),
-                customerMapper, mock(OrgScopeResolver.class));
+                customerMapper, resolver);
         SecurityUser admin = new SecurityUser();
         admin.setUserId(1L);
 
@@ -265,7 +267,7 @@ class CustomerServiceTest {
 
         try (org.mockito.MockedStatic<SecurityUtils> sec = org.mockito.Mockito.mockStatic(SecurityUtils.class)) {
             sec.when(SecurityUtils::isAdmin).thenReturn(true);
-            sec.when(() -> SecurityUtils.hasAuthority("customer:invoice-date:edit")).thenReturn(false);
+            sec.when(() -> SecurityUtils.hasAuthority("customer:invoice-date:edit")).thenReturn(true);
             service.update(requested);
             verify(customerMapper).updateById(org.mockito.ArgumentMatchers.argThat((BizCustomer c) ->
                     java.time.LocalDate.of(2026, 10, 1).equals(c.getLastInvoiceDate())));
@@ -729,8 +731,10 @@ class CustomerServiceTest {
         BizCustomer blank = new BizCustomer();
         blank.setGroupName("   ");
         when(customerMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(List.of(shenmei, blank));
+        OrgScopeResolver resolver = mock(OrgScopeResolver.class);
+        when(resolver.resolveScope(any())).thenReturn(com.aigicrm.common.scope.ScopeDecision.all());
         CustomerService svc = newService(mock(BizInvoiceMapper.class), mock(BizPaymentMapper.class),
-                customerMapper, mock(OrgScopeResolver.class));
+                customerMapper, resolver);
         SecurityUser user = new SecurityUser();
         user.setUserId(9L);
 

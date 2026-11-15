@@ -55,7 +55,7 @@ public class RolePermScopeService {
             "task|view", "score|view", "system|view",
             "approval|view", "reminder|view",
             // 【法布施一期 2026-11-15】团队统计独立数据范围档(照 incentive stats_view 拍板 B 模式,
-            // V2026.11.15.1 从 (incentive,stats_view) 逐行拷贝回填; 内容流社区型全员可见不设范围档)
+            // V2026.11.16.1 从 (incentive,stats_view) 逐行拷贝回填; 内容流社区型全员可见不设范围档)
             "fabushi|stats_view");
 
     private final JdbcTemplate jdbc;
@@ -218,6 +218,43 @@ public class RolePermScopeService {
         return codes;
     }
 
+    /**
+     * 【2026-11-15 小程序范围摘要】返回用户在指定模块/动作上的有效范围 code。
+     * 优先级与 OrgScopeResolver 一致：USER > POSITION > ROLE；精确(module,action) > 通配(*,*)；
+     * 同层多角色取最宽；无显式配置回退用户最宽基础范围。
+     */
+    public String effectiveScopeCode(SecurityUser user, String module, String action) {
+        if (user == null) return null;
+        if (user.getScopeConfigs() != null && !user.getScopeConfigs().isEmpty()) {
+            String seenType = null;
+            java.util.List<String> exact = new ArrayList<>();
+            java.util.List<String> wildcard = new ArrayList<>();
+            for (ScopeConfig c : user.getScopeConfigs()) {
+                String cMod = c.getModule() != null ? c.getModule() : "";
+                String cAct = c.getAction() != null ? c.getAction() : "";
+                boolean moduleMatch = cMod.equals(module) || "*".equals(cMod);
+                boolean actionMatch = cAct.equals(action) || "*".equals(cAct);
+                if (!moduleMatch || !actionMatch) continue;
+                if (c.getScopeLevel() == null || c.getScopeLevel().isBlank()) continue;
+                String type = c.getAssigneeType() != null ? c.getAssigneeType() : "ROLE";
+                if (seenType == null) seenType = type;
+                else if (!seenType.equals(type)) continue;
+                if (cMod.equals(module) && cAct.equals(action)) exact.add(c.getScopeLevel());
+                else wildcard.add(c.getScopeLevel());
+            }
+            java.util.List<String> codes = !exact.isEmpty() ? exact : wildcard;
+            if (!codes.isEmpty()) {
+                com.aigicrm.common.enums.DataScopeType widest = com.aigicrm.common.enums.DataScopeType.fromCode(codes.get(0));
+                for (String code : codes) {
+                    com.aigicrm.common.enums.DataScopeType t = com.aigicrm.common.enums.DataScopeType.fromCode(code);
+                    if (t.rank() < widest.rank()) widest = t;
+                }
+                return widest.getCode();
+            }
+        }
+        return user.getWidestDataScope();
+    }
+
     /** 模块级锚点: 配置行 anchor 列(OWNER/ORG), 未配置默认 OWNER(批②: 客户模块可配 ORG) */
     public ScopeRequest.AnchorType anchorOf(SecurityUser user, String module, String action) {
         // 【批③】优先内存配置(登录装载)
@@ -278,6 +315,10 @@ public class RolePermScopeService {
     @Transactional
     public void updateScopes(String assigneeType, String assigneeKey, List<Map<String, Object>> configs) {
         if (configs == null) return;
+        // 【P1-5 2026-11-15】角色级范围写按 role_code 行锁串行化
+        if (ScopeConfig.ASSIGNEE_ROLE.equals(assigneeType)) {
+            jdbc.queryForList("SELECT id FROM sys_role WHERE role_code = ? FOR UPDATE", Long.class, assigneeKey);
+        }
         if (configs.isEmpty()) {
             // 【B2 审计】清空=恢复默认, 逐 (module,action) 记旧值→默认
             for (var row : jdbc.queryForList(
@@ -296,7 +337,7 @@ public class RolePermScopeService {
                 dualDeleteGrants(assigneeType, assigneeKey);
             }
             invalidate(assigneeKey);
-            permissionCacheService.evictAll();
+            com.aigicrm.common.tx.AfterCommit.run(permissionCacheService::evictAll);
             // 【2026-08-14 缓存自愈】版本递增兜底：evict 漏网/Redis 写失败时缓存与 DB 版本比对自愈
             bumpAllPermVersions();
             return;
@@ -310,6 +351,8 @@ public class RolePermScopeService {
             if (!VALID_SCOPES.contains(scope)) {
                 throw new com.aigicrm.common.BusinessException("非法的数据范围取值: " + scope);
             }
+            // 【P1-4 2026-11-15】保存期校验: 避免“配置成功但运行期恒空”的死范围
+            validateRoleScopeForSave(assigneeType, assigneeKey, scope);
             // 【T7 2026-11-12】写入面档位校验: 后端未消费的 (module,action) 拒绝配置(防新增死配置)
             String axisKey = module + "|" + action;
             if (!CONSUMED_AXIS.contains(axisKey)) {
@@ -496,9 +539,48 @@ public class RolePermScopeService {
         jdbc.update("DELETE FROM role_perm_scope WHERE assignee_type='ROLE' AND assignee_key=?", roleCode);
         dualDeleteGrants("ROLE", roleCode); // 【WP8 双写】
         invalidate(roleCode);
-        permissionCacheService.evictAll();
+        com.aigicrm.common.tx.AfterCommit.run(permissionCacheService::evictAll);
         // 【2026-08-14 缓存自愈】版本递增兜底：evict 漏网/Redis 写失败时缓存与 DB 版本比对自愈
         bumpAllPermVersions();
+    }
+
+    /**
+     * 【P1-4 2026-11-15】角色级范围保存校验:
+     * custom 必须有 sys_role_org 组织绑定; region/office 至少一名启用成员具备对应祖先,
+     * 否则运行期 fail-closed 恒空, 属于“配置成功但不生效”的死配置。
+     */
+    private void validateRoleScopeForSave(String assigneeType, String assigneeKey, String scope) {
+        if (!ScopeConfig.ASSIGNEE_ROLE.equals(assigneeType)) return;
+        if ("custom".equals(scope)) {
+            Integer bound = jdbc.queryForObject(
+                    "SELECT COUNT(*) FROM sys_role_org ro JOIN sys_role r ON r.id = ro.role_id WHERE r.role_code = ?",
+                    Integer.class, assigneeKey);
+            if (bound == null || bound == 0) {
+                throw new BusinessException(400, "DATA_SCOPE_INVALID", "自定义范围需先在角色管理中选择组织");
+            }
+        }
+        if ("region".equals(scope) || "office".equals(scope)) {
+            int wantType = "region".equals(scope) ? 2 : 3;
+            if (!roleHasMemberWithAncestor(assigneeKey, wantType)) {
+                throw new BusinessException(400, "DATA_SCOPE_INVALID",
+                        "该角色成员均无" + ("region".equals(scope) ? "大区" : "办事处")
+                                + "归属，无法配置该范围（请改用自定义/全部或先调整组织）");
+            }
+        }
+    }
+
+    /** 角色下是否存在至少一名启用成员, 其部门链上具备指定 dept_type 祖先 */
+    private boolean roleHasMemberWithAncestor(String roleCode, int deptType) {
+        List<Long> userIds = jdbc.queryForList(
+                "SELECT u.id FROM sys_user u JOIN sys_user_role ur ON ur.user_id = u.id "
+                        + "JOIN sys_role r ON r.id = ur.role_id "
+                        + "WHERE r.role_code = ? AND u.deleted = 0 AND u.status = 1",
+                Long.class, roleCode);
+        if (userIds == null) return false;
+        for (Long id : userIds) {
+            if (id != null && userHasAncestorOfType(String.valueOf(id), deptType)) return true;
+        }
+        return false;
     }
 
     /**
@@ -540,7 +622,7 @@ public class RolePermScopeService {
         }
         invalidate(oldCode);
         invalidate(newCode);
-        permissionCacheService.evictAll();
+        com.aigicrm.common.tx.AfterCommit.run(permissionCacheService::evictAll);
         // 【2026-08-14 缓存自愈】版本递增兜底：evict 漏网/Redis 写失败时缓存与 DB 版本比对自愈
         bumpAllPermVersions();
     }

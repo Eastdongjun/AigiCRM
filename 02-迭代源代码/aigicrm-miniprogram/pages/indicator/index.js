@@ -72,6 +72,16 @@ Page({
     this.applyState({ indicatorPage: page, indicatorPageSize: pageSize })
   },
 
+  onPermissionChanged() {
+    if (getApp().globalData.demoMode) return
+    if (!(typeof hasPermission === 'function' && hasPermission('statistics:view'))) {
+      wx.showToast({ title: '没有统计查看权限', icon: 'none' })
+      setTimeout(() => wx.navigateBack(), 300)
+      return
+    }
+    this.loadStats()
+  },
+
   onLoad() {
     if (!requireLogin()) return
     if (!getApp().globalData.demoMode && !hasPermission('statistics:view')) {

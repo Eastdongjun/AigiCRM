@@ -105,15 +105,20 @@ class IncentiveShareVisibilityTest {
 
     // ==================== canSeeAllIncentive / applyShareVisibility ====================
 
-    /** admin → canSeeAll，applyShareVisibility 不加任何过滤条件 */
+    /** 【产品口径 2026-11-15】admin 默认拥有全部权限：无授权行也可看全部/编辑/删除 */
     @Test
-    void adminSeesAll_noFilter() {
+    void adminWithoutGrant_hasAllPermissions() {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(true);
+            m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
 
             IncentiveService svc = newService();
             assertTrue(Boolean.TRUE.equals((Boolean) ReflectionTestUtils.invokeMethod(svc, "canSeeAllIncentive")),
-                    "admin 必须 canSeeAllIncentive");
+                    "admin 无授权行也应看全部");
+            assertTrue(Boolean.TRUE.equals((Boolean) ReflectionTestUtils.invokeMethod(svc, "canEdit")),
+                    "admin 默认可编辑他人记录");
+            assertTrue(Boolean.TRUE.equals((Boolean) ReflectionTestUtils.invokeMethod(svc, "canDelete")),
+                    "admin 默认可删除他人记录");
 
             LambdaQueryWrapper<BizIncentiveRecord> wrapper = new LambdaQueryWrapper<>();
             ReflectionTestUtils.invokeMethod(svc, "applyShareVisibility", wrapper);
@@ -188,7 +193,8 @@ class IncentiveShareVisibilityTest {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
 
             IncentiveService svc = newService();
-            assertTrue(Boolean.TRUE.equals((Boolean) ReflectionTestUtils.invokeMethod(svc, "canViewIncentiveUser", 999L)));
+            assertTrue(Boolean.TRUE.equals((Boolean) ReflectionTestUtils.invokeMethod(svc, "canViewIncentiveUser", 999L)),
+                    "admin 默认拥有全部权限，无需授权行");
         }
     }
 
@@ -211,7 +217,6 @@ class IncentiveShareVisibilityTest {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
             m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
-            stubNoGrantRow(1L);
             when(recordMapper.selectCount(any())).thenReturn(1L, 0L);
 
             IncentiveService svc = newService();

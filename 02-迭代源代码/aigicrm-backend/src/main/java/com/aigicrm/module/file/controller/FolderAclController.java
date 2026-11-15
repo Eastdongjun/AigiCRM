@@ -28,6 +28,13 @@ public class FolderAclController {
     private final FolderAclService aclService;
     private final FolderTypeDefaultService grantService;
 
+    @PutMapping("/{id}/downloadable")
+    @PreAuthorize("hasAuthority('file:acl:manage')")
+    public Result<Void> setDownloadable(@PathVariable Long id, @RequestBody java.util.Map<String, Integer> body) {
+        aclService.setDownloadable(id, body == null ? null : body.get("downloadable"));
+        return Result.ok();
+    }
+
     @GetMapping("/{id}/permissions")
     // 【2026-11-01 审计修复】行级按钮权限的读取端点: PC 文件中心每次点选文件夹都调它做
     // 替换/删除/下载按钮显隐——挂 file:view(与 folder 树内嵌 perms 同读权限)。

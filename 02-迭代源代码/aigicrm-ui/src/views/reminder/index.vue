@@ -327,7 +327,7 @@ onMounted(async () => {
   // 【2026-09-23 缺陷修复】ensure-expiring 后端已收紧为 admin-only(P1-09 批次): 普通用户调用必 403
   // 弹"仅管理员可批量生成到期提醒"(生产实测 NM005 每次进页必弹)。小程序 9-22 已修,PC 漏改。
   // 到期提醒由服务端 CustomerExpireTask 每晚物化兜底,客户端补生成仅对 admin 有意义。
-  const catchUp = userStore.isAdmin() ? ensureExpiring().catch(() => {}) : Promise.resolve()
+  const catchUp = userStore.hasPermission('reminder:ensure') ? ensureExpiring().catch(() => {}) : Promise.resolve()
   catchUp.finally(loadData)
   try {
     const res = await getScopeDepts()

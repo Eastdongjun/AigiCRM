@@ -99,7 +99,7 @@ public class OrgAdminService {
 
     /** 检查当前用户是否能管理目标用户 */
     public boolean canManageUser(Long targetUserId) {
-        if (SecurityUtils.isAdmin()) return true;
+        if (SecurityUtils.hasAuthority("system:org:admin")) return true;
         if (!SecurityUtils.isOrgAdmin()) return false;
         // 【2026-08-15 安全审计 H1】组织管理员不得操作 admin 角色账号(重置密码拿临时口令/删除即接管全系统),
         // 角色硬校验放在组织范围之前——与目标是否在本组织无关, 任何 admin 角色账号一律拒绝
@@ -120,14 +120,14 @@ public class OrgAdminService {
 
     /** 检查当前用户是否能管理目标组织 */
     public boolean canManageOrg(Long targetOrgId) {
-        if (SecurityUtils.isAdmin()) return true;
+        if (SecurityUtils.hasAuthority("system:org:admin")) return true;
         if (!SecurityUtils.isOrgAdmin()) return false;
         return SecurityUtils.getCurrentManagedOrgIds().contains(targetOrgId);
     }
 
     /** 获取当前用户可管理的用户ID列表（空=全部） */
     public java.util.List<Long> getManageableUserIds() {
-        if (SecurityUtils.isAdmin()) return java.util.Collections.emptyList();
+        if (SecurityUtils.hasAuthority("system:org:admin")) return java.util.Collections.emptyList();
         if (!SecurityUtils.isOrgAdmin()) return java.util.List.of(SecurityUtils.getCurrentUserId());
         List<Long> orgIds = SecurityUtils.getCurrentManagedOrgIds();
         return userMapper.selectList(

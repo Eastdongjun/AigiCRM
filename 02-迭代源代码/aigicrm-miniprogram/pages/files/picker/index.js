@@ -9,6 +9,14 @@ Page({
     src: ''
   },
 
+  onPermissionChanged() {
+    if (getApp().globalData.demoMode) return
+    if (!hasPermission('file:view')) {
+      wx.showToast({ title: '没有操作权限', icon: 'none' })
+      setTimeout(() => wx.navigateBack(), 300)
+    }
+  },
+
   onLoad(options) {
     if (!requireLogin()) return
     // 与文件页上传入口同闸: file:upload 码兜底(入口已查, 防深链直入)

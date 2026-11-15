@@ -301,7 +301,7 @@ const submitPassword = async () => {
     return ElMessage.warning('两次输入的新密码不一致')
   }
   if (pwdForm.newPassword.length < 8 || pwdForm.newPassword.length > 30) {
-    return ElMessage.warning('新密码长度须为 8-30 位')
+    return ElMessage.warning('新密码须为 8-30 位，且含字母和数字')
   }
   pwdLoading.value = true
   try {

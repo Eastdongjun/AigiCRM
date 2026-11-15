@@ -41,6 +41,16 @@ Page({
     const next = { ...this.data, ...patch }
     this.setData({ ...patch, contactView: buildContactView(next) })
   },
+  onPermissionChanged() {
+    if (getApp().globalData.demoMode) return
+    if (!(typeof hasPermission === 'function' && hasPermission('contact:view'))) {
+      wx.showToast({ title: '没有联系人查看权限', icon: 'none' })
+      setTimeout(() => wx.navigateBack(), 300)
+      return
+    }
+    this.load()
+  },
+
   onLoad(options) {
     if (!requireLogin()) return
     if (!getApp().globalData.demoMode && (!hasPermission('customer:view') || !hasPermission('contact:view'))) {

@@ -35,6 +35,9 @@ function purgeLegacyToken() {
 }
 
 function hasPermission(permission) {
+  // 【产品口径 2026-11-15】admin 默认拥有全部权限：前端入口/按钮与后端 isAdmin 旁路一致，
+  // 避免 admin 角色漏绑某个码时页面被误挡（后端仍会按接口权限/管理员守卫二次校验）。
+  if (isAdmin()) return true
   const permissions = getGlobalData().permissions || []
   return permissions.includes(permission)
 }

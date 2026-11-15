@@ -81,11 +81,12 @@ class SysPositionServiceTest {
     }
 
     @Test
-    void list_adminSeesAllGroups() {
+    void list_adminAlsoLimitedToCurrentGroup() {
         SysPositionMapper positionMapper = mock(SysPositionMapper.class);
         SysPositionService service = newServiceWith(positionMapper);
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(true);
+            m.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of(1L));
 
             service.list();
             @SuppressWarnings("unchecked")
@@ -93,7 +94,7 @@ class SysPositionServiceTest {
             ArgumentCaptor<LambdaQueryWrapper<SysPosition>> captor = ArgumentCaptor.forClass(LambdaQueryWrapper.class);
             verify(positionMapper).selectList(captor.capture());
             String expr = captor.getValue().getSqlSegment();
-            assertFalse(expr.contains("group_id"), "admin 不应附加集团过滤，实际: " + expr);
+            assertTrue(expr.contains("group_id"), "单集团 admin 应附加当前集团过滤，实际: " + expr);
         }
     }
 

@@ -122,10 +122,11 @@ public class SecurityConfig {
         // 未命中端点退回 fallback 全量指引。JSON 体用 Jackson 序列化（中文/引号转义不走手工拼串）。
         String message = permissionHintService.hint(request, PermissionHintService.FALLBACK_HINT);
         try {
-            response.getWriter().write(OBJECT_MAPPER.writeValueAsString(Map.of("code", 403, "message", message)));
+            response.getWriter().write(OBJECT_MAPPER.writeValueAsString(
+                    Map.of("code", 403, "message", message, "errorCode", "PERM_DENIED")));
         } catch (Exception jsonEx) {
             // 序列化失败不得改变 403 语义, 回退原固定文案
-            response.getWriter().write("{\"code\":403,\"message\":\"没有访问权限\"}");
+            response.getWriter().write("{\"code\":403,\"message\":\"没有访问权限\",\"errorCode\":\"PERM_DENIED\"}");
         }
     }
 

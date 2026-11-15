@@ -127,7 +127,7 @@ class FolderPermissionMatrixOrgChannelTest {
             assertTrue(fps.check(10L, FolderPermissionService.P_UPLOAD, 7L),
                     "部门档(file|manage=dept)对本部门夹 upload 必须放行（FILE-07 修复前=恒 403）");
             assertFalse(fps.check(20L, FolderPermissionService.P_UPLOAD, 7L),
-                    "对其他部门夹 upload 必须拒绝（修复是恢复部门维，不是放大）");
+                    "其他部门夹 upload 仍应拒绝（公共夹查看走范围，不等于全员默认 upload）");
         }
     }
 }

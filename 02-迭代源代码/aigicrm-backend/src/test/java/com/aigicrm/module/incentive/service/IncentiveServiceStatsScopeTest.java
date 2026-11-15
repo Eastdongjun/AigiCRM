@@ -156,16 +156,16 @@ class IncentiveServiceStatsScopeTest {
     }
 
     @Test
-    void adminAndSystemContextStayUnfiltered() {
-        // admin: 全量(不触发范围解析, 故客户集桩用 lenient)
+    void adminFollowsScopeWithoutExplicitGrant() {
+        // admin 不再隐式全量；无 can_view_all 且客户范围为空 → 0
         lenient().when(customerMapper.selectList(any())).thenReturn(List.of(cust(1L, ME), cust(2L, OTHER)));
         when(recordMapper.selectList(any())).thenReturn(List.of(rec(101L, ME, 1L), rec(102L, OTHER, 2L)));
         try (MockedStatic<SecurityUtils> sec = mockStatic(SecurityUtils.class)) {
             sec.when(SecurityUtils::getCurrentUser).thenReturn(me());
             sec.when(SecurityUtils::isAdmin).thenReturn(true);
+            sec.when(SecurityUtils::getCurrentUserId).thenReturn(ME);
             var result = service.categoryStats(null);
-            assertEquals(2, ((Number) result.get("totalFiles")).intValue());
-            verify(scopeResolver, never()).resolveModuleUsers(any(), anyString(), anyString());
+            assertEquals(0, ((Number) result.get("totalFiles")).intValue());
         }
     }
 }

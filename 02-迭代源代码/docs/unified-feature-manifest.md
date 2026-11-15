@@ -94,14 +94,18 @@
 | `system.config` | 系统 | `/system/config` | `PC-only` | `system:config:view/edit` | 当前集团/系统配置 | 配置增删改查 | `PC-only` |
 | `system.log` | 系统 | `/system/log` | `PC-only` | `system:log:view` | 当前管理范围 | 审计读取 | `PC-only` |
 | `system.recycle` | 系统 | `/system/recycle` 回收站(已删除客户/已删除人员/已删除文件,搜索+分页+详情抽屉) | `PC-only` | `system:recycle:view`(页面/列表/详情)+`system:recycle:restore`(恢复)+`system:recycle:purge`(彻底删除/清空文件回收站),默认仅系统管理员,其他角色由管理员在角色管理勾选 | 当前集团(客户/文件);人员为全局 | 读取已删除数据/详情/恢复/彻底删除(客户校验同名活跃卡/原负责人在册/公海无残留,彻底删除前校验发票回款激励指标日志阶段金额审批无关联;人员校验账号未占用/业务关联为零;文件删除先进回收站,保留期由 `file.recycle.retention.days` 控制(默认30天,0=不自动清理),恢复校验原文件夹/上传人/私有配额,彻底删除校验未被激励记录引用) | `PC-only` ⟦补录 10-18⟧ |
+
+| `system.group` | 系统 | `/system/group` 集团管理 | `PC-only` | 读 `system:group:view`(迁移默认授予所有角色,只读);写 `system:group:add/edit/delete`(仅平台管理员,非 admin 持码也 403 ADMIN_ONLY) | 当前集团(单集团部署) | 集团只读查看/管理员编辑;仅系统无集团时管理员可创建(已有→400 SINGLE_GROUP_ONLY);编码不可改;唯一活跃集团不可禁用/删除 | `PC-only` ⟦补录 11-15⟧ |
+| `system.permissionMeta` | 系统 | `/system/config` 权限中心 | `PC-only` | `system:menu:view`/`system:role:view`/`system:scope:grant` | 当前集团 | 权限点元数据(类型/父码/范围轴/scopeMode/adminOnly/requiresOrgAdmin/废弃/依赖),驱动矩阵标签、置灰与范围控件 | `PC-only` ⟦补录 11-15⟧ |
+| `customer.fieldPermission` | 客户 | 客户编辑表单(注册日/最近开票日) | `PC-only` | 功能码 `customer:edit` + 字段码 `customer:date:edit`/`customer:invoice-date:edit`(从属码,必须同授;继承客户编辑范围) | 继承 `customer:edit` 数据范围 | 字段级编辑;缺字段码 → 400 FIELD_PERM_REQUIRED | 已实现 ⟦补录 11-15⟧ |
 | `system.rule` | 系统 | `/system/rule` | `PC-only` | `system:rule:*` | 当前集团/系统配置 | 规则增删改查 | `PC-only` |
-| `system.group` | 系统 | `/system/group` | `PC-only` | `system:group:*` | 超管集团范围 | 集团增删改查 | `PC-only` |
 | `fabushi.browse` | 法布施 | `/fabushi/book`(书目管理页, fabushi:book:view 门) | `pages/fabushi/index`、`pages/fabushi/book/index` | `fabushi:view`(+`fabushi:book:view` PC 页面码) | 社区全员可见(无行级范围档; 团队统计走 `fabushi:stats:view`) | 读取 | 已实现 ⟦一期 2026-11-15⟧ |
 | `fabushi.create` | 法布施 | PC 书目管理页提交弹窗/暂无独立页 | `pages/fabushi/upload/index` | `fabushi:create` | 本人发布 | 发布心得/诵读(文字版)/正能量/评论/木鱼/提交书目 | 已实现 ⟦一期 2026-11-15, 附件图音视二期⟧ |
 | `fabushi.bookManage` | 法布施 | `/fabushi/book`(审核/驳回/停用/挂PDF) | `PC-only` | `fabushi:book:manage` | — | 书目审核/治理 | `PC-only` ⟦一期 2026-11-15⟧ |
 | `fabushi.contentManage` | 法布施 | `/fabushi/content`(下架留痕) | `PC-only` | `fabushi:content:manage` | — | 内容下架/治理 | `PC-only` ⟦一期 2026-11-15⟧ |
 | `fabushi.stats` | 法布施 | `/fabushi/stats`(五联卡+个人统计) | `PC-only`(MP 个人统计在工作台) | `fabushi:stats:view`(独立数据范围档 fabushi/stats_view, 照激励拍板B模式) | 团队统计可见集(独立档) | 读取/统计 | 已实现 ⟦一期 2026-11-15, 周榜/部门进度/导出二期⟧ |
 | `fabushi.activity` | 法布施 | 二期 | 二期 | `fabushi:activity:manage` | — | 共读活动 | 规划中 |
+| `system.group` | 系统 | `/system/group` | `PC-only` | `system:group:*` | 超管集团范围 | 集团增删改查 | `PC-only` |
 
 ## 3. 工程使用规则
 

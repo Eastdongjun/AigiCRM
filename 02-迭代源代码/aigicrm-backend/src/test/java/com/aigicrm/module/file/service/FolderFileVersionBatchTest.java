@@ -60,6 +60,8 @@ class FolderFileVersionBatchTest {
             mock(com.aigicrm.module.file.service.FolderPermissionService.class);
     private final com.aigicrm.module.system.service.SysConfigService configService =
             mock(com.aigicrm.module.system.service.SysConfigService.class);
+    private final org.springframework.jdbc.core.JdbcTemplate jdbc =
+            mock(org.springframework.jdbc.core.JdbcTemplate.class);
     private final org.springframework.transaction.support.TransactionTemplate transactionTemplate =
             mock(org.springframework.transaction.support.TransactionTemplate.class);
     private FileService svc;
@@ -88,7 +90,7 @@ class FolderFileVersionBatchTest {
                 incentiveRecordMapper,
                 userMapper, provider, null /* ossConfig 本地模式不触 */, folderPermissionService,
                 mock(com.aigicrm.security.SecurityAuditService.class),
-                mock(org.springframework.jdbc.core.JdbcTemplate.class),
+                jdbc,
                 mock(com.aigicrm.module.incentive.service.IncentiveService.class));
         org.springframework.test.util.ReflectionTestUtils.setField(svc, "storageType", "local");
         org.springframework.test.util.ReflectionTestUtils.setField(svc, "uploadDir", root.toString());
@@ -238,5 +240,67 @@ class FolderFileVersionBatchTest {
             assertThrows(BusinessException.class, () -> svc.listVersions(11L),
                     "无 view 权限不得读版本列表(权限链与单文件一致)");
         }
+    }
+
+    /** 【本次修复】版本裁剪的字节删除必须等到事务提交: 配额更新失败回滚时不能把历史版本字节删掉。 */
+    @Test
+    void pruneVersions_deletesContentOnlyAfterCommit() {
+        when(configService.getValue("file.version.max-per-file")).thenReturn("1");
+        BizFile main = new BizFile();
+        main.setId(11L);
+        main.setOssKey("main-key");
+        when(fileMapper.selectById(11L)).thenReturn(main);
+        BizFileVersion v2 = version(2L, 2, "newer-old-key");
+        BizFileVersion v1 = version(1L, 1, "old-key");
+        when(fileVersionMapper.listByFileId(11L)).thenReturn(List.of(v2, v1));
+        when(jdbc.queryForObject(org.mockito.ArgumentMatchers.contains("biz_file WHERE oss_key"),
+                eq(Long.class), org.mockito.ArgumentMatchers.anyString(), eq(11L))).thenReturn(0L);
+        when(jdbc.queryForObject(org.mockito.ArgumentMatchers.contains("biz_file_version WHERE oss_key"),
+                eq(Long.class), org.mockito.ArgumentMatchers.anyString(), anyLong())).thenReturn(0L);
+
+        FileService spy = org.mockito.Mockito.spy(svc);
+        org.springframework.transaction.support.TransactionSynchronizationManager.initSynchronization();
+        try {
+            org.springframework.test.util.ReflectionTestUtils.invokeMethod(spy, "pruneVersionsIfNeeded", 11L);
+            verify(spy, never()).deleteStoredContent("old-key");
+            assertTrue(org.springframework.transaction.support.TransactionSynchronizationManager
+                    .getSynchronizations().size() >= 1, "应登记 afterCommit 字节删除");
+            org.springframework.transaction.support.TransactionSynchronizationManager
+                    .getSynchronizations().forEach(org.springframework.transaction.support.TransactionSynchronization::afterCommit);
+            verify(spy, times(1)).deleteStoredContent("old-key");
+        } finally {
+            org.springframework.transaction.support.TransactionSynchronizationManager.clearSynchronization();
+        }
+    }
+
+    /** 【本次修复】共享 key 的版本行也必须删, 否则 max-per-file 被"主行/其他版本仍引用"永久绕过。 */
+    @Test
+    void pruneVersions_sharedKey_deletesRowButKeepsBytes() {
+        when(configService.getValue("file.version.max-per-file")).thenReturn("1");
+        BizFile main = new BizFile();
+        main.setId(11L);
+        main.setOssKey("main-key");
+        when(fileMapper.selectById(11L)).thenReturn(main);
+        BizFileVersion v2 = version(2L, 2, "shared-key");
+        BizFileVersion v1 = version(1L, 1, "shared-key");
+        when(fileVersionMapper.listByFileId(11L)).thenReturn(List.of(v2, v1));
+        when(jdbc.queryForObject(org.mockito.ArgumentMatchers.contains("biz_file WHERE oss_key"),
+                eq(Long.class), org.mockito.ArgumentMatchers.anyString(), eq(11L))).thenReturn(0L);
+        when(jdbc.queryForObject(org.mockito.ArgumentMatchers.contains("biz_file_version WHERE oss_key"),
+                eq(Long.class), org.mockito.ArgumentMatchers.anyString(), anyLong())).thenReturn(1L);
+
+        FileService spy = org.mockito.Mockito.spy(svc);
+        org.springframework.test.util.ReflectionTestUtils.invokeMethod(spy, "pruneVersionsIfNeeded", 11L);
+        verify(fileVersionMapper).deleteById(1L);
+        verify(spy, never()).deleteStoredContent("shared-key");
+    }
+
+    private BizFileVersion version(Long id, int no, String key) {
+        BizFileVersion v = new BizFileVersion();
+        v.setId(id);
+        v.setFileId(11L);
+        v.setVersionNo(no);
+        v.setOssKey(key);
+        return v;
     }
 }

@@ -51,9 +51,6 @@ public class IncentivePermissionController {
             "g.can_edit AS canEdit, g.can_delete AS canDelete " +
             "FROM biz_incentive_grant g " +
             "JOIN sys_user u ON u.id = g.user_id AND u.deleted = 0 ";
-        if (SecurityUtils.isAdmin()) {
-            return Result.ok(jdbc.queryForList(base + "ORDER BY g.user_id"));
-        }
         Long g = com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull();
         if (g == null) return Result.ok(List.of());
         List<Long> inGroup = com.aigicrm.common.scope.GroupScopeUtil.userIdsInGroup(jdbc, g);
@@ -78,9 +75,6 @@ public class IncentivePermissionController {
     @PreAuthorize("hasAuthority('system:config:edit')")
     @PostMapping("/grant")
     public Result<Void> grant(@RequestBody Map<String, Object> body) {
-        // 【安全 2026-08-08】授予激励权限=授予"看全公司激励记录"能力，仅超管可操作
-        if (!SecurityUtils.isAdmin()) throw new BusinessException("仅系统管理员可授予激励权限");
-
         int canViewShared = toInt(body.get("canViewShared"), 1);
         int canViewAll = toInt(body.get("canViewAll"), 0);
         int canEdit = toInt(body.get("canEdit"), 0);
@@ -167,7 +161,6 @@ public class IncentivePermissionController {
     @PreAuthorize("hasAuthority('system:config:edit')")
     @DeleteMapping("/{id}")
     public Result<Void> revoke(@PathVariable Long id) {
-        if (!SecurityUtils.isAdmin()) throw new BusinessException("仅系统管理员可撤销激励权限");
         // 【B2 审计】删除前读旧值; 无行时撤销幂等直接成功不记版本
         String oldFlags = null;
         var oldRows = jdbc.queryForList(

@@ -117,6 +117,7 @@ public class IncentiveController {
      */
     private void assertCanEditRecord(Long id) {
         SecurityUser user = SecurityUtils.getCurrentUser();
+        // 【产品口径 2026-11-15】admin 默认拥有全部权限
         if (SecurityUtils.isAdmin() || incentiveService.canEdit()) return;
         BizIncentiveRecord existing = incentiveService.getRecordById(id);
         if (existing == null || existing.getUserId() == null || !existing.getUserId().equals(user.getUserId())) {
@@ -135,9 +136,8 @@ public class IncentiveController {
     @DeleteMapping("/records/{id}")
     public Result<Void> deleteRecord(@PathVariable Long id) {
         SecurityUser user = SecurityUtils.getCurrentUser();
+        // 【产品口径 2026-11-15】admin 默认拥有全部权限；其余按授权表 can_delete ∨ 本人记录
         boolean isAdmin = SecurityUtils.isAdmin();
-        // 【2026-08-14 RBAC 收敛】授权判定：admin ∨ 授权表 can_delete(biz_incentive_grant) ∨ 本人记录
-        // 【勘误 2026-11-08】旧注释"∨ incentive:manage 权限码"系授权表替代前口径, 该码已删(V2026.11.08.2)
         if (!isAdmin && !incentiveService.canDelete()) {
             // 变量名避开受限标识符 record（SonarLint S6213）
             BizIncentiveRecord incRecord = incentiveService.getRecordById(id);

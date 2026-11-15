@@ -503,8 +503,7 @@ public class PermissionMatrixTest {
         // 上级链打开弹窗需要按自身权限放行（前端按钮权限退化兜底），降级只缩小要求不放大攻击面。
         // 【2026-11-10 文件权限终版】逐夹 ACL 端点(listAcl/saveAcl/removeAcl/setDownloadable)退役——
         // ACL 已由迁移转换为 folder_id 定向授权行, 配置一律走例外授权(type-defaults 五端点, 含续期)。
-        assertEquals(Set.of("aclRoles",
-                "listTypeDefaults", "saveTypeDefault", "renewTypeDefault", "removeTypeDefault"), annotated,
+        assertEquals(Set.of("aclRoles", "listTypeDefaults", "saveTypeDefault", "renewTypeDefault", "removeTypeDefault", "setDownloadable"), annotated,
                 "FolderAclController 授权端点(角色字典1+例外授权4)必须携带 hasAuthority('file:acl:manage')");
         assertEquals("hasAuthority('file:view')", permissionsAuthority,
                 "permissions 读端点必须为 file:view（夹主弹窗放行设计，控制器注释为证）");
@@ -549,9 +548,9 @@ public class PermissionMatrixTest {
                 "hasAuthority('file:view')");
         assertPreAuthorize(controller.getDeclaredMethod("downloadById", Long.class, String.class,
                         boolean.class, jakarta.servlet.http.HttpServletResponse.class),
-                "hasAuthority('file:view')");
+                "hasAuthority('file:download')");
         assertPreAuthorize(controller.getDeclaredMethod("download", jakarta.servlet.http.HttpServletRequest.class),
-                "hasAuthority('file:view')");
+                "hasAuthority('file:download')");
 
         assertPreAuthorize(controller.getDeclaredMethod("upload",
                         org.springframework.web.multipart.MultipartFile.class, Long.class, String.class),
@@ -564,11 +563,11 @@ public class PermissionMatrixTest {
 
         assertPreAuthorize(controller.getDeclaredMethod("createFolder",
                         com.aigicrm.module.file.entity.BizFileFolder.class),
-                "hasAuthority('file:folder:manage')");
+                "hasAnyAuthority('file:folder:create','file:folder:manage')");
         assertPreAuthorize(controller.getDeclaredMethod("renameFolder", Long.class, java.util.Map.class),
-                "hasAuthority('file:folder:manage')");
+                "hasAnyAuthority('file:folder:rename','file:folder:manage')");
         assertPreAuthorize(controller.getDeclaredMethod("deleteFolder", Long.class),
-                "hasAuthority('file:folder:manage')");
+                "hasAnyAuthority('file:folder:delete','file:folder:manage')");
 
         Path src = Paths.get("src/main/java/com/aigicrm/module/file/service/FileService.java")
                 .toAbsolutePath().normalize();
@@ -610,8 +609,10 @@ public class PermissionMatrixTest {
                 "FileController.downloadToken 必须保留 GET 入口");
         assertEquals("/download-token", downloadToken.getAnnotation(org.springframework.web.bind.annotation.GetMapping.class).value()[0],
                 "file.download-token 路径不能漂移");
-        assertTrue(downloadToken.getAnnotation(PreAuthorize.class) == null,
-                "download-token 依赖当前认证上下文签发短时 token，不应错误绑定 file:view 或其他文件权限码");
+        assertTrue(downloadToken.getAnnotation(PreAuthorize.class) != null,
+                "download-token 必须绑定文件下载权限码");
+        assertEquals("hasAuthority('file:download')", downloadToken.getAnnotation(PreAuthorize.class).value(),
+                "download-token 应绑定 file:download");
 
         Path controllerSrc = Paths.get("src/main/java/com/aigicrm/module/file/controller/FileController.java")
                 .toAbsolutePath().normalize();
@@ -980,7 +981,7 @@ public class PermissionMatrixTest {
         assertPreAuthorize(controller.getDeclaredMethod("pendingCount"),
                 "hasAuthority('reminder:view')");
         assertPreAuthorize(controller.getDeclaredMethod("ensureExpiring"),
-                "hasAuthority('reminder:view')");
+                "hasAuthority('reminder:ensure')");
         assertPreAuthorize(controller.getDeclaredMethod("process", Long.class),
                 "hasAuthority('reminder:view')");
 
@@ -1037,10 +1038,10 @@ public class PermissionMatrixTest {
                         && serviceBody.contains("private Map<String, Object> customerBrief"),
                 "ReminderService.detail 必须复用可见性守卫并只返回提醒场景需要的客户摘要");
         assertTrue(serviceBody.contains("private void assertVisible")
-                        && serviceBody.contains("SecurityUtils.isAdmin()")
+                        && !serviceBody.contains("if (SecurityUtils.isAdmin())")
                         && serviceBody.contains("reminder.getOwnerId() == null || !visible.contains(reminder.getOwnerId())")
                         && serviceBody.contains("throw new BusinessException(message)"),
-                "ReminderService.assertVisible 必须保留 admin 放行与非 admin 负责人范围校验");
+                "ReminderService.assertVisible 必须对所有角色保留负责人范围校验");
     }
 
     /** 激励记录编辑/删除必须保留方法内归属与专项授权守卫，不能误回退成粗粒度方法权限。 */
@@ -1082,8 +1083,8 @@ public class PermissionMatrixTest {
                 .toAbsolutePath().normalize();
         String controllerBody = readSource(controllerSrc, "IncentiveController");
         assertTrue(controllerBody.contains("SecurityUser user = SecurityUtils.getCurrentUser()")
-                        && controllerBody.contains("boolean isAdmin = SecurityUtils.isAdmin()"),
-                "IncentiveController.updateRecord/deleteRecord 必须基于当前用户和 admin 状态做方法内守卫");
+                        && controllerBody.contains("incentiveService.canDelete()"),
+                "IncentiveController.updateRecord/deleteRecord 必须基于当前用户和显式 grant 做方法内守卫");
         // 【工作流复检修复 2026-10-10】updateRecord/removeFile 两段复制粘贴守卫收敛为共享
         // assertCanEditRecord（防单边改动造成两接口权限口径漂移）——契约钉同步重钉到共享形态
         assertTrue(controllerBody.contains("private void assertCanEditRecord(Long id)")
@@ -1093,13 +1094,13 @@ public class PermissionMatrixTest {
                         && controllerBody.contains("assertCanEditRecord(id);")
                         && controllerBody.contains("incentiveService.updateRecord(id, record)")
                         && controllerBody.contains("incentiveService.removeFile(id, body.slot(), body.fileId())"),
-                "IncentiveController.updateRecord/removeFile 必须经共享 assertCanEditRecord 保留 admin/can_edit/本人记录三段式编辑守卫");
+                "IncentiveController.updateRecord/removeFile 必须经共享 assertCanEditRecord 保留 can_edit/本人记录编辑守卫");
         assertTrue(controllerBody.contains("if (!isAdmin && !incentiveService.canDelete())")
                         && controllerBody.contains("BizIncentiveRecord incRecord = incentiveService.getRecordById(id)")
                         && controllerBody.contains("!incRecord.getUserId().equals(user.getUserId())")
                         && controllerBody.contains("throw new BusinessException(403, \"无权删除他人记录\")")
                         && controllerBody.contains("incentiveService.deleteRecord(id)"),
-                "IncentiveController.deleteRecord 必须保留 admin/can_delete/本人记录三段式删除守卫");
+                "IncentiveController.deleteRecord 必须保留 can_delete/本人记录删除守卫");
 
         Path serviceSrc = Paths.get("src/main/java/com/aigicrm/module/incentive/service/IncentiveService.java")
                 .toAbsolutePath().normalize();

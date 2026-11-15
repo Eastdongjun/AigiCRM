@@ -294,6 +294,16 @@ Page({
     this.setData({ ...patch, detailView: buildDetailView(nextData) })
   },
 
+  onPermissionChanged() {
+    if (getApp().globalData.demoMode) return
+    if (!(isAdmin() || hasPermission(PERMISSION_CODES.CUSTOMER_VIEW))) {
+      wx.showToast({ title: '没有客户查看权限', icon: 'none' })
+      setTimeout(() => wx.navigateBack(), 300)
+      return
+    }
+    this.loadDetail()
+  },
+
   onLoad(options) {
     if (!requireLogin()) return
     if (!getApp().globalData.demoMode && !hasPermission(PERMISSION_CODES.CUSTOMER_VIEW)) {

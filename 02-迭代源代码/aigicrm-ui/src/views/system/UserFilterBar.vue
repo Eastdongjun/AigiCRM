@@ -5,7 +5,7 @@
         <span class="filter-title-text">人员管理</span>
         <span class="filter-title-count">共 {{ total }} 人</span>
       </div>
-      <el-button v-if="userStore.hasPermission('system:user:add')" type="primary" :icon="Plus" @click="openDialog()">新增用户</el-button>
+      <el-button v-if="userStore.isAdmin() || userStore.isOrgAdmin()" type="primary" :icon="Plus" @click="openDialog()">新增用户</el-button>
     </div>
     <div class="filter-row">
       <el-input v-model="query.keyword" placeholder="搜索姓名 / 账号 / 手机号..." clearable prefix-icon="Search" class="filter-search" @keyup.enter="search" />

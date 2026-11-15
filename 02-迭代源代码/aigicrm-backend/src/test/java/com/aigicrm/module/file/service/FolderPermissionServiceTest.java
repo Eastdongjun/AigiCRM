@@ -64,6 +64,14 @@ class FolderPermissionServiceTest {
         m.when(SecurityUtils::isAdmin).thenReturn(admin);
         m.when(SecurityUtils::getCurrentUser).thenReturn(user);
         m.when(SecurityUtils::getCurrentRoleCodes).thenReturn(List.of("05"));
+        // 【admin 权限不再隐式全通】admin 的"全动作"前提=实际持有全部 file 码;
+        // 既有特权断言仍成立, 但取消码后 perms 会按码收缩(见 FolderAdminPermissionTest)。
+        if (admin) {
+            for (String code : List.of("file:view", "file:upload", "file:edit",
+                    "file:share", "file:delete", "file:folder:manage")) {
+                m.when(() -> SecurityUtils.hasAuthority(code)).thenReturn(true);
+            }
+        }
         return m;
     }
 
@@ -101,7 +109,7 @@ class FolderPermissionServiceTest {
     // ===== ① 本人恒可管 + 公共兜底已删除 =====
 
     @Test
-    void uploaderSelfAlwaysManages_publicFallbackRemoved() {
+    void publicViewHonorsDataScope() {
         BizFile mine = file(9L, 100L, 42L);
         BizFile others = file(10L, 100L, 99L);
         when(fileMapper.selectById(9L)).thenReturn(mine);
@@ -117,9 +125,10 @@ class FolderPermissionServiceTest {
             assertTrue(svc.checkFile(9L, FolderPermissionService.P_RENAME, 42L));
             assertTrue(svc.checkFile(9L, FolderPermissionService.P_DELETE, 42L));
             assertTrue(svc.checkFile(9L, FolderPermissionService.P_VIEW, 42L));
-            // 他人99: 矩阵 self=只含42 → 不可见——【拍板①B】公共兜底删除, 同部门/全公司不再白看
-            assertFalse(svc.checkFile(10L, FolderPermissionService.P_VIEW, 42L), "公共兜底已删除: 他人文件默认不可见");
+            // 2026-11-14 用户令：公共夹查看/下载按 data_scope；测试 ORG 部门集为空 → 不可见
+            assertFalse(svc.checkFile(10L, FolderPermissionService.P_VIEW, 42L), "公共文件查看按 data_scope");
             assertFalse(svc.checkFile(10L, FolderPermissionService.P_DOWNLOAD, 42L));
+            assertFalse(svc.checkFile(10L, FolderPermissionService.P_DELETE, 42L), "默认不含删除");
         }
     }
 
@@ -151,7 +160,7 @@ class FolderPermissionServiceTest {
     @Test
     void grant_hitNotExpired_expiredRejected_folderScoped() {
         when(fileMapper.selectById(10L)).thenReturn(file(10L, 100L, 99L));
-        when(folderMapper.selectById(100L)).thenReturn(folder(100L, null, "public"));
+        when(folderMapper.selectById(100L)).thenReturn(folder(100L, null, "private"));
         SecurityUser u = mock(SecurityUser.class);
         when(scopeResolver.resolveModuleUsers(any(), eq("file"), any())).thenReturn(List.of(42L)); // OWNER 矩阵仅本人
         when(scopeResolver.resolveScope(any())).thenReturn(deptDecision(List.of())); // ORG 矩阵空

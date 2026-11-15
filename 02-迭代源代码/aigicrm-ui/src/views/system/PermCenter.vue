@@ -23,6 +23,9 @@
         <button v-if="canScopePane" class="pc-nav-item" :class="{ active: activePane === 'scope' }" @click="activePane = 'scope'">
           <el-icon><Grid /></el-icon>功能与范围
         </button>
+        <button v-if="canPositionPane" class="pc-nav-item" :class="{ active: activePane === 'position' }" @click="activePane = 'position'">
+          <el-icon><Setting /></el-icon>岗位规则
+        </button>
         <button class="pc-nav-item" :class="{ active: activePane === 'incentive' }" @click="activePane = 'incentive'">
           <el-icon><Medal /></el-icon>激励授权
         </button>
@@ -51,6 +54,16 @@
             </div>
           </div>
           <PermScopeManager />
+        </div>
+
+        <div v-if="paneVisited.has('position')" v-show="activePane === 'position'">
+          <div class="pc-pane-head">
+            <div>
+              <div class="pc-pane-title">岗位规则</div>
+              <div class="pc-pane-hint">岗位 × 规则绑定 · 勾选即授予、取消即收回 · 权限中心唯一写入口</div>
+            </div>
+          </div>
+          <PositionRulePanel />
         </div>
 
         <div v-if="paneVisited.has('incentive')" v-show="activePane === 'incentive'">
@@ -128,7 +141,7 @@
               <span class="pc-muted">（{{ preview.user.username }}）</span>
               <el-tag size="small" type="info" class="pc-pill">{{ (preview.user.roleCodes || []).join(' / ') || '无角色' }}</el-tag>
               <el-tag size="small" class="pc-pill">数据范围: {{ preview.user.dataScope }}</el-tag>
-              <el-tag v-if="preview.user.admin" size="small" type="danger" class="pc-pill">系统管理员(全通)</el-tag>
+              <el-tag v-if="preview.user.admin" size="small" type="danger" class="pc-pill">系统管理员(按码)</el-tag>
               <el-tag size="small" type="success" class="pc-pill">功能码 {{ (preview.permissions || []).length }} 项</el-tag>
             </div>
             <el-table :data="preview.scopes" size="small" border style="width:100%">
@@ -231,8 +244,9 @@
 
 <script setup>
 import { ref, reactive, computed, watch } from 'vue'
-import { Grid, Medal, Location, FolderOpened, View, Notebook } from '@element-plus/icons-vue'
+import { Grid, Medal, Location, FolderOpened, View, Notebook, Setting } from '@element-plus/icons-vue'
 import PermScopeManager from './PermScopeManager.vue'
+import PositionRulePanel from './PositionRulePanel.vue'
 import SeaConfigManager from './SeaConfigManager.vue'
 import PermGrantDialog from './PermGrantDialog.vue'
 import FileSpaceDefaults from './FileSpaceDefaults.vue'
@@ -245,12 +259,13 @@ import { getUserList, getPermCenterPreview, getRuleVersions } from '@/api/system
 defineProps({ embedded: { type: Boolean, default: false } })
 
 const userStore = useUserStore()
-const canEdit = computed(() => userStore.isAdmin() && userStore.hasPermission('system:config:edit'))
+const canEdit = computed(() => userStore.hasPermission('system:config:edit'))
 
 // 【T6 2026-11-12】配置域 pane 按后端接口码门控(与各域接口 @PreAuthorize 同码):
 // 功能与范围=权限树(system:menu:view) / 公海池(sea:config:view) / 文件权限(file:acl:manage)——
 // 无码藏入口而非"可见即 403"; 403 侧由 PermissionHintService 自动按注解码生成"缺少XX请去开启"文案
 const canScopePane = computed(() => userStore.hasPermission('system:menu:view'))
+const canPositionPane = computed(() => userStore.hasPermission('system:position:view'))
 const canSeaPane = computed(() => userStore.hasPermission('sea:config:view'))
 const canFilePane = computed(() => userStore.hasPermission('file:acl:manage'))
 

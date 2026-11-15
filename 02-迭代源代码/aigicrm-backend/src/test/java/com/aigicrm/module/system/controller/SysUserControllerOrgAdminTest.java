@@ -57,4 +57,30 @@ class SysUserControllerOrgAdminTest {
 
         verifyNoInteractions(userService);
     }
+
+    /** 【P1 2026-11-15】仅持 system:user:add 码、非平台 admin/非组织管理员 → 入口即拒绝 */
+    @Test
+    void create_rejectsCodeOnlyNonOrgAdminBeforeServiceCall() {
+        try (MockedStatic<SecurityUtils> security = mockStatic(SecurityUtils.class)) {
+            security.when(SecurityUtils::isAdmin).thenReturn(false);
+            security.when(SecurityUtils::isOrgAdmin).thenReturn(false);
+
+            assertThrows(BusinessException.class, () -> controller.create(new SysUser()));
+        }
+
+        verifyNoInteractions(userService);
+    }
+
+    /** 平台 admin 不受组织管理员限制 */
+    @Test
+    void create_allowsPlatformAdmin() {
+        when(userService.create(any(SysUser.class))).thenReturn("Temp@123456");
+        try (MockedStatic<SecurityUtils> security = mockStatic(SecurityUtils.class)) {
+            security.when(SecurityUtils::isAdmin).thenReturn(true);
+
+            controller.create(new SysUser());
+        }
+
+        verify(userService).create(any(SysUser.class));
+    }
 }

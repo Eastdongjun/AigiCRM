@@ -65,12 +65,13 @@ class SeaConfigServicePoolPermTest {
     }
 
     @Test
-    void admin_alwaysTrue() {
+    void admin_noLongerImplicitlyTrue() {
         when(configMapper.selectById(10L)).thenReturn(config("20", null));
         when(deptMapper.selectList(any())).thenReturn(List.of());
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(true);
-            assertTrue(svc.hasPoolPerm(10L, SeaConfigService.PERM_EDIT, user(7L, 30L, "self")));
+            // 全系统 admin 收口: admin 也必须命中池的可见/编辑范围
+            assertFalse(svc.hasPoolPerm(10L, SeaConfigService.PERM_EDIT, user(7L, 30L, "self")));
         }
     }
 

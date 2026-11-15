@@ -4,6 +4,7 @@ import com.aigicrm.common.BusinessException;
 import com.aigicrm.common.Result;
 import com.aigicrm.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -21,6 +22,7 @@ public class ScheduledTaskController {
      * 日常到期批由定时调度与 /api/reminder/ensure-expiring 页面兜底承担）。
      * 管理员手动触发到期批的运维通道，保留不删；仅限系统管理员（下方 isAdmin 守卫）。
      */
+    @PreAuthorize("hasAuthority('system:task:run')")
     @PostMapping("/check-expire")
     public Result<String> checkExpire() {
         // M9: 触发全库批处理仅限系统管理员(原 system:config:view 销售员/行政均可触发,存在滥用风险)

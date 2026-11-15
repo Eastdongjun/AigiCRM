@@ -1,0 +1,37 @@
+<view class="fb-detail">
+  <view wx:if="{{loading}}" class="fb-loading">加载中...</view>
+  <block wx:else>
+    <view class="fb-card">
+      <view class="fb-title">{{post.title || '无标题'}}</view>
+      <view class="fb-content">{{post.content}}</view>
+      <view class="fb-meta">
+        <text>{{post.userName || '法布施'}}</text>
+        <text>{{post.createdAt}}</text>
+      </view>
+      <view class="fb-actions">
+        <view class="fb-action {{liked ? 'active' : ''}}" bindtap="toggleLike">🐟 {{likeCount}}</view>
+        <text class="fb-action">💬 {{comments.length}}</text>
+      </view>
+    </view>
+
+    <view wx:if="{{attachments.length}}" class="fb-card">
+      <view class="fb-section-title">附件</view>
+      <view wx:for="{{attachments}}" wx:key="id" class="fb-attachment">
+        {{item.fileType}} · {{item.fileId}}
+      </view>
+    </view>
+
+    <view class="fb-card">
+      <view class="fb-section-title">评论（{{comments.length}}）</view>
+      <view wx:if="{{!comments.length}}" class="fb-empty">还没有评论</view>
+      <view wx:for="{{comments}}" wx:key="id" class="fb-comment">
+        <view class="fb-comment-name">{{item.userName || '同事'}}</view>
+        <view class="fb-comment-content">{{item.content}}</view>
+      </view>
+      <view wx:if="{{canCreate}}" class="fb-comment-form">
+        <input class="fb-input" value="{{commentText}}" placeholder="写评论..." bindinput="onCommentInput" />
+        <button class="fb-send" size="mini" bindtap="submitComment" loading="{{submitting}}">发送</button>
+      </view>
+    </view>
+  </block>
+</view>

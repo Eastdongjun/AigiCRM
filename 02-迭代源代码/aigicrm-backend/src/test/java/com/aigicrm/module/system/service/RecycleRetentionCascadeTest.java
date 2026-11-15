@@ -117,4 +117,51 @@ class RecycleRetentionCascadeTest {
         assertTrue(src.contains("ORDER BY COALESCE(deleted_at, updated_at) DESC"),
                 "回收站列表按进站时间排序(非 updated_at)");
     }
+
+    /** 【本次修复】过期版本即使字节仍被活跃主行/其他版本引用, 也必须删元数据行, 不能永久占列表。 */
+    @Test
+    void purgeExpiredVersions_sharedKey_deletesRowKeepsBytes() throws Exception {
+        when(jdbc.query(org.mockito.ArgumentMatchers.contains("FROM biz_file_version WHERE created_at < ?"),
+                any(org.springframework.jdbc.core.RowMapper.class), any(LocalDateTime.class)))
+                .thenAnswer(inv -> {
+                    org.springframework.jdbc.core.RowMapper<?> mapper = inv.getArgument(1);
+                    return List.of(mapper.mapRow(versionRow(1L, "shared-key"), 0));
+                });
+        when(fileService.contentExists("shared-key")).thenReturn(true);
+        when(jdbc.queryForObject(org.mockito.ArgumentMatchers.contains("biz_file WHERE oss_key"),
+                eq(Long.class), anyString())).thenReturn(1L); // 活跃主行仍引用
+        when(jdbc.update(eq("DELETE FROM biz_file_version WHERE id = ?"), eq(1L))).thenReturn(1);
+
+        assertEquals(1, svc.purgeExpiredVersions(180));
+        verify(fileService, org.mockito.Mockito.never()).deleteStoredContent("shared-key");
+        verify(jdbc).update("DELETE FROM biz_file_version WHERE id = ?", 1L);
+    }
+
+    /** 【本次修复】无任何引用时才删字节; 字节删除失败保留行重试。 */
+    @Test
+    void purgeExpiredVersions_noRefs_deletesBytesAndRow() throws Exception {
+        when(jdbc.query(org.mockito.ArgumentMatchers.contains("FROM biz_file_version WHERE created_at < ?"),
+                any(org.springframework.jdbc.core.RowMapper.class), any(LocalDateTime.class)))
+                .thenAnswer(inv -> {
+                    org.springframework.jdbc.core.RowMapper<?> mapper = inv.getArgument(1);
+                    return List.of(mapper.mapRow(versionRow(2L, "solo-key"), 0));
+                });
+        when(fileService.contentExists("solo-key")).thenReturn(true, false);
+        when(jdbc.queryForObject(org.mockito.ArgumentMatchers.contains("biz_file WHERE oss_key"),
+                eq(Long.class), anyString())).thenReturn(0L);
+        when(jdbc.queryForObject(org.mockito.ArgumentMatchers.contains("biz_file_version WHERE oss_key"),
+                eq(Long.class), anyString(), org.mockito.ArgumentMatchers.anyLong())).thenReturn(0L);
+        when(jdbc.update(eq("DELETE FROM biz_file_version WHERE id = ?"), eq(2L))).thenReturn(1);
+
+        assertEquals(1, svc.purgeExpiredVersions(180));
+        verify(fileService).deleteStoredContent("solo-key");
+        verify(jdbc).update("DELETE FROM biz_file_version WHERE id = ?", 2L);
+    }
+
+    private java.sql.ResultSet versionRow(Long id, String key) throws Exception {
+        java.sql.ResultSet rs = mock(java.sql.ResultSet.class);
+        when(rs.getLong("id")).thenReturn(id);
+        when(rs.getString("oss_key")).thenReturn(key);
+        return rs;
+    }
 }

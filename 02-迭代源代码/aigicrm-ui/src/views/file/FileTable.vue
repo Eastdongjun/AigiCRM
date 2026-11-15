@@ -3,7 +3,7 @@
     <!-- 【V2026.11.14.1 批量操作】多选批量栏: 选中即显示 批量下载/批量删除 -->
     <div class="batch-bar" v-if="selection.length">
       <span class="batch-count">已选 {{ selection.length }} 项</span>
-      <el-button size="small" type="primary" plain :icon="Download" @click="doBatchDownload">批量下载</el-button>
+      <el-button v-if="userStore.hasPermission('file:download')" size="small" type="primary" plain :icon="Download" @click="doBatchDownload">批量下载</el-button>
       <el-button v-if="userStore.hasPermission('file:delete')" size="small" type="danger" plain :icon="Delete" @click="doBatchDelete">批量删除</el-button>
       <el-button size="small" link @click="clearSelection">取消选择</el-button>
     </div>
@@ -53,7 +53,7 @@
             <el-tooltip content="打开" placement="top">
               <el-icon class="act-icon" @click.stop="handlePreview(row)"><View /></el-icon>
             </el-tooltip>
-            <el-tooltip v-if="(folderPerms.includes('download') || isOwn(row)) && folderDownloadable === 1" content="下载" placement="top">
+            <el-tooltip v-if="userStore.hasPermission('file:download') && (folderPerms.includes('download') || isOwn(row)) && folderDownloadable === 1" content="下载" placement="top">
               <el-icon class="act-icon" @click.stop="handleDownload(row)"><Download /></el-icon>
             </el-tooltip>
             <el-tooltip v-if="activeTab !== 'public' && activeTab !== 'shared_to_me' && canFileAction(row, 'file:share', 'share')" content="分享" placement="top">
@@ -220,8 +220,9 @@ const versionDialogRef = ref(null)
 
 const openVersionHistory = (row) => {
   // 【V2026.11.14.3 P2】弹窗内按钮按真实行权限分控: 下载=行 download, 回滚=file:edit+行 replace
-  const canDownload = (folderPerms.value.includes('download') || isOwn(row)) && folderDownloadable === 1
-      || canFileAction(row, 'file:view', 'download')
+  const canDownload = userStore.hasPermission('file:download')
+      && (((folderPerms.value.includes('download') || isOwn(row)) && folderDownloadable === 1)
+        || canFileAction(row, 'file:view', 'download'))
   const canRollback = canFileAction(row, 'file:edit', 'edit', 'replace')
   versionDialogRef.value?.open(row, { canDownload, canRollback })
 }

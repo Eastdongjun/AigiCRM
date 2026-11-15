@@ -10,6 +10,16 @@ Page({
     loading: true
   },
 
+  onPermissionChanged() {
+    if (getApp().globalData.demoMode) return
+    if (!hasPermission('fabushi:view')) {
+      wx.showToast({ title: '没有法布施查看权限', icon: 'none' })
+      setTimeout(() => wx.navigateBack(), 300)
+      return
+    }
+    this.loadPersonal(); this.setData({ canCreate: hasPermission('fabushi:create') })
+  },
+
   onLoad() {
     if (!requireLogin()) return
     this.setData({
@@ -33,6 +43,8 @@ Page({
       showError(err, '个人统计加载失败')
     })
   },
+
+  goFeed() { wx.navigateTo({ url: '/pages/fabushi/feed/index' }) },
 
   goBook() {
     wx.navigateTo({ url: '/pages/fabushi/book/index' })

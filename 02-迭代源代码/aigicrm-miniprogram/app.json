@@ -35,6 +35,7 @@
     "pages/profile/index",
     "pages/profile/password/index",
     "pages/profile/scope/index",
+    "pages/profile/diagnostic/index",
     "pages/profile/feedback/index",
     "pages/profile/about/index",
     "pages/profile/agreement/index",
@@ -47,7 +48,9 @@
     "pages/sea/claim-detail/index",
     "pages/fabushi/index",
     "pages/fabushi/book/index",
-    "pages/fabushi/upload/index"
+    "pages/fabushi/upload/index",
+    "pages/fabushi/feed/index",
+    "pages/fabushi/detail/index"
   ],
   "window": {
     "navigationBarTitleText": "AIGICRM",

@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 
 /**
  * 法布施统一内容(一期 2026-11-15): 心得heart/诵读recitation/正能量znl 共用一张表,
- * scope_type 区分(V2026.11.15.1; 需求 G4 统一内容表裁决)。
+ * scope_type 区分(V2026.11.16.1; 需求 G4 统一内容表裁决)。
  * 下架留痕: status=offline 时 offline_by/at/reason 必填(内容治理 fabushi:content:manage)。
  */
 @Data

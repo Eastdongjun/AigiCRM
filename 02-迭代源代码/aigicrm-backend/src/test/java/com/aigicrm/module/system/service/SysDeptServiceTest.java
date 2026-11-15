@@ -65,14 +65,15 @@ class SysDeptServiceTest {
     }
 
     @Test
-    void list_admin_unfiltered() {
+    void list_adminAlsoLimitedToCurrentGroup() {
         when(deptMapper.selectList(any())).thenReturn(java.util.List.of(
                 dept(1L, 0L, 1L), dept(9002L, 0L, 9002L)));
 
         try (MockedStatic<SecurityUtils> sec = mockStatic(SecurityUtils.class)) {
             sec.when(SecurityUtils::isAdmin).thenReturn(true);
+            sec.when(SecurityUtils::getCurrentGroupIds).thenReturn(java.util.List.of(1L));
 
-            assertEquals(2, svc.list().size(), "平台 admin 跨集团全量可见");
+            assertEquals(1, svc.list().size(), "单集团 admin 也只能看当前集团部门");
         }
     }
 

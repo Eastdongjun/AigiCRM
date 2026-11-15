@@ -217,7 +217,7 @@
                 <!-- PR-03: 审批人已停用/删除的待办节点 → 卡单可见性提示(处置需管理员,引擎不自动跳过) -->
                 <el-tag v-if="node.approverInvalid" size="small" type="warning" effect="plain">审批人已停用</el-tag>
                 <!-- 【议题二.1 裁决】管理员手动转交(仅 admin 且节点待办时可见) -->
-                <el-button v-if="isAdmin && (node.status === 'pending' || node.status === 'waiting')"
+                <el-button v-if="canTransferNode && (node.status === 'pending' || node.status === 'waiting')"
                   link type="primary" size="small" @click="openTransfer(node)">转交</el-button>
                 <el-tag size="small" :type="getNodeTagType(node.status, node.action)" effect="plain">
                   {{ getNodeStatusText(node.status, node.action) }}
@@ -308,7 +308,7 @@ import {
 const userStore = useUserStore()
 const router = useRouter()
 // 【P4 修复】isAdmin 是 Pinia action，须调用取值；此前当属性访问恒真，非 admin 也见"转交"按钮
-const isAdmin = computed(() => userStore.isAdmin())
+const canTransferNode = computed(() => userStore.hasPermission('approval:transfer'))
 const canApprove = computed(() => userStore.hasPermission('approval:approve'))
 const transferVisible = ref(false)
 const transferNode = ref(null)

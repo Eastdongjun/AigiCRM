@@ -937,7 +937,7 @@ class ApprovalServiceTest {
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> svc.transferNode(1L, 10L, 20L));
             assertEquals(403, ex.getCode());
-            assertTrue(ex.getMessage().contains("仅平台管理员"));
+            assertTrue(ex.getMessage().contains("无审批节点转交权限"));
         }
     }
 
@@ -951,6 +951,7 @@ class ApprovalServiceTest {
                 mock(BizApprovalNodeMapper.class), mock(SeaService.class), mock(BizApprovalConfigMapper.class));
         try (MockedStatic<SecurityUtils> sec = mockStatic(SecurityUtils.class)) {
             sec.when(SecurityUtils::isAdmin).thenReturn(true);
+            sec.when(() -> SecurityUtils.hasAuthority("approval:transfer")).thenReturn(true);
             sec.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> svc.transferNode(1L, 10L, 20L));
@@ -989,6 +990,7 @@ class ApprovalServiceTest {
 
         try (MockedStatic<SecurityUtils> sec = mockStatic(SecurityUtils.class)) {
             sec.when(SecurityUtils::isAdmin).thenReturn(true);
+            sec.when(() -> SecurityUtils.hasAuthority("approval:transfer")).thenReturn(true);
             sec.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
             assertDoesNotThrow(() -> svc.transferNode(1L, 10L, 20L));
         }

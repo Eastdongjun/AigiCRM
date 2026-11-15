@@ -168,4 +168,33 @@ class RolePermScopeServiceTest {
                 org.mockito.ArgumentMatchers.<Object>any());
     }
 
+
+    @Test
+    void updateScopes_roleCustomWithoutOrgs_rejected400() {
+        JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        RolePermScopeService svc = new RolePermScopeService(jdbc, mock(com.aigicrm.security.PermissionCacheService.class),
+                mock(com.aigicrm.module.system.mapper.SysRuleVersionMapper.class),
+                mock(com.aigicrm.common.auth.PermActionRegistry.class));
+        when(jdbc.queryForObject(contains("sys_role_org"), eq(Integer.class), eq("06"))).thenReturn(0);
+        com.aigicrm.common.BusinessException ex = org.junit.jupiter.api.Assertions.assertThrows(
+                com.aigicrm.common.BusinessException.class, () -> svc.updateScopes("ROLE", "06",
+                        List.of(Map.of("module", "customer", "action", "view", "scopeLevel", "custom"))));
+        org.junit.jupiter.api.Assertions.assertEquals(400, ex.getCode());
+        org.junit.jupiter.api.Assertions.assertTrue(String.valueOf(ex.getMessage()).contains("自定义范围需先"));
+    }
+
+    @Test
+    void updateScopes_roleRegionWithoutAncestor_rejected400() {
+        JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        RolePermScopeService svc = new RolePermScopeService(jdbc, mock(com.aigicrm.security.PermissionCacheService.class),
+                mock(com.aigicrm.module.system.mapper.SysRuleVersionMapper.class),
+                mock(com.aigicrm.common.auth.PermActionRegistry.class));
+        when(jdbc.queryForList(contains("SELECT u.id"), eq(Long.class), eq("06")))
+                .thenReturn(java.util.List.of());
+        com.aigicrm.common.BusinessException ex = org.junit.jupiter.api.Assertions.assertThrows(
+                com.aigicrm.common.BusinessException.class, () -> svc.updateScopes("ROLE", "06",
+                        List.of(Map.of("module", "customer", "action", "view", "scopeLevel", "region"))));
+        org.junit.jupiter.api.Assertions.assertEquals(400, ex.getCode());
+        org.junit.jupiter.api.Assertions.assertTrue(String.valueOf(ex.getMessage()).contains("大区"));
+    }
 }

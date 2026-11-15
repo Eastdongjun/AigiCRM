@@ -178,7 +178,7 @@ const {
 
 // 【2026-11-02 用户令】最近开票日卡片内维护: 持 customer:invoice-date:edit(或 admin)可见编辑入口
 // (后端 protectCustomerDateFields 同码硬校验; 人工设定=新基准: 清零已批延期+三线公式重算+生命线留痕)
-const canEditInvoiceDate = computed(() => isAdmin.value || userStore.hasPermission('customer:invoice-date:edit'))
+const canEditInvoiceDate = computed(() => userStore.hasPermission('customer:invoice-date:edit'))
 const invoiceDateEditing = ref(false)
 const invoiceDateDraft = ref('')
 const invoiceDateSaving = ref(false)

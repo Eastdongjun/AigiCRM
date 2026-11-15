@@ -39,7 +39,8 @@ class OrgAdminServiceSecurityTest {
     void admin_canManageAnyUser() {
         try (MockedStatic<SecurityUtils> s = mockStatic(SecurityUtils.class)) {
             s.when(SecurityUtils::isAdmin).thenReturn(true);
-            s.when(SecurityUtils::isOrgAdmin).thenReturn(false); // admin 即使非 orgAdmin 也恒可
+            s.when(() -> SecurityUtils.hasAuthority("system:org:admin")).thenReturn(true);
+            s.when(SecurityUtils::isOrgAdmin).thenReturn(false); // 管理码持有者即使非 orgAdmin 也可
             when(userMapper.selectById(9L)).thenReturn(user(9L, 3L));
             assertTrue(svc.canManageUser(9L));
         }

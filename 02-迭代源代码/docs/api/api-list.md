@@ -1,10 +1,10 @@
 # AIGICRM API 清单(自动生成)
 
-> 生成时间: 2026-11-15 | 来源: 后端 controller 源码扫描
+> 生成时间: 2026-11-16 | 来源: 后端 controller 源码扫描
 > 本文件由 scripts/gen-api.py 自动生成,**禁止手改**;接口变更后重新运行。
 > 权限码与 docs/permission/permission-dict.md 对应。
 
-## 接口清单(262 个)
+## 接口清单(264 个)
 
 | 方法 | 路径 | 权限码 | 方法名 | 文件 |
 |---|---|---|---|---|
@@ -17,7 +17,7 @@
 | POST | `/api/approval/submit` | `hasAuthority('approval:view')` | submit | ApprovalController.java |
 | GET | `/api/approval/{id}` | `hasAuthority('approval:view')` | detail | ApprovalController.java |
 | POST | `/api/approval/{id}/approve` | `hasAuthority('approval:approve')` | approve | ApprovalController.java |
-| PUT | `/api/approval/{id}/nodes/{nodeId}/transfer` | `hasAuthority('approval:view')` | transferNode | ApprovalController.java |
+| PUT | `/api/approval/{id}/nodes/{nodeId}/transfer` | `hasAuthority('approval:transfer')` | transferNode | ApprovalController.java |
 | POST | `/api/approval/{id}/reject` | `hasAuthority('approval:reject')` | reject | ApprovalController.java |
 | POST | `/api/auth/forgot-password/lookup` | `匿名` | forgotPasswordLookup | AuthController.java |
 | POST | `/api/auth/forgot-password/reset` | `匿名` | forgotPasswordReset | AuthController.java |
@@ -90,23 +90,24 @@
 | GET | `/api/fabushi/stats/personal` | `hasAuthority('fabushi:view')` | personal | FabushiStatsController.java |
 | GET | `/api/fabushi/stats/team` | `hasAuthority('fabushi:stats:view')` | team | FabushiStatsController.java |
 | POST | `/api/file/batch-delete` | `hasAuthority('file:delete')` | batchDelete | FileController.java |
-| POST | `/api/file/batch-download` | `hasAuthority('file:view')` | batchDownload | FileController.java |
-| GET | `/api/file/download-token` | `登录即可` | downloadToken | FileController.java |
-| GET | `/api/file/download/**` | `hasAuthority('file:view')` | download | FileController.java |
+| POST | `/api/file/batch-download` | `hasAuthority('file:download')` | batchDownload | FileController.java |
+| GET | `/api/file/download-token` | `hasAuthority('file:download')` | downloadToken | FileController.java |
+| GET | `/api/file/download/**` | `hasAuthority('file:download')` | download | FileController.java |
 | GET | `/api/file/download/public/**` | `匿名` | downloadPublic | FileController.java |
-| GET | `/api/file/download/{id}` | `hasAuthority('file:view')` | downloadById | FileController.java |
+| GET | `/api/file/download/{id}` | `hasAuthority('file:download')` | downloadById | FileController.java |
 | GET | `/api/file/folders` | `hasAuthority('file:view')` | getFolderTree | FileController.java |
-| POST | `/api/file/folders` | `hasAuthority('file:folder:manage')` | createFolder | FileController.java |
+| POST | `/api/file/folders` | `hasAnyAuthority('file:folder:create','file:folder:manage')` | createFolder | FileController.java |
 | GET | `/api/file/folders/acl-roles` | `hasAuthority('file:acl:manage')` | aclRoles | FolderAclController.java |
 | GET | `/api/file/folders/type-defaults` | `hasAuthority('file:acl:manage')` | listTypeDefaults | FolderAclController.java |
 | POST | `/api/file/folders/type-defaults` | `hasAuthority('file:acl:manage')` | saveTypeDefault | FolderAclController.java |
 | DELETE | `/api/file/folders/type-defaults/{id}` | `hasAuthority('file:acl:manage')` | removeTypeDefault | FolderAclController.java |
 | PUT | `/api/file/folders/type-defaults/{id}/renew` | `hasAuthority('file:acl:manage')` | renewTypeDefault | FolderAclController.java |
-| DELETE | `/api/file/folders/{id}` | `hasAuthority('file:folder:manage')` | deleteFolder | FileController.java |
-| PUT | `/api/file/folders/{id}` | `hasAuthority('file:folder:manage')` | renameFolder | FileController.java |
+| DELETE | `/api/file/folders/{id}` | `hasAnyAuthority('file:folder:delete','file:folder:manage')` | deleteFolder | FileController.java |
+| PUT | `/api/file/folders/{id}` | `hasAnyAuthority('file:folder:rename','file:folder:manage')` | renameFolder | FileController.java |
+| PUT | `/api/file/folders/{id}/downloadable` | `hasAuthority('file:acl:manage')` | setDownloadable | FolderAclController.java |
 | GET | `/api/file/folders/{id}/permissions` | `hasAuthority('file:view')` | permissions | FolderAclController.java |
 | GET | `/api/file/list` | `hasAuthority('file:view')` | pageFiles | FileController.java |
-| GET | `/api/file/reconciliation` | `hasAuthority('file:folder:manage')` | reconcile | FileReconciliationController.java |
+| GET | `/api/file/reconciliation` | `hasAnyAuthority('file:reconcile','file:folder:manage')` | reconcile | FileReconciliationController.java |
 | POST | `/api/file/recycle/batch-purge` | `hasAuthority('file:purge')` | batchPurge | FileRecycleController.java |
 | POST | `/api/file/recycle/batch-restore` | `hasAuthority('file:delete')` | batchRestore | FileRecycleController.java |
 | GET | `/api/file/recycle/files` | `hasAuthority('file:delete')` | myDeletedFiles | FileRecycleController.java |
@@ -114,7 +115,7 @@
 | POST | `/api/file/recycle/files/{id}/restore` | `hasAuthority('file:delete')` | restoreFile | FileRecycleController.java |
 | GET | `/api/file/recycle/folders` | `hasAuthority('file:delete')` | myDeletedFolders | FileRecycleController.java |
 | POST | `/api/file/recycle/folders/{id}/purge` | `hasAuthority('file:purge')` | purgeFolder | FileRecycleController.java |
-| POST | `/api/file/recycle/folders/{id}/restore` | `hasAuthority('file:delete')` | restoreFolder | FileRecycleController.java |
+| POST | `/api/file/recycle/folders/{id}/restore` | `hasAnyAuthority('file:folder:restore','file:delete')` | restoreFolder | FileRecycleController.java |
 | GET | `/api/file/shared-to-me` | `hasAuthority('file:view')` | sharedToMe | FileController.java |
 | GET | `/api/file/shared-to-me/count` | `hasAuthority('file:view')` | sharedToMeCount | FileController.java |
 | GET | `/api/file/storage` | `hasAuthority('file:view')` | getStorageInfo | FileController.java |
@@ -125,7 +126,7 @@
 | POST | `/api/file/{id}/replace` | `hasAuthority('file:edit')` | replaceFile | FileController.java |
 | POST | `/api/file/{id}/share` | `hasAuthority('file:share')` | shareFile | FileController.java |
 | GET | `/api/file/{id}/versions` | `hasAuthority('file:view')` | listVersions | FileController.java |
-| GET | `/api/file/{id}/versions/{versionNo}/download` | `hasAuthority('file:view')` | downloadVersion | FileController.java |
+| GET | `/api/file/{id}/versions/{versionNo}/download` | `hasAuthority('file:download')` | downloadVersion | FileController.java |
 | POST | `/api/file/{id}/versions/{versionNo}/rollback` | `hasAuthority('file:edit')` | rollbackToVersion | FileController.java |
 | GET | `/api/incentive/categories` | `hasAuthority('incentive:view')` | getCategoryTree | IncentiveController.java |
 | POST | `/api/incentive/categories` | `hasAuthority('incentive:edit')` | createCategory | IncentiveController.java |
@@ -149,7 +150,7 @@
 | GET | `/api/incentive/score/customer/{customerId}` | `hasAuthority('incentive:view')` | getScoreByCustomer | IncentiveController.java |
 | GET | `/api/incentive/scoreboard` | `hasAnyAuthority('incentive:stats:view','incentive:rank:view')` | scoreboard | IncentiveController.java |
 | GET | `/api/incentive/users` | `hasAuthority('incentive:view')` | userList | IncentiveController.java |
-| POST | `/api/reminder/ensure-expiring` | `hasAuthority('reminder:view')` | ensureExpiring | ReminderController.java |
+| POST | `/api/reminder/ensure-expiring` | `hasAuthority('reminder:ensure')` | ensureExpiring | ReminderController.java |
 | GET | `/api/reminder/expiring-list` | `hasAuthority('reminder:view')` | expiringList | ReminderController.java |
 | GET | `/api/reminder/list` | `hasAuthority('reminder:view')` | page | ReminderController.java |
 | GET | `/api/reminder/pending-count` | `hasAuthority('reminder:view')` | pendingCount | ReminderController.java |
@@ -211,21 +212,22 @@
 | GET | `/api/system/logs` | `hasAuthority('system:log:view')` | page | SysLogController.java |
 | GET | `/api/system/logs/counts` | `hasAuthority('system:log:view')` | counts | SysLogController.java |
 | GET | `/api/system/menus/tree` | `hasAuthority('system:menu:view')` | tree | SysMenuController.java |
+| GET | `/api/system/perm-center/meta` | `hasAnyAuthority('system:menu:view','system:role:view','system:scope:grant')` | meta | PermCenterController.java |
 | GET | `/api/system/perm-center/preview` | `hasAuthority('system:config:view')` | preview | PermCenterController.java |
 | GET | `/api/system/perm-scopes/assignee/{type}/{key}` | `hasAuthority('system:config:view')` | getAssigneeScopes | RolePermScopeController.java |
-| PUT | `/api/system/perm-scopes/assignee/{type}/{key}` | `hasAuthority('system:config:edit')` | updateAssigneeScopes | RolePermScopeController.java |
-| GET | `/api/system/perm-scopes/impact/{type}/{key}` | `hasAuthority('system:config:view')` | impact | RolePermScopeController.java |
-| GET | `/api/system/perm-scopes/reconcile` | `hasAuthority('system:config:view')` | reconcile | RolePermScopeController.java |
+| PUT | `/api/system/perm-scopes/assignee/{type}/{key}` | `hasAuthority('system:scope:grant')` | updateAssigneeScopes | RolePermScopeController.java |
+| GET | `/api/system/perm-scopes/impact/{type}/{key}` | `hasAuthority('system:scope:grant')` | impact | RolePermScopeController.java |
+| GET | `/api/system/perm-scopes/reconcile` | `hasAuthority('system:scope:grant')` | reconcile | RolePermScopeController.java |
 | GET | `/api/system/perm-scopes/{roleCode}` | `hasAuthority('system:config:view')` | getScopes | RolePermScopeController.java |
-| PUT | `/api/system/perm-scopes/{roleCode}` | `hasAuthority('system:config:edit')` | updateScopes | RolePermScopeController.java |
+| PUT | `/api/system/perm-scopes/{roleCode}` | `hasAuthority('system:scope:grant')` | updateScopes | RolePermScopeController.java |
 | GET | `/api/system/positions` | `hasAuthority('system:position:view')` | list | SysPositionController.java |
 | POST | `/api/system/positions` | `hasAuthority('system:position:add')` | create | SysPositionController.java |
 | GET | `/api/system/positions/users/{userId}` | `hasAnyAuthority('system:position:view','system:user:view')` | getUserPositions | SysPositionController.java |
-| PUT | `/api/system/positions/users/{userId}` | `hasAuthority('system:user:edit')` | assignUserPositions | SysPositionController.java |
+| PUT | `/api/system/positions/users/{userId}` | `hasAnyAuthority('system:user:edit','system:user:assign')` | assignUserPositions | SysPositionController.java |
 | DELETE | `/api/system/positions/{id}` | `hasAuthority('system:position:delete')` | delete | SysPositionController.java |
 | PUT | `/api/system/positions/{id}` | `hasAuthority('system:position:edit')` | update | SysPositionController.java |
 | GET | `/api/system/positions/{positionId}/rules` | `hasAuthority('system:position:view')` | getRules | SysPositionController.java |
-| PUT | `/api/system/positions/{positionId}/rules` | `hasAuthority('system:position:edit')` | updateRules | SysPositionController.java |
+| PUT | `/api/system/positions/{positionId}/rules` | `hasAuthority('system:position:rule:edit')` | updateRules | SysPositionController.java |
 | GET | `/api/system/recycle/customers` | `hasAuthority('system:recycle:view')` | deletedCustomers | RecycleController.java |
 | GET | `/api/system/recycle/customers/{id}` | `hasAuthority('system:recycle:view')` | deletedCustomerDetail | RecycleController.java |
 | POST | `/api/system/recycle/customers/{id}/purge` | `hasAuthority('system:recycle:purge')` | hardDeleteCustomer | RecycleController.java |
@@ -255,7 +257,7 @@
 | POST | `/api/system/rules` | `hasAuthority('system:rule:add')` | create | SysPermissionRuleController.java |
 | DELETE | `/api/system/rules/{id}` | `hasAuthority('system:rule:delete')` | delete | SysPermissionRuleController.java |
 | PUT | `/api/system/rules/{id}` | `hasAuthority('system:rule:edit')` | update | SysPermissionRuleController.java |
-| POST | `/api/system/task/check-expire` | `登录即可` | checkExpire | ScheduledTaskController.java |
+| POST | `/api/system/task/check-expire` | `hasAuthority('system:task:run')` | checkExpire | ScheduledTaskController.java |
 | GET | `/api/system/users` | `hasAnyAuthority('system:user:view','system:org:admin')` | page | SysUserController.java |
 | POST | `/api/system/users` | `hasAnyAuthority('system:user:add','system:org:admin')` | create | SysUserController.java |
 | POST | `/api/system/users/change-password` | `登录即可` | changePassword | SysUserController.java |

@@ -143,6 +143,14 @@ Page({
     this.setData({ formView: buildFormView(this.data) })
   },
 
+  onPermissionChanged() {
+    if (getApp().globalData.demoMode) return
+    if (!hasPermission(id ? 'customer:edit' : 'customer:add')) {
+      wx.showToast({ title: '没有操作权限', icon: 'none' })
+      setTimeout(() => wx.navigateBack(), 300)
+    }
+  },
+
   onLoad(options) {
     if (!requireLogin()) return
     const id = options.id || ''
@@ -153,10 +161,10 @@ Page({
       id,
       isEdit: !!id,
       // 编辑态注册日仅 admin 或 customer:date:edit 可改（与 PC canEditProtectedDates 一致）
-      canEditDates: !id || getApp().globalData.demoMode || isAdmin() || hasPermission('customer:date:edit'),
+      canEditDates: !id || getApp().globalData.demoMode || isAdmin() || (hasPermission('customer:edit') && hasPermission('customer:date:edit')),
       // 【裁决 2026-11-02 用户名单】最近开票日人工维护: customer:invoice-date:edit(行政/总监/admin);
       // 仅编辑态可改(新建默认留空口径不变), 与 PC canEditInvoiceDate 一致
-      canEditInvoiceDate: Boolean(id) && (getApp().globalData.demoMode || isAdmin() || hasPermission('customer:invoice-date:edit'))
+      canEditInvoiceDate: Boolean(id) && (getApp().globalData.demoMode || isAdmin() || (hasPermission('customer:edit') && hasPermission('customer:invoice-date:edit')))
     }, () => this.refreshFormView())
     // 【A4 三轮 2026-10-09】导航栏标题与 PC 对齐（新增客户/编辑客户）：原固定「客户表单」，PC 无此概念
     wx.setNavigationBarTitle({ title: id ? '编辑客户' : '新增客户' })

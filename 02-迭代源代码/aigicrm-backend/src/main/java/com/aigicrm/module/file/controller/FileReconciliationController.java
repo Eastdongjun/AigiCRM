@@ -13,7 +13,7 @@ import java.util.Map;
 
 /**
  * 【PR-19 2026-09-19】附件核对端点(管理操作)。
- * 权限:file:folder:manage(或 admin)——核对是数据治理,非普通用户自服务。
+ * 权限:file:reconcile（兼容期旧 file:folder:manage 仍放行）——核对是数据治理,非普通用户自服务。
  * (体检 2026-10-12 修正: 原注释写 file:manage, 该权限码全库不存在, 实际 @PreAuthorize 挂的是 file:folder:manage)
  */
 @RestController
@@ -25,7 +25,7 @@ public class FileReconciliationController {
 
     /** 全量对账:元数据 vs 磁盘,返回汇总+缺失清单(前 N 条) */
     @GetMapping
-    @PreAuthorize("hasAuthority('file:folder:manage')")
+    @PreAuthorize("hasAnyAuthority('file:reconcile','file:folder:manage')")
     public Result<Map<String, Object>> reconcile(
             @RequestParam(defaultValue = "200") int detailLimit) {
         return Result.ok(reconciliationService.reconcile(Math.min(detailLimit, 500)));

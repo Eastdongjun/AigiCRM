@@ -62,7 +62,16 @@ public class GlobalExceptionHandler {
             message = (message != null ? message : "您的权限不支持此访问")
                     + " 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。";
         }
-        return ResponseEntity.status(httpStatusOf(code)).body(Result.error(code, message));
+        String errorCode = e.getErrorCode();
+        if (errorCode == null) {
+            errorCode = switch (code) {
+                case 403 -> "PERM_DENIED";
+                case 429 -> "RATE_LIMITED";
+                case 503 -> "SERVICE_UNAVAILABLE";
+                default -> null;
+            };
+        }
+        return ResponseEntity.status(httpStatusOf(code)).body(Result.error(code, message, errorCode));
     }
 
     /** 【2026-08-14 错误码语义化】业务异常 code → HTTP 状态: 401/403/404/429/503 语义化映射, 其余默认 400
@@ -93,7 +102,7 @@ public class GlobalExceptionHandler {
         // 【2026-11-08 权限报错中文化】方法级 @PreAuthorize 拒绝走本分支(非 HTTP 层 accessDeniedHandler),
         // 同样接 PermissionHintService 生成"缺少「XX(码)」→去【系统设置 → 权限中心】开启"自助指引。
         String hint = permissionHintService.hint(request, com.aigicrm.security.PermissionHintService.FALLBACK_HINT);
-        return Result.error(403, hint);
+        return Result.error(403, hint, "PERM_DENIED");
     }
 
     // ==================== 请求参数 ====================

@@ -366,15 +366,13 @@ public class CustomerService {
                 .eq(SysUser::getStatus, 1)
                 .eq(SysUser::getDeleted, 0)
                 .orderByAsc(SysUser::getId);
-        if (!SecurityUtils.isAdmin()) {
-            Long g = com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull();
-            List<Long> groupMembers = (g == null)
-                    ? List.of()
-                    : com.aigicrm.common.scope.GroupScopeUtil.userIdsInGroup(jdbc, g);
-            // 空集合显式空集返回（不依赖各版本对 IN() 空集合的拼接语义）
-            if (groupMembers.isEmpty()) return List.of();
-            wrapper.in(SysUser::getId, groupMembers);
-        }
+        Long g = com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull();
+        List<Long> groupMembers = (g == null)
+                ? List.of()
+                : com.aigicrm.common.scope.GroupScopeUtil.userIdsInGroup(jdbc, g);
+        // 空集合显式空集返回（不依赖各版本对 IN() 空集合的拼接语义）
+        if (groupMembers.isEmpty()) return List.of();
+        wrapper.in(SysUser::getId, groupMembers);
         List<SysUser> users = userMapper.selectList(wrapper);
         List<Map<String, Object>> result = new ArrayList<>();
         for (SysUser u : users) {
@@ -713,29 +711,20 @@ public class CustomerService {
         // 绑定, 名单=毛颖娜/肖赟/李艳梅/马吉亮/admin)可直改——覆盖 2026-09-24"纯推导任何角色不可直改"裁决。
         // 人工设定=新基准语义(与开票前移同款); 自动推导"只前进"与其共存(更晚开票照常前移, 作废回算跟随剩余真实票)。
         boolean invoiceDateManuallyChanged = fieldChanged(existing.getLastInvoiceDate(), requested.getLastInvoiceDate());
-        if (invoiceDateManuallyChanged && !canEditInvoiceDate()) {
-            throw new BusinessException("最近开票日由开票记录自动推导，仅授权人员可维护（或经客户财务页补录/作废发票调整）");
+        if (invoiceDateManuallyChanged) {
+            FieldPermissionService.requireInvoiceDate();
         }
         if (!invoiceDateManuallyChanged) {
             requested.setLastInvoiceDate(existing.getLastInvoiceDate());
         }
         // 注册日仍为受控可改字段: customer:date:edit 权限(总监0/行政05/admin 绑定)
-        if (!canMaintainProtectedCustomerDates()) {
+        if (!FieldPermissionService.canEditRegisterDate()) {
             if (fieldChanged(existing.getRegisterDate(), requested.getRegisterDate())) {
-                throw new BusinessException("注册日录入后仅总监或行政可修改");
+                FieldPermissionService.requireRegisterDate();
             }
             requested.setRegisterDate(existing.getRegisterDate());
         }
         return invoiceDateManuallyChanged;
-    }
-
-    private boolean canMaintainProtectedCustomerDates() {
-        return SecurityUtils.isAdmin() || SecurityUtils.hasAuthority("customer:date:edit");
-    }
-
-    /** 【2026-11-02】最近开票日人工维护权限 */
-    private boolean canEditInvoiceDate() {
-        return SecurityUtils.isAdmin() || SecurityUtils.hasAuthority("customer:invoice-date:edit");
     }
 
     /**
@@ -920,11 +909,6 @@ public class CustomerService {
             }
         }
 
-        // 规则2: 管理员 → 返回空（不加过滤）
-        if (Boolean.TRUE.equals(cfg.get("admin")) && SecurityUtils.isAdmin()) {
-            return java.util.Collections.emptyList();
-        }
-
         // 规则3: 指定角色 → 看到同组织内所有用户
         Object rolesObj = cfg.get("roles");
         if (rolesObj instanceof java.util.List && !((java.util.List<?>)rolesObj).isEmpty()) {
@@ -1010,7 +994,6 @@ public class CustomerService {
 
     /** 当前用户客户查看范围是否为全量(all); admin 恒全量。与 applyDataScope 同一解析链路 */
     private boolean isDataScopeAll() {
-        if (SecurityUtils.isAdmin()) return true;
         com.aigicrm.common.scope.ScopeRequest req = buildCustomerViewScopeRequest();
         return req != null && scopeResolver.resolveScope(req).isAll();
     }
@@ -1252,10 +1235,6 @@ public class CustomerService {
         var scopeUser = SecurityUtils.getCurrentUser();
         if (scopeUser == null) {
             wrapper.eq(BizCustomer::getOwnerId, -1L);
-            return;
-        }
-        if (SecurityUtils.isAdmin()) {
-            applyRuleEngineFilter(wrapper);
             return;
         }
         com.aigicrm.common.scope.ScopeRequest req = com.aigicrm.common.scope.ScopeRequest.builder()
@@ -2301,14 +2280,10 @@ public class CustomerService {
             List<Long> scopeUserIds = getCurrentScopeUserIds();
             String tenantFrag;
             java.util.List<Object> tenantArgs = new java.util.ArrayList<>();
-            if (!com.aigicrm.security.SecurityUtils.isAdmin()) {
-                Long g = com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull();
-                if (g == null) return null;
-                tenantFrag = " AND c.tenant_id = ?";
-                tenantArgs.add(g);
-            } else {
-                tenantFrag = "";
-            }
+            Long g = com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull();
+            if (g == null) return null;
+            tenantFrag = " AND c.tenant_id = ?";
+            tenantArgs.add(g);
             java.util.List<java.util.Map<String, Object>> rows;
             if (scopeUserIds == null) {
                 java.util.List<Object> args = new java.util.ArrayList<>();

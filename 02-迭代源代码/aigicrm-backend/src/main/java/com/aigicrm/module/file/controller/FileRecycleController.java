@@ -40,7 +40,7 @@ public class FileRecycleController {
 
     /** 归属闸门: 非 admin 只能动自己删除的行(deleted_by=me); admin 全量 */
     private void requireOwner(Long deletedBy) {
-        if (!SecurityUtils.isAdmin() && !SecurityUtils.getCurrentUserId().equals(deletedBy)) {
+        if (!SecurityUtils.getCurrentUserId().equals(deletedBy)) {
             throw new BusinessException(403, "只能恢复/彻底删除自己删除的项目");
         }
     }
@@ -51,9 +51,6 @@ public class FileRecycleController {
             @RequestParam(defaultValue = "1") int current,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String keyword) {
-        if (SecurityUtils.isAdmin()) {
-            return Result.ok(recycleService.deletedFiles(current, size, keyword));
-        }
         return Result.ok(recycleService.deletedFilesBy(SecurityUtils.getCurrentUserId(), current, size, keyword));
     }
 
@@ -63,9 +60,6 @@ public class FileRecycleController {
             @RequestParam(defaultValue = "1") int current,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String keyword) {
-        if (SecurityUtils.isAdmin()) {
-            return Result.ok(recycleService.deletedFolders(current, size, keyword));
-        }
         return Result.ok(recycleService.deletedFoldersBy(SecurityUtils.getCurrentUserId(), current, size, keyword));
     }
 
@@ -83,7 +77,7 @@ public class FileRecycleController {
         return Result.ok(Map.of("message", recycleService.hardDeleteFile(id)));
     }
 
-    @PreAuthorize("hasAuthority('file:delete')")
+    @PreAuthorize("hasAnyAuthority('file:folder:restore','file:delete')")
     @PostMapping("/folders/{id}/restore")
     public Result<Map<String, String>> restoreFolder(@PathVariable Long id) {
         requireOwner(recycleService.folderDeletedBy(id));

@@ -224,6 +224,10 @@ Page({
     this.setData({ ...patch, reminderView: buildReminderView(next) })
   },
 
+  onPermissionChanged() {
+    this.loadPendingCount(); this.loadReminders();
+  },
+
   onLoad() {
     if (!requireLogin()) return
     if (!getApp().globalData.demoMode && !hasPermission('reminder:view')) {

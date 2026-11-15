@@ -46,8 +46,6 @@ public class CustomerAccessService {
 
     /** 是否有权限查看该客户 */
     public boolean canView(Long customerId) {
-        if (SecurityUtils.isAdmin()) return true;
-
         BizCustomer customer = customerMapper.selectById(customerId);
         if (customer == null) return false;
 
@@ -78,8 +76,6 @@ public class CustomerAccessService {
 
     /** 是否有权限编辑该客户 */
     public boolean canEdit(Long customerId) {
-        if (SecurityUtils.isAdmin()) return true;
-
         BizCustomer customer = customerMapper.selectById(customerId);
         if (customer == null) return false;
 
@@ -114,8 +110,6 @@ public class CustomerAccessService {
 
     /** 是否有权限删除该客户 */
     public boolean canDelete(Long customerId) {
-        if (SecurityUtils.isAdmin()) return true;
-
         BizCustomer customer = customerMapper.selectById(customerId);
         if (customer == null) return false;
 
@@ -146,8 +140,6 @@ public class CustomerAccessService {
 
     /** 是否有权限导出该客户（敏感字段如营收等） */
     public boolean canExport(Long customerId) {
-        if (SecurityUtils.isAdmin()) return true;
-
         BizCustomer customer = customerMapper.selectById(customerId);
         if (customer == null) return false;
 
@@ -230,11 +222,9 @@ public class CustomerAccessService {
         if (customerId == null) {
             throw new BusinessException("客户不存在或已删除，无法录入财务记录");
         }
-        if (!SecurityUtils.isAdmin()) {
-            Long tenantId = customerMapper.selectTenantIdById(customerId);
-            if (tenantId != null && !com.aigicrm.common.scope.GroupScopeUtil.canAccessGroup(tenantId)) {
-                throw new BusinessException(403, "无权操作其他集团的客户财务记录");
-            }
+        Long tenantId = customerMapper.selectTenantIdById(customerId);
+        if (tenantId != null && !com.aigicrm.common.scope.GroupScopeUtil.canAccessGroup(tenantId)) {
+            throw new BusinessException(403, "无权操作其他集团的客户财务记录");
         }
         if (customerMapper.selectById(customerId) == null) {
             throw new BusinessException("客户不存在或已删除，无法录入财务记录");
@@ -245,8 +235,6 @@ public class CustomerAccessService {
 
     /** 获取当前用户可查看的客户 ID 集合 */
     public Set<Long> getAccessibleCustomerIds() {
-        if (SecurityUtils.isAdmin()) return Set.of(); // 空集合代表全部
-
         Long userId = SecurityUtils.getCurrentUserId();
         Set<Long> ids = new HashSet<>();
 

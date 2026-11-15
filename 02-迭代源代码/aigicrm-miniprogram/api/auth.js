@@ -8,14 +8,46 @@ function login(data) {
 }
 
 function loadCurrentUser() {
+  const globalData = getGlobalData()
+  const before = JSON.stringify({
+    permissions: globalData.permissions || [],
+    dataScope: (globalData.currentUser || {}).dataScope || '',
+    roles: (globalData.currentUser || {}).roles || []
+  })
   return request({ url: '/api/auth/info' }).then((user) => {
-    const globalData = getGlobalData()
     globalData.currentUser = user || null
     globalData.permissions = user && Array.isArray(user.permissions) ? user.permissions : []
     globalData.groupIds = user && Array.isArray(user.groupIds) ? user.groupIds : []
     globalData.currentGroupId = user ? user.currentGroupId : null
+    const after = JSON.stringify({
+      permissions: globalData.permissions,
+      dataScope: (user || {}).dataScope || '',
+      roles: (user || {}).roles || []
+    })
+    if (before !== after) {
+      // 权限集/角色/基础范围发生变化：清理文件缓存并通知当前页刷新
+      require('../utils/permission-refresh').markChanged('auth-info')
+    }
     return user
   })
+}
+
+// 【2026-11-15】并发去重的权限刷新：epoch 变化、403、app.onShow 共用，避免请求风暴
+let refreshPromise = null
+let lastRefreshAt = 0
+function refreshPermissions(force = false) {
+  if (refreshPromise) return refreshPromise
+  // 403 可能连续发生，3 秒内非强制刷新直接复用上次结果，避免请求风暴；
+  // epoch 变化传 force=true，必须真实拉取。
+  if (!force && Date.now() - lastRefreshAt < 3000) return Promise.resolve()
+  refreshPromise = loadCurrentUser().then(() => true).catch(() => {
+    // 失败保留旧 epoch/旧权限，下次请求或 onShow 再试
+    return false
+  }).finally(() => {
+    refreshPromise = null
+    lastRefreshAt = Date.now()
+  })
+  return refreshPromise
 }
 
 function switchGroup(groupId) {
@@ -39,6 +71,7 @@ function forgotPasswordSendCode(data) { return request({ url: '/api/auth/forgot-
 function forgotPasswordReset(data) { return request({ url: '/api/auth/forgot-password/reset', method: 'POST', data }) }
 
 module.exports = {
+  refreshPermissions,
   login,
   loadCurrentUser,
   switchGroup,

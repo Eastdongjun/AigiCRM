@@ -3,6 +3,16 @@ const { logout, requireLogin } = require('../../utils/auth')
 const { showError } = require('../../utils/feedback')
 const { dataScopeLabel } = require('../../utils/label-maps')
 
+const MODULE_LABELS = { customer: '客户', incentive: '激励', file: '文件', sea: '公海', approval: '审批', reminder: '提醒', statistics: '统计' }
+
+function buildModuleScopeText(scopes) {
+  if (!scopes || typeof scopes !== 'object') return ''
+  return Object.keys(MODULE_LABELS)
+    .filter((key) => scopes[key])
+    .map((key) => `${MODULE_LABELS[key]} ${dataScopeLabel(scopes[key])}`)
+    .join(' · ')
+}
+
 function buildProfileView(data) {
   const groupIds = Array.isArray(data.groupIds) ? data.groupIds : []
   const groupNames = data.groupNames || {}
@@ -22,6 +32,7 @@ function buildProfileView(data) {
     groupNoteText: data.switchingGroup ? '切换中...' : '切换后刷新权限',
     groupDisabled: Boolean(data.switchingGroup),
     scopeText: data.scopeName || '按权限范围',
+    moduleScopeText: buildModuleScopeText(data.moduleScopes),
     wechatStatusText: '说明',
     // 【11-08 审计项7】占位角标文案(归一化单一出处): 微信绑定=待后端 OAuth 接入(即将上线);
     // 意见反馈=草稿仅存本机、无服务端提交通道(暂未接入服务端), 入口先亮明状态防误期待
@@ -57,6 +68,10 @@ Page({
     if (typeof this.getTabBar === 'function' && this.getTabBar()) this.getTabBar().setData({ selected: 4 })
   },
 
+  onPermissionChanged() {
+    this.onLoad()
+  },
+
   onLoad() {
     if (!requireLogin()) return
     if (getApp().globalData.demoMode) return
@@ -67,7 +82,8 @@ Page({
         userInitial: userName ? userName.slice(0, 1) : '用',
         roleName: user.roleName || '未设置岗位',
         orgName: user.deptName || '未设置组织',
-        scopeName: dataScopeLabel(user.dataScope),
+        scopeName: dataScopeLabel(user.dataScope) + '（基础范围）',
+        moduleScopes: user.moduleScopes || {},
         positionNames: (user.positions || []).map((position) => position.name).filter(Boolean).join('、') || '未设置岗位',
         groupIds: user.groupIds || [],
         groupNames: user.groupNames || {},
@@ -101,6 +117,7 @@ Page({
   openClaims() { wx.navigateTo({ url: '/pages/sea/index' }) },
   openPassword() { wx.navigateTo({ url: '/pages/profile/password/index' }) },
   openScope() { wx.navigateTo({ url: '/pages/profile/scope/index' }) },
+  openDiagnostic() { wx.navigateTo({ url: '/pages/profile/diagnostic/index' }) },
   openAbout() { wx.navigateTo({ url: '/pages/profile/about/index' }) },
   openAgreement() { wx.navigateTo({ url: '/pages/profile/agreement/index' }) },
   openPrivacy() { wx.navigateTo({ url: '/pages/profile/privacy/index' }) },

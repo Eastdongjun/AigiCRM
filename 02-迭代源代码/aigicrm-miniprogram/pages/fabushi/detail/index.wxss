@@ -1,0 +1,16 @@
+.fb-detail { padding: 16rpx; background: #f5f7fb; min-height: 100vh; box-sizing: border-box; }
+.fb-card { background: #fff; border-radius: 16rpx; padding: 24rpx; margin-bottom: 16rpx; }
+.fb-title { font-size: 34rpx; font-weight: 600; color: #1f2d3d; }
+.fb-content { font-size: 28rpx; color: #374151; line-height: 1.8; margin-top: 16rpx; white-space: pre-wrap; }
+.fb-meta { display: flex; justify-content: space-between; font-size: 22rpx; color: #9aa4b2; margin-top: 20rpx; }
+.fb-actions { display: flex; gap: 40rpx; margin-top: 20rpx; font-size: 28rpx; color: #6b7280; }
+.fb-action.active { color: #1d4ed8; font-weight: 600; }
+.fb-section-title { font-size: 28rpx; font-weight: 600; color: #1f2d3d; margin-bottom: 12rpx; }
+.fb-attachment { font-size: 24rpx; color: #4b5563; padding: 8rpx 0; }
+.fb-comment { padding: 12rpx 0; border-bottom: 1rpx solid #f0f2f5; }
+.fb-comment-name { font-size: 24rpx; color: #1d4ed8; }
+.fb-comment-content { font-size: 26rpx; color: #374151; margin-top: 4rpx; }
+.fb-comment-form { display: flex; gap: 12rpx; align-items: center; margin-top: 16rpx; }
+.fb-input { flex: 1; background: #f5f7fb; border-radius: 999rpx; padding: 12rpx 20rpx; font-size: 24rpx; }
+.fb-send { background: #1d4ed8; color: #fff; border-radius: 999rpx; }
+.fb-empty, .fb-loading { text-align: center; color: #9aa4b2; font-size: 24rpx; padding: 32rpx 0; }

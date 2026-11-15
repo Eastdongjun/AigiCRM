@@ -37,7 +37,7 @@ public class SysAuditLogService {
         // 与 SysLogService.buildBase 同口径收口: admin 全量; 非 admin 按当前集团成员 actorId 集合过滤;
         // 空集(无集团归属/集团无成员)fail-closed 返回空页。actor_id 为 NULL 的匿名事件(登录失败等)
         // 不落在任何成员集合内,IN 语义天然不匹配 → 非 admin 不可见,避免跨集团 IP 泄露。
-        if (!SecurityUtils.isAdmin()) {
+        {
             List<Long> uids = scopeResolver.resolveModuleUsersWithinGroup(
                     SecurityUtils.getCurrentUser(), "system");
             if (uids == null) {

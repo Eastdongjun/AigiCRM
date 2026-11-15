@@ -117,8 +117,6 @@ const routes = [
         // 【2026-11-05 用户令"PC端还是叫四项激励"】parentTitle 归位四项激励(V2026.11.05.1 组名纠偏)
         meta: { title: '激励查询', parentTitle: '四项激励', icon: 'Search', permission: 'incentive:view' }
       },
-      // 【法布施一期 2026-11-15】三页路由(侧栏组由迁移 sys_menu「法布施」组下发, 前端零菜单改动);
-      // 权限码=迁移注册码(V2026.11.15.1), 绑定默认 admin 三页
       {
         path: 'fabushi/book',
         name: 'FabushiBook',

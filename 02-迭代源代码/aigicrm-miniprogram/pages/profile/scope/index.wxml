@@ -1,7 +1,8 @@
 <view class="page profile-doc-page">
   <view class="doc-section intro-card">
     <text class="title">{{scopeName}}</text>
-    <text class="body">系统会根据当前集团、岗位和数据范围控制可见客户及可执行操作。</text>
+    <text class="body">系统会根据当前集团、岗位和数据范围控制可见客户及可执行操作。此处仅展示基础范围；客户/激励/文件等模块可在权限中心单独配置，以实际列表为准。</text>
+  <text wx:if="{{moduleScopeText}}" class="body">{{moduleScopeText}}</text>
   </view>
   <view class="doc-section">
     <text class="heading">常见范围</text>

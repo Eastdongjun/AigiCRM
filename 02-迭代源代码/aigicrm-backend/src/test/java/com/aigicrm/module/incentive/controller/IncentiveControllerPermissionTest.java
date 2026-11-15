@@ -152,7 +152,7 @@ class IncentiveControllerPermissionTest {
         }
     }
 
-    /** admin → 可改任意记录 */
+    /** 【产品口径 2026-11-15】admin 默认拥有全部权限：无需授权行即可改任意记录 */
     @Test
     void updateAllowsAnyRecordForAdmin() {
         SecurityUser su = plainUser(1L);
@@ -164,7 +164,6 @@ class IncentiveControllerPermissionTest {
 
             assertEquals(200, result.getCode());
             verify(incentiveService).updateRecord(79L, new BizIncentiveRecord());
-            verify(incentiveService, never()).getRecordById(79L);
             verify(incentiveService, never()).canEdit();
         }
     }

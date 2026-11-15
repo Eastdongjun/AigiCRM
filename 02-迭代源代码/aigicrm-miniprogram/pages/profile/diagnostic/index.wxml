@@ -1,0 +1,35 @@
+<view class="page">
+  <view class="card">
+    <view class="diag-head">
+      <view>
+        <view class="diag-title">权限诊断</view>
+        <view class="muted">用于排查“为什么看不到入口/按钮”</view>
+      </view>
+      <button class="mini-action" bindtap="refresh">刷新</button>
+    </view>
+    <view class="diag-row"><text class="muted">当前用户</text><text>{{view.userName}}</text></view>
+    <view class="diag-row"><text class="muted">基础范围</text><text>{{view.baseScopeText}}</text></view>
+    <view class="diag-row"><text class="muted">权限版本</text><text>{{view.permVersion}}</text></view>
+    <view class="diag-row"><text class="muted">本地 epoch</text><text>{{view.permEpoch}}</text></view>
+  </view>
+
+  <view class="card">
+    <view class="diag-head">
+      <view class="diag-title">模块范围</view>
+    </view>
+    <view wx:if="{{view.moduleRows.length}}" class="diag-scope-list">
+      <view wx:for="{{view.moduleRows}}" wx:key="key" class="diag-row">
+        <text class="muted">{{item.label}}</text><text>{{item.scopeText}}</text>
+      </view>
+    </view>
+    <view wx:else class="muted">暂无模块范围（未登录或接口未返回）</view>
+  </view>
+
+  <view class="card">
+    <view class="diag-head">
+      <view class="diag-title">权限码（{{view.permissionCount}}）</view>
+      <button class="mini-action" bindtap="copyPermissions">复制</button>
+    </view>
+    <view class="diag-perms">{{view.permissionsText}}</view>
+  </view>
+</view>

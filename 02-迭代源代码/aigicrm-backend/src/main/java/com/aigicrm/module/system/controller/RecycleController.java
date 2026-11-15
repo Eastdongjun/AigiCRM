@@ -3,7 +3,6 @@ package com.aigicrm.module.system.controller;
 import com.aigicrm.common.BusinessException;
 import com.aigicrm.common.Result;
 import com.aigicrm.module.system.service.RecycleService;
-import com.aigicrm.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,7 +17,7 @@ import java.util.Map;
 
 /**
  * 【回收站 2026-10-18】已删除客户/人员的查看与恢复(独立页面, 不改动现有列表口径)。
- * 权限: 每个端点先校验 {@link SecurityUtils#isAdmin()}, 仅平台管理员可用(不新增权限码);
+ * 权限: 每个端点由 system:recycle:* 权限码控制(权限中心勾选);
  * 定时任务直调 RecycleService, 不经过本控制器。
  */
 @RestController
@@ -28,10 +27,10 @@ public class RecycleController {
 
     private final RecycleService recycleService;
 
-    /** 回收站全端点统一平台管理员闸门; 非 admin 一律 403(与既有权限码叠加, 不放宽) */
+    /** 【产品口径 2026-11-15】回收站恢复/清空仅系统管理员可操作 */
     private void requireAdmin() {
-        if (!SecurityUtils.isAdmin()) {
-            throw new BusinessException(403, "仅平台管理员可访问回收站");
+        if (!com.aigicrm.security.SecurityUtils.isAdmin()) {
+            throw new BusinessException(403, "仅系统管理员可操作回收站");
         }
     }
 
@@ -41,14 +40,12 @@ public class RecycleController {
             @RequestParam(defaultValue = "1") int current,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String keyword) {
-        requireAdmin();
         return Result.ok(recycleService.deletedCustomers(current, size, keyword));
     }
 
     @PreAuthorize("hasAuthority('system:recycle:view')")
     @GetMapping("/customers/{id}")
     public Result<RecycleService.DeletedCustomerDetail> deletedCustomerDetail(@PathVariable Long id) {
-        requireAdmin();
         return Result.ok(recycleService.deletedCustomerDetail(id));
     }
 
@@ -72,14 +69,12 @@ public class RecycleController {
             @RequestParam(defaultValue = "1") int current,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String keyword) {
-        requireAdmin();
         return Result.ok(recycleService.deletedUsers(current, size, keyword));
     }
 
     @PreAuthorize("hasAuthority('system:recycle:view')")
     @GetMapping("/users/{id}")
     public Result<RecycleService.DeletedUserDetail> deletedUserDetail(@PathVariable Long id) {
-        requireAdmin();
         return Result.ok(recycleService.deletedUserDetail(id));
     }
 
@@ -103,14 +98,12 @@ public class RecycleController {
             @RequestParam(defaultValue = "1") int current,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String keyword) {
-        requireAdmin();
         return Result.ok(recycleService.deletedFiles(current, size, keyword));
     }
 
     @PreAuthorize("hasAuthority('system:recycle:view')")
     @GetMapping("/files/{id}")
     public Result<RecycleService.DeletedFileDetail> deletedFileDetail(@PathVariable Long id) {
-        requireAdmin();
         return Result.ok(recycleService.deletedFileDetail(id));
     }
 
@@ -118,7 +111,6 @@ public class RecycleController {
     @PreAuthorize("hasAuthority('system:recycle:view')")
     @GetMapping("/files/{id}/content")
     public void fileContent(@PathVariable Long id, jakarta.servlet.http.HttpServletResponse response) {
-        requireAdmin();
         recycleService.writeFileContent(id, response);
     }
 
@@ -145,7 +137,6 @@ public class RecycleController {
             @RequestParam(defaultValue = "1") int current,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String keyword) {
-        requireAdmin();
         return Result.ok(recycleService.deletedFolders(current, size, keyword));
     }
 

@@ -70,7 +70,7 @@
       <div class="step-icon-wrap">
         <el-icon :size="40" color="#1990ff"><Lock /></el-icon>
       </div>
-      <p class="step-desc">请设置您的新密码（8-30位）</p>
+      <p class="step-desc">请设置您的新密码（8-30位，含字母和数字）</p>
       <el-form ref="step3Ref" :model="form" :rules="step3Rules">
         <el-form-item prop="newPassword">
           <el-input v-model="form.newPassword" type="password" placeholder="请输入新密码"
@@ -141,7 +141,7 @@ const step3Rules = {
     { required: true, message: '请输入新密码', trigger: 'blur' },
     // 【D19 修复】密码强度统一 ≥8 位（对齐首登强制改密口径，login/index.vue 同为 ≥8）
     // 后端 ForgotPasswordResetRequest 为 @Size(min=6)（较松），前后端口径不一致时以严格者(8)为准
-    { min: 8, max: 30, message: '密码长度8-30位', trigger: 'blur' }
+    { min: 8, max: 30, message: '密码长度8-30位，且含字母和数字', trigger: 'blur' }
   ],
   confirmPassword: [
     { required: true, message: '请确认新密码', trigger: 'blur' },

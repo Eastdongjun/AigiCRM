@@ -21,12 +21,15 @@
       <span class="sq-icon sq-icon--folder"><el-icon><Folder /></el-icon></span>
       <span class="folder-name">{{ folder.folderName }}</span>
       <span class="folder-count">{{ folder.fileCount || 0 }}</span>
-<span v-if="canManageFolders && (folder.folderActions?.includes('rename') || folder.folderActions?.includes('delete'))" class="folder-actions">
-        <el-tooltip v-if="folder.folderActions?.includes('rename')" content="重命名" placement="top">
+<span v-if="(hasFolderRename || hasFolderDelete || userStore.hasPermission('file:acl:manage')) && (folder.folderActions?.includes('rename') || folder.folderActions?.includes('delete') || userStore.hasPermission('file:acl:manage'))" class="folder-actions">
+        <el-tooltip v-if="hasFolderRename && folder.folderActions?.includes('rename')" content="重命名" placement="top">
           <el-icon class="folder-act" @click.stop="openRenameFolder(folder)"><EditPen /></el-icon>
         </el-tooltip>
-<el-tooltip v-if="folder.folderActions?.includes('delete')" content="删除" placement="top">
+<el-tooltip v-if="hasFolderDelete && folder.folderActions?.includes('delete')" content="删除" placement="top">
           <el-icon class="folder-act folder-act-danger" @click.stop="handleDeleteFolder(folder)"><Delete /></el-icon>
+        </el-tooltip>
+        <el-tooltip v-if="userStore.hasPermission('file:acl:manage')" :content="folder.downloadable === 0 ? '开启下载' : '仅预览(关闭下载)'" placement="top">
+          <el-icon class="folder-act" @click.stop="toggleDownloadable(folder)"><Download /></el-icon>
         </el-tooltip>
       </span>
     </div>
@@ -46,12 +49,15 @@
 import { computed } from 'vue'
 import { injectFilePage } from '@/composables/useFilePage'
 import { useUserStore } from '@/store/user'
+import { ElMessage } from 'element-plus'
+import { setFolderDownloadable } from '@/api/file'
 
 const {
-  selectedFolderId, fileTotal, currentFolders, canCreateFolder, canManageFolders,
+  selectedFolderId, fileTotal, currentFolders, canCreateFolder, canManageFolders, hasFolderRename, hasFolderDelete,
   activeTab, storageUsed, storageQuota, storagePercent,
   selectFolder, openRenameFolder, handleDeleteFolder,
 } = injectFilePage()
+const userStore = useUserStore()
 
 </script>
 

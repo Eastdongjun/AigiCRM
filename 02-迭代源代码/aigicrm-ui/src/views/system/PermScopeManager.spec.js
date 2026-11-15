@@ -112,7 +112,7 @@ describe('PermScopeManager 新骨架(2026-11-03 权限中心: 给谁→模块→
   })
 })
 
-describe('PermScopeManager 编辑门控（system:config:edit）', () => {
+describe('PermScopeManager 编辑门控（system:scope:grant）', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     localStorage.clear()
@@ -120,8 +120,8 @@ describe('PermScopeManager 编辑门控（system:config:edit）', () => {
     mockApi()
   })
 
-  it('admin 且持有 system:config:edit 时可保存角色权限范围', async () => {
-    const wrapper = await mountWithPermissions(['system:config:view', 'system:config:edit'], ['admin'])
+  it('admin 且持有 system:scope:grant 时可保存角色权限范围', async () => {
+    const wrapper = await mountWithPermissions(['system:config:view', 'system:scope:grant'], ['admin'])
     expect(wrapper.vm.canEditScope).toBe(true)
 
     await wrapper.vm.saveScope(itemView, 'office')
@@ -148,7 +148,7 @@ describe('PermScopeManager 编辑门控（system:config:edit）', () => {
     expect(ElMessage.warning).toHaveBeenCalled()
   })
 
-  it('非 admin 即使持 system:config:edit 也只读（与后端 requireAdmin 对齐）', async () => {
+  it('非 admin 只有 system:config:edit、没有 system:scope:grant 时只读', async () => {
     const wrapper = await mountWithPermissions(['system:config:view', 'system:config:edit'], ['sales'])
     expect(wrapper.vm.canEditScope).toBe(false)
 
@@ -203,7 +203,7 @@ describe('PermScopeManager 权限码 → 后端 (module, action) 显式映射', 
   })
 
   it('system:log:view 保存为 (system, view) 而非死配置 (system, log)', async () => {
-    const wrapper = await mountWithPermissions(['system:config:view', 'system:config:edit'], ['admin'])
+    const wrapper = await mountWithPermissions(['system:config:view', 'system:scope:grant'], ['admin'])
     await wrapper.vm.saveScope(logItem, 'office')
     await flushPromises()
 
@@ -214,7 +214,7 @@ describe('PermScopeManager 权限码 → 后端 (module, action) 显式映射', 
   })
 
   it('未接入映射的权限码不写入范围配置', async () => {
-    const wrapper = await mountWithPermissions(['system:config:view', 'system:config:edit'], ['admin'])
+    const wrapper = await mountWithPermissions(['system:config:view', 'system:scope:grant'], ['admin'])
     await wrapper.vm.saveScope({ id: 3, label: '新增人员', permission: 'system:user:add' }, 'office')
     await flushPromises()
 

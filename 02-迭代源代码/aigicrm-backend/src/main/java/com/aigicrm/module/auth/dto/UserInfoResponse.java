@@ -24,6 +24,10 @@ public class UserInfoResponse {
     /** 【2026-10-08】集团 id→名称映射(切换器显示名字; 与 groupIds 对齐) */
     private java.util.Map<Long, String> groupNames;
     private Set<String> permissions;
+    /** 【2026-11-15 UI 一致性】是否组织管理员(前端用户管理按钮显隐; 与后端 requiresOrgAdmin 同口径) */
+    private Boolean orgAdmin;
+    /** 【2026-11-15 小程序范围摘要】模块 -> 当前生效范围 code */
+    private java.util.Map<String, String> moduleScopes;
     private List<SysMenu> menus;
     /** 【WP5 2026-11-13】权限版本号: 双端比对, 变更即拉新用户信息(菜单/按钮即时生效) */
     private Long permEpoch;

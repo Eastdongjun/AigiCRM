@@ -91,17 +91,19 @@ class CustomerFinanceGuardTest {
     }
 
     @Test
-    void admin_canManageAcrossGroups() {
+    void admin_alsoChecksCurrentGroup() {
+        when(customerMapper.selectTenantIdById(1L)).thenReturn(1L);
         when(customerMapper.selectById(1L)).thenReturn(customer(1L));
 
         try (MockedStatic<SecurityUtils> sec = mockStatic(SecurityUtils.class)) {
             sec.when(SecurityUtils::isAdmin).thenReturn(true);
+            sec.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of(1L));
             sec.when(() -> SecurityUtils.hasAuthority("finance:manage")).thenReturn(true);
 
             assertDoesNotThrow(() -> svc.assertCanManageFinance(1L));
         }
-        // admin 跨集团: 不查询 tenant_id
-        verify(customerMapper, never()).selectTenantIdById(any());
+        // 全系统 admin 收口: admin 也必须按当前集团校验 tenant_id
+        verify(customerMapper).selectTenantIdById(1L);
     }
 
     @Test

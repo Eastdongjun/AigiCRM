@@ -1,39 +1,54 @@
 # AIGICRM 权限码字典(自动生成)
 
-> 生成时间: 2026-11-11 | 来源: 生产 sys_menu + sys_role_menu
+> 生成时间: 2026-11-16 | 来源: 测试 sys_menu + sys_role_menu
 > 本文件由 scripts/gen-permission-dict.sh 自动生成,**禁止手改**;权限变更后重新运行。
 > 格式约定: 权限码 = `模块:动作`(如 customer:view / system:user:add)
 >
 > **状态列口径**: `启用` = sys_menu.status=1，该码会出现在角色管理页的配置树中(SysMenuService.tree() 带 status=1 过滤)，**管理员可勾选授予**; `停用` = status=0，**管理员看不到、也无法授予**（即便数据库里存在绑定）。
 
-## 一、权限码清单(83 条；数据库 77 条 + 兼容/历史 6 条；启用 75 / 停用 2)
+## 一、权限码清单(104 条；数据库 98 条 + 兼容/历史 6 条；启用 96 / 停用 2)
 
 | 权限码 | 菜单名 | 类型 | 路径 | 状态 | 绑定的角色 |
 |---|---|---|---|---|---|
 | `approval:approve` | 审批通过 | 3 | `` | 启用 | 系统管理员,行政,销售员,销售总监 |
 | `approval:reject` | 审批驳回 | 3 | `` | 启用 | 系统管理员,行政,销售员,销售总监 |
+| `approval:transfer` | 审批节点转交 | 3 | `NULL` | 启用 | 系统管理员 |
 | `approval:view` | 审批管理 | 2 | `/approval` | 启用 | 系统管理员,行政,销售员,销售总监 |
 | `contact:view` | 客户联系人查看 | 3 | `NULL` | 启用 | 系统管理员,行政,销售员,销售总监 |
 | `customer:add` | 客户新增 / 新增客户 | 2 / 3 | ` / /customer/add` | 启用 | 系统管理员,行政,销售员,销售总监 |
-| `customer:date:edit` | 修改客户保护日期 | 3 | `NULL` | 启用 | 系统管理员,行政,销售员,销售总监 |
+| `customer:date:edit` | 修改客户保护日期（字段） | 3 | `NULL` | 启用 | 系统管理员,行政,销售总监 |
 | `customer:delete` | 客户删除 | 3 | `` | 启用 | 系统管理员,行政,销售员,销售总监 |
 | `customer:edit` | 客户编辑 | 3 | `` | 启用 | 系统管理员,行政,销售员,销售总监 |
 | `customer:export` | 客户导出 | 3 | `` | 启用 | 系统管理员,行政,销售员,销售总监 |
-| `customer:finance:edit` | 开票回款编辑 | 3 | `NULL` | 启用 | 行政,销售总监 |
+| `customer:finance:edit` | 开票回款编辑 | 3 | `NULL` | 启用 | 系统管理员,行政,销售总监 |
 | `customer:import` | 客户导入 | 3 | `NULL` | 启用 | 系统管理员,行政,销售总监 |
-| `customer:invoice-date:edit` | 最近开票日编辑 | 3 | `NULL` | 启用 | 系统管理员,行政,销售员,销售总监 |
+| `customer:invoice-date:edit` | 最近开票日编辑（字段） | 3 | `NULL` | 启用 | 系统管理员,行政,销售总监 |
 | `customer:share` | 历史兼容项, 不作为独立运行时授权(沿用客户访问/编辑守卫) | — | `—` | — | — |
 | `customer:view` | 客户列表 / 客户管理 / 客户详情 | 2 | `/customer / /customer-group / /customer/detail/:id` | 启用 | 系统管理员,行政,销售员,销售总监 |
-| `dashboard:view` | 工作台 | 2 | `/dashboard` | 启用 | 系统管理员,行政,销售员,销售总监 |
+| `fabushi:activity:manage` | 法布施活动管理 | 3 | `` | 启用 | 系统管理员 |
+| `fabushi:book:manage` | 法布施书目审核 | 3 | `` | 启用 | 系统管理员 |
+| `fabushi:book:view` | 书目管理 | 2 | `/fabushi/book` | 启用 | 系统管理员 |
+| `fabushi:content:manage` | 法布施内容下架 | 3 | `` | 启用 | 系统管理员 |
+| `fabushi:content:view` | 内容治理 | 2 | `/fabushi/content` | 启用 | 系统管理员 |
+| `fabushi:create` | 法布施发布互动 | 3 | `` | 启用 | 系统管理员,行政,销售员,销售总监 |
+| `fabushi:stats:export` | 法布施统计导出 | 3 | `` | 启用 | 系统管理员 |
+| `fabushi:stats:view` | 统计看板 | 2 | `/fabushi/stats` | 启用 | 系统管理员,销售总监 |
+| `fabushi:view` | 法布施内容浏览 | 3 | `` | 启用 | 系统管理员,行政,销售员,销售总监 |
 | `file:acl:manage` | 文件ACL管理 | 3 | `NULL` | 启用 | 系统管理员,行政,销售员,销售总监 |
 | `file:delete` | 文件删除 | 3 | `` | 启用 | 系统管理员,行政,销售员,销售总监 |
-| `file:purge` | 文件彻底删除(不可逆, 默认仅管理员, 权限中心按需授权) | 3 | `NULL` | 启用 | 系统管理员 |
+| `file:download` | 文件下载 | 3 | `NULL` | 启用 | 系统管理员,行政,销售员,销售总监 |
 | `file:edit` | 文件编辑 | 3 | `NULL` | 启用 | 系统管理员,行政,销售员,销售总监 |
+| `file:folder:create` | 新建文件夹 | 3 | `NULL` | 启用 | 系统管理员,行政,销售员,销售总监 |
+| `file:folder:delete` | 删除文件夹 | 3 | `NULL` | 启用 | 系统管理员,行政,销售员,销售总监 |
 | `file:folder:manage` | 文件夹管理 | 3 | `NULL` | 启用 | 系统管理员,行政,销售员,销售总监 |
+| `file:folder:rename` | 文件夹改名 | 3 | `NULL` | 启用 | 系统管理员,行政,销售员,销售总监 |
+| `file:folder:restore` | 恢复文件夹 | 3 | `NULL` | 启用 | 系统管理员,行政,销售员,销售总监 |
+| `file:purge` | 文件彻底删除 | 3 | `NULL` | 启用 | 系统管理员 |
+| `file:reconcile` | 文件对账 | 3 | `NULL` | 启用 | 系统管理员,行政,销售员,销售总监 |
 | `file:share` | 文件分享 | 3 | `` | 启用 | 系统管理员,行政,销售员,销售总监 |
 | `file:upload` | 文件上传 | 3 | `` | 启用 | 系统管理员,行政,销售员,销售总监 |
 | `file:view` | 文件管理 | 2 | `/file` | 启用 | 系统管理员,行政,销售员,销售总监 |
-| `finance:manage` | 客户财务管理 | 3 | `NULL` | 启用 | 行政,销售总监 |
+| `finance:manage` | 客户财务管理 | 3 | `NULL` | 启用 | 系统管理员,行政,销售总监 |
 | `finance:view` | 客户财务查看 | 3 | `NULL` | 启用 | 系统管理员,行政,销售员,销售总监 |
 | `incentive:add` | 激励上传 | 2 | `/incentive` | 启用 | 系统管理员,行政,销售员,销售总监 |
 | `incentive:delete` | 历史兼容项, 不作为独立运行时授权(由授权表与服务范围控制) | — | `—` | — | — |
@@ -47,7 +62,7 @@
 | `incentive:view` | 四项激励 / 案例库 / 激励查询 | 2 | `/case-library / /incentive-group / /incentive/search` | 启用 | 系统管理员,行政,销售员,销售总监 |
 | `incentive:view-all` | 激励查看(全部)（历史残留, 不作为运行时授权(改由授权表按人核定)） | 3 | `NULL` | **停用** | — |
 | `incentive:view-shared` | 激励查看(已分享)（历史残留, 不作为运行时授权(改由授权表按人核定)） | 3 | `NULL` | **停用** | — |
-| `ranking:customer:view` | 客户排行查看 | 3 | `NULL` | 启用 | 销售员 |
+| `reminder:ensure` | 批量生成到期提醒 | 3 | `NULL` | 启用 | 系统管理员 |
 | `reminder:view` | 提醒管理 | 2 | `/reminder` | 启用 | 系统管理员,行政,销售员,销售总监 |
 | `score:entry` | 学分录入 | 2 | `/score/entry` | 启用 | 系统管理员,行政,销售总监 |
 | `score:manage` | 学分管理 | 3 | `NULL` | 启用 | 系统管理员,销售总监 |
@@ -60,15 +75,15 @@
 | `sea:pool:delete` | 历史残留, 不作为独立运行时授权(运行时由池级 PERM_DELETE 守卫控制) | — | `—` | — | — |
 | `sea:view` | 公海池 / 公海管理 / 捞取记录 | 2 | `/sea / /sea-group / /sea/records` | 启用 | 系统管理员,行政,销售员,销售总监 |
 | `statistics:scoreboard` | 历史残留, 不作为独立运行时授权(统一使用 statistics:view) | — | `—` | — | — |
-| `statistics:view` | 客户排行 / 核心客户六项指标 / 统计分析 | 2 | `/indicator / /ranking/customer / /statistics` | 启用 | 系统管理员,销售员,销售总监 |
+| `statistics:view` | 客户排行 / 核心客户六项指标 / 统计分析 | 2 | `/indicator / /ranking/customer / /statistics` | 启用 | 系统管理员,行政,销售员,销售总监 |
 | `system:config:edit` | 系统配置编辑 | 3 | `NULL` | 启用 | 系统管理员,销售总监 |
 | `system:config:view` | 系统设置 | 2 | `/system/config / /system/config-group` | 启用 | 系统管理员,行政,销售总监 |
 | `system:dept:edit` | 部门编辑 | 3 | `NULL` | 启用 | 系统管理员,销售总监 |
 | `system:dept:view` | 组织架构 / 部门管理 | 2 | `/system/org / /system/org-group` | 启用 | 系统管理员,行政,销售总监 |
-| `system:group:add` | 集团新增 | 3 | `NULL` | 启用 | 系统管理员,销售总监 |
-| `system:group:delete` | 删除集团 | 3 | `NULL` | 启用 | 系统管理员,销售总监 |
-| `system:group:edit` | 集团编辑 | 3 | `NULL` | 启用 | 系统管理员,销售总监 |
-| `system:group:view` | 集团管理 | 2 | `/system/group` | 启用 | 系统管理员,销售总监 |
+| `system:group:add` | 集团新增 | 3 | `NULL` | 启用 | 系统管理员 |
+| `system:group:delete` | 删除集团 | 3 | `NULL` | 启用 | 系统管理员 |
+| `system:group:edit` | 集团编辑 | 3 | `NULL` | 启用 | 系统管理员 |
+| `system:group:view` | 集团管理 | 2 | `/system/group` | 启用 | 系统管理员,行政,销售员,销售总监 |
 | `system:log:view` | 日志查看 | 3 | `` | 启用 | 系统管理员,销售总监 |
 | `system:menu:edit` | 历史残留, 不作为运行时授权(菜单由迁移维护) | — | `—` | — | — |
 | `system:menu:view` | 菜单查看 | 3 | `NULL` | 启用 | 系统管理员,销售总监 |
@@ -76,6 +91,7 @@
 | `system:position:add` | 岗位新增 | 3 | `NULL` | 启用 | 系统管理员,销售总监 |
 | `system:position:delete` | 删除岗位 | 3 | `NULL` | 启用 | 系统管理员,销售总监 |
 | `system:position:edit` | 岗位编辑 | 3 | `NULL` | 启用 | 系统管理员,销售总监 |
+| `system:position:rule:edit` | 岗位规则绑定 | 3 | `NULL` | 启用 | 系统管理员 |
 | `system:position:view` | 岗位管理 | 2 | `/system/position` | 启用 | 系统管理员,销售总监 |
 | `system:recycle:purge` | 清空文件回收站 | 3 | `NULL` | 启用 | 系统管理员 |
 | `system:recycle:restore` | 恢复已删除数据 | 3 | `NULL` | 启用 | 系统管理员 |
@@ -83,12 +99,16 @@
 | `system:role:add` | 角色新增 | 3 | `` | 启用 | 系统管理员,销售总监 |
 | `system:role:delete` | 删除角色 | 3 | `NULL` | 启用 | 系统管理员,销售总监 |
 | `system:role:edit` | 角色编辑 | 3 | `` | 启用 | 系统管理员,销售总监 |
+| `system:role:grant` | 角色授码 | 3 | `NULL` | 启用 | 系统管理员 |
 | `system:role:view` | 角色管理 | 2 | `/system/role` | 启用 | 系统管理员,销售总监 |
 | `system:rule:add` | 规则新增 | 3 | `NULL` | 启用 | 系统管理员,销售总监 |
 | `system:rule:delete` | 删除规则 | 3 | `NULL` | 启用 | 系统管理员,销售总监 |
 | `system:rule:edit` | 规则编辑 | 3 | `NULL` | 启用 | 系统管理员,销售总监 |
 | `system:rule:view` | 权限规则 | 2 | `/system/rule` | 启用 | 系统管理员,销售总监 |
+| `system:scope:grant` | 数据范围配置 | 3 | `NULL` | 启用 | 系统管理员 |
+| `system:task:run` | 触发到期任务 | 3 | `NULL` | 启用 | 系统管理员 |
 | `system:user:add` | 用户新增 | 3 | `` | 启用 | 系统管理员,行政,销售总监 |
+| `system:user:assign` | 用户岗位指派 | 3 | `NULL` | 启用 | 系统管理员 |
 | `system:user:delete` | 删除用户 | 3 | `NULL` | 启用 | 系统管理员,销售总监 |
 | `system:user:edit` | 用户编辑 | 3 | `` | 启用 | 系统管理员,行政,销售总监 |
 | `system:user:view` | 人员管理 | 2 | `/system/user` | 启用 | 系统管理员,行政,销售总监 |
@@ -103,27 +123,42 @@
 |---|---|---|---|---|
 | `approval:approve` | ✅ | ✅ | ✅ | ✅ |
 | `approval:reject` | ✅ | ✅ | ✅ | ✅ |
+| `approval:transfer` | ✅ |   |   |   |
 | `approval:view` | ✅ | ✅ | ✅ | ✅ |
 | `contact:view` | ✅ | ✅ | ✅ | ✅ |
 | `customer:add` | ✅ | ✅ | ✅ | ✅ |
-| `customer:date:edit` | ✅ | ✅ | ✅ | ✅ |
+| `customer:date:edit` | ✅ | ✅ |   | ✅ |
 | `customer:delete` | ✅ | ✅ | ✅ | ✅ |
 | `customer:edit` | ✅ | ✅ | ✅ | ✅ |
 | `customer:export` | ✅ | ✅ | ✅ | ✅ |
-| `customer:finance:edit` |   | ✅ |   | ✅ |
+| `customer:finance:edit` | ✅ | ✅ |   | ✅ |
 | `customer:import` | ✅ | ✅ |   | ✅ |
-| `customer:invoice-date:edit` | ✅ | ✅ | ✅ | ✅ |
+| `customer:invoice-date:edit` | ✅ | ✅ |   | ✅ |
 | `customer:view` | ✅ | ✅ | ✅ | ✅ |
-| `dashboard:view` | ✅ | ✅ | ✅ | ✅ |
+| `fabushi:activity:manage` | ✅ |   |   |   |
+| `fabushi:book:manage` | ✅ |   |   |   |
+| `fabushi:book:view` | ✅ |   |   |   |
+| `fabushi:content:manage` | ✅ |   |   |   |
+| `fabushi:content:view` | ✅ |   |   |   |
+| `fabushi:create` | ✅ | ✅ | ✅ | ✅ |
+| `fabushi:stats:export` | ✅ |   |   |   |
+| `fabushi:stats:view` | ✅ |   |   | ✅ |
+| `fabushi:view` | ✅ | ✅ | ✅ | ✅ |
 | `file:acl:manage` | ✅ | ✅ | ✅ | ✅ |
 | `file:delete` | ✅ | ✅ | ✅ | ✅ |
-| `file:purge` | ✅ | ✅ | ✅ | ✅ |
+| `file:download` | ✅ | ✅ | ✅ | ✅ |
 | `file:edit` | ✅ | ✅ | ✅ | ✅ |
+| `file:folder:create` | ✅ | ✅ | ✅ | ✅ |
+| `file:folder:delete` | ✅ | ✅ | ✅ | ✅ |
 | `file:folder:manage` | ✅ | ✅ | ✅ | ✅ |
+| `file:folder:rename` | ✅ | ✅ | ✅ | ✅ |
+| `file:folder:restore` | ✅ | ✅ | ✅ | ✅ |
+| `file:purge` | ✅ |   |   |   |
+| `file:reconcile` | ✅ | ✅ | ✅ | ✅ |
 | `file:share` | ✅ | ✅ | ✅ | ✅ |
 | `file:upload` | ✅ | ✅ | ✅ | ✅ |
 | `file:view` | ✅ | ✅ | ✅ | ✅ |
-| `finance:manage` |   | ✅ |   | ✅ |
+| `finance:manage` | ✅ | ✅ |   | ✅ |
 | `finance:view` | ✅ | ✅ | ✅ | ✅ |
 | `incentive:add` | ✅ | ✅ | ✅ | ✅ |
 | `incentive:edit` | ✅ | ✅ | ✅ | ✅ |
@@ -136,7 +171,7 @@
 | `incentive:view` | ✅ | ✅ | ✅ | ✅ |
 | `incentive:view-all` |   |   |   |   |
 | `incentive:view-shared` |   |   |   |   |
-| `ranking:customer:view` |   |   | ✅ |   |
+| `reminder:ensure` | ✅ |   |   |   |
 | `reminder:view` | ✅ | ✅ | ✅ | ✅ |
 | `score:entry` | ✅ | ✅ |   | ✅ |
 | `score:manage` | ✅ |   |   | ✅ |
@@ -146,21 +181,22 @@
 | `sea:config:view` | ✅ | ✅ |   | ✅ |
 | `sea:import` | ✅ | ✅ |   | ✅ |
 | `sea:view` | ✅ | ✅ | ✅ | ✅ |
-| `statistics:view` | ✅ |   | ✅ | ✅ |
+| `statistics:view` | ✅ | ✅ | ✅ | ✅ |
 | `system:config:edit` | ✅ |   |   | ✅ |
 | `system:config:view` | ✅ | ✅ |   | ✅ |
 | `system:dept:edit` | ✅ |   |   | ✅ |
 | `system:dept:view` | ✅ | ✅ |   | ✅ |
-| `system:group:add` | ✅ |   |   | ✅ |
-| `system:group:delete` | ✅ |   |   | ✅ |
-| `system:group:edit` | ✅ |   |   | ✅ |
-| `system:group:view` | ✅ |   |   | ✅ |
+| `system:group:add` | ✅ |   |   |   |
+| `system:group:delete` | ✅ |   |   |   |
+| `system:group:edit` | ✅ |   |   |   |
+| `system:group:view` | ✅ | ✅ | ✅ | ✅ |
 | `system:log:view` | ✅ |   |   | ✅ |
 | `system:menu:view` | ✅ |   |   | ✅ |
 | `system:org:admin` | ✅ |   |   | ✅ |
 | `system:position:add` | ✅ |   |   | ✅ |
 | `system:position:delete` | ✅ |   |   | ✅ |
 | `system:position:edit` | ✅ |   |   | ✅ |
+| `system:position:rule:edit` | ✅ |   |   |   |
 | `system:position:view` | ✅ |   |   | ✅ |
 | `system:recycle:purge` | ✅ |   |   |   |
 | `system:recycle:restore` | ✅ |   |   |   |
@@ -168,12 +204,16 @@
 | `system:role:add` | ✅ |   |   | ✅ |
 | `system:role:delete` | ✅ |   |   | ✅ |
 | `system:role:edit` | ✅ |   |   | ✅ |
+| `system:role:grant` | ✅ |   |   |   |
 | `system:role:view` | ✅ |   |   | ✅ |
 | `system:rule:add` | ✅ |   |   | ✅ |
 | `system:rule:delete` | ✅ |   |   | ✅ |
 | `system:rule:edit` | ✅ |   |   | ✅ |
 | `system:rule:view` | ✅ |   |   | ✅ |
+| `system:scope:grant` | ✅ |   |   |   |
+| `system:task:run` | ✅ |   |   |   |
 | `system:user:add` | ✅ | ✅ |   | ✅ |
+| `system:user:assign` | ✅ |   |   |   |
 | `system:user:delete` | ✅ |   |   | ✅ |
 | `system:user:edit` | ✅ | ✅ |   | ✅ |
 | `system:user:view` | ✅ | ✅ |   | ✅ |

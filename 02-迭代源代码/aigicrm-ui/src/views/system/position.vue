@@ -34,7 +34,7 @@
             <!-- 【2026-11-08 审计修复】岗位规则保存后端 admin-only（SysPositionController updateRules:
                  system:position:edit 之外再硬校验 isAdmin, "仅系统管理员可修改岗位权限规则"）——
                  非 admin 持 system:position:edit 时按钮可见但保存必 403, 显隐对齐为超管可见 -->
-            <el-button v-if="canEditPosition && isAdmin" link type="warning" size="small" @click="openRuleDialog(row)">规则</el-button>
+            <span class="org-hint">规则请在权限中心配置</span>
             <el-button v-if="canDeletePosition" link type="danger" size="small" @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
@@ -78,31 +78,6 @@
       </template>
     </el-dialog>
 
-    <!-- 规则分配对话框 -->
-    <el-dialog v-model="ruleDialogVisible" title="权限规则分配" width="700px">
-      <el-alert type="info" :closable="false" style="margin-bottom:16px">
-        为岗位 <b>{{ currentPosition?.name }}</b> 绑定权限规则。规则决定该岗位可查看的数据范围及操作权限。
-      </el-alert>
-      <el-checkbox-group v-model="checkedRuleIds" style="display:flex;flex-direction:column;gap:8px">
-        <div v-for="rule in allRules" :key="rule.id" class="rule-item">
-          <el-checkbox :label="rule.id" :value="rule.id">
-            <div>
-              <span style="font-weight:bold">{{ rule.name }}</span>
-              <el-tag size="small" :type="ruleTypeTag(rule.ruleType)" style="margin-left:8px">
-                {{ ruleTypeLabel(rule.ruleType) }}
-              </el-tag>
-            </div>
-            <div style="font-size:12px;color:var(--el-color-info);margin-top:2px">
-              {{ rule.description || rule.code }} — 目标: {{ rule.targetEntity }}
-            </div>
-          </el-checkbox>
-        </div>
-      </el-checkbox-group>
-      <template #footer>
-        <el-button @click="ruleDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleSaveRules">保存规则</el-button>
-      </template>
-    </el-dialog>
   </div>
 </template>
 

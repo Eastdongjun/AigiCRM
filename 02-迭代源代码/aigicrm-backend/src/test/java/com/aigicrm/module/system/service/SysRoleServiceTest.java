@@ -206,11 +206,13 @@ class SysRoleServiceTest {
     }
 
     @Test
-    void list_adminSeesAllGroups() {
+    void list_adminAlsoLimitedToCurrentGroup() {
         SysRoleMapper roleMapper = mock(SysRoleMapper.class);
         SysRoleService service = newServiceWith(roleMapper);
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(true);
+            m.when(() -> SecurityUtils.hasAuthority("system:role:grant")).thenReturn(true);
+            m.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of(1L));
 
             service.list();
             @SuppressWarnings("unchecked")
@@ -218,7 +220,7 @@ class SysRoleServiceTest {
             ArgumentCaptor<LambdaQueryWrapper<SysRole>> captor = ArgumentCaptor.forClass(LambdaQueryWrapper.class);
             verify(roleMapper).selectList(captor.capture());
             String expr = captor.getValue().getSqlSegment();
-            assertFalse(expr.contains("group_id"), "admin 不应附加集团过滤，实际: " + expr);
+            assertTrue(expr.contains("group_id"), "单集团 admin 应附加当前集团过滤，实际: " + expr);
         }
     }
 
@@ -284,14 +286,16 @@ class SysRoleServiceTest {
     }
 
     @Test
-    void getById_adminSeesAnyGroup() {
+    void getById_adminCannotSeeOtherGroup() {
         SysRoleMapper roleMapper = mock(SysRoleMapper.class);
         SysRoleService service = newServiceWith(roleMapper);
         when(roleMapper.selectById(5L)).thenReturn(roleOf(5L, 2L));
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(true);
+            m.when(() -> SecurityUtils.hasAuthority("system:role:grant")).thenReturn(true);
+            m.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of(1L));
 
-            assertNotNull(service.getById(5L));
+            assertNull(service.getById(5L));
         }
     }
 
@@ -337,6 +341,7 @@ class SysRoleServiceTest {
         role.setRoleCode("r9");
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(true);
+            m.when(() -> SecurityUtils.hasAuthority("system:role:grant")).thenReturn(true);
 
             service.create(role);
 
@@ -465,6 +470,7 @@ class SysRoleServiceTest {
         when(roleMapper.selectById(99L)).thenReturn(null);
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(true);
+            m.when(() -> SecurityUtils.hasAuthority("system:role:grant")).thenReturn(true);
 
             assertThrows(BusinessException.class, () -> service.delete(99L),
                     "删除不存在的角色不应静默成功");
@@ -497,6 +503,7 @@ class SysRoleServiceTest {
 
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(true);
+            m.when(() -> SecurityUtils.hasAuthority("system:role:grant")).thenReturn(true);
             service.delete(5L);
 
             // 顺序：版本递增(依赖 sys_user_role 子查询) → 删绑定 → 按捕获列表 evict
@@ -552,18 +559,18 @@ class SysRoleServiceTest {
     }
 
     @Test
-    void updateOrgs_adminAnyGroupRoleAllowed() {
+    void updateOrgs_adminCannotCrossGroup() {
         SysRoleMapper roleMapper = mock(SysRoleMapper.class);
         SysRoleOrgMapper orgMapper = mock(SysRoleOrgMapper.class);
         SysRoleService service = newServiceWith(roleMapper, orgMapper);
         when(roleMapper.selectById(5L)).thenReturn(roleOf(5L, 2L));
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(true);
+            m.when(() -> SecurityUtils.hasAuthority("system:role:grant")).thenReturn(true);
+            m.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of(1L));
 
-            service.updateOrgs(5L, List.of(10L, 20L));
-
-            verify(orgMapper).deleteByRoleId(5L);
-            verify(orgMapper, times(2)).insert(any(SysRoleOrg.class));
+            assertThrows(BusinessException.class, () -> service.updateOrgs(5L, List.of(10L, 20L)));
+            verify(orgMapper, never()).deleteByRoleId(5L);
         }
     }
 
@@ -731,6 +738,7 @@ class SysRoleServiceTest {
         SysRoleService service = newServiceWith(mock(SysRoleMapper.class));
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(true);
+            m.when(() -> SecurityUtils.hasAuthority("system:role:grant")).thenReturn(true);
             role.setGroupId(1L); // 跳过 visibleGroupIds 默认分支
             service.create(role); // 不应抛异常
         }
@@ -893,6 +901,7 @@ class SysRoleServiceTest {
 
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(true);
+            m.when(() -> SecurityUtils.hasAuthority("system:role:grant")).thenReturn(true);
             service.create(role); // admin 不拦截
             verify(roleMapper).insert(role);
 
@@ -921,6 +930,7 @@ class SysRoleServiceTest {
         role.setRoleName("新角色默认档");
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(true);
+            m.when(() -> SecurityUtils.hasAuthority("system:role:grant")).thenReturn(true);
 
             service.create(role);
 

@@ -64,7 +64,7 @@ public class ApprovalController {
     }
 
     /** 【议题二.1 裁决】管理员手动转交审批节点(服务层二次校验 isAdmin) */
-    @PreAuthorize("hasAuthority('approval:view')")
+    @PreAuthorize("hasAuthority('approval:transfer')")
     @PutMapping("/{id}/nodes/{nodeId}/transfer")
     public Result<Void> transferNode(@PathVariable Long id, @PathVariable Long nodeId,
                                      @RequestBody Map<String, Long> body) {

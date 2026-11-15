@@ -35,13 +35,12 @@ class SysPositionRuleGuardControllerTest {
     }
 
     @Test
-    void updateRules_nonAdmin_rejected() {
+    void updateRules_codeHolder_passesThrough() {
         try (MockedStatic<SecurityUtils> security = mockStatic(SecurityUtils.class)) {
-            security.when(SecurityUtils::isAdmin).thenReturn(false);
-            assertThrows(BusinessException.class, () -> controller.updateRules(9L, body(List.of(1L, 2L))),
-                    "非 admin 修改岗位权限规则必须被拒");
+            security.when(() -> SecurityUtils.hasAuthority("system:position:rule:edit")).thenReturn(true);
+            controller.updateRules(9L, body(List.of(1L, 2L)));
         }
-        verify(positionService, never()).saveRules(anyLong(), any());
+        verify(positionService).saveRules(9L, List.of(1L, 2L));
     }
 
     @Test

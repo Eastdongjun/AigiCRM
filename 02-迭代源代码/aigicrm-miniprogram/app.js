@@ -45,10 +45,8 @@ App({
   onShow() {
     if (this.globalData.demoMode || !getToken()) return
     if (this.globalData.permissionRefreshPromise) return
-    const { loadCurrentUser } = require('./api/auth')
-    this.globalData.permissionRefreshPromise = loadCurrentUser().catch(() => {
-      // request.js handles expired tokens; transient failures keep the last known session.
-    }).finally(() => {
+    const { refreshPermissions } = require('./api/auth')
+    this.globalData.permissionRefreshPromise = refreshPermissions().finally(() => {
       this.globalData.permissionRefreshPromise = null
     })
   }

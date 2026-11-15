@@ -11,6 +11,6 @@ public class ForgotPasswordResetRequest {
     @NotBlank(message = "验证码不能为空")
     private String code;
     @NotBlank(message = "新密码不能为空")
-    @Size(min = 6, max = 30, message = "密码长度6-30位")
+    @Size(min = 8, max = 30, message = "密码长度8-30位")
     private String newPassword;
 }

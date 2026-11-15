@@ -26,6 +26,15 @@ Page({
     saving: false,
     folderFormView: buildFolderFormView({ id: '', name: '', saving: false })
   },
+  onPermissionChanged() {
+    if (getApp().globalData.demoMode) return
+    if (!(typeof hasPermission === 'function' && hasPermission('file:folder:manage'))) {
+      wx.showToast({ title: '没有文件管理权限', icon: 'none' })
+      setTimeout(() => wx.navigateBack(), 300)
+      return
+    }
+  },
+
   onLoad(options = {}) {
     if (!requireLogin()) return
     // 【F5】冷启动 permissions 异步回填: 等待在途 /auth/info 后再判权限, 避免误判无权限

@@ -4,6 +4,20 @@ const { getGlobalData, buildUrl } = require('./app-context')
 
 let redirectingToLogin = false
 
+// 【2026-11-15】权限版本按“用户+环境”隔离，避免同设备切号复用旧 epoch
+function permEpochStorageKey() {
+  try {
+    const app = typeof getApp === 'function' ? getApp() : null
+    const globalData = (app && app.globalData) || {}
+    const user = globalData.currentUser || {}
+    const uid = user.id != null ? user.id : (user.username || 'anon')
+    return 'permEpoch::' + String(uid) + '::' + String(globalData.apiBaseUrl || 'demo')
+  } catch (e) {
+    return 'permEpoch::anon'
+  }
+}
+
+
 function requestError(message, details) {
   const error = new Error(message || '请求失败')
   Object.assign(error, details)
@@ -83,15 +97,23 @@ function request(options) {
         // (管理员保存授权 → 小程序端下一次请求后菜单/按钮/数据范围更新; app.onShow 刷新保留为兜底)
         const permEpoch = res.header && (res.header['X-Perm-Epoch'] || res.header['x-perm-epoch'])
         if (permEpoch && typeof getToken === 'function' && getToken()) {
+          const epochKey = permEpochStorageKey()
           let prev = null
-          try { prev = wx.getStorageSync('permEpoch') } catch (e) {}
-          if (prev && String(prev) !== String(permEpoch)) {
+          try { prev = wx.getStorageSync(epochKey) } catch (e) {}
+          // 空值也要刷新（首次安装/清缓存/切号），不再只存新 epoch 跳过刷新
+          if (!prev || String(prev) !== String(permEpoch)) {
             try {
-              const { loadCurrentUser } = require('../api/auth')
-              loadCurrentUser().catch(() => {})
+              // 刷新成功后才落 epoch；失败保留旧值，下一次请求会重试
+              require('../api/auth').refreshPermissions(true).then((ok) => {
+                // 只有真正刷新成功才推进 epoch；失败保留旧值，下一次请求重试
+                if (ok) {
+                  try { wx.setStorageSync(epochKey, String(permEpoch)) } catch (e) {}
+                }
+              })
             } catch (e) {}
+          } else {
+            try { wx.setStorageSync(epochKey, String(permEpoch)) } catch (e) {}
           }
-          try { wx.setStorageSync('permEpoch', String(permEpoch)) } catch (e) {}
         }
         const body = res.data || {}
         if (res.statusCode >= 200 && res.statusCode < 300 && (body.code === undefined || body.code === 200)) {
@@ -100,6 +122,10 @@ function request(options) {
         }
         // 【2026-09-22 语义修正】只有 401(未认证/失效)才踢登录; 403=已认证但无权,
         // 此前 403 也触发 redirectToLoginOnce, 会把"无权限动作"放大成"被登出"(reminder 页实测)
+        if (res.statusCode === 403 || body.code === 403) {
+          // 403=已认证但无权：可能是权限刚被撤销，触发一次静默权限刷新自愈
+          try { require('../api/auth').refreshPermissions() } catch (e) {}
+        }
         if (res.statusCode === 401 || body.code === 401) {
           redirectToLoginOnce()
         }

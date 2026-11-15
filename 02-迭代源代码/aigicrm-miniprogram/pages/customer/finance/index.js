@@ -101,6 +101,16 @@ Page({
     stageView: buildStageView({ loading: false })
   },
 
+  onPermissionChanged() {
+    if (getApp().globalData.demoMode) return
+    if (!(typeof hasPermission === 'function' && hasPermission('finance:view'))) {
+      wx.showToast({ title: '没有财务查看权限', icon: 'none' })
+      setTimeout(() => wx.navigateBack(), 300)
+      return
+    }
+    this.load()
+  },
+
   onLoad(options) {
     if (!requireLogin()) return
     if (!getApp().globalData.demoMode && !hasPermission('finance:view')) {

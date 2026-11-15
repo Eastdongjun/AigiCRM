@@ -37,6 +37,14 @@ Page({
     saving: false,
     contactFormView: buildContactFormView({ isEdit: false, form: { name: '', position: '', phone: '', remark: '' }, saving: false })
   },
+  onPermissionChanged() {
+    if (getApp().globalData.demoMode) return
+    if (!hasPermission('contact:view')) {
+      wx.showToast({ title: '没有操作权限', icon: 'none' })
+      setTimeout(() => wx.navigateBack(), 300)
+    }
+  },
+
   onLoad(options) {
     if (!requireLogin()) return
     if (!getApp().globalData.demoMode && (!hasPermission('customer:view') || !hasPermission('customer:edit'))) { wx.showToast({ title: '没有联系人编辑权限', icon: 'none' }); wx.navigateBack(); return }

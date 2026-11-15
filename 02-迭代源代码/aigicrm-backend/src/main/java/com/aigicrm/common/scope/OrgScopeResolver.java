@@ -176,7 +176,6 @@ public class OrgScopeResolver {
     public List<Long> resolveModuleUsersWithinGroup(SecurityUser user, String module) {
         List<Long> visible = resolveModuleUsers(user, module);
         if (visible != null) return visible;
-        if (user != null && user.hasRole("admin")) return null;
         Long g = GroupScopeUtil.currentGroupOrNull();
         if (g == null) return List.of();
         List<Long> inGroup = GroupScopeUtil.userIdsInGroup(jdbcTemplate, g);

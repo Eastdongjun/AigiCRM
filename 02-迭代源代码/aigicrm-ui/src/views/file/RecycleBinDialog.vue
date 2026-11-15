@@ -46,7 +46,7 @@
           </el-table-column>
           <el-table-column label="操作" width="130" align="center">
             <template #default="{ row }">
-              <el-button size="small" link type="primary" @click="doRestoreFolder(row)">恢复</el-button>
+              <el-button v-if="canRestoreFolder" size="small" link type="primary" @click="doRestoreFolder(row)">恢复</el-button>
               <el-button v-if="userStore.hasPermission('file:purge')" size="small" link type="danger" @click="doPurgeFolder(row)">彻底删除</el-button>
             </template>
           </el-table-column>
@@ -64,7 +64,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/store/user'
 import {
@@ -76,6 +76,7 @@ import {
 
 const emit = defineEmits(['restored'])
 const userStore = useUserStore()
+const canRestoreFolder = computed(() => userStore.hasPermission('file:folder:restore') || userStore.hasPermission('file:delete'))
 // 【V2026.11.14.3 P1】彻底删除=不可逆动作, 独立权限码 file:purge(默认仅 admin, 权限中心按需授权);
 // 恢复仍按 file:delete(可逆动作)。无 purge 码者只见"恢复"。
 

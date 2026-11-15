@@ -31,6 +31,14 @@ Page({
     const next = { ...this.data, ...patch }
     this.setData({ ...patch, contactDetailView: buildContactDetailView(next) })
   },
+  onPermissionChanged() {
+    if (getApp().globalData.demoMode) return
+    if (!hasPermission('contact:view')) {
+      wx.showToast({ title: '没有操作权限', icon: 'none' })
+      setTimeout(() => wx.navigateBack(), 300)
+    }
+  },
+
   onLoad(options) {
     if (!requireLogin()) return
     if (!getApp().globalData.demoMode && (!hasPermission('customer:view') || !hasPermission('contact:view'))) {

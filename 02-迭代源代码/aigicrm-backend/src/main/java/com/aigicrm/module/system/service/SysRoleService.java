@@ -79,7 +79,7 @@ public class SysRoleService {
      * @param existing 更新场景的目标角色（create 传 null）
      */
     private void validateGrantableRole(SysRole role, SysRole existing) {
-        if (SecurityUtils.isAdmin()) return;
+        if (SecurityUtils.hasAuthority("system:role:grant")) return;
         if ("admin".equals(role.getRoleCode())
                 || (existing != null && "admin".equals(existing.getRoleCode()))) {
             throw new BusinessException(403, "无权操作系统管理员角色");
@@ -123,7 +123,7 @@ public class SysRoleService {
         );
         if (count > 0) throw new BusinessException("角色编码已存在");
         roleMapper.insert(role);
-        saveRoleMenus(role.getId(), role.getMenuIds());
+        saveRoleMenus(role.getId(), role.getMenuIds(), java.util.Set.of());
         saveRoleOrgs(role);
         // 【T10.4 2026-11-12】新角色写 file 域矩阵默认行(view/manage/delete=self 保守档):
         // V2026.11.10.1 CROSS JOIN 只覆盖当时已有角色, 此后新建角色 file 三档回退 self——
@@ -147,6 +147,8 @@ public class SysRoleService {
         if (role.getId() == null) {
             throw new BusinessException("角色ID不能为空");
         }
+        // 【P1-5 2026-11-15】串行化同一角色的菜单/范围写: 行锁避免并发保存互相覆盖与缓存读到中间态
+        jdbc.queryForList("SELECT id FROM sys_role WHERE id = ? FOR UPDATE", Long.class, role.getId());
         SysRole existing = roleMapper.selectById(role.getId());
         if (existing == null) {
             throw new BusinessException("角色不存在");
@@ -174,15 +176,17 @@ public class SysRoleService {
             roleMapper.updateById(role);
         }
         if (role.getMenuIds() != null) {
+            // 【字段码依赖 2026-11-15】删除前记录旧码：父码被主动移除时子字段码一并移除；否则子码单独提交=400
+            java.util.Set<String> previousCodes = menuCodesOfRole(role.getId());
             roleMenuMapper.delete(new LambdaQueryWrapper<SysRoleMenu>().eq(SysRoleMenu::getRoleId, role.getId()));
-            saveRoleMenus(role.getId(), role.getMenuIds());
+            saveRoleMenus(role.getId(), role.getMenuIds(), previousCodes);
         }
         // 如果传了 dataScope，同步更新组织关联
         if (role.getDataScope() != null) {
             saveRoleOrgs(role);
         }
-        // 【Redis 权限缓存】角色菜单/dataScope 变更影响该角色下所有用户，立即失效
-        permissionCacheService.evictByRole(role.getId());
+        // 【P1-5 2026-11-15】缓存失效放到事务提交后: 避免提交前并发请求回填旧权限
+        com.aigicrm.common.tx.AfterCommit.run(() -> permissionCacheService.evictByRole(role.getId()));
         // 【2026-08-14 缓存自愈】版本递增兜底：evict 漏网/Redis 写失败时缓存与 DB 版本比对自愈
         bumpUserPermVersionsByRole(role.getId());
     }
@@ -287,7 +291,7 @@ public class SysRoleService {
      *    "只含子节点"请求会经闭包静默获得父权限(提权旁路), 靠下方 expanded 重校验兜底;
      *    改为不注入后, 该旁路从构造上消除, 下方重校验降级为纵深防御(现仅校验提交集)。
      */
-    private void saveRoleMenus(Long roleId, List<Long> menuIds) {
+    private void saveRoleMenus(Long roleId, List<Long> menuIds, java.util.Set<String> previousCodes) {
         // 【P1-2 四轮修复 2026-11-13】null=未提供(保持现状); 空集合=取消全部勾选——**必须继续走**,
         // 让 includedCodes 为空的剪枝逻辑清掉 sys_perm_grant 幽灵授权(此前 early return 导致残留)
         if (menuIds == null) return;
@@ -311,7 +315,7 @@ public class SysRoleService {
         // 【安全 2026-08-11】闭包后的集合也要过权限子集校验(非超管)——纵深防御:
         // 现闭包仅注入 permission 空的目录行(type=1), 本循环主要兜底提交集本身,
         // 防止任何未来变更重新引入带权限码的静默注入。
-        if (!SecurityUtils.isAdmin()) {
+        if (!SecurityUtils.hasAuthority("system:role:grant")) {
             Set<String> callerPerms = SecurityUtils.getCurrentUser() != null
                     ? SecurityUtils.getCurrentUser().getPermissions() : Set.of();
             for (Long menuId : expanded) {
@@ -331,6 +335,20 @@ public class SysRoleService {
             com.aigicrm.module.system.entity.SysMenu m = menuMapper.selectById(menuId);
             if (m != null && m.getPermission() != null && !m.getPermission().isBlank()) {
                 includedCodes.add(m.getPermission());
+            }
+        }
+        pruneOrRejectFieldDependencies(includedCodes, expanded, previousCodes);
+        // 【P1-3 2026-11-15】adminOnly 码不得授予非 admin 角色(授了也是运行期 403, 属死配置)
+        if (!includedCodes.isEmpty()) {
+            SysRole target = roleMapper.selectById(roleId);
+            boolean targetAdmin = target != null && "admin".equals(target.getRoleCode());
+            if (!targetAdmin) {
+                for (String code : includedCodes) {
+                    if (PermissionMetadataService.ADMIN_ONLY.contains(code)) {
+                        throw new BusinessException(400, "ADMIN_ONLY",
+                                "权限码 " + code + " 仅系统管理员角色可授予");
+                    }
+                }
             }
         }
         if (!includedCodes.isEmpty()) {
@@ -359,6 +377,39 @@ public class SysRoleService {
                     role != null ? role.getDataScope() : null,
                     includedCodes);
         }
+    }
+
+    /** 字段/附属码依赖校验：统一规则见 PermissionDependencyRules（2026-11-15） */
+    private void pruneOrRejectFieldDependencies(java.util.Set<String> includedCodes,
+                                                java.util.Set<Long> expanded,
+                                                java.util.Set<String> previousCodes) {
+        if (includedCodes.isEmpty()) return;
+        java.util.Map<Long, String> codeById = new java.util.HashMap<>();
+        for (SysMenu m : menuMapper.selectList(null)) {
+            if (m != null && m.getId() != null && m.getPermission() != null) {
+                codeById.put(m.getId(), m.getPermission());
+            }
+        }
+        com.aigicrm.common.auth.PermissionDependencyRules.resolve(
+                includedCodes, expanded, previousCodes, codeById);
+    }
+
+    /** 角色当前绑定的权限码集合（删除前读取，用于字段码依赖判定） */
+    private java.util.Set<String> menuCodesOfRole(Long roleId) {
+        java.util.Set<String> codes = new java.util.HashSet<>();
+        List<SysRoleMenu> rows = roleMenuMapper.selectList(
+                new LambdaQueryWrapper<SysRoleMenu>().eq(SysRoleMenu::getRoleId, roleId));
+        if (rows == null || rows.isEmpty()) return codes;
+        java.util.Set<Long> ids = new java.util.HashSet<>();
+        for (SysRoleMenu r : rows) if (r.getMenuId() != null) ids.add(r.getMenuId());
+        if (ids.isEmpty()) return codes;
+        for (SysMenu m : menuMapper.selectList(null)) {
+            if (m != null && m.getId() != null && ids.contains(m.getId())
+                    && m.getPermission() != null && !m.getPermission().isBlank()) {
+                codes.add(m.getPermission());
+            }
+        }
+        return codes;
     }
 
     /**
@@ -401,7 +452,7 @@ public class SysRoleService {
 
     /** org→集团归属校验: admin 全集团放行; 非 admin 要求每个 org 有效集团==角色集团且子树不跨集团(fail-closed) */
     private void validateRoleOrgsGroup(List<Long> orgIds, Long roleGroup) {
-        if (SecurityUtils.isAdmin()) {
+        if (SecurityUtils.hasAuthority("system:role:grant")) {
             return;
         }
         for (Long orgId : orgIds) {

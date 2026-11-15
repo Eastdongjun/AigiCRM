@@ -118,14 +118,14 @@ class ExtendSubmitOwnershipTest {
     }
 
     @Test
-    void extendSubmit_adminBypassesViewCheck() {
+    void extendSubmit_adminStillRequiresViewCheck() {
         buildService();
         BizCustomer customer = new BizCustomer();
         customer.setId(503L);
         customer.setStatus("normal");
         customer.setOwnerId(888L); // 非发起人
         when(customerMapper.selectById(503L)).thenReturn(customer);
-        when(accessService.canView(503L)).thenReturn(false); // admin 不经 canView
+        when(accessService.canView(503L)).thenReturn(false); // admin 也必须经过 canView
         stubApprovable();
 
         try (var sec = org.mockito.Mockito.mockStatic(SecurityUtils.class)) {
@@ -133,11 +133,11 @@ class ExtendSubmitOwnershipTest {
             sec.when(SecurityUtils::isAdmin).thenReturn(true);
             sec.when(SecurityUtils::getCurrentDataScope).thenReturn("all");
 
-            svc.submit("extend", 503L, null, null);
+            assertThrows(com.aigicrm.common.BusinessException.class,
+                    () -> svc.submit("extend", 503L, null, null));
         }
-        verify(approvalMapper).insert(any(BizApproval.class));
-        // admin 快速通道: canView 不应被调用(不依赖 accessService 判定)
-        verify(accessService, never()).canView(anyLong());
+        verify(accessService).canView(503L);
+        verify(approvalMapper, never()).insert(any(BizApproval.class));
     }
 
     @Test

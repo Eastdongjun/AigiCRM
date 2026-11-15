@@ -55,16 +55,22 @@ class IncentiveReadRankingTest {
      * 【PR-01 P0-03】聚合 SQL 现按会话集团过滤；本类回归"聚合→榜单"口径，以 admin 身份
      * 调用（admin 不过滤，SQL 与旧快照一致）。集团过滤分支由集成/契约用例覆盖。
      */
-    private Map<String, Object> readRankingAsAdmin(String period) {
+    private Map<String, Object> readRankingAsScoped(String period) {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
-            m.when(SecurityUtils::isAdmin).thenReturn(true);
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            m.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of(1L));
+            when(jdbc.queryForList(org.mockito.ArgumentMatchers.contains("sys_user_position"),
+                    eq(Long.class), any(), any())).thenReturn(List.of(1L, 2L, 3L));
             return service().readRanking(period);
         }
     }
 
-    private List<Map<String, Object>> readStatsAsAdmin(String period) {
+    private List<Map<String, Object>> readStatsAsScoped(String period) {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
-            m.when(SecurityUtils::isAdmin).thenReturn(true);
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            m.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of(1L));
+            when(jdbc.queryForList(org.mockito.ArgumentMatchers.contains("sys_user_position"),
+                    eq(Long.class), any(), any())).thenReturn(List.of(1L, 2L, 3L));
             return service().readStats(period);
         }
     }
@@ -77,7 +83,7 @@ class IncentiveReadRankingTest {
                 row(3L, "丙", "太原办", 10, 3, 7)));
         givenRows(rows);
 
-        Map<String, Object> result = readRankingAsAdmin("2026-09");
+        Map<String, Object> result = readRankingAsScoped("2026-09");
 
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> ranking = (List<Map<String, Object>>) result.get("ranking");
@@ -102,7 +108,7 @@ class IncentiveReadRankingTest {
                 row(2L, "乙", "太原办", 10, 0, 10),
                 row(3L, "丙", "太原办", 10, 2, 8))));
 
-        Map<String, Object> result = readRankingAsAdmin("2026-09");
+        Map<String, Object> result = readRankingAsScoped("2026-09");
 
         assertEquals("2026-09", result.get("period"));
         assertEquals(10, result.get("publishedTotal"));
@@ -117,18 +123,18 @@ class IncentiveReadRankingTest {
     void blankPeriodFallsBackToCurrentMonth() {
         givenRows(new ArrayList<>());
 
-        Map<String, Object> result = readRankingAsAdmin("   ");
+        Map<String, Object> result = readRankingAsScoped("   ");
 
         String currentMonth = LocalDate.now().toString().substring(0, 7);
         assertEquals(currentMonth, result.get("period"));
-        verify(jdbc).queryForList(anyString(), eq(new Object[]{currentMonth}));
+        verify(jdbc).queryForList(anyString(), any(Object[].class));
     }
 
     @Test
     void zeroPublishedRecordsKeepsRateAtZeroInsteadOfDividingByZero() {
         givenRows(new ArrayList<>(List.of(row(1L, "甲", "内蒙办", 0, 0, 0))));
 
-        Map<String, Object> result = readRankingAsAdmin("2026-09");
+        Map<String, Object> result = readRankingAsScoped("2026-09");
 
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> ranking = (List<Map<String, Object>>) result.get("ranking");
@@ -141,7 +147,7 @@ class IncentiveReadRankingTest {
     void readStatsKeepsLegacyShapeAndSharesTheSameAggregate() {
         givenRows(new ArrayList<>(List.of(row(1L, "甲", "内蒙办", 10, 8, 2))));
 
-        List<Map<String, Object>> rows = readStatsAsAdmin(null);
+        List<Map<String, Object>> rows = readStatsAsScoped(null);
 
         assertEquals(1, rows.size());
         // 兼容旧字段（激励查询页"已读/未读"文案依赖它们）

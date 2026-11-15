@@ -282,7 +282,7 @@ export function useUserList() {
         // 【2026-11-08 审计修复】岗位选择器对非 admin 已禁用(UserFormDialog), positionIds 恒为回显原值——
         // 跳过重复指派, 避免回显岗位携带权限规则时 assignUserPositions 对非 admin 硬校验必 403
         // (updateUser 已生效却报"保存失败"的半成功态), 端态不变(岗位未改动)。
-        if (userStore.isAdmin()) {
+        if (userStore.hasPermission('system:user:assign')) {
           await assignUserPositions(editForm.id, editForm.positionIds || [])
         }
       } else {

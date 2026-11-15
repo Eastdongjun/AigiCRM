@@ -123,8 +123,9 @@ class SysAuditLogServiceTest {
 
     /** admin: 不追加任何集团条件(平台管理员语义, 平台全量) */
     @Test
-    void page_admin_keepsPlatformWideAccessWithoutGroupFilter() {
+    void page_admin_alsoScopesToCurrentGroupMembers() {
         when(auditLogMapper.selectPage(any(), any())).thenReturn(emptyPage());
+        when(scopeResolver.resolveModuleUsersWithinGroup(any(), org.mockito.ArgumentMatchers.eq("system"))).thenReturn(List.of(7L));
 
         try (MockedStatic<SecurityUtils> security = mockStatic(SecurityUtils.class)) {
             security.when(SecurityUtils::isAdmin).thenReturn(true);
@@ -136,7 +137,7 @@ class SysAuditLogServiceTest {
                     ArgumentCaptor.forClass(LambdaQueryWrapper.class);
             verify(auditLogMapper).selectPage(any(), captor.capture());
             String segment = captor.getValue().getSqlSegment();
-            assertFalse(segment.contains("actor_id"), "admin 不得追加 actor 范围条件, 实际: " + segment);
+            assertTrue(segment.contains("actor_id"), "单集团 admin 也必须追加 actor 范围条件, 实际: " + segment);
         }
     }
 

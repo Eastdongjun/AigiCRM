@@ -258,7 +258,7 @@ class PermissionSecurityFixTest {
                 mock(com.aigicrm.module.sea.service.SeaService.class), mock(com.aigicrm.module.system.mapper.SysDeptMapper.class),
                 mock(com.aigicrm.module.system.mapper.SysUserOrgMapper.class),
                 mock(com.aigicrm.security.PermissionCacheService.class),
-                mock(com.aigicrm.security.JwtTokenProvider.class), resolver,
+                mock(com.aigicrm.security.JwtTokenProvider.class), mock(OrgScopeResolver.class),
                 mock(com.aigicrm.security.SecurityAuditService.class),
                 mock(com.aigicrm.module.common.service.FormDraftService.class));
         try (org.mockito.MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
@@ -318,6 +318,8 @@ class PermissionSecurityFixTest {
     private com.aigicrm.module.system.service.SysUserService userServiceWith(
             com.aigicrm.module.system.mapper.SysUserMapper userMapper,
             org.springframework.security.crypto.password.PasswordEncoder encoder) {
+        OrgScopeResolver resolver = mock(OrgScopeResolver.class);
+        when(resolver.resolveVisibleDeptIds(any())).thenReturn(List.of(1L));
         return new com.aigicrm.module.system.service.SysUserService(
                 userMapper, mock(com.aigicrm.module.system.mapper.SysUserRoleMapper.class),
                 encoder,
@@ -329,7 +331,7 @@ class PermissionSecurityFixTest {
                 mock(com.aigicrm.module.system.mapper.SysDeptMapper.class),
                 mock(com.aigicrm.module.system.mapper.SysUserOrgMapper.class),
                 mock(com.aigicrm.security.PermissionCacheService.class),
-                mock(com.aigicrm.security.JwtTokenProvider.class), mock(OrgScopeResolver.class),
+                mock(com.aigicrm.security.JwtTokenProvider.class), resolver,
                 mock(com.aigicrm.security.SecurityAuditService.class),
                 mock(com.aigicrm.module.common.service.FormDraftService.class));
     }
@@ -353,6 +355,7 @@ class PermissionSecurityFixTest {
 
         try (org.mockito.MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(true);
+            m.when(() -> SecurityUtils.hasAuthority("system:role:grant")).thenReturn(true);
             String temp = svc.create(u);
             assertNotNull(temp);
             assertNotEquals("123456", temp, "初始口令必须随机，禁止硬编码默认口令");
@@ -424,6 +427,7 @@ class PermissionSecurityFixTest {
 
         try (org.mockito.MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(true);
+            m.when(() -> SecurityUtils.hasAuthority("system:role:grant")).thenReturn(true);
             svc.update(payload);
 
             // 回插的只有用户当前已有的 12（分享可见），不得插入 13（全量查看）

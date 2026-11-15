@@ -222,6 +222,16 @@ Page({
     const nextApproval = Object.prototype.hasOwnProperty.call(patch, 'approval') ? patch.approval : this.data.approval
     this.setData({ ...patch, approvalView: buildApprovalView(nextApproval, { ...this.data, ...patch }) })
   },
+  onPermissionChanged() {
+    if (getApp().globalData.demoMode) return
+    if (!hasPermission('approval:view')) {
+      wx.showToast({ title: '没有审批查看权限', icon: 'none' })
+      setTimeout(() => wx.navigateBack(), 300)
+      return
+    }
+    this.loadDetail()
+  },
+
   onLoad(options) {
     if (!requireLogin()) return
     if (!getApp().globalData.demoMode && !hasPermission('approval:view')) {

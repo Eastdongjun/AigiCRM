@@ -196,7 +196,7 @@ const {
 
 // 【2026-11-02 用户令】最近开票日页签内维护(与 InfoTab 卡片/编辑表单同码三入口):
 // customer:invoice-date:edit(后台角色管理勾选)或 admin; 后端 protectCustomerDateFields 同码硬校验
-const canEditInvoiceDate = computed(() => isAdmin.value || userStore.hasPermission(PERMISSION_CODES.CUSTOMER_INVOICE_DATE_EDIT))
+const canEditInvoiceDate = computed(() => userStore.hasPermission(PERMISSION_CODES.CUSTOMER_INVOICE_DATE_EDIT))
 const invoiceDateDraft = ref('')
 const invoiceDateSaving = ref(false)
 const saveInvoiceDate = async () => {

@@ -48,7 +48,6 @@ public class CustomerVisibilityService {
     public List<Long> visibleOwnerIds() {
         var user = SecurityUtils.getCurrentUser();
         if (user == null) return List.of();
-        if (SecurityUtils.isAdmin()) return null; // null=全部
         com.aigicrm.common.auth.AuthorizationService auth =
                 authServiceProvider == null ? null : authServiceProvider.getIfAvailable();
         if (auth != null && auth.isNewTrack("customer")) {
@@ -75,7 +74,7 @@ public class CustomerVisibilityService {
     public List<com.aigicrm.module.customer.entity.BizCustomer> filterVisible(List<com.aigicrm.module.customer.entity.BizCustomer> all) {
         if (all == null || all.isEmpty()) return all;
         var user = SecurityUtils.getCurrentUser();
-        if (user == null || SecurityUtils.isAdmin()) return all;
+        if (user == null) return all;
         List<Long> visible = visibleOwnerIds();
         if (visible == null) return all;
         Set<Long> ids = new HashSet<>(visible);

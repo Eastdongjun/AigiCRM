@@ -19,6 +19,8 @@ public class SysGroupController {
     @GetMapping
     @PreAuthorize("hasAuthority('system:group:view')")
     public Result<List<SysGroup>> list() {
+        // 【产品口径 2026-11-15】集团信息可见: system:group:view 由迁移默认授予所有角色(只读);
+        // 写操作仅平台管理员
         return Result.ok(groupService.list());
     }
 

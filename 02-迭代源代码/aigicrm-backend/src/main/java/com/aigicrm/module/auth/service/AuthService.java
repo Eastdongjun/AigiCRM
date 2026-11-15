@@ -70,6 +70,7 @@ public class AuthService {
     private final com.aigicrm.security.SecurityAuditService securityAudit;
     /** 【WP5 2026-11-13】权限版本号(/auth/info 回传双端比对) */
     private final com.aigicrm.common.auth.PermEpochService permEpochService;
+    private final com.aigicrm.module.system.service.RolePermScopeService rolePermScopeService;
 
     public LoginResponse login(LoginRequest request, String clientIp) {
         String username = request.getUsername() != null ? request.getUsername().trim() : "";
@@ -259,6 +260,14 @@ public class AuthService {
         response.setGroupNames(loadGroupNames(response.getGroupIds()));
         response.setCurrentGroupName(response.getGroupNames().get(response.getCurrentGroupId()));
         response.setPermissions(permissions);
+        response.setOrgAdmin(SecurityUtils.isOrgAdmin());
+        // 【2026-11-15 小程序范围摘要】模块级有效范围，供小程序展示“以实际范围为准”
+        java.util.Map<String, String> moduleScopes = new java.util.LinkedHashMap<>();
+        com.aigicrm.security.SecurityUser currentUser = SecurityUtils.getCurrentUser();
+        for (String module : java.util.List.of("customer", "incentive", "file", "sea", "approval", "reminder", "statistics")) {
+            moduleScopes.put(module, rolePermScopeService.effectiveScopeCode(currentUser, module, "view"));
+        }
+        response.setModuleScopes(moduleScopes);
         response.setMenus(menuTree);
         // 【WP5 2026-11-13】权限版本号(/auth/info 回传; 双端比对变更即拉新用户信息)
         response.setPermEpoch(permEpochService.current());
@@ -427,6 +436,7 @@ public class AuthService {
             throw new BusinessException(400, "验证码错误或已过期");
         }
 
+        com.aigicrm.common.security.PasswordPolicy.validate(request.getNewPassword());
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         // 【2026-08-15 安全审计 H2】忘记密码与 changePassword/管理员重置同口径: 落库 DB 级改密时刻,
         // 使 JwtAuthFilter 的 pwd_changed_at 撤销校验覆盖本路径(此前仅 Redis 撤销, fail-open + TTL 到期后旧 token 复活)。

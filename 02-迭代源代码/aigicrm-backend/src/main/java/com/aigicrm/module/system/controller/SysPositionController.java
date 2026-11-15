@@ -64,14 +64,9 @@ public class SysPositionController {
     }
 
     @PutMapping("/{positionId}/rules")
-    @PreAuthorize("hasAuthority('system:position:edit')")
+    @PreAuthorize("hasAuthority('system:position:rule:edit')")
     public Result<Void> updateRules(@PathVariable Long positionId, @RequestBody Map<String, List<Long>> body) {
-        // 【安全 2026-09-29 P1 复审修复】岗位规则=权限定义本身, 绑定/解绑等同改写岗位下
-        // 全部用户的数据/字段权限——比"指派携带规则的岗位"更特权, 一律 admin-only,
-        // 堵住持 system:position:edit 的非 admin 绕过 assignUserPositions 提权防护的旁路。
-        if (!SecurityUtils.isAdmin()) {
-            throw new BusinessException("仅系统管理员可修改岗位权限规则");
-        }
+        // 岗位规则=权限定义本身；由 system:position:rule:edit 显式授权，不再用 isAdmin 隐式放行。
         positionService.saveRules(positionId, body.get("ruleIds"));
         return Result.ok();
     }
@@ -85,12 +80,12 @@ public class SysPositionController {
     }
 
     @PutMapping("/users/{userId}")
-    @PreAuthorize("hasAuthority('system:user:edit')")
+    @PreAuthorize("hasAnyAuthority('system:user:edit','system:user:assign')")
     public Result<Void> assignUserPositions(@PathVariable Long userId, @RequestBody Map<String, List<Long>> body) {
         // 【安全 2026-08-08 提权防护】岗位携带权限规则视为特权：仅超管可指派。
         // 防"先给岗位配宽松规则、再指派给自己"的提权路径（规则在登录时并入 RuleResult 生效）。
         List<Long> positionIds = body.get("positionIds");
-        if (positionIds != null && !positionIds.isEmpty() && !SecurityUtils.isAdmin()) {
+        if (positionIds != null && !positionIds.isEmpty() && !SecurityUtils.hasAuthority("system:user:assign")) {
             boolean hasRulePosition = positionIds.stream()
                     .anyMatch(id -> !positionService.getRules(id).isEmpty());
             if (hasRulePosition) throw new BusinessException(403, "无权指派携带权限规则的岗位");

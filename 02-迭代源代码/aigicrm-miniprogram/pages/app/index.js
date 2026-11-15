@@ -1,4 +1,5 @@
-const { hasPermission, requireLogin } = require('../../utils/auth')
+const { hasPermission, requireLogin, isAdmin } = require('../../utils/auth')
+const permissionRefresh = require('../../utils/permission-refresh')
 
 const APP_ICONS = {
   fabushi: '读',
@@ -103,6 +104,10 @@ Page({
 
   onLoad() {
     if (!requireLogin()) return
+    this.computeApps()
+  },
+
+  computeApps() {
     const apps = [
       // 【法布施一期 2026-11-15】需求裁决①: 入口在「应用」宫格权限卡第一位(与客户管理平级, tabBar 零改动)
       { key: 'fabushi', title: '法布施', subtitle: '读书 · 心得 · 正能量', color: 'blue', permission: 'fabushi:view' },
@@ -130,16 +135,23 @@ Page({
     ].filter((item) => {
       // 【2026-11-04 注册表对齐】通用 any-of 门禁：permission=单码，permissions=注册码并集（多功能页用），
       // 码值全部来自权限中心注册表，不在此处发明/特判
-      if (getApp().globalData.demoMode) return true
+      if (getApp().globalData.demoMode || isAdmin()) return true
       if (Array.isArray(item.permissions)) return item.permissions.some((code) => hasPermission(code))
       return hasPermission(item.permission)
     })
     this.setData({ apps, appView: buildAppView(apps) })
+    this._permVersion = permissionRefresh.getVersion()
+  },
+
+  onPermissionChanged() {
+    if (typeof requireLogin === 'function' && !requireLogin()) return
+    this.computeApps()
   },
 
   // 【2026-10-24 自定义 tabBar】每页独立实例, onShow 同步选中态(勿删, 否则选中滞留旧页)
   onShow() {
     if (typeof this.getTabBar === 'function' && this.getTabBar()) this.getTabBar().setData({ selected: 3 })
+    if (this._permVersion !== permissionRefresh.getVersion()) this.computeApps()
   },
 
   openApp(e) {

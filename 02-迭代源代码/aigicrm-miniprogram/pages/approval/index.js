@@ -200,6 +200,10 @@ Page({
   },
 
   // 【PR-12 2026-09-19 首批】审批/驳回后返回列表即见结果:每次回到页面刷新待办与统计
+  onPermissionChanged() {
+    this.loadApprovals(); this.loadStats();
+  },
+
   onShow() {
     if (this._loadedOnce) {
       this.loadApprovals()

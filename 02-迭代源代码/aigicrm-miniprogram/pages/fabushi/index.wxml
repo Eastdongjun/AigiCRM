@@ -18,6 +18,15 @@
   </view>
 </view>
 
+<view class="fb-entry" bindtap="goFeed">
+  <view class="fb-entry-icon">💬</view>
+  <view class="fb-entry-body">
+    <view class="fb-entry-title">内容流</view>
+    <view class="fb-entry-sub">心得 · 诵读 · 正能量</view>
+  </view>
+  <view class="fb-entry-arrow">›</view>
+</view>
+
 <view class="fb-entry" bindtap="goBook">
   <view class="fb-entry-icon">📚</view>
   <view class="fb-entry-body">

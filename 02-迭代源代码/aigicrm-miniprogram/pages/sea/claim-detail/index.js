@@ -33,6 +33,14 @@ Page({
     const nextData = { ...this.data, ...patch }
     this.setData({ ...patch, claimView: buildClaimView(nextData) })
   },
+  onPermissionChanged() {
+    if (getApp().globalData.demoMode) return
+    if (!hasPermission('sea:view')) {
+      wx.showToast({ title: '没有公海查看权限', icon: 'none' })
+      setTimeout(() => wx.navigateBack(), 300)
+    }
+  },
+
   onLoad(options) {
     if (!requireLogin()) return
     if (!getApp().globalData.demoMode && !hasPermission('sea:view')) {

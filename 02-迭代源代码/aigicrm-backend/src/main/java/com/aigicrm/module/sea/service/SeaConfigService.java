@@ -154,7 +154,6 @@ public class SeaConfigService {
      */
     public boolean hasPoolPerm(Long poolId, String permType, SecurityUser user) {
         if (poolId == null || user == null) return false;
-        if (SecurityUtils.isAdmin()) return true;
         BizSeaConfig config = configMapper.selectById(poolId);
         if (config == null) return false;
         return switch (permType) {

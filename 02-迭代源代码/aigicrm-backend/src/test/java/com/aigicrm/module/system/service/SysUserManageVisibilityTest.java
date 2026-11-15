@@ -105,10 +105,12 @@ class SysUserManageVisibilityTest {
     }
 
     @Test
-    void admin_passesWithoutBoundary() {
+    void admin_passesWhenTargetInCurrentScope() {
         when(userMapper.selectById(9L)).thenReturn(userOf(9L, 200L));
+        when(scopeResolver.resolveVisibleDeptIds(org.mockito.ArgumentMatchers.any())).thenReturn(List.of(200L));
         try (MockedStatic<SecurityUtils> sec = mockStatic(SecurityUtils.class)) {
             sec.when(SecurityUtils::isAdmin).thenReturn(true);
+            sec.when(SecurityUtils::getCurrentUserId).thenReturn(7L);
 
             assertDoesNotThrow(() -> service.assertCanManageUser(9L));
         }

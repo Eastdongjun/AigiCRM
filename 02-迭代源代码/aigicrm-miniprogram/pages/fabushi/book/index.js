@@ -17,6 +17,16 @@ Page({
     canCreate: false
   },
 
+  onPermissionChanged() {
+    if (getApp().globalData.demoMode) return
+    if (!hasPermission('fabushi:view')) {
+      wx.showToast({ title: '没有法布施查看权限', icon: 'none' })
+      setTimeout(() => wx.navigateBack(), 300)
+      return
+    }
+    this.loadBooks()
+  },
+
   onLoad() {
     if (!requireLogin()) return
     if (!hasPermission('fabushi:view')) {

@@ -42,7 +42,7 @@ public class MybatisPlusConfig {
             "biz_incentive_category", "biz_incentive_record",
             "biz_invoice", "biz_payment", "biz_reminder", "biz_score_entry", "biz_score_item",
             "biz_score_participant", "biz_sea_config", "biz_sea_pool", "biz_task",
-            // 【法布施一期 2026-11-15】V2026.11.15.1 建 12 张 biz_fabushi_* 表, 全部承载按集团隔离
+            // 【法布施一期 2026-11-15】V2026.11.16.1 建 12 张 biz_fabushi_* 表, 全部承载按集团隔离
             // 业务数据 → 进白名单(实体无 tenantId 字段, 租户列由插件维护, 与其余白名单表同范式)
             "biz_fabushi_book", "biz_fabushi_section", "biz_fabushi_post", "biz_fabushi_post_attachment",
             "biz_fabushi_comment", "biz_fabushi_like", "biz_fabushi_read_status", "biz_fabushi_user_setting",
@@ -131,7 +131,11 @@ public class MybatisPlusConfig {
                 if (user != null && user.getCurrentGroupId() != null) {
                     return new LongValue(user.getCurrentGroupId());
                 }
-                return resolveTenantId(SecurityUtils.getCurrentGroupIds());
+                java.util.List<Long> groupIds = SecurityUtils.getCurrentGroupIds();
+                if ((groupIds == null || groupIds.isEmpty()) && SecurityUtils.isAdmin()) {
+                    return new LongValue(com.aigicrm.common.scope.GroupScopeUtil.DEFAULT_GROUP_ID);
+                }
+                return resolveTenantId(groupIds);
             }
 
             @Override
@@ -141,7 +145,6 @@ public class MybatisPlusConfig {
 
             @Override
             public boolean ignoreTable(String tableName) {
-                if (SecurityUtils.isAdmin()) return true; // 平台管理员跨集团: 不附加租户条件
                 return !TENANT_TABLES.contains(tableName);
             }
         });

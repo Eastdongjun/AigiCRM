@@ -450,8 +450,8 @@ class FileServicePermissionTest {
     }
 
     @Test
-    void download_admin_bypassesDownloadableSwitch() {
-        // I-4b：管理员不受下载开关约束
+    void download_adminAlsoHonorsDownloadableSwitch() {
+        // 全系统 admin 收口：管理员也受夹下载开关约束
         BizFile file = new BizFile();
         file.setId(9L);
         file.setFolderId(100L);
@@ -468,8 +468,8 @@ class FileServicePermissionTest {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
             m.when(SecurityUtils::isAdmin).thenReturn(true);
             svc.downloadById(9L, null, false, response);
-            verify(response).setStatus(404);
-            verify(response, never()).setStatus(403);
+            verify(response).setStatus(403);
+            verify(response, never()).setStatus(404);
         }
     }
 
@@ -617,7 +617,7 @@ class FileServicePermissionTest {
     }
 
     @Test
-    void canDownloadFile_adminBypassesSwitch() {
+    void canDownloadFile_adminAlsoHonorsSwitch() {
         BizFile file = aFolderFile(9L, 100L, 1L);
         BizFileFolder folder = new BizFileFolder();
         folder.setId(100L);
@@ -625,7 +625,7 @@ class FileServicePermissionTest {
         when(folderMapper.selectById(100L)).thenReturn(folder);
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(true);
-            assertTrue(svc.canDownloadFile(file, 1L));
+            assertFalse(svc.canDownloadFile(file, 1L));
         }
     }
 
@@ -1018,6 +1018,7 @@ class FileServicePermissionTest {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(true);
             m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
+            m.when(() -> SecurityUtils.hasAuthority("file:delete")).thenReturn(true);
             svc.deleteFile(9L);
         }
 
@@ -1486,6 +1487,7 @@ class FileServicePermissionTest {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
             m.when(SecurityUtils::isAdmin).thenReturn(true);
+            m.when(() -> SecurityUtils.hasAuthority("file:folder:manage")).thenReturn(true);
             SysUser me = new SysUser();
             me.setOfficeId(10L);
             when(userMapper.selectById(1L)).thenReturn(me);
@@ -1535,7 +1537,7 @@ class FileServicePermissionTest {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
             m.when(SecurityUtils::isAdmin).thenReturn(true);
             m.when(SecurityUtils::getCurrentUsername).thenReturn("t");
-            svc.deleteFile(78L);
+            assertThrows(com.aigicrm.common.BusinessException.class, () -> svc.deleteFile(78L));
             verify(userMapper, never()).adjustStorageUsed(anyLong(), anyLong());
         }
     }

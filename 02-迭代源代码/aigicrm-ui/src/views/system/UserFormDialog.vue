@@ -66,28 +66,18 @@
            硬校验"无权指派携带权限规则的岗位"），且岗位列表不回传规则携带信息、前端无法逐项区分——
            非 admin 一律禁改岗位（保留回显），避免可见可点但保存必 403 -->
       <el-form-item label="岗位">
-        <el-select v-model="editForm.positionIds" multiple style="width:100%" :disabled="!isAdmin" placeholder="选择岗位(可多选, 第一个为主岗位)">
+        <el-select v-model="editForm.positionIds" multiple style="width:100%" :disabled="!canAssignPosition" placeholder="选择岗位(可多选, 第一个为主岗位)">
           <el-option v-for="p in allPositions" :key="p.id" :label="p.name" :value="p.id" />
         </el-select>
-        <div class="org-hint" v-if="!isAdmin">岗位指派（含携带权限规则的岗位）仅系统管理员可操作</div>
+        <div class="org-hint" v-if="!canAssignPosition">岗位指派需要 system:user:assign 权限</div>
         <div class="org-hint" v-else>岗位数据范围请在「系统设置 → 权限管理 → 按岗位」配置</div>
       </el-form-item>
       <el-row :gutter="24">
         <el-col :span="12">
-          <!-- 【P1-9 修复 2026-11-13 并集语义】数据范围改"额外可见范围(只能加)":
-               后端 override 已并入角色并集(WP1.1), 选"仅本人"不再收紧角色范围——
-               允许留空=跟随角色(默认), 去掉 required 强制(与规格 WP6 删除该字段的方向一致) -->
-          <el-form-item label="额外可见范围">
-            <el-select v-model="editForm.dataScopeOverride" style="width:100%" placeholder="跟随角色（默认）" clearable>
-              <el-option label="仅本人" value="self" />
-              <el-option label="本人及下级" value="team" />
-              <el-option label="本部门及以下" value="dept" />
-              <el-option label="本办事处及以下" value="office" />
-              <el-option label="本大区及以下" value="region" />
-              <el-option label="全部(本集团)" value="all" />
-              <el-option label="自定义组织" value="custom" />
-            </el-select>
-            <div class="org-hint">留空=跟随角色；所选范围只会叠加(角色范围不会被收窄)</div>
+          <el-form-item label="数据范围">
+            <div class="org-hint">
+              额外可见范围/自定义组织已收口到「系统设置 → 权限中心 → 功能与范围 → 按人员」配置；此处仅跟随角色。
+            </div>
           </el-form-item>
         </el-col>
         <el-col :span="12">
@@ -96,16 +86,6 @@
           </el-form-item>
         </el-col>
       </el-row>
-      <!-- 2026-08-08 用户级自定义授权组织：数据范围=custom 时勾选可见组织 -->
-      <el-form-item v-if="editForm.dataScopeOverride === 'custom'" label="授权组织">
-        <el-tree-select
-          v-model="editForm.orgIds"
-          :data="deptTree"
-          :props="{ label: 'deptName', value: 'id', children: 'children' }"
-          placeholder="勾选该人员可见的组织（含子级）"
-          multiple check-strictly show-checkbox collapse-tags collapse-tags-tooltip
-          style="width:100%" />
-      </el-form-item>
     </el-form>
     <template #footer>
       <el-button @click="dialogVisible = false">取消</el-button>
@@ -128,6 +108,7 @@ const {
 // 【2026-11-08 审计修复】岗位指派对齐后端超管门槛（携带权限规则的岗位仅 admin 可指派）
 const userStore = useUserStore()
 const isAdmin = computed(() => userStore.isAdmin())
+const canAssignPosition = computed(() => userStore.hasPermission('system:user:assign'))
 </script>
 
 <style scoped>

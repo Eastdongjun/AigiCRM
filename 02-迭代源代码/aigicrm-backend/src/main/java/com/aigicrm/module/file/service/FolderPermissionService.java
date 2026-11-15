@@ -65,6 +65,44 @@ public class FolderPermissionService {
 
     // ==================== 判定入口 ====================
 
+    /**
+     * 【admin 权限不再隐式全通】admin 仍然拥有"跨组织数据面"，但**动作码必须真实持有**：
+     * 权限中心取消 file:delete 后，admin 不能再借 folder:manage 删夹；取消 file:share 后不能分享。
+     * 数据范围（ORB/ORG）仍由 admin 全通口径处理，本方法只收口动作。
+     */
+    private boolean adminActionAllowed(String action) {
+        return switch (action == null ? "" : action) {
+            case P_VIEW, P_DOWNLOAD -> SecurityUtils.hasAuthority("file:view");
+            case P_UPLOAD -> SecurityUtils.hasAuthority("file:upload");
+            case P_RENAME, P_REPLACE, P_EDIT -> SecurityUtils.hasAuthority("file:edit");
+            case P_SHARE -> SecurityUtils.hasAuthority("file:share");
+            case P_DELETE -> SecurityUtils.hasAuthority("file:delete");
+            case P_CREATE -> SecurityUtils.hasAuthority("file:folder:manage");
+            default -> false;
+        };
+    }
+
+    /** admin 的夹按钮视图：只输出实际持有的 file:* 码，避免"按钮可见、点后 403"。 */
+    private List<String> adminFolderPerms() {
+        List<String> p = new ArrayList<>();
+        if (SecurityUtils.hasAuthority("file:view")) { p.add(P_VIEW); p.add(P_DOWNLOAD); }
+        if (SecurityUtils.hasAuthority("file:upload")) p.add(P_UPLOAD);
+        if (SecurityUtils.hasAuthority("file:edit")) { p.add(P_EDIT); p.add(P_RENAME); p.add(P_REPLACE); }
+        if (SecurityUtils.hasAuthority("file:share")) p.add(P_SHARE);
+        if (SecurityUtils.hasAuthority("file:delete")) p.add(P_DELETE);
+        return p;
+    }
+
+    /** admin 的文件行按钮视图：与 FILE_ROW_ACTIONS 同词表，但按实际码过滤。 */
+    private List<String> adminFileRowPerms() {
+        List<String> p = new ArrayList<>();
+        if (SecurityUtils.hasAuthority("file:view")) { p.add(P_VIEW); p.add(P_DOWNLOAD); }
+        if (SecurityUtils.hasAuthority("file:edit")) { p.add(P_RENAME); p.add(P_REPLACE); }
+        if (SecurityUtils.hasAuthority("file:share")) p.add(P_SHARE);
+        if (SecurityUtils.hasAuthority("file:delete")) p.add(P_DELETE);
+        return p;
+    }
+
     /** 夹上下文的动作归组: 夹内文件动作(upload/view/download/share)→FILE 定向授权; 夹自身动作(rename/delete/create)→FOLDER */
     static String ctxObjectTypeOf(String action) {
         return switch (action == null ? "" : action) {
@@ -75,12 +113,16 @@ public class FolderPermissionService {
 
     public boolean check(Long folderId, String action, Long userId) {
         if (folderId == null || userId == null) return false;
-        if (SecurityUtils.isAdmin()) return true;
+        if (SecurityUtils.isAdmin()) return adminActionAllowed(action);
         BizFileFolder folder = folderMapper.selectById(folderId);
         if (folder == null) return false;
         if (Objects.equals(folder.getOwnerId(), userId)) return true;
         if (isManagerChain(userId, folder.getOwnerId())) return true;
         if (grantGranted(ctxObjectTypeOf(action), folder.getFolderType(), folder.getId(), folder.getOrgId(), folder.getOwnerId(), action, userId)) return true;
+        // 【2026-11-14 用户令】公共夹的查看/下载按 data_scope；不再“公共夹全员默认”。
+        if ("public".equals(folder.getFolderType()) && isPublicReadAction(action)) {
+            return deptVisible(folder.getOrgId(), userId, matrixActionOf(action));
+        }
         // 【拍板 A 2026-11-14 私人空间收口】私人夹不走组织矩阵——仅本人/上级链/例外授权
         // (ACL+类型授权, 均在其前 return true)。同部门普通同事不得因 dept 档看到他人私人夹
         // (FILE-08 P1 用户拍板: "普通同事不应该看到别人私人夹的文件")。
@@ -91,7 +133,7 @@ public class FolderPermissionService {
 
     public boolean checkFile(Long fileId, String action, Long userId) {
         if (fileId == null || userId == null) return false;
-        if (SecurityUtils.isAdmin()) return true;
+        if (SecurityUtils.isAdmin()) return adminActionAllowed(action);
         BizFile file = fileMapper.selectById(fileId);
         if (file == null) return false;
         // 【2026-11-10 用户令"A"】上传者本人恒可管理自己上传的文件(改名/替换/删除/分享/下载), 无论在哪个夹
@@ -110,6 +152,11 @@ public class FolderPermissionService {
         // 空间锚后类型授权不跨空间(生产实测无夹文件 fileScope 无 NULL: incentive 2553/public 2)。
         if (folderType == null && file.getFileScope() != null) folderType = file.getFileScope();
         if (grantGranted(OBJ_FILE, folderType, folderRef, file.getOrgId(), file.getUploaderId(), action, userId)) return true;
+        // 【2026-11-14 用户令】公共夹文件的查看/下载按 data_scope；不再“公共夹全员默认”。
+        if ("public".equals(folderType) && isPublicReadAction(action)) {
+            Long org = ref != null ? ref.getOrgId() : file.getOrgId();
+            return deptVisible(org, userId, matrixActionOf(action));
+        }
         // 【拍板 A 2026-11-14 私人空间收口】私人文件不走组织矩阵——仅本人/上级链/例外授权(已在前)。
         // 有夹跟夹(夹=private); 无夹跟空间锚(fileScope=private)。同部门普通同事不得因 dept 档
         // 看到他人私人夹内文件/他人无夹私人文件。
@@ -127,7 +174,7 @@ public class FolderPermissionService {
      * 公共夹=admin ∨ 例外授权 FOLDER:create ∨ 组织负责人(拍板④: 负责人可建本组织公共夹, org 快照=所辖最高组织)。
      */
     public boolean canCreateFolder(String folderType, Long userId) {
-        if (SecurityUtils.isAdmin()) return true;
+        if (SecurityUtils.isAdmin()) return adminActionAllowed(P_CREATE);
         if ("private".equals(folderType)) return true;
         if (grantGranted(OBJ_FOLDER, folderType, null, null, null, P_CREATE, userId)) return true;
         return userId != null && leaderOrgId(userId) != null;
@@ -215,6 +262,11 @@ public class FolderPermissionService {
         return depts == null || depts.contains(orgId);
     }
 
+    /** 公共夹查看/下载是 data_scope 语义；上传/分享/编辑/删除仍走授权/矩阵。 */
+    private boolean isPublicReadAction(String action) {
+        return P_VIEW.equals(action) || P_DOWNLOAD.equals(action);
+    }
+
     /** 可见用户集(OWNER 锚, null=全部); 无夹文件/激励附件过滤用 */
     Set<Long> matrixSet(Long currentUserId, String matrixAction) {
         com.aigicrm.security.SecurityUser user = SecurityUtils.getCurrentUser();
@@ -265,7 +317,7 @@ public class FolderPermissionService {
 
     public List<String> permsFor(Long folderId, Long userId) {
         if (folderId == null) return List.of();
-        if (SecurityUtils.isAdmin()) return ALL_PERMS;
+        if (SecurityUtils.isAdmin()) return adminFolderPerms();
         BizFileFolder folder = folderMapper.selectById(folderId);
         if (folder == null) return List.of();
         if (Objects.equals(folder.getOwnerId(), userId) || isManagerChain(userId, folder.getOwnerId())) {
@@ -310,7 +362,8 @@ public class FolderPermissionService {
         Map<Long, List<String>> result = new HashMap<>();
         if (files == null || files.isEmpty()) return result;
         if (SecurityUtils.isAdmin()) {
-            for (BizFile f : files) result.put(f.getId(), FILE_ROW_ACTIONS);
+            List<String> adminPerms = adminFileRowPerms();
+            for (BizFile f : files) result.put(f.getId(), adminPerms);
             return result;
         }
         List<BizFolderTypeDefault> grants = grantMapper.selectList(new LambdaQueryWrapper<>());
@@ -361,7 +414,8 @@ public class FolderPermissionService {
         Map<Long, List<String>> result = new HashMap<>();
         if (folders == null || folders.isEmpty()) return result;
         if (SecurityUtils.isAdmin()) {
-            for (BizFileFolder f : folders) result.put(f.getId(), ALL_PERMS);
+            List<String> adminPerms = adminFolderPerms();
+            for (BizFileFolder f : folders) result.put(f.getId(), adminPerms);
             return result;
         }
         Map<String, Set<Long>> matrixCache = new HashMap<>();

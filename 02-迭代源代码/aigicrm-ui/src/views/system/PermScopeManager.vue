@@ -16,7 +16,7 @@
         <el-option v-for="o in assigneeOptions" :key="o.key" :label="o.label" :value="o.key" />
       </el-select>
       <el-button size="small" @click="loadAll">刷新</el-button>
-      <span v-if="!canEditScope" class="psm-readonly">当前账号只读：需系统管理员 + system:config:edit 才能修改</span>
+      <span v-if="!canEditScope" class="psm-readonly">当前账号只读：需 system:scope:grant 才能修改</span>
     </div>
 
     <!-- ① 给谁: 角色chips(仅ROLE模式) -->
@@ -63,9 +63,13 @@
         <div class="psm-rows">
           <div v-for="item in curModule?.items" :key="item.id" class="psm-row" :class="{ off: !isEnabled(item) }">
             <el-checkbox class="psm-row-check" :model-value="isEnabled(item)"
-                         :disabled="!isRoleMode || !canEditScope" @change="() => onToggle(item)" />
+                         :disabled="!isRoleMode || !canEditScope || dependencyMissing(item) || adminOnlyBlocked(item)"
+                         @change="() => onToggle(item)" />
             <div class="psm-row-info">
               <span class="psm-row-name">{{ item.label }}</span>
+              <el-tag v-if="item.isField" size="small" type="info">字段级</el-tag>
+              <el-tag v-if="item.adminOnly" size="small" type="danger">仅管理员</el-tag>
+              <el-tag v-else-if="item.requiresOrgAdmin" size="small" type="warning">需组织管理员</el-tag>
               <code class="psm-row-code">{{ item.permission }}</code>
             </div>
             <div class="psm-row-ctrl">
@@ -116,7 +120,7 @@ import request from '@/utils/request'
 import './perm-common.css'
 
 const {
-  allRoles, permModules, hasPerm, togglePerm, loadPermData, permLoadError,
+  allRoles, permModules, menuTree, metaByCode, hasPerm, togglePerm, loadPermData, permLoadError,
 } = usePermissionData()
 
 const current = ref('')
@@ -188,7 +192,8 @@ const PERMISSION_SCOPE_TARGETS = Object.freeze({
   // {fabushi, stats_view} 行 parity 同步, check-perm-scope-targets-parity.sh 双侧对账)
   'fabushi:stats:view': { module: 'fabushi', action: 'stats_view' },
 })
-const scopeTargetOf = (permission) => PERMISSION_SCOPE_TARGETS[permission] || null
+const scopeTargetOf = (permission) =>
+  (metaByCode.value[permission] && metaByCode.value[permission].scopeAxis) || PERMISSION_SCOPE_TARGETS[permission] || null
 
 // 未接入范围矩阵的模块: 标注真实控制面, 避免管理员误以为配置生效
 const SCOPE_OWNER_HINTS = {
@@ -211,9 +216,31 @@ const PERMISSION_HINT_OVERRIDES = {
   'incentive:rank:view': '四项激励独立数据范围(与统计分析档位解耦, 可分别勾选)',
 }
 const scopeOwnerOf = (item) => {
+  if (item?.adminOnly) return '仅管理员可用'
+  if (item?.requiresOrgAdmin) return '需组织管理员身份'
+  if (item?.isField) return '跟随客户编辑范围'
   const perm = item.permission || ''
   if (PERMISSION_HINT_OVERRIDES[perm]) return PERMISSION_HINT_OVERRIDES[perm]
   return SCOPE_OWNER_HINTS[perm.split(':')[0]] || '由模块自身规则控制'
+}
+
+// 附属/字段码依赖: 父功能码未勾选时子码不可勾(防“勾了不生效”的死配置)
+const codeIdMap = computed(() => {
+  const m = {}
+  const walk = (ns) => { for (const n of (ns || [])) { if (n.permission) m[n.permission] = n.id; walk(n.children) } }
+  walk(menuTree.value)
+  return m
+})
+const adminOnlyBlocked = (item) => {
+  if (!item?.adminOnly || !currentRole.value) return false
+  // 仅管理员可用的码不允许授给非 admin 角色(授了也是运行期 403, 属于死配置)
+  return currentRole.value.roleCode !== 'admin'
+}
+const dependencyMissing = (item) => {
+  if (!item?.dependsOn || !currentRole.value) return false
+  const parentId = codeIdMap.value[item.dependsOn]
+  if (parentId == null) return false
+  return !(rolePermMap.value[currentRole.value.id] || new Set()).has(parentId)
 }
 
 // 后端配置以 (module, action) 为键; system:log:view 读写的都是 (system, view)
@@ -226,7 +253,7 @@ const scopeOf = (item) => scopeMap.value[assigneeScopeKey.value]?.[scopeKeyOf(it
 const recommendedAnchorOf = (item) => (scopeTargetOf(item.permission)?.action === 'view' ? 'ORG' : 'OWNER')
 const anchorOf = (item) => scopeMap.value[assigneeScopeKey.value]?.[scopeKeyOf(item.permission)]?.anchor || recommendedAnchorOf(item)
 
-const canEditScope = computed(() => userStore.isAdmin() && userStore.hasPermission('system:config:edit'))
+const canEditScope = computed(() => userStore.hasPermission('system:scope:grant'))
 const userStore = useUserStore()
 
 // ---- 功能勾选(ROLE) ----
@@ -281,7 +308,7 @@ const loadScopesFor = async (assigneeType, assigneeKey) => {
 }
 
 const saveScope = async (item, scopeLevel, anchor) => {
-  if (!canEditScope.value) { ElMessage.warning('无权限修改权限范围（需系统管理员 + system:config:edit）'); return }
+  if (!canEditScope.value) { ElMessage.warning('无权限修改权限范围（需 system:scope:grant）'); return }
   const target = scopeTargetOf(item.permission)
   if (!target) { ElMessage.warning('该权限项未接入数据范围配置'); return }
   const finalAnchor = anchor || scopeMap.value[assigneeScopeKey.value]?.[scopeKeyOf(item.permission)]?.anchor || recommendedAnchorOf(item)
@@ -321,7 +348,7 @@ const saveScope = async (item, scopeLevel, anchor) => {
     ElMessage.success(`${item.label} → ${scopeLabelOf(scopeLevel)}（${finalAnchor === 'ORG' ? '按组织' : '按人'}）`)
   } catch (e) {
     scopeMap.value[key] = { ...(scopeMap.value[key] || {}), [entryKey]: prev }
-    ElMessage.error('范围保存失败')
+    ElMessage.error(e?.response?.data?.message || '范围保存失败')
   }
 }
 

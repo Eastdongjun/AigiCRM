@@ -52,6 +52,14 @@ Page({
     const next = { ...this.data, ...patch }
     this.setData({ ...patch, shareView: buildShareView(next) })
   },
+  onPermissionChanged() {
+    if (getApp().globalData.demoMode) return
+    if (!hasPermission('customer:edit')) {
+      wx.showToast({ title: '没有操作权限', icon: 'none' })
+      setTimeout(() => wx.navigateBack(), 300)
+    }
+  },
+
   onLoad(options) {
     if (!requireLogin()) return
     if (!getApp().globalData.demoMode && !hasPermission('customer:view')) {

@@ -34,6 +34,16 @@ Page({
     membersView: { rows: [], summaryText: '' }
   },
 
+  onPermissionChanged() {
+    if (getApp().globalData.demoMode) return
+    if (!(typeof hasPermission === 'function' && hasPermission('score:view'))) {
+      wx.showToast({ title: '没有学分排行权限', icon: 'none' })
+      setTimeout(() => wx.navigateBack(), 300)
+      return
+    }
+    this.loadBreakdown()
+  },
+
   onLoad(options) {
     if (!requireLogin()) return
     if (!getApp().globalData.demoMode && !hasPermission('score:view')) {

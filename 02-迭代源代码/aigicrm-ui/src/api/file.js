@@ -17,6 +17,10 @@ export function renameFolder(id, folderName) {
   return request.put(`/file/folders/${id}`, { folderName })
 }
 
+export function setFolderDownloadable(id, downloadable) {
+  return request.put(`/file/folders/${id}/downloadable`, { downloadable })
+}
+
 export function deleteFolder(id) {
   return request.delete(`/file/folders/${id}`)
 }

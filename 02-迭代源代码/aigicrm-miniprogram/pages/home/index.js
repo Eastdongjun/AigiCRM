@@ -3,6 +3,7 @@ const { getExpiringList, getPendingCount } = require('../../api/reminder')
 const { getDashboardData } = require('../../api/statistics')
 const { homeCards, reminderRecords } = require('../../data/demo')
 const { hasPermission, requireLogin } = require('../../utils/auth')
+const permissionRefresh = require('../../utils/permission-refresh')
 // 【字面量收敛第一批 2026-11-12】权限码走生成物单源(statistics:view 两处保留字面量供 dashboard 契约钉)
 const { PERMISSION_CODES } = require('../../generated/permission-codes')
 const { showError } = require('../../utils/feedback')
@@ -106,7 +107,13 @@ Page({
     if (typeof this.getTabBar === 'function' && this.getTabBar()) this.getTabBar().setData({ selected: 0 })
     if (!this._loadedOnce) {
       this._loadedOnce = true
+      this._permVersion = permissionRefresh.getVersion()
       return
+    }
+    if (this._permVersion !== permissionRefresh.getVersion()) {
+      // 权限变化：绕过节流，立即刷新入口/看板
+      this._permVersion = permissionRefresh.getVersion()
+      this._lastShowTs = 0
     }
     // 【容量止血 2026-10-05】onShow 30s 节流：微信每次返回页面/切前台都触发 onShow，
     // 无节流时首页 4 个请求被高频放大(容量评估流量模型专项)；30s 内的回流不重拉，
@@ -114,6 +121,12 @@ Page({
     const now = Date.now()
     if (now - (this._lastShowTs || 0) < 30000) return
     this._lastShowTs = now
+    if (!getApp().globalData.demoMode) this.loadHomeData()
+  },
+
+  onPermissionChanged() {
+    this._permVersion = permissionRefresh.getVersion()
+    this._lastShowTs = 0
     if (!getApp().globalData.demoMode) this.loadHomeData()
   },
 

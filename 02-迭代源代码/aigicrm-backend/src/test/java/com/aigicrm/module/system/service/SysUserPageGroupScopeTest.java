@@ -28,6 +28,7 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
@@ -84,21 +85,22 @@ class SysUserPageGroupScopeTest {
 
     @Test
     void adminWithoutDeptIdsRunsPagedQuery() {
-        // 回归核心：admin 不带 deptIds 时，page() 不得把 null 误判为"无可见部门"返回空页
+        // 单集团 admin 也按当前集团部门集过滤；不能因为 admin 就不下发 deptIds。
         when(userMapper.selectUserPage(any(), any(), any(), any()))
                 .thenReturn(new Page<SysUser>(1, 15));
+        when(deptMapper.selectList(any())).thenReturn(List.of(dept(1L), dept(2L)));
+        when(scopeResolver.resolveVisibleDeptIds(any())).thenReturn(null);
 
         SysUserService service = newService();
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(true);
+            m.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of(1L));
 
             service.page(1, 15, null, null, null);
 
             ArgumentCaptor<String> deptCaptor = ArgumentCaptor.forClass(String.class);
             verify(userMapper).selectUserPage(any(), any(), deptCaptor.capture(), any());
-            // null 应被归一为空串"不按部门过滤"，而不是返回空页（修复点）
-            assertEquals("", deptCaptor.getValue(),
-                    "admin 未传 deptIds 应归一为空串下发 mapper（= 不按部门过滤）");
+            assertTrue(deptCaptor.getValue().contains("1"), "admin 也应下发当前集团部门集: " + deptCaptor.getValue());
         }
     }
 
@@ -106,16 +108,19 @@ class SysUserPageGroupScopeTest {
     void adminWithDeptIdsPassesThrough() {
         when(userMapper.selectUserPage(any(), any(), any(), any()))
                 .thenReturn(new Page<SysUser>(1, 15));
+        when(deptMapper.selectList(any())).thenReturn(List.of(dept(1L), dept(2L)));
+        when(scopeResolver.resolveVisibleDeptIds(any())).thenReturn(null);
 
         SysUserService service = newService();
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(true);
+            m.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of(1L));
 
             service.page(1, 15, null, "1", null);
 
             ArgumentCaptor<String> deptCaptor = ArgumentCaptor.forClass(String.class);
             verify(userMapper).selectUserPage(any(), any(), deptCaptor.capture(), any());
-            assertEquals("1", deptCaptor.getValue(), "admin 显式 deptIds 应原样透传");
+            assertEquals("1", deptCaptor.getValue(), "admin 显式 deptIds 在可见集内应保留");
         }
     }
 
@@ -245,5 +250,12 @@ class SysUserPageGroupScopeTest {
             assertEquals(0, result.getTotal(), "无可见部门应返回空页");
         }
         verify(userMapper, never()).selectUserPage(any(), any(), any(), any());
+    }
+
+    private SysDept dept(Long id) {
+        SysDept d = new SysDept();
+        d.setId(id);
+        d.setGroupId(1L);
+        return d;
     }
 }

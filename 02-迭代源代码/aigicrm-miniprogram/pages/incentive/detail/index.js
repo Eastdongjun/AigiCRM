@@ -352,6 +352,16 @@ Page({
       this.setData({ 'detailView.dialValue': detailView.dialValue })
     }, 50)
   },
+  onPermissionChanged() {
+    if (getApp().globalData.demoMode) return
+    if (!(isAdmin() || hasPermission(PERMISSION_CODES.INCENTIVE_VIEW))) {
+      wx.showToast({ title: '没有四项服务查看权限', icon: 'none' })
+      setTimeout(() => wx.navigateBack(), 300)
+      return
+    }
+    this.loadDetail()
+  },
+
   onLoad(options) {
     if (!requireLogin()) return
     if (!getApp().globalData.demoMode && !hasPermission('incentive:view')) {

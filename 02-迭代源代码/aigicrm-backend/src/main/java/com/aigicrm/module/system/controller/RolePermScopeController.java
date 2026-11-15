@@ -33,11 +33,10 @@ public class RolePermScopeController {
         return Result.ok(rolePermScopeService.getRoleScopes(roleCode));
     }
 
-    @PreAuthorize("hasAuthority('system:config:edit')")
+    @PreAuthorize("hasAuthority('system:scope:grant')")
     @PutMapping("/{roleCode}")
     public Result<java.util.Map<String, Object>> updateScopes(@PathVariable String roleCode,
                                      @RequestBody List<Map<String, Object>> configs) {
-        requireAdmin();
         rolePermScopeService.updateRoleScopes(roleCode, configs);
         // 【WP5 2026-11-13】保存授权返回 {epoch, affectedUsers}(规格 WP5; 前端可提示生效人数)
         return Result.ok(saveAck());
@@ -53,11 +52,10 @@ public class RolePermScopeController {
     }
 
     /** 岗位级/用户级范围配置保存(assigneeType=POSITION/USER; 角色级走 /{roleCode}) */
-    @PreAuthorize("hasAuthority('system:config:edit')")
+    @PreAuthorize("hasAuthority('system:scope:grant')")
     @PutMapping("/assignee/{type}/{key}")
     public Result<java.util.Map<String, Object>> updateAssigneeScopes(@PathVariable String type, @PathVariable String key,
                                              @RequestBody List<Map<String, Object>> configs) {
-        requireAdmin();
         if (!com.aigicrm.common.scope.ScopeConfig.ASSIGNEE_POSITION.equals(type)
                 && !com.aigicrm.common.scope.ScopeConfig.ASSIGNEE_USER.equals(type)) {
             throw new BusinessException("仅支持岗位(POSITION)/用户(USER)级配置, 角色级请走 /{roleCode}");
@@ -67,10 +65,9 @@ public class RolePermScopeController {
     }
 
     /** 【WP6 2026-11-13】影响分析(规格 WP6): 保存前计算受影响用户——主体绑定的在职用户数+角色清单 */
-    @PreAuthorize("hasAuthority('system:config:view')")
+    @PreAuthorize("hasAuthority('system:scope:grant')")
     @GetMapping("/impact/{type}/{key}")
     public Result<java.util.Map<String, Object>> impact(@PathVariable String type, @PathVariable String key) {
-        requireAdmin();
         long affected;
         String scopeDesc;
         switch (type) {
@@ -103,12 +100,11 @@ public class RolePermScopeController {
     }
 
     /** 【WP8 对账 2026-11-13】抽样双轨对比(admin): 旧/新轨 (customer,view) 可见集 0 差异=切流门槛 */
-    @PreAuthorize("hasAuthority('system:config:view')")
+    @PreAuthorize("hasAuthority('system:scope:grant')")
     @GetMapping("/reconcile")
     public Result<java.util.Map<String, Object>> reconcile(
             @RequestParam(defaultValue = "50") int sample,
             @RequestParam(required = false) Long userId) {
-        requireAdmin();
         return Result.ok(reconcileService.reconcile(sample, userId));
     }
 
@@ -120,13 +116,5 @@ public class RolePermScopeController {
                 "SELECT 1 FROM sys_user_role ur JOIN sys_role r ON r.id = ur.role_id WHERE ur.user_id = u.id)",
                 Long.class);
         return java.util.Map.of("epoch", epoch, "affectedUsers", affected != null ? affected : 0L);
-    }
-
-    private void requireAdmin() {
-        // 【修复 2026-08-10 P1-03】范围配置=数据权限放大,必须超管本人才能写——
-        // 否则 system:config:edit 落到非超管角色时可将自己角色 customer edit/delete 配成 all 提权。
-        if (!SecurityUtils.isAdmin()) {
-            throw new BusinessException("仅系统管理员可配置数据范围");
-        }
     }
 }

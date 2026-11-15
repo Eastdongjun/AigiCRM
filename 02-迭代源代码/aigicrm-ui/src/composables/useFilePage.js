@@ -66,7 +66,7 @@ export function useFilePage() {
   const previewName = ref('')
   const previewSize = ref(0)
 
-  const isAdmin = computed(() => userStore.isAdmin())
+  const isAdmin = computed(() => userStore.isAdmin()) // 仅用于私人根页面兜底；公共根动作按权限码
 
   const tabs = computed(() => [
     { label: '公共', value: 'public', count: publicCount.value },
@@ -83,15 +83,19 @@ export function useFilePage() {
   // 【2026-10-27 深度检查修复】文件夹"新建/重命名/删除"后端另要求全局权限码 file:folder:manage
   // (FileController @PreAuthorize, 可按角色勾选)——前端显隐此前只看 ACL/属主链, 取消勾选后按钮
   // 可见点击即 403。显隐与后端门槛取"与": 全局码 + 原有 ACL 维度同时满足才显示。
-  const canManageFolders = computed(() => userStore.hasPermission('file:folder:manage'))
+  // v2 细码 + 旧 folder:manage 兼容
+  const hasFolderCreate = computed(() => userStore.hasPermission('file:folder:create') || userStore.hasPermission('file:folder:manage'))
+  const hasFolderRename = computed(() => userStore.hasPermission('file:folder:rename') || userStore.hasPermission('file:folder:manage'))
+  const hasFolderDelete = computed(() => userStore.hasPermission('file:folder:delete') || userStore.hasPermission('file:folder:manage'))
+  const canManageFolders = computed(() => hasFolderCreate.value || hasFolderRename.value || hasFolderDelete.value)
 
   // 新建文件夹：公共/私人 Tab 按当前文件夹 upload 权限显示（不再仅管理员/本人写死）。
   // 公共根目录对齐后端"仅管理员可建夹"门槛（非管理员公共根 upload=传文件权限,不授予建夹）；
   // 子夹按当前文件夹 upload 权限（ACL 判定）。
   const canCreateFolder = computed(() => {
-    if (!canManageFolders.value) return false
+    if (!hasFolderCreate.value) return false
     if (activeTab.value === 'incentive' || activeTab.value === 'shared_to_me') return false
-    if (activeTab.value === 'public' && selectedFolderId.value == null) return isAdmin.value
+    if (activeTab.value === 'public' && selectedFolderId.value == null) return hasFolderCreate.value
     return folderPerms.value.includes('upload')
   })
 
@@ -100,13 +104,16 @@ export function useFilePage() {
   //    tooltip 提示原因并引导进文件夹上传，不再给可点的必败入口；
   //  - 其余位置按 folderPerms（含根目录硬编码/子夹 ACL）照旧判定。
   const isPublicRootNonAdmin = computed(() =>
-    activeTab.value === 'public' && selectedFolderId.value == null && !isAdmin.value)
+    activeTab.value === 'public' && selectedFolderId.value == null && !hasFolderCreate.value)
   // 【T4 2026-11-11 审计整改】叠全局码 file:upload: 后端 upload 端点是双门
   // (@PreAuthorize file:upload + service 夹判定), 此前只看夹 ACL——无全局码者
   // 按钮可见可点、提交必 403(必败入口)。MP files 页 11-08 批已同口径, PC 此处补齐。
-  const canUpload = computed(() =>
-    userStore.hasPermission('file:upload') && folderPerms.value.includes('upload'))
-  const uploadDisabledReason = '公共根目录仅管理员可上传，请先在左侧选择文件夹后再上传'
+  const canUpload = computed(() => {
+    if (!userStore.hasPermission('file:upload')) return false
+    if (activeTab.value === 'public' && selectedFolderId.value == null && !hasFolderCreate.value) return false
+    return folderPerms.value.includes('upload')
+  })
+  const uploadDisabledReason = '公共根目录上传需要 file:folder:manage；请选择文件夹后再上传，或联系管理员勾选权限'
 
   // 当前文件夹权限加载：
   //  - 激励/分享给我 Tab 无文件夹树：只读 + 可下载（保持原有行为）
@@ -127,11 +134,11 @@ export function useFilePage() {
       // 【T2 2026-11-12】根目录页级 perms 仅作页级按钮(上传/新建夹)兜底——文件行按钮以后端行级
       // row.perms(/file/list 每行返回, permsForFiles 与 checkFile 同源)为准, 类型级授权在根目录
       // 直接点亮行按钮, 页级不再并入类型动作(原 type-perms 并集方案随端点退役)。
-      folderPerms.value = isAdmin.value
-        ? ['view', 'upload', 'edit', 'delete', 'share', 'download']
-        : activeTab.value === 'public'
-          ? ['view', 'download']
-          : ['view', 'upload', 'edit', 'delete', 'share', 'download']
+      folderPerms.value = activeTab.value === 'public'
+        ? (hasFolderCreate.value
+            ? ['view', 'upload', 'edit', 'delete', 'share', 'download']
+            : ['view', 'download'])
+        : ['view', 'upload', 'edit', 'delete', 'share', 'download']
       folderDownloadable.value = 1
       return
     }
@@ -357,7 +364,7 @@ export function useFilePage() {
     uploadVisible, createFolderVisible, renameFolderVisible, renameFolderTarget,
     shareDialogVisible, shareFileTarget, storageApplyVisible,
     previewVisible, previewUrl, previewType, previewName, previewSize,
-    isAdmin, tabs, currentFolders, canCreateFolder, canManageFolders,
+    isAdmin, tabs, currentFolders, canCreateFolder, canManageFolders, hasFolderCreate, hasFolderRename, hasFolderDelete,
     isPublicRootNonAdmin, canUpload, uploadDisabledReason,
     loadFolderPerms, loadFolders, loadFiles, loadTabCounts, loadStorage, loadStorageApplyInfo, refreshAll,
     switchTab, selectFolder, searchFiles,

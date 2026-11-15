@@ -212,9 +212,9 @@ describe('reminder/index.vue 组件冒烟', () => {
     expect(getExpiringList).toHaveBeenCalled()
   })
 
-  it('admin 挂载仍触发 ensure-expiring 物化今日到期提醒', async () => {
+  it('持 reminder:ensure 的账号挂载触发 ensure-expiring 物化今日到期提醒', async () => {
     const { useUserStore } = await import('@/store/user')
-    useUserStore().roles = ['admin']
+    useUserStore().permissions = new Set(['reminder:ensure'])
     mount(ReminderIndex, { global: { stubs } })
     await flushPromises()
     expect(ensureExpiring).toHaveBeenCalledTimes(1)

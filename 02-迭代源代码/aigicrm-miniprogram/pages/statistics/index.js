@@ -257,6 +257,10 @@ Page({
     this.setData(next)
   },
 
+  onPermissionChanged() {
+    this.loadStats();
+  },
+
   onLoad() {
     if (!requireLogin()) return
     if (!getApp().globalData.demoMode && !hasPermission('statistics:view')) {

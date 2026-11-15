@@ -1,0 +1,9 @@
+.page { padding: 24rpx; background: #f5f7fb; min-height: 100vh; box-sizing: border-box; }
+.card { background: #fff; border-radius: 20rpx; padding: 24rpx; margin-bottom: 20rpx; }
+.diag-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12rpx; }
+.diag-title { font-size: 30rpx; font-weight: 600; color: #1f2d3d; }
+.diag-row { display: flex; justify-content: space-between; gap: 20rpx; padding: 12rpx 0; border-bottom: 1rpx solid #f0f2f5; font-size: 26rpx; color: #303133; }
+.diag-row:last-child { border-bottom: none; }
+.diag-perms { font-size: 24rpx; color: #606266; line-height: 1.7; word-break: break-all; }
+.muted { color: #909399; font-size: 24rpx; }
+.mini-action { font-size: 24rpx; padding: 6rpx 18rpx; border-radius: 999rpx; background: #eef4ff; color: #2563eb; }

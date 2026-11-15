@@ -217,6 +217,10 @@ Page({
     this.setData({ ...patch, seaView: buildSeaView(nextData) })
   },
 
+  onPermissionChanged() {
+    this.loadRecords(); this.loadStats();
+  },
+
   onLoad() {
     if (!requireLogin()) return
     if (!getApp().globalData.demoMode && !hasPermission('sea:view')) {

@@ -565,9 +565,6 @@ public class ReminderService {
 
     /** 提醒可见性校验（读/写共用）：非 admin 时负责人必须落在数据范围内，防按 ID 越权 */
     private void assertVisible(BizReminder reminder, String message) {
-        if (SecurityUtils.isAdmin()) {
-            return;
-        }
         List<Long> visible = scopeResolver.resolveModuleUsers(SecurityUtils.getCurrentUser(), "reminder");
         if (visible != null && (reminder.getOwnerId() == null || !visible.contains(reminder.getOwnerId()))) {
             throw new BusinessException(message);

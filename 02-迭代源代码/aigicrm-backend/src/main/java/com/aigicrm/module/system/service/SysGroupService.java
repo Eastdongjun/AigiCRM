@@ -45,9 +45,11 @@ public class SysGroupService {
 
     @Transactional
     public void create(SysGroup group) {
-        // 新建集团=定义新边界, 必然在操作人所属集团之外——非 admin 拒绝
-        if (!SecurityUtils.isAdmin()) {
-            throw new BusinessException("仅平台管理员可创建集团");
+        // 【产品口径 2026-11-15】单集团部署: 仅平台管理员可创建, 且系统不存在任何集团时才允许
+        requirePlatformAdmin();
+        Long all = groupMapper.selectCount(null);
+        if (all != null && all >= 1) {
+            throw new BusinessException(400, "SINGLE_GROUP_ONLY", "单集团部署仅允许一个集团");
         }
         Long count = groupMapper.selectCount(
                 new LambdaQueryWrapper<SysGroup>().eq(SysGroup::getGroupCode, group.getGroupCode()));
@@ -55,13 +57,29 @@ public class SysGroupService {
         groupMapper.insert(group);
     }
 
+    /** 【产品口径 2026-11-15】集团写操作仅平台管理员(与控制器 @PreAuthorize 双闸) */
+    private void requirePlatformAdmin() {
+        if (!SecurityUtils.isAdmin()) {
+            throw new BusinessException(403, "ADMIN_ONLY", "仅系统管理员可管理集团");
+        }
+    }
+
     @Transactional
     public void update(SysGroup group) {
-        // 目标集团越权拒(与 SysDept.update 的"目标部门越权拒"同口径)
-        if (group.getId() != null) {
-            SysGroup existing = groupMapper.selectById(group.getId());
-            if (existing != null && !GroupScopeUtil.canAccessGroup(existing.getId())) {
-                throw new BusinessException(403, "无权操作其他集团");
+        requirePlatformAdmin();
+        if (group.getId() == null) throw new BusinessException(400, "集团ID不能为空");
+        SysGroup existing = groupMapper.selectById(group.getId());
+        if (existing == null) throw new BusinessException(404, "集团不存在");
+        // 集团编码创建后不可修改(前端已禁改, 后端兜底)
+        if (group.getGroupCode() != null && !group.getGroupCode().equals(existing.getGroupCode())) {
+            throw new BusinessException(400, "集团编码创建后不可修改");
+        }
+        // 单活跃集团不可禁用(与 delete 守卫同口径, 防止经 update 绕过)
+        if (group.getStatus() != null && group.getStatus() == 0) {
+            Long active = groupMapper.selectCount(
+                    new LambdaQueryWrapper<SysGroup>().eq(SysGroup::getStatus, 1));
+            if (active != null && active <= 1) {
+                throw new BusinessException(400, "SINGLE_GROUP_ONLY", "不能禁用唯一集团");
             }
         }
         groupMapper.updateById(group);
@@ -69,8 +87,20 @@ public class SysGroupService {
 
     @Transactional
     public void delete(Long id) {
+        requirePlatformAdmin();
         if (!GroupScopeUtil.canAccessGroup(id)) {
             throw new BusinessException(403, "无权操作其他集团");
+        }
+        // 【产品口径 2026-11-15】单集团不可禁用/删除。
+        // 集团是租户边界的顶层载体, 禁用唯一活跃集团会让全部数据失去归属(不可恢复的运维事故);
+        // 本方法是软禁用(status=0), 因此守卫只拦"最后一个活跃集团", 已禁用集团的清理仍放行。
+        SysGroup existing = groupMapper.selectById(id);
+        if (existing != null && existing.getStatus() != null && existing.getStatus() == 1) {
+            Long active = groupMapper.selectCount(
+                    new LambdaQueryWrapper<SysGroup>().eq(SysGroup::getStatus, 1));
+            if (active != null && active <= 1) {
+                throw new BusinessException(400, "SINGLE_GROUP_ONLY", "不能删除唯一集团");
+            }
         }
         SysGroup group = new SysGroup();
         group.setId(id);

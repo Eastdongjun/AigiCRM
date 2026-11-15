@@ -186,7 +186,7 @@ public class TaskService {
      * null=全量不过滤, 空=仅本人语义)。越界抛 403, 杜绝传 assigneeId 绕过"默认只看自己"。
      */
     private void assertAssigneeVisible(Long targetUserId, Long currentUserId) {
-        if (SecurityUtils.isAdmin() || targetUserId.equals(currentUserId)) return;
+        if (targetUserId.equals(currentUserId)) return;
         // 【GPT三轮 ACL-P1-001 2026-09-22】sys_user 全局表: null(all) 须集团收口, 否则可分派范围外/他集团人员
         java.util.List<Long> visible = orgScopeResolver.resolveModuleUsersWithinGroup(SecurityUtils.getCurrentUser(), "task");
         if (!visible.contains(targetUserId)) {
@@ -204,7 +204,7 @@ public class TaskService {
         if (assigneeId != null) {
             assertAssigneeVisible(assigneeId, currentUserId);
             wrapper.eq(BizTask::getAssigneeId, assigneeId);
-        } else if (!SecurityUtils.isAdmin()) {
+        } else {
             wrapper.eq(BizTask::getAssigneeId, currentUserId);
         }
         if (status != null && !status.isBlank()) {
@@ -256,8 +256,7 @@ public class TaskService {
     private BizTask getOwnOrManaged(Long id) {
         BizTask task = taskMapper.selectById(id);
         if (task == null) throw new BusinessException("任务不存在");
-        if (!SecurityUtils.isAdmin()
-                && !task.getAssigneeId().equals(SecurityUtils.getCurrentUserId())
+        if (!task.getAssigneeId().equals(SecurityUtils.getCurrentUserId())
                 && !task.getCreatedBy().equals(SecurityUtils.getCurrentUserId())) {
             throw new BusinessException(403, "只能操作自己创建或负责的任务");
         }

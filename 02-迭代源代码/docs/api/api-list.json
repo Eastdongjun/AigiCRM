@@ -1,6 +1,6 @@
 {
- "generated_at": "2026-11-15",
- "count": 262,
+ "generated_at": "2026-11-16",
+ "count": 264,
  "endpoints": [
   {
    "method": "POST",
@@ -59,7 +59,7 @@
   {
    "method": "PUT",
    "path": "/api/approval/{id}/nodes/{nodeId}/transfer",
-   "permission": "hasAuthority('approval:view')",
+   "permission": "hasAuthority('approval:transfer')",
    "handler": "transferNode"
   },
   {
@@ -497,19 +497,19 @@
   {
    "method": "POST",
    "path": "/api/file/batch-download",
-   "permission": "hasAuthority('file:view')",
+   "permission": "hasAuthority('file:download')",
    "handler": "batchDownload"
   },
   {
    "method": "GET",
    "path": "/api/file/download-token",
-   "permission": "登录即可",
+   "permission": "hasAuthority('file:download')",
    "handler": "downloadToken"
   },
   {
    "method": "GET",
    "path": "/api/file/download/**",
-   "permission": "hasAuthority('file:view')",
+   "permission": "hasAuthority('file:download')",
    "handler": "download"
   },
   {
@@ -521,7 +521,7 @@
   {
    "method": "GET",
    "path": "/api/file/download/{id}",
-   "permission": "hasAuthority('file:view')",
+   "permission": "hasAuthority('file:download')",
    "handler": "downloadById"
   },
   {
@@ -533,7 +533,7 @@
   {
    "method": "POST",
    "path": "/api/file/folders",
-   "permission": "hasAuthority('file:folder:manage')",
+   "permission": "hasAnyAuthority('file:folder:create','file:folder:manage')",
    "handler": "createFolder"
   },
   {
@@ -569,14 +569,20 @@
   {
    "method": "DELETE",
    "path": "/api/file/folders/{id}",
-   "permission": "hasAuthority('file:folder:manage')",
+   "permission": "hasAnyAuthority('file:folder:delete','file:folder:manage')",
    "handler": "deleteFolder"
   },
   {
    "method": "PUT",
    "path": "/api/file/folders/{id}",
-   "permission": "hasAuthority('file:folder:manage')",
+   "permission": "hasAnyAuthority('file:folder:rename','file:folder:manage')",
    "handler": "renameFolder"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/file/folders/{id}/downloadable",
+   "permission": "hasAuthority('file:acl:manage')",
+   "handler": "setDownloadable"
   },
   {
    "method": "GET",
@@ -593,7 +599,7 @@
   {
    "method": "GET",
    "path": "/api/file/reconciliation",
-   "permission": "hasAuthority('file:folder:manage')",
+   "permission": "hasAnyAuthority('file:reconcile','file:folder:manage')",
    "handler": "reconcile"
   },
   {
@@ -641,7 +647,7 @@
   {
    "method": "POST",
    "path": "/api/file/recycle/folders/{id}/restore",
-   "permission": "hasAuthority('file:delete')",
+   "permission": "hasAnyAuthority('file:folder:restore','file:delete')",
    "handler": "restoreFolder"
   },
   {
@@ -707,7 +713,7 @@
   {
    "method": "GET",
    "path": "/api/file/{id}/versions/{versionNo}/download",
-   "permission": "hasAuthority('file:view')",
+   "permission": "hasAuthority('file:download')",
    "handler": "downloadVersion"
   },
   {
@@ -851,7 +857,7 @@
   {
    "method": "POST",
    "path": "/api/reminder/ensure-expiring",
-   "permission": "hasAuthority('reminder:view')",
+   "permission": "hasAuthority('reminder:ensure')",
    "handler": "ensureExpiring"
   },
   {
@@ -1222,6 +1228,12 @@
   },
   {
    "method": "GET",
+   "path": "/api/system/perm-center/meta",
+   "permission": "hasAnyAuthority('system:menu:view','system:role:view','system:scope:grant')",
+   "handler": "meta"
+  },
+  {
+   "method": "GET",
    "path": "/api/system/perm-center/preview",
    "permission": "hasAuthority('system:config:view')",
    "handler": "preview"
@@ -1235,19 +1247,19 @@
   {
    "method": "PUT",
    "path": "/api/system/perm-scopes/assignee/{type}/{key}",
-   "permission": "hasAuthority('system:config:edit')",
+   "permission": "hasAuthority('system:scope:grant')",
    "handler": "updateAssigneeScopes"
   },
   {
    "method": "GET",
    "path": "/api/system/perm-scopes/impact/{type}/{key}",
-   "permission": "hasAuthority('system:config:view')",
+   "permission": "hasAuthority('system:scope:grant')",
    "handler": "impact"
   },
   {
    "method": "GET",
    "path": "/api/system/perm-scopes/reconcile",
-   "permission": "hasAuthority('system:config:view')",
+   "permission": "hasAuthority('system:scope:grant')",
    "handler": "reconcile"
   },
   {
@@ -1259,7 +1271,7 @@
   {
    "method": "PUT",
    "path": "/api/system/perm-scopes/{roleCode}",
-   "permission": "hasAuthority('system:config:edit')",
+   "permission": "hasAuthority('system:scope:grant')",
    "handler": "updateScopes"
   },
   {
@@ -1283,7 +1295,7 @@
   {
    "method": "PUT",
    "path": "/api/system/positions/users/{userId}",
-   "permission": "hasAuthority('system:user:edit')",
+   "permission": "hasAnyAuthority('system:user:edit','system:user:assign')",
    "handler": "assignUserPositions"
   },
   {
@@ -1307,7 +1319,7 @@
   {
    "method": "PUT",
    "path": "/api/system/positions/{positionId}/rules",
-   "permission": "hasAuthority('system:position:edit')",
+   "permission": "hasAuthority('system:position:rule:edit')",
    "handler": "updateRules"
   },
   {
@@ -1487,7 +1499,7 @@
   {
    "method": "POST",
    "path": "/api/system/task/check-expire",
-   "permission": "登录即可",
+   "permission": "hasAuthority('system:task:run')",
    "handler": "checkExpire"
   },
   {

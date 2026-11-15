@@ -54,9 +54,8 @@ public class AuthorizationService {
         return SecurityUtils.isAdmin();
     }
 
-    /** 动作可判(与 @PreAuthorize hasAuthority 同语义: admin 恒真; 授权由 sys_user_role→菜单码链路) */
+    /** 动作可判(与 @PreAuthorize hasAuthority 同语义; admin 也必须实际持有权限码) */
     public boolean can(String actionCode) {
-        if (isAdmin()) return true;
         SecurityUser user = SecurityUtils.getCurrentUser();
         return user != null && user.getPermissions() != null && user.getPermissions().contains(actionCode);
     }
@@ -239,7 +238,6 @@ public class AuthorizationService {
                                                  ScopeRequest.AnchorType anchorOverride) {
         ScopeDecision d = scopeForUser(user, actionCode, anchorOverride);
         if (d == null || !d.isAll()) return d;
-        if (user != null && user.hasRole("admin")) return d;
         Long g = com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull();
         if (g == null) return ScopeDecision.none();
         List<Long> members = com.aigicrm.common.scope.GroupScopeUtil.userIdsInGroup(jdbc, g);
@@ -445,8 +443,6 @@ public class AuthorizationService {
     public ScopeDecision scopeWithinGroup(String actionCode) {
         ScopeDecision d = scope(actionCode);
         if (d == null || !d.isAll()) return d;
-        SecurityUser user = SecurityUtils.getCurrentUser();
-        if (user != null && user.hasRole("admin")) return d; // admin 全量保持
         Long g = com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull();
         if (g == null) return ScopeDecision.none();
         ScopeDecision out = new ScopeDecision();

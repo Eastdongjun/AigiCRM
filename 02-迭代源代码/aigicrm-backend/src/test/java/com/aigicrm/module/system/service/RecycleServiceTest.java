@@ -29,6 +29,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import java.util.List;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -686,31 +687,13 @@ class RecycleServiceTest {
     }
 
     @Test
-    void controller_nonAdminEveryEndpointRejected403() {
+    void controller_codeHolderCanCallWithoutAdminFlag() {
+        // 回收站已改为 system:recycle:* 权限码控制；不再用 isAdmin 硬闸。
         login("sales");
-        MockHttpServletResponse response = new MockHttpServletResponse();
-        List<Runnable> calls = List.of(
-                () -> controller.deletedCustomers(1, 20, null),
-                () -> controller.deletedCustomerDetail(1L),
-                () -> controller.restoreCustomer(1L),
-                () -> controller.hardDeleteCustomer(1L),
-                () -> controller.deletedUsers(1, 20, null),
-                () -> controller.deletedUserDetail(1L),
-                () -> controller.restoreUser(1L),
-                () -> controller.hardDeleteUser(1L),
-                () -> controller.deletedFiles(1, 20, null),
-                () -> controller.deletedFileDetail(1L),
-                () -> controller.fileContent(1L, response),
-                () -> controller.restoreFile(1L),
-                () -> controller.hardDeleteFile(1L),
-                () -> controller.purgeFiles());
-
-        for (Runnable call : calls) {
-            BusinessException ex = assertThrows(BusinessException.class, call::run);
-            assertEquals(403, ex.getCode(), "非管理员必须 403");
-            assertTrue(ex.getMessage().contains("平台管理员"), "实际: " + ex.getMessage());
-        }
-        verifyNoInteractions(controllerService);
+        when(controllerService.deletedCustomers(1, 20, null))
+                .thenReturn(new RecycleService.PageResult<RecycleService.DeletedCustomerRow>(List.of(), 0));
+        assertDoesNotThrow(() -> controller.deletedCustomers(1, 20, null));
+        verify(controllerService).deletedCustomers(1, 20, null);
     }
 
     @Test

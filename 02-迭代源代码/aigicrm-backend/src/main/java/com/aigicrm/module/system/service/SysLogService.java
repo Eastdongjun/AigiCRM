@@ -45,7 +45,7 @@ public class SysLogService {
         LambdaQueryWrapper<SysLog> w = new LambdaQueryWrapper<>();
         // 数据范围（与业务模块一致，含子部门递归）：admin 全量；
         // 非管理员 = Resolver 可见用户集合（self 仅自己 / dept 本部门及子部门 / region 大区 / team 本人及下级 / all 全量）
-        if (!SecurityUtils.isAdmin()) {
+        {
             // 【2026-09-19 接入权限矩阵】(system,view) 显式配置优先，未配置回退角色数据范围
             // 【GPT三轮 ACL-P1-001 2026-09-22】sys_log 无 tenant_id 不走租户拦截器, null(all) 须集团收口——
             // 旧代码此处 null 分支为空操作, "本集团全部"注释从未成立, 实际放行全平台日志

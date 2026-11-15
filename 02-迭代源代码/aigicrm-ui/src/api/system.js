@@ -194,6 +194,11 @@ export function deleteGroup(id) {
 }
 
 // ---- 角色-模块-动作 数据范围(权限体系重构 2026-08-10; 批③ 主体三级+锚点) ----
+// 权限点元数据(类型/父码/范围轴/adminOnly/依赖) 2026-11-15
+export function getPermissionMeta() {
+  return request.get('/system/perm-center/meta')
+}
+
 export function getRolePermScopes(roleCode) {
   return request.get(`/system/perm-scopes/${roleCode}`)
 }

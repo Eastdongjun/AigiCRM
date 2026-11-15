@@ -161,7 +161,7 @@ class KernelScopeTest {
     }
 
     @Test
-    void can_permissionSemantics_andAdminBypass() {
+    void can_permissionSemantics_adminAlsoNeedsCode() {
         AuthorizationService svc = auth(new GrantReader(jdbc), mock(PermActionRegistry.class));
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUser).thenReturn(suPerm(7L, "customer:view"));
@@ -169,7 +169,7 @@ class KernelScopeTest {
             assertTrue(svc.can("customer:view"));
             assertFalse(svc.can("customer:delete"));
             m.when(SecurityUtils::isAdmin).thenReturn(true);
-            assertTrue(svc.can("customer:delete"), "admin 恒真");
+            assertFalse(svc.can("customer:delete"), "admin 也必须实际持有权限码");
         }
     }
 

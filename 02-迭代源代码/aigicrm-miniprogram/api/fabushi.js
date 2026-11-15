@@ -25,6 +25,10 @@ function addFabushiComment(postId, content) {
   return request({ url: `/api/fabushi/posts/${postId}/comments`, method: 'POST', data: { content } })
 }
 
+function getFabushiComments(postId) {
+  return request({ url: `/api/fabushi/posts/${postId}/comments` })
+}
+
 function toggleFabushiLike(postId) {
   return request({ url: `/api/fabushi/posts/${postId}/like`, method: 'POST' })
 }
@@ -39,5 +43,5 @@ function getFabushiPersonalStats() {
 
 module.exports = {
   getFabushiBooks, submitFabushiBook, getFabushiPosts, getFabushiPostDetail,
-  createFabushiPost, addFabushiComment, toggleFabushiLike, markFabushiRead, getFabushiPersonalStats,
+  createFabushiPost, addFabushiComment, getFabushiComments, toggleFabushiLike, markFabushiRead, getFabushiPersonalStats,
 }

@@ -185,14 +185,14 @@ class MybatisPlusConfigTest {
     // ---- 批① 2026-08-10: admin 忽略租户 + 26 表白名单 ----
 
     @Test
-    void admin_ignoresTenantCondition() {
+    void admin_alsoAppliesTenantCondition() {
         SecurityUser user = new SecurityUser();
         user.setRoleCodes(List.of("admin"));
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken(user, null, Collections.emptyList()));
         TenantLineInnerInterceptor it = MybatisPlusConfig.buildTenantInterceptor();
         String rewritten = it.parserSingle("SELECT * FROM biz_customer WHERE id = 1", "id");
-        assertFalse(rewritten.toLowerCase().contains("tenant_id"), "平台管理员不应附加租户条件: " + rewritten);
+        assertTrue(rewritten.toLowerCase().contains("tenant_id = 1"), "单集团 admin 也附加主集团条件: " + rewritten);
     }
 
     @Test

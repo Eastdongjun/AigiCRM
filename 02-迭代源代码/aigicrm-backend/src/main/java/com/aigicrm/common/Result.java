@@ -6,6 +6,8 @@ import lombok.Data;
 public class Result<T> {
     private int code;
     private String message;
+    /** 机器可读错误码(可选): 前端/测试据此分支, 不再靠文案猜测 */
+    private String errorCode;
     private T data;
 
     public static <T> Result<T> ok(T data) {
@@ -21,9 +23,14 @@ public class Result<T> {
     }
 
     public static <T> Result<T> error(int code, String message) {
+        return error(code, message, null);
+    }
+
+    public static <T> Result<T> error(int code, String message, String errorCode) {
         Result<T> r = new Result<>();
         r.setCode(code);
         r.setMessage(message);
+        r.setErrorCode(errorCode);
         return r;
     }
 

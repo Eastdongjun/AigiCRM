@@ -1,0 +1,30 @@
+<view class="fb-tabs">
+  <view
+    wx:for="{{tabs}}"
+    wx:key="value"
+    class="fb-tab {{active === item.value ? 'active' : ''}}"
+    data-value="{{item.value}}"
+    bindtap="onTabTap"
+  >{{item.label}}</view>
+</view>
+
+<view class="fb-list">
+  <view wx:if="{{!loading && !posts.length}}" class="fb-empty">暂无法布施内容</view>
+  <view wx:for="{{posts}}" wx:key="id" class="fb-card" data-id="{{item.id}}" bindtap="goDetail">
+    <view class="fb-card-title">{{item.title || '无标题'}}</view>
+    <view class="fb-card-content">{{item.content}}</view>
+    <view class="fb-card-meta">
+      <text>{{item.userName || '法布施'}}</text>
+      <text>{{item.createdAt}}</text>
+    </view>
+    <view class="fb-card-stats">
+      <text>🐟 {{item.likeCount || 0}}</text>
+      <text>💬 {{item.commentCount || 0}}</text>
+      <text wx:if="{{item.readByMe}}">已读</text>
+    </view>
+  </view>
+  <view wx:if="{{loading}}" class="fb-loading">加载中...</view>
+  <view wx:elif="{{posts.length && posts.length >= total}}" class="fb-end">没有更多了</view>
+</view>
+
+<view wx:if="{{canCreate}}" class="fb-fab" bindtap="goUpload">＋</view>

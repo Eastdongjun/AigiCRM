@@ -269,7 +269,7 @@ public class FileService {
             // 【拍板 A 2026-11-14 私人空间收口】private scope 不再走部门/用户矩阵——
             // 夹内文件=夹 ∈ visibleIds(本人/上级链/ACL) ∨ FILE view 授权整夹; 无夹=上传人 ∈ 本人∪下属。
             // 原逻辑把"夹.org ∈ deptSet"的同部门他人私人夹文件捞进列表(与树口径打架), 本批拔除。
-            if (!SecurityUtils.isAdmin()) {
+            {
                 if ("private".equals(scope)) {
                     java.util.Set<Long> subs = folderPermissionService.subordinateUserIds(userId);
                     java.util.List<Long> owners = new java.util.ArrayList<>(subs);
@@ -330,17 +330,18 @@ public class FileService {
 
         Long userId = SecurityUtils.getCurrentUserId();
 
-        // 【安全加固】scope 白名单：仅允许 public/private/incentive，未识别 scope 直接拒绝
+        // 【安全加固】scope 白名单：允许 public/private/incentive/fabushi，未识别 scope 直接拒绝
         // （与 pageFiles/getFolderTree 的 scope 白名单对称，防止任意 scope 落盘后绕过查询过滤/占用存储）
-        if (scope == null || !("public".equals(scope) || "private".equals(scope) || "incentive".equals(scope))) {
+        if (scope == null || !("public".equals(scope) || "private".equals(scope) || "incentive".equals(scope) || "fabushi".equals(scope))) {
             throw new BusinessException(403, "非法的文件范围");
         }
 
         // 【2026-10-27 深度检查修复】无夹 public 上传补管理员门槛: 该路径落盘 public/{userId}/ 且
         // file_scope=public 后立即进入匿名无鉴权下载通道(/api/file/download/public/**), 与
         // "根级公共文件夹仅管理员可建"门槛对称——普通用户要发公共资源, 走公共文件夹(ACL 判定)。
-        if ("public".equals(scope) && folderId == null && !SecurityUtils.isAdmin()) {
-            throw new BusinessException("公共根目录文件仅管理员可上传");
+        if ("public".equals(scope) && folderId == null
+                && !SecurityUtils.hasAuthority("file:folder:manage")) {
+            throw new BusinessException(403, "公共根目录上传需要 file:folder:manage 权限");
         }
 
         // 【T2 2026-11-11 审计整改】激励空间上传=激励计分动作: 与 IncentiveController /records
@@ -539,13 +540,15 @@ public class FileService {
         // 激励文件（IDOR）。现在改为白名单放行、默认拒绝，且新增 incentive scope 的归属校验。
         // 【文件权限体系】夹内文件（folderId 非空）改按文件夹权限判定（管理员/本人/上级链/ACL delete），
         // 无文件夹文件沿用下方 scope 白名单归属校验。
-        if (!SecurityUtils.isAdmin()) {
+        {
             if (file.getFolderId() != null) {
                 if (!folderPermissionService.checkFile(fileId, FolderPermissionService.P_DELETE, userId)) {
                     throw new BusinessException(403, "没有访问权限，请联系管理员授权");
                 }
             } else if ("public".equals(scope)) {
-                throw new BusinessException("公共文件只有管理员才能删除");
+                if (!SecurityUtils.hasAuthority("file:delete")) {
+                    throw new BusinessException(403, "删除公共文件需要 file:delete 权限");
+                }
             } else if ("private".equals(scope) || "incentive".equals(scope)) {
                 if (!userId.equals(file.getUploaderId())) {
                     throw new BusinessException(403, "无权删除该文件");
@@ -902,7 +905,14 @@ public class FileService {
     // ==================== 【V2026.11.14.1 版本历史】(用户拍板 2026-11-14) ====================
 
     /** 【V2026.11.14.3 P1】版本上限裁剪: 保留最新 max-per-file 条, 超出旧版删内容+行(引用计数防误删)。
-     *  止住"无限替换=无限磁盘"; 版本计入用户配额为第二版产品决策(本版不改配额口径)。 */
+     *  止住"无限替换=无限磁盘"; 版本计入用户配额为第二版产品决策(本版不改配额口径)。
+     *
+     *  【本次修复 2026-11-14】原实现有两个数据风险:
+     *  ① 在 replace/rollback 事务内直接 deleteStoredContent: 后续配额更新失败回滚时,
+     *     版本行回来了但字节已被删, 历史版本变成坏链接; 改为"事务内只删行, afterCommit 删字节"。
+     *  ② key 等于主行 key / 被同文件其他版本引用时直接 continue, 行不删——max 上限被绕过,
+     *     回滚产生的共享 key 版本会永久堆积; 改为"行始终删, 字节按引用计数决定是否删"。
+     */
     private void pruneVersionsIfNeeded(Long fileId) {
         int max = resolveIntConfig("file.version.max-per-file", 20);
         if (max <= 0) return; // 0/负 = 不限制
@@ -912,10 +922,41 @@ public class FileService {
         String mainKey = main != null ? main.getOssKey() : null;
         for (int i = max; i < all.size(); i++) {
             BizFileVersion v = all.get(i);
-            if (v.getOssKey() == null || v.getOssKey().equals(mainKey)) continue; // 主行字节不可删
-            if (fileVersionMapper.countOtherRefs(v.getOssKey(), fileId, v.getId()) > 0) continue; // 同文件他版本仍引用
-            deleteStoredContent(v.getOssKey());
+            String key = v.getOssKey();
+            boolean contentShared = key == null || key.isBlank()
+                    || key.equals(mainKey)
+                    || versionContentReferencedElsewhere(key, fileId, v.getId());
+            // 行必须删: 否则共享 key 的旧版本会让 max-per-file 永远降不下来
             fileVersionMapper.deleteById(v.getId());
+            if (!contentShared) deleteStoredContentAfterCommit(key);
+        }
+    }
+
+    /** 版本字节是否仍被"当前主行之外"的活跃文件/其他版本引用(含同文件其他版本、其他文件版本)。 */
+    private boolean versionContentReferencedElsewhere(String key, Long fileId, Long excludeVersionId) {
+        Long active = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM biz_file WHERE oss_key = ? AND deleted = 0 AND id <> ?",
+                Long.class, key, fileId);
+        if (active != null && active > 0) return true;
+        Long otherVersion = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM biz_file_version WHERE oss_key = ? AND id <> ?",
+                Long.class, key, excludeVersionId);
+        return otherVersion != null && otherVersion > 0;
+    }
+
+    /** 事务内登记 afterCommit 删除字节; 无事务(直调/单测)时立即删除。 */
+    private void deleteStoredContentAfterCommit(String key) {
+        if (key == null || key.isBlank()) return;
+        if (org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive()) {
+            org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+                    new org.springframework.transaction.support.TransactionSynchronization() {
+                        @Override
+                        public void afterCommit() {
+                            deleteStoredContent(key);
+                        }
+                    });
+        } else {
+            deleteStoredContent(key);
         }
     }
 
@@ -1660,7 +1701,6 @@ public class FileService {
 
     /** 文件访问权限校验：上传者 / 被分享者 / 管理员 / 公共文件（/download/{id} 与 /download/{key} 同权） */
     public boolean canAccessFile(BizFile file, Long userId) {
-        if (SecurityUtils.isAdmin()) return true;
         if ("public".equals(file.getFileScope())) return true;
         if (userId.equals(file.getUploaderId())) return true;
         // 检查是否被分享
@@ -1681,7 +1721,6 @@ public class FileService {
     /** 激励"查看全部"资格: admin 或 biz_incentive_grant.can_view_all=1(与 IncentiveService.canViewAll 同语义;
      *  经 jdbc 轻查避免跨模块注入服务/加构造参——文件侧列表与下载双分支共用) */
     private boolean incentiveViewAllGranted() {
-        if (SecurityUtils.isAdmin()) return true;
         Long uid = SecurityUtils.getCurrentUserId();
         if (uid == null) return false;
         Long n = jdbc.queryForObject(
@@ -1706,7 +1745,7 @@ public class FileService {
         if (!canDownload) {
             return false;
         }
-        if (file.getFolderId() != null && !SecurityUtils.isAdmin()) {
+        if (file.getFolderId() != null) {
             BizFileFolder folder = folderMapper.selectById(file.getFolderId());
             if (folder != null && (folder.getDownloadable() == null || folder.getDownloadable() != 1)) {
                 return false;
@@ -1821,7 +1860,7 @@ public class FileService {
         if (file == null) throw new BusinessException("文件不存在");
         // 【文件权限体系】夹内文件按文件夹权限判定分享（管理员/本人/上级链/ACL share）；
         // 无文件夹文件沿用下方上传者归属校验
-        if (!SecurityUtils.isAdmin()) {
+        {
             if (file.getFolderId() != null) {
                 if (!folderPermissionService.checkFile(fileId, FolderPermissionService.P_SHARE, currentUserId)) {
                     throw new BusinessException(403, "没有访问权限，请联系管理员授权");

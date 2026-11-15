@@ -3,7 +3,7 @@
   <view
     wx:for="{{tabs}}"
     wx:key="key"
-    class="tab t-{{item.key}} {{selected === index ? 'active' : ''}}"
+    class="tab t-{{item.key}} {{selected === index ? 'active' : ''}} {{item.disabled ? 'disabled' : ''}}"
     data-index="{{index}}"
     bindtap="onTap"
   >

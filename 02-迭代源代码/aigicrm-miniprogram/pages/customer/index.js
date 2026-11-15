@@ -123,6 +123,10 @@ Page({
     this.refresh()
   },
 
+  onPermissionChanged() {
+    this.loadCounts(); this.loadCustomers();
+  },
+
   onShow() {
     if (!this.didInitialShow) {
       this.didInitialShow = true

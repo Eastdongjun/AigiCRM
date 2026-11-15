@@ -530,6 +530,16 @@ Page({
     })
   },
 
+  onPermissionChanged() {
+    if (getApp().globalData.demoMode) return
+    if (!(typeof hasPermission === 'function' && hasPermission('incentive:add'))) {
+      wx.showToast({ title: '没有四项服务上传权限', icon: 'none' })
+      setTimeout(() => wx.navigateBack(), 300)
+      return
+    }
+    this.refreshUploadViewState()
+  },
+
   onLoad(options = {}) {
     if (!requireLogin()) return
     const editId = options.id || ''

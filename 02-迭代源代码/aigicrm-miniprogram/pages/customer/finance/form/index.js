@@ -45,6 +45,14 @@ Page({
     stageFormView: null
   },
 
+  onPermissionChanged() {
+    if (getApp().globalData.demoMode) return
+    if (!(hasPermission('finance:manage') || hasPermission('customer:finance:edit') || (hasPermission('customer:edit') && hasPermission('finance:view')))) {
+      wx.showToast({ title: '没有操作权限', icon: 'none' })
+      setTimeout(() => wx.navigateBack(), 300)
+    }
+  },
+
   onLoad(options) {
     if (!requireLogin()) return
     // 【2026-11-03 拆码对齐】后端第三通道 customer:finance:edit(开票回款编辑, 带独立数据范围)

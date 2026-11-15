@@ -49,8 +49,9 @@ public class IncentiveService {
      * 【注意】只读查表；不再读权限码，旧 incentive:view-all 权限码已废弃
      */
     public boolean canViewAll(Long userId) {
-        return SecurityUtils.isAdmin()
-                || grantFlag(SecurityUtils.getCurrentUserId(), "can_view_all", false);
+        // 【产品口径 2026-11-15】admin 默认拥有全部权限
+        if (SecurityUtils.isAdmin()) return true;
+        return grantFlag(SecurityUtils.getCurrentUserId(), "can_view_all", false);
     }
 
     /**
@@ -64,6 +65,8 @@ public class IncentiveService {
      * 【注意】只读查表；收窄通过激励授权面板把 can_view_shared 置 0 实现
      */
     public boolean canViewShared(Long userId) {
+        // 【产品口径 2026-11-15】admin 默认拥有全部权限
+        if (SecurityUtils.isAdmin()) return true;
         return grantFlag(SecurityUtils.getCurrentUserId(), "can_view_shared", true);
     }
 
@@ -78,8 +81,9 @@ public class IncentiveService {
      * 【注意】只读查表；与 canDelete 独立勾选
      */
     public boolean canEdit() {
-        return SecurityUtils.isAdmin()
-                || grantFlag(SecurityUtils.getCurrentUserId(), "can_edit", false);
+        // 【产品口径 2026-11-15】admin 默认拥有全部权限
+        if (SecurityUtils.isAdmin()) return true;
+        return grantFlag(SecurityUtils.getCurrentUserId(), "can_edit", false);
     }
 
     /** 人员列表（公开）：激励页下拉框用 */
@@ -128,8 +132,9 @@ public class IncentiveService {
      * 【注意】只读查表；与 canEdit 独立勾选
      */
     public boolean canDelete() {
-        return SecurityUtils.isAdmin()
-                || grantFlag(SecurityUtils.getCurrentUserId(), "can_delete", false);
+        // 【产品口径 2026-11-15】admin 默认拥有全部权限
+        if (SecurityUtils.isAdmin()) return true;
+        return grantFlag(SecurityUtils.getCurrentUserId(), "can_delete", false);
     }
 
     /**
@@ -189,8 +194,9 @@ public class IncentiveService {
      * 激励模块可见性统一为分享制，不再使用 data_scope/上级可见下级/负责人可见本组织/客户分享。
      */
     private boolean canSeeAllIncentive() {
-        return SecurityUtils.isAdmin()
-                || grantFlag(SecurityUtils.getCurrentUserId(), "can_view_all", false)
+        // 【产品口径 2026-11-15】admin 默认拥有全部权限
+        if (SecurityUtils.isAdmin()) return true;
+        return grantFlag(SecurityUtils.getCurrentUserId(), "can_view_all", false)
                 || grantFlag(SecurityUtils.getCurrentUserId(), "can_edit", false)
                 || grantFlag(SecurityUtils.getCurrentUserId(), "can_delete", false);
     }
@@ -219,7 +225,7 @@ public class IncentiveService {
     // (镜像统计家族口径); scoreboard 同款 30s 数据缓存窗内变更延迟生效。
     private java.util.Set<Long> orgScopeVisibleCustomerIds() {
         com.aigicrm.security.SecurityUser user = SecurityUtils.getCurrentUser();
-        if (user == null || SecurityUtils.isAdmin()) return null; // null=不过滤(全量)
+        if (user == null) return null; // null=不过滤(全量)
         // 【WP1.5 2026-11-13】单一源化: 可见负责人集合改走 CustomerVisibilityService((customer,view)),
         // 客户过滤口径不变(未分配负责人的客户保持全员可见)
         java.util.List<Long> visibleUsers = customerVisibilityService.visibleOwnerIds();
@@ -923,7 +929,7 @@ public class IncentiveService {
     // 时不过滤(fail-open 同模式)。统计页签=客户维度收口(可见客户), 排行页签=人员维度收口(可见人员)。
     private java.util.Set<Long> statsVisibleUserIds() {
         com.aigicrm.security.SecurityUser user = SecurityUtils.getCurrentUser();
-        if (user == null || SecurityUtils.isAdmin()) return null;
+        if (user == null) return null;
         // 【2026-11-05 用户拍板 B"四项激励独立数据范围"】改读独立档位 (incentive, stats_view),
         // 不再跟随 (statistics, view); 存量角色由 V2026.11.05.7 回填拷贝统计分析档位, 行为不变。
         java.util.List<Long> visible = scopeResolver.resolveModuleUsers(user, "incentive", "stats_view");
@@ -1482,12 +1488,10 @@ public class IncentiveService {
         } catch (Exception e) {
             return false;
         }
-        if (!SecurityUtils.isAdmin()) {
-            Long g = com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull();
-            Object tenant = row.get("tenant_id");
-            Long recordTenant = tenant == null ? null : Long.valueOf(String.valueOf(tenant));
-            if (g == null || !g.equals(recordTenant)) return false;
-        }
+        Long g = com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull();
+        Object tenant = row.get("tenant_id");
+        Long recordTenant = tenant == null ? null : Long.valueOf(String.valueOf(tenant));
+        if (g == null || !g.equals(recordTenant)) return false;
         if (canSeeAllIncentive()) return true;
         Long self = SecurityUtils.getCurrentUserId();
         Object owner = row.get("user_id");
@@ -1570,19 +1574,6 @@ public class IncentiveService {
      * 【PR-01 P0-03 2026-09-18】原生 SQL 绕过租户拦截器：用户集合限定当前集团成员，
      * 记录限定当月 + 当前集团 tenant；无集团归属直接返回空（fail-closed）。 */
     private List<Map<String, Object>> monthlyReadAggregate(String month) {
-        if (SecurityUtils.isAdmin()) {
-            return jdbc.queryForList(
-                    "SELECT u.id AS userId, u.real_name AS realName, d.dept_name AS deptName, "
-                            + "COUNT(DISTINCT r.id) AS publishedCount, COUNT(DISTINCT br.record_id) AS readCount, "
-                            + "COUNT(DISTINCT r.id)-COUNT(DISTINCT br.record_id) AS unreadCount "
-                            + "FROM sys_user u "
-                            + "LEFT JOIN sys_dept d ON d.id = u.dept_id "
-                            + "LEFT JOIN biz_incentive_record r ON r.created_at LIKE CONCAT(?, '%') "
-                            + "LEFT JOIN biz_incentive_read br ON br.user_id=u.id AND br.record_id=r.id "
-                            + "WHERE u.deleted=0 GROUP BY u.id,u.real_name,d.dept_name "
-                            + "ORDER BY readCount DESC, unreadCount DESC LIMIT 100",
-                    month);
-        }
         Long g = com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull();
         if (g == null) return List.of();
         List<Long> inGroup = com.aigicrm.common.scope.GroupScopeUtil.userIdsInGroup(jdbc, g);
