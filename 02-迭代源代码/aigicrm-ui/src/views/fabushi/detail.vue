@@ -1,5 +1,5 @@
 <template>
-  <div class="page-container fabushi-detail">
+  <div class="fabushi-detail">
     <div class="detail-head">
       <el-button link @click="router.back()">← 返回</el-button>
       <span class="detail-kicker">法布施 · 内容详情</span>
@@ -125,21 +125,23 @@ onMounted(loadDetail)
 
 <style scoped>
 .fabushi-detail { max-width: 920px; margin: 0 auto; }
+.fabushi-detail :deep(.el-card) { border: 1px solid var(--border-light); border-radius: var(--radius-md); background: var(--el-bg-color); }
 .detail-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
-.detail-kicker { color: #9ca3af; font-size: 12px; letter-spacing: 1px; }
+.detail-kicker { color: var(--text-placeholder); font-size: 12px; letter-spacing: 1px; }
 .detail-card { margin-bottom: 16px; }
-.detail-title { font-size: 22px; font-weight: 700; color: #1f2d3d; }
-.detail-meta { display: flex; gap: 16px; margin-top: 8px; color: #9ca3af; font-size: 12px; }
-.detail-read { color: #2563eb; }
-.detail-content { margin-top: 20px; color: #374151; font-size: 15px; line-height: 1.85; white-space: pre-wrap; }
-.detail-actions { display: flex; align-items: center; gap: 16px; margin-top: 24px; padding-top: 16px; border-top: 1px solid #eef0f3; }
-.detail-comment-count { color: #9ca3af; font-size: 13px; }
-.comment-item { padding: 14px 0; border-bottom: 1px solid #f1f3f6; }
+.detail-title { color: var(--text-primary); font-size: 22px; font-weight: 700; }
+.detail-meta { display: flex; gap: 16px; margin-top: 8px; color: var(--text-placeholder); font-size: 12px; }
+.detail-read { color: var(--primary-color); }
+.detail-content { margin-top: 20px; color: var(--text-secondary); font-size: 15px; line-height: 1.85; white-space: pre-wrap; }
+.detail-actions { display: flex; align-items: center; gap: 16px; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border-light); }
+.detail-comment-count { color: var(--text-muted); font-size: 13px; }
+.comment-item { padding: 14px 0; border-bottom: 1px solid var(--border-light); }
 .comment-item:last-of-type { border-bottom: none; }
-.comment-name { font-size: 13px; font-weight: 600; color: #374151; }
-.comment-content { margin-top: 4px; color: #4b5563; font-size: 14px; line-height: 1.7; white-space: pre-wrap; }
-.comment-time { margin-top: 4px; color: #9ca3af; font-size: 11px; }
-.comment-empty { padding: 18px 0; color: #9ca3af; font-size: 13px; }
-.comment-form { margin-top: 16px; padding-top: 16px; border-top: 1px solid #eef0f3; }
+.comment-name { color: var(--text-secondary); font-size: 13px; font-weight: 600; }
+.comment-content { margin-top: 4px; color: var(--text-secondary); font-size: 14px; line-height: 1.7; white-space: pre-wrap; }
+.comment-time { margin-top: 4px; color: var(--text-placeholder); font-size: 11px; }
+.comment-empty { padding: 18px 0; color: var(--text-muted); font-size: 13px; }
+.comment-form { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-light); }
 .comment-submit { display: flex; justify-content: flex-end; margin-top: 10px; }
+
 </style>

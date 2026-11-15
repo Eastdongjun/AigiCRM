@@ -126,3 +126,14 @@ Playwright + 测试环境真实登录态：
 - PC feed/detail/library/发布/评论/木鱼/已读实测 PASS
 - `vue-tsc` 通过；`npm test` 324；`npm run build` 通过
 - 角色菜单核对：admin 5 项、0/05/06 仅社区 2 项
+
+### UI 设计令牌复核（2026-11-16）
+
+用户指出：首版法布施 PC 页只加载了 `ui-design-pro` 技能，未真正消费 ZCode 设计码，页面存在 `#fff/#eef0f3/#2563eb` 硬编码。
+
+修正：
+- 移除页面自建 `page-container`，统一使用 layout 的 `.page-shell`（白色整体容器/16px 圆角/`--shadow-card`）。
+- 颜色全部改为项目令牌：`--text-primary/secondary/muted/placeholder`、`--border-light`、`--primary-color`、`--el-fill-color-lighter`、`--el-bg-color`。
+- 圆角/阴影改为 `--radius-md`、`--shadow-card-hover`。
+- 列表卡改为浅灰瓦片，hover 变白抬升；书目卡 `align-items:start`，固定 140px 高，不再被 grid 拉伸。
+- 验证：feed 双栏 1036+280、feed 卡 132px、book 卡 140×323、page-shell 16px、无横向溢出、分页在容器内；截图存 `test-results/menu-dict/fabushi-*-tokens.png`。

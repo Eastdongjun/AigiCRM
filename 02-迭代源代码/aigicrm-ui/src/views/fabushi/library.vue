@@ -1,5 +1,5 @@
 <template>
-  <div class="page-container fabushi-library">
+  <div class="fabushi-library">
     <div class="page-header">
       <div>
         <h2>书目浏览</h2>
@@ -110,13 +110,18 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.fabushi-library { padding-bottom: 24px; }
+.page-header { margin-bottom: 16px; }
+.page-header h2 { margin: 0 0 4px; color: var(--text-primary); font-size: 20px; font-weight: 600; }
+.page-desc { margin: 0; color: var(--text-muted); font-size: 13px; }
 .library-toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 16px; }
-.book-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; min-height: 220px; }
-.book-card { background: #fff; border: 1px solid #eef0f3; border-radius: 10px; padding: 18px; display: flex; flex-direction: column; min-height: 140px; transition: box-shadow .18s, transform .18s; }
-.book-card:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(16, 24, 40, .08); }
-.book-card-title { font-size: 16px; font-weight: 600; color: #1f2d3d; }
-.book-meta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; color: #9ca3af; font-size: 12px; }
+.book-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); align-items: start; gap: 14px; min-height: 160px; }
+.book-card { display: flex; flex-direction: column; min-height: 140px; padding: 18px; background: var(--el-fill-color-lighter); border: 1px solid var(--border-light); border-radius: var(--radius-md); transition: background .18s, box-shadow .18s, transform .18s; }
+.book-card:hover { transform: translateY(-2px); background: var(--el-bg-color); box-shadow: var(--shadow-card-hover); }
+.book-card-title { color: var(--text-primary); font-size: 16px; font-weight: 600; }
+.book-meta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; color: var(--text-muted); font-size: 12px; }
 .book-actions { display: flex; align-items: center; gap: 10px; margin-top: auto; padding-top: 16px; }
-.book-no-pdf { color: #c0c4cc; font-size: 12px; }
-.library-pager { display: flex; justify-content: flex-end; margin-top: 16px; }
+.book-no-pdf { color: var(--text-placeholder); font-size: 12px; }
+.library-pager { display: flex; justify-content: flex-end; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border-light); }
+
 </style>
