@@ -131,3 +131,23 @@ V2026.11.15.5__admin_all_active_menus.sql
 - 代码：`git revert` 集成分支两个提交或在源码树 `git checkout feature/perm-kernel` 回到 `dd2a8315`。
 - 测试库：保留迁移前备份 `/tmp/pre-fabushi-20261116-002509.sql.gz`（测试服）；V15 迁移只增表/码/绑定，无删除业务数据。
 - 生产：未执行，无回滚对象。
+
+## 6. 最终状态（2026-11-16 01:40）
+
+- 正式源码树：`integration/perm-fabushi-20261116`，HEAD `edaf3214`（收敛提交 `df6df871` + 验收修复 `edaf3214`）。
+- 测试工作树：`integration/perm-fabushi-20261116`，HEAD `3f138db`（`1b07f25` + `f400039` + `3f138db`）。
+- 逐文件对账：`aigicrm-backend/src`、`aigicrm-ui/src`、`aigicrm-miniprogram` 两树 **0 diff**。
+- 源码树剩余未提交改动仅历史项：`00-项目管理/法布施原型图`、`docs/unified-feature-audit.md`、`scripts/test-miniprogram-incentive-dial.js`（均非本轮产生，未纳入提交）。
+- 测试环境：前端已部署收敛构建（备份 `/data/aigicrm/backup/frontend-20261116-pre.tgz`）；Flyway `2026.11.16.3`；临时验收角色/账号 `zz_mp_probe`（role 102 / user 83）已删除，role 06 法布施绑定恢复为 2 码。
+- 最终验收矩阵：
+
+| 项 | 结果 | 证据 |
+|---|---|---|
+| 后端 | PASS 1,099 tests / 0 failures / 0 errors / 0 skipped | `mvn test`（源码树，exit 0） |
+| PC 单测/构建 | PASS 324 tests / build exit 0 | `npm test`、`npm run build` |
+| 小程序语法 | PASS 92/92 | `node --check` |
+| MP 页面级 | PASS 工作台/内容流/详情/评论/木鱼/已读 | `test-results/fabushi/mp-evidence-20261116.json` |
+| MP 撤权/恢复 | PASS 应用中心入口消失/恢复，发布按钮 3→2→3 | `test-results/fabushi/mp-revoke-evidence-20261116.json` |
+| PC 权限中心 9 码 | PASS 逐个勾选（PUT 200）+ 依赖置灰 + 恢复原状态 | `test-results/fabushi/pc-perm-center-evidence-20261116.json` |
+| 权限/契约脚本 | PASS 8 项（codes-generated/api-fresh/binding/consumption/scope-parity/scope-axis/action-gate/dict） | 见第 2 节 |
+| 生产 | 未部署（禁止） | — |
