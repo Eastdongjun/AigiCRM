@@ -1,6 +1,6 @@
 {
  "generated_at": "2026-11-16",
- "count": 268,
+ "count": 277,
  "endpoints": [
   {
    "method": "POST",
@@ -483,10 +483,64 @@
    "handler": "restore"
   },
   {
+   "method": "GET",
+   "path": "/api/fabushi/progress/{bookId}",
+   "permission": "hasAuthority('fabushi:view')",
+   "handler": "progress"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/fabushi/progress/{bookId}",
+   "permission": "hasAuthority('fabushi:view')",
+   "handler": "saveProgress"
+  },
+  {
    "method": "POST",
    "path": "/api/fabushi/reads/mark",
    "permission": "hasAuthority('fabushi:view')",
    "handler": "markRead"
+  },
+  {
+   "method": "GET",
+   "path": "/api/fabushi/records",
+   "permission": "hasAuthority('fabushi:view')",
+   "handler": "records"
+  },
+  {
+   "method": "GET",
+   "path": "/api/fabushi/settings",
+   "permission": "hasAuthority('fabushi:view')",
+   "handler": "settings"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/fabushi/settings",
+   "permission": "hasAuthority('fabushi:view')",
+   "handler": "saveSettings"
+  },
+  {
+   "method": "GET",
+   "path": "/api/fabushi/shelf",
+   "permission": "hasAuthority('fabushi:view')",
+   "handler": "shelf"
+  },
+  {
+   "method": "POST",
+   "path": "/api/fabushi/shelf",
+   "permission": "hasAuthority('fabushi:view')",
+   "handler": "addShelf"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/fabushi/shelf/{id}",
+   "permission": "hasAuthority('fabushi:view')",
+   "handler": "removeShelf"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/fabushi/shelf/{id}",
+   "permission": "hasAuthority('fabushi:view')",
+   "handler": "updateShelf"
   },
   {
    "method": "GET",

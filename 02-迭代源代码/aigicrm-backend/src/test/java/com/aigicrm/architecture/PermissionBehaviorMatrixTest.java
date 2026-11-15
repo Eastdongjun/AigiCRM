@@ -110,6 +110,7 @@ class PermissionBehaviorMatrixTest {
     // 【法布施一期 2026-11-15】
     @MockitoBean com.aigicrm.module.fabushi.service.FabushiStatsService fabushiStatsService;
     @MockitoBean com.aigicrm.module.fabushi.service.FabushiDashboardService fabushiDashboardService;
+    @MockitoBean com.aigicrm.module.fabushi.service.FabushiReadingService fabushiReadingService;
     @MockitoBean com.aigicrm.module.fabushi.service.FabushiBookService fabushiBookService;
     @MockitoBean com.aigicrm.module.fabushi.service.FabushiPostService fabushiPostService;
     @MockitoBean com.aigicrm.module.sea.service.SeaConfigService seaConfigService;

@@ -5,13 +5,15 @@
       <b>{{ book.title || '在线阅读' }}</b>
       <span class="reader-sub">{{ book.author || '' }}<template v-if="book.pages"> · {{ book.pages }} 页</template></span>
       <span class="spacer" />
+      <span class="page-control">第 <el-input-number v-model="currentPage" :min="1" :max="totalPages || 9999" size="small" controls-position="right" @change="applyPage" /> 页<template v-if="totalPages"> / {{ totalPages }}</template></span>
+      <el-button link class="download" :loading="savingProgress" @click="saveProgress">保存进度</el-button>
       <el-button v-if="book.pdfFileId && canDownload" link class="download" @click="downloadPdf">下载</el-button>
     </div>
 
     <div class="reader-body">
       <aside class="reader-rail">
         <div class="rail-title">阅读说明</div>
-        <p>当前为 PDF 在线阅读。页码、目录与进度由浏览器 PDF 阅读器提供；结构化章节与进度记忆为二期。</p>
+        <p>当前为 PDF 在线阅读。页码进度会保存到个人书架；结构化目录/章节记忆为下一批。</p>
         <div class="rail-meta">
           <span>书目</span><b>{{ book.title || '—' }}</b>
           <span>作者</span><b>{{ book.author || '—' }}</b>
@@ -30,7 +32,8 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getFabushiBooks } from '@/api/fabushi'
+import { ElMessage } from 'element-plus'
+import { getFabushiBooks, getFabushiProgress, saveFabushiProgress } from '@/api/fabushi'
 import { refreshDownloadToken } from '@/utils/token'
 import { downloadFile } from '@/utils/download'
 import { getToken } from '@/utils/token'
@@ -42,6 +45,10 @@ const userStore = useUserStore()
 const canDownload = computed(() => userStore.hasPermission('fabushi:view'))
 const book = ref({ id: null, title: '', author: '', pages: null, pdfFileId: null })
 const pdfUrl = ref('')
+const basePdfUrl = ref('')
+const currentPage = ref(1)
+const totalPages = ref(null)
+const savingProgress = ref(false)
 const loading = ref(true)
 const error = ref('')
 
@@ -64,11 +71,36 @@ const loadBook = async () => {
       error.value = '阅读凭证获取失败，请重新登录后再试'
       return
     }
-    pdfUrl.value = `/api/file/download/${book.value.pdfFileId}?token=${encodeURIComponent(token)}`
+    basePdfUrl.value = `/api/file/download/${book.value.pdfFileId}?token=${encodeURIComponent(token)}`
+    try {
+      const { data: p } = await getFabushiProgress(book.value.id)
+      currentPage.value = Number(p && p.lastPage) || 1
+      totalPages.value = Number(p && p.totalPages) || book.value.pages || null
+    } catch (e) {
+      totalPages.value = book.value.pages || null
+    }
+    applyPage()
   } catch (e) {
     error.value = '书目录入失败，请稍后再试'
   } finally {
     loading.value = false
+  }
+}
+
+const applyPage = () => {
+  if (!basePdfUrl.value) return
+  const page = Math.max(1, Number(currentPage.value) || 1)
+  pdfUrl.value = `${basePdfUrl.value}#page=${page}`
+}
+
+const saveProgress = async () => {
+  if (!book.value.id) return
+  savingProgress.value = true
+  try {
+    await saveFabushiProgress(book.value.id, { lastPage: currentPage.value, totalPages: totalPages.value })
+    ElMessage.success('阅读进度已保存')
+  } finally {
+    savingProgress.value = false
   }
 }
 
@@ -89,6 +121,8 @@ onMounted(loadBook)
 .reader-head b { color: var(--el-color-white); font-size: 14px; }
 .reader-sub { color: var(--text-placeholder); font-size: 11px; }
 .reader-head .back, .reader-head .download { color: var(--sidebar-text); }
+.page-control { display: inline-flex; align-items: center; gap: 4px; color: var(--text-placeholder); font-size: 11px; }
+.page-control :deep(.el-input-number) { width: 86px; }
 .reader-head .back:hover, .reader-head .download:hover { color: var(--el-color-white); }
 .spacer { flex: 1; }
 .reader-body { display: grid; grid-template-columns: 220px minmax(0, 1fr); flex: 1; min-height: 0; }

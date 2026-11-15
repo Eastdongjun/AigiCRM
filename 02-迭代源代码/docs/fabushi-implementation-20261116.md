@@ -211,3 +211,22 @@ Playwright + 测试环境真实登录态：
 - `test-results/permission-matrix/result.json`
 - `test-results/permission-matrix/summary.md`
 - `test-results/permission-matrix/fabushi-role-smoke.json`
+
+## 二期阅读链（2026-11-16，Round 2）
+
+已实现：
+- 后端 `/api/fabushi/shelf`、`/progress/{bookId}`、`/records`、`/settings`，均为本人维度 + `fabushi:view`
+- 实体/Mapper：shelf、reading_progress、user_setting、section、activity、activity_join
+- PC `/fabushi/shelf`：书架/阅读记录/提醒设置三页签；书目卡片“加入书架”
+- PC 阅读器：读取/保存页码进度，iframe 以 `#page=N` 续读
+- MP A1：书架/记录/统计页签接真实接口；阅读提醒设置页 `/pages/fabushi/settings/index`
+- MP 书目详情：加入书架、系统 PDF 阅读（openDocument）并保存起始进度
+
+已验证：
+- 后端单测 1103 全绿
+- PC 书架 1 条、记录 1 条、设置保存/读取 200
+- 阅读进度 lastPage=8 保存/读取成功
+- MP dev-verify 通过（50 页）
+- 权限矩阵：新接口沿用 `fabushi:view`，role smoke 待加入
+
+未完成（后续批）：附件图/音/视、章节树、MP PDF 页码回传、统计导出、共读活动、MP 团队统计页。

@@ -1,0 +1,16 @@
+<view class="settings-page">
+  <view class="card">
+    <view class="setting-row"><view><view class="setting-title">缺卡提醒</view><view class="setting-sub">当天未读才提醒，已读不打扰</view></view><switch checked="{{reminderEnabled}}" bindchange="onReminder" color="#1d4ed8" /></view>
+    <picker mode="selector" range="{{freqs}}" range-key="label" value="{{freqIndex}}" bindchange="onFreq">
+      <view class="setting-row"><view><view class="setting-title">提醒频率</view><view class="setting-sub">每天 / 工作日 / 休息日</view></view><text class="setting-value">{{freqs[freqIndex].label}} ›</text></view>
+    </picker>
+    <picker mode="time" value="{{remindTime}}" bindchange="onTime">
+      <view class="setting-row"><view><view class="setting-title">提醒时间</view><view class="setting-sub">默认 20:00，仅当天未读时提醒</view></view><text class="setting-value">{{remindTime}} ›</text></view>
+    </picker>
+    <view class="setting-row"><view><view class="setting-title">木鱼音效</view><view class="setting-sub">关闭后仅保留动画</view></view><switch checked="{{soundEnabled}}" bindchange="onSound" color="#1d4ed8" /></view>
+  </view>
+  <view class="card note-card">
+    <view class="setting-sub">微信订阅消息为一次性授权；额度用尽时降级为应用内提醒。PC 端可同步保存提醒设置。</view>
+  </view>
+  <view class="save-btn {{submitting ? 'disabled' : ''}}" bindtap="save">{{submitting ? '保存中…' : '保存设置'}}</view>
+</view>

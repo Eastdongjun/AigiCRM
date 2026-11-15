@@ -51,7 +51,8 @@
     "pages/fabushi/book/index",
     "pages/fabushi/upload/index",
     "pages/fabushi/feed/index",
-    "pages/fabushi/detail/index"
+    "pages/fabushi/detail/index",
+    "pages/fabushi/settings/index"
   ],
   "window": {
     "navigationBarTitleText": "AIGICRM",

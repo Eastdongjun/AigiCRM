@@ -4,7 +4,7 @@
 > 本文件由 scripts/gen-api.py 自动生成,**禁止手改**;接口变更后重新运行。
 > 权限码与 docs/permission/permission-dict.md 对应。
 
-## 接口清单(268 个)
+## 接口清单(277 个)
 
 | 方法 | 路径 | 权限码 | 方法名 | 文件 |
 |---|---|---|---|---|
@@ -88,7 +88,16 @@
 | POST | `/api/fabushi/posts/{id}/like` | `hasAuthority('fabushi:create')` | toggleLike | FabushiPostController.java |
 | PUT | `/api/fabushi/posts/{id}/offline` | `hasAuthority('fabushi:content:manage')` | offline | FabushiPostController.java |
 | PUT | `/api/fabushi/posts/{id}/restore` | `hasAuthority('fabushi:content:manage')` | restore | FabushiPostController.java |
+| GET | `/api/fabushi/progress/{bookId}` | `hasAuthority('fabushi:view')` | progress | FabushiReadingController.java |
+| PUT | `/api/fabushi/progress/{bookId}` | `hasAuthority('fabushi:view')` | saveProgress | FabushiReadingController.java |
 | POST | `/api/fabushi/reads/mark` | `hasAuthority('fabushi:view')` | markRead | FabushiReadController.java |
+| GET | `/api/fabushi/records` | `hasAuthority('fabushi:view')` | records | FabushiReadingController.java |
+| GET | `/api/fabushi/settings` | `hasAuthority('fabushi:view')` | settings | FabushiReadingController.java |
+| PUT | `/api/fabushi/settings` | `hasAuthority('fabushi:view')` | saveSettings | FabushiReadingController.java |
+| GET | `/api/fabushi/shelf` | `hasAuthority('fabushi:view')` | shelf | FabushiReadingController.java |
+| POST | `/api/fabushi/shelf` | `hasAuthority('fabushi:view')` | addShelf | FabushiReadingController.java |
+| DELETE | `/api/fabushi/shelf/{id}` | `hasAuthority('fabushi:view')` | removeShelf | FabushiReadingController.java |
+| PUT | `/api/fabushi/shelf/{id}` | `hasAuthority('fabushi:view')` | updateShelf | FabushiReadingController.java |
 | GET | `/api/fabushi/stats/dashboard` | `hasAuthority('fabushi:stats:view')` | dashboard | FabushiStatsController.java |
 | GET | `/api/fabushi/stats/personal` | `hasAuthority('fabushi:view')` | personal | FabushiStatsController.java |
 | GET | `/api/fabushi/stats/team` | `hasAuthority('fabushi:stats:view')` | team | FabushiStatsController.java |

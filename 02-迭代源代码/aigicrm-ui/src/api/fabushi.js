@@ -80,3 +80,40 @@ export function getFabushiTeamStats() {
 export function getFabushiPersonalStats() {
   return request.get('/fabushi/stats/personal')
 }
+
+// 二期阅读链
+export function getFabushiShelf() {
+  return request.get('/fabushi/shelf')
+}
+
+export function addFabushiShelf(bookId) {
+  return request.post('/fabushi/shelf', { bookId })
+}
+
+export function updateFabushiShelf(id, data) {
+  return request.put(`/fabushi/shelf/${id}`, data)
+}
+
+export function removeFabushiShelf(id) {
+  return request.delete(`/fabushi/shelf/${id}`)
+}
+
+export function getFabushiProgress(bookId) {
+  return request.get(`/fabushi/progress/${bookId}`)
+}
+
+export function saveFabushiProgress(bookId, data) {
+  return request.put(`/fabushi/progress/${bookId}`, data)
+}
+
+export function getFabushiRecords(month) {
+  return request.get('/fabushi/records', { params: { month } })
+}
+
+export function getFabushiSettings() {
+  return request.get('/fabushi/settings')
+}
+
+export function saveFabushiSettings(data) {
+  return request.put('/fabushi/settings', data)
+}

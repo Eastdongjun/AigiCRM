@@ -49,3 +49,23 @@ module.exports = {
   getFabushiBooks, getFabushiBook, submitFabushiBook, getFabushiPosts, getFabushiPostDetail,
   createFabushiPost, addFabushiComment, getFabushiComments, toggleFabushiLike, markFabushiRead, getFabushiPersonalStats,
 }
+
+// 二期阅读链
+function getFabushiShelf() { return request({ url: '/api/fabushi/shelf' }) }
+function addFabushiShelf(bookId) { return request({ url: '/api/fabushi/shelf', method: 'POST', data: { bookId } }) }
+function updateFabushiShelf(id, data) { return request({ url: `/api/fabushi/shelf/${id}`, method: 'PUT', data }) }
+function removeFabushiShelf(id) { return request({ url: `/api/fabushi/shelf/${id}`, method: 'DELETE' }) }
+function getFabushiProgress(bookId) { return request({ url: `/api/fabushi/progress/${bookId}` }) }
+function saveFabushiProgress(bookId, data) { return request({ url: `/api/fabushi/progress/${bookId}`, method: 'PUT', data }) }
+function getFabushiRecords(month) { return request({ url: '/api/fabushi/records', data: { month } }) }
+function getFabushiSettings() { return request({ url: '/api/fabushi/settings' }) }
+function saveFabushiSettings(data) { return request({ url: '/api/fabushi/settings', method: 'PUT', data }) }
+module.exports = Object.assign(module.exports, {
+  getFabushiShelf, addFabushiShelf, updateFabushiShelf, removeFabushiShelf,
+  getFabushiProgress, saveFabushiProgress, getFabushiRecords, getFabushiSettings, saveFabushiSettings,
+})
+
+function getFabushiDashboard(period) {
+  return request({ url: '/api/fabushi/stats/dashboard', data: { period: period || 'week' } })
+}
+module.exports = Object.assign(module.exports, { getFabushiDashboard })

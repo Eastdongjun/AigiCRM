@@ -1,5 +1,5 @@
 const { hasPermission, requireLogin } = require('../../utils/auth')
-const { getFabushiPersonalStats, getFabushiBooks, getFabushiPosts } = require('../../api/fabushi')
+const { getFabushiPersonalStats, getFabushiBooks, getFabushiPosts, getFabushiShelf, getFabushiRecords, getFabushiDashboard } = require('../../api/fabushi')
 const { showError } = require('../../utils/feedback')
 
 const TABS = [
@@ -21,7 +21,10 @@ Page({
     posts: [],
     recommended: null,
     searchKeyword: '',
-    hasView: false
+    hasView: false,
+    shelf: [],
+    records: { days: [], readDays: 0, readCount: 0 },
+    team: null
   },
 
   onPermissionChanged() {
@@ -97,6 +100,15 @@ Page({
       getFabushiPosts({ scopeType: 'heart', current: 1, size: 10 }).then((res) => {
         this.setData({ posts: (res && res.records) || [] })
       }).catch(() => {})
+    } else if (value === 'shelf') {
+      getFabushiShelf().then((res) => this.setData({ shelf: (res && res.records) || [] })).catch(() => {})
+    } else if (value === 'rec') {
+      getFabushiRecords().then((res) => this.setData({ records: res || { days: [], readDays: 0, readCount: 0 } })).catch(() => {})
+    } else if (value === 'stats') {
+      getFabushiPersonalStats().then((res) => this.setData({ personal: res || {} })).catch(() => {})
+      if (hasPermission('fabushi:stats:view')) {
+        getFabushiDashboard('week').then((res) => this.setData({ team: res || null })).catch(() => {})
+      }
     }
   },
 
@@ -116,6 +128,8 @@ Page({
 
   refresh() { this.loadAll() },
   goFeed() { wx.navigateTo({ url: '/pages/fabushi/feed/index' }) },
+  goSettings() { wx.navigateTo({ url: '/pages/fabushi/settings/index' }) },
+  goShelfBook(e) { wx.navigateTo({ url: `/pages/fabushi/book/index?id=${e.currentTarget.dataset.id}` }) },
   goBook() { wx.navigateTo({ url: '/pages/fabushi/book/index' }) },
   goUpload() { wx.navigateTo({ url: '/pages/fabushi/upload/index' }) },
   openPost(e) { wx.navigateTo({ url: `/pages/fabushi/detail/index?id=${e.currentTarget.dataset.id}` }) }

@@ -48,7 +48,8 @@
     </view>
     <view class="detail-actions">
       <view class="detail-btn {{canCreate ? '' : 'disabled'}}" bindtap="goUploadForBook">写心得 / 诵读</view>
-      <view class="detail-btn ghost" bindtap="noop">在线阅读 · 二期</view>
+      <view class="detail-btn ghost" bindtap="addShelf">加入书架</view>
+      <view wx:if="{{detailBook.pdfFileId}}" class="detail-btn ghost" bindtap="openReader">在线阅读</view><view wx:else class="detail-btn ghost disabled">在线阅读</view>
     </view>
     <view class="detail-section-title">本书目内容</view>
     <view wx:if="{{detailPosts.length === 0}}" class="detail-empty">暂无作品，欢迎发布第一条</view>

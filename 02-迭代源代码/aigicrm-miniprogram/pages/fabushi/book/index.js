@@ -1,5 +1,7 @@
 const { hasPermission, requireLogin } = require('../../../utils/auth')
-const { getFabushiBooks, getFabushiBook, getFabushiPosts } = require('../../../api/fabushi')
+const { getFabushiBooks, getFabushiBook, getFabushiPosts, addFabushiShelf, saveFabushiProgress } = require('../../../api/fabushi')
+const { getDownloadUrl } = require('../../../api/file')
+const { fetchRemoteAttachment } = require('../../../utils/attachment')
 const { getDictData } = require('../../../api/system')
 const { showError } = require('../../../utils/feedback')
 
@@ -17,7 +19,8 @@ Page({
     canCreate: false,
     detailVisible: false,
     detailBook: {},
-    detailPosts: []
+    detailPosts: [],
+    reading: false
   },
 
   onPermissionChanged() {
@@ -30,13 +33,14 @@ Page({
     this.loadBooks()
   },
 
-  onLoad() {
+  onLoad(query) {
     if (!requireLogin()) return
     if (!hasPermission('fabushi:view')) {
       wx.switchTab({ url: '/pages/home/index' })
       return
     }
     this.setData({ canCreate: hasPermission('fabushi:create') })
+    this._presetBookId = query && query.id ? Number(query.id) : null
     this.loadCategories()
     this.loadBooks()
   },
@@ -65,6 +69,10 @@ Page({
         total: Number(data.total) || 0,
         loading: false
       })
+      if (this._presetBookId && this.data.page === 1) {
+        const preset = records.find((book) => Number(book.id) === Number(this._presetBookId))
+        if (preset) this.openBook({ currentTarget: { dataset: { id: preset.id } } })
+      }
     }).catch((err) => {
       this.setData({ loading: false })
       showError(err, '书目加载失败')
@@ -121,5 +129,25 @@ Page({
 
   openPost(e) {
     wx.navigateTo({ url: `/pages/fabushi/detail/index?id=${e.currentTarget.dataset.id}` })
+  },
+
+  addShelf() {
+    if (!this.data.detailBook || !this.data.detailBook.id) return
+    addFabushiShelf(this.data.detailBook.id).then(() => wx.showToast({ title: '已加入书架', icon: 'success' })).catch(() => {})
+  },
+
+  openReader() {
+    const book = this.data.detailBook
+    if (!book || !book.pdfFileId || this.data.reading) return
+    const url = getDownloadUrl({ id: book.pdfFileId })
+    fetchRemoteAttachment({
+      url,
+      mode: 'preview',
+      file: { name: `${book.title || '法布施书目'}.pdf`, type: 'pdf' },
+      isBusy: this.data.reading,
+      setBusy: (v) => this.setData({ reading: v }),
+      isImage: () => false
+    })
+    saveFabushiProgress(book.id, { lastPage: 1, totalPages: book.pages || null }).catch(() => {})
   }
 })

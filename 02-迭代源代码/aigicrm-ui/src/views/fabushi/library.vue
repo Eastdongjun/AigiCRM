@@ -5,6 +5,7 @@
         <h1>书目浏览</h1>
         <p>按类别浏览已通过审核的书目，在线阅读或写心得</p>
       </div>
+      <el-button @click="router.push('/fabushi/shelf')">我的阅读</el-button>
     </div>
 
     <div class="filter">
@@ -50,6 +51,7 @@
               <span v-else class="book-meta">暂未挂载电子书</span>
               <el-button v-if="book.pdfFileId" size="small" type="primary" @click="openReader(book)">在线阅读</el-button>
               <el-button size="small" @click="writePost(book)">写心得</el-button>
+              <el-button size="small" @click="addShelf(book)">加入书架</el-button>
             </div>
           </article>
           <el-empty v-if="!loading && !sortedBooks.length" description="暂无书目" />
@@ -65,7 +67,8 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { getFabushiBooks } from '@/api/fabushi'
+import { getFabushiBooks, addFabushiShelf } from '@/api/fabushi'
+import { ElMessage } from 'element-plus'
 import { getDictData } from '@/api/system'
 
 const router = useRouter()
@@ -151,6 +154,10 @@ const openReader = (book) => {
 }
 
 const writePost = (book) => router.push({ path: '/fabushi/feed', query: { bookId: book.id } })
+const addShelf = async (book) => {
+  await addFabushiShelf(book.id)
+  ElMessage.success('已加入书架')
+}
 
 onMounted(async () => {
   await Promise.all([loadCategories(), loadAllBooks()])
