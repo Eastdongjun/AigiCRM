@@ -171,7 +171,7 @@ Playwright + 测试环境真实登录态：
 - PC：分享广场（原内容流）改名；30 天 NEW；书目 10 类全显；P6 书目管理改为胶囊分类+左书目/右治理表；P7 内容治理改为四分段+详情+下架/恢复；P9 统计看板接成员榜/类别热度/每日趋势/周月切换。
 - 后端：`GET /fabushi/books/{id}`、`PUT /fabushi/posts/{id}/restore`、`GET /fabushi/stats/dashboard`；书目列表支持 `status=all`（仅 book:manage），非 approved 查询收口到 book:manage。
 - MP：A1 工作台重构（hero+四格+五页签+搜索+推荐+动态）；A4 书目详情弹层（书卡/统计/作品/二期结构树标注）；B3 发布成功木鱼动画态；C5 个人四格并补 myComments。
-- 权限：不新增码；恢复走 content:manage，看板走 stats:view，导出仍标二期。
+- 权限：不新增码；恢复走 content:manage，看板走 stats:view，导出已入后端/PC。
 - 二期未提前实现：附件图/音/视、fb_section 结构树、PDF 进度/续读、书架、阅读记录、提醒、统计导出、共读活动、MP PDF 阅读器。
 
 ## 真实权限矩阵与运行时修复（2026-11-16）

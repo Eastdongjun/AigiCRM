@@ -103,11 +103,11 @@
 | `fabushi.community` | 法布施 | `/fabushi/feed`、`/fabushi/library`、`/fabushi/detail/:id`、`/fabushi/read/:bookId`、`/fabushi/shelf` | `pages/fabushi/feed/index`、`pages/fabushi/detail/index`、`pages/fabushi/book/index` | `fabushi:view`/`fabushi:create` | 社区全员可见 | PC 分享广场/详情/评论/木鱼/已读/发布/书目浏览/PDF 在线阅读(员工端)；管理页另按 book/content/stats 码 | 已实现 ⟦2026-11-16 PC 社区页补齐⟧ |
 | `fabushi.attachment` | 法布施 | `/fabushi/feed` 发布/`/fabushi/detail/:id` | `pages/fabushi/upload/index`、`pages/fabushi/detail/index` | `fabushi:create` | 本人内容 | 图片/音频/视频附件上传/展示 | 已实现 ⟦2026-11-16⟧ |
 | `fabushi.section` | 法布施 | `/fabushi/book`(章节弹窗) | `pages/fabushi/book/index` | 读 `fabushi:view`;写 `fabushi:book:manage` | 社区可见 | 章节树浏览/维护 | 已实现 ⟦2026-11-16⟧ |
-| `fabushi.reading` | 法布施 | `/fabushi/shelf`、`/fabushi/read/:bookId` | `pages/fabushi/book/index`、`pages/fabushi/settings/index` | `fabushi:view` | 本人 | 书架/PDF 进度/阅读记录/提醒设置 | 已实现 ⟦二期阅读链 2026-11-16; 附件/章节/活动另批⟧ |
-| `fabushi.create` | 法布施 | PC `/fabushi/feed` 发布弹窗 + 书目管理页提交弹窗 | `pages/fabushi/upload/index` | `fabushi:create` | 本人发布 | 发布心得/诵读(文字版)/正能量/评论/木鱼/提交书目 | 已实现 ⟦一期 2026-11-15, 附件图音视二期⟧ |
+| `fabushi.reading` | 法布施 | `/fabushi/shelf`、`/fabushi/read/:bookId` | `pages/fabushi/book/index`、`pages/fabushi/settings/index` | `fabushi:view` | 本人 | 书架/PDF 进度/阅读记录/提醒设置 | 已实现 ⟦二期阅读链 2026-11-16; 附件/章节/活动已另批完成⟧ |
+| `fabushi.create` | 法布施 | PC `/fabushi/feed` 发布弹窗 + 书目管理页提交弹窗 | `pages/fabushi/upload/index` | `fabushi:create` | 本人发布 | 发布心得/诵读(文字版)/正能量/评论/木鱼/提交书目 | 已实现 ⟦一期 2026-11-15; 附件图/音/视 2026-11-16⟧ |
 | `fabushi.bookManage` | 法布施 | `/fabushi/book`(审核/驳回/停用/挂PDF) | `PC-only` | `fabushi:book:manage` | — | 书目审核/治理 | `PC-only` ⟦一期 2026-11-15⟧ |
 | `fabushi.contentManage` | 法布施 | `/fabushi/content`(下架/恢复留痕) | `PC-only` | `fabushi:content:manage` | — | 内容下架/恢复/治理 | `PC-only` ⟦一期 2026-11-15; 恢复 2026-11-16⟧ |
-| `fabushi.stats` | 法布施 | `/fabushi/stats`(五联卡+个人统计+成员榜+类别热度+趋势) | `PC-only`(MP 个人统计在工作台) | `fabushi:stats:view`(独立数据范围档 fabushi/stats_view, 照激励拍板B模式) | 团队统计可见集(独立档) | 读取/统计 | 已实现 ⟦一期 2026-11-15; 看板聚合 2026-11-16, 导出/部门进度/月度报告二期⟧ |
+| `fabushi.stats` | 法布施 | `/fabushi/stats`(五联卡+个人统计+成员榜+类别热度+趋势) | `PC-only`(MP 个人统计在工作台) | `fabushi:stats:view`(独立数据范围档 fabushi/stats_view, 照激励拍板B模式) | 团队统计可见集(独立档) | 读取/统计 | 已实现 ⟦一期 2026-11-15; 看板聚合+CSV 导出 2026-11-16; 部门进度/月度报告未做⟧ |
 | `fabushi.activity` | 法布施 | `/fabushi/shelf`(共读活动页签) | `pages/fabushi/index`(活动卡) | `fabushi:view`(+`fabushi:activity:manage` 发起/结束) | 社区全员可见 | 活动浏览/参与/发起/结束 | 已实现 ⟦2026-11-16⟧ |
 | `fabushi.feed` | 法布施 | `/fabushi/feed`(分享广场) | `pages/fabushi/feed/index`、`pages/fabushi/detail/index` | `fabushi:view`/`fabushi:create` | 社区全员可见 | 分享广场内容流/详情/评论/木鱼/已读; 发布/互动需 create | 已实现 ⟦一期 2026-11-15⟧ |
 | `profile.diagnostic` | 我的 | — | `pages/profile/diagnostic/index` | `authenticated` | 仅本人 | 权限诊断(用户/范围/epoch/权限码只读展示) | 已实现 ⟦2026-11-15⟧ |
