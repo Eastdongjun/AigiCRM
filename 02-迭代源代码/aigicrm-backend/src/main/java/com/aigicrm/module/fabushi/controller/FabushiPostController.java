@@ -53,6 +53,20 @@ public class FabushiPostController {
         return Result.ok(postService.createData(body));
     }
 
+    /** 内容附件(二期, 作者/管理员; 文件须 scope=fabushi)。 */
+    @PostMapping("/{id}/attachments")
+    @PreAuthorize("hasAuthority('fabushi:create')")
+    public Result<Map<String, Object>> addAttachment(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+        return Result.ok(postService.addAttachment(id, body));
+    }
+
+    @DeleteMapping("/{postId}/attachments/{attachmentId}")
+    @PreAuthorize("hasAuthority('fabushi:create')")
+    public Result<Void> removeAttachment(@PathVariable Long postId, @PathVariable Long attachmentId) {
+        postService.removeAttachment(postId, attachmentId);
+        return Result.ok();
+    }
+
     /** 下架(治理, 原因必填留痕)。 */
     @PutMapping("/{id}/offline")
     @PreAuthorize("hasAuthority('fabushi:content:manage')")

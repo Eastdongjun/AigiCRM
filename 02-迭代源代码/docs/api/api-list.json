@@ -1,6 +1,6 @@
 {
  "generated_at": "2026-11-16",
- "count": 277,
+ "count": 288,
  "endpoints": [
   {
    "method": "POST",
@@ -388,6 +388,30 @@
   },
   {
    "method": "GET",
+   "path": "/api/fabushi/activities",
+   "permission": "hasAuthority('fabushi:view')",
+   "handler": "list"
+  },
+  {
+   "method": "POST",
+   "path": "/api/fabushi/activities",
+   "permission": "hasAuthority('fabushi:activity:manage')",
+   "handler": "create"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/fabushi/activities/{id}/end",
+   "permission": "hasAuthority('fabushi:activity:manage')",
+   "handler": "end"
+  },
+  {
+   "method": "POST",
+   "path": "/api/fabushi/activities/{id}/join",
+   "permission": "hasAuthority('fabushi:view')",
+   "handler": "join"
+  },
+  {
+   "method": "GET",
    "path": "/api/fabushi/books",
    "permission": "hasAuthority('fabushi:view')",
    "handler": "page"
@@ -403,6 +427,30 @@
    "path": "/api/fabushi/books/pending",
    "permission": "hasAuthority('fabushi:book:manage')",
    "handler": "pending"
+  },
+  {
+   "method": "GET",
+   "path": "/api/fabushi/books/{bookId}/sections",
+   "permission": "hasAuthority('fabushi:view')",
+   "handler": "tree"
+  },
+  {
+   "method": "POST",
+   "path": "/api/fabushi/books/{bookId}/sections",
+   "permission": "hasAuthority('fabushi:book:manage')",
+   "handler": "create"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/fabushi/books/{bookId}/sections/{id}",
+   "permission": "hasAuthority('fabushi:book:manage')",
+   "handler": "delete"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/fabushi/books/{bookId}/sections/{id}",
+   "permission": "hasAuthority('fabushi:book:manage')",
+   "handler": "update"
   },
   {
    "method": "GET",
@@ -453,6 +501,12 @@
    "handler": "detail"
   },
   {
+   "method": "POST",
+   "path": "/api/fabushi/posts/{id}/attachments",
+   "permission": "hasAuthority('fabushi:create')",
+   "handler": "addAttachment"
+  },
+  {
    "method": "GET",
    "path": "/api/fabushi/posts/{id}/comments",
    "permission": "hasAuthority('fabushi:view')",
@@ -481,6 +535,12 @@
    "path": "/api/fabushi/posts/{id}/restore",
    "permission": "hasAuthority('fabushi:content:manage')",
    "handler": "restore"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/fabushi/posts/{postId}/attachments/{attachmentId}",
+   "permission": "hasAuthority('fabushi:create')",
+   "handler": "removeAttachment"
   },
   {
    "method": "GET",
@@ -547,6 +607,12 @@
    "path": "/api/fabushi/stats/dashboard",
    "permission": "hasAuthority('fabushi:stats:view')",
    "handler": "dashboard"
+  },
+  {
+   "method": "GET",
+   "path": "/api/fabushi/stats/export",
+   "permission": "hasAuthority('fabushi:stats:export')",
+   "handler": "export"
   },
   {
    "method": "GET",

@@ -18,6 +18,15 @@
         </div>
         <div class="detail-body">{{ post.content }}</div>
 
+        <div v-if="attachments.length" class="attachments">
+          <div v-for="item in attachments" :key="item.id" class="attachment-item">
+            <img v-if="item.fileType === 'image'" :src="attachmentUrl(item)" :alt="item.fileName || '附件'" class="attachment-image" />
+            <audio v-else-if="item.fileType === 'audio'" :src="attachmentUrl(item)" controls class="attachment-audio" />
+            <video v-else-if="item.fileType === 'video'" :src="attachmentUrl(item)" controls class="attachment-video" />
+            <span class="attachment-name">{{ item.fileName || item.fileType }}</span>
+          </div>
+        </div>
+
         <div class="detail-actions">
           <el-button :type="liked ? 'primary' : 'default'" plain @click="toggleLike">木鱼 {{ likeCount }}</el-button>
           <span class="detail-count">评论 {{ comments.length }}</span>
@@ -81,6 +90,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/store/user'
+import { refreshDownloadToken, getDownloadToken } from '@/utils/token'
 import {
   getFabushiPostDetail, getFabushiComments, addFabushiComment, toggleFabushiLike, markFabushiRead, getFabushiBooks,
 } from '@/api/fabushi'
@@ -99,6 +109,8 @@ const readState = ref(false)
 const commentText = ref('')
 const submitting = ref(false)
 const books = ref([])
+const attachments = ref([])
+const fileToken = ref('')
 
 const book = computed(() => books.value.find((item) => item.id === post.value.bookId) || null)
 const isNew = computed(() => !readState.value && post.value.createdAt && (Date.now() - new Date(post.value.createdAt).getTime() < 30 * 24 * 3600 * 1000))
@@ -106,16 +118,19 @@ const typeLabel = (value) => ({ heart: '心得', recitation: '诵读', znl: '正
 const formatTime = (value) => (value ? String(value).replace('T', ' ').slice(0, 16) : '')
 const openReader = () => router.push(`/fabushi/read/${book.value.id}`)
 const goLibrary = () => router.push('/fabushi/library')
+const attachmentUrl = (item) => `/api/file/download/${item.fileId}?token=${encodeURIComponent(fileToken.value)}`
 
 const loadDetail = async () => {
   loading.value = true
   try {
     const { data } = await getFabushiPostDetail(route.params.id)
     post.value = (data && data.post) || {}
+    attachments.value = (data && data.attachments) || []
     likeCount.value = Number(data && data.likeCount) || 0
     liked.value = Boolean(data && data.likedByMe)
     markFabushiRead(route.params.id).then(() => { readState.value = true }).catch(() => {})
     await Promise.all([loadComments(), loadBooks()])
+    fileToken.value = (await refreshDownloadToken()) || getDownloadToken() || ''
   } finally {
     loading.value = false
   }
@@ -187,6 +202,11 @@ onMounted(loadDetail)
 .new-badge { padding: 1px 5px; border-radius: var(--radius-sm); color: var(--el-color-danger); background: var(--el-color-danger-light-9); font-size: 9px; font-weight: 700; }
 .detail-meta { display: flex; gap: 14px; margin-top: 7px; color: var(--text-placeholder); font-size: 11px; }
 .detail-meta .read { color: var(--primary-color); }
+.attachments { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+.attachment-item { display: flex; flex-direction: column; gap: 5px; }
+.attachment-image, .attachment-video { max-width: 100%; max-height: 320px; border-radius: var(--radius-sm); border: 1px solid var(--border-light); }
+.attachment-audio { width: 100%; }
+.attachment-name { color: var(--text-muted); font-size: 11px; }
 .detail-body { margin-top: 16px; color: var(--text-secondary); font-size: 14px; line-height: 1.95; white-space: pre-wrap; }
 .detail-actions { display: flex; align-items: center; gap: 10px; margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--border-light); }
 .detail-count { color: var(--text-muted); font-size: 11px; }

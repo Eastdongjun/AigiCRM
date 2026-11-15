@@ -38,6 +38,17 @@
       </div>
     </section>
 
+    <section v-else-if="active === 'activity'" class="panel">
+      <div class="records-head"><span>共读活动</span><el-button v-if="canManage" size="small" type="primary" @click="createVisible = true">发起活动</el-button></div>
+      <div v-if="!activities.length" class="empty">暂无共读活动</div>
+      <article v-for="a in activities" :key="a.id" class="activity-row">
+        <div><div class="shelf-title">{{ a.title }}</div><div class="shelf-meta">{{ a.bookTitle || '—' }} · {{ a.startDate }} ~ {{ a.endDate }} · {{ a.joinCount || 0 }} 人参与</div></div>
+        <el-tag :type="a.status === 'active' ? 'success' : 'info'" size="small">{{ a.status === 'active' ? '进行中' : '已结束' }}</el-tag>
+        <el-button v-if="a.status === 'active' && !a.joined" link type="primary" @click="joinActivity(a)">参与</el-button>
+        <span v-else-if="a.joined" class="joined">已参与</span>
+      </article>
+    </section>
+
     <section v-else class="panel">
       <div class="settings-head">阅读提醒</div>
       <el-form label-width="120px" class="settings-form">
@@ -53,19 +64,32 @@
       </el-form>
       <p class="hint">微信订阅消息授权与降级策略为小程序端能力；PC 仅保存个人提醒设置。</p>
     </section>
+  <el-dialog v-model="createVisible" title="发起共读活动" width="460px">
+      <el-form label-width="80px">
+        <el-form-item label="标题"><el-input v-model="activityForm.title" /></el-form-item>
+        <el-form-item label="书目"><el-input v-model.number="activityForm.bookId" placeholder="书目 ID" /></el-form-item>
+        <el-form-item label="开始"><el-input v-model="activityForm.startDate" placeholder="YYYY-MM-DD" /></el-form-item>
+        <el-form-item label="结束"><el-input v-model="activityForm.endDate" placeholder="YYYY-MM-DD" /></el-form-item>
+        <el-form-item label="说明"><el-input v-model="activityForm.description" type="textarea" :rows="2" /></el-form-item>
+      </el-form>
+      <template #footer><el-button @click="createVisible = false">取消</el-button><el-button type="primary" @click="createActivity">创建</el-button></template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useUserStore } from '@/store/user'
 import { ElMessage } from 'element-plus'
 import {
   getFabushiShelf, updateFabushiShelf, removeFabushiShelf, getFabushiRecords, getFabushiSettings, saveFabushiSettings,
+  getFabushiActivities, joinFabushiActivity, createFabushiActivity,
 } from '@/api/fabushi'
 
 const router = useRouter()
-const tabs = [{ value: 'shelf', label: '我的书架' }, { value: 'records', label: '阅读记录' }, { value: 'settings', label: '提醒设置' }]
+const userStore = useUserStore()
+const tabs = [{ value: 'shelf', label: '我的书架' }, { value: 'records', label: '阅读记录' }, { value: 'activity', label: '共读活动' }, { value: 'settings', label: '提醒设置' }]
 const active = ref('shelf')
 const loading = ref(false)
 const saving = ref(false)
@@ -73,9 +97,26 @@ const shelf = ref([])
 const month = ref(new Date().toISOString().slice(0, 7))
 const records = ref({ days: [], readDays: 0, readCount: 0 })
 const settings = reactive({ reminderEnabled: 0, freqCode: 'daily', remindTime: '20:00', soundEnabled: 1 })
+const activities = ref([])
+const createVisible = ref(false)
+const activityForm = reactive({ title: '', bookId: null, description: '', startDate: '', endDate: '' })
+const canManage = computed(() => userStore.hasPermission('fabushi:activity:manage'))
 const progressWidth = (book) => {
   if (!book.totalPages || !book.lastPage) return '0%'
   return Math.min(100, Math.round(Number(book.lastPage) * 100 / Number(book.totalPages))) + '%'
+}
+
+const loadActivities = async () => {
+  const { data } = await getFabushiActivities()
+  activities.value = (data && data.records) || []
+}
+const joinActivity = async (a) => { await joinFabushiActivity(a.id); a.joined = true; a.joinCount = (a.joinCount || 0) + 1 }
+const createActivity = async () => {
+  if (!activityForm.title.trim() || !activityForm.bookId) { ElMessage.warning('标题和书目不能为空'); return }
+  await createFabushiActivity({ ...activityForm })
+  createVisible.value = false
+  Object.assign(activityForm, { title: '', bookId: null, description: '', startDate: '', endDate: '' })
+  await loadActivities()
 }
 
 const loadShelf = async () => {
@@ -105,7 +146,7 @@ const saveSettings = async () => {
   try { await saveFabushiSettings({ ...settings }); ElMessage.success('设置已保存') } finally { saving.value = false }
 }
 
-onMounted(async () => { await Promise.all([loadShelf(), loadRecords(), loadSettings()]) })
+onMounted(async () => { await Promise.all([loadShelf(), loadRecords(), loadSettings(), loadActivities()]) })
 </script>
 
 <style scoped>
@@ -134,5 +175,9 @@ onMounted(async () => { await Promise.all([loadShelf(), loadRecords(), loadSetti
 .settings-head { color: var(--text-primary); font-size: 13px; font-weight: 700; margin-bottom: 12px; }
 .settings-form { max-width: 480px; }
 .hint { color: var(--text-placeholder); font-size: 11px; }
+.activity-row { display: flex; align-items: center; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--border-light); }
+.activity-row:last-child { border-bottom: 0; }
+.activity-row > div { flex: 1; }
+.joined { color: var(--text-muted); font-size: 11px; }
 .empty { padding: 24px 0; color: var(--text-placeholder); text-align: center; font-size: 12px; }
 </style>

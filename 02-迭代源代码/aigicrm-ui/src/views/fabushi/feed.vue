@@ -116,7 +116,17 @@
       </div>
       <div class="form-row">
         <label>附件</label>
-        <div class="form-placeholder">图片 / 音频 / 视频（二期开放）</div>
+        <div class="attachment-field">
+          <div class="attachment-actions">
+            <el-button size="small" :loading="uploadingAttachment" @click="pickAttachment">选择图片 / 音视频</el-button>
+            <span class="attachment-hint">上传到法布施空间；最多 9 个</span>
+            <input ref="attachmentInputRef" type="file" accept="image/*,audio/*,video/*" multiple style="display:none" @change="handleAttachmentChosen" />
+          </div>
+          <div v-for="(file, index) in uploadedAttachments" :key="file.fileId" class="attachment-chip">
+            <span>{{ file.name }}</span>
+            <el-button link type="danger" @click="removePendingAttachment(index)">移除</el-button>
+          </div>
+        </div>
       </div>
       <template #footer>
         <el-button @click="publishVisible = false">取消</el-button>
@@ -132,8 +142,9 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/store/user'
 import {
-  getFabushiPosts, createFabushiPost, getFabushiBooks, getFabushiPersonalStats,
+  getFabushiPosts, createFabushiPost, getFabushiBooks, getFabushiPersonalStats, addFabushiAttachment,
 } from '@/api/fabushi'
+import request from '@/utils/request'
 
 const route = useRoute()
 const router = useRouter()
@@ -162,6 +173,9 @@ const unreadOnly = ref(false)
 const publishVisible = ref(false)
 const submitting = ref(false)
 const form = reactive({ scopeType: 'heart', bookId: null, title: '', content: '' })
+const attachmentInputRef = ref(null)
+const uploadingAttachment = ref(false)
+const uploadedAttachments = ref([])
 
 const recommendedBook = computed(() => bookOptions.value.find((book) => book.pdfFileId) || bookOptions.value[0] || null)
 const visiblePosts = computed(() => posts.value.filter((post) => {
@@ -232,11 +246,34 @@ const resetFilters = () => {
   resetPage()
 }
 
+const pickAttachment = () => attachmentInputRef.value?.click()
+const attachmentType = (file) => file.type.startsWith('image/') ? 'image' : file.type.startsWith('audio/') ? 'audio' : 'video'
+const handleAttachmentChosen = async (event) => {
+  const files = Array.from(event.target.files || []).slice(0, 9 - uploadedAttachments.value.length)
+  if (!files.length) return
+  uploadingAttachment.value = true
+  try {
+    for (const file of files) {
+      const data = new FormData()
+      data.append('file', file)
+      data.append('scope', 'fabushi')
+      const res = await request.post('/api/file/upload', data)
+      const id = res.data && res.data.id
+      if (id) uploadedAttachments.value.push({ fileId: id, name: file.name, fileType: attachmentType(file) })
+    }
+  } finally {
+    uploadingAttachment.value = false
+    event.target.value = ''
+  }
+}
+const removePendingAttachment = (index) => { uploadedAttachments.value.splice(index, 1) }
+
 const openPublish = () => {
   form.scopeType = active.value
   form.bookId = route.query.bookId ? Number(route.query.bookId) : null
   form.title = ''
   form.content = ''
+  uploadedAttachments.value = []
   publishVisible.value = true
 }
 
@@ -247,12 +284,16 @@ const submitPost = async () => {
   }
   submitting.value = true
   try {
-    await createFabushiPost({
+    const created = await createFabushiPost({
       scopeType: form.scopeType,
       bookId: form.bookId || null,
       title: form.title.trim() || null,
       content: form.content.trim() || null,
     })
+    const postId = created.data && created.data.id
+    for (const file of uploadedAttachments.value) {
+      await addFabushiAttachment(postId, { fileId: file.fileId, fileType: file.fileType })
+    }
     ElMessage.success('发布成功')
     publishVisible.value = false
     current.value = 1
@@ -317,6 +358,10 @@ onMounted(async () => {
 .type-caps { display: flex; gap: 4px; padding: 4px; border-radius: var(--radius-md); background: var(--el-fill-color-light); }
 .type-cap { flex: 1; padding: 6px 10px; border: 0; border-radius: var(--radius-sm); color: var(--text-secondary); background: transparent; font-size: 12px; cursor: pointer; }
 .type-cap.active { color: var(--el-color-white); background: var(--hero-gradient); }
+.attachment-field { display: flex; flex-direction: column; gap: 6px; }
+.attachment-actions { display: flex; align-items: center; gap: 8px; }
+.attachment-hint { color: var(--text-placeholder); font-size: 11px; }
+.attachment-chip { display: flex; align-items: center; justify-content: space-between; padding: 5px 8px; border-radius: var(--radius-sm); background: var(--el-fill-color-light); color: var(--text-secondary); font-size: 11px; }
 .form-placeholder { display: flex; align-items: center; min-height: 32px; padding: 0 10px; border: 1px solid var(--el-border-color); border-radius: var(--radius-sm); color: var(--text-placeholder); font-size: 12px; }
 @media (max-width: 1100px) { .feed-layout { grid-template-columns: 1fr; } }
 </style>

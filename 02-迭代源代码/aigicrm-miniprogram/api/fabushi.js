@@ -69,3 +69,14 @@ function getFabushiDashboard(period) {
   return request({ url: '/api/fabushi/stats/dashboard', data: { period: period || 'week' } })
 }
 module.exports = Object.assign(module.exports, { getFabushiDashboard })
+
+function addFabushiAttachment(postId, data) { return request({ url: `/api/fabushi/posts/${postId}/attachments`, method: 'POST', data }) }
+function removeFabushiAttachment(postId, attachmentId) { return request({ url: `/api/fabushi/posts/${postId}/attachments/${attachmentId}`, method: 'DELETE' }) }
+function getFabushiSections(bookId) { return request({ url: `/api/fabushi/books/${bookId}/sections` }) }
+function createFabushiSection(bookId, data) { return request({ url: `/api/fabushi/books/${bookId}/sections`, method: 'POST', data }) }
+function deleteFabushiSection(bookId, id) { return request({ url: `/api/fabushi/books/${bookId}/sections/${id}`, method: 'DELETE' }) }
+function getFabushiActivities() { return request({ url: '/api/fabushi/activities' }) }
+function joinFabushiActivity(id) { return request({ url: `/api/fabushi/activities/${id}/join`, method: 'POST' }) }
+function createFabushiActivity(data) { return request({ url: '/api/fabushi/activities', method: 'POST', data }) }
+function endFabushiActivity(id) { return request({ url: `/api/fabushi/activities/${id}/end`, method: 'PUT' }) }
+module.exports = Object.assign(module.exports, { addFabushiAttachment, removeFabushiAttachment, getFabushiSections, createFabushiSection, deleteFabushiSection, getFabushiActivities, joinFabushiActivity, createFabushiActivity, endFabushiActivity })

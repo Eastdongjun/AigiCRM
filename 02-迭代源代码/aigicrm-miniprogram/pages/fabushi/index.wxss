@@ -75,3 +75,7 @@
 .rank-no { width:30rpx; color:#1d4ed8; font-weight:700; }
 .rank-name { width:120rpx; color:#14213d; font-weight:600; }
 .rank-dept { flex:1; color:#94a3b8; font-size:19rpx; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.activity-row { display:flex; align-items:center; gap:12rpx; padding:14rpx 0; border-bottom:1rpx solid #eef2f7; }
+.activity-row:last-child { border-bottom:0; }
+.activity-row > view { flex:1; }
+.activity-joined { color:#94a3b8; font-size:20rpx; }

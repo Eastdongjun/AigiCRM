@@ -61,6 +61,7 @@
                   <el-button v-if="row.status === 'pending'" link type="primary" @click="doApprove(row)">通过</el-button>
                   <el-button v-if="row.status === 'pending'" link type="warning" @click="openReject(row)">驳回</el-button>
                   <el-button v-if="row.status === 'approved'" link type="primary" @click="openPdf(row)">{{ row.pdfFileId ? '换PDF' : '挂PDF' }}</el-button>
+                  <el-button v-if="row.status === 'approved'" link type="primary" @click="openSections(row)">章节</el-button>
                   <el-button v-if="row.status === 'approved'" link type="danger" @click="doDisable(row)">停用</el-button>
                   <el-button v-if="row.status === 'rejected'" link type="primary" @click="showRejectReason(row)">查看原因</el-button>
                 </template>
@@ -106,6 +107,25 @@
       </template>
     </el-dialog>
 
+    <el-dialog v-model="sectionVisible" title="章节结构" width="560px">
+      <div class="section-head">
+        <span>{{ sectionBook?.title }} · 序 / 部分 / 章 / 节</span>
+        <div class="section-add">
+          <el-input v-model="sectionTitle" placeholder="章节标题" size="small" style="width: 180px" />
+          <el-select v-model="sectionLevel" size="small" style="width: 100px">
+            <el-option label="序" value="preface" /><el-option label="部分" value="part" /><el-option label="章" value="chapter" /><el-option label="节" value="section" />
+          </el-select>
+          <el-button size="small" type="primary" @click="addSection">添加</el-button>
+        </div>
+      </div>
+      <div v-for="item in sections" :key="item.id" class="section-row">
+        <span class="section-level">{{ sectionLevelLabel(item.levelCode) }}</span>
+        <span class="section-title-cell">{{ item.title }}</span>
+        <el-button v-if="userStore.hasPermission('fabushi:book:manage')" link type="danger" @click="removeSection(item)">删除</el-button>
+      </div>
+      <div v-if="!sections.length" class="empty">暂无章节，先添加序/部分/章/节</div>
+    </el-dialog>
+
     <el-dialog v-model="pdfVisible" title="挂载电子书 PDF" width="460px">
       <div class="upload-dropzone" @click="pickPdf">
         {{ pdfUploading ? '上传中…' : '点击选择 PDF（≤100MB，上传到法布施空间）' }}
@@ -124,6 +144,7 @@ import { useUserStore } from '@/store/user'
 import { getDictData } from '@/api/system'
 import {
   getFabushiBooks, submitFabushiBook, approveFabushiBook, rejectFabushiBook, disableFabushiBook, attachBookPdf,
+  getFabushiSections, createFabushiSection, deleteFabushiSection,
 } from '@/api/fabushi'
 
 const userStore = useUserStore()
@@ -145,6 +166,11 @@ const rejectReason = ref('')
 const pdfVisible = ref(null)
 const pdfUploading = ref(false)
 const pdfInputRef = ref(null)
+const sectionVisible = ref(false)
+const sectionBook = ref(null)
+const sections = ref([])
+const sectionTitle = ref('')
+const sectionLevel = ref('chapter')
 
 const categoryCounts = computed(() => allBooks.value.reduce((map, book) => {
   const key = book.categoryCode || ''
@@ -191,6 +217,21 @@ const selectCategory = (value) => { query.value.categoryCode = value; query.valu
 const selectBook = (book) => { selectedBookId.value = book.id; query.value.keyword = book.title; query.value.current = 1; loadData() }
 const showPending = () => { query.value.status = 'pending'; query.value.current = 1; loadData() }
 const showRejectReason = (row) => ElMessageBox.alert(row.rejectReason || '—', '驳回原因', { confirmButtonText: '知道了' })
+const sectionLevelLabel = (value) => ({ preface: '序', part: '部分', chapter: '章', section: '节' }[value] || value)
+const openSections = async (row) => {
+  sectionBook.value = row; sectionVisible.value = true; sectionTitle.value = ''
+  const { data } = await getFabushiSections(row.id); sections.value = (data && data.sections) || []
+}
+const addSection = async () => {
+  if (!sectionTitle.value.trim()) { ElMessage.warning('章节标题不能为空'); return }
+  await createFabushiSection(sectionBook.value.id, { title: sectionTitle.value.trim(), levelCode: sectionLevel.value })
+  sectionTitle.value = ''
+  await openSections(sectionBook.value)
+}
+const removeSection = async (item) => {
+  await deleteFabushiSection(sectionBook.value.id, item.id)
+  await openSections(sectionBook.value)
+}
 
 const doSubmit = async () => {
   if (!submitForm.value.categoryCode) { ElMessage.warning('请选择类别'); return }
@@ -277,5 +318,10 @@ onMounted(async () => { await Promise.all([loadDicts(), loadAll()]); await loadD
 .empty { padding: 24px; color: var(--text-placeholder); text-align: center; font-size: 12px; }
 .pager { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-top: 1px solid var(--border-light); color: var(--text-muted); font-size: 11px; }
 .upload-dropzone { padding: 28px; border: 1px dashed var(--el-border-color); border-radius: var(--radius-sm); color: var(--text-secondary); text-align: center; cursor: pointer; }
+.section-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; color: var(--text-secondary); font-size: 12px; }
+.section-add { display: flex; gap: 6px; }
+.section-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border-light); }
+.section-level { width: 38px; color: var(--primary-color); font-size: 11px; }
+.section-title-cell { flex: 1; color: var(--text-primary); font-size: 12px; }
 .pdf-hint { margin-top: 8px; color: var(--text-muted); font-size: 12px; }
 </style>

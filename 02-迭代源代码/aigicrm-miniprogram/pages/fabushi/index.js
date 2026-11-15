@@ -1,5 +1,5 @@
 const { hasPermission, requireLogin } = require('../../utils/auth')
-const { getFabushiPersonalStats, getFabushiBooks, getFabushiPosts, getFabushiShelf, getFabushiRecords, getFabushiDashboard } = require('../../api/fabushi')
+const { getFabushiPersonalStats, getFabushiBooks, getFabushiPosts, getFabushiShelf, getFabushiRecords, getFabushiDashboard, getFabushiActivities, joinFabushiActivity } = require('../../api/fabushi')
 const { showError } = require('../../utils/feedback')
 
 const TABS = [
@@ -23,6 +23,7 @@ Page({
     searchKeyword: '',
     hasView: false,
     shelf: [],
+    activities: [],
     records: { days: [], readDays: 0, readCount: 0 },
     team: null
   },
@@ -64,8 +65,9 @@ Page({
     Promise.all([
       getFabushiPersonalStats().catch(() => ({})),
       getFabushiBooks({ status: 'approved', current: 1, size: 20 }).catch(() => ({})),
-      getFabushiPosts({ scopeType: 'heart', current: 1, size: 10 }).catch(() => ({}))
-    ]).then(([personal, bookRes, postRes]) => {
+      getFabushiPosts({ scopeType: 'heart', current: 1, size: 10 }).catch(() => ({})),
+      getFabushiActivities().catch(() => ({}))
+    ]).then(([personal, bookRes, postRes, actRes]) => {
       const books = (bookRes && bookRes.records) || []
       const posts = (postRes && postRes.records) || []
       this.setData({
@@ -73,6 +75,7 @@ Page({
         books,
         posts,
         recommended: books.find((book) => book.pdfFileId) || books[0] || null,
+        activities: (actRes && actRes.records) || [],
         loading: false
       })
     }).catch((err) => {
@@ -129,6 +132,11 @@ Page({
   refresh() { this.loadAll() },
   goFeed() { wx.navigateTo({ url: '/pages/fabushi/feed/index' }) },
   goSettings() { wx.navigateTo({ url: '/pages/fabushi/settings/index' }) },
+  joinActivity(e) {
+    const id = e.currentTarget.dataset.id
+    joinFabushiActivity(id).then(() => { const acts = this.data.activities.map((a) => a.id === id ? { ...a, joined: true, joinCount: (a.joinCount || 0) + 1 } : a); this.setData({ activities: acts }); wx.showToast({ title: '已参与', icon: 'success' }) }).catch(() => {})
+  },
+
   goShelfBook(e) { wx.navigateTo({ url: `/pages/fabushi/book/index?id=${e.currentTarget.dataset.id}` }) },
   goBook() { wx.navigateTo({ url: '/pages/fabushi/book/index' }) },
   goUpload() { wx.navigateTo({ url: '/pages/fabushi/upload/index' }) },

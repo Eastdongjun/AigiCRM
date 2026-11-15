@@ -1,5 +1,5 @@
 const { hasPermission, requireLogin } = require('../../../utils/auth')
-const { getFabushiBooks, getFabushiBook, getFabushiPosts, addFabushiShelf, saveFabushiProgress } = require('../../../api/fabushi')
+const { getFabushiBooks, getFabushiBook, getFabushiPosts, getFabushiSections, addFabushiShelf, saveFabushiProgress } = require('../../../api/fabushi')
 const { getDownloadUrl } = require('../../../api/file')
 const { fetchRemoteAttachment } = require('../../../utils/attachment')
 const { getDictData } = require('../../../api/system')
@@ -20,6 +20,7 @@ Page({
     detailVisible: false,
     detailBook: {},
     detailPosts: [],
+    sections: [],
     reading: false
   },
 
@@ -109,10 +110,14 @@ Page({
     this.setData({ detailVisible: true, detailBook: { id }, detailPosts: [] })
     Promise.all([
       getFabushiBook(id).catch(() => null),
-      getFabushiPosts({ bookId: id, status: 'published', current: 1, size: 20 }).catch(() => ({}))
-    ]).then(([bookRes, postRes]) => {
+      getFabushiPosts({ bookId: id, status: 'published', current: 1, size: 20 }).catch(() => ({})),
+      getFabushiSections(id).catch(() => ({}))
+    ]).then(([bookRes, postRes, secRes]) => {
       const book = (bookRes && bookRes.book) || bookRes || { id }
-      this.setData({ detailBook: book, detailPosts: (postRes && postRes.records) || [] })
+      const flat = []
+      const walk = (rows, depth) => (rows || []).forEach((row) => { flat.push({ ...row, depth }); walk(row.children, depth + 1) })
+      walk((secRes && secRes.sections) || [], 0)
+      this.setData({ detailBook: book, detailPosts: (postRes && postRes.records) || [], sections: flat })
     })
   },
 

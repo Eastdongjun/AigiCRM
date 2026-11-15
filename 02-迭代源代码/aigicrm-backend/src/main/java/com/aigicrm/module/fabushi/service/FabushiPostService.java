@@ -13,6 +13,8 @@ import com.aigicrm.module.fabushi.mapper.BizFabushiPostMapper;
 import com.aigicrm.module.fabushi.mapper.BizFabushiReadStatusMapper;
 import com.aigicrm.module.system.entity.SysUser;
 import com.aigicrm.module.system.mapper.SysUserMapper;
+import com.aigicrm.module.file.entity.BizFile;
+import com.aigicrm.module.file.mapper.BizFileMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +25,8 @@ import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.LinkedHashMap;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -40,6 +44,7 @@ public class FabushiPostService {
     private final BizFabushiReadStatusMapper readStatusMapper;
     private final BizFabushiPostAttachmentMapper attachmentMapper;
     private final SysUserMapper userMapper;
+    private final BizFileMapper fileMapper;
     private final com.aigicrm.security.SecurityAuditService securityAuditService;
 
     private static final Set<String> SCOPE_TYPES = Set.of("heart", "recitation", "znl");
@@ -106,15 +111,70 @@ public class FabushiPostService {
             throw new BusinessException(404, "内容不存在或已下架");
         }
         fillInteractions(List.of(post), viewerId);
-        List<BizFabushiPostAttachment> attachments = attachmentMapper.selectList(
-                new LambdaQueryWrapper<BizFabushiPostAttachment>()
-                        .eq(BizFabushiPostAttachment::getPostId, id)
-                        .orderByAsc(BizFabushiPostAttachment::getSortOrder));
+        List<Map<String, Object>> attachments = attachmentData(id);
         return Map.of(
                 "post", post,
                 "attachments", attachments,
                 "likeCount", post.getLikeCount() == null ? 0L : post.getLikeCount(),
                 "likedByMe", isLikedBy(id, viewerId));
+    }
+
+    /** 内容附件(二期): 文件必须已上传到 scope=fabushi; 仅作者/管理员可挂载。 */
+    @Transactional
+    public Map<String, Object> addAttachment(Long postId, Map<String, Object> body) {
+        Long uid = com.aigicrm.security.SecurityUtils.getCurrentUserId();
+        BizFabushiPost post = postMapper.selectById(postId);
+        if (post == null || !"published".equals(post.getStatus())) throw new BusinessException(404, "内容不存在或已下架");
+        if (!Objects.equals(post.getUserId(), uid) && !com.aigicrm.security.SecurityUtils.isAdmin()) {
+            throw new BusinessException(403, "只能维护自己发布内容的附件");
+        }
+        Long fileId = body == null || body.get("fileId") == null ? null : Long.valueOf(String.valueOf(body.get("fileId")));
+        String fileType = body == null || body.get("fileType") == null ? null : String.valueOf(body.get("fileType"));
+        if (fileId == null || !Set.of("image", "audio", "video").contains(fileType)) {
+            throw new BusinessException(400, "附件类型或文件不合法");
+        }
+        BizFile file = fileMapper.selectById(fileId);
+        if (file == null || (file.getDeleted() != null && file.getDeleted() == 1)) throw new BusinessException(404, "文件不存在");
+        if (!"fabushi".equals(file.getFileScope())) throw new BusinessException(400, "附件须上传到法布施空间");
+        Long count = attachmentMapper.selectCount(new LambdaQueryWrapper<BizFabushiPostAttachment>()
+                .eq(BizFabushiPostAttachment::getPostId, postId));
+        BizFabushiPostAttachment row = new BizFabushiPostAttachment();
+        row.setPostId(postId); row.setFileId(fileId); row.setFileType(fileType);
+        row.setSortOrder(count == null ? 0 : count.intValue());
+        if (body.get("durationSeconds") != null) row.setDurationSeconds(Integer.parseInt(String.valueOf(body.get("durationSeconds"))));
+        attachmentMapper.insert(row);
+        return Map.of("id", row.getId(), "fileId", fileId, "fileType", fileType);
+    }
+
+    @Transactional
+    public void removeAttachment(Long postId, Long attachmentId) {
+        Long uid = com.aigicrm.security.SecurityUtils.getCurrentUserId();
+        BizFabushiPost post = postMapper.selectById(postId);
+        if (post == null) throw new BusinessException(404, "内容不存在");
+        if (!Objects.equals(post.getUserId(), uid) && !com.aigicrm.security.SecurityUtils.isAdmin()) {
+            throw new BusinessException(403, "只能维护自己发布内容的附件");
+        }
+        BizFabushiPostAttachment row = attachmentMapper.selectById(attachmentId);
+        if (row == null || !postId.equals(row.getPostId())) throw new BusinessException(404, "附件不存在");
+        attachmentMapper.deleteById(attachmentId);
+    }
+
+    private List<Map<String, Object>> attachmentData(Long postId) {
+        List<BizFabushiPostAttachment> rows = attachmentMapper.selectList(new LambdaQueryWrapper<BizFabushiPostAttachment>()
+                .eq(BizFabushiPostAttachment::getPostId, postId)
+                .orderByAsc(BizFabushiPostAttachment::getSortOrder));
+        if (rows.isEmpty()) return List.of();
+        Set<Long> fileIds = rows.stream().map(BizFabushiPostAttachment::getFileId).collect(Collectors.toSet());
+        Map<Long, BizFile> files = fileMapper.selectBatchIds(fileIds).stream().collect(Collectors.toMap(BizFile::getId, f -> f));
+        return rows.stream().map(row -> {
+            BizFile file = files.get(row.getFileId());
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("id", row.getId()); m.put("postId", row.getPostId()); m.put("fileId", row.getFileId());
+            m.put("fileType", row.getFileType()); m.put("durationSeconds", row.getDurationSeconds());
+            m.put("fileName", file == null ? null : file.getFileName());
+            m.put("fileSize", file == null ? null : file.getFileSize());
+            return m;
+        }).collect(Collectors.toList());
     }
 
     /** 发布(fabushi:create 门): scope_type 白名单; 书目须为 approved(挂书内容)。 */

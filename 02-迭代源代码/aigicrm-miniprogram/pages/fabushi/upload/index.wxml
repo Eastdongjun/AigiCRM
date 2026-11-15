@@ -19,7 +19,13 @@
   <view class="submit-btn {{submitting || (!title && !content) ? 'disabled' : ''}}" bindtap="submit">
     {{submitting ? '发布中…' : '发布'}}
   </view>
-  <view class="tip">图片 / 音频 / 视频附件为二期开放；一期为文字版内容。</view>
+  <view class="attach-card">
+    <view class="attach-head"><text>附件</text><text class="attach-count">{{attachments.length}}/9</text></view>
+    <view class="attach-btns"><view class="attach-btn" bindtap="chooseMedia">图片 / 视频</view><view class="attach-btn" bindtap="chooseAudio">音频</view></view>
+    <view wx:for="{{attachments}}" wx:key="fileId" class="attach-item"><text>{{item.name}}</text><text class="attach-remove" data-index="{{index}}" bindtap="removeAttachment">移除</text></view>
+    <view wx:if="{{uploading}}" class="attach-hint">上传中…</view>
+  </view>
+  <view class="tip">附件上传到法布施空间，计入个人配额。</view>
 </block>
 
 <block wx:else>

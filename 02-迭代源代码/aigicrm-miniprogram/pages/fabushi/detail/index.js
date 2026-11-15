@@ -1,5 +1,6 @@
 const { hasPermission, requireLogin } = require('../../../utils/auth')
 const { getFabushiPostDetail, getFabushiComments, addFabushiComment, toggleFabushiLike, markFabushiRead } = require('../../../api/fabushi')
+const { getDownloadToken, getDownloadUrl } = require('../../../api/file')
 const { showError } = require('../../../utils/feedback')
 
 Page({
@@ -13,7 +14,8 @@ Page({
     canCreate: false,
     commentText: '',
     submitting: false,
-    loading: true
+    loading: true,
+    dlToken: ''
   },
 
   onPermissionChanged() {
@@ -50,12 +52,23 @@ Page({
         liked: Boolean(data.likedByMe),
         loading: false
       })
+      this.loadAttachmentUrls()
       markFabushiRead(id).catch(() => {})
       this.loadComments()
     }).catch((err) => {
       this.setData({ loading: false })
       showError(err, '内容加载失败')
     })
+  },
+
+  loadAttachmentUrls() {
+    const rows = this.data.attachments || []
+    if (!rows.length) return
+    getDownloadToken().then((res) => {
+      const token = res && (res.token || (res.data && res.data.token)) || ''
+      const attachments = rows.map((item) => ({ ...item, url: getDownloadUrl({ id: item.fileId }) + (token ? '?token=' + encodeURIComponent(token) : '') }))
+      this.setData({ dlToken: token, attachments })
+    }).catch(() => {})
   },
 
   loadComments() {

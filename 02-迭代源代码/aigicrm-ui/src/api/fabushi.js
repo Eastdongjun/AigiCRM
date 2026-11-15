@@ -117,3 +117,40 @@ export function getFabushiSettings() {
 export function saveFabushiSettings(data) {
   return request.put('/fabushi/settings', data)
 }
+
+// 附件/章节/活动
+export function addFabushiAttachment(postId, data) {
+  return request.post(`/fabushi/posts/${postId}/attachments`, data)
+}
+
+export function removeFabushiAttachment(postId, attachmentId) {
+  return request.delete(`/fabushi/posts/${postId}/attachments/${attachmentId}`)
+}
+
+export function getFabushiSections(bookId) {
+  return request.get(`/fabushi/books/${bookId}/sections`)
+}
+
+export function createFabushiSection(bookId, data) {
+  return request.post(`/fabushi/books/${bookId}/sections`, data)
+}
+
+export function deleteFabushiSection(bookId, id) {
+  return request.delete(`/fabushi/books/${bookId}/sections/${id}`)
+}
+
+export function getFabushiActivities() {
+  return request.get('/fabushi/activities')
+}
+
+export function joinFabushiActivity(id) {
+  return request.post(`/fabushi/activities/${id}/join`)
+}
+
+export function createFabushiActivity(data) {
+  return request.post('/fabushi/activities', data)
+}
+
+export function endFabushiActivity(id) {
+  return request.put(`/fabushi/activities/${id}/end`)
+}

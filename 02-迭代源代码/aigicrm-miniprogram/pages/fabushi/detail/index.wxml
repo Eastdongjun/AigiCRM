@@ -17,7 +17,10 @@
     <view wx:if="{{attachments.length}}" class="fb-card">
       <view class="fb-section-title">附件</view>
       <view wx:for="{{attachments}}" wx:key="id" class="fb-attachment">
-        {{item.fileType}} · {{item.fileId}}
+        <image wx:if="{{item.fileType === 'image'}}" class="fb-attach-image" src="{{item.url}}" mode="widthFix" />
+        <video wx:elif="{{item.fileType === 'video'}}" class="fb-attach-video" src="{{item.url}}" controls />
+        <audio wx:elif="{{item.fileType === 'audio'}}" class="fb-attach-audio" src="{{item.url}}" controls />
+        <view class="fb-attach-name">{{item.fileName || item.fileType}}</view>
       </view>
     </view>
 

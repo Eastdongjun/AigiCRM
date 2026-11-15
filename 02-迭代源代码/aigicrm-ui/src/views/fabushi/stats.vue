@@ -10,7 +10,7 @@
       </div>
       <el-button type="primary" @click="loadData">查询</el-button>
       <span class="spacer" />
-      <el-button v-if="userStore.hasPermission('fabushi:stats:export')" class="export-btn" disabled>导出报表（Excel）<span class="phase-chip">二期</span></el-button>
+      <el-button v-if="userStore.hasPermission('fabushi:stats:export')" class="export-btn" @click="exportStats">导出报表（CSV）</el-button>
     </div>
 
     <div class="stat-cards">
@@ -99,6 +99,8 @@
 import { computed, onMounted, ref } from 'vue'
 import { getFabushiDashboard, getFabushiPersonalStats } from '@/api/fabushi'
 import { useUserStore } from '@/store/user'
+import { downloadFile } from '@/utils/download'
+import { getToken } from '@/utils/token'
 
 const userStore = useUserStore()
 const loading = ref(false)
@@ -123,6 +125,13 @@ const loadData = async () => {
   } finally {
     loading.value = false
   }
+}
+
+const exportStats = async () => {
+  await downloadFile(`/api/fabushi/stats/export?period=${period.value}`, {
+    name: `法布施统计-${period.value}.csv`,
+    headers: { Authorization: `Bearer ${getToken() || ''}` },
+  })
 }
 
 const switchPeriod = (value) => {

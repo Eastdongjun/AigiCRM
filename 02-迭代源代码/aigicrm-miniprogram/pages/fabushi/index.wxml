@@ -40,6 +40,16 @@
       <view class="mini-action">查看</view>
     </view>
 
+    <view wx:if="{{activeTab === 'lib' && activities.length}}" class="card">
+      <view class="stats-title">共读活动</view>
+      <view wx:for="{{activities}}" wx:key="id" class="activity-row">
+        <view><view class="shelf-title">{{item.title}}</view><view class="shelf-meta">{{item.bookTitle || '—'}} · {{item.joinCount || 0}} 人参与</view></view>
+        <text wx:if="{{item.joined}}" class="activity-joined">已参与</text>
+        <view wx:elif="{{item.status === 'active'}}" class="mini-action" data-id="{{item.id}}" bindtap="joinActivity">参与</view>
+        <text wx:else class="activity-joined">已结束</text>
+      </view>
+    </view>
+
     <view class="card feed-card" wx:for="{{posts}}" wx:key="id" data-id="{{item.id}}" bindtap="openPost">
       <view class="feed-head">
         <view class="feed-title"><text class="type-tag {{item.scopeType}}">{{item.scopeType === 'znl' ? '正能量' : item.scopeType === 'recitation' ? '诵读' : '心得'}}</text>{{item.title || '无标题'}}</view>
