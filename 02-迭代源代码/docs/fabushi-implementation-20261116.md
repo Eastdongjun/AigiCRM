@@ -137,3 +137,29 @@ Playwright + 测试环境真实登录态：
 - 圆角/阴影改为 `--radius-md`、`--shadow-card-hover`。
 - 列表卡改为浅灰瓦片，hover 变白抬升；书目卡 `align-items:start`，固定 140px 高，不再被 grid 拉伸。
 - 验证：feed 双栏 1036+280、feed 卡 132px、book 卡 140×323、page-shell 16px、无横向溢出、分页在容器内；截图存 `test-results/menu-dict/fabushi-*-tokens.png`。
+
+## PC 阅读原型与页面重做（2026-11-16）
+
+### 原型
+
+- 原型文件：[docs/prototypes/fabushi_pc_reader_proto_v1.html](prototypes/fabushi_pc_reader_proto_v1.html)
+- 原型长图：[docs/prototypes/fabushi_pc_reader_proto_v1.png](prototypes/fabushi_pc_reader_proto_v1.png)
+- 依据：**MP v4 行为**（A1/A2/A3/A4/B1/B4/C1/C4/C5）+ **PC v5 视觉**（深蓝侧栏/胶囊分类/筛选卡/主从布局）
+- 5 屏：R1 内容流、R2 内容详情、R3 书目浏览、R4 在线阅读 PDF、R5 发布内容
+
+### 页面落地
+
+- `/fabushi/feed`：胶囊分类（心得/诵读/正能量）+ 筛选卡 + 双栏内容流 + 个人统计 + 发布弹窗
+- `/fabushi/detail/:id`：正文/木鱼/评论 + 右侧作者/关联书目/阅读状态
+- `/fabushi/library`：左类别栏 + 右书目卡 + 在线阅读/写心得
+- `/fabushi/read/:bookId`：深色阅读壳 + PDF 在线阅读 + 下载兜底
+- 全部使用 ZCode 设计令牌：`--hero-gradient`、`--text-*`、`--border-light`、`--radius-md`、`--shadow-card-hover`、`--el-fill-color-lighter`
+
+### 实测
+
+- PC feed：3 个胶囊 tab、双栏 1052+268、无横向溢出
+- PC detail：右侧栏、5 条评论、已读状态
+- PC library：左类别栏 220、书目卡、在线阅读入口
+- PC reader：`/fabushi/read/2` iframe 加载 PDF，HTTP 200 `application/pdf`
+- 发布弹窗：3 个类型胶囊
+- 空库重放与 gate 另行记录

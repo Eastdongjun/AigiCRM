@@ -137,6 +137,12 @@ const routes = [
         meta: { title: '书目浏览', parentTitle: '法布施', icon: 'Reading', permission: 'fabushi:view' }
       },
       {
+        path: 'fabushi/read/:bookId',
+        name: 'FabushiRead',
+        component: () => import('@/views/fabushi/read.vue'),
+        meta: { title: '在线阅读', parentTitle: '书目浏览', activeMenu: '/fabushi/library', icon: 'Reading', permission: 'fabushi:view' }
+      },
+      {
         path: 'fabushi/book',
         name: 'FabushiBook',
         component: () => import('@/views/fabushi/book.vue'),

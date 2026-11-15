@@ -1,44 +1,77 @@
 <template>
   <div class="fabushi-detail">
-    <div class="detail-head">
-      <el-button link @click="router.back()">← 返回</el-button>
-      <span class="detail-kicker">法布施 · 内容详情</span>
+    <div class="back">
+      <el-button link @click="router.back()">← 返回内容流</el-button>
     </div>
 
-    <el-card v-loading="loading" shadow="never" class="detail-card">
-      <div class="detail-title">{{ post.title || '无标题' }}</div>
-      <div class="detail-meta">
-        <span>{{ post.userName || '法布施' }}</span>
-        <span>{{ formatTime(post.createdAt) }}</span>
-        <span v-if="post.readByMe" class="detail-read">已读</span>
-      </div>
-      <div class="detail-content">{{ post.content }}</div>
-
-      <div class="detail-actions">
-        <el-button :type="liked ? 'primary' : 'default'" plain @click="toggleLike">
-          🐟 木鱼 {{ likeCount }}
-        </el-button>
-        <span class="detail-comment-count">💬 {{ comments.length }} 条评论</span>
-      </div>
-    </el-card>
-
-    <el-card shadow="never" class="comment-card">
-      <template #header><span>评论（{{ comments.length }}）</span></template>
-      <div v-if="!comments.length" class="comment-empty">还没有评论</div>
-      <div v-for="comment in comments" :key="comment.id" class="comment-item">
-        <div class="comment-name">{{ comment.userName || '同事' }}</div>
-        <div class="comment-content">{{ comment.content }}</div>
-        <div class="comment-time">{{ formatTime(comment.createdAt) }}</div>
-      </div>
-
-      <div v-if="canCreate" class="comment-form">
-        <el-input v-model="commentText" type="textarea" :rows="3" maxlength="500" show-word-limit placeholder="写评论…" />
-        <div class="comment-submit">
-          <el-button type="primary" :loading="submitting" @click="submitComment">发送</el-button>
+    <div class="detail-grid">
+      <section class="panel" v-loading="loading">
+        <div class="feed-top">
+          <span class="tag" :class="post.scopeType">{{ typeLabel(post.scopeType) }}</span>
+          <span class="detail-title">{{ post.title || '无标题' }}</span>
         </div>
-      </div>
-      <div v-else class="comment-empty">当前账号没有评论权限</div>
-    </el-card>
+        <div class="detail-meta">
+          <span>{{ post.userName || '法布施' }}</span>
+          <span>{{ formatTime(post.createdAt) }}</span>
+          <span class="read">{{ readState ? '已读' : '未读' }}</span>
+        </div>
+        <div class="detail-body">{{ post.content }}</div>
+
+        <div class="detail-actions">
+          <el-button :type="liked ? 'primary' : 'default'" plain @click="toggleLike">木鱼 {{ likeCount }}</el-button>
+          <span class="detail-count">评论 {{ comments.length }}</span>
+        </div>
+
+        <div class="comments-head">评论（{{ comments.length }}）</div>
+        <div v-if="!comments.length" class="comment-empty">还没有评论</div>
+        <div v-for="comment in comments" :key="comment.id" class="comment">
+          <b>{{ comment.userName || '同事' }}</b>
+          <p>{{ comment.content }}</p>
+          <span>{{ formatTime(comment.createdAt) }}</span>
+        </div>
+
+        <div v-if="canCreate" class="comment-form">
+          <el-input v-model="commentText" type="textarea" :rows="3" maxlength="500" show-word-limit placeholder="写评论…" />
+          <div class="comment-submit">
+            <el-button type="primary" :loading="submitting" @click="submitComment">发送</el-button>
+          </div>
+        </div>
+        <div v-else class="comment-empty">当前账号没有评论权限</div>
+      </section>
+
+      <aside class="detail-side">
+        <section class="side-card">
+          <div class="side-title">作者</div>
+          <div class="author">
+            <div class="avatar">{{ (post.userName || '法').slice(0, 1) }}</div>
+            <div>
+              <b>{{ post.userName || '法布施' }}</b>
+              <span>法布施内容发布人</span>
+            </div>
+          </div>
+        </section>
+
+        <section v-if="book" class="side-card">
+          <div class="side-title">关联书目</div>
+          <div class="book-row">
+            <div class="cover">{{ book.title.slice(0, 4) }}</div>
+            <div>
+              <b>{{ book.title }}</b>
+              <span>{{ book.author || '法布施书目' }}<template v-if="book.pages"> · {{ book.pages }} 页</template></span>
+              <el-button v-if="book.pdfFileId" class="book-action" @click="openReader">在线阅读</el-button>
+              <el-button v-else class="book-action" @click="goLibrary">去书目浏览</el-button>
+            </div>
+          </div>
+        </section>
+
+        <section class="side-card">
+          <div class="side-title">阅读状态</div>
+          <div class="side-row"><span>我的阅读</span><b>{{ readState ? '已读' : '未读' }}</b></div>
+          <div class="side-row"><span>木鱼</span><b>{{ likeCount }}</b></div>
+          <div class="side-row"><span>评论</span><b>{{ comments.length }}</b></div>
+        </section>
+      </aside>
+    </div>
   </div>
 </template>
 
@@ -48,7 +81,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/store/user'
 import {
-  getFabushiPostDetail, getFabushiComments, addFabushiComment, toggleFabushiLike, markFabushiRead,
+  getFabushiPostDetail, getFabushiComments, addFabushiComment, toggleFabushiLike, markFabushiRead, getFabushiBooks,
 } from '@/api/fabushi'
 
 const route = useRoute()
@@ -57,14 +90,20 @@ const userStore = useUserStore()
 const canCreate = computed(() => userStore.hasPermission('fabushi:create'))
 
 const loading = ref(false)
-const post = ref({ title: '', userName: '', createdAt: '', readByMe: false, content: '' })
+const post = ref({ title: '', userName: '', createdAt: '', scopeType: 'heart', content: '', bookId: null })
 const comments = ref([])
 const likeCount = ref(0)
 const liked = ref(false)
+const readState = ref(false)
 const commentText = ref('')
 const submitting = ref(false)
+const books = ref([])
 
+const book = computed(() => books.value.find((item) => item.id === post.value.bookId) || null)
+const typeLabel = (value) => ({ heart: '心得', recitation: '诵读', znl: '正能量' }[value] || '内容')
 const formatTime = (value) => (value ? String(value).replace('T', ' ').slice(0, 16) : '')
+const openReader = () => router.push(`/fabushi/read/${book.value.id}`)
+const goLibrary = () => router.push('/fabushi/library')
 
 const loadDetail = async () => {
   loading.value = true
@@ -73,8 +112,8 @@ const loadDetail = async () => {
     post.value = (data && data.post) || {}
     likeCount.value = Number(data && data.likeCount) || 0
     liked.value = Boolean(data && data.likedByMe)
-    markFabushiRead(route.params.id).catch(() => {})
-    await loadComments()
+    markFabushiRead(route.params.id).then(() => { readState.value = true }).catch(() => {})
+    await Promise.all([loadComments(), loadBooks()])
   } finally {
     loading.value = false
   }
@@ -86,6 +125,15 @@ const loadComments = async () => {
     comments.value = Array.isArray(data) ? data : []
   } catch (e) {
     comments.value = []
+  }
+}
+
+const loadBooks = async () => {
+  try {
+    const { data } = await getFabushiBooks({ status: 'approved', current: 1, size: 200 })
+    books.value = (data && data.records) || []
+  } catch (e) {
+    books.value = []
   }
 }
 
@@ -124,24 +172,43 @@ onMounted(loadDetail)
 </script>
 
 <style scoped>
-.fabushi-detail { max-width: 920px; margin: 0 auto; }
-.fabushi-detail :deep(.el-card) { border: 1px solid var(--border-light); border-radius: var(--radius-md); background: var(--el-bg-color); }
-.detail-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
-.detail-kicker { color: var(--text-placeholder); font-size: 12px; letter-spacing: 1px; }
-.detail-card { margin-bottom: 16px; }
-.detail-title { color: var(--text-primary); font-size: 22px; font-weight: 700; }
-.detail-meta { display: flex; gap: 16px; margin-top: 8px; color: var(--text-placeholder); font-size: 12px; }
-.detail-read { color: var(--primary-color); }
-.detail-content { margin-top: 20px; color: var(--text-secondary); font-size: 15px; line-height: 1.85; white-space: pre-wrap; }
-.detail-actions { display: flex; align-items: center; gap: 16px; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border-light); }
-.detail-comment-count { color: var(--text-muted); font-size: 13px; }
-.comment-item { padding: 14px 0; border-bottom: 1px solid var(--border-light); }
-.comment-item:last-of-type { border-bottom: none; }
-.comment-name { color: var(--text-secondary); font-size: 13px; font-weight: 600; }
-.comment-content { margin-top: 4px; color: var(--text-secondary); font-size: 14px; line-height: 1.7; white-space: pre-wrap; }
-.comment-time { margin-top: 4px; color: var(--text-placeholder); font-size: 11px; }
-.comment-empty { padding: 18px 0; color: var(--text-muted); font-size: 13px; }
-.comment-form { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-light); }
-.comment-submit { display: flex; justify-content: flex-end; margin-top: 10px; }
-
+.fabushi-detail { display: flex; flex-direction: column; gap: 10px; }
+.back { display: flex; align-items: center; }
+.detail-grid { display: grid; grid-template-columns: minmax(0, 1fr) 270px; gap: 12px; align-items: start; }
+.panel { padding: 16px 18px; border: 1px solid var(--border-light); border-radius: var(--radius-md); background: var(--el-bg-color); }
+.feed-top { display: flex; align-items: center; gap: 8px; }
+.tag { padding: 1px 6px; border-radius: var(--radius-sm); font-size: 10px; font-weight: 700; }
+.tag.heart { color: var(--primary-color); background: var(--el-color-primary-light-9); }
+.tag.recitation { color: var(--el-color-success); background: var(--el-color-success-light-9); }
+.tag.znl { color: var(--el-color-warning-dark-2); background: var(--el-color-warning-light-9); }
+.detail-title { color: var(--text-primary); font-size: 20px; font-weight: 800; }
+.detail-meta { display: flex; gap: 14px; margin-top: 7px; color: var(--text-placeholder); font-size: 11px; }
+.detail-meta .read { color: var(--primary-color); }
+.detail-body { margin-top: 16px; color: var(--text-secondary); font-size: 14px; line-height: 1.95; white-space: pre-wrap; }
+.detail-actions { display: flex; align-items: center; gap: 10px; margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--border-light); }
+.detail-count { color: var(--text-muted); font-size: 11px; }
+.comments-head { margin-top: 16px; color: var(--text-primary); font-size: 13px; font-weight: 700; }
+.comment { padding: 10px 0; border-bottom: 1px solid var(--border-light); }
+.comment:last-of-type { border-bottom: 0; }
+.comment b { color: var(--text-secondary); font-size: 12px; }
+.comment p { margin: 3px 0 0; color: var(--text-secondary); font-size: 12.5px; line-height: 1.7; white-space: pre-wrap; }
+.comment span { color: var(--text-placeholder); font-size: 10px; }
+.comment-empty { padding: 12px 0; color: var(--text-muted); font-size: 12px; }
+.comment-form { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-light); }
+.comment-submit { display: flex; justify-content: flex-end; margin-top: 8px; }
+.detail-side { display: flex; flex-direction: column; gap: 10px; }
+.side-card { padding: 13px 14px; border: 1px solid var(--border-light); border-radius: var(--radius-md); background: var(--el-fill-color-lighter); }
+.side-title { margin-bottom: 8px; color: var(--text-primary); font-size: 13px; font-weight: 700; }
+.author { display: flex; align-items: center; gap: 9px; }
+.avatar { display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 50%; color: var(--el-color-white); background: var(--hero-gradient); font-size: 14px; font-weight: 700; }
+.author b { display: block; color: var(--text-primary); font-size: 12px; }
+.author span { color: var(--text-muted); font-size: 10.5px; }
+.book-row { display: flex; align-items: flex-start; gap: 9px; }
+.cover { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 38px; height: 52px; padding: 4px; border-radius: var(--radius-sm); color: var(--el-color-white); background: var(--hero-gradient); font-size: 10px; line-height: 1.2; text-align: center; }
+.book-row b { display: block; color: var(--text-primary); font-size: 12px; }
+.book-row span { color: var(--text-muted); font-size: 10.5px; }
+.book-action { height: 24px; margin-top: 5px; padding: 0 8px; font-size: 10.5px; }
+.side-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border-light); color: var(--text-secondary); font-size: 12px; }
+.side-row:last-child { border-bottom: 0; }
+.side-row b { color: var(--text-primary); font-size: 13px; }
 </style>

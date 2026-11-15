@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="UTF-8"><title>法布施 · PC 阅读原型 v1</title><style>
+:root{--hero-gradient:linear-gradient(135deg,#16337a 0%,#1d4ed8 58%,#2563eb 100%);--radius-md:10px;--radius-lg:16px;
+--text-primary:#1f2329;--text-secondary:#4e5969;--text-muted:#6b7280;--text-placeholder:#94a3b8;--border-light:#ebeef5;--primary:#1d4ed8;}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#dde5f0;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Helvetica Neue",Arial,"Microsoft YaHei",sans-serif;color:var(--text-primary)}
+.canvas{padding:30px 34px 36px}
+.board-title{font-size:22px;font-weight:800;color:#172033}
+.board-tag{display:inline-block;margin-left:10px;padding:2px 8px;border-radius:6px;border:1px solid #c9d3e0;color:#64748b;font-size:11px;font-weight:500;vertical-align:3px}
+.board-sub{margin-top:8px;font-size:13px;color:#5b6b84}
+.frames{display:grid;grid-template-columns:1fr 1fr;gap:30px 32px}
+.frame-wrap{text-align:center}
+.frame-label{margin-top:12px;font-size:14px;font-weight:800;color:#2a3a55}
+.frame-note{margin-top:4px;font-size:12px;color:#7c8ba1}
+.frame{width:1280px;height:760px;background:#fff;border-radius:12px;box-shadow:0 18px 44px rgba(23,38,68,.22),0 0 0 10px #172033,0 0 0 12px #31435f;overflow:hidden;text-align:left}
+.app{display:flex;height:760px;background:#f0f2f5}
+.sidebar{width:200px;background:#001629;flex-shrink:0;display:flex;flex-direction:column}
+.logo{height:64px;display:flex;flex-direction:column;justify-content:center;padding:0 20px}
+.logo-text{color:#fff;font-size:17px;font-weight:800;letter-spacing:.5px}
+.logo-sub{color:#8f9aa8;font-size:11px;margin-top:3px}
+.menu{flex:1;padding:6px 0 20px;text-align:left;overflow:hidden}
+.menu-group{padding:14px 20px 5px;font-size:12px;color:#5e6d81}
+.menu-item{display:flex;align-items:center;gap:9px;padding:0 20px;height:38px;color:#bfcbd9;font-size:13px}
+.mi{width:13px;height:13px;border:1.5px solid currentColor;border-radius:3px;display:inline-block;flex-shrink:0;opacity:.85}
+.menu-item.active{color:#6083e4;font-weight:700}
+.menu-item.active .mi{border-color:#6083e4}
+.mcount{margin-left:auto;background:#f56c6c;color:#fff;font-size:9px;border-radius:999px;padding:1.5px 6px;font-style:normal;font-weight:700}
+.main{flex:1;display:flex;flex-direction:column;min-width:0}
+.header{height:56px;background:#fff;border-bottom:1px solid #e4e7ed;display:flex;align-items:center;padding:0 20px;flex-shrink:0}
+.collapse{font-size:16px;color:#4e5969;margin-right:14px}
+.crumb{font-size:13px;color:#4e5969}.crumb b{color:#1f2329;font-weight:600}.crumb i{font-style:normal;color:#c0c4cc;margin:0 6px}
+.header-right{margin-left:auto;display:flex;align-items:center;gap:18px}
+.bell{position:relative;font-size:15px;color:#4e5969}.bell-dot{position:absolute;top:-4px;right:-7px;background:#f56c6c;color:#fff;font-size:9px;border-radius:999px;padding:1px 4px;font-weight:700}
+.group-sel{font-size:12px;color:#4e5969;background:#f4f6fa;border:1px solid #e4e7ed;border-radius:8px;padding:5px 12px}
+.user{display:flex;align-items:center;gap:9px}.avatar{width:32px;height:32px;border-radius:50%;background:#1d4ed8;color:#fff;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.user-meta b{display:block;font-size:12px}.user-meta span{font-size:10.5px;color:#909399}
+.content{flex:1;padding:14px 16px;overflow:hidden;position:relative;display:flex;flex-direction:column;gap:10px}
+.page-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+.page-head h1{font-size:20px;font-weight:800;letter-spacing:.2px}
+.page-head p{font-size:12px;color:var(--text-muted);margin-top:4px}
+.btn{height:30px;padding:0 14px;border-radius:10px;font-size:12.5px;display:inline-flex;align-items:center;gap:5px;border:1px solid transparent}
+.btn.primary{background:var(--primary);color:#fff;font-weight:600}
+.btn.plain{border-color:#dcdfe6;background:#fff;color:var(--text-secondary)}
+.btn.green{background:#179050;color:#fff;font-weight:600}
+.caps{display:flex;background:#f2f4f7;border-radius:12px;padding:4px;gap:4px}
+.cap{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:8px 6px;border-radius:8px;font-size:13px;color:#606266;font-weight:600}
+.cap.active{background:var(--hero-gradient);color:#fff;box-shadow:0 2px 8px rgba(29,78,216,.28)}
+.cap .n{font-size:11px;background:rgba(0,0,0,.08);border-radius:999px;padding:1px 6px}
+.cap.active .n{background:rgba(255,255,255,.25)}
+.filter{background:#fff;border:1px solid var(--border-light);border-radius:10px;padding:9px 12px;display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.fl{font-size:12px;color:var(--text-secondary)}
+.sel{height:28px;border:1px solid #dcdfe6;border-radius:8px;color:var(--text-secondary);font-size:12px;padding:0 9px;display:inline-flex;align-items:center;gap:10px;min-width:92px;background:#fff}
+.inp{height:28px;border:1px solid #dcdfe6;border-radius:8px;color:var(--text-placeholder);font-size:12px;padding:0 10px;display:inline-flex;align-items:center;min-width:170px;background:#fff}
+.spacer{flex:1}
+.feed-layout{flex:1;display:grid;grid-template-columns:minmax(0,1fr) 268px;gap:12px;min-height:0}
+.feed-list{display:flex;flex-direction:column;gap:10px;min-height:0;overflow:hidden}
+.feed-item{background:#fafafa;border:1px solid var(--border-light);border-radius:10px;padding:13px 15px}
+.feed-item:hover{background:#fff;box-shadow:0 4px 16px rgba(15,23,42,.06)}
+.feed-top{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+.tag{font-size:10px;color:#1d4ed8;background:#e8edfb;border-radius:5px;padding:1px 6px;font-weight:700}
+.tag.green{color:#047857;background:#e7f6ee}.tag.amber{color:#b45309;background:#fff4e5}
+.feed-title{font-size:14px;font-weight:700;color:var(--text-primary)}
+.feed-time{margin-left:auto;font-size:11px;color:var(--text-placeholder)}
+.feed-body{font-size:12.5px;line-height:1.7;color:var(--text-secondary);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.feed-book{display:inline-flex;align-items:center;gap:5px;margin-top:7px;font-size:11px;color:#1d4ed8;background:#f2f6ff;border-radius:5px;padding:2px 7px}
+.feed-meta{display:flex;align-items:center;gap:14px;margin-top:8px;font-size:11px;color:var(--text-muted)}
+.feed-meta .read{margin-left:auto;color:#1d4ed8}
+.side-card{background:#fafafa;border:1px solid var(--border-light);border-radius:10px;padding:13px 14px}
+.side-title{font-size:13px;font-weight:700;margin-bottom:8px}
+.side-row{display:flex;justify-content:space-between;padding:6px 0;font-size:12px;color:var(--text-secondary);border-bottom:1px solid var(--border-light)}
+.side-row:last-child{border-bottom:none}.side-row b{font-size:15px;color:var(--text-primary);font-variant-numeric:tabular-nums}
+.side-book{display:flex;gap:9px;align-items:flex-start;margin-top:7px}
+.cover{width:38px;height:52px;border-radius:5px;background:linear-gradient(160deg,#1d4ed8,#16337a);color:#fff;font-size:10px;display:flex;align-items:center;justify-content:center;text-align:center;padding:4px;line-height:1.2;flex-shrink:0}
+.side-book b{font-size:12px;display:block}.side-book span{font-size:10.5px;color:var(--text-muted)}
+.back{font-size:12px;color:var(--text-secondary);margin-bottom:2px}
+.detail-grid{display:grid;grid-template-columns:minmax(0,1fr) 270px;gap:12px;min-height:0}
+.panel{background:#fff;border:1px solid var(--border-light);border-radius:10px;padding:16px 18px}
+.detail-title{font-size:20px;font-weight:800;color:var(--text-primary)}
+.detail-meta{display:flex;gap:14px;margin-top:7px;font-size:11px;color:var(--text-placeholder)}
+.detail-body{margin-top:16px;font-size:14px;line-height:1.95;color:var(--text-secondary);white-space:pre-wrap}
+.detail-actions{display:flex;align-items:center;gap:10px;margin-top:18px;padding-top:12px;border-top:1px solid var(--border-light)}
+.comment{padding:10px 0;border-bottom:1px solid var(--border-light)}.comment:last-child{border-bottom:none}
+.comment b{font-size:12px}.comment p{font-size:12.5px;color:var(--text-secondary);margin-top:3px}.comment span{font-size:10px;color:var(--text-placeholder)}
+.comment-input{margin-top:10px;border:1px solid #dcdfe6;border-radius:8px;padding:9px;color:var(--text-placeholder);font-size:12px;min-height:56px}
+.book-layout{display:grid;grid-template-columns:220px minmax(0,1fr);gap:12px;flex:1;min-height:0}
+.rail{background:#fff;border:1px solid var(--border-light);border-radius:10px;padding:10px}
+.rail-title{font-size:13px;font-weight:700;margin-bottom:8px}
+.rail-item{display:flex;align-items:center;justify-content:space-between;padding:8px 9px;border-radius:7px;font-size:12px;color:var(--text-secondary)}
+.rail-item.active{background:#e8edfb;color:#1d4ed8;font-weight:700}
+.rail-item .n{font-size:10px;color:#909399;background:#f4f4f5;border-radius:999px;padding:1px 6px}
+.book-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;align-content:start}
+.book-card{background:#fafafa;border:1px solid var(--border-light);border-radius:10px;padding:13px;min-height:176px}
+.book-card:hover{background:#fff;box-shadow:0 4px 16px rgba(15,23,42,.06)}
+.book-card h3{font-size:14px;font-weight:700}
+.book-card .sub{font-size:11px;color:var(--text-muted);margin-top:5px}
+.book-card .desc{font-size:11.5px;color:var(--text-secondary);line-height:1.6;margin-top:7px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.book-foot{display:flex;align-items:center;gap:8px;margin-top:9px;font-size:10.5px;color:var(--text-muted)}
+.book-foot .btn{height:25px;padding:0 9px;font-size:11px;border-radius:7px}
+.reader{flex:1;background:#0f172a;border-radius:10px;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.reader-head{height:44px;display:flex;align-items:center;gap:12px;padding:0 14px;color:#cbd5e1;border-bottom:1px solid rgba(255,255,255,.08);font-size:12px}
+.reader-head b{color:#fff;font-size:13px}.reader-head .spacer{flex:1}
+.reader-body{flex:1;display:grid;grid-template-columns:190px minmax(0,1fr);min-height:0}
+.toc{background:rgba(255,255,255,.03);border-right:1px solid rgba(255,255,255,.08);padding:12px 10px;color:#cbd5e1}
+.toc h4{font-size:11px;color:#94a3b8;letter-spacing:1px;margin-bottom:8px}
+.toc div{padding:7px 8px;border-radius:6px;font-size:11.5px;color:#cbd5e1;margin-bottom:2px}
+.toc div.on{background:rgba(37,99,235,.25);color:#fff}
+.page-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px;min-height:0}
+.paper{width:min(620px,76%);height:100%;background:#fffdf8;border-radius:4px;padding:28px 40px;box-shadow:0 12px 30px rgba(0,0,0,.28);display:flex;flex-direction:column}
+.paper h2{font-size:17px;text-align:center;font-weight:700;margin-bottom:16px;letter-spacing:1px}
+.paper p{font-size:12.5px;line-height:2.1;color:#374151;text-indent:2em;margin-bottom:9px}
+.paper .pno{margin-top:auto;text-align:center;font-size:10px;color:#9ca3af}
+.reader-foot{height:40px;border-top:1px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:12px;padding:0 16px;color:#cbd5e1;font-size:11px}
+.bar{flex:1;height:3px;background:rgba(255,255,255,.14);border-radius:99px}.bar i{display:block;width:42%;height:100%;background:#3b82f6;border-radius:99px}
+.modal-mask{position:absolute;inset:0;background:rgba(15,23,42,.38);display:flex;align-items:center;justify-content:center;z-index:5}
+.modal{width:700px;background:#fff;border-radius:14px;box-shadow:0 24px 60px rgba(15,23,42,.25);overflow:hidden}
+.modal-head{height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;border-bottom:1px solid var(--border-light);font-size:15px;font-weight:700}
+.modal-body{padding:16px 20px;display:flex;flex-direction:column;gap:11px}
+.form-row{display:grid;grid-template-columns:70px minmax(0,1fr);gap:10px;align-items:start}
+.form-row label{font-size:12px;color:var(--text-secondary);padding-top:7px}
+.form-input{border:1px solid #dcdfe6;border-radius:8px;height:32px;padding:0 10px;font-size:12px;color:var(--text-placeholder);display:flex;align-items:center}
+.form-area{border:1px solid #dcdfe6;border-radius:8px;min-height:96px;padding:9px 10px;font-size:12px;color:var(--text-placeholder)}
+.modal-foot{display:flex;justify-content:flex-end;gap:8px;padding:12px 20px;border-top:1px solid var(--border-light)}
+</style></head>
+<body><div class="canvas"><div class="board-head"><div class="board-title">法布施 · PC 阅读原型<span class="board-tag">MP v4 行为 + PC v5 视觉 · 2026-11-16</span></div>
+<div class="board-sub">5 屏：内容流 / 详情 / 书目 / 在线阅读 / 发布；管理端四窗沿用 PC v5，不在本原型内重复。</div></div><div class="frames"><div class="frame-wrap"><div class="frame"><div class="app">
+<aside class="sidebar">
+  <div class="logo"><div class="logo-text">AIGICRM</div><div class="logo-sub">运筹马年管理系统</div></div>
+  <div class="menu">
+    <div class="menu-group">首页</div><div class="menu-item"><span class="mi"></span>工作台</div>
+    <div class="menu-group">业务核心</div><div class="menu-item"><span class="mi"></span>客户管理</div><div class="menu-item"><span class="mi"></span>文件管理</div><div class="menu-item"><span class="mi"></span>四项激励</div><div class="menu-item"><span class="mi"></span>四项服务</div><div class="menu-item"><span class="mi"></span>公海管理</div>
+    <div class="menu-group">流程协同</div><div class="menu-item"><span class="mi"></span>我的任务</div><div class="menu-item"><span class="mi"></span>提醒管理<em class="mcount">9</em></div><div class="menu-item"><span class="mi"></span>审批管理</div>
+    <div class="menu-group">学分管理</div><div class="menu-item"><span class="mi"></span>学分录入</div><div class="menu-item"><span class="mi"></span>学分排行</div>
+    <div class="menu-group">法布施</div><div class="menu-item active"><span class="mi"></span>内容流</div><div class="menu-item "><span class="mi"></span>书目浏览</div><div class="menu-item"><span class="mi"></span>书目管理</div><div class="menu-item"><span class="mi"></span>内容治理</div><div class="menu-item"><span class="mi"></span>统计看板</div>
+    <div class="menu-group">统计分析</div><div class="menu-item"><span class="mi"></span>统计分析</div>
+  </div>
+</aside>
+<div class="main">
+<div class="header"><span class="collapse">≡</span><span class="crumb">首页 <i>/</i> 法布施 <i>/</i> <b>内容流</b></span>
+<div class="header-right"><span class="bell">◔<span class="bell-dot">3</span></span><span class="group-sel">▣ 艾志集团 ▾</span><div class="user"><div class="avatar">张</div><div class="user-meta"><b>张东来</b><span>销售部 · 销售总监</span></div></div></div></div>
+<div class="content">
+<div class="page-head"><div><h1>法布施</h1><p>读书 · 心得 · 正能量</p></div><button class="btn primary">＋ 发布内容</button></div>
+<div class="caps"><div class="cap active">心得 <span class="n">12</span></div><div class="cap">诵读 <span class="n">8</span></div><div class="cap">正能量 <span class="n">5</span></div></div>
+<div class="filter"><span class="fl">筛选</span><span class="sel">全部书目 ▾</span><span class="inp">搜标题 / 正文 / 作者</span><span class="sel">最新发布 ▾</span><span class="spacer"></span><span class="fl">☑ 只看未读</span><button class="btn plain">重置</button></div>
+<div class="feed-layout">
+  <div class="feed-list">
+    <div class="feed-item"><div class="feed-top"><span class="tag">心得</span><span class="feed-title">读《了凡四训》第一部分：立命之学</span><span class="feed-time">今天 10:20</span></div>
+      <div class="feed-body">“命由我作，福自己求。” 以前总觉得这句话是劝人向善的口号，今天读到云谷禅师与了凡先生的对话，才明白它讲的是一套可实践的因果观：先承认现状，再从每一个起心动念处改。</div>
+      <div class="feed-book">📖 了凡四训 · 第一部分</div>
+      <div class="feed-meta"><span>张东来</span><span>🐟 12</span><span>💬 5</span><span class="read">已读</span></div></div>
+    <div class="feed-item"><div class="feed-top"><span class="tag green">诵读</span><span class="feed-title">《论语》学而篇 · 第一到三章</span><span class="feed-time">昨天 18:42</span></div>
+      <div class="feed-body">学而时习之，不亦说乎？有朋自远方来，不亦乐乎？人不知而不愠，不亦君子乎？——带着团队一起读，和一个人读，感受完全不同。</div>
+      <div class="feed-book">📖 论语 · 学而篇</div>
+      <div class="feed-meta"><span>李长青</span><span>🐟 8</span><span>💬 2</span><span class="read">未读</span></div></div>
+    <div class="feed-item"><div class="feed-top"><span class="tag amber">正能量</span><span class="feed-title">把每一次客户拒绝，当成一次复盘机会</span><span class="feed-time">10-09 09:15</span></div>
+      <div class="feed-body">今天被拒绝后没有急着解释，先问了一句“您最担心的是什么”。对方讲了十分钟，最后反而约了下周再聊。很多时候不是产品问题，是我们太急着证明自己。</div>
+      <div class="feed-meta"><span>王建平</span><span>🐟 21</span><span>💬 9</span><span class="read">已读</span></div></div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:10px">
+    <div class="side-card"><div class="side-title">我的法布施</div><div class="side-row"><span>我的内容</span><b>12</b></div><div class="side-row"><span>我的评论</span><b>26</b></div><div class="side-row"><span>我的阅读</span><b>43</b></div><div class="side-row"><span>获木鱼</span><b>38</b></div></div>
+    <div class="side-card"><div class="side-title">今日推荐书目</div><div class="side-book"><div class="cover">了凡<br>四训</div><div><b>了凡四训</b><span>袁了凡 · 4 章</span><span style="display:block;margin-top:4px;color:#1d4ed8">3 人在读</span></div></div><button class="btn plain" style="width:100%;justify-content:center;margin-top:9px">进入书目浏览</button></div>
+  </div>
+</div>
+</div></div></div></div><div class="frame-label">R1 · 内容流（阅读工作台）</div><div class="frame-note">胶囊分类 + 筛选 + 主从；对应 MP A1/A2/A3 行为</div></div><div class="frame-wrap"><div class="frame"><div class="app">
+<aside class="sidebar">
+  <div class="logo"><div class="logo-text">AIGICRM</div><div class="logo-sub">运筹马年管理系统</div></div>
+  <div class="menu">
+    <div class="menu-group">首页</div><div class="menu-item"><span class="mi"></span>工作台</div>
+    <div class="menu-group">业务核心</div><div class="menu-item"><span class="mi"></span>客户管理</div><div class="menu-item"><span class="mi"></span>文件管理</div><div class="menu-item"><span class="mi"></span>四项激励</div><div class="menu-item"><span class="mi"></span>四项服务</div><div class="menu-item"><span class="mi"></span>公海管理</div>
+    <div class="menu-group">流程协同</div><div class="menu-item"><span class="mi"></span>我的任务</div><div class="menu-item"><span class="mi"></span>提醒管理<em class="mcount">9</em></div><div class="menu-item"><span class="mi"></span>审批管理</div>
+    <div class="menu-group">学分管理</div><div class="menu-item"><span class="mi"></span>学分录入</div><div class="menu-item"><span class="mi"></span>学分排行</div>
+    <div class="menu-group">法布施</div><div class="menu-item active"><span class="mi"></span>内容流</div><div class="menu-item "><span class="mi"></span>书目浏览</div><div class="menu-item"><span class="mi"></span>书目管理</div><div class="menu-item"><span class="mi"></span>内容治理</div><div class="menu-item"><span class="mi"></span>统计看板</div>
+    <div class="menu-group">统计分析</div><div class="menu-item"><span class="mi"></span>统计分析</div>
+  </div>
+</aside>
+<div class="main">
+<div class="header"><span class="collapse">≡</span><span class="crumb">首页 <i>/</i> 法布施 <i>/</i> <b>内容详情</b></span>
+<div class="header-right"><span class="bell">◔<span class="bell-dot">3</span></span><span class="group-sel">▣ 艾志集团 ▾</span><div class="user"><div class="avatar">张</div><div class="user-meta"><b>张东来</b><span>销售部 · 销售总监</span></div></div></div></div>
+<div class="content">
+<div class="back">← 返回内容流</div>
+<div class="detail-grid">
+  <div class="panel">
+    <div class="detail-title">读《了凡四训》第一部分：立命之学</div>
+    <div class="detail-meta"><span>张东来</span><span>2026-11-16 10:20</span><span>心得</span><span style="color:#1d4ed8">已读</span></div>
+    <div class="detail-body">“命由我作，福自己求。”
+
+以前总觉得这句话是劝人向善的口号，今天读到云谷禅师与了凡先生的对话，才明白它讲的是一套可实践的因果观：先承认现状，再从每一个起心动念处改。
+
+云谷问：“凡人所以不得作圣者，只为妄念相缠耳。” 了凡先生用一生验证了“命由我作”——不是口号，是每天的选择。</div>
+    <div class="detail-actions"><button class="btn primary">🐟 木鱼 12</button><button class="btn plain">分享</button><span style="font-size:11px;color:#9ca3af">5 条评论 · 3 人重点</span></div>
+    <div style="margin-top:12px;font-size:12px;font-weight:700;margin-bottom:2px">评论（5）</div>
+    <div class="comment"><b>李长青</b><p>“从每一个起心动念处改”这句很受用，准备带到今天的晚会分享。</p><span>10-16 11:02</span></div>
+    <div class="comment"><b>王建平</b><p>读完这段再去看客户问题，心态会稳很多。</p><span>10-16 11:20</span></div>
+    <div class="comment-input">写评论…</div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:10px">
+    <div class="side-card"><div class="side-title">作者</div><div class="side-book"><div class="avatar" style="width:34px;height:34px">张</div><div><b>张东来</b><span>销售部 · 销售总监</span><span style="display:block;margin-top:4px">本月 12 篇内容</span></div></div></div>
+    <div class="side-card"><div class="side-title">关联书目</div><div class="side-book"><div class="cover">了凡<br>四训</div><div><b>了凡四训</b><span>袁了凡 · 4 章</span><button class="btn plain" style="height:24px;font-size:10.5px;margin-top:5px">在线阅读</button></div></div></div>
+    <div class="side-card"><div class="side-title">阅读状态</div><div class="side-row"><span>我的阅读</span><b>已读</b></div><div class="side-row"><span>木鱼</span><b>12</b></div><div class="side-row"><span>评论</span><b>5</b></div></div>
+  </div>
+</div>
+</div></div></div></div><div class="frame-label">R2 · 内容详情（互动）</div><div class="frame-note">正文/木鱼/评论/关联书目；对应 MP B4</div></div><div class="frame-wrap"><div class="frame"><div class="app">
+<aside class="sidebar">
+  <div class="logo"><div class="logo-text">AIGICRM</div><div class="logo-sub">运筹马年管理系统</div></div>
+  <div class="menu">
+    <div class="menu-group">首页</div><div class="menu-item"><span class="mi"></span>工作台</div>
+    <div class="menu-group">业务核心</div><div class="menu-item"><span class="mi"></span>客户管理</div><div class="menu-item"><span class="mi"></span>文件管理</div><div class="menu-item"><span class="mi"></span>四项激励</div><div class="menu-item"><span class="mi"></span>四项服务</div><div class="menu-item"><span class="mi"></span>公海管理</div>
+    <div class="menu-group">流程协同</div><div class="menu-item"><span class="mi"></span>我的任务</div><div class="menu-item"><span class="mi"></span>提醒管理<em class="mcount">9</em></div><div class="menu-item"><span class="mi"></span>审批管理</div>
+    <div class="menu-group">学分管理</div><div class="menu-item"><span class="mi"></span>学分录入</div><div class="menu-item"><span class="mi"></span>学分排行</div>
+    <div class="menu-group">法布施</div><div class="menu-item "><span class="mi"></span>内容流</div><div class="menu-item active"><span class="mi"></span>书目浏览</div><div class="menu-item"><span class="mi"></span>书目管理</div><div class="menu-item"><span class="mi"></span>内容治理</div><div class="menu-item"><span class="mi"></span>统计看板</div>
+    <div class="menu-group">统计分析</div><div class="menu-item"><span class="mi"></span>统计分析</div>
+  </div>
+</aside>
+<div class="main">
+<div class="header"><span class="collapse">≡</span><span class="crumb">首页 <i>/</i> 法布施 <i>/</i> <b>书目浏览</b></span>
+<div class="header-right"><span class="bell">◔<span class="bell-dot">3</span></span><span class="group-sel">▣ 艾志集团 ▾</span><div class="user"><div class="avatar">张</div><div class="user-meta"><b>张东来</b><span>销售部 · 销售总监</span></div></div></div></div>
+<div class="content">
+<div class="page-head"><div><h1>书目浏览</h1><p>按类别浏览已通过审核的书目，在线阅读或写心得</p></div></div>
+<div class="filter"><span class="fl">类别</span><span class="sel">全部类别 ▾</span><span class="inp">搜书名 / 作者</span><span class="sel">最近更新 ▾</span><span class="spacer"></span><button class="btn plain">查询</button></div>
+<div class="book-layout">
+  <div class="rail"><div class="rail-title">书目分类</div><div class="rail-item active"><span>全部</span><span class="n">21</span></div><div class="rail-item"><span>论语</span><span class="n">4</span></div><div class="rail-item"><span>了凡四训</span><span class="n">3</span></div><div class="rail-item"><span>道德经</span><span class="n">2</span></div><div class="rail-item"><span>弟子规</span><span class="n">1</span></div><div class="rail-item"><span>群书治要</span><span class="n">2</span></div><div class="rail-item"><span>国外类</span><span class="n">5</span></div><div class="rail-item"><span>实用类</span><span class="n">4</span></div></div>
+  <div class="book-grid">
+    <div class="book-card"><h3>了凡四训</h3><div class="sub">袁了凡 · 原版 · 288 页</div><div class="desc">以立命之学、改过之法、积善之方、谦德之效四部分，讲透“命由我作”。</div><div class="book-foot"><span>📖 电子书</span><span>心得 8</span><span>诵读 3</span><button class="btn primary">在线阅读</button></div></div>
+    <div class="book-card"><h3>论语</h3><div class="sub">孔子及弟子 · 注释本 · 320 页</div><div class="desc">学而、为政、里仁……以对话体记录儒家修身与为政之道。</div><div class="book-foot"><span>📖 电子书</span><span>心得 12</span><span>诵读 9</span><button class="btn primary">在线阅读</button></div></div>
+    <div class="book-card"><h3>道德经</h3><div class="sub">老子 · 译本 · 180 页</div><div class="desc">“上善若水，水善利万物而不争。” 五千言里的人生与治理智慧。</div><div class="book-foot"><span>心得 6</span><span>诵读 4</span><button class="btn plain">写心得</button></div></div>
+    <div class="book-card"><h3>弟子规</h3><div class="sub">李毓秀 · 讲义 · 96 页</div><div class="desc">从孝悌、谨信、泛爱众到余力学文，适合团队共读的入门经典。</div><div class="book-foot"><span>📖 电子书</span><span>心得 4</span><span>诵读 6</span><button class="btn primary">在线阅读</button></div></div>
+    <div class="book-card"><h3>群书治要</h3><div class="sub">魏征 等 · 原版 · 620 页</div><div class="desc">从经史子集里择取治国理政的精华，适合管理者慢读。</div><div class="book-foot"><span>心得 2</span><span>诵读 1</span><button class="btn plain">写心得</button></div></div>
+    <div class="book-card"><h3>高效能人士的七个习惯</h3><div class="sub">史蒂芬·柯维 · 译本 · 380 页</div><div class="desc">从主动积极到不断更新，把个人成长拆成可练习的习惯。</div><div class="book-foot"><span>📖 电子书</span><span>心得 5</span><span>诵读 2</span><button class="btn primary">在线阅读</button></div></div>
+  </div>
+</div>
+</div></div></div></div><div class="frame-label">R3 · 书目浏览</div><div class="frame-note">左侧类别 + 右侧书卡；对应 MP A3/A4</div></div><div class="frame-wrap"><div class="frame"><div class="app">
+<aside class="sidebar">
+  <div class="logo"><div class="logo-text">AIGICRM</div><div class="logo-sub">运筹马年管理系统</div></div>
+  <div class="menu">
+    <div class="menu-group">首页</div><div class="menu-item"><span class="mi"></span>工作台</div>
+    <div class="menu-group">业务核心</div><div class="menu-item"><span class="mi"></span>客户管理</div><div class="menu-item"><span class="mi"></span>文件管理</div><div class="menu-item"><span class="mi"></span>四项激励</div><div class="menu-item"><span class="mi"></span>四项服务</div><div class="menu-item"><span class="mi"></span>公海管理</div>
+    <div class="menu-group">流程协同</div><div class="menu-item"><span class="mi"></span>我的任务</div><div class="menu-item"><span class="mi"></span>提醒管理<em class="mcount">9</em></div><div class="menu-item"><span class="mi"></span>审批管理</div>
+    <div class="menu-group">学分管理</div><div class="menu-item"><span class="mi"></span>学分录入</div><div class="menu-item"><span class="mi"></span>学分排行</div>
+    <div class="menu-group">法布施</div><div class="menu-item "><span class="mi"></span>内容流</div><div class="menu-item active"><span class="mi"></span>书目浏览</div><div class="menu-item"><span class="mi"></span>书目管理</div><div class="menu-item"><span class="mi"></span>内容治理</div><div class="menu-item"><span class="mi"></span>统计看板</div>
+    <div class="menu-group">统计分析</div><div class="menu-item"><span class="mi"></span>统计分析</div>
+  </div>
+</aside>
+<div class="main">
+<div class="header"><span class="collapse">≡</span><span class="crumb">首页 <i>/</i> 法布施 <i>/</i> <b>书目浏览</b></span>
+<div class="header-right"><span class="bell">◔<span class="bell-dot">3</span></span><span class="group-sel">▣ 艾志集团 ▾</span><div class="user"><div class="avatar">张</div><div class="user-meta"><b>张东来</b><span>销售部 · 销售总监</span></div></div></div></div>
+<div class="content">
+<div class="reader">
+  <div class="reader-head"><span>‹</span><b>了凡四训</b><span>第一部分 · 立命之学</span><span class="spacer"></span><span>目录</span><span>Aa</span></div>
+  <div class="reader-body">
+    <div class="toc"><h4>目录</h4><div>序 · 了凡先生自述</div><div class="on">第一部分 · 立命之学</div><div>第二部分 · 改过之法</div><div>第三部分 · 积善之方</div><div>第四部分 · 谦德之效</div></div>
+    <div class="page-wrap"><div class="paper"><h2>第一部分 · 立命之学（二）</h2><p>云谷问曰：“凡人所以不得作圣者，只为妄念相缠耳。汝坐三日，不见起一妄念，何也？”</p><p>余曰：“吾为孔先生算定，荣辱生死，皆有定数，即要妄想，亦无可妄想。”</p><p>云谷笑曰：“我待汝是豪杰，原来只是凡夫。”</p><p>问其故。曰：“人未能无心，终为阴阳所缚，安得无数？但惟凡人有数；极善之人，数固拘他不得；极恶之人，数亦拘他不得。”</p><p>“命由我作，福自己求。” 不是口号，是每天的选择。</p><div class="pno">— 第 8 页 · 共 288 页 —</div></div></div>
+  </div>
+  <div class="reader-foot"><span>‹</span><div class="bar"><i></i></div><span>8 / 288</span><span>进度自动记忆</span><span>›</span></div>
+</div>
+</div></div></div></div><div class="frame-label">R4 · 在线阅读（PDF）</div><div class="frame-note">深色阅读工具栏 + 目录 + 纸张 + 进度；对应 MP B1</div></div><div class="frame-wrap"><div class="frame"><div class="app">
+<aside class="sidebar">
+  <div class="logo"><div class="logo-text">AIGICRM</div><div class="logo-sub">运筹马年管理系统</div></div>
+  <div class="menu">
+    <div class="menu-group">首页</div><div class="menu-item"><span class="mi"></span>工作台</div>
+    <div class="menu-group">业务核心</div><div class="menu-item"><span class="mi"></span>客户管理</div><div class="menu-item"><span class="mi"></span>文件管理</div><div class="menu-item"><span class="mi"></span>四项激励</div><div class="menu-item"><span class="mi"></span>四项服务</div><div class="menu-item"><span class="mi"></span>公海管理</div>
+    <div class="menu-group">流程协同</div><div class="menu-item"><span class="mi"></span>我的任务</div><div class="menu-item"><span class="mi"></span>提醒管理<em class="mcount">9</em></div><div class="menu-item"><span class="mi"></span>审批管理</div>
+    <div class="menu-group">学分管理</div><div class="menu-item"><span class="mi"></span>学分录入</div><div class="menu-item"><span class="mi"></span>学分排行</div>
+    <div class="menu-group">法布施</div><div class="menu-item active"><span class="mi"></span>内容流</div><div class="menu-item "><span class="mi"></span>书目浏览</div><div class="menu-item"><span class="mi"></span>书目管理</div><div class="menu-item"><span class="mi"></span>内容治理</div><div class="menu-item"><span class="mi"></span>统计看板</div>
+    <div class="menu-group">统计分析</div><div class="menu-item"><span class="mi"></span>统计分析</div>
+  </div>
+</aside>
+<div class="main">
+<div class="header"><span class="collapse">≡</span><span class="crumb">首页 <i>/</i> 法布施 <i>/</i> <b>内容流</b></span>
+<div class="header-right"><span class="bell">◔<span class="bell-dot">3</span></span><span class="group-sel">▣ 艾志集团 ▾</span><div class="user"><div class="avatar">张</div><div class="user-meta"><b>张东来</b><span>销售部 · 销售总监</span></div></div></div></div>
+<div class="content">
+<div class="page-head"><div><h1>法布施</h1><p>读书 · 心得 · 正能量</p></div><button class="btn primary">＋ 发布内容</button></div>
+<div class="caps"><div class="cap active">心得 <span class="n">12</span></div><div class="cap">诵读 <span class="n">8</span></div><div class="cap">正能量 <span class="n">5</span></div></div>
+<div class="filter"><span class="fl">筛选</span><span class="sel">全部书目 ▾</span><span class="inp">搜标题 / 正文 / 作者</span><span class="sel">最新发布 ▾</span><span class="spacer"></span><span class="fl">☑ 只看未读</span><button class="btn plain">重置</button></div>
+<div class="feed-layout">
+  <div class="feed-list">
+    <div class="feed-item"><div class="feed-top"><span class="tag">心得</span><span class="feed-title">读《了凡四训》第一部分：立命之学</span><span class="feed-time">今天 10:20</span></div>
+      <div class="feed-body">“命由我作，福自己求。” 以前总觉得这句话是劝人向善的口号，今天读到云谷禅师与了凡先生的对话，才明白它讲的是一套可实践的因果观：先承认现状，再从每一个起心动念处改。</div>
+      <div class="feed-book">📖 了凡四训 · 第一部分</div>
+      <div class="feed-meta"><span>张东来</span><span>🐟 12</span><span>💬 5</span><span class="read">已读</span></div></div>
+    <div class="feed-item"><div class="feed-top"><span class="tag green">诵读</span><span class="feed-title">《论语》学而篇 · 第一到三章</span><span class="feed-time">昨天 18:42</span></div>
+      <div class="feed-body">学而时习之，不亦说乎？有朋自远方来，不亦乐乎？人不知而不愠，不亦君子乎？——带着团队一起读，和一个人读，感受完全不同。</div>
+      <div class="feed-book">📖 论语 · 学而篇</div>
+      <div class="feed-meta"><span>李长青</span><span>🐟 8</span><span>💬 2</span><span class="read">未读</span></div></div>
+    <div class="feed-item"><div class="feed-top"><span class="tag amber">正能量</span><span class="feed-title">把每一次客户拒绝，当成一次复盘机会</span><span class="feed-time">10-09 09:15</span></div>
+      <div class="feed-body">今天被拒绝后没有急着解释，先问了一句“您最担心的是什么”。对方讲了十分钟，最后反而约了下周再聊。很多时候不是产品问题，是我们太急着证明自己。</div>
+      <div class="feed-meta"><span>王建平</span><span>🐟 21</span><span>💬 9</span><span class="read">已读</span></div></div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:10px">
+    <div class="side-card"><div class="side-title">我的法布施</div><div class="side-row"><span>我的内容</span><b>12</b></div><div class="side-row"><span>我的评论</span><b>26</b></div><div class="side-row"><span>我的阅读</span><b>43</b></div><div class="side-row"><span>获木鱼</span><b>38</b></div></div>
+    <div class="side-card"><div class="side-title">今日推荐书目</div><div class="side-book"><div class="cover">了凡<br>四训</div><div><b>了凡四训</b><span>袁了凡 · 4 章</span><span style="display:block;margin-top:4px;color:#1d4ed8">3 人在读</span></div></div><button class="btn plain" style="width:100%;justify-content:center;margin-top:9px">进入书目浏览</button></div>
+  </div>
+</div>
+
+<div class="modal-mask"><div class="modal"><div class="modal-head"><span>发布内容</span><span>✕</span></div>
+<div class="modal-body"><div class="form-row"><label>类型</label><div class="caps" style="flex:1"><div class="cap active">心得</div><div class="cap">诵读</div><div class="cap">正能量</div></div></div>
+<div class="form-row"><label>关联书目</label><div class="form-input">选择书目（可选） ▾</div></div>
+<div class="form-row"><label>标题</label><div class="form-input">给这段心得起个标题</div></div>
+<div class="form-row"><label>正文</label><div class="form-area">写下你的读书心得、诵读内容或今天的正能量…</div></div>
+<div class="form-row"><label>附件</label><div class="form-input" style="color:#9ca3af">图片 / 音频 / 视频（二期开放）</div></div></div>
+<div class="modal-foot"><button class="btn plain">取消</button><button class="btn primary">发布</button></div></div></div>
+</div></div></div></div><div class="frame-label">R5 · 发布内容</div><div class="frame-note">类型/关联书目/标题/正文；对应 MP B2</div></div></div></div></body></html>

@@ -4,12 +4,12 @@ Generated from local source: `02-迭代源代码`
 
 ## Summary
 
-- PC routes: 41
+- PC routes: 42
 - PC API functions: 238
 - Mini Program pages: 49
 - Mini Program API functions: 121
 - Backend endpoints: 265
-- PC UI actions: 306
+- PC UI actions: 312
 - Mini Program UI actions: 280
 - Backend permission tokens: 85
 - Permission dictionary tokens: 104
@@ -46,6 +46,7 @@ Generated from local source: `02-迭代源代码`
 | `fabushi/feed` | 内容流 | `fabushi:view` | `aigicrm-ui/src/router/index.js` |
 | `fabushi/detail/:id` | 内容详情 | `fabushi:view` | `aigicrm-ui/src/router/index.js` |
 | `fabushi/library` | 书目浏览 | `fabushi:view` | `aigicrm-ui/src/router/index.js` |
+| `fabushi/read/:bookId` | 在线阅读 | `fabushi:view` | `aigicrm-ui/src/router/index.js` |
 | `fabushi/book` | 书目管理 | `fabushi:book:view` | `aigicrm-ui/src/router/index.js` |
 | `fabushi/content` | 内容治理 | `fabushi:content:view` | `aigicrm-ui/src/router/index.js` |
 | `fabushi/stats` | 统计看板 | `fabushi:stats:view` | `aigicrm-ui/src/router/index.js` |
@@ -218,15 +219,21 @@ Generated from local source: `02-迭代源代码`
 | 下架 | `openOffline(row)` | `row.status === 'published' && userStore.hasPermission('fabushi:content:manage')` | `aigicrm-ui/src/views/fabushi/content.vue:40` |
 | 取消 | `offlineVisible = null` | `` | `aigicrm-ui/src/views/fabushi/content.vue:55` |
 | 确认下架 | `doOffline` | `` | `aigicrm-ui/src/views/fabushi/content.vue:56` |
-| ← 返回 | `router.back()` | `` | `aigicrm-ui/src/views/fabushi/detail.vue:4` |
-| 🐟 木鱼 | `toggleLike` | `` | `aigicrm-ui/src/views/fabushi/detail.vue:18` |
-| 发送 | `submitComment` | `` | `aigicrm-ui/src/views/fabushi/detail.vue:37` |
-| 发布内容 | `openPublish` | `canCreate` | `aigicrm-ui/src/views/fabushi/feed.vue:8` |
-| 进入书目浏览 → | `router.push('/fabushi/library')` | `` | `aigicrm-ui/src/views/fabushi/feed.vue:58` |
-| 取消 | `publishVisible = false` | `` | `aigicrm-ui/src/views/fabushi/feed.vue:85` |
-| 发布 | `submitPost` | `` | `aigicrm-ui/src/views/fabushi/feed.vue:86` |
-| 查询 | `onSearch` | `` | `aigicrm-ui/src/views/fabushi/library.vue:15` |
-| 下载阅读 | `downloadPdf(book)` | `` | `aigicrm-ui/src/views/fabushi/library.vue:28` |
+| ← 返回内容流 | `router.back()` | `` | `aigicrm-ui/src/views/fabushi/detail.vue:4` |
+| 木鱼 | `toggleLike` | `` | `aigicrm-ui/src/views/fabushi/detail.vue:21` |
+| 发送 | `submitComment` | `` | `aigicrm-ui/src/views/fabushi/detail.vue:36` |
+| 在线阅读 | `openReader` | `` | `aigicrm-ui/src/views/fabushi/detail.vue:61` |
+| 去书目浏览 | `goLibrary` | `` | `aigicrm-ui/src/views/fabushi/detail.vue:62` |
+| ＋ 发布内容 | `openPublish` | `canCreate` | `aigicrm-ui/src/views/fabushi/feed.vue:8` |
+| 重置 | `resetFilters` | `canView` | `aigicrm-ui/src/views/fabushi/feed.vue:32` |
+| 进入书目浏览 | `goLibrary` | `` | `aigicrm-ui/src/views/fabushi/feed.vue:73` |
+| 取消 | `publishVisible = false` | `` | `aigicrm-ui/src/views/fabushi/feed.vue:121` |
+| 发布 | `submitPost` | `` | `aigicrm-ui/src/views/fabushi/feed.vue:122` |
+| 查询 | `onSearch` | `` | `aigicrm-ui/src/views/fabushi/library.vue:18` |
+| 在线阅读 | `openReader(book)` | `` | `aigicrm-ui/src/views/fabushi/library.vue:51` |
+| 写心得 | `writePost(book)` | `` | `aigicrm-ui/src/views/fabushi/library.vue:52` |
+| ‹ 返回书目 | `router.back()` | `` | `aigicrm-ui/src/views/fabushi/read.vue:4` |
+| 下载 | `downloadPdf` | `` | `aigicrm-ui/src/views/fabushi/read.vue:8` |
 | 取消 | `createFolderVisible = false` | `` | `aigicrm-ui/src/views/file/CreateFolderDialog.vue:9` |
 | 创建 | `handleCreateFolder` | `` | `aigicrm-ui/src/views/file/CreateFolderDialog.vue:10` |
 | 批量下载 | `doBatchDownload` | `userStore.hasPermission('file:download')` | `aigicrm-ui/src/views/file/FileTable.vue:6` |
