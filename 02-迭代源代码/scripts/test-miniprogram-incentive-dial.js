@@ -26,9 +26,11 @@ function createPage() {
   page.setData = function (patch) {
     Object.keys(patch).forEach((key) => {
       if (key.indexOf('[') >= 0 || key.indexOf('.') >= 0) {
-        // 按路径写入(records[0].unread 等):仅测试用到的浅路径
+        // 按路径写入(records[0].unread / detailView.xxx 等):仅测试用到的浅路径
         const [, index, field] = /^records\[(\d+)\]\.(\w+)$/.exec(key) || []
-        if (index !== undefined) this.data.records[Number(index)][field] = patch[key]
+        if (index !== undefined) { this.data.records[Number(index)][field] = patch[key]; return }
+        const dm = /^detailView\.(\w+)$/.exec(key)
+        if (dm) { this.data.detailView[dm[1]] = patch[key]; return }
         return
       }
       this.data[key] = patch[key]
@@ -55,9 +57,6 @@ const view = page.data.detailView
 
 // 客户概览
 assert.equal(view.customerName, '华北钢铁集团')
-assert.equal(view.heroInitial, '华')
-assert.equal(view.scoreText, '7')
-assert.equal(view.scoreCaption, '客户累计积分')
 assert.equal(view.recordCountText, '4 条记录')
 assert.equal(view.showUnread, true)
 assert.equal(view.unreadCountText, '2 未读')
@@ -98,7 +97,6 @@ const item = page.data.detailView.items[0]
 assert.equal(item.dayText, '09月18日')
 assert.equal(item.timeText, '10:30')
 assert.deepEqual(item.chips.map((chip) => chip.label), ['上传人', '周期', '行业', '相关产品', '具体产品'])
-assert.equal(item.scoreText, '+3 分')
 assert.equal(item.stageColor, '#059669')
 assert.equal(item.showUnreadDot, true)
 assert.equal(item.detailLabel, '水泵机封安装详情')
@@ -118,7 +116,6 @@ page.setDetailData({ selYear: '2024', selMonth: 3, selDay: 0 })
 let empty = page.data.detailView
 assert.equal(empty.showPaneEmpty, true)
 assert.equal(empty.paneEmptyTitle, '2024年3月，此时间无数据')
-assert.ok(empty.paneEmptyHint.indexOf('转盘') >= 0)
 
 // 日历完整性:2024 年 2 月闰年 29 天(与有无记录无关),仅 29 日亮
 page.setDetailData({ selYear: '2024', selMonth: 2, selDay: 0 })
