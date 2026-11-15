@@ -7,3 +7,4 @@
 .diag-perms { font-size: 24rpx; color: #606266; line-height: 1.7; word-break: break-all; }
 .muted { color: #909399; font-size: 24rpx; }
 .mini-action { font-size: 24rpx; padding: 6rpx 18rpx; border-radius: 999rpx; background: #eef4ff; color: #2563eb; }
+.diag-scope-list { margin-top: 8rpx; }

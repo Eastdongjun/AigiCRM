@@ -122,3 +122,9 @@ PC 改权限/数据范围后，小程序不再只在“下一次请求”静默�
 - 收敛后小程序前端 `node --check` 92/92 通过；源码树后端 `mvn test` **1,099 tests / 0 failures**；PC `npm test` **324/324**、`npm run build` exit 0。
 - 小程序 UI DevTools 验收 **PASS**（2026-11-16 01:25）：automator 9424；法布施工作台/内容流/详情/评论/木鱼/已读 + 撤权/恢复入口消失均实测通过。证据 `test-results/fabushi/mp-evidence-20261116.json`、`mp-revoke-evidence-20261116.json`。
 - 合并明细与证据见 `docs/tree-convergence-20261116.md`。
+
+## 收敛后矩阵复跑（2026-11-16）
+
+- 以收敛后后端 jar 重跑 24 码 × 28 账号 × 7 范围：**4,704 行，PASS 4,312 + DATA_GUARD 392 + FAIL 0**。
+- 完整门禁 `bash scripts/gate.sh`：**PASS=9 FAIL=0**。
+- 证据：`test-results/mp-matrix/api_matrix_final.json`；细节见 `docs/tree-convergence-20261116.md`。

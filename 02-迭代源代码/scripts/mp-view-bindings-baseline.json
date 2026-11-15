@@ -11,6 +11,16 @@
       "file": "pages/customer/indicator/index.wxml",
       "field": "optionsView",
       "reason": "Produced one directory up in pages/customer/shared.js:88 (buildIndicatorItems) and imported at pages/customer/indicator/index.js:6 via require('../shared'). The guard only inspects same-directory index.js/shared.js by design."
+    },
+    {
+      "file": "pages/fabushi/book/index.wxml",
+      "field": "item.dictValue",
+      "reason": "Produced by getDictData('fabushi_category') at pages/fabushi/book/index.js:42, rendered from data.categories; dictionary rows are runtime API data, not same-directory literals."
+    },
+    {
+      "file": "pages/fabushi/book/index.wxml",
+      "field": "item.dictLabel",
+      "reason": "Same dictionary source as item.dictValue (getDictData('fabushi_category'), pages/fabushi/book/index.js:42); label is an API field, not a local binding."
     }
   ]
 }

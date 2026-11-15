@@ -76,9 +76,9 @@ assert_contains "$UTIL" "readRate"
 assert_contains "$UTIL" "readRateText"
 assert_contains "$UTIL_SPEC" "incentive-read-ranking"
 
-# 测试经 readRankingAsAdmin 助手以管理员上下文调用（内部 service().readRanking(period)），
-# 不再直接出现 readRanking("2026-09") 字面量。
-assert_contains "$BACKEND_TEST" "readRankingAsAdmin(\"2026-09\")"
+# 测试经 readRankingAsScoped 助手以“单集团非 admin”上下文调用（内部 service().readRanking(period)），
+# 不再直接出现 readRanking("2026-09") 字面量。2026-11-15 权限底座把 helper 由 AsAdmin 改名 AsScoped。
+assert_contains "$BACKEND_TEST" "readRankingAsScoped(\"2026-09\")"
 assert_contains "$BACKEND_TEST" "service().readRanking(period)"
 assert_contains "$ARCH_TEST" "$PERMISSION"
 

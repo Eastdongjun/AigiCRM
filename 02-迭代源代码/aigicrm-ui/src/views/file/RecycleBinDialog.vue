@@ -113,8 +113,9 @@ const loadFiles = async () => {
   loading.value = true
   try {
     const res = await myRecycleFiles({ current: fPage.value, size: fSize.value })
-    files.value = res.data || []
-    fTotal.value = res.total || 0
+    const page = res?.data || {}
+    files.value = page.records || []
+    fTotal.value = Number(page.total) || 0
     fileSelection.value = []
   } catch (e) {
     files.value = []
@@ -128,8 +129,9 @@ const loadFolders = async () => {
   loading.value = true
   try {
     const res = await myRecycleFolders({ current: foPage.value, size: foSize.value })
-    folders.value = res.data || []
-    foTotal.value = res.total || 0
+    const page = res?.data || {}
+    folders.value = page.records || []
+    foTotal.value = Number(page.total) || 0
     folderSelection.value = []
   } catch (e) {
     folders.value = []
@@ -142,7 +144,7 @@ const loadFolders = async () => {
 const doRestoreFile = async (row) => {
   await ElMessageBox.confirm(`恢复文件「${row.fileName}」？`, '恢复确认', { type: 'info' })
   const res = await restoreRecycleFile(row.id)
-  ElMessage.success(res?.message || '已恢复')
+  ElMessage.success(res?.data?.message || '已恢复')
   loadFiles()
   emit('restored')
 }
@@ -153,14 +155,14 @@ const doPurgeFile = async (row) => {
     '彻底删除', { type: 'warning', confirmButtonText: '彻底删除' }
   )
   const res = await purgeRecycleFile(row.id)
-  ElMessage.success(res?.message || '已彻底删除')
+  ElMessage.success(res?.data?.message || '已彻底删除')
   loadFiles()
 }
 
 const doRestoreFolder = async (row) => {
   await ElMessageBox.confirm(`恢复文件夹「${row.folderName}」？原上级文件夹已删除时将恢复到根目录。`, '恢复确认', { type: 'info' })
   const res = await restoreRecycleFolder(row.id)
-  ElMessage.success(res?.message || '已恢复')
+  ElMessage.success(res?.data?.message || '已恢复')
   loadFolders()
   emit('restored')
 }
@@ -171,7 +173,7 @@ const doPurgeFolder = async (row) => {
     '彻底删除', { type: 'warning', confirmButtonText: '彻底删除' }
   )
   const res = await purgeRecycleFolder(row.id)
-  ElMessage.success(res?.message || '已彻底删除')
+  ElMessage.success(res?.data?.message || '已彻底删除')
   loadFolders()
 }
 
@@ -185,7 +187,7 @@ const doBatchRestore = async () => {
     ? { folderIds: sel.map(f => f.id), fileIds: [] }
     : { fileIds: sel.map(f => f.id), folderIds: [] }
   const res = await batchRestoreRecycle(payload)
-  ElMessage.success(`恢复完成：${res?.ok ?? 0}/${res?.total ?? sel.length} 项成功`)
+  ElMessage.success(`恢复完成：${res?.data?.ok ?? 0}/${res?.data?.total ?? sel.length} 项成功`)
   tab.value === 'folders' ? loadFolders() : loadFiles()
   emit('restored')
 }
@@ -201,7 +203,7 @@ const doBatchPurge = async () => {
     ? { folderIds: sel.map(f => f.id), fileIds: [] }
     : { fileIds: sel.map(f => f.id), folderIds: [] }
   const res = await batchPurgeRecycle(payload)
-  ElMessage.success(`清理完成：${res?.ok ?? 0}/${res?.total ?? sel.length} 项成功`)
+  ElMessage.success(`清理完成：${res?.data?.ok ?? 0}/${res?.data?.total ?? sel.length} 项成功`)
   tab.value === 'folders' ? loadFolders() : loadFiles()
 }
 

@@ -59,6 +59,20 @@ const {
 } = injectFilePage()
 const userStore = useUserStore()
 
+// 【收敛修复 2026-11-16】模板已引用 toggleDownloadable，但脚本未定义（点击下载图标会抛错）。
+// 语义：downloadable=0 表示仅预览，1 表示允许下载；切换后原地更新行状态。
+const toggleDownloadable = async (folder) => {
+  if (!folder || folder.id == null) return
+  const next = folder.downloadable === 0 ? 1 : 0
+  try {
+    await setFolderDownloadable(folder.id, next)
+    folder.downloadable = next
+    ElMessage.success(next === 0 ? '已改为仅预览' : '已开启下载')
+  } catch (e) {
+    ElMessage.error(e?.response?.data?.message || '设置失败')
+  }
+}
+
 </script>
 
 <style scoped>

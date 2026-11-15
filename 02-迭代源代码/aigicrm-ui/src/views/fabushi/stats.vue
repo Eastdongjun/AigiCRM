@@ -49,8 +49,20 @@
 import { ref, onMounted } from 'vue'
 import { getFabushiTeamStats, getFabushiPersonalStats } from '@/api/fabushi'
 
-const team = ref({})
-const personal = ref({})
+const team = ref({
+  todayReadUsers: 0,
+  coveragePct: /** @type {number|null} */ (null),
+  memberCount: 0,
+  totalPosts: 0,
+  likesTotal: 0,
+  commentsTotal: 0,
+})
+const personal = ref({
+  myPosts: 0,
+  myComments: 0,
+  myReadCount: 0,
+  myLikesReceived: 0,
+})
 
 async function loadData() {
   const [t, p] = await Promise.all([getFabushiTeamStats(), getFabushiPersonalStats()])

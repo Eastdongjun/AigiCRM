@@ -12,10 +12,16 @@ FIX_MIGRATION="$ROOT/aigicrm-backend/src/main/resources/db/migration/V2026.09.11
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
-for permission in file:upload file:edit file:delete file:share file:folder:manage; do
+for permission in file:upload file:edit file:delete file:share; do
   grep -Fq "'$permission'" "$MIGRATION" || fail "migration missing $permission"
   grep -Fq "hasAuthority('$permission')" "$CONTROLLER" || fail "controller missing $permission"
 done
+# 【2026-11-16 收敛】V2026.11.14.11 文件权限 v2 把文件夹三端点拆成
+# create/rename/delete 新码, 旧 file:folder:manage 作为兼容码与任一新码并列放行。
+# 契约仍要求三端点都保留旧码兼容, 不再要求单码 hasAuthority 形态。
+grep -Fq "'file:folder:manage'" "$MIGRATION" || fail "migration missing file:folder:manage"
+grep -Eq "hasAnyAuthority\('file:folder:(create|rename|delete)','file:folder:manage'\)" "$CONTROLLER" \
+  || fail "controller missing file:folder:manage compatibility guard"
 grep -Fq "view_menu.permission = 'file:view'" "$MIGRATION" || fail 'migration does not inherit file:view role bindings'
 
 # ---- 修复迁移必须存在且真能把 5 个码置为启用 ----------------------------
@@ -36,9 +42,6 @@ grep -Fq "saveDemoFolder" "$ROOT/aigicrm-miniprogram/pages/files/folder-form/ind
 grep -Fq "removeDemoFolder" "$ROOT/aigicrm-miniprogram/pages/files/index.js" || fail 'mobile demo folder delete boundary is missing'
 for pair in \
   "file:upload|@PostMapping(\"/upload\")" \
-  "file:folder:manage|@PostMapping(\"/folders\")" \
-  "file:folder:manage|@PutMapping(\"/folders/{id}\")" \
-  "file:folder:manage|@DeleteMapping(\"/folders/{id}\")" \
   "file:delete|@DeleteMapping(\"/{id}\")" \
   "file:edit|@PostMapping(\"/{id}/replace\")" \
   "file:share|@PostMapping(\"/{id}/share\")"; do
@@ -46,6 +49,15 @@ for pair in \
   mapping="${pair#*|}"
   grep -B1 -F "$mapping" "$CONTROLLER" | grep -Fq "hasAuthority('$permission')" \
     || fail "controller mapping mismatch for $mapping -> $permission"
+done
+for pair in \
+  "file:folder:create|@PostMapping(\"/folders\")" \
+  "file:folder:rename|@PutMapping(\"/folders/{id}\")" \
+  "file:folder:delete|@DeleteMapping(\"/folders/{id}\")"; do
+  permission="${pair%%|*}"
+  mapping="${pair#*|}"
+  grep -B2 -F "$mapping" "$CONTROLLER" | grep -Fq "hasAnyAuthority('$permission','file:folder:manage')" \
+    || fail "controller mapping mismatch for $mapping -> $permission + file:folder:manage"
 done
 
 # ---- 【2026-11-10 文件权限终版: 组织底座】 --------------------------------------------

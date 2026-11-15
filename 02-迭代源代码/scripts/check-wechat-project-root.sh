@@ -16,7 +16,8 @@ project = json.loads(Path(sys.argv[2]).read_text(encoding='utf-8'))
 pages = app.get('pages', [])
 # 【2026-10-07 钉随代码】1b3c865b 死页面清理(D 系列): file/cases×2/notification×2 五个
 # 零入口页面连同磁盘文件删除 —— 46→41。钉按"注册页均有磁盘实体且被 navigation 契约覆盖"动态校验,
-# 并保底下限防误删整段 pages。
+# 并保底下限防误删整段 pages。2026-11-16 收敛后新增法布施 5 页 + 权限诊断页 → 48，
+# 上限随注册页调整到 50（仍能拦住“指到 node_modules/错误根目录”的整段误计）。
 import os
 mini_root = os.path.dirname(sys.argv[1])
 missing = [pg for pg in pages if not (
@@ -24,8 +25,8 @@ missing = [pg for pg in pages if not (
 )]
 if missing:
     raise SystemExit(f'registered pages missing on disk: {missing}')
-if not (30 <= len(pages) <= 46):
-    raise SystemExit(f'page count {len(pages)} outside sanity band [30, 46]')
+if not (30 <= len(pages) <= 50):
+    raise SystemExit(f'page count {len(pages)} outside sanity band [30, 50]')
 if project.get('compileType') != 'miniprogram':
     raise SystemExit('project.config.json compileType must be miniprogram')
 if project.get('miniprogramRoot') != './':

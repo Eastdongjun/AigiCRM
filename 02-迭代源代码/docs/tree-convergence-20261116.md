@@ -138,12 +138,16 @@ V2026.11.15.5__admin_all_active_menus.sql
 - 测试工作树：`integration/perm-fabushi-20261116`，HEAD `3f138db`（`1b07f25` + `f400039` + `3f138db`）。
 - 逐文件对账：`aigicrm-backend/src`、`aigicrm-ui/src`、`aigicrm-miniprogram` 两树 **0 diff**。
 - 源码树剩余未提交改动仅历史项：`00-项目管理/法布施原型图`、`docs/unified-feature-audit.md`、`scripts/test-miniprogram-incentive-dial.js`（均非本轮产生，未纳入提交）。
+- 完整门禁：`bash scripts/gate.sh` **PASS=9 FAIL=0**（含后端/前端/小程序/构建/文档/不变量/全量契约/vue-tsc）。
+- 4,704 格矩阵：24 码 × 28 账号 × 7 范围 **PASS 4,312 + DATA_GUARD 392 + FAIL 0**，矩阵克隆角色已恢复/清理。
 - 测试环境：前端已部署收敛构建（备份 `/data/aigicrm/backup/frontend-20261116-pre.tgz`）；后端已部署收敛 jar md5 `b6975b9d172d3d64add8a01f04b34f12`（备份 `/data/aigicrm/backup/app-20261116-pre.jar`），启动 `Started AigicrmApplication`，smoke 登录/posts/personal/`scope=fabushi` 上传（fileId 2687）均 200；Flyway `2026.11.16.3`；临时验收角色/账号 `zz_mp_probe`（role 102 / user 83）已删除，role 06 法布施绑定恢复为 2 码。
 - 最终验收矩阵：
 
 | 项 | 结果 | 证据 |
 |---|---|---|
 | 后端 | PASS 1,099 tests / 0 failures / 0 errors / 0 skipped | `mvn test`（源码树，exit 0） |
+| 完整门禁 | PASS=9 FAIL=0 | `bash scripts/gate.sh`（2026-11-16 01:58） |
+| 4,704 格权限矩阵 | PASS 4,312 + DATA_GUARD 392 + FAIL 0 | `test-results/mp-matrix/api_matrix_final.json`（02:00 重跑） |
 | PC 单测/构建 | PASS 324 tests / build exit 0 | `npm test`、`npm run build` |
 | 小程序语法 | PASS 92/92 | `node --check` |
 | MP 页面级 | PASS 工作台/内容流/详情/评论/木鱼/已读 | `test-results/fabushi/mp-evidence-20261116.json` |
@@ -151,3 +155,14 @@ V2026.11.15.5__admin_all_active_menus.sql
 | PC 权限中心 9 码 | PASS 逐个勾选（PUT 200）+ 依赖置灰 + 恢复原状态 | `test-results/fabushi/pc-perm-center-evidence-20261116.json` |
 | 权限/契约脚本 | PASS 8 项（codes-generated/api-fresh/binding/consumption/scope-parity/scope-axis/action-gate/dict） | 见第 2 节 |
 | 生产 | 未部署（禁止） | — |
+
+## 7. 门禁修复（2026-11-16 01:50–01:58）
+
+跑完整门禁又暴露 3 个收敛引入的运行时缺陷与 8 处契约漂移，均已修复：
+
+1. `VersionHistoryDialog.vue` 使用 `versions` 但未声明 ref（历史版本弹窗必崩）→ 补 `const versions = ref([])`。
+2. `FolderPanel.vue` 模板引用 `toggleDownloadable` 但脚本未定义（文件夹下载开关点击即错）→ 用已导入的 `setFolderDownloadable` 补实现。
+3. `RecycleBinDialog.vue` 把 `PageResult` 当数组/把 `total` 挂在 Result 上（个人回收站分页恒 0、表格空）→ 统一取 `res.data.records/total`；批量结果取 `res.data.ok/total`。
+4. 其余为契约随 V14.11/V15/新增页面漂移：文件权限 v2 拆分码、MP 文件 admin 旁路、页面数区间 46→50、法布施字典绑定、诊断页共享反馈、manifest 新增 3 个页面归属、incentive read-ranking helper 改名、vue-tsc 基线收紧（555→537）。
+
+修复后 `bash scripts/gate.sh` **PASS=9 FAIL=0**；`dev-verify.sh contracts` 全绿；vue-tsc 当前 537/基线 537。

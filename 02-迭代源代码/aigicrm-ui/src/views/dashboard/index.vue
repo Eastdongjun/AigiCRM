@@ -270,6 +270,7 @@ const onCardKeydown = (event, action) => {
     action()
   }
 }
+/** @type {import('vue').Ref<Record<string, any>>} */
 const stats = ref({})
 const reminders = ref([])
 const activities = ref([])

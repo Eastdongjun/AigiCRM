@@ -38,6 +38,7 @@ const visible = ref(false)
 const loading = ref(false)
 const fileId = ref(null)
 const fileName = ref("")
+const versions = ref([])
 // 【V2026.11.14.3 P2】按钮按真实行权限分控(入口=file:view+行 view 已在 FileTable 收口):
 // 下载=行 download / 回滚=file:edit+行 replace——与后端 checkFile 双门同口径
 const canDownload = ref(false)

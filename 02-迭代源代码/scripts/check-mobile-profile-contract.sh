@@ -73,7 +73,7 @@ require_line '/api/system/users/change-password' "$PASSWORD_JS"
 require_line 'clearToken()' "$PASSWORD_JS"
 require_line '请完整填写密码' "$PASSWORD_JS"
 # 【mp-5 2026-10-18】后端 changePassword 要求 8-30 位, 前端提示/校验同步
-require_line '新密码（8-30 位）' "$PASSWORD_JS"
+require_line '新密码（8-30 位，含字母和数字）' "$PASSWORD_JS"
 require_line '8-30 位' "$PASSWORD_JS"
 require_line '两次新密码不一致' "$PASSWORD_JS"
 require_line '修改密码' "$PASSWORD_WXML"

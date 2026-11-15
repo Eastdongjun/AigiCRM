@@ -105,7 +105,8 @@
 | `fabushi.contentManage` | 法布施 | `/fabushi/content`(下架留痕) | `PC-only` | `fabushi:content:manage` | — | 内容下架/治理 | `PC-only` ⟦一期 2026-11-15⟧ |
 | `fabushi.stats` | 法布施 | `/fabushi/stats`(五联卡+个人统计) | `PC-only`(MP 个人统计在工作台) | `fabushi:stats:view`(独立数据范围档 fabushi/stats_view, 照激励拍板B模式) | 团队统计可见集(独立档) | 读取/统计 | 已实现 ⟦一期 2026-11-15, 周榜/部门进度/导出二期⟧ |
 | `fabushi.activity` | 法布施 | 二期 | 二期 | `fabushi:activity:manage` | — | 共读活动 | 规划中 |
-| `system.group` | 系统 | `/system/group` | `PC-only` | `system:group:*` | 超管集团范围 | 集团增删改查 | `PC-only` |
+| `fabushi.feed` | 法布施 | — | `pages/fabushi/feed/index`、`pages/fabushi/detail/index` | `fabushi:view`/`fabushi:create` | 社区全员可见 | 内容流/详情/评论/木鱼/已读; 发布/互动需 create | 已实现 ⟦一期 2026-11-15⟧ |
+| `profile.diagnostic` | 我的 | — | `pages/profile/diagnostic/index` | `authenticated` | 仅本人 | 权限诊断(用户/范围/epoch/权限码只读展示) | 已实现 ⟦2026-11-15⟧ |
 
 ## 3. 工程使用规则
 

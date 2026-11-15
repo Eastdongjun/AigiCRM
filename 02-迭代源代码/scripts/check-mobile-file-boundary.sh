@@ -210,7 +210,7 @@ grep -Fq 'one-tap preview download missing' "$AUTOMATOR_SCRIPT" || fail 'file ce
 ! grep -Fq 'canReplace' "$PAGE" || fail 'file list replace permission gate was retired by user order (2026-10-26); file:edit now only gates rename (11-08 re-anchor)'
 # 【11-08 审计项3 + 2026-11-10 用户令"A"】重命名入口=file:edit 码 ∧ (当前夹 edit ∨ 是我传的)——
 # 后端 rename 守 file:edit 码 + checkFile(P_RENAME) 本人短路(上传者恒可管自己的文件), 前端同口径
-grep -Fq "canEditFile: globalData.demoMode || hasPermission('file:edit')" "$PAGE" || fail 'mobile file rename entry must pre-gate on the file:edit permission code'
+grep -Fq "canEditFile: globalData.demoMode || isAdmin() || hasPermission('file:edit')" "$PAGE" || fail 'mobile file rename entry must pre-gate on the file:edit permission code (admin bypass allowed)'
 # 【2026-11-11 词表修复对齐】重命名入口兼容双词表: edit(旧伞词)∨rename(终版细词)∨isOwn
 # (树回填 perms=细词, 只认 edit 时非本人文件重命名入口恒不出现——NO001 验收实证)
 # 【T2-MP 2026-11-12 重锚】判定源升级 actionPerms(行级 row.perms 优先, 缺失回退夹 perms)

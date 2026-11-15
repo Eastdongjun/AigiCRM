@@ -2,6 +2,7 @@ const { requireLogin } = require('../../../utils/auth')
 const { loadCurrentUser } = require('../../../api/auth')
 const permissionRefresh = require('../../../utils/permission-refresh')
 const { dataScopeLabel } = require('../../../utils/label-maps')
+const { showError } = require('../../../utils/feedback')
 
 const MODULE_LABELS = { customer: '客户', incentive: '激励', file: '文件', sea: '公海', approval: '审批', reminder: '提醒', statistics: '统计' }
 
@@ -47,7 +48,10 @@ Page({
       this.setData({ view: buildView() })
       return
     }
-    loadCurrentUser().then(() => this.setData({ view: buildView() })).catch(() => this.setData({ view: buildView() }))
+    loadCurrentUser().then(() => this.setData({ view: buildView() })).catch((err) => {
+      showError(err, '权限信息刷新失败，已显示本地缓存')
+      this.setData({ view: buildView() })
+    })
   },
   copyPermissions() {
     const text = this.data.view.permissionsText || ''

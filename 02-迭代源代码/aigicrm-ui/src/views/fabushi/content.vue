@@ -71,7 +71,7 @@ const actionLoading = ref(false)
 const posts = ref([])
 const total = ref(0)
 const pageSizes = [10, 20, 50]
-const query = ref({ scopeType: '', current: 1, size: 10 })
+const query = ref({ scopeType: '', status: '', current: 1, size: 10 })
 
 const offlineVisible = ref(null)
 const offlineReason = ref('')

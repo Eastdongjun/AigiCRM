@@ -93,3 +93,9 @@ Playwright + 测试环境真实登录态：
 - 权限中心范围目标已补 `fabushi:stats:view → (fabushi, stats_view)`（`PermCenterService.java:69`、`PermScopeManager.vue:193`），双源对账脚本 PASS。
 - 收敛验证：后端 1,099 tests / 0 failures；前端 324 tests；UI build；小程序 92 JS 语法；权限码生成物 90 码独立真值 PASS；API 清单 264 接口新鲜度 PASS。
 - 已补齐：小程序页面级 UI 验收 PASS、PC 权限中心 9 码逐项勾选/撤权回归 PASS；明细与证据见 `docs/tree-convergence-20261116.md`。
+
+## 门禁与矩阵复跑（2026-11-16 02:00）
+
+- 完整门禁 `bash scripts/gate.sh`：**PASS=9 FAIL=0**（后端/前端/小程序/构建/文档/不变量/全量契约/vue-tsc）。
+- 4,704 格 API 矩阵：24 码 × 28 账号 × 7 范围 = **4,704 行，PASS 4,312 + DATA_GUARD 392 + FAIL 0**；矩阵克隆角色已恢复并清理。证据：`test-results/mp-matrix/api_matrix_final.json`。
+- 复跑同时修复 3 个收敛引入的运行时缺陷（历史版本 `versions` 未声明、文件夹下载开关 `toggleDownloadable` 未实现、个人回收站分页读取错层）与 8 处契约漂移，详见 `docs/tree-convergence-20261116.md` 第 7 节。
