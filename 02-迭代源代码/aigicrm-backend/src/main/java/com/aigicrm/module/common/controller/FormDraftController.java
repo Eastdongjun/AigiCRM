@@ -36,7 +36,8 @@ public class FormDraftController {
     public Result<Object> save(@PathVariable String draftType, @RequestBody Map<String, Object> body) {
         Long groupId = GroupScopeUtil.currentGroupOrNull();
         if (groupId == null) throw new BusinessException(403, "无有效集团归属");
-        String data = body.get("draftData") != null ? body.get("draftData").toString() : null;
+        String data = body == null || body.get("draftData") == null ? null : body.get("draftData").toString();
+        if (data == null) throw new BusinessException(400, "草稿内容不能为空");
         Integer version = body.get("version") instanceof Number n ? n.intValue() : null;
         try {
             return Result.ok(FormDraftService.toRow(draftService.saveDraft(draftType, SecurityUtils.getCurrentUserId(),
@@ -52,7 +53,8 @@ public class FormDraftController {
     public Result<java.util.Map<String, Object>> forceSave(@PathVariable String draftType, @RequestBody Map<String, Object> body) {
         Long groupId = GroupScopeUtil.currentGroupOrNull();
         if (groupId == null) throw new BusinessException(403, "无有效集团归属");
-        String data = body.get("draftData") != null ? body.get("draftData").toString() : null;
+        String data = body == null || body.get("draftData") == null ? null : body.get("draftData").toString();
+        if (data == null) throw new BusinessException(400, "草稿内容不能为空");
         return Result.ok(FormDraftService.toRow(draftService.forceSaveDraft(draftType, SecurityUtils.getCurrentUserId(), groupId, data)));
     }
 
