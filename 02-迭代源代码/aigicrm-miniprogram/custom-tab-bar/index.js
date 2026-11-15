@@ -10,14 +10,14 @@ const { hasPermission, isAdmin } = require('../utils/auth')
 const TABS = [
   { key: 'home', title: '首页', permission: null },
   { key: 'service', title: '四项服务', permission: 'incentive:view' },
-  { key: 'files', title: '文件', permission: 'file:view' },
+  { key: 'fabushi', title: '法布施', permission: 'fabushi:view' },
   { key: 'apps', title: '应用', permission: null },
   { key: 'profile', title: '我的', permission: null }
 ]
 const PATHS = [
   '/pages/home/index',
   '/pages/incentive/home/index',
-  '/pages/files/index',
+  '/pages/fabushi/index',
   '/pages/app/index',
   '/pages/profile/index'
 ]

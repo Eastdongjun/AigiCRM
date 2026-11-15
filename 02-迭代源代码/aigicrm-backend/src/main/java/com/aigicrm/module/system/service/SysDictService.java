@@ -13,6 +13,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -23,6 +25,44 @@ public class SysDictService {
     private final SysDictTypeMapper dictTypeMapper;
     private final SysDictDataMapper dictDataMapper;
     private final BizCustomerMapper customerMapper;
+
+    /** 【2026-11-16】字典模块固定枚举：与菜单/权限模块对齐，空模块也可在新增下拉选择 */
+    private static final Map<String, String> DICT_MODULES = new LinkedHashMap<>();
+    static {
+        DICT_MODULES.put("customer", "客户管理");
+        DICT_MODULES.put("file", "文件管理");
+        DICT_MODULES.put("incentive", "四项激励");
+        DICT_MODULES.put("service", "四项服务");
+        DICT_MODULES.put("sea", "公海管理");
+        DICT_MODULES.put("workflow", "流程协同");
+        DICT_MODULES.put("score", "学分管理");
+        DICT_MODULES.put("fabushi", "法布施");
+        DICT_MODULES.put("statistics", "统计分析");
+        DICT_MODULES.put("system", "系统管理");
+        DICT_MODULES.put("common", "通用");
+    }
+
+    private String normalizeModuleCode(String moduleCode) {
+        if (moduleCode == null || moduleCode.isBlank()) return "common";
+        if (!DICT_MODULES.containsKey(moduleCode)) {
+            throw new BusinessException(400, "未知字典模块: " + moduleCode);
+        }
+        return moduleCode;
+    }
+
+    /** 模块下拉选项（只读；空模块保留，便于未来扩展） */
+    public List<Map<String, Object>> listModules() {
+        List<Map<String, Object>> out = new ArrayList<>();
+        int sort = 1;
+        for (Map.Entry<String, String> e : DICT_MODULES.entrySet()) {
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("code", e.getKey());
+            row.put("name", e.getValue());
+            row.put("sort", sort++);
+            out.add(row);
+        }
+        return out;
+    }
 
     /** 【P2 修复 2026-11-02】同一字典类型内 dictLabel/dictValue 唯一(编辑时排除自身) */
     private void assertDictDataUnique(SysDictData data) {
@@ -49,7 +89,9 @@ public class SysDictService {
 
     public List<SysDictType> listTypes() {
         return dictTypeMapper.selectList(
-                new LambdaQueryWrapper<SysDictType>().orderByAsc(SysDictType::getId));
+                new LambdaQueryWrapper<SysDictType>()
+                        .orderByAsc(SysDictType::getModuleCode)
+                        .orderByAsc(SysDictType::getId));
     }
 
     public void createType(SysDictType type) {
@@ -58,10 +100,15 @@ public class SysDictService {
         if (count > 0) {
             throw new BusinessException("字典编码已存在");
         }
+        type.setModuleCode(normalizeModuleCode(type.getModuleCode()));
         dictTypeMapper.insert(type);
     }
 
     public void updateType(SysDictType type) {
+        // 未传 moduleCode 时保留原值（MyBatis-Plus 忽略 null）；显式空串归一 common
+        if (type.getModuleCode() != null) {
+            type.setModuleCode(normalizeModuleCode(type.getModuleCode()));
+        }
         dictTypeMapper.updateById(type);
     }
 

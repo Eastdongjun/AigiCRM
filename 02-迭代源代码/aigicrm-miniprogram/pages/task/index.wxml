@@ -1,0 +1,75 @@
+<view class="task-page">
+  <view class="task-stats">
+    <view class="task-stat main">
+      <view class="task-stat-num">{{stats.pending || 0}}</view>
+      <view class="task-stat-label">待办任务</view>
+      <view class="task-stat-sub">今日到期 {{stats.todayDue || 0}} · 逾期 {{stats.overdue || 0}}</view>
+    </view>
+    <view class="task-stat"><view class="task-stat-num">{{stats.todayDue || 0}}</view><view class="task-stat-label">今日到期</view></view>
+    <view class="task-stat danger"><view class="task-stat-num">{{stats.overdue || 0}}</view><view class="task-stat-label">已逾期</view></view>
+    <view class="task-stat ok"><view class="task-stat-num">{{stats.completedThisMonth || 0}}</view><view class="task-stat-label">本月完成</view></view>
+  </view>
+
+  <scroll-view class="task-tabs" scroll-x>
+    <view wx:for="{{tabs}}" wx:key="key" class="task-tab {{status === item.key ? 'active' : ''}}" data-key="{{item.key}}" bindtap="onTabTap">{{item.label}}</view>
+  </scroll-view>
+
+  <view class="task-filter" bindtap="toggleOverdue">
+    <view class="task-check {{overdueOnly ? 'checked' : ''}}">{{overdueOnly ? '✓' : ''}}</view>
+    <text>仅看逾期</text>
+  </view>
+
+  <view wx:if="{{!loading && !tasks.length}}" class="task-empty">暂无任务</view>
+
+  <view wx:for="{{tasks}}" wx:key="id" class="task-card">
+    <view class="task-card-title">
+      <text class="{{item.status === 'completed' ? 'done' : ''}}">{{item.title || '未命名任务'}}</text>
+      <text wx:if="{{item.overdue}}" class="task-badge danger">逾期</text>
+      <text wx:elif="{{item.status === 'completed'}}" class="task-badge ok">已完成</text>
+      <text wx:elif="{{item.status === 'cancelled'}}" class="task-badge muted">已取消</text>
+    </view>
+    <view class="task-card-meta">
+      <text wx:if="{{item.customerName}}">{{item.customerName}}</text>
+      <text>截止 {{item.dueDate || '—'}}</text>
+    </view>
+    <view wx:if="{{item.completionNote}}" class="task-card-note">结果：{{item.completionNote}}</view>
+    <view wx:if="{{canManage && item.status === 'pending'}}" class="task-actions">
+      <button size="mini" class="task-btn primary" data-index="{{index}}" bindtap="openComplete">完成</button>
+      <button size="mini" class="task-btn" data-index="{{index}}" bindtap="openCancel">取消</button>
+      <button size="mini" class="task-btn" data-index="{{index}}" bindtap="openTransfer">转交</button>
+    </view>
+  </view>
+
+  <view wx:if="{{loading}}" class="task-loading">加载中...</view>
+  <view wx:elif="{{tasks.length && tasks.length >= total}}" class="task-end">没有更多了</view>
+</view>
+
+<view wx:if="{{actionVisible}}" class="task-mask" catchtap="closeAction">
+  <view class="task-modal" catchtap="noop">
+    <view class="task-modal-title">{{actionTitle}}</view>
+    <view class="task-modal-sub">{{actionTask.title}}</view>
+    <textarea class="task-textarea" value="{{actionText}}" placeholder="{{actionPlaceholder}}" bindinput="onActionInput" maxlength="500" />
+    <view class="task-modal-actions">
+      <button size="mini" class="task-btn" bindtap="closeAction">取消</button>
+      <button size="mini" class="task-btn primary" loading="{{submitting}}" bindtap="submitAction">确定</button>
+    </view>
+  </view>
+</view>
+
+<view wx:if="{{transferVisible}}" class="task-mask" catchtap="closeTransfer">
+  <view class="task-modal" catchtap="noop">
+    <view class="task-modal-title">转交任务</view>
+    <view class="task-modal-sub">{{actionTask.title}}</view>
+    <input class="task-input" placeholder="搜索责任人" value="{{assigneeKeyword}}" bindinput="onAssigneeInput" />
+    <scroll-view class="task-assignee-list" scroll-y>
+      <view wx:for="{{filteredAssignees}}" wx:key="id" class="task-assignee" data-index="{{index}}" bindtap="selectAssignee">
+        <text>{{item.realName || item.username}}</text>
+        <text class="task-assignee-sub">{{item.username}}</text>
+      </view>
+      <view wx:if="{{!filteredAssignees.length}}" class="task-empty small">暂无可转交人员</view>
+    </scroll-view>
+    <view class="task-modal-actions">
+      <button size="mini" class="task-btn" bindtap="closeTransfer">取消</button>
+    </view>
+  </view>
+</view>

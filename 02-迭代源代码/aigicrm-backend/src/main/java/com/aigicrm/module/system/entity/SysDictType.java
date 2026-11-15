@@ -11,6 +11,8 @@ public class SysDictType {
     private Long id;
     private String dictName;
     private String dictCode;
+    /** 【2026-11-16】字典模块分类：customer/file/incentive/service/sea/workflow/score/fabushi/statistics/system/common */
+    private String moduleCode;
     private Integer status;
     private Integer builtIn;
     private String remark;

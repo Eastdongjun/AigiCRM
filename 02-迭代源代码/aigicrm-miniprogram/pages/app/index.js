@@ -12,6 +12,7 @@ const APP_ICONS = {
   reminder: '铃',
   approval: '审',
   sea: '海',
+  task: '务',
   indicator: '核',
   statistics: '统',
   ranking: '榜'
@@ -29,6 +30,7 @@ const TILE_SUBTITLES = {
   reminder: '到期与待办提醒',
   approval: '处理审批事项',
   sea: '可见公海客户',
+  task: '待办与完成',
   indicator: '核心指标总览',
   statistics: '客户、审批与公海',
   ranking: '个人与部门学分榜'
@@ -37,23 +39,16 @@ const TILE_SUBTITLES = {
 // 应用中心按业务模块组织，而不是把 9 个入口平铺成菜单。
 // apps 里放应用 key，构建时按当前账号权限过滤，空模块整块隐藏。
 const APP_MODULES = [
-  // 【2026-11-04 用户令"统一命名 统一数据来源"】模块分组与 PC 菜单分组逐一对齐:
-  //   客户经营=客户管理(PC 业务核心)/文件管理=文件管理/四项服务=四项服务/考核与分析=考核与分析(PC 组,
-  //   收纳 学分排行+统计分析+核心客户六项指标)/流程协同=公海·审批·提醒 协作面; 原「经营分析」组撤销。
-  // 【2026-11-06 用户令"客户排行归客户模块 学分排行归学分模块"】客户排行卡入客户经营组(对齐 PC
-  // 客户管理·客户排行), 学分排行卡留学分管理组(对齐 PC 学分管理·学分排行); 两卡带 ?tab= 直达同页
-  // 【法布施一期 2026-11-15】独立模块组(需求裁决: 入口与客户管理平级、宫格第一位; 对齐 PC 侧栏组)
-  { key: 'fabushi', title: '法布施', subtitle: '读书 · 心得 · 正能量', apps: ['fabushi'] },
+  // 【2026-11-16 菜单方案】应用中心顺序按用户拍板：
+  // 客户经营 → 文件管理 → 四项激励 → 法布施 → 学分管理 → 统计分析 → 流程协同
   { key: 'customer', title: '客户经营', subtitle: '客户列表、详情与新增', apps: ['customer', 'customerCreate', 'customerRanking', 'indicator'] },
-  // 【2026-11-03 用户令"应用与 PC 对齐"】补文件管理(PC 正式菜单 file:view; tabBar 页 switchTab 直达)
+  // 文件管理已从 tabBar 移入应用中心（原 tab 位置改为法布施）
   { key: 'files', title: '文件管理', subtitle: '文件库、文件夹与分享', apps: ['files'] },
-  // 【2026-11-05 用户令"应用中心里面的四项服务叫做四项激励, 激励上传/查询/统计都归属于四项激励"】
-  // 应用中心合并为一组(推翻 11-04 MP 拆分; PC 已于 11-05 先行合并=V2026.11.05.1, MP 随行对齐);
-  // 权限码仍按入口各自注册码门禁(incentive:add / incentive:view / stats+rank 并集), 分组只是展示层
   { key: 'incentive', title: '四项激励', subtitle: '上传、查询与统计', apps: ['incentiveUpload', 'incentiveQuery', 'incentiveStats'] },
+  { key: 'fabushi', title: '法布施', subtitle: '读书 · 心得 · 正能量', apps: ['fabushi'] },
   { key: 'assessment', title: '学分管理', subtitle: '学分排行', apps: ['ranking'] },
   { key: 'statistics', title: '统计分析', subtitle: '客户 · 审批 · 公海摘要', apps: ['statistics'] },
-  { key: 'workflow', title: '流程协同', subtitle: '审批、提醒与公海协作', apps: ['approval', 'reminder', 'sea'] }
+  { key: 'workflow', title: '流程协同', subtitle: '我的任务、审批、提醒与公海', apps: ['task', 'reminder', 'approval', 'sea'] }
 ]
 
 function padIndex(index) {
@@ -129,6 +124,7 @@ Page({
       { key: 'ranking', title: '学分排行', subtitle: '个人与部门学分榜', color: 'purple', permission: 'score:view' },
       { key: 'indicator', title: '核心客户六项指标', subtitle: '核心客户指标总览', color: 'indigo', permission: 'statistics:view' },
       { key: 'statistics', title: '统计分析', subtitle: '客户、审批与公海摘要', color: 'cyan', permission: 'statistics:view' },
+      { key: 'task', title: '我的任务', subtitle: '待办、逾期与完成', color: 'blue', permission: 'task:view' },
       { key: 'approval', title: '审批管理', subtitle: '处理和查看审批事项', color: 'green', permission: 'approval:view' },
       { key: 'reminder', title: '提醒管理', subtitle: '到期客户与待办提醒', color: 'red', permission: 'reminder:view' },
       { key: 'sea', title: '公海池', subtitle: '查看可见公海客户', color: 'orange', permission: 'sea:view' }
@@ -159,9 +155,9 @@ Page({
     // 【2026-10-23 四项服务拆分】完整工作台(pages/incentive/index)不再是 tabBar 页,
     // 应用中心「四项服务应用」navigateTo 直达; tabBar 轻量客户记录在 pages/incentive/home/index
     // 【2026-11-03 用户令"查询和统计分开"】两入口带 mode 各锁页签集(query=记录/分类/阅读, stats=统计/排行)
-    const routes = { customer: '/pages/customer/index', customerCreate: '/pages/customer/form/index', customerRanking: '/pages/ranking/index?tab=customer', files: '/pages/files/index', incentiveUpload: '/pages/incentive/upload/index', incentiveQuery: '/pages/incentive/index?mode=query', incentiveStats: '/pages/incentive/index?mode=stats', reminder: '/pages/reminder/index', approval: '/pages/approval/index', sea: '/pages/sea/index', indicator: '/pages/indicator/index', statistics: '/pages/statistics/index', ranking: '/pages/ranking/index?tab=score' }
+    const routes = { customer: '/pages/customer/index', customerCreate: '/pages/customer/form/index', customerRanking: '/pages/ranking/index?tab=customer', files: '/pages/files/index', task: '/pages/task/index', incentiveUpload: '/pages/incentive/upload/index', incentiveQuery: '/pages/incentive/index?mode=query', incentiveStats: '/pages/incentive/index?mode=stats', reminder: '/pages/reminder/index', approval: '/pages/approval/index', sea: '/pages/sea/index', indicator: '/pages/indicator/index', statistics: '/pages/statistics/index', ranking: '/pages/ranking/index?tab=score' }
     // 【#11 2026-10-12】tabBar 页必须 switchTab:navigateTo 跳 tabBar 页静默失败
-    const tabPages = ['/pages/home/index', '/pages/incentive/home/index', '/pages/files/index', '/pages/app/index', '/pages/profile/index']
+    const tabPages = ['/pages/home/index', '/pages/incentive/home/index', '/pages/fabushi/index', '/pages/app/index', '/pages/profile/index']
     const url = routes[key]
     if (!url) return
     if (tabPages.indexOf(url) >= 0) {

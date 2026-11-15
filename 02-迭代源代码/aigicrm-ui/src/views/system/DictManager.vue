@@ -7,24 +7,30 @@
         <el-button v-if="canEditConfig" type="primary" size="small" :icon="Plus" @click="handleAddType">新增</el-button>
       </div>
       <div class="dict-type-list">
-        <div
-          v-for="t in dictTypes"
-          :key="t.id"
-          class="dict-type-item"
-          :class="{ active: currentType && currentType.id === t.id }"
-          @click="handleTypeSelect(t)"
-        >
-          <div class="dict-type-name">
-            <el-icon class="dict-type-ico"><Collection /></el-icon>
-            <span class="dict-type-title">{{ t.dictName }}</span>
-            <el-tag v-if="t.builtIn" size="small" type="info" effect="plain">内置</el-tag>
+        <template v-for="group in groupedTypes" :key="group.code">
+          <div class="dict-module-title">
+            <span>{{ group.name }}</span>
+            <span class="dict-module-count">{{ group.types.length }}</span>
           </div>
-          <div class="dict-type-code">{{ t.dictCode }}</div>
-          <div class="dict-type-acts">
-            <el-button v-if="canEditConfig" link size="small" @click.stop="handleEditType(t)">编辑</el-button>
-            <el-button v-if="canEditConfig && !t.builtIn" link size="small" type="danger" @click.stop="handleDeleteType(t)">删除</el-button>
+          <div
+            v-for="t in group.types"
+            :key="t.id"
+            class="dict-type-item"
+            :class="{ active: currentType && currentType.id === t.id }"
+            @click="handleTypeSelect(t)"
+          >
+            <div class="dict-type-name">
+              <el-icon class="dict-type-ico"><Collection /></el-icon>
+              <span class="dict-type-title">{{ t.dictName }}</span>
+              <el-tag v-if="t.builtIn" size="small" type="info" effect="plain">内置</el-tag>
+            </div>
+            <div class="dict-type-code">{{ t.dictCode }} <el-tag size="small" type="info" effect="plain">{{ moduleName(t.moduleCode) }}</el-tag></div>
+            <div class="dict-type-acts">
+              <el-button v-if="canEditConfig" link size="small" @click.stop="handleEditType(t)">编辑</el-button>
+              <el-button v-if="canEditConfig && !t.builtIn" link size="small" type="danger" @click.stop="handleDeleteType(t)">删除</el-button>
+            </div>
           </div>
-        </div>
+        </template>
         <el-empty v-if="!dictTypes.length" description="暂无字典类型" :image-size="60" />
       </div>
     </div>
@@ -71,6 +77,11 @@
       <el-form-item label="编码" prop="dictCode">
         <el-input v-model="typeForm.dictCode" placeholder="如：industry" :disabled="!!typeForm.id" />
       </el-form-item>
+      <el-form-item label="所属模块" prop="moduleCode">
+        <el-select v-model="typeForm.moduleCode" placeholder="选择模块" style="width: 100%">
+          <el-option v-for="m in moduleOptions" :key="m.code" :label="m.name" :value="m.code" />
+        </el-select>
+      </el-form-item>
       <el-form-item label="备注">
         <el-input v-model="typeForm.remark" />
       </el-form-item>
@@ -111,7 +122,7 @@ import { confirmAction } from '@/utils/confirm'
 import { Plus, Files, Collection, PriceTag } from '@element-plus/icons-vue'
 import {
   getDictTypes, createDictType, updateDictType, deleteDictType,
-  getDictDataByTypeId, createDictData, updateDictData, deleteDictData,
+  getDictDataByTypeId, createDictData, updateDictData, deleteDictData, getDictModules,
 } from '@/api/system'
 import { useUserStore } from '@/store/user'
 
@@ -119,9 +130,47 @@ const userStore = useUserStore()
 const canEditConfig = computed(() => userStore.hasPermission('system:config:edit'))
 
 const dictTypes = ref([])
+const moduleOptions = ref([])
 const currentType = ref(null)
 const typeDialogVisible = ref(false)
-const typeForm = reactive({ id: null, dictName: '', dictCode: '', remark: '' })
+const typeForm = reactive({ id: null, dictName: '', dictCode: '', moduleCode: 'common', remark: '' })
+
+// 【2026-11-16】模块固定枚举；接口失败时用内置兜底，保证字典管理可用
+const FALLBACK_MODULES = [
+  { code: 'customer', name: '客户管理', sort: 1 },
+  { code: 'file', name: '文件管理', sort: 2 },
+  { code: 'incentive', name: '四项激励', sort: 3 },
+  { code: 'service', name: '四项服务', sort: 4 },
+  { code: 'sea', name: '公海管理', sort: 5 },
+  { code: 'workflow', name: '流程协同', sort: 6 },
+  { code: 'score', name: '学分管理', sort: 7 },
+  { code: 'fabushi', name: '法布施', sort: 8 },
+  { code: 'statistics', name: '统计分析', sort: 9 },
+  { code: 'system', name: '系统管理', sort: 10 },
+  { code: 'common', name: '通用', sort: 11 },
+]
+
+const moduleName = (code) => (moduleOptions.value.find((m) => m.code === code) || {}).name || '未分类'
+const groupedTypes = computed(() => {
+  const map = new Map()
+  for (const m of moduleOptions.value) map.set(m.code, { code: m.code, name: m.name, types: [] })
+  for (const t of dictTypes.value) {
+    const code = t.moduleCode || 'common'
+    if (!map.has(code)) map.set(code, { code, name: '未分类', types: [] })
+    map.get(code).types.push(t)
+  }
+  return [...map.values()].filter((g) => g.types.length > 0)
+})
+
+const loadModules = async () => {
+  try {
+    const res = await getDictModules()
+    moduleOptions.value = res.data || []
+  } catch (e) {
+    moduleOptions.value = FALLBACK_MODULES
+  }
+  if (!moduleOptions.value.length) moduleOptions.value = FALLBACK_MODULES
+}
 // 【UI 整改 2026-10-08】名称类必填字段级校验（与 customer 表单同规范）
 const typeFormRef = ref(null)
 const typeFormRules = {
@@ -130,6 +179,7 @@ const typeFormRules = {
     { required: true, message: '请输入字典编码', trigger: 'blur' },
     { pattern: /^[a-zA-Z][a-zA-Z0-9_]*$/, message: '编码须为字母开头的字母/数字/下划线', trigger: 'blur' },
   ],
+  moduleCode: [{ required: true, message: '请选择所属模块', trigger: 'change' }],
 }
 
 const loadDictTypes = async () => {
@@ -145,13 +195,13 @@ const handleTypeSelect = (row) => {
 }
 
 const handleAddType = () => {
-  Object.assign(typeForm, { id: null, dictName: '', dictCode: '', remark: '' })
+  Object.assign(typeForm, { id: null, dictName: '', dictCode: '', moduleCode: 'common', remark: '' })
   typeDialogVisible.value = true
   nextTick(() => typeFormRef.value?.clearValidate())
 }
 
 const handleEditType = (row) => {
-  Object.assign(typeForm, { id: row.id, dictName: row.dictName, dictCode: row.dictCode, remark: row.remark || '' })
+  Object.assign(typeForm, { id: row.id, dictName: row.dictName, dictCode: row.dictCode, moduleCode: row.moduleCode || 'common', remark: row.remark || '' })
   typeDialogVisible.value = true
   nextTick(() => typeFormRef.value?.clearValidate())
 }
@@ -246,7 +296,10 @@ const submitData = async () => {
   } catch (e) {}
 }
 
-onMounted(loadDictTypes)
+onMounted(async () => {
+  await loadModules()
+  loadDictTypes()
+})
 </script>
 
 <style scoped>
@@ -290,6 +343,8 @@ onMounted(loadDictTypes)
   font-size: 14px;
   color: #1f2329;
 }
+.dict-module-title { display: flex; justify-content: space-between; align-items: center; padding: 10rpx 4rpx 6rpx; font-size: 12px; color: var(--el-text-color-secondary); font-weight: 600; }
+.dict-module-count { font-weight: 400; }
 .dict-type-list { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 2px }
 .dict-type-item {
   border: 1px solid #ebeef5;

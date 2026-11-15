@@ -44,8 +44,8 @@
 | `customer.filter` | 客户 | 客户表格高级筛选 | `pages/customer/filter/index` | `customer:view` | 统一客户数据范围 | 筛选/搜索 | 已实现 |
 | `customer.import` | 客户 | 客户工具栏导入 | 默认 `PC-only` | `customer:import` | 当前集团/导入范围 | 导入 | `PC-only` |
 | `customer.export` | 客户 | 客户工具栏导出 | 默认 `PC-only` | `customer:export` | 当前查询数据范围 | 导出 | `PC-only` |
-| `task.view` | 待办任务 | `/task` 任务页;工作台任务统计角标 | `pages/home/index` 工作台任务区(`/api/task/list`、`/api/task/statistics`) | `task:view` | 本人任务(管理范围见 task.manage) | 读取/统计 | 已实现 ⟦补录 09-24:英文版整模块缺失,模块 09-19 上线且为 V2026.09.23.1 权限事故主角⟧ |
-| `task.manage` | 待办任务 | 任务页创建/完成/取消/转交 | 管理操作仅 PC | `task:manage` | 任务指派/管理范围 | 创建/完成/取消/编辑转交 | 管理操作 `PC-only` ⟦补录 09-24⟧ |
+| `task.view` | 待办任务 | `/task` 任务页;工作台任务统计角标 | `pages/home/index` 工作台任务区;`pages/task/index` 我的任务页(`/api/task/list`、`/api/task/statistics`) | `task:view` | 本人任务(管理范围见 task.manage) | 读取/统计 | 已实现 ⟦补录 09-24:英文版整模块缺失,模块 09-19 上线且为 V2026.09.23.1 权限事故主角;2026-11-16 MP 补任务页⟧ |
+| `task.manage` | 待办任务 | 任务页创建/完成/取消/转交 | `pages/task/index` 完成/取消/转交 | `task:manage` | 任务指派/管理范围 | 创建/完成/取消/编辑转交 | 已实现 ⟦2026-11-16 MP 补完成/取消/转交⟧ |
 | `file.list` | 文件 | `/file` | `pages/files/index` ⟦更正 10-07:旧 file 页及重定向壳随 1b3c865b 死页面清理删除,无存量导航可达⟧ | `file:view` | 文件夹 ACL+负责人/分享 | 读取 | 已实现 |
 | `file.download` | 文件 | 文件列表/操作 | `pages/files/index`(2026-11-02 重锚: 一步打开预览+下载缓存, 原 detail 死页已删) | `file:view`+文件夹下载权 | 文件夹 ACL | 下载 | 已实现 |
 | `file.textView` | 文件 | 文本类文件在线查看(txt/csv/md/log/json, utf-8+GBK 回退, 2MB 读取/500KB 渲染护栏) | `pages/files/textview/index`(2026-10-17 MP 在线查看补全新增, 文件页/详情页/激励附件/上传页四入口跳入) | `file:view`+文件夹下载权(与 file.download 同口径, 先落盘再读) | 文件夹 ACL | 读取 | 已实现 |

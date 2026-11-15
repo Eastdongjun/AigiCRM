@@ -4,7 +4,7 @@
 > 本文件由 scripts/gen-api.py 自动生成,**禁止手改**;接口变更后重新运行。
 > 权限码与 docs/permission/permission-dict.md 对应。
 
-## 接口清单(264 个)
+## 接口清单(265 个)
 
 | 方法 | 路径 | 权限码 | 方法名 | 文件 |
 |---|---|---|---|---|
@@ -201,6 +201,7 @@
 | GET | `/api/system/dict/data/{dictCode}` | `isAuthenticated()` | listData | SysDictController.java |
 | DELETE | `/api/system/dict/data/{id}` | `hasAuthority('system:config:edit')` | deleteData | SysDictController.java |
 | PUT | `/api/system/dict/data/{id}` | `hasAuthority('system:config:edit')` | updateData | SysDictController.java |
+| GET | `/api/system/dict/modules` | `hasAuthority('system:config:view')` | modules | SysDictController.java |
 | GET | `/api/system/dict/types` | `hasAuthority('system:config:view')` | listTypes | SysDictController.java |
 | POST | `/api/system/dict/types` | `hasAuthority('system:config:edit')` | createType | SysDictController.java |
 | DELETE | `/api/system/dict/types/{id}` | `hasAuthority('system:config:edit')` | deleteType | SysDictController.java |

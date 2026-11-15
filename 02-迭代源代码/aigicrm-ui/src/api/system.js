@@ -91,6 +91,9 @@ export function updateConfigs(data) {
 export function getDictTypes() {
   return request.get('/system/dict/types')
 }
+export function getDictModules() {
+  return request.get('/system/dict/modules')
+}
 export function createDictType(data) {
   return request.post('/system/dict/types', data)
 }

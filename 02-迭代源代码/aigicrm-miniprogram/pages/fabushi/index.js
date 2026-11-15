@@ -14,7 +14,7 @@ Page({
     if (getApp().globalData.demoMode) return
     if (!hasPermission('fabushi:view')) {
       wx.showToast({ title: '没有法布施查看权限', icon: 'none' })
-      setTimeout(() => wx.navigateBack(), 300)
+      setTimeout(() => wx.switchTab({ url: '/pages/home/index' }), 300)
       return
     }
     this.loadPersonal(); this.setData({ canCreate: hasPermission('fabushi:create') })
@@ -26,14 +26,19 @@ Page({
       canCreate: hasPermission('fabushi:create'),
       loading: false
     })
-    if (hasPermission('fabushi:view')) {
-      this.loadPersonal()
-    }
   },
 
   onShow() {
-    // 权限可能已变(权限中心勾选即生效), 回前台重判
+    // 【2026-11-16 tabBar 调整】法布施成为 tab 页：同步选中态；权限可能已变，回前台重判
+    if (typeof this.getTabBar === 'function' && this.getTabBar()) this.getTabBar().setData({ selected: 2 })
+    if (getApp().globalData.demoMode) { this.setData({ canCreate: true }); return }
+    if (!hasPermission('fabushi:view')) {
+      wx.showToast({ title: '没有法布施查看权限', icon: 'none' })
+      setTimeout(() => wx.switchTab({ url: '/pages/home/index' }), 300)
+      return
+    }
     this.setData({ canCreate: hasPermission('fabushi:create') })
+    this.loadPersonal()
   },
 
   loadPersonal() {

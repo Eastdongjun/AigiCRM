@@ -28,7 +28,7 @@
     </view>
   </view>
 
-  <view wx:if="{{taskSummary}}" class="hm-task"><text class="hm-task-dot"></text><text>{{taskSummary}}</text></view>
+  <view wx:if="{{taskSummary}}" class="hm-task" bindtap="openTask"><text class="hm-task-dot"></text><text>{{taskSummary}}</text></view>
 
   <view wx:if="{{showDashboardCards}}" class="hm-section">
     <view class="hm-section-head">

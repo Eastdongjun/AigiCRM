@@ -155,15 +155,13 @@ const routes = [
         path: 'task',
         name: 'TaskList',
         component: () => import('@/views/task/index.vue'),
-        // 【A1 2026-10-08 二轮】工作台"待办任务"卡直达的本页此前无任何侧栏入口（断头页），
-        // layout 会把「我的任务」合成注入"业务核心"分组菜单（后端菜单树不含该页，前端补位）
-        meta: { title: '我的任务', parentTitle: '业务核心', icon: 'List', requiresAuth: true, permission: 'task:view' } // 【工作流复核确认修复】路由守卫补权限(对齐后端 task:view)
+        meta: { title: '我的任务', parentTitle: '流程协同', icon: 'List', requiresAuth: true, permission: 'task:view' }
       },
       {
         path: 'reminder',
         name: 'Reminder',
         component: () => import('@/views/reminder/index.vue'),
-        meta: { title: '提醒管理', icon: 'Bell', permission: 'reminder:view' }
+        meta: { title: '提醒管理', parentTitle: '流程协同', icon: 'Bell', permission: 'reminder:view' }
       },
       {
         // 【2026-09-13】提醒管理列表行的下钻详情页（子页面）；侧边栏来自后端菜单树，本路由不会出现在菜单里
@@ -190,7 +188,7 @@ const routes = [
         path: 'approval',
         name: 'Approval',
         component: () => import('@/views/approval/index.vue'),
-        meta: { title: '审批管理', icon: 'CircleCheck', permission: 'approval:view' }
+        meta: { title: '审批管理', parentTitle: '流程协同', icon: 'CircleCheck', permission: 'approval:view' }
       },
       // 统计分析
       {

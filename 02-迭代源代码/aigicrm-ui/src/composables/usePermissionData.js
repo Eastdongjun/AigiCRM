@@ -40,21 +40,20 @@ const permModules = computed(() => {
     // incentive 全家族码(view/add/edit/delete/统计/排行/导出/阅读)归位此组(与 PC 侧栏新组对齐),
     // 其中 incentive:stats:view/rank:view 带 (incentive,stats_view) 独立范围行(用户拍板 B)
     { name: '四项激励', items: [] },
-    // 【法布施一期 2026-11-15】fabushi 9 码归组; fabushi:stats:view 带 (fabushi,stats_view) 独立范围行
-    { name: '法布施', items: [] },
-    { name: '提醒管理', items: [] },
+    // 【2026-11-16 菜单收敛】提醒/审批/任务合并为「流程协同」显示组；权限码不变
+    { name: '流程协同', items: [] },
     { name: '公海管理', items: [] },
-    { name: '审批管理', items: [] },
     { name: '统计分析', items: [] },
     { name: '学分管理', items: [] },
     { name: '核心客户指标', items: [] },
-    { name: '任务管理', items: [] },
+    // 【法布施一期 2026-11-15】fabushi 9 码归组; fabushi:stats:view 带 (fabushi,stats_view) 独立范围行
+    { name: '法布施', items: [] },
     { name: '系统管理', items: [] },
   ]
   const labelMap = {
     'dashboard': '工作台', 'customer': '客户管理', 'file': '文件管理', 'incentive': '四项激励',
-    'reminder': '提醒管理', 'sea': '公海管理', 'approval': '审批管理', 'statistics': '统计分析',
-    'score': '学分管理', 'indicator': '核心客户指标', 'task': '任务管理', 'system': '系统管理',
+    'reminder': '流程协同', 'sea': '公海管理', 'approval': '流程协同', 'statistics': '统计分析',
+    'score': '学分管理', 'indicator': '核心客户指标', 'task': '流程协同', 'system': '系统管理',
     // 【法布施一期 2026-11-15】fabushi 前缀归「法布施」组, 防掉兜底"系统管理"组
     'fabushi': '法布施',
     // 【2026-11-03 权限中心修复】finance:*(客户财务查看/管理)与 contact:*(联系人)业务上属客户域,

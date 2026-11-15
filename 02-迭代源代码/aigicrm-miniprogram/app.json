@@ -32,6 +32,7 @@
     "pages/statistics/detail/index",
     "pages/indicator/index",
     "pages/app/index",
+    "pages/task/index",
     "pages/profile/index",
     "pages/profile/password/index",
     "pages/profile/scope/index",
@@ -78,10 +79,10 @@
         "selectedIconPath": "assets/tabbar/service-active.png"
       },
       {
-        "pagePath": "pages/files/index",
-        "text": "文件",
-        "iconPath": "assets/tabbar/files.png",
-        "selectedIconPath": "assets/tabbar/files-active.png"
+        "pagePath": "pages/fabushi/index",
+        "text": "法布施",
+        "iconPath": "assets/tabbar/fabushi.png",
+        "selectedIconPath": "assets/tabbar/fabushi-active.png"
       },
       {
         "pagePath": "pages/app/index",

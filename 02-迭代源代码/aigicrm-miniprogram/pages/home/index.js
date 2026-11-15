@@ -195,6 +195,14 @@ Page({
     return Promise.all(tasks)
   },
 
+  openTask() {
+    if (!hasPermission('task:view') && !getApp().globalData.demoMode) {
+      wx.showToast({ title: '没有任务查看权限', icon: 'none' })
+      return
+    }
+    wx.navigateTo({ url: '/pages/task/index' })
+  },
+
   openIncentive() {
     if (!hasPermission(PERMISSION_CODES.INCENTIVE_VIEW) && !getApp().globalData.demoMode) {
       wx.showToast({ title: '没有四项服务查看权限', icon: 'none' })

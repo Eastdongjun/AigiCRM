@@ -230,17 +230,8 @@ const menuGroups = computed(() => {
         }))
     }))
     .filter(group => group.children.length > 0)
-  // 【A1 2026-10-08 二轮】「我的任务」(/task) 是工作台"待办任务"卡直达页，但后端菜单树没有该页，
-  // 用户进入后无法从菜单回到（断头页）。前端合成注入"业务核心"分组（该页仅要求登录态，无独立权限码）；
-  // 后端菜单将来下发同名菜单时按 path 去重不会重复出现
-  const bizGroup = groups.find(g => g.menuName === '业务核心')
-  // 【工作流复核确认修复】注入加 task:view 权限门控: 后端 /api/task/* 均要求该权限码,
-  // 无权限角色(如行政 05)原可见菜单, 点入即 403 报错+空数据页(死入口)
-  if (bizGroup && userStore.hasPermission('task:view') && !bizGroup.children.some(c => c.path === '/task')) {
-    bizGroup.children.push({
-      id: 'fe-task-entry', menuType: 2, path: '/task', menuName: '我的任务', icon: 'List', subChildren: [],
-    })
-  }
+  // 【2026-11-16 菜单收敛】我的任务已落库为 /task 真实菜单（流程协同组），
+  // 不再前端注入；无 task:view 的角色由后端菜单树/权限自然过滤。
   return groups
 })
 // 提醒/审批两个菜单项的角标数量走独立的未读计数接口，不属于菜单树本身的数据

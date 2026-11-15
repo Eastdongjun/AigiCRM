@@ -518,8 +518,7 @@ Page({
   },
 
   onShow() {
-    // 【2026-10-24 自定义 tabBar】每页独立实例, onShow 同步选中态(勿删, 否则选中滞留旧页)
-    if (typeof this.getTabBar === 'function' && this.getTabBar()) this.getTabBar().setData({ selected: 2 })
+    // 【2026-11-16 tabBar 调整】文件管理已移入应用中心，不再是 tab 页，无需同步 tabBar 选中态。
     if (this._permVersion !== permissionRefresh.getVersion()) {
       this._lastShowTs = 0
       this.initPage()
@@ -1380,5 +1379,4 @@ Page({
     if (act === 'share') return this.shareFile(synthetic)
     if (act === 'delete') return this.removeFile(synthetic)
   },
-  switchTab(event) { wx.switchTab({ url: event.currentTarget.dataset.url }) }
 })

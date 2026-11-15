@@ -25,6 +25,13 @@ public class SysDictController {
         return Result.ok(dictService.listTypes());
     }
 
+    /** 【2026-11-16】字典模块下拉：固定枚举，空模块也返回（新增类型时可选择） */
+    @GetMapping("/modules")
+    @PreAuthorize("hasAuthority('system:config:view')")
+    public Result<List<java.util.Map<String, Object>>> modules() {
+        return Result.ok(dictService.listModules());
+    }
+
     @PreAuthorize("hasAuthority('system:config:edit')")
     @PostMapping("/types")
     public Result<Void> createType(@RequestBody SysDictType type) {
