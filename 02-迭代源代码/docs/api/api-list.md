@@ -4,7 +4,7 @@
 > 本文件由 scripts/gen-api.py 自动生成,**禁止手改**;接口变更后重新运行。
 > 权限码与 docs/permission/permission-dict.md 对应。
 
-## 接口清单(267 个)
+## 接口清单(268 个)
 
 | 方法 | 路径 | 权限码 | 方法名 | 文件 |
 |---|---|---|---|---|
@@ -89,6 +89,7 @@
 | PUT | `/api/fabushi/posts/{id}/offline` | `hasAuthority('fabushi:content:manage')` | offline | FabushiPostController.java |
 | PUT | `/api/fabushi/posts/{id}/restore` | `hasAuthority('fabushi:content:manage')` | restore | FabushiPostController.java |
 | POST | `/api/fabushi/reads/mark` | `hasAuthority('fabushi:view')` | markRead | FabushiReadController.java |
+| GET | `/api/fabushi/stats/dashboard` | `hasAuthority('fabushi:stats:view')` | dashboard | FabushiStatsController.java |
 | GET | `/api/fabushi/stats/personal` | `hasAuthority('fabushi:view')` | personal | FabushiStatsController.java |
 | GET | `/api/fabushi/stats/team` | `hasAuthority('fabushi:stats:view')` | team | FabushiStatsController.java |
 | POST | `/api/file/batch-delete` | `hasAuthority('file:delete')` | batchDelete | FileController.java |

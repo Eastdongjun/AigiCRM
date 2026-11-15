@@ -173,3 +173,41 @@ Playwright + 测试环境真实登录态：
 - MP：A1 工作台重构（hero+四格+五页签+搜索+推荐+动态）；A4 书目详情弹层（书卡/统计/作品/二期结构树标注）；B3 发布成功木鱼动画态；C5 个人四格并补 myComments。
 - 权限：不新增码；恢复走 content:manage，看板走 stats:view，导出仍标二期。
 - 二期未提前实现：附件图/音/视、fb_section 结构树、PDF 进度/续读、书架、阅读记录、提醒、统计导出、共读活动、MP PDF 阅读器。
+
+## 真实权限矩阵与运行时修复（2026-11-16）
+
+### 测试环境
+
+- 地址：`http://111.229.37.220`
+- Flyway：`2026.11.16.7`
+- 后端：本次 jar；前端：本次 build
+- 测试库已备份：`/data/aigicrm/backup/app-pre-full-fabushi-20261116-0500.jar`、`frontend-pre-full-fabushi-20261116-0500.tgz`
+
+### 运行时发现并修复
+
+1. 统计看板接口漏注册：源码有 DashboardService 但 Controller 未加 `/dashboard`，运行 404；已补并在测试环境验证 200。
+2. 看板空 Map NPE：无书目时 `Map.of().get(null)` 抛 NPE；改 `Collections.emptyMap()`，周/月均 200。
+3. 书目 `status=all` 未生效：服务仍按 status='all' 查询返回 0；改为 manage 时不加状态条件，非 manage 强制 approved。
+4. 恢复接口清空留痕：`updateById` 默认忽略 null，改用 LambdaUpdateWrapper 显式 set null。
+5. 部署后复测：`/books?status=all` 返回 3 条；`/books/3` 200；`/posts/2/restore` 200 且 offlineReason 清空；`/stats/dashboard?period=week|month` 200。
+
+### 22,260 条真实 HTTP 权限矩阵
+
+- 28 个启用用户 × 265 个端点 × 3 认证态（有效 token / 无 token / 伪造 token）
+- 通过 21,216；异常 1,044
+- 无权限却 2xx（permission_leak）：0
+- 5xx：0
+- 有权限却 401/403（非资源形状）：0
+- 1,044 分类：
+  - 790 条 403：`{id}=999999` 的资源/数据范围守卫，不是权限码缺失
+  - 250 条 400：缺参数/请求形状在方法鉴权前返回，未返回业务数据；登记为“鉴权前 400”体验优化
+  - 4 条 403：组织管理员空 body 无 orgId，触发“只能在管理组织内创建用户”守卫
+- 法布施定向权限冒烟：admin/0/05/06 × 15 场景 = 60 例，全过
+  - 0/05/06 无团队统计码 → 403；admin/0 → 200
+  - 0/05/06 无 book:manage → 书目待审 403
+  - 有 view 的 0/05/06 可读 approved 书目/内容
+
+证据：
+- `test-results/permission-matrix/result.json`
+- `test-results/permission-matrix/summary.md`
+- `test-results/permission-matrix/fabushi-role-smoke.json`

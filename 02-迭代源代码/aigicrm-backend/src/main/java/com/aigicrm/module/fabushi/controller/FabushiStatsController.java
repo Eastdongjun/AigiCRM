@@ -2,6 +2,7 @@ package com.aigicrm.module.fabushi.controller;
 
 import com.aigicrm.common.Result;
 import com.aigicrm.module.fabushi.service.FabushiStatsService;
+import com.aigicrm.module.fabushi.service.FabushiDashboardService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -13,12 +14,21 @@ import org.springframework.web.bind.annotation.*;
 public class FabushiStatsController {
 
     private final FabushiStatsService statsService;
+    private final FabushiDashboardService dashboardService;
 
     /** 团队统计看板(管理层): 今日已读人数/覆盖率/内容量/木鱼量/评论量, 可见集收口 fail-closed。 */
     @GetMapping("/team")
     @PreAuthorize("hasAuthority('fabushi:stats:view')")
     public Result<java.util.Map<String, Object>> team() {
         return Result.ok(statsService.team());
+    }
+
+    /** 统计看板(管理层): 成员榜/类别热度/每日趋势 + 周期指标。 */
+    @GetMapping("/dashboard")
+    @PreAuthorize("hasAuthority('fabushi:stats:view')")
+    public Result<java.util.Map<String, Object>> dashboard(
+            @RequestParam(defaultValue = "week") String period) {
+        return Result.ok(dashboardService.dashboard(period));
     }
 
     /** 个人统计(全员): 本人内容/获木鱼/评论/阅读数。 */

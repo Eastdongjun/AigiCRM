@@ -137,7 +137,7 @@ public class FabushiDashboardService {
             Map<Long, SysUser> users = userMapper.selectBatchIds(candidateIds).stream()
                     .collect(Collectors.toMap(SysUser::getId, u -> u));
             Set<Long> deptIds = users.values().stream().map(SysUser::getDeptId).filter(Objects::nonNull).collect(Collectors.toSet());
-            Map<Long, String> depts = deptIds.isEmpty() ? Map.of()
+            Map<Long, String> depts = deptIds.isEmpty() ? Collections.emptyMap()
                     : deptMapper.selectBatchIds(deptIds).stream()
                     .collect(Collectors.toMap(SysDept::getId, SysDept::getDeptName));
             long maxPost = postCount.values().stream().mapToLong(Long::longValue).max().orElse(1);
@@ -164,7 +164,7 @@ public class FabushiDashboardService {
         Map<String, String> catNames = dictService.listDataByCode("fabushi_category").stream()
                 .collect(Collectors.toMap(SysDictData::getDictValue, SysDictData::getDictLabel, (a, b) -> a));
         Set<Long> bookIds = periodPosts.stream().map(BizFabushiPost::getBookId).filter(Objects::nonNull).collect(Collectors.toSet());
-        Map<Long, String> bookCategories = bookIds.isEmpty() ? Map.of()
+        Map<Long, String> bookCategories = bookIds.isEmpty() ? Collections.emptyMap()
                 : bookMapper.selectBatchIds(bookIds).stream()
                 .collect(Collectors.toMap(BizFabushiBook::getId, BizFabushiBook::getCategoryCode));
         Map<String, Long> heat = new HashMap<>();

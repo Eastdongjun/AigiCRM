@@ -77,12 +77,10 @@ public class FabushiBookService {
     /** 书目列表(fabushi:view 门): approved 全员可见; manage 门可用 status 传参查全态。 */
     public Page<BizFabushiBook> page(String categoryCode, String keyword, String status, long current, long size) {
         String st = (status == null || status.isBlank()) ? "approved" : status;
-        if (!"approved".equals(st)
-                && !com.aigicrm.security.SecurityUtils.hasAuthority("fabushi:book:manage")) {
-            st = "approved";
-        }
+        boolean canManage = com.aigicrm.security.SecurityUtils.hasAuthority("fabushi:book:manage");
+        if (!"approved".equals(st) && !canManage) st = "approved";
         LambdaQueryWrapper<BizFabushiBook> qw = new LambdaQueryWrapper<BizFabushiBook>()
-                .eq(BizFabushiBook::getStatus, st)
+                .eq(!"all".equals(st), BizFabushiBook::getStatus, st)
                 .eq(categoryCode != null && !categoryCode.isBlank(), BizFabushiBook::getCategoryCode, categoryCode)
                 .like(keyword != null && !keyword.isBlank(), BizFabushiBook::getTitle, keyword)
                 .orderByDesc(BizFabushiBook::getCreatedAt);
