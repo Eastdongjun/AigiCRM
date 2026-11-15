@@ -59,3 +59,13 @@
 - 导出：`/stats/export?period=week` 200 text/csv；PC 下载事件触发 PASS
 - 权限：activity:manage/stats:export 生成物补齐；API 288
 - MP 新增 50 页，dev-verify PASS；DevTools automator 重启后仍无法连接（待 IDE 项目窗口手工重开）
+
+## Round 3 补充
+
+- 附件：图片上传→post1 挂载→详情返回 fileName；PC 详情图片渲染 PASS
+- 章节：book3 创建/查询 1 条；P6 章节弹窗 PASS
+- 活动：创建→参与→joined=true；PC 活动页签 PASS
+- 导出：CSV 200
+- 二期定向权限：48 例（admin/0/05/06 × 12 场景）全过
+- API 288；MP 50 页；gate PASS=9；后端 1103
+- MP DevTools automator 当前无法连接（IDE 需重开项目窗口），MP 视觉验收待下一轮
