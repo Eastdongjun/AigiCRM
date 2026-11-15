@@ -19,7 +19,10 @@ Page({
     title: '',
     content: '',
     submitting: false,
-    canCreate: false
+    canCreate: false,
+    success: false,
+    publishedPostId: null,
+    muyuAnim: false
   },
 
   onPermissionChanged() {
@@ -32,13 +35,14 @@ Page({
     this.loadBooks()
   },
 
-  onLoad() {
+  onLoad(query) {
     if (!requireLogin()) return
     if (!hasPermission('fabushi:create')) {
       wx.showToast({ title: '无发布权限', icon: 'none' })
       setTimeout(() => wx.navigateBack(), 1200)
       return
     }
+    this._presetBookId = query && query.bookId ? Number(query.bookId) : null
     this.setData({ canCreate: true })
     this.loadBooks()
   },
@@ -46,7 +50,10 @@ Page({
   loadBooks() {
     getFabushiBooks({ status: 'approved', current: 1, size: 100 }).then((res) => {
       const data = res || {}
-      this.setData({ books: data.records || [] })
+      const books = data.records || []
+      const preset = this._presetBookId
+      const bookIndex = preset ? books.findIndex((book) => Number(book.id) === preset) : -1
+      this.setData({ books, bookIndex })
     })
   },
 
@@ -75,12 +82,31 @@ Page({
       bookId: bookIndex >= 0 && books[bookIndex] ? books[bookIndex].id : null
     }
     this.setData({ submitting: true })
-    createFabushiPost(payload).then(() => {
-      wx.showToast({ title: '发布成功', icon: 'success' })
-      setTimeout(() => wx.navigateBack(), 900)
+    createFabushiPost(payload).then((res) => {
+      const id = res && (res.id || (res.data && res.data.id))
+      this.setData({ submitting: false, success: true, publishedPostId: id || null, muyuAnim: true })
+      if (wx.vibrateShort) wx.vibrateShort({ type: 'light' })
     }).catch((err) => {
       this.setData({ submitting: false })
       showError(err, '发布失败')
     })
-  }
+  },
+
+  replayMuyu() {
+    this.setData({ muyuAnim: false })
+    setTimeout(() => {
+      this.setData({ muyuAnim: true })
+      if (wx.vibrateShort) wx.vibrateShort({ type: 'light' })
+    }, 40)
+  },
+
+  goDetail() {
+    if (this.data.publishedPostId) {
+      wx.navigateTo({ url: `/pages/fabushi/detail/index?id=${this.data.publishedPostId}` })
+    } else {
+      wx.navigateBack()
+    }
+  },
+
+  goBack() { wx.navigateBack() }
 })

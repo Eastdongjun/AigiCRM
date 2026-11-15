@@ -35,7 +35,7 @@ public class FabushiStatsService {
      * 团队统计可见人员集。admin → null(全量); 非 admin → 双轨解析:
      * null=全部档(契约), 空集=不可见(fail-closed→零数据), 非空=收口过滤。
      */
-    private Set<Long> visibleUserIdsOrNull(com.aigicrm.security.SecurityUser user) {
+    Set<Long> visibleUserIdsOrNull(com.aigicrm.security.SecurityUser user) {
         if (user == null) {
             return Collections.emptySet(); // fail-closed: 无会话宁可零数据也不放行全量(R2 教训)
         }

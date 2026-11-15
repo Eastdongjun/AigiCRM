@@ -1,7 +1,7 @@
 <template>
   <div class="fabushi-detail">
     <div class="back">
-      <el-button link @click="router.back()">← 返回内容流</el-button>
+      <el-button link @click="router.back()">← 返回分享广场</el-button>
     </div>
 
     <div class="detail-grid">
@@ -9,6 +9,7 @@
         <div class="feed-top">
           <span class="tag" :class="post.scopeType">{{ typeLabel(post.scopeType) }}</span>
           <span class="detail-title">{{ post.title || '无标题' }}</span>
+          <span v-if="isNew" class="new-badge">NEW</span>
         </div>
         <div class="detail-meta">
           <span>{{ post.userName || '法布施' }}</span>
@@ -100,6 +101,7 @@ const submitting = ref(false)
 const books = ref([])
 
 const book = computed(() => books.value.find((item) => item.id === post.value.bookId) || null)
+const isNew = computed(() => !readState.value && post.value.createdAt && (Date.now() - new Date(post.value.createdAt).getTime() < 30 * 24 * 3600 * 1000))
 const typeLabel = (value) => ({ heart: '心得', recitation: '诵读', znl: '正能量' }[value] || '内容')
 const formatTime = (value) => (value ? String(value).replace('T', ' ').slice(0, 16) : '')
 const openReader = () => router.push(`/fabushi/read/${book.value.id}`)
@@ -182,6 +184,7 @@ onMounted(loadDetail)
 .tag.recitation { color: var(--el-color-success); background: var(--el-color-success-light-9); }
 .tag.znl { color: var(--el-color-warning-dark-2); background: var(--el-color-warning-light-9); }
 .detail-title { color: var(--text-primary); font-size: 20px; font-weight: 800; }
+.new-badge { padding: 1px 5px; border-radius: var(--radius-sm); color: var(--el-color-danger); background: var(--el-color-danger-light-9); font-size: 9px; font-weight: 700; }
 .detail-meta { display: flex; gap: 14px; margin-top: 7px; color: var(--text-placeholder); font-size: 11px; }
 .detail-meta .read { color: var(--primary-color); }
 .detail-body { margin-top: 16px; color: var(--text-secondary); font-size: 14px; line-height: 1.95; white-space: pre-wrap; }

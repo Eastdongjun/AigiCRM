@@ -5,6 +5,10 @@ export function getFabushiBooks(params) {
   return request.get('/fabushi/books', { params })
 }
 
+export function getFabushiBook(id) {
+  return request.get(`/fabushi/books/${id}`)
+}
+
 export function getPendingFabushiBooks() {
   return request.get('/fabushi/books/pending')
 }
@@ -41,6 +45,10 @@ export function createFabushiPost(data) {
   return request.post('/fabushi/posts', data)
 }
 
+export function restoreFabushiPost(id) {
+  return request.put(`/fabushi/posts/${id}/restore`)
+}
+
 export function offlineFabushiPost(id, reason) {
   return request.put(`/fabushi/posts/${id}/offline`, { reason })
 }
@@ -59,6 +67,10 @@ export function toggleFabushiLike(postId) {
 
 export function markFabushiRead(postId) {
   return request.post('/fabushi/reads/mark', { postId })
+}
+
+export function getFabushiDashboard(period = 'week') {
+  return request.get('/fabushi/stats/dashboard', { params: { period } })
 }
 
 export function getFabushiTeamStats() {

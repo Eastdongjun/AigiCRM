@@ -1,46 +1,91 @@
-<view class="fb-hero">
-  <view class="fb-hero-title">法布施</view>
-  <view class="fb-hero-sub">读书 · 心得 · 正能量</view>
-</view>
+<view class="fb-page">
+  <view class="fb-hero">
+    <view>
+      <view class="fb-hero-title">法布施</view>
+      <view class="fb-hero-sub">读书 · 心得 · 正能量</view>
+    </view>
+    <view class="fb-hero-actions">
+      <view class="fb-hero-btn ghost" bindtap="refresh">刷新</view>
+      <view class="fb-hero-btn solid" bindtap="goUpload" wx:if="{{canCreate}}">＋ 上传</view>
+    </view>
+  </view>
 
-<view class="fb-stats" wx:if="{{personal.myPosts != null}}">
-  <view class="fb-stat">
-    <view class="fb-stat-num">{{personal.myPosts || 0}}</view>
-    <view class="fb-stat-label">我的内容</view>
+  <view class="me-strip">
+    <view class="me-cell"><text class="me-num">{{personal.myReadCount || 0}}</text><text class="me-label">本月已读</text></view>
+    <view class="me-cell"><text class="me-num">{{personal.myPosts || 0}}</text><text class="me-label">本月发布</text></view>
+    <view class="me-cell"><text class="me-num">{{personal.myLikesReceived || 0}}</text><text class="me-label">获木鱼</text></view>
+    <view class="me-cell"><text class="me-num">{{personal.myComments || 0}}</text><text class="me-label">收评论</text></view>
   </view>
-  <view class="fb-stat">
-    <view class="fb-stat-num">{{personal.myReadCount || 0}}</view>
-    <view class="fb-stat-label">我的阅读</view>
-  </view>
-  <view class="fb-stat">
-    <view class="fb-stat-num">{{personal.myLikesReceived || 0}}</view>
-    <view class="fb-stat-label">获木鱼</view>
-  </view>
-</view>
 
-<view class="fb-entry" bindtap="goFeed">
-  <view class="fb-entry-icon">💬</view>
-  <view class="fb-entry-body">
-    <view class="fb-entry-title">内容流</view>
-    <view class="fb-entry-sub">心得 · 诵读 · 正能量</view>
+  <view class="mobile-tabs">
+    <view wx:for="{{tabs}}" wx:key="value" class="mobile-tab {{activeTab === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="onTab">
+      {{item.label}}<text wx:if="{{item.phase}}" class="phase-chip">{{item.phase}}</text>
+    </view>
   </view>
-  <view class="fb-entry-arrow">›</view>
-</view>
 
-<view class="fb-entry" bindtap="goBook">
-  <view class="fb-entry-icon">📚</view>
-  <view class="fb-entry-body">
-    <view class="fb-entry-title">书目浏览</view>
-    <view class="fb-entry-sub">按类别浏览书目与心得</view>
-  </view>
-  <view class="fb-entry-arrow">›</view>
-</view>
+  <block wx:if="{{activeTab === 'lib' || activeTab === 'znl'}}">
+    <view class="card search-card">
+      <view class="search-input-wrap">
+        <input class="search-input" placeholder="搜索书目 / 心得 / 关键字" value="{{searchKeyword}}" bindinput="onSearchInput" confirm-type="search" bindconfirm="onSearch" />
+        <view class="search-btn" bindtap="onSearch">搜索</view>
+      </view>
+    </view>
 
-<view class="fb-entry" bindtap="goUpload" wx:if="{{canCreate}}">
-  <view class="fb-entry-icon">✍️</view>
-  <view class="fb-entry-body">
-    <view class="fb-entry-title">发布</view>
-    <view class="fb-entry-sub">心得 / 诵读 / 正能量</view>
+    <view wx:if="{{activeTab === 'lib' && recommended}}" class="card recommend-card" bindtap="goBook">
+      <view class="cover">{{recommended.title}}</view>
+      <view class="recommend-main">
+        <view class="recommend-title">今日推荐 · {{recommended.title}}</view>
+        <view class="recommend-meta">{{recommended.author || '法布施书目'}}<text wx:if="{{recommended.pages}}"> · {{recommended.pages}} 页</text><text wx:if="{{recommended.pdfFileId}}"> · 电子书</text></view>
+      </view>
+      <view class="mini-action">查看</view>
+    </view>
+
+    <view class="card feed-card" wx:for="{{posts}}" wx:key="id" data-id="{{item.id}}" bindtap="openPost">
+      <view class="feed-head">
+        <view class="feed-title"><text class="type-tag {{item.scopeType}}">{{item.scopeType === 'znl' ? '正能量' : item.scopeType === 'recitation' ? '诵读' : '心得'}}</text>{{item.title || '无标题'}}</view>
+        <text class="feed-time">{{item.createdAt}}</text>
+      </view>
+      <view class="feed-summary">{{item.content}}</view>
+      <view class="feed-meta">
+        <text>{{item.userName || '法布施'}}</text>
+        <text>木鱼 {{item.likeCount || 0}}</text>
+        <text>评论 {{item.commentCount || 0}}</text>
+        <text class="read {{item.readByMe ? 'done' : 'unread'}}">{{item.readByMe ? '已读' : '未读'}}</text>
+      </view>
+    </view>
+    <view wx:if="{{!loading && posts.length === 0}}" class="empty">暂无法布施内容</view>
+  </block>
+
+  <block wx:if="{{activeTab === 'shelf' || activeTab === 'rec'}}">
+    <view class="card ghost-panel">
+      <view class="ghost-title"><text class="phase-chip">二期</text>该页签为二期能力</view>
+      <view class="ghost-sub">书架 / 阅读记录为二期交付；一期个人统计已在上方「我的法布施」四格与统计页签。</view>
+    </view>
+  </block>
+
+  <block wx:if="{{activeTab === 'stats'}}">
+    <view class="card stats-panel">
+      <view class="stats-title">我的法布施</view>
+      <view class="stats-grid">
+        <view class="stats-cell"><text class="stats-num">{{personal.myPosts || 0}}</text><text class="stats-label">我的内容</text></view>
+        <view class="stats-cell"><text class="stats-num">{{personal.myComments || 0}}</text><text class="stats-label">我的评论</text></view>
+        <view class="stats-cell"><text class="stats-num">{{personal.myReadCount || 0}}</text><text class="stats-label">我的阅读</text></view>
+        <view class="stats-cell"><text class="stats-num">{{personal.myLikesReceived || 0}}</text><text class="stats-label">获木鱼</text></view>
+      </view>
+      <view class="ghost-sub">阅读时长 / 成就徽章 / 类别分布为二期或三期，无数据源不展示假数字。</view>
+    </view>
+  </block>
+
+  <view class="fb-entries">
+    <view class="fb-entry" bindtap="goFeed">
+      <view class="fb-entry-icon">≡</view>
+      <view class="fb-entry-body"><view class="fb-entry-title">内容流</view><view class="fb-entry-sub">心得 · 诵读 · 正能量</view></view>
+      <view class="fb-entry-arrow">›</view>
+    </view>
+    <view class="fb-entry" bindtap="goBook">
+      <view class="fb-entry-icon">书</view>
+      <view class="fb-entry-body"><view class="fb-entry-title">书目浏览</view><view class="fb-entry-sub">按类别浏览书目与心得</view></view>
+      <view class="fb-entry-arrow">›</view>
+    </view>
   </view>
-  <view class="fb-entry-arrow">›</view>
 </view>

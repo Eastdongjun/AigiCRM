@@ -122,13 +122,13 @@ const routes = [
         path: 'fabushi/feed',
         name: 'FabushiFeed',
         component: () => import('@/views/fabushi/feed.vue'),
-        meta: { title: '内容流', parentTitle: '法布施', icon: 'ChatDotRound', permission: 'fabushi:view' }
+        meta: { title: '分享广场', parentTitle: '法布施', icon: 'ChatDotRound', permission: 'fabushi:view' }
       },
       {
         path: 'fabushi/detail/:id',
         name: 'FabushiDetail',
         component: () => import('@/views/fabushi/detail.vue'),
-        meta: { title: '内容详情', parentTitle: '内容流', activeMenu: '/fabushi/feed', icon: 'Document', permission: 'fabushi:view' }
+        meta: { title: '内容详情', parentTitle: '分享广场', activeMenu: '/fabushi/feed', icon: 'Document', permission: 'fabushi:view' }
       },
       {
         path: 'fabushi/library',

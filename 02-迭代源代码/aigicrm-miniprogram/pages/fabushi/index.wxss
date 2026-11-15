@@ -1,17 +1,58 @@
-.fb-hero {
-  background: linear-gradient(135deg, #1d4ed8, #3b82f6);
-  color: #fff;
-  padding: 24rpx 32rpx;
-}
-.fb-hero-title { font-size: 34rpx; font-weight: 600; }
-.fb-hero-sub { font-size: 24rpx; opacity: 0.85; margin-top: 4rpx; }
-.fb-stats { display: flex; background: #fff; margin: 16rpx; border-radius: 12rpx; padding: 20rpx 0; }
-.fb-stat { flex: 1; text-align: center; }
-.fb-stat-num { font-size: 34rpx; font-weight: 600; color: #1d4ed8; }
-.fb-stat-label { font-size: 22rpx; color: #8a94a6; margin-top: 4rpx; }
-.fb-entry { display: flex; align-items: center; background: #fff; margin: 16rpx; border-radius: 12rpx; padding: 24rpx; }
-.fb-entry-icon { font-size: 40rpx; margin-right: 20rpx; }
+.fb-page { padding: 24rpx 24rpx 150rpx; box-sizing: border-box; }
+.fb-hero { display: flex; justify-content: space-between; align-items: flex-start; padding: 26rpx 28rpx; border-radius: 26rpx; color: #fff; background: linear-gradient(135deg, #0d1733 0%, #16337a 58%, #1d4ed8 100%); box-shadow: 0 12rpx 28rpx rgba(13, 23, 51, .18); }
+.fb-hero-title { font-size: 38rpx; font-weight: 800; }
+.fb-hero-sub { margin-top: 6rpx; font-size: 22rpx; opacity: .82; }
+.fb-hero-actions { display: flex; gap: 10rpx; }
+.fb-hero-btn { padding: 8rpx 16rpx; border-radius: 20rpx; font-size: 22rpx; }
+.fb-hero-btn.ghost { color: #fff; border: 1rpx solid rgba(255,255,255,.35); background: rgba(255,255,255,.12); }
+.fb-hero-btn.solid { color: #1d4ed8; background: #fff; font-weight: 700; }
+.me-strip { display: flex; margin-top: 18rpx; padding: 20rpx 8rpx; border-radius: 22rpx; background: #fff; box-shadow: 0 8rpx 24rpx rgba(41,72,125,.07); }
+.me-cell { flex: 1; text-align: center; }
+.me-num { display: block; color: #14213d; font-size: 32rpx; font-weight: 800; }
+.me-label { display: block; margin-top: 4rpx; color: #94a3b8; font-size: 20rpx; }
+.mobile-tabs { display: flex; gap: 6rpx; margin: 20rpx 0 16rpx; padding: 5rpx; border-radius: 20rpx; background: #eef2f8; }
+.mobile-tab { flex: 1; padding: 14rpx 0; border-radius: 16rpx; color: #64748b; font-size: 23rpx; text-align: center; font-weight: 600; }
+.mobile-tab.active { color: #fff; background: linear-gradient(135deg, #16337a, #1d4ed8 58%, #2563eb); box-shadow: 0 6rpx 16rpx rgba(29,78,216,.24); }
+.phase-chip { display: inline-block; margin-left: 4rpx; padding: 1rpx 7rpx; border-radius: 8rpx; color: #64748b; background: rgba(255,255,255,.78); font-size: 17rpx; font-weight: 500; }
+.mobile-tab.active .phase-chip { color: #1d4ed8; }
+.card { margin-bottom: 14rpx; padding: 22rpx; border-radius: 22rpx; background: #fff; box-shadow: 0 8rpx 24rpx rgba(41,72,125,.07); }
+.search-card { padding: 14rpx; }
+.search-input-wrap { display: flex; align-items: center; gap: 10rpx; }
+.search-input { flex: 1; height: 64rpx; padding: 0 18rpx; border: 1rpx solid #dbe5f1; border-radius: 16rpx; background: #f8fbff; color: #334155; font-size: 23rpx; }
+.search-btn { padding: 12rpx 20rpx; border-radius: 16rpx; color: #fff; background: #1d4ed8; font-size: 22rpx; }
+.recommend-card { display: flex; align-items: center; gap: 14rpx; }
+.cover { display: flex; align-items: center; justify-content: center; width: 62rpx; height: 84rpx; flex-shrink: 0; padding: 6rpx; border-radius: 12rpx; color: #fff; background: linear-gradient(160deg, #1d4ed8, #16337a); font-size: 18rpx; line-height: 1.2; text-align: center; }
+.recommend-main { flex: 1; min-width: 0; }
+.recommend-title { color: #14213d; font-size: 25rpx; font-weight: 800; }
+.recommend-meta { margin-top: 7rpx; color: #64748b; font-size: 21rpx; }
+.mini-action { flex-shrink: 0; padding: 9rpx 16rpx; border-radius: 14rpx; color: #1d4ed8; background: #eef5ff; font-size: 21rpx; }
+.feed-card { padding: 20rpx 22rpx; }
+.feed-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10rpx; }
+.feed-title { flex: 1; color: #14213d; font-size: 25rpx; font-weight: 700; line-height: 1.45; }
+.feed-time { flex-shrink: 0; color: #94a3b8; font-size: 19rpx; }
+.type-tag { display: inline-block; margin-right: 8rpx; padding: 1rpx 7rpx; border-radius: 7rpx; font-size: 18rpx; font-weight: 500; }
+.type-tag.heart { color: #1d4ed8; background: #eef5ff; }
+.type-tag.recitation { color: #047857; background: #e7f6ee; }
+.type-tag.znl { color: #b45309; background: #fff4e5; }
+.feed-summary { margin-top: 9rpx; color: #475569; font-size: 24rpx; line-height: 1.65; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.feed-meta { display: flex; align-items: center; gap: 18rpx; margin-top: 12rpx; color: #94a3b8; font-size: 20rpx; }
+.feed-meta .read { margin-left: auto; }
+.feed-meta .read.unread { color: #ef4444; }
+.feed-meta .read.done { color: #1d4ed8; }
+.empty { padding: 40rpx 0; color: #94a3b8; font-size: 23rpx; text-align: center; }
+.ghost-panel { padding: 28rpx 24rpx; }
+.ghost-title { color: #334155; font-size: 25rpx; font-weight: 700; }
+.ghost-sub { margin-top: 10rpx; color: #94a3b8; font-size: 21rpx; line-height: 1.65; }
+.stats-panel { padding: 24rpx; }
+.stats-title { color: #14213d; font-size: 27rpx; font-weight: 800; }
+.stats-grid { display: flex; margin-top: 18rpx; }
+.stats-cell { flex: 1; text-align: center; }
+.stats-num { display: block; color: #14213d; font-size: 34rpx; font-weight: 800; }
+.stats-label { display: block; margin-top: 5rpx; color: #94a3b8; font-size: 20rpx; }
+.fb-entries { margin-top: 10rpx; }
+.fb-entry { display: flex; align-items: center; margin-bottom: 12rpx; padding: 20rpx 22rpx; border-radius: 20rpx; background: #fff; box-shadow: 0 6rpx 18rpx rgba(41,72,125,.05); }
+.fb-entry-icon { display: flex; align-items: center; justify-content: center; width: 54rpx; height: 54rpx; margin-right: 14rpx; border-radius: 16rpx; color: #1d4ed8; background: #eef5ff; font-size: 24rpx; font-weight: 700; }
 .fb-entry-body { flex: 1; }
-.fb-entry-title { font-size: 30rpx; font-weight: 500; }
-.fb-entry-sub { font-size: 22rpx; color: #8a94a6; margin-top: 4rpx; }
-.fb-entry-arrow { color: #c0c8d4; font-size: 36rpx; }
+.fb-entry-title { color: #14213d; font-size: 25rpx; font-weight: 700; }
+.fb-entry-sub { margin-top: 4rpx; color: #94a3b8; font-size: 20rpx; }
+.fb-entry-arrow { color: #c0c8d4; font-size: 34rpx; }

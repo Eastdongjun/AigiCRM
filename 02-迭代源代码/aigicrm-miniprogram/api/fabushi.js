@@ -9,6 +9,10 @@ function submitFabushiBook(data) {
   return request({ url: '/api/fabushi/books', method: 'POST', data })
 }
 
+function getFabushiBook(id) {
+  return request({ url: `/api/fabushi/books/${id}` })
+}
+
 function getFabushiPosts(params) {
   return request({ url: '/api/fabushi/posts', data: params || {} })
 }
@@ -42,6 +46,6 @@ function getFabushiPersonalStats() {
 }
 
 module.exports = {
-  getFabushiBooks, submitFabushiBook, getFabushiPosts, getFabushiPostDetail,
+  getFabushiBooks, getFabushiBook, submitFabushiBook, getFabushiPosts, getFabushiPostDetail,
   createFabushiPost, addFabushiComment, getFabushiComments, toggleFabushiLike, markFabushiRead, getFabushiPersonalStats,
 }

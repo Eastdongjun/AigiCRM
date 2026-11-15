@@ -6,19 +6,56 @@
 </scroll-view>
 
 <view class="search-bar">
-  <input class="search-input" placeholder="搜书名" value="{{keyword}}" bindinput="onKeywordInput" confirm-type="search" bindconfirm="onSearch" />
+  <input class="search-input" placeholder="搜书名 / 作者" value="{{keyword}}" bindinput="onKeywordInput" confirm-type="search" bindconfirm="onSearch" />
   <view class="search-btn" bindtap="onSearch">搜索</view>
 </view>
 
-<view class="book-card" wx:for="{{books}}" wx:key="id">
-  <view class="book-title">{{item.title}}</view>
+<view class="book-card" wx:for="{{books}}" wx:key="id" data-id="{{item.id}}" bindtap="openBook">
+  <view class="book-title-row">
+    <view class="book-title">{{item.title}}</view>
+    <text wx:if="{{item.pdfFileId}}" class="book-pdf">电子书</text>
+  </view>
   <view class="book-meta">
     <text wx:if="{{item.categoryName}}">{{item.categoryName}}</text>
     <text wx:if="{{item.author}}"> · {{item.author}}</text>
     <text wx:if="{{item.pages}}"> · {{item.pages}}页</text>
-    <text wx:if="{{item.pdfFileId}}" class="book-pdf"> · 📱电子书</text>
+    <text wx:if="{{item.postCount}}"> · 作品 {{item.postCount}}</text>
+  </view>
+  <view class="book-foot">
+    <text class="book-stat">心得 {{item.heartCount || 0}}</text>
+    <text class="book-stat">诵读 {{item.recitationCount || 0}}</text>
+    <text class="book-detail-link">查看详情 ›</text>
   </view>
 </view>
 
 <view class="empty" wx:if="{{!loading && books.length === 0}}">暂无书目</view>
 <view class="loading" wx:if="{{loading}}">加载中…</view>
+
+<view wx:if="{{detailVisible}}" class="detail-mask" bindtap="closeDetail">
+  <view class="detail-sheet" catchtap="noop">
+    <view class="detail-grab" />
+    <view class="detail-head">
+      <view class="detail-main">
+        <view class="detail-title">{{detailBook.title}}</view>
+        <view class="detail-meta">{{detailBook.author || '法布施书目'}}<text wx:if="{{detailBook.pages}}"> · {{detailBook.pages}} 页</text><text wx:if="{{detailBook.pdfFileId}}"> · 电子书</text></view>
+      </view>
+      <view class="detail-close" bindtap="closeDetail">×</view>
+    </view>
+    <view class="detail-stats">
+      <view class="detail-stat"><text>{{detailBook.heartCount || 0}}</text><text>心得</text></view>
+      <view class="detail-stat"><text>{{detailBook.recitationCount || 0}}</text><text>诵读</text></view>
+      <view class="detail-stat"><text>{{detailBook.postCount || 0}}</text><text>作品</text></view>
+    </view>
+    <view class="detail-actions">
+      <view class="detail-btn {{canCreate ? '' : 'disabled'}}" bindtap="goUploadForBook">写心得 / 诵读</view>
+      <view class="detail-btn ghost" bindtap="noop">在线阅读 · 二期</view>
+    </view>
+    <view class="detail-section-title">本书目内容</view>
+    <view wx:if="{{detailPosts.length === 0}}" class="detail-empty">暂无作品，欢迎发布第一条</view>
+    <view wx:for="{{detailPosts}}" wx:key="id" class="detail-post" data-id="{{item.id}}" bindtap="openPost">
+      <view class="detail-post-title">{{item.title || (item.content || '')}}</view>
+      <view class="detail-post-meta">{{item.userName || '法布施'}} · 木鱼 {{item.likeCount || 0}} · 评论 {{item.commentCount || 0}}</view>
+    </view>
+    <view class="detail-note">结构树（序→部分→章→节）为二期；一期按书目维度发布通读内容。</view>
+  </view>
+</view>

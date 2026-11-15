@@ -61,6 +61,14 @@ public class FabushiPostController {
         return Result.ok();
     }
 
+    /** 恢复已下架内容(治理, 全量留痕)。 */
+    @PutMapping("/{id}/restore")
+    @PreAuthorize("hasAuthority('fabushi:content:manage')")
+    public Result<Void> restore(@PathVariable Long id) {
+        postService.restore(id);
+        return Result.ok();
+    }
+
     /** 评论(文字; 二期扩 highlight/audio)。 */
     @PostMapping("/{id}/comments")
     @PreAuthorize("hasAuthority('fabushi:create')")

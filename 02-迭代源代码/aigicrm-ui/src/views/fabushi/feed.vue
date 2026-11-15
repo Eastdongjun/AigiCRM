@@ -38,6 +38,7 @@
           <div class="feed-top">
             <span class="tag" :class="post.scopeType">{{ typeLabel(post.scopeType) }}</span>
             <span class="feed-title">{{ post.title || '无标题' }}</span>
+            <span v-if="isNew(post)" class="new-badge">NEW</span>
             <span class="feed-time">{{ formatTime(post.createdAt) }}</span>
           </div>
           <div class="feed-body">{{ post.content }}</div>
@@ -173,6 +174,7 @@ const visiblePosts = computed(() => posts.value.filter((post) => {
 
 const typeLabel = (value) => tabs.find((tab) => tab.value === value)?.label || '内容'
 const formatTime = (value) => (value ? String(value).replace('T', ' ').slice(0, 16) : '')
+const isNew = (post) => !post.readByMe && post.createdAt && (Date.now() - new Date(post.createdAt).getTime() < 30 * 24 * 3600 * 1000)
 const bookName = (post) => post.bookTitle || bookOptions.value.find((book) => book.id === post.bookId)?.title || ''
 const goLibrary = () => router.push('/fabushi/library')
 const openDetail = (id) => router.push(`/fabushi/detail/${id}`)
@@ -291,6 +293,7 @@ onMounted(async () => {
 .tag.recitation { color: var(--el-color-success); background: var(--el-color-success-light-9); }
 .tag.znl { color: var(--el-color-warning-dark-2); background: var(--el-color-warning-light-9); }
 .feed-title { overflow: hidden; color: var(--text-primary); font-size: 14px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.new-badge { padding: 1px 5px; border-radius: var(--radius-sm); color: var(--el-color-danger); background: var(--el-color-danger-light-9); font-size: 9px; font-weight: 700; }
 .feed-time { flex-shrink: 0; margin-left: auto; color: var(--text-placeholder); font-size: 11px; }
 .feed-body { display: -webkit-box; overflow: hidden; color: var(--text-secondary); font-size: 12.5px; line-height: 1.7; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .feed-book { display: inline-flex; margin-top: 7px; padding: 2px 7px; border-radius: var(--radius-sm); color: var(--primary-color); background: var(--el-color-primary-light-9); font-size: 11px; }

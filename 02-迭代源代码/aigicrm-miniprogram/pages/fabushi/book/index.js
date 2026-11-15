@@ -1,5 +1,5 @@
 const { hasPermission, requireLogin } = require('../../../utils/auth')
-const { getFabushiBooks } = require('../../../api/fabushi')
+const { getFabushiBooks, getFabushiBook, getFabushiPosts } = require('../../../api/fabushi')
 const { getDictData } = require('../../../api/system')
 const { showError } = require('../../../utils/feedback')
 
@@ -14,7 +14,10 @@ Page({
     page: 1,
     pageSize: 10,
     loading: false,
-    canCreate: false
+    canCreate: false,
+    detailVisible: false,
+    detailBook: {},
+    detailPosts: []
   },
 
   onPermissionChanged() {
@@ -91,5 +94,32 @@ Page({
 
   goUpload() {
     wx.navigateTo({ url: '/pages/fabushi/upload/index' })
+  },
+
+  openBook(e) {
+    const id = e.currentTarget.dataset.id
+    this.setData({ detailVisible: true, detailBook: { id }, detailPosts: [] })
+    Promise.all([
+      getFabushiBook(id).catch(() => null),
+      getFabushiPosts({ bookId: id, status: 'published', current: 1, size: 20 }).catch(() => ({}))
+    ]).then(([bookRes, postRes]) => {
+      const book = (bookRes && bookRes.book) || bookRes || { id }
+      this.setData({ detailBook: book, detailPosts: (postRes && postRes.records) || [] })
+    })
+  },
+
+  closeDetail() { this.setData({ detailVisible: false }) },
+  noop() {},
+
+  goUploadForBook() {
+    if (!this.data.canCreate) {
+      wx.showToast({ title: '没有发布权限', icon: 'none' })
+      return
+    }
+    wx.navigateTo({ url: `/pages/fabushi/upload/index?bookId=${this.data.detailBook.id}` })
+  },
+
+  openPost(e) {
+    wx.navigateTo({ url: `/pages/fabushi/detail/index?id=${e.currentTarget.dataset.id}` })
   }
 })

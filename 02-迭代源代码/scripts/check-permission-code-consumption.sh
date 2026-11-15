@@ -35,7 +35,8 @@ FRONT=$(printf '%s\n' "$FRONT" | grep -vE '^$' | sort -u)
 
 # 白名单(码:理由)——只允许"刻意的纯前端门码"一类
 WHITELIST="incentive:rank:export:用户裁决的独立导出门码(2026-11-05 令, V2026.11.05.8 注册)——导出为前端 CSV(列表数据受列表接口守卫), 无后端端点可挂码
-incentive:person-rank:export:同上(2026-09-23 令, V2026.09.23.7 注册), 个人排行前端 CSV 导出门码"
+incentive:person-rank:export:同上(2026-09-23 令, V2026.09.23.7 注册), 个人排行前端 CSV 导出门码
+fabushi:stats:export:法布施统计导出为二期能力, 当前仅页面按钮占位且 disabled, 无后端端点; 二期接导出接口时同步接 @PreAuthorize"
 
 miss=0
 while IFS= read -r code; do

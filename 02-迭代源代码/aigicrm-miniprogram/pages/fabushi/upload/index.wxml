@@ -1,21 +1,44 @@
-<view class="scope-row">
-  <view class="scope-chip {{scopeType === item.value ? 'active' : ''}}"
-        wx:for="{{scopeOptions}}" wx:key="value"
-        data-value="{{item.value}}" bindtap="onScope">{{item.label}}</view>
-</view>
+<block wx:if="{{!success}}">
+  <view class="scope-row">
+    <view class="scope-chip {{scopeType === item.value ? 'active' : ''}}"
+          wx:for="{{scopeOptions}}" wx:key="value"
+          data-value="{{item.value}}" bindtap="onScope">{{item.label}}</view>
+  </view>
 
-<view class="form-card">
-  <picker mode="selector" range="{{books}}" range-key="title" value="{{bookIndex}}" bindchange="onBookChange">
-    <view class="form-row">
-      <text class="form-label">关联书目</text>
-      <text class="form-value">{{bookIndex >= 0 && books[bookIndex] ? books[bookIndex].title : '可选'}}</text>
+  <view class="form-card">
+    <picker mode="selector" range="{{books}}" range-key="title" value="{{bookIndex}}" bindchange="onBookChange">
+      <view class="form-row">
+        <text class="form-label">关联书目</text>
+        <text class="form-value">{{bookIndex >= 0 && books[bookIndex] ? books[bookIndex].title : '可选'}}</text>
+      </view>
+    </picker>
+    <input class="form-input" placeholder="标题（可选）" value="{{title}}" bindinput="onTitle" />
+    <textarea class="form-textarea" placeholder="写点什么…" value="{{content}}" bindinput="onContent" maxlength="2000" />
+  </view>
+
+  <view class="submit-btn {{submitting || (!title && !content) ? 'disabled' : ''}}" bindtap="submit">
+    {{submitting ? '发布中…' : '发布'}}
+  </view>
+  <view class="tip">图片 / 音频 / 视频附件为二期开放；一期为文字版内容。</view>
+</block>
+
+<block wx:else>
+  <view class="success-page">
+    <view class="muyu-stage {{muyuAnim ? 'go' : ''}}">
+      <view class="muyu-glow"></view>
+      <view class="muyu-ripple"></view>
+      <view class="muyu-body"></view>
+      <view class="muyu-cushion"></view>
+      <view class="muyu-mallet"></view>
+      <view class="muyu-plus">+1</view>
     </view>
-  </picker>
-  <input class="form-input" placeholder="标题(可选)" value="{{title}}" bindinput="onTitle" />
-  <textarea class="form-textarea" placeholder="写点什么…" value="{{content}}" bindinput="onContent" maxlength="2000" />
-</view>
-
-<view class="submit-btn {{submitting || (!title && !content) ? 'disabled' : ''}}" bindtap="submit">
-  {{submitting ? '发布中…' : '发布'}}
-</view>
-<view class="tip">附件(图/音/视)与诵读结构二期开放</view>
+    <view class="success-title">发布成功</view>
+    <view class="success-sub">已进入法布施分享广场，30 天内展示 NEW。</view>
+    <view class="success-actions">
+      <view class="success-btn ghost" bindtap="replayMuyu">再敲一下</view>
+      <view class="success-btn primary" bindtap="goDetail">查看作品</view>
+    </view>
+    <view class="success-back" bindtap="goBack">返回</view>
+    <view class="success-note">木鱼 = 点赞，同一资产两用；音效在「我的」设置中可关闭（二期）。</view>
+  </view>
+</block>

@@ -4,7 +4,7 @@
 > 本文件由 scripts/gen-api.py 自动生成,**禁止手改**;接口变更后重新运行。
 > 权限码与 docs/permission/permission-dict.md 对应。
 
-## 接口清单(265 个)
+## 接口清单(267 个)
 
 | 方法 | 路径 | 权限码 | 方法名 | 文件 |
 |---|---|---|---|---|
@@ -75,6 +75,7 @@
 | GET | `/api/fabushi/books` | `hasAuthority('fabushi:view')` | page | FabushiBookController.java |
 | POST | `/api/fabushi/books` | `hasAuthority('fabushi:create')` | submit | FabushiBookController.java |
 | GET | `/api/fabushi/books/pending` | `hasAuthority('fabushi:book:manage')` | pending | FabushiBookController.java |
+| GET | `/api/fabushi/books/{id}` | `hasAuthority('fabushi:view')` | detail | FabushiBookController.java |
 | PUT | `/api/fabushi/books/{id}/approve` | `hasAuthority('fabushi:book:manage')` | approve | FabushiBookController.java |
 | PUT | `/api/fabushi/books/{id}/disable` | `hasAuthority('fabushi:book:manage')` | disable | FabushiBookController.java |
 | POST | `/api/fabushi/books/{id}/pdf` | `hasAuthority('fabushi:book:manage')` | attachPdf | FabushiBookController.java |
@@ -86,6 +87,7 @@
 | POST | `/api/fabushi/posts/{id}/comments` | `hasAuthority('fabushi:create')` | addComment | FabushiPostController.java |
 | POST | `/api/fabushi/posts/{id}/like` | `hasAuthority('fabushi:create')` | toggleLike | FabushiPostController.java |
 | PUT | `/api/fabushi/posts/{id}/offline` | `hasAuthority('fabushi:content:manage')` | offline | FabushiPostController.java |
+| PUT | `/api/fabushi/posts/{id}/restore` | `hasAuthority('fabushi:content:manage')` | restore | FabushiPostController.java |
 | POST | `/api/fabushi/reads/mark` | `hasAuthority('fabushi:view')` | markRead | FabushiReadController.java |
 | GET | `/api/fabushi/stats/personal` | `hasAuthority('fabushi:view')` | personal | FabushiStatsController.java |
 | GET | `/api/fabushi/stats/team` | `hasAuthority('fabushi:stats:view')` | team | FabushiStatsController.java |

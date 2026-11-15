@@ -33,6 +33,13 @@ public class FabushiBookController {
         return Result.ok(bookService.pageData(categoryCode, keyword, status, current, size));
     }
 
+    /** 书目详情(view; 非 approved 仅 book:manage)。 */
+    @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('fabushi:view')")
+    public Result<Map<String, Object>> detail(@PathVariable Long id) {
+        return Result.ok(bookService.detailData(id));
+    }
+
     /** 待审核队列(审核制专用)。 */
     @GetMapping("/pending")
     @PreAuthorize("hasAuthority('fabushi:book:manage')")

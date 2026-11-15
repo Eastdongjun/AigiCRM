@@ -39,4 +39,8 @@ public class BizFabushiBook {
     private String categoryName;
     @TableField(exist = false)
     private Long postCount;
+    @TableField(exist = false)
+    private Long heartCount;
+    @TableField(exist = false)
+    private Long recitationCount;
 }

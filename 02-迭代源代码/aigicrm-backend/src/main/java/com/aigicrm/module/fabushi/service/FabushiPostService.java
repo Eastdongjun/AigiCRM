@@ -155,6 +155,25 @@ public class FabushiPostService {
         securityAuditService.permissionChange("fabushi_post_offline", "post:" + id);
     }
 
+    /** 恢复已下架内容(fabushi:content:manage 门): 回到 published, 清空下架留痕。 */
+    @Transactional
+    public void restore(Long id) {
+        BizFabushiPost post = postMapper.selectById(id);
+        if (post == null) {
+            throw new BusinessException(404, "内容不存在");
+        }
+        if (!"offline".equals(post.getStatus())) {
+            throw new BusinessException(400, "只有已下架内容可以恢复");
+        }
+        postMapper.update(null, new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<BizFabushiPost>()
+                .eq(BizFabushiPost::getId, id)
+                .set(BizFabushiPost::getStatus, "published")
+                .set(BizFabushiPost::getOfflineBy, null)
+                .set(BizFabushiPost::getOfflineAt, null)
+                .set(BizFabushiPost::getOfflineReason, null));
+        securityAuditService.permissionChange("fabushi_post_restore", "post:" + id);
+    }
+
     /** 评论(fabushi:create 门): 帖须 published。 */
     public BizFabushiComment addComment(Long postId, BizFabushiComment comment) {
         BizFabushiPost post = postMapper.selectById(postId);

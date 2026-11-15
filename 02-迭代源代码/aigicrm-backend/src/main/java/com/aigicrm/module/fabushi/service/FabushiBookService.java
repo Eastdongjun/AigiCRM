@@ -3,6 +3,8 @@ package com.aigicrm.module.fabushi.service;
 import com.aigicrm.common.BusinessException;
 import com.aigicrm.module.fabushi.entity.BizFabushiBook;
 import com.aigicrm.module.fabushi.mapper.BizFabushiBookMapper;
+import com.aigicrm.module.fabushi.mapper.BizFabushiPostMapper;
+import com.aigicrm.module.fabushi.entity.BizFabushiPost;
 import com.aigicrm.module.system.entity.SysDictData;
 import com.aigicrm.module.system.entity.SysUser;
 import com.aigicrm.module.system.mapper.SysUserMapper;
@@ -28,6 +30,7 @@ import java.util.stream.Collectors;
 public class FabushiBookService {
 
     private final BizFabushiBookMapper bookMapper;
+    private final BizFabushiPostMapper postMapper;
     private final com.aigicrm.module.file.mapper.BizFileMapper fileMapper;
     private final SysUserMapper userMapper;
     private final SysDictService dictService;
@@ -47,11 +50,37 @@ public class FabushiBookService {
             b.setCategoryName(catNames.get(b.getCategoryCode()));
             b.setSubmitterName(userNames.get(b.getCreatedBy()));
         }
+        List<BizFabushiPost> posts = postMapper.selectList(new LambdaQueryWrapper<BizFabushiPost>()
+                .in(BizFabushiPost::getBookId, books.stream().map(BizFabushiBook::getId).toList())
+                .isNotNull(BizFabushiPost::getBookId)
+                .eq(BizFabushiPost::getStatus, "published"));
+        Map<Long, List<BizFabushiPost>> byBook = posts.stream().collect(Collectors.groupingBy(BizFabushiPost::getBookId));
+        for (BizFabushiBook b : books) {
+            List<BizFabushiPost> items = byBook.getOrDefault(b.getId(), List.of());
+            b.setPostCount((long) items.size());
+            b.setHeartCount(items.stream().filter(p -> "heart".equals(p.getScopeType())).count());
+            b.setRecitationCount(items.stream().filter(p -> "recitation".equals(p.getScopeType())).count());
+        }
+    }
+
+    /** 书目详情(fabushi:view 门): 非 approved 仅 book:manage 可看。 */
+    public Map<String, Object> detailData(Long id) {
+        BizFabushiBook book = requireBook(id);
+        if (!"approved".equals(book.getStatus())
+                && !com.aigicrm.security.SecurityUtils.hasAuthority("fabushi:book:manage")) {
+            throw new BusinessException(404, "书目不存在");
+        }
+        fillDisplay(List.of(book));
+        return Map.of("book", book);
     }
 
     /** 书目列表(fabushi:view 门): approved 全员可见; manage 门可用 status 传参查全态。 */
     public Page<BizFabushiBook> page(String categoryCode, String keyword, String status, long current, long size) {
         String st = (status == null || status.isBlank()) ? "approved" : status;
+        if (!"approved".equals(st)
+                && !com.aigicrm.security.SecurityUtils.hasAuthority("fabushi:book:manage")) {
+            st = "approved";
+        }
         LambdaQueryWrapper<BizFabushiBook> qw = new LambdaQueryWrapper<BizFabushiBook>()
                 .eq(BizFabushiBook::getStatus, st)
                 .eq(categoryCode != null && !categoryCode.isBlank(), BizFabushiBook::getCategoryCode, categoryCode)

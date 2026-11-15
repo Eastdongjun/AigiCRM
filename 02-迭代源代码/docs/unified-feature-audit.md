@@ -1,16 +1,16 @@
 # AIGICRM Unified Feature Audit
 
-Generated from local source: `02-迭代源代码`
+Generated from local source: `.`
 
 ## Summary
 
 - PC routes: 42
-- PC API functions: 238
+- PC API functions: 241
 - Mini Program pages: 49
-- Mini Program API functions: 121
-- Backend endpoints: 265
-- PC UI actions: 312
-- Mini Program UI actions: 280
+- Mini Program API functions: 122
+- Backend endpoints: 267
+- PC UI actions: 322
+- Mini Program UI actions: 295
 - Backend permission tokens: 85
 - Permission dictionary tokens: 104
 - Runtime permission dictionary tokens: 96
@@ -21,9 +21,9 @@ Generated from local source: `02-迭代源代码`
 - Runtime dictionary permissions referenced outside backend annotations: 7
 - Runtime dictionary permissions not seen in backend annotations or code references: 4
 - UI permission tokens missing in backend, dictionary, and local migrations: 0
-- Frontend code permission tokens: 68
+- Frontend code permission tokens: 69
 - Frontend code permission tokens missing in known sources: 0
-- PC API wrappers without backend endpoint match: 0
+- PC API wrappers without backend endpoint match: 1
 - Mini Program API wrappers without backend endpoint match: 7
 
 ## PC Routes
@@ -43,7 +43,7 @@ Generated from local source: `02-迭代源代码`
 | `incentive` | 激励上传 | `incentive:add` | `aigicrm-ui/src/router/index.js` |
 | `incentive/stats` | 激励统计 | `incentive:stats:view` | `aigicrm-ui/src/router/index.js` |
 | `incentive/search` | 激励查询 | `incentive:view` | `aigicrm-ui/src/router/index.js` |
-| `fabushi/feed` | 内容流 | `fabushi:view` | `aigicrm-ui/src/router/index.js` |
+| `fabushi/feed` | 分享广场 | `fabushi:view` | `aigicrm-ui/src/router/index.js` |
 | `fabushi/detail/:id` | 内容详情 | `fabushi:view` | `aigicrm-ui/src/router/index.js` |
 | `fabushi/library` | 书目浏览 | `fabushi:view` | `aigicrm-ui/src/router/index.js` |
 | `fabushi/read/:bookId` | 在线阅读 | `fabushi:view` | `aigicrm-ui/src/router/index.js` |
@@ -205,21 +205,29 @@ Generated from local source: `02-迭代源代码`
 | 返回登录 | `goLogin` | `` | `aigicrm-ui/src/views/error/403.vue:7` |
 | 返回工作台 | `goHome` | `` | `aigicrm-ui/src/views/error/NotFound.vue:9` |
 | 返回上一页 | `goBack` | `` | `aigicrm-ui/src/views/error/NotFound.vue:10` |
-| 查询 | `loadData` | `` | `aigicrm-ui/src/views/fabushi/book.vue:15` |
-| 提交书目 | `submitVisible = true` | `userStore.hasPermission('fabushi:create')` | `aigicrm-ui/src/views/fabushi/book.vue:16` |
-| 通过 | `doApprove(row)` | `row.status === 'pending' && userStore.hasPermission('fabushi:book:manage')` | `aigicrm-ui/src/views/fabushi/book.vue:40` |
-| 驳回 | `openReject(row)` | `row.status === 'pending' && userStore.hasPermission('fabushi:book:manage')` | `aigicrm-ui/src/views/fabushi/book.vue:42` |
-| 挂PDF | `openPdf(row)` | `` | `aigicrm-ui/src/views/fabushi/book.vue:44` |
-| 停用 | `doDisable(row)` | `` | `aigicrm-ui/src/views/fabushi/book.vue:45` |
-| 取消 | `submitVisible = false` | `` | `aigicrm-ui/src/views/fabushi/book.vue:77` |
-| 提交 | `doSubmit` | `` | `aigicrm-ui/src/views/fabushi/book.vue:78` |
-| 取消 | `rejectVisible = null` | `` | `aigicrm-ui/src/views/fabushi/book.vue:86` |
-| 确认驳回 | `doReject` | `` | `aigicrm-ui/src/views/fabushi/book.vue:87` |
-| 刷新 | `loadData` | `` | `aigicrm-ui/src/views/fabushi/content.vue:11` |
-| 下架 | `openOffline(row)` | `row.status === 'published' && userStore.hasPermission('fabushi:content:manage')` | `aigicrm-ui/src/views/fabushi/content.vue:40` |
-| 取消 | `offlineVisible = null` | `` | `aigicrm-ui/src/views/fabushi/content.vue:55` |
-| 确认下架 | `doOffline` | `` | `aigicrm-ui/src/views/fabushi/content.vue:56` |
-| ← 返回内容流 | `router.back()` | `` | `aigicrm-ui/src/views/fabushi/detail.vue:4` |
+| 查询 | `onFilterChange` | `` | `aigicrm-ui/src/views/fabushi/book.vue:23` |
+| 重置 | `resetFilters` | `` | `aigicrm-ui/src/views/fabushi/book.vue:24` |
+| 待审核 () | `showPending` | `` | `aigicrm-ui/src/views/fabushi/book.vue:26` |
+| ＋ 新增书目 | `submitVisible = true` | `userStore.hasPermission('fabushi:create')` | `aigicrm-ui/src/views/fabushi/book.vue:27` |
+| 通过 | `doApprove(row)` | `` | `aigicrm-ui/src/views/fabushi/book.vue:61` |
+| 驳回 | `openReject(row)` | `` | `aigicrm-ui/src/views/fabushi/book.vue:62` |
+| (icon/button) | `openPdf(row)` | `` | `aigicrm-ui/src/views/fabushi/book.vue:63` |
+| 停用 | `doDisable(row)` | `` | `aigicrm-ui/src/views/fabushi/book.vue:64` |
+| 查看原因 | `showRejectReason(row)` | `` | `aigicrm-ui/src/views/fabushi/book.vue:65` |
+| 取消 | `submitVisible = false` | `` | `aigicrm-ui/src/views/fabushi/book.vue:96` |
+| 提交 | `doSubmit` | `` | `aigicrm-ui/src/views/fabushi/book.vue:97` |
+| 取消 | `rejectVisible = null` | `` | `aigicrm-ui/src/views/fabushi/book.vue:104` |
+| 确认驳回 | `doReject` | `` | `aigicrm-ui/src/views/fabushi/book.vue:105` |
+| 查询 | `resetPage` | `` | `aigicrm-ui/src/views/fabushi/content.vue:11` |
+| 详情 | `openDetail(row)` | `` | `aigicrm-ui/src/views/fabushi/content.vue:31` |
+| 下架 | `openOffline(row)` | `` | `aigicrm-ui/src/views/fabushi/content.vue:32` |
+| 恢复 | `doRestore(row)` | `` | `aigicrm-ui/src/views/fabushi/content.vue:33` |
+| 关闭 | `detailVisible = false` | `` | `aigicrm-ui/src/views/fabushi/content.vue:58` |
+| 下架该作品 | `openOffline(detailRow)` | `` | `aigicrm-ui/src/views/fabushi/content.vue:59` |
+| 恢复该作品 | `doRestore(detailRow)` | `` | `aigicrm-ui/src/views/fabushi/content.vue:60` |
+| 取消 | `offlineVisible = false` | `` | `aigicrm-ui/src/views/fabushi/content.vue:68` |
+| 确认下架 | `doOffline` | `` | `aigicrm-ui/src/views/fabushi/content.vue:69` |
+| ← 返回分享广场 | `router.back()` | `` | `aigicrm-ui/src/views/fabushi/detail.vue:4` |
 | 木鱼 | `toggleLike` | `` | `aigicrm-ui/src/views/fabushi/detail.vue:21` |
 | 发送 | `submitComment` | `` | `aigicrm-ui/src/views/fabushi/detail.vue:36` |
 | 在线阅读 | `openReader` | `` | `aigicrm-ui/src/views/fabushi/detail.vue:61` |
@@ -234,6 +242,8 @@ Generated from local source: `02-迭代源代码`
 | 写心得 | `writePost(book)` | `` | `aigicrm-ui/src/views/fabushi/library.vue:52` |
 | ‹ 返回书目 | `router.back()` | `` | `aigicrm-ui/src/views/fabushi/read.vue:4` |
 | 下载 | `downloadPdf` | `` | `aigicrm-ui/src/views/fabushi/read.vue:8` |
+| 查询 | `loadData` | `` | `aigicrm-ui/src/views/fabushi/stats.vue:11` |
+| 导出报表（Excel）二期 | `` | `userStore.hasPermission('fabushi:stats:export')` | `aigicrm-ui/src/views/fabushi/stats.vue:13` |
 | 取消 | `createFolderVisible = false` | `` | `aigicrm-ui/src/views/file/CreateFolderDialog.vue:9` |
 | 创建 | `handleCreateFolder` | `` | `aigicrm-ui/src/views/file/CreateFolderDialog.vue:10` |
 | 批量下载 | `doBatchDownload` | `userStore.hasPermission('file:download')` | `aigicrm-ui/src/views/file/FileTable.vue:6` |
@@ -520,16 +530,31 @@ Generated from local source: `02-迭代源代码`
 | 全部 | `onCategoryTap` | `` | `aigicrm-miniprogram/pages/fabushi/book/index.wxml:2` |
 | (button) | `onCategoryTap` | `` | `aigicrm-miniprogram/pages/fabushi/book/index.wxml:3` |
 | 搜索 | `onSearch` | `` | `aigicrm-miniprogram/pages/fabushi/book/index.wxml:10` |
+| 电子书 · · 页 · 作品 心得 诵读 查看详情 › | `openBook` | `` | `aigicrm-miniprogram/pages/fabushi/book/index.wxml:13` |
+| · 页 · 电子书 × 心得 诵读 作品 写心得 / 诵读 在线阅读 · 二期 本书目内容 暂无作品，欢迎发布第一条 · 木鱼 · 评论 结构树（序→部分→章→节）为二期；一期按书目维度发布通读内容。 | `closeDetail` | `{{detailVisible}}` | `aigicrm-miniprogram/pages/fabushi/book/index.wxml:34` |
+| · 页 · 电子书 × 心得 诵读 作品 写心得 / 诵读 在线阅读 · 二期 本书目内容 暂无作品，欢迎发布第一条 · 木鱼 · 评论 结构树（序→部分→章→节）为二期；一期按书目维度发布通读内容。 | `noop` | `` | `aigicrm-miniprogram/pages/fabushi/book/index.wxml:35` |
+| × | `closeDetail` | `` | `aigicrm-miniprogram/pages/fabushi/book/index.wxml:42` |
+| 写心得 / 诵读 | `goUploadForBook` | `` | `aigicrm-miniprogram/pages/fabushi/book/index.wxml:50` |
+| 在线阅读 · 二期 | `noop` | `` | `aigicrm-miniprogram/pages/fabushi/book/index.wxml:51` |
+| · 木鱼 · 评论 | `openPost` | `` | `aigicrm-miniprogram/pages/fabushi/book/index.wxml:55` |
 | 🐟 | `toggleLike` | `` | `aigicrm-miniprogram/pages/fabushi/detail/index.wxml:12` |
 | 发送 | `submitComment` | `` | `aigicrm-miniprogram/pages/fabushi/detail/index.wxml:33` |
 | (button) | `onTabTap` | `` | `aigicrm-miniprogram/pages/fabushi/feed/index.wxml:2` |
 | 🐟 💬 已读 | `goDetail` | `` | `aigicrm-miniprogram/pages/fabushi/feed/index.wxml:13` |
 | ＋ | `goUpload` | `{{canCreate}}` | `aigicrm-miniprogram/pages/fabushi/feed/index.wxml:30` |
-| 💬 内容流 心得 · 诵读 · 正能量 › | `goFeed` | `` | `aigicrm-miniprogram/pages/fabushi/index.wxml:21` |
-| 📚 书目浏览 按类别浏览书目与心得 › | `goBook` | `` | `aigicrm-miniprogram/pages/fabushi/index.wxml:30` |
-| ✍️ 发布 心得 / 诵读 / 正能量 › | `goUpload` | `{{canCreate}}` | `aigicrm-miniprogram/pages/fabushi/index.wxml:39` |
-| (button) | `onScope` | `` | `aigicrm-miniprogram/pages/fabushi/upload/index.wxml:2` |
-| (button) | `submit` | `` | `aigicrm-miniprogram/pages/fabushi/upload/index.wxml:18` |
+| 刷新 | `refresh` | `` | `aigicrm-miniprogram/pages/fabushi/index.wxml:8` |
+| ＋ 上传 | `goUpload` | `{{canCreate}}` | `aigicrm-miniprogram/pages/fabushi/index.wxml:9` |
+| (button) | `onTab` | `` | `aigicrm-miniprogram/pages/fabushi/index.wxml:21` |
+| 搜索 | `onSearch` | `` | `aigicrm-miniprogram/pages/fabushi/index.wxml:30` |
+| 今日推荐 · · 页 · 电子书 查看 | `goBook` | `{{activeTab === 'lib' && recommended}}` | `aigicrm-miniprogram/pages/fabushi/index.wxml:34` |
+| 木鱼 评论 | `openPost` | `` | `aigicrm-miniprogram/pages/fabushi/index.wxml:43` |
+| ≡ 内容流心得 · 诵读 · 正能量 › | `goFeed` | `` | `aigicrm-miniprogram/pages/fabushi/index.wxml:80` |
+| 书 书目浏览按类别浏览书目与心得 › | `goBook` | `` | `aigicrm-miniprogram/pages/fabushi/index.wxml:85` |
+| (button) | `onScope` | `` | `aigicrm-miniprogram/pages/fabushi/upload/index.wxml:3` |
+| (button) | `submit` | `` | `aigicrm-miniprogram/pages/fabushi/upload/index.wxml:19` |
+| 再敲一下 | `replayMuyu` | `` | `aigicrm-miniprogram/pages/fabushi/upload/index.wxml:38` |
+| 查看作品 | `goDetail` | `` | `aigicrm-miniprogram/pages/fabushi/upload/index.wxml:39` |
+| 返回 | `goBack` | `` | `aigicrm-miniprogram/pages/fabushi/upload/index.wxml:41` |
 | (button) | `submit` | `` | `aigicrm-miniprogram/pages/files/folder-form/index.wxml:9` |
 | 取消 | `back` | `` | `aigicrm-miniprogram/pages/files/folder-form/index.wxml:10` |
 | ＋ 上传 | `uploadFile` | `{{fileView.showUploadAction}}` | `aigicrm-miniprogram/pages/files/index.wxml:8` |
@@ -787,6 +812,7 @@ Generated from local source: `02-迭代源代码`
 | `getPaymentSummary` | `GET` | `/customer/${id}/payments/summary` | `aigicrm-ui/src/api/customer.js` |
 | `importCustomers` | `POST` | `/customer/import` | `aigicrm-ui/src/api/customer.js` |
 | `getFabushiBooks` | `GET` | `/fabushi/books` | `aigicrm-ui/src/api/fabushi.js` |
+| `getFabushiBook` | `GET` | `/fabushi/books/${id}` | `aigicrm-ui/src/api/fabushi.js` |
 | `getPendingFabushiBooks` | `GET` | `/fabushi/books/pending` | `aigicrm-ui/src/api/fabushi.js` |
 | `submitFabushiBook` | `POST` | `/fabushi/books` | `aigicrm-ui/src/api/fabushi.js` |
 | `approveFabushiBook` | `PUT` | `/fabushi/books/${id}/approve` | `aigicrm-ui/src/api/fabushi.js` |
@@ -796,11 +822,13 @@ Generated from local source: `02-迭代源代码`
 | `getFabushiPosts` | `GET` | `/fabushi/posts` | `aigicrm-ui/src/api/fabushi.js` |
 | `getFabushiPostDetail` | `GET` | `/fabushi/posts/${id}` | `aigicrm-ui/src/api/fabushi.js` |
 | `createFabushiPost` | `POST` | `/fabushi/posts` | `aigicrm-ui/src/api/fabushi.js` |
+| `restoreFabushiPost` | `PUT` | `/fabushi/posts/${id}/restore` | `aigicrm-ui/src/api/fabushi.js` |
 | `offlineFabushiPost` | `PUT` | `/fabushi/posts/${id}/offline` | `aigicrm-ui/src/api/fabushi.js` |
 | `addFabushiComment` | `POST` | `/fabushi/posts/${postId}/comments` | `aigicrm-ui/src/api/fabushi.js` |
 | `getFabushiComments` | `GET` | `/fabushi/posts/${postId}/comments` | `aigicrm-ui/src/api/fabushi.js` |
 | `toggleFabushiLike` | `POST` | `/fabushi/posts/${postId}/like` | `aigicrm-ui/src/api/fabushi.js` |
 | `markFabushiRead` | `POST` | `/fabushi/reads/mark` | `aigicrm-ui/src/api/fabushi.js` |
+| `getFabushiDashboard` | `GET` | `/fabushi/stats/dashboard` | `aigicrm-ui/src/api/fabushi.js` |
 | `getFabushiTeamStats` | `GET` | `/fabushi/stats/team` | `aigicrm-ui/src/api/fabushi.js` |
 | `getFabushiPersonalStats` | `GET` | `/fabushi/stats/personal` | `aigicrm-ui/src/api/fabushi.js` |
 | `getFolderTree` | `GET` | `/file/folders` | `aigicrm-ui/src/api/file.js` |
@@ -1030,6 +1058,7 @@ Generated from local source: `02-迭代源代码`
 | `deleteFormDraft` | `DELETE` | `/api/draft/' + draftType` | `aigicrm-miniprogram/api/draft.js` |
 | `getFabushiBooks` | `GET` | `/api/fabushi/books` | `aigicrm-miniprogram/api/fabushi.js` |
 | `submitFabushiBook` | `POST` | `/api/fabushi/books` | `aigicrm-miniprogram/api/fabushi.js` |
+| `getFabushiBook` | `GET` | `/api/fabushi/books/${id` | `aigicrm-miniprogram/api/fabushi.js` |
 | `getFabushiPosts` | `GET` | `/api/fabushi/posts` | `aigicrm-miniprogram/api/fabushi.js` |
 | `getFabushiPostDetail` | `GET` | `/api/fabushi/posts/${id` | `aigicrm-miniprogram/api/fabushi.js` |
 | `createFabushiPost` | `POST` | `/api/fabushi/posts` | `aigicrm-miniprogram/api/fabushi.js` |
@@ -1167,6 +1196,7 @@ Generated from local source: `02-迭代源代码`
 | `GET` | `/api/customer/export` | `hasAuthority('customer:export')` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java` |
 | `GET` | `/api/customer/check-name` | `hasAuthority('customer:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java` |
 | `GET` | `/api/fabushi/books` | `hasAuthority('fabushi:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiBookController.java` |
+| `GET` | `/api/fabushi/books/{id}` | `hasAuthority('fabushi:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiBookController.java` |
 | `GET` | `/api/fabushi/books/pending` | `hasAuthority('fabushi:book:manage')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiBookController.java` |
 | `POST` | `/api/fabushi/books` | `hasAuthority('fabushi:create')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiBookController.java` |
 | `PUT` | `/api/fabushi/books/{id}/approve` | `hasAuthority('fabushi:book:manage')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiBookController.java` |
@@ -1177,6 +1207,7 @@ Generated from local source: `02-迭代源代码`
 | `GET` | `/api/fabushi/posts/{id}` | `hasAuthority('fabushi:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiPostController.java` |
 | `POST` | `/api/fabushi/posts` | `hasAuthority('fabushi:create')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiPostController.java` |
 | `PUT` | `/api/fabushi/posts/{id}/offline` | `hasAuthority('fabushi:content:manage')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiPostController.java` |
+| `PUT` | `/api/fabushi/posts/{id}/restore` | `hasAuthority('fabushi:content:manage')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiPostController.java` |
 | `POST` | `/api/fabushi/posts/{id}/comments` | `hasAuthority('fabushi:create')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiPostController.java` |
 | `GET` | `/api/fabushi/posts/{id}/comments` | `hasAuthority('fabushi:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiPostController.java` |
 | `POST` | `/api/fabushi/posts/{id}/like` | `hasAuthority('fabushi:create')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiPostController.java` |
@@ -1561,7 +1592,7 @@ Generated from local source: `02-迭代源代码`
 
 ### PC API Wrappers Without Backend Endpoint Match
 
-- None
+- `GET /api/fabushi/stats/dashboard` from `aigicrm-ui/src/api/fabushi.js` (`getFabushiDashboard`)
 
 ### Mini Program API Wrappers Without Backend Endpoint Match
 
