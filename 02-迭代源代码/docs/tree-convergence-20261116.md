@@ -140,6 +140,7 @@ V2026.11.15.5__admin_all_active_menus.sql
 - 源码树剩余未提交改动仅历史项：`00-项目管理/法布施原型图`、`docs/unified-feature-audit.md`、`scripts/test-miniprogram-incentive-dial.js`（均非本轮产生，未纳入提交）。
 - 完整门禁：`bash scripts/gate.sh` **PASS=9 FAIL=0**（含后端/前端/小程序/构建/文档/不变量/全量契约/vue-tsc）。
 - 4,704 格矩阵：24 码 × 28 账号 × 7 范围 **PASS 4,312 + DATA_GUARD 392 + FAIL 0**，矩阵克隆角色已恢复/清理。
+- 迁移双口径：空库重放 **137 migrations / 0 failed / 8-8 断言码绑定**；快照库 Flyway **16.3 全 Success**。证据 `test-results/migration/evidence-20261116.json`。
 - 测试环境：前端已部署收敛构建（备份 `/data/aigicrm/backup/frontend-20261116-pre.tgz`）；后端已部署收敛 jar md5 `b6975b9d172d3d64add8a01f04b34f12`（备份 `/data/aigicrm/backup/app-20261116-pre.jar`），启动 `Started AigicrmApplication`，smoke 登录/posts/personal/`scope=fabushi` 上传（fileId 2687）均 200；Flyway `2026.11.16.3`；临时验收角色/账号 `zz_mp_probe`（role 102 / user 83）已删除，role 06 法布施绑定恢复为 2 码。
 - 最终验收矩阵：
 
@@ -148,6 +149,7 @@ V2026.11.15.5__admin_all_active_menus.sql
 | 后端 | PASS 1,099 tests / 0 failures / 0 errors / 0 skipped | `mvn test`（源码树，exit 0） |
 | 完整门禁 | PASS=9 FAIL=0 | `bash scripts/gate.sh`（2026-11-16 01:58） |
 | 4,704 格权限矩阵 | PASS 4,312 + DATA_GUARD 392 + FAIL 0 | `test-results/mp-matrix/api_matrix_final.json`（02:00 重跑） |
+| 迁移双口径 | PASS 空库 137/0 failed；快照 16.3 全 Success | `test-results/migration/evidence-20261116.json` |
 | PC 单测/构建 | PASS 324 tests / build exit 0 | `npm test`、`npm run build` |
 | 小程序语法 | PASS 92/92 | `node --check` |
 | MP 页面级 | PASS 工作台/内容流/详情/评论/木鱼/已读 | `test-results/fabushi/mp-evidence-20261116.json` |

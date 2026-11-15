@@ -14,7 +14,7 @@
 | 5 | 4,704 格权限矩阵 | 24 码 × 28 账号 × 7 范围，FAIL=0 | PASS（4,312 PASS + 392 DATA_GUARD + 0 FAIL） |
 | 6 | 小程序页面级/撤权 | `mp-evidence` + `mp-revoke-evidence` | PASS |
 | 7 | PC 权限中心 9 码 | `pc-perm-center-evidence` | PASS |
-| 8 | 迁移双口径 | 空库重放 + 快照库 validate；末态码单一源 `scripts/empty-replay-codes.txt` | 待执行 |
+| 8 | 迁移双口径 | 空库重放 + 快照库 validate；末态码单一源 `scripts/empty-replay-codes.txt` | PASS（空库 137 migrations/0 failed；快照 16.3 全 Success） |
 | 9 | 文档新鲜度 | `gate.sh [4]`：落后 0 天 | PASS |
 | 10 | 生产上传目录 | `/app/uploads/fabushi` 预建，owner 10001:10001 | 未执行（生产变更） |
 | 11 | 备份与回滚演练 | DB/旧 jar/旧 dist/上传目录四类备份 | 未执行（生产窗口） |
