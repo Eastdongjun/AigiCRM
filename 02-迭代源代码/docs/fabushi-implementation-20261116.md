@@ -230,3 +230,13 @@ Playwright + 测试环境真实登录态：
 - 权限矩阵：新接口沿用 `fabushi:view`，role smoke 待加入
 
 未完成（后续批）：附件图/音/视、章节树、MP PDF 页码回传、统计导出、共读活动、MP 团队统计页。
+
+## 二期附件/章节/活动/导出（2026-11-16，Round 3）
+
+- 附件：`POST/DELETE /posts/{id}/attachments`；文件必须 scope=fabushi；PC 发布/详情、MP 发布/详情已接
+- 章节：`GET/POST/PUT/DELETE /books/{bookId}/sections`；P6 章节弹窗、MP A4 章节树已接
+- 活动：列表/参与/发起/结束；PC 我的阅读活动页签、MP A1 活动卡已接
+- 导出：`GET /stats/export` CSV（`fabushi:stats:export`）；PC 统计按钮已接
+- 权限码生成物已补 `fabushi:activity:manage` / `fabushi:stats:export`
+- 实测：附件图挂 post1 详情返回；章节树 1 条；活动创建/参与；CSV 200；PC 详情/章节/活动/导出 PASS
+- API 288；MP 50 页；gate PASS=9；后端 1103

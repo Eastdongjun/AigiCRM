@@ -50,3 +50,12 @@
 - 实测：shelf add/list、progress 8/288、records 1 天、settings 保存 200
 - 门禁：PASS=9；后端 1103；MP dev-verify 50 页
 - 未完成：附件/章节树/MP 页码回传/导出/活动
+
+## 二期附件/章节/活动/导出（Round 3）
+
+- 附件：上传 scope=fabushi → post1 挂载 → 详情返回 fileName；PC 详情图片渲染 PASS
+- 章节：book3 创建“第一部分 立命之学” → 树查询 1 条；P6 弹窗 PASS
+- 活动：创建“了凡四训共读” → 参与 → 列表 joined=true；PC 活动页签 PASS
+- 导出：`/stats/export?period=week` 200 text/csv；PC 下载事件触发 PASS
+- 权限：activity:manage/stats:export 生成物补齐；API 288
+- MP 新增 50 页，dev-verify PASS；DevTools automator 重启后仍无法连接（待 IDE 项目窗口手工重开）
