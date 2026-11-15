@@ -36,6 +36,7 @@ const menuIconList = [
   Icons.Briefcase,
   Icons.Calendar,
   Icons.ChatDotSquare,
+  Icons.ChatDotRound,
   Icons.Check,
   Icons.Checked,
   Icons.CircleCheck,

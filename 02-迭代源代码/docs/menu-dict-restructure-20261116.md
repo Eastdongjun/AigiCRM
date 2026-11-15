@@ -108,3 +108,12 @@
 - 前端：恢复 `/data/aigicrm/backup/frontend-pre-menu-dict-20261116-0242.tgz`
 - 数据库：迁移前备份 `/tmp/pre-migrate-test-20261116-023530.sql`（86 表）；V15/V16 为增量，无删除业务数据
 - 注意：16.4 已删除旧 `task:view` 菜单行；回滚需同时恢复该行/绑定或整库恢复
+
+## 8. PC 员工社区补齐（2026-11-16）
+
+- 新增迁移 `V2026.11.16.6__fabushi_pc_community_menus.sql`
+- 法布施组新增：内容流 `/fabushi/feed`、书目浏览 `/fabushi/library`
+- 新增详情路由 `/fabushi/detail/:id`
+- 员工端与管理端共用 `fabushi:view`/`fabushi:create`；管理页继续用 book/content/stats 码
+- 角色可见性：admin 5 项；0/05/06 仅内容流/书目浏览
+- 实测：feed/detail/library/发布/评论/木鱼/已读 PASS

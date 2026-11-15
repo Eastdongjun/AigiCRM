@@ -117,6 +117,25 @@ const routes = [
         // 【2026-11-05 用户令"PC端还是叫四项激励"】parentTitle 归位四项激励(V2026.11.05.1 组名纠偏)
         meta: { title: '激励查询', parentTitle: '四项激励', icon: 'Search', permission: 'incentive:view' }
       },
+      // 【2026-11-16】PC 员工端与小程序同功能：内容流 / 详情 / 书目浏览
+      {
+        path: 'fabushi/feed',
+        name: 'FabushiFeed',
+        component: () => import('@/views/fabushi/feed.vue'),
+        meta: { title: '内容流', parentTitle: '法布施', icon: 'ChatDotRound', permission: 'fabushi:view' }
+      },
+      {
+        path: 'fabushi/detail/:id',
+        name: 'FabushiDetail',
+        component: () => import('@/views/fabushi/detail.vue'),
+        meta: { title: '内容详情', parentTitle: '内容流', activeMenu: '/fabushi/feed', icon: 'Document', permission: 'fabushi:view' }
+      },
+      {
+        path: 'fabushi/library',
+        name: 'FabushiLibrary',
+        component: () => import('@/views/fabushi/library.vue'),
+        meta: { title: '书目浏览', parentTitle: '法布施', icon: 'Reading', permission: 'fabushi:view' }
+      },
       {
         path: 'fabushi/book',
         name: 'FabushiBook',

@@ -61,7 +61,7 @@
 
 | 事项 | 状态 |
 | --- | --- |
-| 菜单-权限码 1:1 治理(2026-11-12 T5 台账) | **契约已上(check-menu-code-uniqueness)**;存量多页面行白名单=有意多路由(statistics/score/customer/incentive/sea/file:view)+隐藏字典行(system:user/dept:view)+时序重登记(system:log:view);**待产品裁决: system:config:view 3 页面行(配置组/字典/系统设置)是否合并**——功能歧义型真违例;2/3 混合(customer:add/incentive:stats:view)历史形态保留 |
+| 菜单-权限码 1:1 治理(2026-11-12 T5 台账) | **契约已上(check-menu-code-uniqueness)**;存量多页面行白名单=有意多路由(statistics/score/customer/incentive/sea/file:view/fabushi:view)+隐藏字典行(system:user/dept:view)+时序重登记(system:log:view);**待产品裁决: system:config:view 3 页面行(配置组/字典/系统设置)是否合并**——功能歧义型真违例;2/3 混合(customer:add/incentive:stats:view/fabushi:view)历史形态保留; fabushi:view 为 2026-11-16 PC 社区页(内容流/书目浏览)+既有按钮行同码多路由 |
 | 工作台菜单行 permission 恢复(任务卡T5.1默认恢复码) | **不采纳,已有用户裁决(2026-11-12 裁决A)**: dashboard:view 退役、菜单行 permission=NULL=菜单可见性与发码解耦, 路由守卫单键 statistics:view, 行政补绑已落地(design.md 已知问题#1) |
 | 系统设置入口码 vs 页内接口码(2026-11-12 T6 台账) | **pane 级已门控**(PermCenter: 功能与范围=system:menu:view/公海池=sea:config:view/文件权限=file:acl:manage, 无码藏入口+默认域回退预览; 403 文案=PermissionHintService 自动按注解码);**待产品裁决: 入口路由码 system:config:view 是否并集放行(勾了 sea:config:view 但无入口码仍进不了系统设置页)**与日志页签拆出独立入口——涉及菜单语义不擅动 |
 | T10 底座收敛台账(2026-11-12) | ①dataScopeOverride **非死路不删**(SysUserService:393/453 活调用——用户表单→validate→落库链路完整, D9"疑似死路"判断不成立) ②码↔范围键映射已双源契约锁(check-perm-scope-targets-parity, 12 对一致), **生成化(scope-targets.json)挂账待后续** ③退役码(dashboard:view/ranking:customer:view)字典重生成=**BLOCKED**(本机禁连库, 待生产部署后跑 gen-permission-dict.sh) ④新角色 file 默认档=self/OWNER 保守档已实现(T10.4), 若产品要"本部门"口径另令调整 |

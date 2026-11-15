@@ -99,3 +99,30 @@ Playwright + 测试环境真实登录态：
 - 完整门禁 `bash scripts/gate.sh`：**PASS=9 FAIL=0**（后端/前端/小程序/构建/文档/不变量/全量契约/vue-tsc）。
 - 4,704 格 API 矩阵：24 码 × 28 账号 × 7 范围 = **4,704 行，PASS 4,312 + DATA_GUARD 392 + FAIL 0**；矩阵克隆角色已恢复并清理。证据：`test-results/mp-matrix/api_matrix_final.json`。
 - 复跑同时修复 3 个收敛引入的运行时缺陷（历史版本 `versions` 未声明、文件夹下载开关 `toggleDownloadable` 未实现、个人回收站分页读取错层）与 8 处契约漂移，详见 `docs/tree-convergence-20261116.md` 第 7 节。
+
+## PC 端员工社区补齐（2026-11-16）
+
+> 用户纠偏：PC 不能只有管理端，PC 与小程序应功能一致，只是页面形态不同。
+
+### 新增 PC 员工端
+
+- `/fabushi/feed`：内容流（心得/诵读/正能量）、我的统计、发布弹窗、进入详情
+- `/fabushi/detail/:id`：正文、评论、木鱼、已读（进详情自动标记）
+- `/fabushi/library`：已通过审核书目、分类/搜索、电子书下载
+- 管理三页保留：`/fabushi/book`、`/fabushi/content`、`/fabushi/stats`
+
+### 权限与菜单
+
+- 新增迁移 `V2026.11.16.6__fabushi_pc_community_menus.sql`
+- 新页面权限码复用 `fabushi:view`，未新增权限码
+- 页面绑定从现有 `fabushi:view` 绑定复制（不硬编码角色）
+- 默认可见：
+  - admin：内容流/书目浏览/书目管理/内容治理/统计看板
+  - 销售总监 0 / 行政 05 / 销售员 06：内容流/书目浏览
+- PC 与 MP 共用同一套接口与权限，仅布局不同。
+
+### 验收
+
+- PC feed/detail/library/发布/评论/木鱼/已读实测 PASS
+- `vue-tsc` 通过；`npm test` 324；`npm run build` 通过
+- 角色菜单核对：admin 5 项、0/05/06 仅社区 2 项

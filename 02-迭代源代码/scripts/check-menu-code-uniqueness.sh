@@ -17,6 +17,7 @@
 #   statistics:view score:view customer:view incentive:view sea:view file:view
 #   system:user:view/system:dept:view = 页面行 + visible=0 隐藏字典登记行(权限树可勾/侧栏不显)
 #   system:log:view = 时序重登记(V2026.11.05.2 合并进设置→05.3 重登), 静态层两次插入运行态唯一
+#   fabushi:view = PC 内容流/书目浏览 + 社区按钮权限行(同一社区域多路由共享码, 2026-11-16 有意; 不新增码避免角色重复配置)
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 MIG="$ROOT/aigicrm-backend/src/main/resources/db/migration"
@@ -35,8 +36,8 @@ if [ "${AIGI_NEGATIVE:-0}" = "1" ]; then
   exit 1
 fi
 
-WHITELIST_23="customer:add incentive:stats:view"      # 2/3 混合白名单
-WHITELIST_MULTI2="system:config:view statistics:view score:view customer:view incentive:view sea:view system:user:view system:dept:view system:log:view"  # 多页面行白名单(有意多路由/隐藏字典行/时序重登记; config:view 除外=待裁决)
+WHITELIST_23="customer:add incentive:stats:view fabushi:view"      # 2/3 混合白名单
+WHITELIST_MULTI2="system:config:view statistics:view score:view customer:view incentive:view sea:view system:user:view system:dept:view system:log:view fabushi:view"  # 多页面行白名单(有意多路由/隐藏字典行/时序重登记; config:view 除外=待裁决)
 # 【P1】负例递归实例: 从对应白名单内存摘码(不动真白名单源)
 if [ -n "${AIGI_NEG_STRIP:-}" ]; then
   WHITELIST_MULTI2=" $WHITELIST_MULTI2 "; WHITELIST_MULTI2=${WHITELIST_MULTI2// $AIGI_NEG_STRIP / }
