@@ -31,7 +31,7 @@
           <div class="mfbr-icon">📖</div>
           <div class="mfbr-title">加载失败</div>
           <div class="mfbr-desc">{{ errorMsg }}</div>
-          <button class="mfbr-retry" @click="loadPdf">重试</button>
+          <button class="mfbr-retry" @click="retry">重试</button>
         </div>
         <template v-else>
           <div class="mfbr-stage" @touchstart="onTouchStart" @touchend="onTouchEnd">
@@ -50,12 +50,13 @@
 </template>
 
 <script setup>
-// 【2026-11-16 P2 方案A】MP PDF 页码级进度: H5 PDF.js 阅读器(单页模式+滑动翻页),
-// 翻页 debounce 自动回传 /api/fabushi/progress/{bookId}(lastPage/totalPages)。
-// openDocument 不支持页码回传/定位——本页替代 MP openDocument 阅读路径(交接单 P2 红线)。
+// 【2026-11-16 P3】渲染/进度逻辑收敛到 useFabushiPdfReader（PC /fabushi/read 同源），
+// 本页只保留微信 web-view 壳：URL 取 token/参数、JSSDK 返回、触摸翻页。
+// P2 的页码级行为不变：翻页 debounce 自动回传 /api/fabushi/progress/{bookId}。
 // 鉴权与 /mp-file-picker 先例同构: token 由小程序 URL 带入, API 直传 Authorization header。
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
+import { useFabushiPdfReader } from '@/composables/useFabushiPdfReader'
 
 const route = useRoute()
 const token = ref('')
@@ -64,21 +65,19 @@ const pdfFileId = ref('')
 const title = ref('')
 const isWechat = /MicroMessenger/i.test(navigator.userAgent)
 
-const state = ref('loading') // loading | ready | error
-const loadPct = ref(0)
-const errorMsg = ref('')
-const currentPage = ref(1)
-const totalPages = ref(0)
 const canvasEl = ref(null)
+const wxReady = ref(false)
 
-let pdfDoc = null
-let renderTask = null
-let saveTimer = null
-let lastSavedPage = 0
+const { state, loadPct, errorMsg, currentPage, totalPages, load, goPage, retry } = useFabushiPdfReader({
+  bookId,
+  pdfFileId,
+  token,
+  canvasMaxWidth: 800
+})
+
 let touchX = 0
 
 // web-view 内跳回小程序需微信 JSSDK(动态加载 + CSP 定向放行, 同 FilePicker.vue 方案)
-const wxReady = ref(false)
 onMounted(() => {
   token.value = String(route.query.token || '')
   bookId.value = String(route.query.bookId || '')
@@ -89,12 +88,7 @@ onMounted(() => {
   s.onload = () => { wxReady.value = true }
   s.onerror = () => { console.warn('JSSDK 加载失败(CSP/网络)——请用左上角返回') }
   document.head.appendChild(s)
-  if (token.value && pdfFileId.value) loadPdf()
-})
-onBeforeUnmount(() => {
-  if (saveTimer) clearTimeout(saveTimer)
-  if (renderTask) { try { renderTask.cancel() } catch (_) { /* 已完成任务 cancel 抛错可忽略 */ } }
-  if (pdfDoc) { try { pdfDoc.destroy() } catch (_) { /* destroy 幂等 */ } }
+  if (token.value && pdfFileId.value) load(() => canvasEl.value)
 })
 
 function goBack() {
@@ -108,77 +102,6 @@ function goBack() {
   }, 200)
 }
 
-async function loadPdf() {
-  state.value = 'loading'
-  loadPct.value = 0
-  errorMsg.value = ''
-  try {
-    // 动态 import: pdfjs-dist 仅本页加载, 不影响 PC 主包
-    const [pdfjsLib, workerMod] = await Promise.all([
-      import('pdfjs-dist'),
-      import('pdfjs-dist/build/pdf.worker.min.mjs?url')
-    ])
-    pdfjsLib.GlobalWorkerOptions.workerSrc = workerMod.default
-    // 1) 回读进度(H5 自取, 不依赖 MP 传参, 与 PC read.vue 同一接口同一口径)
-    let lastPage = 1
-    try {
-      const r = await fetch(`/api/fabushi/progress/${bookId.value}`, {
-        headers: { Authorization: 'Bearer ' + token.value }
-      })
-      const body = await r.json()
-      if (body && body.data && body.data.lastPage) lastPage = Math.max(1, Number(body.data.lastPage) || 1)
-    } catch (_) { /* 进度回读失败不阻断阅读, 从第 1 页开始 */ }
-    // 2) 加载 PDF 流(主 JWT header 通道, 与 MP openDocument 同一 file:download 权限要求)
-    const task = pdfjsLib.getDocument({
-      url: `/api/file/download/${pdfFileId.value}`,
-      httpHeaders: { Authorization: 'Bearer ' + token.value },
-      withCredentials: false
-    })
-    task.onProgress = (p) => { if (p && p.total) loadPct.value = Math.min(99, Math.round((p.loaded / p.total) * 100)) }
-    pdfDoc = await task.promise
-    totalPages.value = pdfDoc.numPages
-    currentPage.value = Math.min(lastPage, pdfDoc.numPages)
-    state.value = 'ready'
-    await renderPage(currentPage.value)
-    lastSavedPage = currentPage.value
-    saveProgress() // totalPages 补记(首次阅读时回填总页数)
-  } catch (e) {
-    state.value = 'error'
-    errorMsg.value = (e && e.message) || '网络异常或文件不可读'
-  }
-}
-
-async function renderPage(num) {
-  if (!pdfDoc) return
-  const page = await pdfDoc.getPage(num)
-  const canvas = canvasEl.value
-  if (!canvas) return
-  const dpr = window.devicePixelRatio || 1
-  const base = page.getViewport({ scale: 1 })
-  const cssWidth = Math.min(canvas.parentElement.clientWidth - 16, 800)
-  const scale = cssWidth / base.width
-  const viewport = page.getViewport({ scale: scale * dpr })
-  canvas.width = viewport.width
-  canvas.height = viewport.height
-  canvas.style.width = cssWidth + 'px'
-  canvas.style.height = (viewport.height / dpr) + 'px'
-  if (renderTask) { try { renderTask.cancel() } catch (_) { /* 同上 */ } }
-  const ctx = canvas.getContext('2d')
-  renderTask = page.render({ canvasContext: ctx, viewport })
-  await renderTask.promise
-}
-
-async function goPage(num) {
-  const n = Math.max(1, Math.min(totalPages.value || 1, Number(num) || 1))
-  if (!pdfDoc) return
-  currentPage.value = n
-  await renderPage(n)
-  if (n !== lastSavedPage) {
-    if (saveTimer) clearTimeout(saveTimer)
-    saveTimer = setTimeout(saveProgress, 1200) // debounce: 连续翻页只保存最终页码
-  }
-}
-
 function onTouchStart(e) {
   touchX = (e.touches && e.touches[0] && e.touches[0].clientX) || 0
 }
@@ -188,18 +111,6 @@ function onTouchEnd(e) {
   if (Math.abs(dx) < 48) return // 过短滑动视为点击, 不翻页
   if (dx < 0 && currentPage.value < totalPages.value) goPage(currentPage.value + 1)
   if (dx > 0 && currentPage.value > 1) goPage(currentPage.value - 1)
-}
-
-async function saveProgress() {
-  if (!bookId.value || !totalPages.value) return
-  lastSavedPage = currentPage.value
-  try {
-    await fetch(`/api/fabushi/progress/${bookId.value}`, {
-      method: 'PUT',
-      headers: { Authorization: 'Bearer ' + token.value, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ lastPage: currentPage.value, totalPages: totalPages.value })
-    })
-  } catch (_) { /* 静默: 下次翻页再试, 不打断阅读 */ }
 }
 </script>
 
