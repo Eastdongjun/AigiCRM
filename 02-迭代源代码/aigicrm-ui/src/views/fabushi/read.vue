@@ -116,22 +116,23 @@ onMounted(loadBook)
 </script>
 
 <style scoped>
-.fabushi-reader { display: flex; flex-direction: column; min-height: calc(100vh - 150px); overflow: hidden; border-radius: var(--radius-md); background: var(--sidebar-bg); }
-.reader-head { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid rgba(255, 255, 255, .08); color: var(--sidebar-text); }
-.reader-head b { color: var(--el-color-white); font-size: 14px; }
-.reader-sub { color: var(--text-placeholder); font-size: 11px; }
-.reader-head .back, .reader-head .download { color: var(--sidebar-text); }
-.page-control { display: inline-flex; align-items: center; gap: 4px; color: var(--text-placeholder); font-size: 11px; }
+/* 【书卷化 2026-11-16】纸色头/侧栏, 保留深灰衬底衬托 PDF 书页 */
+.fabushi-reader { display: flex; flex-direction: column; min-height: calc(100vh - 150px); overflow: hidden; border: 1px solid #e8e0d3; border-radius: 12px; background: #fffdf8; }
+.reader-head { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid #e8e0d3; color: #2e2a24; }
+.reader-head b { color: #2e2a24; font-family: 'Songti SC', 'STSong', serif; font-size: 15px; }
+.reader-sub { color: #a67c52; font-size: 11px; }
+.reader-head .back, .reader-head .download { color: #2d5a4a; }
+.page-control { display: inline-flex; align-items: center; gap: 4px; color: #a67c52; font-size: 11px; }
 .page-control :deep(.el-input-number) { width: 86px; }
-.reader-head .back:hover, .reader-head .download:hover { color: var(--el-color-white); }
+.reader-head .back:hover, .reader-head .download:hover { color: #b5543a; }
 .spacer { flex: 1; }
 .reader-body { display: grid; grid-template-columns: 220px minmax(0, 1fr); flex: 1; min-height: 0; }
-.reader-rail { padding: 16px 14px; border-right: 1px solid rgba(255, 255, 255, .08); color: var(--sidebar-text); }
-.rail-title { margin-bottom: 10px; color: var(--el-color-white); font-size: 12px; font-weight: 700; }
-.reader-rail p { margin: 0; color: var(--text-placeholder); font-size: 11.5px; line-height: 1.8; }
+.reader-rail { padding: 16px 14px; border-right: 1px solid #e8e0d3; color: #6b6257; background: #f4ede0; }
+.rail-title { margin-bottom: 10px; color: #2e2a24; font-family: 'Songti SC', 'STSong', serif; font-size: 12px; font-weight: 700; }
+.reader-rail p { margin: 0; color: #9c9184; font-size: 11.5px; line-height: 1.8; }
 .rail-meta { display: flex; flex-direction: column; gap: 7px; margin-top: 16px; }
-.rail-meta span { color: var(--text-placeholder); font-size: 10.5px; }
-.rail-meta b { color: var(--sidebar-text); font-size: 12px; font-weight: 500; }
-.reader-frame { display: flex; flex-direction: column; min-height: 0; padding: 12px; background: var(--el-color-info-dark-2); }
-.reader-frame iframe { flex: 1; width: 100%; min-height: 620px; border: 0; border-radius: var(--radius-sm); background: var(--el-color-white); }
+.rail-meta span { color: #a67c52; font-size: 10.5px; }
+.rail-meta b { color: #2e2a24; font-size: 12px; font-weight: 500; }
+.reader-frame { display: flex; flex-direction: column; min-height: 0; padding: 12px; background: #4a4238; }
+.reader-frame iframe { flex: 1; width: 100%; min-height: 620px; border: 0; border-radius: 6px; background: #fffdf8; }
 </style>

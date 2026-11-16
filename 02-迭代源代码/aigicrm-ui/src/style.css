@@ -181,3 +181,51 @@ html, body, #app {
 .el-empty__description p { color: var(--text-placeholder); font-size: 13px; letter-spacing: .3px; }
 .el-table__empty-block { min-height: 180px; }
 .el-loading-mask { backdrop-filter: blur(1px); }
+
+/* ============ 法布施书卷皮肤(2026-11-16, 与 MP 书卷语言同源) ============
+   作用域: 仅 .fabushi-* 根 class 内 —— 变量覆盖法, Element 组件在页面内全部染色,
+   不影响其它模块。纸色 #f7f3ec / 卡 #fffdf8 / 边 #e8e0d3 / 墨绿 #2d5a4a / 朱砂 #b5543a */
+.fabushi-feed, .fabushi-library, .fabushi-shelf, .fabushi-reader, .fabushi-stats,
+.fabushi-detail, .fabushi-book, .fabushi-content {
+  --text-primary: #2e2a24;
+  --text-secondary: #6b6257;
+  --text-muted: #9c9184;
+  --text-placeholder: #a99d8c;
+  --border-light: #e8e0d3;
+  --primary-color: #2d5a4a;
+  --hero-gradient: linear-gradient(135deg, #2d5a4a 0%, #4a7a62 100%);
+  --el-color-primary: #2d5a4a;
+  --el-color-primary-dark-2: #244839;
+  --el-color-primary-light-3: #527a68;
+  --el-color-primary-light-5: #7fa08e;
+  --el-color-primary-light-7: #aec7b6;
+  --el-color-primary-light-8: #c9dacd;
+  --el-color-primary-light-9: #eef3ee;
+  --el-color-danger: #b5543a;
+  --el-color-danger-light-9: #f8e9e0;
+}
+.fabushi-feed, .fabushi-library, .fabushi-shelf, .fabushi-stats,
+.fabushi-detail, .fabushi-book, .fabushi-content {
+  background: #f7f3ec;
+  min-height: calc(100vh - 120px);
+  border-radius: 12px;
+  padding: 14px 16px;
+  box-sizing: border-box;
+}
+.fabushi-feed .page-head h1, .fabushi-library .page-head h1, .fabushi-shelf .page-head h1,
+.fabushi-stats .page-head h1, .fabushi-detail .fb-title, .fabushi-book .page-head h1,
+.fabushi-content .page-head h1 {
+  font-family: 'Songti SC', 'STSong', serif;
+  letter-spacing: 1px;
+}
+.fabushi-feed .cap.active .n, .fabushi-shelf .tab.active { color: #fff7ee; }
+.fabushi-feed .new-badge { color: #b5543a; background: #f8e9e0; }
+.fabushi-feed .tag.heart { color: #2d5a4a; background: #e4efe6; }
+.fabushi-feed .tag.recitation { color: #a67c52; background: #f4ead9; }
+.fabushi-feed .tag.znl { color: #b5543a; background: #f8e9e0; }
+.fabushi-feed .side-card, .fabushi-library .rail, .fabushi-library .book-card,
+.fabushi-shelf .panel, .fabushi-stats .panel, .fabushi-detail .fb-card,
+.fabushi-book .rail, .fabushi-book .book-card, .fabushi-content .caps {
+  background: #fffdf8;
+}
+.fabushi-feed .fb-fab, .fabushi-detail .back { background: #b5543a; }
