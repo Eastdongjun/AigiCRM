@@ -274,7 +274,7 @@ const handlePdfChosen = async (evt) => {
     const formData = new FormData()
     formData.append('file', file)
     formData.append('scope', 'fabushi')
-    const res = await request.post('/api/file/upload', formData)
+    const res = await request.post('/file/upload', formData)
     await attachBookPdf(pdfVisible.value.id, res.data && res.data.id)
     ElMessage.success('PDF 已挂载')
     pdfVisible.value = null

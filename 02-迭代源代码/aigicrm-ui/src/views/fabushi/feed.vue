@@ -257,7 +257,7 @@ const handleAttachmentChosen = async (event) => {
       const data = new FormData()
       data.append('file', file)
       data.append('scope', 'fabushi')
-      const res = await request.post('/api/file/upload', data)
+      const res = await request.post('/file/upload', data)
       const id = res.data && res.data.id
       if (id) uploadedAttachments.value.push({ fileId: id, name: file.name, fileType: attachmentType(file) })
     }
