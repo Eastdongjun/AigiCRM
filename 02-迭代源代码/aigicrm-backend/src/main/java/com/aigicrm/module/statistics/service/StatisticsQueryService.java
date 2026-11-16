@@ -445,6 +445,9 @@ public class StatisticsQueryService {
         List<BizCustomer> allCustomers = visibleCustomers(customerService.getAllActiveCustomers());
         Map<Long, BizCustomer> customerMap = new HashMap<>();
         for (BizCustomer c : allCustomers) customerMap.put(c.getId(), c);
+        // 【排行负责人修复 2026-11-17】ownerName 是 exist=false 字段，必须批量回填；
+        // 此前仅四项服务聚合路径回填，客情/六项指标排行（均取自本方法 customerRanking）负责人恒空。
+        if (!customerMap.isEmpty()) fillCustomerOwnerNames(customerMap.values());
         // 【G2 2026-09-21】指标随客户可见性同步收口——coveredCount/avgScore/排行均以指标为口径,
         // 只滤客户不滤指标时 coveredCount 仍为全量(实测暴露), 越权指标行必须在此剔除
         indicators = indicators.stream()

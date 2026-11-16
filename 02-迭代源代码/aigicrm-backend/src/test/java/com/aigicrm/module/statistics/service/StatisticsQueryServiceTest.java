@@ -251,6 +251,47 @@ class StatisticsQueryServiceTest {
     }
 
     /**
+     * 【排行负责人修复 2026-11-17】客情/六项指标排行取自 indicatorStats().customerRanking，
+     * 此前只取 customerName/industry，ownerName（exist=false）未回填 → 页面「负责人」列全空。
+     * 本用例钉住：排行行必须携带负责人姓名。
+     */
+    @Test
+    void indicatorStatsRankingRowsCarryOwnerName() {
+        var mine = new com.aigicrm.module.customer.entity.BizCustomer();
+        mine.setId(102L); mine.setOwnerId(7L); mine.setCustomerName("登录人名下客户");
+        var other = new com.aigicrm.module.customer.entity.BizCustomer();
+        other.setId(101L); other.setOwnerId(8L); other.setCustomerName("他人负责客户");
+        when(customerService.getAllActiveCustomers()).thenReturn(List.of(mine, other));
+
+        var mineIndicator = new com.aigicrm.module.customer.entity.BizCustomerIndicator();
+        mineIndicator.setCustomerId(102L); mineIndicator.setRelationshipScore(2); mineIndicator.setIndicator02(1);
+        var otherIndicator = new com.aigicrm.module.customer.entity.BizCustomerIndicator();
+        otherIndicator.setCustomerId(101L); otherIndicator.setRelationshipScore(2); otherIndicator.setIndicator02(2);
+        otherIndicator.setIndicator03(2); otherIndicator.setIndicator04(1); otherIndicator.setIndicator05(2);
+        when(indicatorMapper.selectList(null)).thenReturn(List.of(mineIndicator, otherIndicator));
+        when(stageAmountMapper.selectList(org.mockito.ArgumentMatchers.any())).thenReturn(List.of());
+
+        com.aigicrm.module.system.entity.SysUser u7 = new com.aigicrm.module.system.entity.SysUser();
+        u7.setId(7L); u7.setRealName("张三");
+        com.aigicrm.module.system.entity.SysUser u8 = new com.aigicrm.module.system.entity.SysUser();
+        u8.setId(8L); u8.setRealName("李四");
+        when(userMapper.selectBatchIds(org.mockito.ArgumentMatchers.anyCollection())).thenReturn(List.of(u7, u8));
+
+        try (MockedStatic<SecurityUtils> security = org.mockito.Mockito.mockStatic(SecurityUtils.class)) {
+            security.when(SecurityUtils::getCurrentUserId).thenReturn(7L);
+
+            var result = service.indicatorStats();
+
+            @SuppressWarnings("unchecked")
+            var ranking = (List<java.util.Map<String, Object>>) result.get("customerRanking");
+            java.util.Map<Long, String> ownerByCustomer = new java.util.HashMap<>();
+            for (var row : ranking) ownerByCustomer.put((Long) row.get("customerId"), (String) row.get("ownerName"));
+            assertEquals("张三", ownerByCustomer.get(102L));
+            assertEquals("李四", ownerByCustomer.get(101L));
+        }
+    }
+
+    /**
      * 【口径统一 2026-11-02 用户裁决选项一】客户排行三类(四项服务/客情/六项指标)=客户可见范围同基线:
      * 你能看到哪些客户, 排行就按哪些客户算。曾于 2026-09-23 由 G2 改分享制(销售反馈"只看到自己客户"),
      * 2026-11-02 用户拍板三类排行统一客户可见范围——分享记录引用的范围外客户不再进入排行。
