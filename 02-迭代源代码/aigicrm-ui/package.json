@@ -16,6 +16,7 @@
     "docx-preview": "^0.4.1",
     "element-plus": "^2.14.5",
     "nprogress": "^0.2.0",
+    "pdfjs-dist": "^6.5.438",
     "pinia": "^3.0.4",
     "vue": "^3.5.34",
     "vue-router": "^4.6.4",

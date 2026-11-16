@@ -1,5 +1,5 @@
 const { hasPermission, requireLogin } = require('../../utils/auth')
-const { getFabushiPersonalStats, getFabushiBooks, getFabushiPosts, getFabushiShelf, getFabushiRecords, getFabushiDashboard, getFabushiActivities, joinFabushiActivity } = require('../../api/fabushi')
+const { getFabushiPersonalStats, getFabushiBooks, getFabushiPosts, getFabushiShelf, getFabushiRecords, getFabushiDashboard, getFabushiActivities, joinFabushiActivity, getFabushiMonthly } = require('../../api/fabushi')
 const { showError } = require('../../utils/feedback')
 
 const TABS = [
@@ -27,7 +27,9 @@ Page({
     records: { days: [], readDays: 0, readCount: 0 },
     recordEmpty: true,
     team: null,
-    teamRanking: []
+    teamRanking: [],
+    deptProgress: [],
+    monthly: {}
   },
 
   onPermissionChanged() {
@@ -112,7 +114,13 @@ Page({
     } else if (value === 'stats') {
       getFabushiPersonalStats().then((res) => this.setData({ personal: res || {} })).catch(() => {})
       if (hasPermission('fabushi:stats:view')) {
-        getFabushiDashboard('week').then((res) => { const t = res || null; this.setData({ team: t, teamRanking: (t && t.ranking || []).slice(0, 5) }) }).catch(() => {})
+        getFabushiDashboard('week').then((res) => {
+          const t = res || null
+          // 【2026-11-16 P3】部门进度前 5(与成员榜同周期 fail-closed 口径)
+          this.setData({ team: t, teamRanking: (t && t.ranking || []).slice(0, 5), deptProgress: (t && t.deptProgress || []).slice(0, 5) })
+        }).catch(() => {})
+        // 【2026-11-16 P3】月度简报(当月): 汇总+环比
+        getFabushiMonthly().then((res) => this.setData({ monthly: res || {} })).catch(() => {})
       }
     }
   },

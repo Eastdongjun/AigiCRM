@@ -70,6 +70,12 @@ function getFabushiDashboard(period) {
 }
 module.exports = Object.assign(module.exports, { getFabushiDashboard })
 
+// 【2026-11-16 P3】月度报告简报(month=YYYY-MM, 缺省当月): 汇总+环比+部门进度
+function getFabushiMonthly(month) {
+  return request({ url: '/api/fabushi/stats/monthly', data: { month: month || '' } })
+}
+module.exports = Object.assign(module.exports, { getFabushiMonthly })
+
 function addFabushiAttachment(postId, data) { return request({ url: `/api/fabushi/posts/${postId}/attachments`, method: 'POST', data }) }
 function removeFabushiAttachment(postId, attachmentId) { return request({ url: `/api/fabushi/posts/${postId}/attachments/${attachmentId}`, method: 'DELETE' }) }
 function getFabushiSections(bookId) { return request({ url: `/api/fabushi/books/${bookId}/sections` }) }

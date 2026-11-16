@@ -50,13 +50,14 @@ fi
 prototype_baseline=51
 # 【2026-10-07 钉随代码】1b3c865b 死页面清理后注册页 46→41; 钉改为区间+实现存在性(上方已验)
 # 2026-11-16 收敛后新增法布施 5 页 + 诊断页 → 48，区间上限同步到 50。
-if [ "$pages" -ge 30 ] && [ "$pages" -le 50 ]; then
+# 【2026-11-16 P2】fabushi/reader web-view 容器页 → 51，区间上限同步到 60。
+if [ "$pages" -ge 30 ] && [ "$pages" -le 60 ]; then
   coverage="$(awk -v pages="$pages" -v baseline="$prototype_baseline" 'BEGIN { printf "%.1f%%", pages * 100 / baseline }')"
   echo "[PASS] registered mini-program pages: $pages"
   echo "[INFO] prototype screenshot baseline: $prototype_baseline"
   echo "[INFO] independent-page coverage: $pages/$prototype_baseline ($coverage); six generic states are validated below"
 else
-  echo "[FAIL] registered mini-program pages $pages outside sanity band [30,50]"
+  echo "[FAIL] registered mini-program pages $pages outside sanity band [30,60]"
   fail=1
 fi
 

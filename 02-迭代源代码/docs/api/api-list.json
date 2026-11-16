@@ -1,6 +1,6 @@
 {
  "generated_at": "2026-11-16",
- "count": 288,
+ "count": 290,
  "endpoints": [
   {
    "method": "POST",
@@ -613,6 +613,18 @@
    "path": "/api/fabushi/stats/export",
    "permission": "hasAuthority('fabushi:stats:export')",
    "handler": "export"
+  },
+  {
+   "method": "GET",
+   "path": "/api/fabushi/stats/monthly",
+   "permission": "hasAuthority('fabushi:stats:view')",
+   "handler": "monthly"
+  },
+  {
+   "method": "GET",
+   "path": "/api/fabushi/stats/monthly/export",
+   "permission": "hasAuthority('fabushi:stats:export')",
+   "handler": "monthlyExport"
   },
   {
    "method": "GET",

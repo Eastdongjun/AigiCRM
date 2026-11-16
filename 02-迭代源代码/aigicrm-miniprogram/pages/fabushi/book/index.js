@@ -1,7 +1,5 @@
 const { hasPermission, requireLogin } = require('../../../utils/auth')
-const { getFabushiBooks, getFabushiBook, getFabushiPosts, getFabushiSections, addFabushiShelf, saveFabushiProgress } = require('../../../api/fabushi')
-const { getDownloadUrl } = require('../../../api/file')
-const { fetchRemoteAttachment } = require('../../../utils/attachment')
+const { getFabushiBooks, getFabushiBook, getFabushiPosts, getFabushiSections, addFabushiShelf } = require('../../../api/fabushi')
 const { getDictData } = require('../../../api/system')
 const { showError } = require('../../../utils/feedback')
 
@@ -20,8 +18,7 @@ Page({
     detailVisible: false,
     detailBook: {},
     detailPosts: [],
-    sections: [],
-    reading: false
+    sections: []
   },
 
   onPermissionChanged() {
@@ -142,17 +139,14 @@ Page({
   },
 
   openReader() {
+    // 【2026-11-16 P2 方案A】改走 web-view H5 PDF.js 阅读器(pages/fabushi/reader):
+    // openDocument 无页码回传能力且原实现写死 lastPage=1 会覆盖真实进度——两条路径一并退役。
+    // 页码进度由 H5 内翻页自动回传 /api/fabushi/progress(与 PC read.vue 同接口同口径)。
     const book = this.data.detailBook
-    if (!book || !book.pdfFileId || this.data.reading) return
-    const url = getDownloadUrl({ id: book.pdfFileId })
-    fetchRemoteAttachment({
-      url,
-      mode: 'preview',
-      file: { name: `${book.title || '法布施书目'}.pdf`, type: 'pdf' },
-      isBusy: this.data.reading,
-      setBusy: (v) => this.setData({ reading: v }),
-      isImage: () => false
+    if (!book || !book.pdfFileId) return
+    wx.navigateTo({
+      url: `/pages/fabushi/reader/index?bookId=${book.id}&pdfFileId=${book.pdfFileId}` +
+        `&title=${encodeURIComponent(book.title || '法布施书目')}`
     })
-    saveFabushiProgress(book.id, { lastPage: 1, totalPages: book.pages || null }).catch(() => {})
   }
 })

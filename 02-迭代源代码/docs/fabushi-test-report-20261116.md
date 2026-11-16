@@ -103,3 +103,20 @@
 - 白名单负例自证 14/14 PASS（白名单端点 2xx/5xx 仍红）
 - 证据：`docs/fabushi-preauth-400-registry-20261116.md`、
   `test-results/permission-matrix/summary.md`、`result.json`（已覆写为收口轮结果）
+
+## P2/P3 交付轮（2026-11-16 Round 5）
+
+- **P2 方案 A（用户拍板）**：MP 阅读改 web-view H5 PDF.js（`/mp-fabushi-reader`），
+  翻页自动回传页码——openDocument 与"写死 lastPage=1"两条旧路径一并退役
+  （旧实现会把 PC 已存页码重置回第 1 页）。端到端实证：3 页 PDF 翻页 1/3→2/3，
+  服务端 lastPage=2/totalPages=3（基线 1/1 负例自证），重开自动续读第 2 页
+- **P3**：部门进度（dashboard 共用段，口径同 score 先例，无部门归"未分配"）
+  + 月度报告（`/api/fabushi/stats/monthly[/export]` 2 新端点，零新权限码，API 288→290）
+  + PC 部门进度表/月度报告卡 + MP 统计页签部门进度/月度简报
+- 门禁：PASS=9/FAIL=0；后端 1107/0；PC 324 + vue-tsc PASS；MP dev-verify 51 页
+- 矩阵 24,192（290 端点）：valid+400=0、5xx=0、越权 2xx=0；794 资源守卫+6 瞬时超时全部归因；
+  二期定向 48/48
+- 部署修复一个真实 500：deptProgress 排序 Integer→Long 强转 ClassCastException（改 Number 取值）
+- 测试服 nginx 热修 `.mjs` MIME（镜像内配置，重建即丢——**生产必须同步**，见
+  `docs/fabushi-p2p3-release-notes-20261116.md` 第三节）
+- 截图：`test-results/fabushi-complete/`（PC 看板/H5 守卫/H5 翻页/续读/MP 统计页签/reader web-view）

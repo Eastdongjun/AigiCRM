@@ -83,6 +83,54 @@
       </div>
     </div>
 
+    <!-- 【2026-11-16 P3】部门进度: 与成员榜同周期口径, 按 sys_user.dept_id → sys_dept 分组 -->
+    <section class="panel dept-panel">
+      <div class="panel-head">
+        <span>部门进度 · {{ period === 'week' ? '本周' : '本月' }}</span>
+        <span class="panel-hint">覆盖率 = 已读人数 / 部门成员数</span>
+      </div>
+      <table class="rank-table">
+        <thead><tr><th>部门</th><th>成员数</th><th>已读人数</th><th>覆盖率</th><th>新增内容</th><th>木鱼</th><th>评论</th><th>已读天数</th></tr></thead>
+        <tbody>
+          <tr v-for="row in dashboard.deptProgress || []" :key="row.deptId ?? 'none'">
+            <td class="strong">{{ row.deptName }}</td>
+            <td class="num">{{ row.memberCount }}</td>
+            <td class="num">{{ row.readUsers }}</td>
+            <td>
+              <span class="cov-num">{{ row.coveragePct }}%</span>
+              <div class="activity"><i :style="{ width: Math.min(100, row.coveragePct || 0) + '%' }" /></div>
+            </td>
+            <td class="num">{{ row.posts }}</td>
+            <td class="num">{{ row.likes }}</td>
+            <td class="num">{{ row.comments }}</td>
+            <td class="num">{{ row.readDays }}</td>
+          </tr>
+        </tbody>
+      </table>
+      <div v-if="!(dashboard.deptProgress || []).length" class="empty">本周期暂无部门数据</div>
+    </section>
+
+    <!-- 【2026-11-16 P3】月度报告: 自然月聚合 + 环比上月 + 月度 CSV 导出 -->
+    <section class="panel monthly-panel">
+      <div class="panel-head">
+        <span>月度报告</span>
+        <span class="monthly-tools">
+          <el-date-picker v-model="monthlyMonth" type="month" placeholder="选择月份" value-format="YYYY-MM"
+            :clearable="false" style="width: 130px" size="small" @change="loadMonthly" />
+          <el-button v-if="userStore.hasPermission('fabushi:stats:export')" size="small" @click="exportMonthly">导出月度报告（CSV）</el-button>
+        </span>
+      </div>
+      <div class="monthly-summary">
+        <div class="m-cell"><span>新增内容</span><b>{{ monthly.posts || 0 }}</b><i :class="pctClass(monthly.prev && monthly.prev.postsPct)">{{ pctText(monthly.prev && monthly.prev.postsPct) }}</i></div>
+        <div class="m-cell"><span>木鱼</span><b>{{ monthly.likes || 0 }}</b><i :class="pctClass(monthly.prev && monthly.prev.likesPct)">{{ pctText(monthly.prev && monthly.prev.likesPct) }}</i></div>
+        <div class="m-cell"><span>评论</span><b>{{ monthly.comments || 0 }}</b><i :class="pctClass(monthly.prev && monthly.prev.commentsPct)">{{ pctText(monthly.prev && monthly.prev.commentsPct) }}</i></div>
+        <div class="m-cell"><span>已读人数</span><b>{{ monthly.readUsers || 0 }}</b><i :class="pctClass(monthly.prev && monthly.prev.readUsersPct)">{{ pctText(monthly.prev && monthly.prev.readUsersPct) }}</i></div>
+        <div class="m-cell"><span>已读人次</span><b>{{ monthly.readCount || 0 }}</b></div>
+        <div class="m-cell"><span>活跃人数</span><b>{{ monthly.activeUsers || 0 }}</b></div>
+        <div class="m-cell"><span>覆盖率</span><b>{{ monthly.coveragePct != null ? monthly.coveragePct + '%' : '—' }}</b></div>
+      </div>
+    </section>
+
     <section class="personal">
       <div class="panel-head"><span>我的法布施</span></div>
       <div class="personal-grid">
@@ -97,7 +145,7 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import { getFabushiDashboard, getFabushiPersonalStats } from '@/api/fabushi'
+import { getFabushiDashboard, getFabushiMonthly, getFabushiPersonalStats } from '@/api/fabushi'
 import { useUserStore } from '@/store/user'
 import { downloadFile } from '@/utils/download'
 import { getToken } from '@/utils/token'
@@ -108,13 +156,18 @@ const period = ref('week')
 const dashboard = ref({
   memberCount: 0, todayReadUsers: 0, coveragePct: null,
   periodPosts: 0, periodLikes: 0, periodComments: 0,
-  ranking: [], categoryHeat: [], trend: [],
+  ranking: [], deptProgress: [], categoryHeat: [], trend: [],
 })
 const personal = ref({ myPosts: 0, myComments: 0, myReadCount: 0, myLikesReceived: 0 })
+// 【2026-11-16 P3】月度报告: 默认当月, el-date-picker(type=month) 切换
+const monthly = ref({ month: '', periodStart: '', periodEnd: '', memberCount: 0, posts: 0, likes: 0, comments: 0, readCount: 0, readUsers: 0, activeUsers: 0, coveragePct: null, prev: {}, deptProgress: [], ranking: [], trend: [] })
+const monthlyMonth = ref(new Date().toISOString().slice(0, 7))
 const maxHeat = computed(() => Math.max(1, ...(dashboard.value.categoryHeat || []).map((item) => Number(item.count) || 0)))
 const maxTrend = computed(() => Math.max(1, ...(dashboard.value.trend || []).map((item) => Number(item.count) || 0)))
 const heatWidth = (value) => Math.round((Number(value) || 0) * 100 / maxHeat.value) + '%'
 const trendHeight = (value) => Math.max(8, Math.round((Number(value) || 0) * 100 / maxTrend.value)) + '%'
+const pctText = (pct) => (pct == null ? '—' : (pct > 0 ? '+' : '') + pct + '%')
+const pctClass = (pct) => ({ up: pct != null && pct > 0, down: pct != null && pct < 0 })
 
 const loadData = async () => {
   loading.value = true
@@ -139,7 +192,23 @@ const switchPeriod = (value) => {
   loadData()
 }
 
-onMounted(loadData)
+// 【2026-11-16 P3】月度报告加载与导出
+const loadMonthly = async () => {
+  const r = await getFabushiMonthly(monthlyMonth.value).catch(() => null)
+  monthly.value = (r && r.data) || monthly.value
+}
+
+const exportMonthly = async () => {
+  await downloadFile(`/api/fabushi/stats/monthly/export?month=${monthlyMonth.value}`, {
+    name: `法布施月度报告-${monthlyMonth.value}.csv`,
+    headers: { Authorization: `Bearer ${getToken() || ''}` },
+  })
+}
+
+onMounted(() => {
+  loadData()
+  loadMonthly()
+})
 </script>
 
 <style scoped>
@@ -184,6 +253,18 @@ onMounted(loadData)
 .trend-bar { width: 100%; max-width: 22px; min-height: 4px; border-radius: var(--radius-sm) var(--radius-sm) 0 0; background: var(--el-color-primary-light-7); }
 .trend-label { color: var(--text-placeholder); font-size: 9.5px; white-space: nowrap; }
 .empty { padding: 14px 0; color: var(--text-placeholder); font-size: 12px; }
+/* 【2026-11-16 P3】部门进度 */
+.dept-panel .activity { width: 90px; }
+.cov-num { margin-right: 6px; color: var(--text-primary); font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+/* 【2026-11-16 P3】月度报告 */
+.monthly-tools { display: flex; align-items: center; gap: 8px; font-weight: 400; }
+.monthly-summary { display: flex; gap: 24px; flex-wrap: wrap; padding: 6px 0 2px; }
+.m-cell { display: flex; flex-direction: column; gap: 2px; min-width: 72px; }
+.m-cell span { color: var(--text-muted); font-size: 11px; }
+.m-cell b { color: var(--text-primary); font-size: 20px; font-variant-numeric: tabular-nums; }
+.m-cell i { font-style: normal; font-size: 11px; color: var(--text-placeholder); }
+.m-cell i.up { color: var(--el-color-success); }
+.m-cell i.down { color: var(--el-color-danger); }
 .personal { padding: 13px 16px; border: 1px solid var(--border-light); border-radius: var(--radius-md); background: var(--el-fill-color-lighter); }
 .personal-grid { display: flex; gap: 32px; flex-wrap: wrap; }
 .personal-grid div { display: flex; flex-direction: column; gap: 3px; }

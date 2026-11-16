@@ -24,6 +24,15 @@ const routes = [
     component: () => import('@/views/mp/FilePicker.vue'),
     meta: { title: '手机文件上传' }
   },
+  // 【2026-11-16 P2 方案A】法布施 H5 PDF.js 阅读器(MP web-view 容器页):
+  // 翻页自动回传 /api/fabushi/progress, 替代 MP openDocument(无页码回传能力)。
+  // 鉴权同 /mp-file-picker 先例: token 由小程序 URL 带入, 直连后端。
+  {
+    path: '/mp-fabushi-reader',
+    name: 'MpFabushiReader',
+    component: () => import('@/views/mp/FabushiReader.vue'),
+    meta: { title: '在线阅读' }
+  },
   // 【C12 2026-10-08 二轮】404 兜底：深链错误路径不再白屏（catchAll 放最后，不拦截已定义路由）
   {
     path: '/:pathMatch(.*)*',
@@ -368,8 +377,8 @@ const router = createRouter({
 const BRAND_NAME = 'AIGICRM'
 router.beforeEach(async (to, from, next) => {
   document.title = (to.meta.title ? to.meta.title + ' - ' : '') + BRAND_NAME
-  // /mp-file-picker 为小程序 web-view 容器页(鉴权自治: URL 带 token 直连后端), 不走 PC 登录态
-  if (to.path === '/login' || to.path === '/mp-file-picker') {
+  // /mp-file-picker、/mp-fabushi-reader 为小程序 web-view 容器页(鉴权自治: URL 带 token 直连后端), 不走 PC 登录态
+  if (to.path === '/login' || to.path === '/mp-file-picker' || to.path === '/mp-fabushi-reader') {
     next()
   } else if (!isTokenValid()) {
     // token 缺失或已过期：提前清掉，避免带坏 token 进入页面触发一堆 403

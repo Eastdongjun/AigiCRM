@@ -4,7 +4,7 @@
 > 本文件由 scripts/gen-api.py 自动生成,**禁止手改**;接口变更后重新运行。
 > 权限码与 docs/permission/permission-dict.md 对应。
 
-## 接口清单(288 个)
+## 接口清单(290 个)
 
 | 方法 | 路径 | 权限码 | 方法名 | 文件 |
 |---|---|---|---|---|
@@ -110,6 +110,8 @@
 | PUT | `/api/fabushi/shelf/{id}` | `hasAuthority('fabushi:view')` | updateShelf | FabushiReadingController.java |
 | GET | `/api/fabushi/stats/dashboard` | `hasAuthority('fabushi:stats:view')` | dashboard | FabushiStatsController.java |
 | GET | `/api/fabushi/stats/export` | `hasAuthority('fabushi:stats:export')` | export | FabushiStatsController.java |
+| GET | `/api/fabushi/stats/monthly` | `hasAuthority('fabushi:stats:view')` | monthly | FabushiStatsController.java |
+| GET | `/api/fabushi/stats/monthly/export` | `hasAuthority('fabushi:stats:export')` | monthlyExport | FabushiStatsController.java |
 | GET | `/api/fabushi/stats/personal` | `hasAuthority('fabushi:view')` | personal | FabushiStatsController.java |
 | GET | `/api/fabushi/stats/team` | `hasAuthority('fabushi:stats:view')` | team | FabushiStatsController.java |
 | POST | `/api/file/batch-delete` | `hasAuthority('file:delete')` | batchDelete | FileController.java |

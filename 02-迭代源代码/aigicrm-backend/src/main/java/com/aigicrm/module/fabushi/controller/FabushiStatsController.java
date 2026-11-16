@@ -59,6 +59,72 @@ public class FabushiStatsController {
                 .contentType(MediaType.parseMediaType("text/csv;charset=UTF-8")).body(bytes);
     }
 
+    /**
+     * 【2026-11-16 P3】月度报告: 汇总指标+环比上月+每日趋势+部门进度+活跃榜。
+     * month=YYYY-MM, 缺省/非法回落当月; 可见集与 dashboard 同一 fail-closed 口径。
+     */
+    @GetMapping("/monthly")
+    @PreAuthorize("hasAuthority('fabushi:stats:view')")
+    public Result<java.util.Map<String, Object>> monthly(
+            @RequestParam(required = false) String month) {
+        return Result.ok(dashboardService.monthly(month));
+    }
+
+    /** 【2026-11-16 P3】月度报告 CSV 导出: 汇总段+环比段+部门段+成员榜段。 */
+    @GetMapping("/monthly/export")
+    @PreAuthorize("hasAuthority('fabushi:stats:export')")
+    public ResponseEntity<byte[]> monthlyExport(@RequestParam(required = false) String month) {
+        Map<String, Object> d = dashboardService.monthly(month);
+        StringBuilder sb = new StringBuilder("\uFEFF月度报告,值\n");
+        sb.append(csv("月份")).append(',').append(csv(d.get("month"))).append('\n');
+        sb.append(csv("周期")).append(',').append(d.get("periodStart")).append(" ~ ").append(d.get("periodEnd")).append('\n');
+        sb.append(csv("新增内容")).append(',').append(d.get("posts")).append('\n');
+        sb.append(csv("木鱼")).append(',').append(d.get("likes")).append('\n');
+        sb.append(csv("评论")).append(',').append(d.get("comments")).append('\n');
+        sb.append(csv("已读人次")).append(',').append(d.get("readCount")).append('\n');
+        sb.append(csv("已读人数")).append(',').append(d.get("readUsers")).append('\n');
+        sb.append(csv("活跃人数")).append(',').append(d.get("activeUsers")).append('\n');
+        sb.append(csv("覆盖率%")).append(',').append(csv(d.get("coveragePct"))).append('\n');
+        Map<?, ?> prev = (Map<?, ?>) d.getOrDefault("prev", Map.of());
+        sb.append('\n').append(csv("环比上月")).append(',').append(csv(prev.get("month"))).append('\n');
+        sb.append(csv("指标")).append(",上月,环比%\n");
+        sb.append(csv("新增内容")).append(',').append(prev.get("posts")).append(',').append(csv(prev.get("postsPct"))).append('\n');
+        sb.append(csv("木鱼")).append(',').append(prev.get("likes")).append(',').append(csv(prev.get("likesPct"))).append('\n');
+        sb.append(csv("评论")).append(',').append(prev.get("comments")).append(',').append(csv(prev.get("commentsPct"))).append('\n');
+        sb.append(csv("已读人数")).append(',').append(prev.get("readUsers")).append(',').append(csv(prev.get("readUsersPct"))).append('\n');
+        sb.append('\n').append(csv("部门进度")).append('\n');
+        sb.append("部门,成员数,已读人数,覆盖率%,新增内容,木鱼,评论,已读天数\n");
+        for (Object o : (Iterable<?>) d.getOrDefault("deptProgress", java.util.List.of())) {
+            Map<?, ?> r = (Map<?, ?>) o;
+            sb.append(csv(r.get("deptName"))).append(',').append(r.get("memberCount")).append(',')
+              .append(r.get("readUsers")).append(',').append(r.get("coveragePct")).append(',')
+              .append(r.get("posts")).append(',').append(r.get("likes")).append(',')
+              .append(r.get("comments")).append(',').append(r.get("readDays")).append('\n');
+        }
+        sb.append('\n').append(csv("活跃榜")).append('\n');
+        sb.append("成员,部门,发布,获木鱼,已读天数\n");
+        for (Object o : (Iterable<?>) d.getOrDefault("ranking", java.util.List.of())) {
+            Map<?, ?> r = (Map<?, ?>) o;
+            sb.append(csv(r.get("userName"))).append(',').append(csv(r.get("deptName"))).append(',')
+              .append(r.get("postCount")).append(',').append(r.get("likesReceived")).append(',')
+              .append(r.get("readDays")).append('\n');
+        }
+        String filename = "fabushi-monthly-" + d.get("month") + ".csv";
+        byte[] bytes = sb.toString().getBytes(StandardCharsets.UTF_8);
+        return ResponseEntity.ok().header(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=" + filename)
+                .contentType(MediaType.parseMediaType("text/csv;charset=UTF-8")).body(bytes);
+    }
+
+    /** CSV 单元格转义: 含逗号/引号/换行时加引号包裹(内部引号翻倍)。 */
+    private static String csv(Object cell) {
+        String s = cell == null ? "" : String.valueOf(cell);
+        if (s.contains(",") || s.contains("\"") || s.contains("\n") || s.contains("\r")) {
+            return '"' + s.replace("\"", "\"\"") + '"';
+        }
+        return s;
+    }
+
     /** 个人统计(全员): 本人内容/获木鱼/评论/阅读数。 */
     @GetMapping("/personal")
     @PreAuthorize("hasAuthority('fabushi:view')")

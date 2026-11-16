@@ -106,6 +106,25 @@
       </view>
       <view wx:if="{{teamRanking.length === 0}}" class="ghost-sub">本周期暂无团队数据</view>
     </view>
+    <!-- 【2026-11-16 P3】部门进度(前5) + 月度简报(当月) -->
+    <view wx:if="{{deptProgress.length}}" class="card">
+      <view class="stats-title">部门进度 · 本周</view>
+      <view wx:for="{{deptProgress}}" wx:key="deptId" class="rank-row">
+        <text class="rank-name">{{item.deptName}}</text>
+        <text class="rank-dept">{{item.readUsers}}/{{item.memberCount}} 人已读</text>
+        <b>{{item.coveragePct}}%</b>
+      </view>
+    </view>
+    <view wx:if="{{monthly.month}}" class="card">
+      <view class="stats-title">月度简报 · {{monthly.month}}</view>
+      <view class="stats-grid">
+        <view class="stats-cell"><text class="stats-num">{{monthly.posts || 0}}</text><text class="stats-label">新增内容</text></view>
+        <view class="stats-cell"><text class="stats-num">{{monthly.likes || 0}}</text><text class="stats-label">木鱼</text></view>
+        <view class="stats-cell"><text class="stats-num">{{monthly.comments || 0}}</text><text class="stats-label">评论</text></view>
+        <view class="stats-cell"><text class="stats-num">{{monthly.readUsers || 0}}</text><text class="stats-label">已读人数</text></view>
+      </view>
+      <view wx:if="{{monthly.coveragePct != null}}" class="team-sum">覆盖率 {{monthly.coveragePct}}%<text wx:if="{{monthly.activeUsers}}"> · 活跃 {{monthly.activeUsers}} 人</text></view>
+    </view>
   </block>
 
   <view class="fb-entries">

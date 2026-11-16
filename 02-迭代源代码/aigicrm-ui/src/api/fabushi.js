@@ -154,3 +154,8 @@ export function createFabushiActivity(data) {
 export function endFabushiActivity(id) {
   return request.put(`/fabushi/activities/${id}/end`)
 }
+
+// 【2026-11-16 P3】月度报告: 汇总+环比+每日趋势+部门进度+活跃榜(month=YYYY-MM, 缺省当月)
+export function getFabushiMonthly(month) {
+  return request.get('/fabushi/stats/monthly', { params: { month: month || undefined } })
+}
