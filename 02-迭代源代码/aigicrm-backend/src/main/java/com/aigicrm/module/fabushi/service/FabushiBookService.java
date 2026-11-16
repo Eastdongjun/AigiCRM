@@ -214,6 +214,13 @@ public class FabushiBookService {
         }
     }
 
+    /** 删除书目(fabushi:book:manage 门; @TableLogic 软删, 关联心得/书架/进度保留留痕, 全部查询自动过滤)。 */
+    public void deleteBook(Long id) {
+        BizFabushiBook book = requireBook(id);
+        bookMapper.deleteById(id);
+        securityAuditService.permissionChange("fabushi_book_delete", "book:" + id + ":" + book.getTitle());
+    }
+
     private BizFabushiBook requireBook(Long id) {
         BizFabushiBook book = bookMapper.selectById(id);
         if (book == null) {

@@ -85,4 +85,12 @@ public class FabushiBookController {
         bookService.attachPdf(id, body == null ? null : body.get("fileId"));
         return Result.ok();
     }
+
+    /** 删除书目(软删, @TableLogic; 关联心得/书架/进度保留留痕, 列表自动过滤)。 */
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('fabushi:book:manage')")
+    public Result<Void> deleteBook(@PathVariable Long id) {
+        bookService.deleteBook(id);
+        return Result.ok();
+    }
 }

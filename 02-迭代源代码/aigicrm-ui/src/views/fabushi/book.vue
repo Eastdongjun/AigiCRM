@@ -64,6 +64,7 @@
                   <el-button v-if="row.status === 'approved'" link type="primary" @click="openSections(row)">章节</el-button>
                   <el-button v-if="row.status === 'approved'" link type="danger" @click="doDisable(row)">停用</el-button>
                   <el-button v-if="row.status === 'rejected'" link type="primary" @click="showRejectReason(row)">查看原因</el-button>
+                  <el-button link type="danger" @click="doDelete(row)">删除</el-button>
                 </template>
                 <span v-else class="muted">只读</span>
               </td>
@@ -143,7 +144,7 @@ import request from '@/utils/request'
 import { useUserStore } from '@/store/user'
 import { getDictData } from '@/api/system'
 import {
-  getFabushiBooks, submitFabushiBook, approveFabushiBook, rejectFabushiBook, disableFabushiBook, attachBookPdf,
+  getFabushiBooks, submitFabushiBook, approveFabushiBook, rejectFabushiBook, disableFabushiBook, attachBookPdf, deleteFabushiBook,
   getFabushiSections, createFabushiSection, deleteFabushiSection,
 } from '@/api/fabushi'
 
@@ -254,6 +255,15 @@ const doReject = async () => {
   try { await rejectFabushiBook(rejectVisible.value.id, rejectReason.value.trim()); ElMessage.success('已驳回'); rejectVisible.value = null; await Promise.all([loadData(), loadAll()]) } finally { actionLoading.value = false }
 }
 const doDisable = async (row) => { await disableFabushiBook(row.id); ElMessage.success('已停用'); await Promise.all([loadData(), loadAll()]) }
+// 【2026-11-16 用户令】删除书目: 二次确认→软删(关联心得/书架/进度保留, 列表自动过滤)
+const doDelete = async (row) => {
+  await ElMessageBox.confirm(`确定删除书目「${row.title}」？删除后不再展示，其下心得与阅读记录保留。`, '删除书目', {
+    confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning',
+  })
+  await deleteFabushiBook(row.id)
+  ElMessage.success('已删除')
+  await Promise.all([loadData(), loadAll()])
+}
 const openPdf = (row) => { pdfVisible.value = row }
 const pickPdf = () => pdfInputRef.value?.click()
 const handlePdfChosen = async (evt) => {

@@ -4,7 +4,7 @@
 > 本文件由 scripts/gen-api.py 自动生成,**禁止手改**;接口变更后重新运行。
 > 权限码与 docs/permission/permission-dict.md 对应。
 
-## 接口清单(290 个)
+## 接口清单(291 个)
 
 | 方法 | 路径 | 权限码 | 方法名 | 文件 |
 |---|---|---|---|---|
@@ -83,6 +83,7 @@
 | POST | `/api/fabushi/books/{bookId}/sections` | `hasAuthority('fabushi:book:manage')` | create | FabushiSectionController.java |
 | DELETE | `/api/fabushi/books/{bookId}/sections/{id}` | `hasAuthority('fabushi:book:manage')` | delete | FabushiSectionController.java |
 | PUT | `/api/fabushi/books/{bookId}/sections/{id}` | `hasAuthority('fabushi:book:manage')` | update | FabushiSectionController.java |
+| DELETE | `/api/fabushi/books/{id}` | `hasAuthority('fabushi:book:manage')` | deleteBook | FabushiBookController.java |
 | GET | `/api/fabushi/books/{id}` | `hasAuthority('fabushi:view')` | detail | FabushiBookController.java |
 | PUT | `/api/fabushi/books/{id}/approve` | `hasAuthority('fabushi:book:manage')` | approve | FabushiBookController.java |
 | PUT | `/api/fabushi/books/{id}/disable` | `hasAuthority('fabushi:book:manage')` | disable | FabushiBookController.java |

@@ -105,7 +105,7 @@
 | `fabushi.section` | 法布施 | `/fabushi/book`(章节弹窗) | `pages/fabushi/book/index` | 读 `fabushi:view`;写 `fabushi:book:manage` | 社区可见 | 章节树浏览/维护 | 已实现 ⟦2026-11-16⟧ |
 | `fabushi.reading` | 法布施 | `/fabushi/shelf`、`/fabushi/read/:bookId` | `pages/fabushi/book/index`、`pages/fabushi/reader/index`、`pages/fabushi/settings/index` | `fabushi:view` | 本人 | 书架/PDF 页码级进度/阅读记录/提醒设置 | 已实现 ⟦二期阅读链 2026-11-16; MP 阅读改 web-view H5 PDF.js 页码级(翻页自动回传) 2026-11-16 P2⟧ |
 | `fabushi.create` | 法布施 | PC `/fabushi/feed` 发布弹窗 + 书目管理页提交弹窗 | `pages/fabushi/upload/index` | `fabushi:create` | 本人发布 | 发布心得/诵读(文字版)/正能量/评论/木鱼/提交书目 | 已实现 ⟦一期 2026-11-15; 附件图/音/视 2026-11-16⟧ |
-| `fabushi.bookManage` | 法布施 | `/fabushi/book`(审核/驳回/停用/挂PDF) | `PC-only` | `fabushi:book:manage` | — | 书目审核/治理 | `PC-only` ⟦一期 2026-11-15⟧ |
+| `fabushi.bookManage` | 法布施 | `/fabushi/book`(审核/驳回/停用/挂PDF/删除) | `PC-only` | `fabushi:book:manage` | — | 书目审核/治理/软删(关联心得书架进度保留) | `PC-only` ⟦一期 2026-11-15; 删除(软删+审计留痕) 2026-11-16⟧ |
 | `fabushi.contentManage` | 法布施 | `/fabushi/content`(下架/恢复留痕) | `PC-only` | `fabushi:content:manage` | — | 内容下架/恢复/治理 | `PC-only` ⟦一期 2026-11-15; 恢复 2026-11-16⟧ |
 | `fabushi.stats` | 法布施 | `/fabushi/stats`(五联卡+个人统计+成员榜+部门进度+月度报告+类别热度+趋势) | `pages/fabushi/index`(工作台统计页签: 个人/团队/部门进度/月度简报) | `fabushi:stats:view`(独立数据范围档 fabushi/stats_view, 照激励拍板B模式; 月度导出 `fabushi:stats:export`) | 团队统计可见集(独立档) | 读取/统计 | 已实现 ⟦一期 2026-11-15; 看板聚合+CSV 导出 2026-11-16; 部门进度+月度报告(monthly/monthly-export 双端) 2026-11-16 P3⟧ |
 | `fabushi.activity` | 法布施 | `/fabushi/shelf`(共读活动页签) | `pages/fabushi/index`(活动卡) | `fabushi:view`(+`fabushi:activity:manage` 发起/结束) | 社区全员可见 | 活动浏览/参与/发起/结束 | 已实现 ⟦2026-11-16⟧ |

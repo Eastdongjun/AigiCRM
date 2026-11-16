@@ -29,6 +29,11 @@ export function disableFabushiBook(id) {
   return request.put(`/fabushi/books/${id}/disable`)
 }
 
+// 【2026-11-16】删除书目(软删, fabushi:book:manage 门; 关联心得/书架/进度保留)
+export function deleteFabushiBook(id) {
+  return request.delete(`/fabushi/books/${id}`)
+}
+
 export function attachBookPdf(id, fileId) {
   return request.post(`/fabushi/books/${id}/pdf`, { fileId })
 }
