@@ -242,6 +242,7 @@ class FolderAclServiceTest {
     void permissions_returnsPermsAndDownloadable() {
         BizFileFolder folder = new BizFileFolder(); folder.setId(FOLDER_ID); folder.setDownloadable(0);
         when(folderMapper.selectById(FOLDER_ID)).thenReturn(folder);
+        when(permissionService.check(FOLDER_ID, FolderPermissionService.P_VIEW, USER_ID)).thenReturn(true);
         when(permissionService.permsFor(FOLDER_ID, USER_ID)).thenReturn(List.of(FolderPermissionService.P_VIEW));
         Map<String, Object> row = svc.permissions(FOLDER_ID, USER_ID);
         assertEquals(List.of(FolderPermissionService.P_VIEW), row.get("perms"));
@@ -252,16 +253,28 @@ class FolderAclServiceTest {
     void permissions_downloadableNull_defaultsToOne() {
         BizFileFolder folder = new BizFileFolder(); folder.setId(FOLDER_ID); folder.setDownloadable(null);
         when(folderMapper.selectById(FOLDER_ID)).thenReturn(folder);
+        when(permissionService.check(FOLDER_ID, FolderPermissionService.P_VIEW, USER_ID)).thenReturn(true);
         when(permissionService.permsFor(FOLDER_ID, USER_ID)).thenReturn(List.of(FolderPermissionService.P_VIEW));
         assertEquals(1, svc.permissions(FOLDER_ID, USER_ID).get("downloadable"));
     }
 
     @Test
-    void permissions_folderMissing_returnsEmptyPerms() {
+    void permissions_folderMissing_throws404() {
+        // 【D4a 修复 2026-11-16】不存在不再静默返回空 perms，避免探测文件夹存在性
         when(folderMapper.selectById(FOLDER_ID)).thenReturn(null);
-        Map<String, Object> row = svc.permissions(FOLDER_ID, USER_ID);
-        assertEquals(List.of(), row.get("perms"));
-        assertEquals(1, row.get("downloadable"));
+        BusinessException ex = assertThrows(BusinessException.class, () -> svc.permissions(FOLDER_ID, USER_ID));
+        assertTrue(ex.getMessage().contains("文件夹不存在"));
+    }
+
+    @Test
+    void permissions_invisibleFolder_throws403() {
+        // 【D4a 修复】私有夹对无 view 权限用户必须 403，而不是 200(perms 空 + downloadable)
+        BizFileFolder folder = new BizFileFolder(); folder.setId(FOLDER_ID); folder.setDownloadable(1);
+        when(folderMapper.selectById(FOLDER_ID)).thenReturn(folder);
+        when(permissionService.check(FOLDER_ID, FolderPermissionService.P_VIEW, USER_ID)).thenReturn(false);
+        BusinessException ex = assertThrows(BusinessException.class, () -> svc.permissions(FOLDER_ID, USER_ID));
+        assertTrue(ex.getMessage().contains("没有访问权限"));
+        verify(permissionService, never()).permsFor(any(), any());
     }
 
     // ---------- saveAclFromBody：controller 畸形输入解析（Task 5 审查遗留）----------

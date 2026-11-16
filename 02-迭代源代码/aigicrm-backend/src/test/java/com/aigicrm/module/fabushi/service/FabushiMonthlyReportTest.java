@@ -151,7 +151,9 @@ class FabushiMonthlyReportTest {
             d10.setDeptName("太原一部");
             when(deptMapper.selectBatchIds(anyCollection())).thenReturn(List.of(d10));
 
-            LocalDateTime now = LocalDateTime.now();
+            // 【2026-11-16 审计修复】固定时间：原 LocalDateTime.now() 在 23 点后 plusHours(1) 跨日，
+            // readDays 由 2 变 3（测试时间依赖，曾在夜间随机红）。
+            LocalDateTime now = LocalDateTime.of(2026, 11, 10, 10, 0);
             BizFabushiPost p1 = post(11L, now);
             BizFabushiLike l3 = like(13L, now);
             BizFabushiReadStatus r11a = read(11L, now);

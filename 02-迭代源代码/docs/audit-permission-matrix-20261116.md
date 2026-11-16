@@ -74,8 +74,8 @@
 | D1 | 高 | 已修复 | preview 28/28 500 | 菜单 SQL DISTINCT+ORDER BY（MySQL 3065） |
 | D2 | 高 | **已修复** | TY005 preview 121 vs 列表 17 | `countByScopeFor` 自拼 ScopeRequest 且不含 autoShare；已改为复用 `applyDataScopeFor + applyAutoShareFor` 单源。修复后 28/28 用户 preview==list，TY005 17=17 |
 | D3 | 低 | 已修复（待构建验证） | 05 打开人员管理页岗位 403 | 前端无条件加载岗位下拉 |
-| D4 | 中 | 已定性 | B 组 663 条“他人资源 2xx” | 536 条已解释；余 127 条：探针构造 52、待共享核对 45（incentive 证据文件下载/版本）、**D4a 低危 26**（文件夹权限接口不校验可见性，泄露存在性/可下载标记）、同办事处允许 4。详见 `d4-residual-20261116.md` |
-| D4a | 低 | 待修 | `GET /api/file/folders/{id}/permissions` 对私有夹返回 200 | 仅按 file:view 鉴权，未校验文件夹可见性；建议补 checkFile view 或 404 |
+| D4 | 中 | 已定性（全部归因） | B 组 663 条“他人资源 2xx” | 536 条已解释；余 127 条：探针构造 52、**授权允许 45**（incentive `can_view_all=1`，设计内可下载）、D4a 26（已修复）、同办事处允许 3、已读标记 1。详见 `d4-residual-20261116.md` |
+| D4a | 低 | **已修复** | `GET /api/file/folders/{id}/permissions` 对私有夹返回 200 | 补 `check(P_VIEW)`：私有夹 403、不存在 404；实测 TY002 folder5=403、folder7=200、999999=404、admin=200 |
 | D5 | 低 | 已排除 | 旧 v2 的 74 条超时 | 审计版加入重试后 0 条网络错误，定性为并发抖动而非缺陷 |
 
 ## 六、产物
@@ -99,3 +99,9 @@
 ## 九、D4 明细
 
 127 条逐条核对见 `test-results/permission-matrix/d4-residual-20261116.md`（探针构造 52、待共享核对 45、D4a 低危 26、同办事处允许 4）。
+
+## 十、D4a 修复复验（2026-11-16 23:1x）
+
+- `FolderAclService.permissions()` 增加文件夹可见性校验；单测补 `permissions_invisibleFolder_throws403` / `permissions_folderMissing_throws404`。
+- 运行态（测试服 jar `ddc7ec1b…`）：TY002 访问私有夹 5 → **403**、公共夹 7 → **200**、不存在 999999 → **404**、admin 访问 5 → **200**。
+- 另修 `FabushiMonthlyReportTest` 时间依赖（`LocalDateTime.now()` 在 23 点后跨日导致 readDays 由 2 变 3），固定为 2026-11-10 10:00。

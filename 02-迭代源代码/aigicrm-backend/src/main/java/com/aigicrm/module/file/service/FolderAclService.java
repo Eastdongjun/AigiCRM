@@ -132,11 +132,20 @@ public class FolderAclService {
         catch (Exception e) { log.warn("权限审计留痕失败(不阻断业务) folder_download_switch folderId={}", folderId, e); }
     }
 
+    /**
+     * 文件夹行级权限查询（页面按钮态）。
+     * 【D4a 修复 2026-11-16】此前对任意 folderId 都返回 200（perms 为空 + downloadable），
+     * 私有夹的存在性/可下载标记对无权限用户可见。现补可见性校验：不存在 404、不可见 403。
+     */
     public Map<String, Object> permissions(Long folderId, Long userId) {
         BizFileFolder folder = folderMapper.selectById(folderId);
+        if (folder == null) throw new BusinessException(404, "文件夹不存在");
+        if (!permissionService.check(folderId, FolderPermissionService.P_VIEW, userId)) {
+            throw new BusinessException(403, "没有访问权限，请联系管理员授权");
+        }
         Map<String, Object> row = new LinkedHashMap<>();
-        row.put("perms", folder != null ? permissionService.permsFor(folderId, userId) : List.of());
-        row.put("downloadable", folder != null && folder.getDownloadable() != null ? folder.getDownloadable() : 1);
+        row.put("perms", permissionService.permsFor(folderId, userId));
+        row.put("downloadable", folder.getDownloadable() != null ? folder.getDownloadable() : 1);
         return row;
     }
 
