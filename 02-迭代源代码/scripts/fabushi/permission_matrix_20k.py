@@ -18,17 +18,50 @@ CODE_RE = re.compile(r"'([a-z][a-z0-9:_-]+)'")
 
 
 def permission_rule(expr: str):
+    """解析 Spring SpEL 权限表达式为判定规则。
+
+    语义：支间 or、支内 and。本库现状（2026-11-16 全量核对 docs/api/api-list.json）
+    仅 2 个 or 端点，and 只出现在单支括号组内；出现无法解析的混合形态时返回
+    ('expr', None) 保守哨兵——只对 5xx/越权 2xx 报警，不误判 401/403。
+    【修复 2026-11-16】此前把 or 表达式当 and（'all'）解析，导致持
+    customer:edit+finance:view 的用户对 stage-amounts 被误判 denied、
+    其合法业务 400 被记为 fail（23 条误报）。
+    """
     if expr in ('匿名', ''):
-        return ('anon', set())
+        return ('anon', None)
     if expr in ('登录即可', 'isAuthenticated()'):
-        return ('auth', set())
+        return ('auth', None)
     if ANY_RE.search(expr):
         codes = set(CODE_RE.findall(ANY_RE.search(expr).group(1)))
         return ('any', codes)
-    codes = set(AUTH_RE.findall(expr))
-    if not codes:
-        return ('expr', set())
-    return ('all', codes)
+    clauses = [set(AUTH_RE.findall(c)) for c in re.split(r'\s+or\s+', expr)]
+    if not clauses or any(not c for c in clauses):
+        return ('expr', None)  # 混有非 hasAuthority 谓词/无法解析：保守哨兵
+    if len(clauses) == 1:
+        return ('all', clauses[0])
+    return ('or', clauses)
+
+
+# 【鉴权前 400 收口 2026-11-16】这 9 个端点经源码逐一核对均已有 @PreAuthorize 权限门
+# （逐条证据见 docs/fabushi-preauth-400-registry-20261116.md），但 Spring MVC 的参数解析
+# 先于方法 AOP 鉴权执行：矩阵发的最小请求（空 body {} / 缺 required query）在到达
+# @PreAuthorize 之前就被参数校验拒绝为 400——无数据泄露（controller 方法体未执行）。
+# 对这些端点，无权限用户收到 400/401/403 均视为"已解释"；**2xx/5xx 仍然 fail**
+# （负例自证：若某端点的权限门被移除，无权限用户将收到 2xx，此处立即变红）。
+# 注意：POST /api/customer/{id}/stage-amounts 不在白名单——它无参数形状问题（record
+# 全 null 反序列化成功），此前 23 条 fail 是 permission_rule 误把 or 当 and 的解析 bug，
+# 已在 permission_rule 修复，行为走正常 denied/authorized 判定。
+PARAM_SHAPE_OK = {
+    ('PUT', '/api/system/perm-scopes/{roleCode}'),
+    ('PUT', '/api/system/perm-scopes/assignee/{type}/{key}'),
+    ('PUT', '/api/system/configs'),
+    ('GET', '/api/score/export/grid'),
+    ('POST', '/api/system/depts/{deptId}/admins'),
+    ('PUT', '/api/system/roles/{id}/orgs'),
+    ('POST', '/api/customer/import'),
+    ('POST', '/api/sea/import'),
+    ('GET', '/api/system/perm-center/preview'),
+}
 
 
 def make_token(secret, uid, username):
@@ -44,15 +77,17 @@ def fill_path(path):
 
 
 def expected_ok(rule, perms):
-    kind, codes = rule
+    kind, payload = rule
     if kind == 'anon':
         return True
     if kind == 'auth':
         return True
     if kind == 'any':
-        return bool(perms & codes)
+        return bool(perms & payload)
     if kind == 'all':
-        return codes.issubset(perms)
+        return payload.issubset(perms)
+    if kind == 'or':
+        return any(c.issubset(perms) for c in payload)
     return None  # unknown expression: only flag 5xx/false 403
 
 
@@ -139,7 +174,14 @@ def main():
             if ok is True:
                 exp = 'authorized'; bad = status in (401, 403)
             elif ok is False:
-                exp = 'denied'; bad = status not in (401, 403)
+                exp = 'denied'
+                # 鉴权前 400 白名单端点：参数形状先于方法鉴权（登记见
+                # docs/fabushi-preauth-400-registry-20261116.md），400 与 401/403 同为已解释；
+                # 2xx（越权成功）/5xx 仍 fail
+                if (e['method'], e['path']) in PARAM_SHAPE_OK:
+                    bad = status not in (400, 401, 403)
+                else:
+                    bad = status not in (401, 403)
             else:
                 exp = 'unknown'; bad = status >= 500
         elif mode == 'no_token':

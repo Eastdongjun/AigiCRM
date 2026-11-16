@@ -39,7 +39,12 @@
 
 ## 残余
 
-- 250 条鉴权前 400：建议后续用参数校验前置/统一 403 语义优化
+- ~~250 条鉴权前 400~~ **已收口（2026-11-16）**：227 条为参数形状先于方法鉴权
+  （9 端点权限门源码核对无一缺失，进矩阵白名单）；23 条为矩阵脚本 or 表达式
+  误判（系统行为一直正确，已修 `permission_rule`）。重跑 24k 矩阵：
+  valid+400 = 0、5xx = 0、越权 2xx = 0，残余 794 条 403 全部为已归因资源/业务守卫。
+  详见 `docs/fabushi-preauth-400-registry-20261116.md` 与
+  `test-results/permission-matrix/summary.md`
 - 二期能力未做：附件、章节树、PDF 进度/续读、书架、阅读记录、提醒、导出、共读活动、MP PDF 阅读器
 
 ## 二期阅读链（2026-11-16 追加）
@@ -87,3 +92,14 @@
 - MP 实测通过：5 页签、书架 1 条、记录 1 天、统计团队 1 条、A4 详情可见且章节 1 条、提醒设置 20:00/每天、发布页 canCreate
 - 截图：`test-results/fabushi-complete/mp-round4-settings.png`、`mp-round4-upload.png`
 - 证据：`test-results/fabushi-complete/mp-round4.json`
+
+## 鉴权前 400 收口轮（2026-11-16 Round 5）
+
+- P1 收口：250 条鉴权前 400 → 0
+  - 227 条：9 端点参数形状先于 `@PreAuthorize`（权限门源码核对无一缺失，矩阵白名单）
+  - 23 条：矩阵脚本 or 表达式误判（`permission_rule` 已修，系统行为一直正确）
+- 重跑 24,024：**valid+400 = 0；5xx = 0；越权 2xx = 0**；残余 794 条 403 =
+  790 资源守卫（34 端点，与上轮同数）+ 4 组织守卫，全部已归因
+- 白名单负例自证 14/14 PASS（白名单端点 2xx/5xx 仍红）
+- 证据：`docs/fabushi-preauth-400-registry-20261116.md`、
+  `test-results/permission-matrix/summary.md`、`result.json`（已覆写为收口轮结果）
