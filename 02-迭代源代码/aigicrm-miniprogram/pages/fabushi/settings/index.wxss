@@ -1,10 +1,12 @@
+/* 【书卷改版 2026-11-16】提醒设置页: 纸色底/墨绿保存钮 */
+page { background: #f7f3ec; }
 .settings-page { padding: 28rpx 24rpx 60rpx; box-sizing: border-box; }
-.card { margin-bottom: 18rpx; padding: 8rpx 24rpx; border-radius: 22rpx; background: #fff; box-shadow: 0 8rpx 24rpx rgba(41,72,125,.07); }
-.setting-row { display: flex; align-items: center; justify-content: space-between; gap: 20rpx; padding: 22rpx 0; border-bottom: 1rpx solid #eef2f7; }
+.card { margin-bottom: 18rpx; padding: 8rpx 24rpx; border: 1rpx solid #e8e0d3; border-radius: 18rpx; background: #fffdf8; }
+.setting-row { display: flex; align-items: center; justify-content: space-between; gap: 20rpx; padding: 22rpx 0; border-bottom: 1rpx dashed #e8e0d3; }
 .setting-row:last-child { border-bottom: 0; }
-.setting-title { color: #14213d; font-size: 26rpx; font-weight: 600; }
-.setting-sub { margin-top: 5rpx; color: #94a3b8; font-size: 20rpx; line-height: 1.5; }
-.setting-value { flex-shrink: 0; color: #1d4ed8; font-size: 23rpx; }
+.setting-title { color: #2e2a24; font-size: 26rpx; font-weight: 600; }
+.setting-sub { margin-top: 5rpx; color: #9c9184; font-size: 20rpx; line-height: 1.5; }
+.setting-value { flex-shrink: 0; color: #2d5a4a; font-size: 23rpx; font-weight: 600; }
 .note-card { padding: 20rpx 24rpx; }
-.save-btn { margin-top: 30rpx; padding: 22rpx 0; border-radius: 22rpx; color: #fff; background: linear-gradient(135deg,#1d4ed8,#3e8df3); font-size: 27rpx; font-weight: 700; text-align: center; }
+.save-btn { margin-top: 30rpx; padding: 22rpx 0; border-radius: 16rpx; color: #fff7ee; background: #2d5a4a; font-size: 27rpx; font-weight: 700; text-align: center; }
 .save-btn.disabled { opacity: .6; }

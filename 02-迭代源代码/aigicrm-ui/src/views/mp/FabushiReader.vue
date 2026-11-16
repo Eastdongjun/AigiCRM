@@ -204,25 +204,26 @@ async function saveProgress() {
 </script>
 
 <style scoped>
-.mfbr { min-height: 100vh; background: #f5f7fa; font-family: -apple-system, 'PingFang SC', sans-serif; display: flex; flex-direction: column; }
+/* 【书卷改版 2026-11-16】纸色底/墨绿导航/朱砂强调, 与 MP 书卷语言同源 */
+.mfbr { min-height: 100vh; background: #f1ebdf; font-family: -apple-system, 'PingFang SC', sans-serif; display: flex; flex-direction: column; }
 .mfbr-block { padding-top: 38vh; text-align: center; }
 .mfbr-icon { font-size: 44px; margin-bottom: 12px; }
-.mfbr-title { font-size: 17px; font-weight: 600; color: #1f2d3d; }
-.mfbr-desc { font-size: 13px; color: #8a97a6; margin-top: 6px; line-height: 1.5; padding: 0 24px; }
-.mfbr-loading { font-size: 15px; color: #1f2d3d; }
-.mfbr-pct { font-size: 13px; color: #8a97a6; margin-top: 8px; }
-.mfbr-retry { margin: 16px auto 0; padding: 0 28px; height: 40px; border: none; border-radius: 10px; background: #3b6ff2; color: #fff; font-size: 14px; }
-.mfbr-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: #fff; border-bottom: 1px solid #e8edf3; }
-.mfbr-back { border: none; background: none; font-size: 15px; color: #3b6ff2; padding: 4px 6px; }
+.mfbr-title { font-size: 17px; font-weight: 600; color: #2e2a24; }
+.mfbr-desc { font-size: 13px; color: #9c9184; margin-top: 6px; line-height: 1.5; padding: 0 24px; }
+.mfbr-loading { font-size: 15px; color: #6b6257; }
+.mfbr-pct { font-size: 13px; color: #9c9184; margin-top: 8px; }
+.mfbr-retry { margin: 16px auto 0; padding: 0 28px; height: 40px; border: none; border-radius: 999px; background: #b5543a; color: #fff7ee; font-size: 14px; }
+.mfbr-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: #fffdf8; border-bottom: 1px solid #e8e0d3; }
+.mfbr-back { border: 1px solid #d8cdbb; background: transparent; border-radius: 999px; font-size: 13px; color: #2d5a4a; padding: 5px 12px; }
 .mfbr-title-row { display: flex; flex-direction: column; min-width: 0; }
-.mfbr-book { font-size: 15px; color: #1f2d3d; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.mfbr-page { font-size: 12px; color: #8a97a6; margin-top: 2px; }
+.mfbr-book { font-family: 'Songti SC', 'STSong', serif; font-size: 16px; font-weight: 700; color: #2e2a24; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mfbr-page { font-size: 12px; color: #a67c52; margin-top: 2px; }
 .mfbr-body { flex: 1; display: flex; flex-direction: column; min-height: 0; }
-.mfbr-stage { flex: 1; display: flex; justify-content: center; align-items: flex-start; overflow: auto; padding: 8px; }
-.mfbr-canvas { background: #fff; box-shadow: 0 1px 6px rgba(31, 45, 61, .12); }
-.mfbr-nav { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; background: #fff; border-top: 1px solid #e8edf3; }
-.mfbr-nav-btn { border: 1px solid #b8c4d0; background: #fff; border-radius: 8px; padding: 8px 16px; font-size: 14px; color: #1f2d3d; }
+.mfbr-stage { flex: 1; display: flex; justify-content: center; align-items: flex-start; overflow: auto; padding: 10px 8px; }
+.mfbr-canvas { background: #fffdf8; box-shadow: 0 2px 10px rgba(90, 74, 51, .18); border-radius: 4px; }
+.mfbr-nav { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; background: #fffdf8; border-top: 1px solid #e8e0d3; }
+.mfbr-nav-btn { border: 1px solid #c8d8cc; background: #eef3ee; border-radius: 999px; padding: 8px 18px; font-size: 14px; color: #2d5a4a; font-weight: 600; }
 .mfbr-nav-btn:disabled { opacity: .4; }
-.mfbr-nav-page { font-size: 13px; color: #8a97a6; }
-.mfbr-foot { text-align: center; font-size: 12px; color: #aab4c0; padding: 8px 0 12px; background: #fff; }
+.mfbr-nav-page { font-size: 13px; color: #a67c52; font-family: 'Songti SC', 'STSong', serif; font-weight: 600; }
+.mfbr-foot { text-align: center; font-size: 12px; color: #9c9184; padding: 8px 0 12px; background: #fffdf8; }
 </style>

@@ -1,13 +1,29 @@
 <view class="fb-page">
+  <!-- 【书卷改版 2026-11-16】米白纸底 · 宋体标题 · 朱砂印章 -->
   <view class="fb-hero">
-    <view>
+    <view class="fb-hero-text">
       <view class="fb-hero-title">法布施</view>
       <view class="fb-hero-sub">读书 · 心得 · 正能量</view>
     </view>
-    <view class="fb-hero-actions">
-      <view class="fb-hero-btn ghost" bindtap="refresh">刷新</view>
-      <view class="fb-hero-btn solid" bindtap="goUpload" wx:if="{{canCreate}}">＋ 上传</view>
+    <view class="fb-hero-right">
+      <view class="fb-seal">布施</view>
+      <view class="fb-hero-actions">
+        <view class="fb-hero-btn ghost" bindtap="refresh">刷新</view>
+        <view class="fb-hero-btn solid" bindtap="goUpload" wx:if="{{canCreate}}">＋ 上传</view>
+      </view>
     </view>
+  </view>
+
+  <!-- 在读卡: 书架第一本"在读"→ 继续读直达 -->
+  <view wx:if="{{readingBook}}" class="reading-card" bindtap="goReadReading">
+    <view class="reading-spine"></view>
+    <view class="reading-main">
+      <view class="reading-kicker">继续阅读</view>
+      <view class="reading-title">{{readingBook.title}}</view>
+      <view class="reading-meta">读到第 {{readingBook.lastPage || 1}} 页<text wx:if="{{readingBook.totalPages}}"> · {{readingBook.progress || 0}}%</text></view>
+      <view class="reading-progress"><view style="width: {{readingBook.progress || 0}}%;"></view></view>
+    </view>
+    <view class="reading-go">翻开 ›</view>
   </view>
 
   <view class="me-strip">

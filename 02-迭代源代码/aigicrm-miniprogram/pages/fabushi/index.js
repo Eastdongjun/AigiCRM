@@ -29,7 +29,8 @@ Page({
     team: null,
     teamRanking: [],
     deptProgress: [],
-    monthly: {}
+    monthly: {},
+    readingBook: null
   },
 
   onPermissionChanged() {
@@ -50,6 +51,7 @@ Page({
     }
     this.setData({ canCreate: hasPermission('fabushi:create'), hasView: true })
     this.loadAll()
+    this.refreshReading()
   },
 
   onShow() {
@@ -62,6 +64,27 @@ Page({
     }
     this.setData({ canCreate: hasPermission('fabushi:create'), hasView: true })
     this.loadPersonal()
+    this.refreshReading() // 【书卷改版 2026-11-16】从阅读器返回时刷新在读卡进度
+  },
+
+  // 【书卷改版 2026-11-16】在读卡: 书架中第一本"在读"→ 工作台首屏"继续读"直达
+  refreshReading() {
+    getFabushiShelf().then((res) => {
+      const rows = (res && res.records) || []
+      const reading = rows.find((x) => x.status === 'reading') || rows[0] || null
+      this.setData({
+        readingBook: reading ? {
+          ...reading,
+          progress: reading.totalPages ? Math.min(100, Math.round(Number(reading.lastPage || 1) * 100 / Number(reading.totalPages))) : 0
+        } : null
+      })
+    }).catch(() => {})
+  },
+
+  goReadReading() {
+    const b = this.data.readingBook
+    if (!b) return
+    this.goShelfBook({ currentTarget: { dataset: { id: b.bookId } } })
   },
 
   loadAll() {

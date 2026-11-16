@@ -1,11 +1,14 @@
-.fb-tabs { display: flex; background: #fff; padding: 16rpx 24rpx; position: sticky; top: 0; z-index: 2; }
-.fb-tab { flex: 1; text-align: center; padding: 14rpx 0; font-size: 28rpx; color: #606266; border-radius: 999rpx; }
-.fb-tab.active { background: #1d4ed8; color: #fff; font-weight: 600; }
+/* 【书卷改版 2026-11-16】内容流页: 纸色底/书签舌头页签/墨绿 FAB */
+page { background: #f7f3ec; }
+.fb-tabs { display: flex; background: #fffdf8; padding: 16rpx 24rpx; position: sticky; top: 0; z-index: 2; border-bottom: 1rpx solid #e8e0d3; }
+.fb-tab { flex: 1; text-align: center; padding: 14rpx 0; font-size: 28rpx; color: #9c9184; }
+.fb-tab.active { color: #2d5a4a; font-family: 'Songti SC', 'STSong', serif; font-weight: 800; }
 .fb-list { padding: 16rpx; }
-.fb-card { background: #fff; border-radius: 16rpx; padding: 24rpx; margin-bottom: 16rpx; }
-.fb-card-title { font-size: 30rpx; font-weight: 600; color: #1f2d3d; }
-.fb-card-content { font-size: 26rpx; color: #4b5563; line-height: 1.6; margin-top: 12rpx; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-.fb-card-meta { display: flex; justify-content: space-between; font-size: 22rpx; color: #9aa4b2; margin-top: 16rpx; }
-.fb-card-stats { display: flex; gap: 28rpx; font-size: 24rpx; color: #6b7280; margin-top: 12rpx; }
-.fb-empty, .fb-loading, .fb-end { text-align: center; color: #9aa4b2; font-size: 24rpx; padding: 40rpx 0; }
-.fb-fab { position: fixed; right: 36rpx; bottom: 120rpx; width: 96rpx; height: 96rpx; border-radius: 50%; background: #1d4ed8; color: #fff; font-size: 52rpx; line-height: 96rpx; text-align: center; box-shadow: 0 10rpx 30rpx rgba(29,78,216,.35); }
+.fb-card { position: relative; background: #fffdf8; border: 1rpx solid #e8e0d3; border-radius: 16rpx; padding: 24rpx 24rpx 24rpx 30rpx; margin-bottom: 16rpx; overflow: hidden; }
+.fb-card::before { content: ''; position: absolute; left: 0; top: 20rpx; bottom: 20rpx; width: 6rpx; border-radius: 0 4rpx 4rpx 0; background: #d9cdb8; }
+.fb-card-title { font-family: 'Songti SC', 'STSong', serif; font-size: 30rpx; font-weight: 700; color: #2e2a24; }
+.fb-card-content { font-size: 26rpx; color: #6b6257; line-height: 1.7; margin-top: 12rpx; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.fb-card-meta { display: flex; justify-content: space-between; font-size: 22rpx; color: #9c9184; margin-top: 16rpx; }
+.fb-card-stats { display: flex; gap: 28rpx; font-size: 24rpx; color: #a67c52; margin-top: 12rpx; }
+.fb-empty, .fb-loading, .fb-end { text-align: center; color: #9c9184; font-size: 24rpx; padding: 40rpx 0; }
+.fb-fab { position: fixed; right: 36rpx; bottom: 120rpx; width: 96rpx; height: 96rpx; border-radius: 50%; background: #b5543a; color: #fff7ee; font-size: 52rpx; line-height: 96rpx; text-align: center; box-shadow: 0 10rpx 26rpx rgba(181, 84, 58, .32); }

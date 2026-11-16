@@ -1,81 +1,127 @@
+/* 【书卷改版 2026-11-16】法布施专属书卷暖色语言(页面级隔离, 不动 app.wxss):
+   纸色 #f7f3ec / 卡 #fffdf8 / 边 #e8e0d3 / 墨绿 #2d5a4a / 朱砂 #b5543a / 金褐 #a67c52
+   文字: 墨 #2e2a24 / 次 #6b6257 / 弱 #9c9184; 标题宋体衬线 */
+page { background: #f7f3ec; }
 .fb-page { padding: 24rpx 24rpx 150rpx; box-sizing: border-box; }
-.fb-hero { display: flex; justify-content: space-between; align-items: flex-start; padding: 26rpx 28rpx; border-radius: 26rpx; color: #fff; background: linear-gradient(135deg, #0d1733 0%, #16337a 58%, #1d4ed8 100%); box-shadow: 0 12rpx 28rpx rgba(13, 23, 51, .18); }
-.fb-hero-title { font-size: 38rpx; font-weight: 800; }
-.fb-hero-sub { margin-top: 6rpx; font-size: 22rpx; opacity: .82; }
-.fb-hero-actions { display: flex; gap: 10rpx; }
-.fb-hero-btn { padding: 8rpx 16rpx; border-radius: 20rpx; font-size: 22rpx; }
-.fb-hero-btn.ghost { color: #fff; border: 1rpx solid rgba(255,255,255,.35); background: rgba(255,255,255,.12); }
-.fb-hero-btn.solid { color: #1d4ed8; background: #fff; font-weight: 700; }
-.me-strip { display: flex; margin-top: 18rpx; padding: 20rpx 8rpx; border-radius: 22rpx; background: #fff; box-shadow: 0 8rpx 24rpx rgba(41,72,125,.07); }
+
+/* ===== 书卷头 ===== */
+.fb-hero { display: flex; justify-content: space-between; align-items: center; padding: 30rpx 30rpx; border: 1rpx solid #e8e0d3; border-radius: 22rpx; background: linear-gradient(165deg, #fffdf8 0%, #f9f2e4 100%); }
+.fb-hero-text { min-width: 0; }
+.fb-hero-title { font-family: 'Songti SC', 'STSong', serif; color: #2e2a24; font-size: 44rpx; font-weight: 900; letter-spacing: 4rpx; }
+.fb-hero-sub { margin-top: 8rpx; color: #a67c52; font-size: 22rpx; letter-spacing: 2rpx; }
+.fb-hero-right { display: flex; align-items: center; gap: 16rpx; }
+.fb-seal { display: flex; align-items: center; justify-content: center; width: 74rpx; height: 74rpx; border-radius: 12rpx; color: #fff7ee; background: #b5543a; font-family: 'Songti SC', 'STSong', serif; font-size: 26rpx; font-weight: 700; line-height: 1.05; text-align: center; box-shadow: inset 0 0 0 3rpx rgba(255, 247, 238, .35); transform: rotate(3deg); }
+.fb-hero-actions { display: flex; flex-direction: column; gap: 8rpx; }
+.fb-hero-btn { padding: 8rpx 18rpx; border-radius: 999rpx; font-size: 21rpx; text-align: center; }
+.fb-hero-btn.ghost { color: #6b6257; border: 1rpx solid #d8cdbb; background: transparent; }
+.fb-hero-btn.solid { color: #fff7ee; background: #2d5a4a; font-weight: 600; }
+
+/* ===== 在读卡(继续读) ===== */
+.reading-card { display: flex; align-items: center; gap: 16rpx; margin-top: 18rpx; padding: 22rpx 24rpx; border: 1rpx solid #dfe8df; border-radius: 20rpx; background: #eef3ee; }
+.reading-spine { width: 8rpx; align-self: stretch; border-radius: 4rpx; background: linear-gradient(#2d5a4a, #5a8a6e); }
+.reading-main { flex: 1; min-width: 0; }
+.reading-kicker { color: #2d5a4a; font-size: 19rpx; letter-spacing: 3rpx; font-weight: 600; }
+.reading-title { margin-top: 4rpx; color: #2e2a24; font-family: 'Songti SC', 'STSong', serif; font-size: 30rpx; font-weight: 700; }
+.reading-meta { margin-top: 5rpx; color: #6b6257; font-size: 20rpx; }
+.reading-progress { height: 8rpx; margin-top: 10rpx; border-radius: 99rpx; background: #dbe6dc; overflow: hidden; }
+.reading-progress view { height: 100%; border-radius: 99rpx; background: linear-gradient(90deg, #2d5a4a, #5a8a6e); }
+.reading-go { flex-shrink: 0; padding: 12rpx 20rpx; border-radius: 999rpx; color: #fff7ee; background: #b5543a; font-size: 22rpx; font-weight: 600; }
+
+/* ===== 我的条带 ===== */
+.me-strip { display: flex; margin-top: 18rpx; padding: 20rpx 8rpx; border: 1rpx solid #e8e0d3; border-radius: 18rpx; background: #fffdf8; }
 .me-cell { flex: 1; text-align: center; }
-.me-num { display: block; color: #14213d; font-size: 32rpx; font-weight: 800; }
-.me-label { display: block; margin-top: 4rpx; color: #94a3b8; font-size: 20rpx; }
-.mobile-tabs { display: flex; gap: 6rpx; margin: 20rpx 0 16rpx; padding: 5rpx; border-radius: 20rpx; background: #eef2f8; }
-.mobile-tab { flex: 1; padding: 14rpx 0; border-radius: 16rpx; color: #64748b; font-size: 23rpx; text-align: center; font-weight: 600; }
-.mobile-tab.active { color: #fff; background: linear-gradient(135deg, #16337a, #1d4ed8 58%, #2563eb); box-shadow: 0 6rpx 16rpx rgba(29,78,216,.24); }
-.phase-chip { display: inline-block; margin-left: 4rpx; padding: 1rpx 7rpx; border-radius: 8rpx; color: #64748b; background: rgba(255,255,255,.78); font-size: 17rpx; font-weight: 500; }
-.mobile-tab.active .phase-chip { color: #1d4ed8; }
-.card { margin-bottom: 14rpx; padding: 22rpx; border-radius: 22rpx; background: #fff; box-shadow: 0 8rpx 24rpx rgba(41,72,125,.07); }
+.me-num { display: block; color: #2e2a24; font-family: 'Songti SC', 'STSong', serif; font-size: 34rpx; font-weight: 800; }
+.me-label { display: block; margin-top: 4rpx; color: #9c9184; font-size: 20rpx; }
+
+/* ===== 书签舌头页签 ===== */
+.mobile-tabs { display: flex; gap: 4rpx; margin: 22rpx 0 16rpx; padding: 0; border-bottom: 2rpx solid #e0d5c2; }
+.mobile-tab { flex: 1; position: relative; padding: 16rpx 0 14rpx; color: #9c9184; font-size: 24rpx; text-align: center; font-weight: 500; }
+.mobile-tab.active { color: #2d5a4a; font-family: 'Songti SC', 'STSong', serif; font-weight: 800; }
+.mobile-tab.active::before { content: ''; position: absolute; left: 20%; right: 20%; top: -2rpx; height: 6rpx; border-radius: 3rpx 3rpx 0 0; background: #2d5a4a; }
+.mobile-tab.active::after { content: ''; position: absolute; left: 12rpx; right: 12rpx; bottom: 0; height: 8rpx; border-radius: 4rpx 4rpx 0 0; background: #fffdf8; }
+.phase-chip { display: inline-block; margin-left: 4rpx; padding: 1rpx 7rpx; border-radius: 8rpx; color: #a67c52; background: #f4ede0; font-size: 17rpx; font-weight: 500; }
+.mobile-tab.active .phase-chip { color: #b5543a; background: #f8e9e0; }
+
+/* ===== 卡片基底 ===== */
+.card { margin-bottom: 14rpx; padding: 22rpx; border: 1rpx solid #e8e0d3; border-radius: 18rpx; background: #fffdf8; box-shadow: 0 3rpx 10rpx rgba(90, 74, 51, .04); }
 .search-card { padding: 14rpx; }
 .search-input-wrap { display: flex; align-items: center; gap: 10rpx; }
-.search-input { flex: 1; height: 64rpx; padding: 0 18rpx; border: 1rpx solid #dbe5f1; border-radius: 16rpx; background: #f8fbff; color: #334155; font-size: 23rpx; }
-.search-btn { padding: 12rpx 20rpx; border-radius: 16rpx; color: #fff; background: #1d4ed8; font-size: 22rpx; }
-.recommend-card { display: flex; align-items: center; gap: 14rpx; }
-.cover { display: flex; align-items: center; justify-content: center; width: 62rpx; height: 84rpx; flex-shrink: 0; padding: 6rpx; border-radius: 12rpx; color: #fff; background: linear-gradient(160deg, #1d4ed8, #16337a); font-size: 18rpx; line-height: 1.2; text-align: center; }
+.search-input { flex: 1; height: 64rpx; padding: 0 18rpx; border: 1rpx solid #e0d5c2; border-radius: 14rpx; background: #faf6ee; color: #2e2a24; font-size: 23rpx; }
+.search-btn { padding: 12rpx 20rpx; border-radius: 14rpx; color: #fff7ee; background: #2d5a4a; font-size: 22rpx; }
+
+/* 今日推荐: 书封横条 */
+.recommend-card { display: flex; align-items: center; gap: 16rpx; }
+.cover { display: flex; align-items: center; justify-content: center; width: 66rpx; height: 90rpx; flex-shrink: 0; padding: 6rpx; border: 1rpx solid #2d5a4a; border-radius: 6rpx 12rpx 12rpx 6rpx; color: #f3ead9; background: linear-gradient(160deg, #356350, #24443a); font-family: 'Songti SC', 'STSong', serif; font-size: 18rpx; line-height: 1.25; text-align: center; box-shadow: 3rpx 3rpx 0 #d9cdb8; }
 .recommend-main { flex: 1; min-width: 0; }
-.recommend-title { color: #14213d; font-size: 25rpx; font-weight: 800; }
-.recommend-meta { margin-top: 7rpx; color: #64748b; font-size: 21rpx; }
-.mini-action { flex-shrink: 0; padding: 9rpx 16rpx; border-radius: 14rpx; color: #1d4ed8; background: #eef5ff; font-size: 21rpx; }
-.feed-card { padding: 20rpx 22rpx; }
+.recommend-title { color: #2e2a24; font-family: 'Songti SC', 'STSong', serif; font-size: 26rpx; font-weight: 700; }
+.recommend-meta { margin-top: 7rpx; color: #9c9184; font-size: 21rpx; }
+.mini-action { flex-shrink: 0; padding: 9rpx 18rpx; border-radius: 999rpx; color: #b5543a; border: 1rpx solid #e5c9b8; background: #faf1e8; font-size: 21rpx; }
+
+/* 共读活动 */
+.stats-title { position: relative; padding-left: 18rpx; color: #2e2a24; font-family: 'Songti SC', 'STSong', serif; font-size: 28rpx; font-weight: 800; }
+.stats-title::before { content: ''; position: absolute; left: 0; top: 6rpx; bottom: 6rpx; width: 6rpx; border-radius: 3rpx; background: #b5543a; }
+.activity-row { display: flex; align-items: center; gap: 12rpx; padding: 14rpx 0; border-bottom: 1rpx dashed #e8e0d3; }
+.activity-row:last-child { border-bottom: 0; }
+.activity-row > view { flex: 1; }
+.activity-joined { color: #9c9184; font-size: 20rpx; }
+
+/* 内容流: 书签式卡片 */
+.feed-card { position: relative; padding: 20rpx 22rpx 20rpx 26rpx; overflow: hidden; }
+.feed-card::before { content: ''; position: absolute; left: 0; top: 18rpx; bottom: 18rpx; width: 6rpx; border-radius: 0 4rpx 4rpx 0; background: #d9cdb8; }
 .feed-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10rpx; }
-.feed-title { flex: 1; color: #14213d; font-size: 25rpx; font-weight: 700; line-height: 1.45; }
-.feed-time { flex-shrink: 0; color: #94a3b8; font-size: 19rpx; }
-.type-tag { display: inline-block; margin-right: 8rpx; padding: 1rpx 7rpx; border-radius: 7rpx; font-size: 18rpx; font-weight: 500; }
-.type-tag.heart { color: #1d4ed8; background: #eef5ff; }
-.type-tag.recitation { color: #047857; background: #e7f6ee; }
-.type-tag.znl { color: #b45309; background: #fff4e5; }
-.feed-summary { margin-top: 9rpx; color: #475569; font-size: 24rpx; line-height: 1.65; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.feed-meta { display: flex; align-items: center; gap: 18rpx; margin-top: 12rpx; color: #94a3b8; font-size: 20rpx; }
+.feed-title { flex: 1; color: #2e2a24; font-family: 'Songti SC', 'STSong', serif; font-size: 26rpx; font-weight: 700; line-height: 1.45; }
+.feed-time { flex-shrink: 0; color: #9c9184; font-size: 19rpx; }
+.type-tag { display: inline-block; margin-right: 8rpx; padding: 2rpx 9rpx; border-radius: 6rpx; font-size: 18rpx; font-weight: 500; }
+.type-tag.heart { color: #2d5a4a; background: #e4efe6; }
+.type-tag.recitation { color: #a67c52; background: #f4ead9; }
+.type-tag.znl { color: #b5543a; background: #f8e9e0; }
+.feed-summary { margin-top: 9rpx; color: #6b6257; font-size: 24rpx; line-height: 1.7; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.feed-meta { display: flex; align-items: center; gap: 18rpx; margin-top: 12rpx; color: #9c9184; font-size: 20rpx; }
 .feed-meta .read { margin-left: auto; }
-.feed-meta .read.unread { color: #ef4444; }
-.feed-meta .read.done { color: #1d4ed8; }
-.empty { padding: 40rpx 0; color: #94a3b8; font-size: 23rpx; text-align: center; }
+.feed-meta .read.unread { color: #b5543a; }
+.feed-meta .read.done { color: #2d5a4a; }
+
+/* 空态 */
+.empty { padding: 40rpx 0; color: #9c9184; font-size: 23rpx; text-align: center; }
 .ghost-panel { padding: 28rpx 24rpx; }
-.ghost-title { color: #334155; font-size: 25rpx; font-weight: 700; }
-.ghost-sub { margin-top: 10rpx; color: #94a3b8; font-size: 21rpx; line-height: 1.65; }
+.ghost-title { color: #6b6257; font-size: 25rpx; font-weight: 700; }
+.ghost-sub { margin-top: 10rpx; color: #9c9184; font-size: 21rpx; line-height: 1.65; }
+
+/* 书架: 书脊列表 */
+.shelf-item { display: flex; align-items: center; gap: 16rpx; padding: 18rpx; }
+.shelf-main { flex: 1; min-width: 0; }
+.shelf-title { color: #2e2a24; font-family: 'Songti SC', 'STSong', serif; font-size: 25rpx; font-weight: 700; }
+.shelf-meta { margin-top: 5rpx; color: #9c9184; font-size: 20rpx; }
+.shelf-progress { height: 7rpx; margin-top: 10rpx; border-radius: 99rpx; background: #efe7d8; overflow: hidden; }
+.shelf-progress view { height: 100%; border-radius: 99rpx; background: linear-gradient(90deg, #2d5a4a, #5a8a6e); }
+.shelf-status { flex-shrink: 0; color: #2d5a4a; font-size: 20rpx; }
+
+/* 阅读记录 */
+.rec-head { display: flex; justify-content: space-between; color: #2e2a24; font-size: 24rpx; font-weight: 700; }
+.rec-sum { color: #9c9184; font-size: 21rpx; font-weight: 400; }
+.rec-row { display: flex; justify-content: space-between; padding: 12rpx 0; border-bottom: 1rpx dashed #e8e0d3; color: #6b6257; font-size: 22rpx; }
+.rec-row:last-child { border-bottom: 0; }
+.rec-row b { color: #2d5a4a; }
+
+/* 统计 */
 .stats-panel { padding: 24rpx; }
-.stats-title { color: #14213d; font-size: 27rpx; font-weight: 800; }
 .stats-grid { display: flex; margin-top: 18rpx; }
 .stats-cell { flex: 1; text-align: center; }
-.stats-num { display: block; color: #14213d; font-size: 34rpx; font-weight: 800; }
-.stats-label { display: block; margin-top: 5rpx; color: #94a3b8; font-size: 20rpx; }
+.stats-num { display: block; color: #2d5a4a; font-family: 'Songti SC', 'STSong', serif; font-size: 36rpx; font-weight: 800; }
+.stats-label { display: block; margin-top: 5rpx; color: #9c9184; font-size: 20rpx; }
+.stats-link { margin-top: 16rpx; color: #b5543a; font-size: 22rpx; text-align: right; }
+.team-sum { margin-top: 10rpx; color: #6b6257; font-size: 21rpx; }
+.rank-row { display: flex; align-items: center; gap: 10rpx; padding: 12rpx 0; border-bottom: 1rpx dashed #e8e0d3; color: #6b6257; font-size: 22rpx; }
+.rank-row:last-child { border-bottom: 0; }
+.rank-no { width: 30rpx; color: #b5543a; font-family: 'Songti SC', 'STSong', serif; font-weight: 700; }
+.rank-name { width: 120rpx; color: #2e2a24; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rank-dept { flex: 1; color: #9c9184; font-size: 19rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 底部入口 */
 .fb-entries { margin-top: 10rpx; }
-.fb-entry { display: flex; align-items: center; margin-bottom: 12rpx; padding: 20rpx 22rpx; border-radius: 20rpx; background: #fff; box-shadow: 0 6rpx 18rpx rgba(41,72,125,.05); }
-.fb-entry-icon { display: flex; align-items: center; justify-content: center; width: 54rpx; height: 54rpx; margin-right: 14rpx; border-radius: 16rpx; color: #1d4ed8; background: #eef5ff; font-size: 24rpx; font-weight: 700; }
+.fb-entry { display: flex; align-items: center; margin-bottom: 12rpx; padding: 20rpx 22rpx; border: 1rpx solid #e8e0d3; border-radius: 18rpx; background: #fffdf8; }
+.fb-entry-icon { display: flex; align-items: center; justify-content: center; width: 54rpx; height: 54rpx; margin-right: 14rpx; border-radius: 12rpx; color: #fff7ee; background: #2d5a4a; font-family: 'Songti SC', 'STSong', serif; font-size: 24rpx; font-weight: 700; }
 .fb-entry-body { flex: 1; }
-.fb-entry-title { color: #14213d; font-size: 25rpx; font-weight: 700; }
-.fb-entry-sub { margin-top: 4rpx; color: #94a3b8; font-size: 20rpx; }
-.fb-entry-arrow { color: #c0c8d4; font-size: 34rpx; }
-.shelf-item { display:flex; align-items:center; gap:14rpx; padding:18rpx; }
-.shelf-main { flex:1; min-width:0; }
-.shelf-title { color:#14213d; font-size:24rpx; font-weight:700; }
-.shelf-meta { margin-top:5rpx; color:#94a3b8; font-size:20rpx; }
-.shelf-progress { height:6rpx; margin-top:9rpx; border-radius:99rpx; background:#eef2f8; overflow:hidden; }
-.shelf-progress view { height:100%; background:#1d4ed8; border-radius:99rpx; }
-.shelf-status { flex-shrink:0; color:#1d4ed8; font-size:20rpx; }
-.rec-head { display:flex; justify-content:space-between; color:#14213d; font-size:24rpx; font-weight:700; }
-.rec-sum { color:#64748b; font-size:21rpx; font-weight:400; }
-.rec-row { display:flex; justify-content:space-between; padding:12rpx 0; border-bottom:1rpx solid #eef2f7; color:#64748b; font-size:22rpx; }
-.rec-row:last-child { border-bottom:0; }
-.rec-row b { color:#14213d; }
-.stats-link { margin-top:16rpx; color:#1d4ed8; font-size:22rpx; text-align:right; }
-.team-sum { margin-top:10rpx; color:#64748b; font-size:21rpx; }
-.rank-row { display:flex; align-items:center; gap:10rpx; padding:12rpx 0; border-bottom:1rpx solid #eef2f7; color:#475569; font-size:22rpx; }
-.rank-row:last-child { border-bottom:0; }
-.rank-no { width:30rpx; color:#1d4ed8; font-weight:700; }
-.rank-name { width:120rpx; color:#14213d; font-weight:600; }
-.rank-dept { flex:1; color:#94a3b8; font-size:19rpx; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.activity-row { display:flex; align-items:center; gap:12rpx; padding:14rpx 0; border-bottom:1rpx solid #eef2f7; }
-.activity-row:last-child { border-bottom:0; }
-.activity-row > view { flex:1; }
-.activity-joined { color:#94a3b8; font-size:20rpx; }
+.fb-entry-title { color: #2e2a24; font-size: 25rpx; font-weight: 700; }
+.fb-entry-sub { margin-top: 4rpx; color: #9c9184; font-size: 20rpx; }
+.fb-entry-arrow { color: #c9bda6; font-size: 34rpx; }
