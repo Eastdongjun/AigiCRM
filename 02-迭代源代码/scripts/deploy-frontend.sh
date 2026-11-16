@@ -229,6 +229,21 @@ REMOTE_RESTORE
 fi
 echo "✅ 公网首页/入口资源/健康检查通过"
 
+echo "=== [5b/6] 静态资源保留策略（默认 7 天 + 清理 AppleDouble） ==="
+# 【2026-11-17】生产 assets 累积 5000+ 文件/102MB：每次发布只增不删。
+# 保留最近 ASSET_RETENTION_DAYS 天（默认 7），更老的 hash 资源删除；当前构建均为新文件，不受影响。
+ASSET_RETENTION_DAYS="${ASSET_RETENTION_DAYS:-7}"
+ssh_prod "
+  set -e
+  cd '$NAS_DIST_DIR/assets'
+  AD=\$(find . -maxdepth 1 -name '._*' | wc -l)
+  OLD=\$(find . -type f ! -name '._*' -mtime +$ASSET_RETENTION_DAYS | wc -l)
+  find . -maxdepth 1 -name '._*' -delete
+  find . -type f ! -name '._*' -mtime +$ASSET_RETENTION_DAYS -delete
+  REMAIN=\$(ls | wc -l)
+  echo \"静态资源清理: appledouble=\$AD 过期(>${ASSET_RETENTION_DAYS}d)=\$OLD 剩余=\$REMAIN\"
+"
+
 echo "=== [6/6] 部署记录 ==="
 ssh_prod "echo \"$(date +%Y-%m-%d\ %H:%M:%S) frontend deploy commit=$COMMIT entry=$ENTRY\" >> $DEPLOY_DIR/deploy.log"
 echo "✅ 前端部署完成 (commit: $COMMIT, backup: $BACKUP_DIR)"
