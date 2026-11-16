@@ -167,11 +167,16 @@ public class PermCenterService {
         data.put("fileGrants", fileGrants);
 
         // 【T8】菜单可见性: 该用户 role_menu 可见菜单行(名称/路径/类型), 与侧栏渲染同源(status=1)
+        // 【D1 修复 2026-11-16】ORDER BY 的 sort_order/id 不在 SELECT 列表 → MySQL 3065
+        // (DISTINCT 与排序列必须同列表)。包一层派生表：内层去重并携带排序列，外层只回传
+        // menu_name/path/menu_type 保持响应结构不变。
         List<Map<String, Object>> menus = jdbc.queryForList(
-                "SELECT DISTINCT m.menu_name, m.path, m.menu_type FROM sys_menu m " +
+                "SELECT t.menu_name, t.path, t.menu_type FROM (" +
+                "SELECT DISTINCT m.menu_name, m.path, m.menu_type, m.sort_order, m.id FROM sys_menu m " +
                 "JOIN sys_role_menu rm ON rm.menu_id = m.id " +
                 "JOIN sys_user_role ur ON ur.role_id = rm.role_id " +
-                "WHERE ur.user_id = ? AND m.status = 1 ORDER BY m.sort_order, m.id", userId);
+                "WHERE ur.user_id = ? AND m.status = 1" +
+                ") t ORDER BY t.sort_order, t.id", userId);
         Map<String, Object> menuVisibility = new LinkedHashMap<>();
         menuVisibility.put("menuCount", menus.size());
         menuVisibility.put("menus", menus);

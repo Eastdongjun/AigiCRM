@@ -888,12 +888,22 @@ public class CustomerService {
         }
     }
 
-    /** 根据自动共享规则扩展可见的 owner ID */
+    /** 根据自动共享规则扩展可见的 owner ID（当前登录人；与测试/既有调用同一静态入口） */
     private List<Long> getAutoShareOwnerIds() {
-        Map<String, Object> cfg = getAutoShareConfig();
-        if (cfg.isEmpty()) return java.util.Collections.emptyList();
+        return getAutoShareOwnerIdsCore(SecurityUtils.getCurrentUserId(),
+                SecurityUtils.getCurrentRoleCodes(), SecurityUtils.getCurrentOrgId());
+    }
 
-        Long currentUserId = SecurityUtils.getCurrentUserId();
+    /** 【D2 修复】auto_share 口径按"指定用户"计算，供预览复用执行侧同链路。 */
+    private List<Long> getAutoShareOwnerIdsFor(com.aigicrm.security.SecurityUser scopeUser) {
+        return scopeUser == null ? java.util.Collections.emptyList()
+                : getAutoShareOwnerIdsCore(scopeUser.getUserId(), scopeUser.getRoleCodes(), scopeUser.getOrgId());
+    }
+
+    /** auto_share 核心：显式入参（本人/角色/组织），当前用户与预览用户共用。 */
+    private List<Long> getAutoShareOwnerIdsCore(Long currentUserId, java.util.List<String> currentRoles, Long orgId) {
+        Map<String, Object> cfg = getAutoShareConfig();
+        if (cfg.isEmpty() || currentUserId == null) return java.util.Collections.emptyList();
         java.util.Set<Long> ownerIds = new java.util.LinkedHashSet<>();
         ownerIds.add(currentUserId);
 
@@ -912,11 +922,9 @@ public class CustomerService {
         // 规则3: 指定角色 → 看到同组织内所有用户
         Object rolesObj = cfg.get("roles");
         if (rolesObj instanceof java.util.List && !((java.util.List<?>)rolesObj).isEmpty()) {
-            java.util.List<String> currentRoles = SecurityUtils.getCurrentRoleCodes();
             for (Object r : (java.util.List<?>)rolesObj) {
                 String roleId = String.valueOf(r);
-                if (currentRoles.contains(roleId)) {
-                    Long orgId = SecurityUtils.getCurrentOrgId();
+                if (currentRoles != null && currentRoles.contains(roleId)) {
                     if (orgId != null) {
                         java.util.List<SysUser> orgUsers = userMapper.selectList(
                             new LambdaQueryWrapper<SysUser>()
@@ -965,14 +973,9 @@ public class CustomerService {
         return null;
     }
 
-    /** 在客户查询时追加自动共享范围 */
+    /** 在客户查询时追加自动共享范围（当前登录人） */
     private void applyAutoShare(LambdaQueryWrapper<BizCustomer> wrapper) {
-        // 【F18 复审 2026-10-13】auto_share 未配置时零成本直退(此前会先付一次 scope 解析成本)
         if (getAutoShareConfig().isEmpty()) return;
-        // 【F18 2026-10-13】数据范围为 all(本集团全量)的用户不再被 auto_share 收窄:
-        // auto_share 各规则(superior/roles)本意是给数据范围受限的用户扩大可见, 对已全量可见的用户
-        // 只剩收窄副作用——roles 的"同组织互看"曾把 dataScope=all 的销售总监从全量 285 收窄到组织 16 条,
-        // 与工作台/统计(纯 dataScope 口径)自相矛盾。与 admin 规则同型豁免。
         if (isDataScopeAll()) return;
         java.util.List<Long> shareOwnerIds = getAutoShareOwnerIds();
         if (shareOwnerIds.isEmpty()) return;
@@ -980,9 +983,29 @@ public class CustomerService {
         wrapper.in(BizCustomer::getOwnerId, shareOwnerIds);
     }
 
+    /** 【D2 修复】auto_share 按指定用户生效，与列表同一实现。 */
+    private void applyAutoShareFor(LambdaQueryWrapper<BizCustomer> wrapper, com.aigicrm.security.SecurityUser scopeUser) {
+        if (scopeUser == null) return;
+        // 【F18 复审 2026-10-13】auto_share 未配置时零成本直退(此前会先付一次 scope 解析成本)
+        if (getAutoShareConfig().isEmpty()) return;
+        // 【F18 2026-10-13】数据范围为 all(本集团全量)的用户不再被 auto_share 收窄:
+        // auto_share 各规则(superior/roles)本意是给数据范围受限的用户扩大可见, 对已全量可见的用户
+        // 只剩收窄副作用——roles 的"同组织互看"曾把 dataScope=all 的销售总监从全量 285 收窄到组织 16 条,
+        // 与工作台/统计(纯 dataScope 口径)自相矛盾。与 admin 规则同型豁免。
+        if (isDataScopeAllFor(scopeUser)) return;
+        java.util.List<Long> shareOwnerIds = getAutoShareOwnerIdsFor(scopeUser);
+        if (shareOwnerIds.isEmpty()) return;
+        if (shareOwnerIds.size() <= 1) return;
+        wrapper.in(BizCustomer::getOwnerId, shareOwnerIds);
+    }
+
     /** 客户查看范围的统一解析请求(F18 复审: isDataScopeAll 与 applyDataScope 共用, 消除复制粘贴口径分裂) */
     private com.aigicrm.common.scope.ScopeRequest buildCustomerViewScopeRequest() {
-        var scopeUser = SecurityUtils.getCurrentUser();
+        return buildCustomerViewScopeRequest(SecurityUtils.getCurrentUser());
+    }
+
+    /** 【D2 修复 2026-11-16】同一解析请求支持"指定用户"（预览复用执行侧口径，不再各写一套）。 */
+    private com.aigicrm.common.scope.ScopeRequest buildCustomerViewScopeRequest(com.aigicrm.security.SecurityUser scopeUser) {
         if (scopeUser == null) return null;
         return com.aigicrm.common.scope.ScopeRequest.builder()
                 .user(scopeUser)
@@ -995,6 +1018,11 @@ public class CustomerService {
     /** 当前用户客户查看范围是否为全量(all); admin 恒全量。与 applyDataScope 同一解析链路 */
     private boolean isDataScopeAll() {
         com.aigicrm.common.scope.ScopeRequest req = buildCustomerViewScopeRequest();
+        return req != null && scopeResolver.resolveScope(req).isAll();
+    }
+
+    private boolean isDataScopeAllFor(com.aigicrm.security.SecurityUser scopeUser) {
+        com.aigicrm.common.scope.ScopeRequest req = buildCustomerViewScopeRequest(scopeUser);
         return req != null && scopeResolver.resolveScope(req).isAll();
     }
 
@@ -1031,26 +1059,13 @@ public class CustomerService {
      */
     public long countByScopeFor(com.aigicrm.security.SecurityUser target) {
         if (target == null) return 0;
+        // 【D2 修复 2026-11-16】旧实现自己拼 ScopeRequest，与列表路径(applyDataScope+autoShare+规则引擎)
+        // 是两套口径：TY005(data_scope_override=office) 预览 121 vs 列表 17。现改为复用执行侧同一方法，
+        // 预览数字=列表真实可见数（执行侧为准）。
         LambdaQueryWrapper<BizCustomer> w = new LambdaQueryWrapper<>();
         w.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", "archived");
-        com.aigicrm.common.scope.ScopeRequest req = com.aigicrm.common.scope.ScopeRequest.builder()
-                .user(target)
-                .module("customer")
-                .action("view")
-                .anchor(rolePermScopeService.anchorOf(target, "customer", "view"))
-                .build();
-        com.aigicrm.common.scope.ScopeDecision d = scopeResolver.resolveScope(req);
-        if (!d.isAll()) {
-            if (req.getAnchor() == com.aigicrm.common.scope.ScopeRequest.AnchorType.ORG) {
-                java.util.List<Long> deptIds = d.getVisibleDeptIds();
-                if (deptIds != null && !deptIds.isEmpty()) w.in(BizCustomer::getDeptId, deptIds);
-                else w.eq(BizCustomer::getDeptId, -1L);
-            } else {
-                java.util.List<Long> userIds = d.getVisibleUserIds();
-                if (userIds != null && !userIds.isEmpty()) w.in(BizCustomer::getOwnerId, userIds);
-                else w.eq(BizCustomer::getOwnerId, -1L);
-            }
-        }
+        applyDataScopeFor(w, target);
+        applyAutoShareFor(w, target);
         return customerMapper.selectCount(w);
     }
 
@@ -1228,11 +1243,15 @@ public class CustomerService {
     // ====== 数据范围核心方法（升级版：支持组织层级） ======
 
     private void applyDataScope(LambdaQueryWrapper<BizCustomer> wrapper) {
+        applyDataScopeFor(wrapper, SecurityUtils.getCurrentUser());
+    }
+
+    /** 【D2 修复】数据范围按指定用户解析，预览计数与列表共用本方法。 */
+    private void applyDataScopeFor(LambdaQueryWrapper<BizCustomer> wrapper, com.aigicrm.security.SecurityUser scopeUser) {
         // 【批② 2026-08-10 统一数据访问层】列表/统计/导出统一走 OrgScopeResolver.resolveScope(ScopeRequest),
         // 与详情/编辑/删除判定(CustomerAccessService.canAccess)共用同一链路, 根治 P1-05 口径分裂。
         // 旧 dataScope switch(org/org_and_children/dept_and_children/custom 各分支)已整体删除,
         // 全部由统一层的 OWNER/ORG 双锚点解析取代; 未配置 role_perm_scope 时回退 dataScope 默认语义。
-        var scopeUser = SecurityUtils.getCurrentUser();
         if (scopeUser == null) {
             wrapper.eq(BizCustomer::getOwnerId, -1L);
             return;
@@ -1257,12 +1276,15 @@ public class CustomerService {
         }
 
         // 规则引擎：追加运行时 WHERE 条件（与统一层 AND 合并，追加条件层）
-        applyRuleEngineFilter(wrapper);
+        applyRuleEngineFilter(wrapper, scopeUser);
     }
 
     /** 注入权限规则引擎的 WHERE 条件（仅注入 target_entity='customer' 的规则） */
     private void applyRuleEngineFilter(LambdaQueryWrapper<BizCustomer> wrapper) {
-        var user = SecurityUtils.getCurrentUser();
+        applyRuleEngineFilter(wrapper, SecurityUtils.getCurrentUser());
+    }
+
+    private void applyRuleEngineFilter(LambdaQueryWrapper<BizCustomer> wrapper, com.aigicrm.security.SecurityUser user) {
         if (user == null || user.getPermissionRules() == null || user.getPermissionRules().isEmpty()) return;
         // 按 target_entity 过滤，只取 customer 的 column_filter/org_filter/time_range 规则
         String ruleWhere = PermissionRuleEngine.evaluateForEntity(user.getPermissionRules(), user, "customer");

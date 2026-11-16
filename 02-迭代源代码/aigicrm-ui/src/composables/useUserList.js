@@ -190,14 +190,29 @@ export function useUserList() {
   }
 
   const loadRoles = async () => {
+    // 【D3 修复 2026-11-16】角色下拉是可选数据：无 system:role:view 时不应发起请求
+    // （05 行政打开人员管理页会 403）；同时去掉原来的空 catch（吞异常）。
+    if (!userStore.hasPermission('system:role:view')) {
+      roles.value = []
+      return
+    }
     try {
       const res = await getRoleList()
       roles.value = res.data || []
-    } catch (e) {}
+    } catch (e) {
+      console.error('加载角色列表失败', e)
+      ElMessage.warning('角色列表加载失败，请刷新重试')
+    }
   }
 
   /** 【2026-08-11 岗位绑定】加载岗位下拉选项 */
   const loadPositions = async () => {
+    // 【D3 修复 2026-11-16】岗位下拉是可选数据：无 system:position:view 时不该发起请求，
+    // 否则 05 行政等角色打开人员管理页会收到 403 提示（2026-11-16 审计 D3）。
+    if (!userStore.hasPermission('system:position:view')) {
+      allPositions.value = []
+      return
+    }
     try {
       const res = await getPositionList()
       allPositions.value = res.data || []
