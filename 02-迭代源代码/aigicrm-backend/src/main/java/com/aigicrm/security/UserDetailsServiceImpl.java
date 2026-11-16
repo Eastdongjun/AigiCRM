@@ -172,13 +172,18 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         // 时抛 EmptyResultDataAccessException, 旧 catch 会把全部任职组织清空 → 新轨 MY_DEPT 变空。
         // 现异常只兜底主职, 不再清空任职列表。
         try {
+            // 【P1 修复 2026-11-17】原 SQL 用 SELECT DISTINCT + ORDER BY e.is_primary（非选列），
+            // MySQL 3065 使任职组织装载恒失败、登录时静默降级为"仅主职/空任职"。
+            // 改为派生表：内层 GROUP BY org_id 去重并携带 MAX(is_primary)，外层排序。
             java.util.List<Long> empOrgs = jdbc.queryForList(
-                    "SELECT DISTINCT e.org_id FROM sys_employment e " +
+                    "SELECT t.org_id FROM (" +
+                    "SELECT e.org_id, MAX(e.is_primary) AS is_primary FROM sys_employment e " +
                     "JOIN sys_dept d ON d.id = e.org_id AND d.status = 1 " +
                     "WHERE e.user_id = ? AND e.status = 1 " +
                     "AND (e.valid_from IS NULL OR e.valid_from <= CURDATE()) " +
                     "AND (e.valid_to IS NULL OR e.valid_to >= CURDATE()) " +
-                    "ORDER BY e.is_primary DESC, e.org_id", Long.class, uid);
+                    "GROUP BY e.org_id" +
+                    ") t ORDER BY t.is_primary DESC, t.org_id", Long.class, uid);
             securityUser.setEmploymentOrgIds(empOrgs);
             List<Long> primaries = jdbc.queryForList(
                     "SELECT e.org_id FROM sys_employment e WHERE e.user_id = ? AND e.is_primary = 1 AND e.status = 1 " +

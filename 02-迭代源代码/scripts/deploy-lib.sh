@@ -133,7 +133,7 @@ ssh_prod_once() {
 ssh_prod() {
   local _rc=0 _i
   for _i in 1 2 3; do
-    if ssh_prod_once "$@"; then return 0; fi
+    ssh_prod_once "$@" && return 0
     _rc=$?
     sleep 2
   done
@@ -160,7 +160,7 @@ ssh_test_once() {
 ssh_test() {
   local _rc=0 _i
   for _i in 1 2 3; do
-    if ssh_test_once "$@"; then return 0; fi
+    ssh_test_once "$@" && return 0
     _rc=$?
     sleep 2
   done
@@ -176,7 +176,7 @@ scp_prod_once() {
 scp_prod() {
   local _rc=0 _i
   for _i in 1 2 3; do
-    if scp_prod_once "$@"; then return 0; fi
+    scp_prod_once "$@" && return 0
     _rc=$?
     sleep 2
   done
@@ -201,7 +201,7 @@ scp_test_once() {
 scp_test() {
   local _rc=0 _i
   for _i in 1 2 3; do
-    if scp_test_once "$@"; then return 0; fi
+    scp_test_once "$@" && return 0
     _rc=$?
     sleep 2
   done
