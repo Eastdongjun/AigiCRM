@@ -14,7 +14,14 @@ fail() { echo "FAIL: $*" >&2; exit 1; }
 
 for permission in file:upload file:edit file:delete file:share; do
   grep -Fq "'$permission'" "$MIGRATION" || fail "migration missing $permission"
-  grep -Fq "hasAuthority('$permission')" "$CONTROLLER" || fail "controller missing $permission"
+  if [ "$permission" = "file:delete" ]; then
+    # 【2026-11-17 文件统一管理】法布施文件删除走独立 fabushi:file:delete；
+    # deleteFile 端点必须同时保留 file:delete，服务层再按 file_scope 分派。
+    grep -Eq "hasAnyAuthority\('file:delete','fabushi:file:delete'\)|hasAuthority\('file:delete'\)" "$CONTROLLER" \
+      || fail "controller missing file:delete"
+  else
+    grep -Fq "hasAuthority('$permission')" "$CONTROLLER" || fail "controller missing $permission"
+  fi
 done
 # 【2026-11-16 收敛】V2026.11.14.11 文件权限 v2 把文件夹三端点拆成
 # create/rename/delete 新码, 旧 file:folder:manage 作为兼容码与任一新码并列放行。
@@ -47,8 +54,13 @@ for pair in \
   "file:share|@PostMapping(\"/{id}/share\")"; do
   permission="${pair%%|*}"
   mapping="${pair#*|}"
-  grep -B1 -F "$mapping" "$CONTROLLER" | grep -Fq "hasAuthority('$permission')" \
-    || fail "controller mapping mismatch for $mapping -> $permission"
+  if [ "$permission" = "file:delete" ]; then
+    grep -B1 -F "$mapping" "$CONTROLLER" | grep -Eq "hasAnyAuthority\('file:delete','fabushi:file:delete'\)|hasAuthority\('file:delete'\)" \
+      || fail "controller mapping mismatch for $mapping -> $permission"
+  else
+    grep -B1 -F "$mapping" "$CONTROLLER" | grep -Fq "hasAuthority('$permission')" \
+      || fail "controller mapping mismatch for $mapping -> $permission"
+  fi
 done
 for pair in \
   "file:folder:create|@PostMapping(\"/folders\")" \
