@@ -74,8 +74,8 @@
       <view class="feed-summary">{{item.content}}</view>
       <view class="feed-meta">
         <text>{{item.userName || '法布施'}}</text>
-        <text>木鱼 {{item.likeCount || 0}}</text>
-        <text>评论 {{item.commentCount || 0}}</text>
+        <text>🐟 木鱼 {{item.likeCount || 0}}</text>
+        <text>💬 评论 {{item.commentCount || 0}}</text>
         <text class="read {{item.readByMe ? 'done' : 'unread'}}">{{item.readByMe ? '已读' : '未读'}}</text>
       </view>
     </view>
