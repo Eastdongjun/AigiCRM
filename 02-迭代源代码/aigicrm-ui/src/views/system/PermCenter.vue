@@ -53,7 +53,8 @@
               <div class="pc-pane-hint">角色 × 功能开关 × 数据范围（客户 / 激励 / 学分 / 公海 / 统计…）—— 权限矩阵唯一写入口</div>
             </div>
           </div>
-          <PermScopeManager />
+          <!-- 【一期 2026-11-17】锁定行的"去专项面板"直达: 子页签 emit → 切左侧导航 pane -->
+          <PermScopeManager @goto-panel="activePane = $event" />
         </div>
 
         <div v-if="paneVisited.has('position')" v-show="activePane === 'position'">

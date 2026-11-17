@@ -150,7 +150,7 @@ const togglePerm = async (role, item) => {
   // 【M-3 2026-11-12 外部审计修复】加载失败(set=undefined)不再静默 no-op——管理员疯狂点却没任何反馈
   if (!set) {
     ElMessage.error('该角色的权限明细加载失败，请刷新页面后重试')
-    return
+    return false
   }
   const had = set.has(item.id)
   if (had) {
@@ -162,7 +162,7 @@ const togglePerm = async (role, item) => {
   if (permSaving.value) {
     if (had) set.add(item.id); else set.delete(item.id)
     ElMessage.warning('上一次保存仍在进行中，请稍候')
-    return
+    return false
   }
   permSaving.value = true
   try {
@@ -175,10 +175,13 @@ const togglePerm = async (role, item) => {
         rolePermMap.value[role.id] = new Set(r.data.menuIds)
       }
     } catch { /* 回读失败不阻断——本地 set 已是提交集的近似 */ }
+    // 【一期 2026-11-17】返回保存结果供调用方反馈"已保存并生效"(向后兼容: 忽略返回值无害)
+    return true
   } catch (e) {
     // 保存失败:回滚本地勾选状态,避免"界面已改、数据库没变"的假成功
     if (had) set.add(item.id); else set.delete(item.id)
     ElMessage.error(e?.response?.data?.message || '权限保存失败,已还原勾选')
+    return false
   } finally {
     permSaving.value = false
   }

@@ -70,6 +70,8 @@
               <el-tag v-if="item.isField" size="small" type="info">字段级</el-tag>
               <el-tag v-if="item.adminOnly" size="small" type="danger">仅管理员</el-tag>
               <el-tag v-else-if="item.requiresOrgAdmin" size="small" type="warning">需组织管理员</el-tag>
+              <!-- 【一期 2026-11-17】依赖禁用不再无声: 灰掉的行直接告诉管理员"先勾什么" -->
+              <el-tag v-if="dependencyMissing(item)" size="small" type="warning">需先勾选：{{ dependsLabel(item) }}</el-tag>
               <code class="psm-row-code">{{ item.permission }}</code>
             </div>
             <div class="psm-row-ctrl">
@@ -85,9 +87,14 @@
                 </el-select>
                 <span v-if="anchorOf(item) === recommendedAnchorOf(item)" class="psm-rec" title="推荐锚点（未手选时自动按此保存）">荐</span>
               </template>
-              <span v-else class="psm-na" :title="'该权限的数据范围' + scopeOwnerOf(item) + '，这里只配置功能开关'">
-                {{ scopeOwnerOf(item) }}
-              </span>
+              <template v-else>
+                <span class="psm-na" :title="'该权限的数据范围' + scopeOwnerOf(item) + '，这里只配置功能开关'">
+                  {{ scopeOwnerOf(item) }}
+                </span>
+                <!-- 【一期 2026-11-17】控制面在专项面板的码, 给出直达入口(不再让管理员自己找页签) -->
+                <el-button v-if="panelLinkOf(item)" link type="primary" size="small"
+                           @click="emit('goto-panel', panelLinkOf(item).pane)">{{ panelLinkOf(item).label }} →</el-button>
+              </template>
             </div>
           </div>
         </div>
@@ -195,6 +202,23 @@ const PERMISSION_SCOPE_TARGETS = Object.freeze({
 const scopeTargetOf = (permission) =>
   (metaByCode.value[permission] && metaByCode.value[permission].scopeAxis) || PERMISSION_SCOPE_TARGETS[permission] || null
 
+// 【一期 2026-11-17】依赖禁用提示: 灰掉的行告诉管理员"先勾哪个父功能"
+const dependsLabel = (item) => {
+  if (!item?.dependsOn) return ''
+  const meta = metaByCode.value[item.dependsOn]
+  return (meta && meta.name) || item.dependsOn
+}
+// 【一期 2026-11-17】控制面在专项面板的码 → 直达入口(pane key 与权限中心左侧导航一致)
+const emit = defineEmits(['goto-panel'])
+const PANEL_LINKS = [
+  { prefix: 'incentive', pane: 'incentive', label: '去激励授权面板' },
+  { prefix: 'file', pane: 'file', label: '去文件夹权限' },
+]
+const panelLinkOf = (item) => {
+  const perm = item.permission || ''
+  return PANEL_LINKS.find((l) => perm.startsWith(l.prefix + ':')) || null
+}
+
 // 未接入范围矩阵的模块: 标注真实控制面, 避免管理员误以为配置生效
 const SCOPE_OWNER_HINTS = {
   // 【2026-11-03 明确化】开关码的灰字直接写跟随谁, 免得"模块自身规则"让人再问一遍
@@ -262,9 +286,11 @@ const enabledCountOf = (m) => m.items.filter(i => isEnabled(i)).length
 const enabledTotalOf = (r) => modules.value.reduce((sum, m) => sum + m.items.filter(i => hasPerm(r, i)).length, 0)
 const curEnabledCount = computed(() => (curModule.value ? enabledCountOf(curModule.value) : 0))
 
-const onToggle = (item) => {
+const onToggle = async (item) => {
   if (!isRoleMode.value || !currentRole.value) return
-  togglePerm(currentRole.value, item)
+  // 【一期 2026-11-17】保存成功统一反馈"已保存并生效"(失败时 togglePerm 内部已 toast+回滚)
+  const ok = await togglePerm(currentRole.value, item)
+  if (ok) ElMessage.success(`已保存并生效：${item.label}（用户刷新页面后按钮同步）`)
 }
 
 // 模块级批量勾选: 单次 PUT 提交整个角色的 menuIds(旧逐项 toggle 会发 N 个请求)
