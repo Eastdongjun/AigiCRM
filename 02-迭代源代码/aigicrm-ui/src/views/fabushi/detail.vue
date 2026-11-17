@@ -28,7 +28,7 @@
         </div>
 
         <div class="detail-actions">
-          <el-button :type="liked ? 'primary' : 'default'" plain @click="toggleLike">木鱼 {{ likeCount }}</el-button>
+          <el-button :type="liked ? 'primary' : 'default'" plain @click="toggleLike">🐟 木鱼 {{ likeCount }}</el-button>
           <span class="detail-count">评论 {{ comments.length }}</span>
         </div>
 

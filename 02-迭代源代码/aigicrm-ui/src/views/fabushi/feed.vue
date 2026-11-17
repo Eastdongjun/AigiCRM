@@ -45,7 +45,7 @@
           <div v-if="bookName(post)" class="feed-book">书目 · {{ bookName(post) }}</div>
           <div class="feed-meta">
             <span>{{ post.userName || '法布施' }}</span>
-            <span>木鱼 {{ post.likeCount || 0 }}</span>
+            <span>🐟 木鱼 {{ post.likeCount || 0 }}</span>
             <span>评论 {{ post.commentCount || 0 }}</span>
             <span class="read" :class="{ unread: !post.readByMe }">{{ post.readByMe ? '已读' : '未读' }}</span>
           </div>
