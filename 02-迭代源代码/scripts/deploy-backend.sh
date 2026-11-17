@@ -154,8 +154,8 @@ start_backend() {
   if ! docker run -d --name "${APP_SLUG}-backend" --network "${APP_SLUG}_default" --restart always \
     -p 127.0.0.1:8080:8080 \
     --env-file "$envf" \
-    -e DB_HOST=mysql -e DB_PORT=3306 -e DB_NAME="$DB_NAME" -e DB_USER="$APP_DB_USER" \
-    -e REDIS_HOST=redis -e REDIS_PORT=6379 \
+    -e DB_HOST=ycmn-mysql -e DB_PORT=3306 -e DB_NAME="$DB_NAME" -e DB_USER="$APP_DB_USER" \
+    -e REDIS_HOST=ycmn-redis -e REDIS_PORT=6379 \
     -e SPRING_PROFILES_ACTIVE=prod \
     -e TENANT_ENABLE=true \
     -e UPLOAD_DIR=/app/uploads -e STORAGE_TYPE=local -e TZ=Asia/Shanghai \
@@ -286,8 +286,8 @@ start_backend() {
   if ! docker run -d --name "${APP_SLUG}-backend" --network "${APP_SLUG}_default" --restart always \
     -p 127.0.0.1:8080:8080 \
     --env-file "$envf" \
-    -e DB_HOST=mysql -e DB_PORT=3306 -e DB_NAME="$DB_NAME" -e DB_USER="$APP_DB_USER" \
-    -e REDIS_HOST=redis -e REDIS_PORT=6379 -e SPRING_PROFILES_ACTIVE=prod -e TENANT_ENABLE=true \
+    -e DB_HOST=ycmn-mysql -e DB_PORT=3306 -e DB_NAME="$DB_NAME" -e DB_USER="$APP_DB_USER" \
+    -e REDIS_HOST=ycmn-redis -e REDIS_PORT=6379 -e SPRING_PROFILES_ACTIVE=prod -e TENANT_ENABLE=true \
     -e UPLOAD_DIR=/app/uploads -e STORAGE_TYPE=local -e TZ=Asia/Shanghai \
     -e OSS_ENDPOINT=oss-cn-beijing.aliyuncs.com -e OSS_BUCKET_NAME="$OSS_BUCKET_NAME" \
     -e CORS_ORIGINS=https://www.aigicrm.com \
