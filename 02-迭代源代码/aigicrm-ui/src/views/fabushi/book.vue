@@ -269,6 +269,18 @@ const pickPdf = () => pdfInputRef.value?.click()
 const handlePdfChosen = async (evt) => {
   const file = evt.target.files && evt.target.files[0]
   if (!file) return
+  // 前端预检(U1/U2, 2026-11-17): 类型/大小提前拦截, 省 >100MB 文件白传流量; 后端 attachPdf 同口径强制校验
+  const isPdf = /\.pdf$/i.test(file.name)
+  if (!isPdf) {
+    ElMessage.error('仅支持 PDF 文件')
+    evt.target.value = ''
+    return
+  }
+  if (file.size > 100 * 1024 * 1024) {
+    ElMessage.error('PDF 不能超过 100MB')
+    evt.target.value = ''
+    return
+  }
   pdfUploading.value = true
   try {
     const formData = new FormData()

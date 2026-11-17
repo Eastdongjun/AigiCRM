@@ -36,6 +36,11 @@ public class FabushiBookService {
     private final SysDictService dictService;
     private final com.aigicrm.security.SecurityAuditService securityAuditService;
 
+    /** 挂载 PDF 大小上限: 与前端文案一致(挂载电子书 PDF「≤100MB」, book.vue)。 */
+    static final long MAX_PDF_BYTES = 100L * 1024 * 1024;
+    /** file_type 存储口径 = 扩展名大写(FileService 上传时 toUpperCase), 无扩展名=空串。 */
+    private static final String FILE_TYPE_PDF = "PDF";
+
     /** 提交人/类别名联显(字典 label + sys_user real_name)。 */
     private void fillDisplay(List<BizFabushiBook> books) {
         if (books.isEmpty()) {
@@ -144,7 +149,7 @@ public class FabushiBookService {
         securityAuditService.permissionChange("fabushi_book_disable", "book:" + id + ":" + book.getTitle());
     }
 
-    /** PDF 挂载/替换(fabushi:book:manage 门; fileId 须为 scope=fabushi 的已上传文件)。 */
+    /** PDF 挂载/替换(fabushi:book:manage 门; fileId 须为 scope=fabushi 的已上传 PDF 文件, ≤100MB)。 */
     @Transactional
     public void attachPdf(Long id, Long fileId) {
         BizFabushiBook book = requireBook(id);
@@ -157,6 +162,15 @@ public class FabushiBookService {
         }
         if (!"fabushi".equals(f.getFileScope())) {
             throw new BusinessException(400, "PDF 须上传到法布施空间(scope=fabushi)");
+        }
+        // 2026-11-17 U1/U2 缺口修复: 类型/大小校验收口在挂载点(单点治本, 不影响 feed 附件上传)
+        if (!FILE_TYPE_PDF.equals(f.getFileType())) {
+            throw new BusinessException(400, "仅支持 PDF 文件(当前文件类型: "
+                    + (f.getFileType() == null || f.getFileType().isEmpty() ? "未知" : f.getFileType()) + ")");
+        }
+        if (f.getFileSize() != null && f.getFileSize() > MAX_PDF_BYTES) {
+            throw new BusinessException(400, "PDF 不能超过 100MB(当前 "
+                    + (f.getFileSize() / (1024 * 1024)) + "MB)");
         }
         book.setPdfFileId(fileId);
         bookMapper.updateById(book);

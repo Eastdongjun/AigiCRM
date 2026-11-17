@@ -81,8 +81,13 @@ class FileQuotaConcurrencyTest {
     }
 
     private MockMultipartFile file(long size) throws java.io.IOException {
+        // 2026-11-17 U1 魔数校验适配: .pdf 名文件须含 %PDF- 头(本测试语义是配额, 与内容无关)
+        byte[] head = "%PDF-1.4\n".getBytes(java.nio.charset.StandardCharsets.ISO_8859_1);
+        byte[] body = new byte[Math.max((int) size - head.length, head.length)];
+        byte[] all = new byte[head.length + body.length];
+        System.arraycopy(head, 0, all, 0, head.length);
         return new MockMultipartFile("file", "a.pdf", "application/pdf",
-                new ByteArrayInputStream(new byte[(int) size]));
+                new ByteArrayInputStream(all));
     }
 
     @Test

@@ -795,6 +795,11 @@ public class FileService {
             originalFilename = originalFilename + "." + fallbackExt;
         }
         assertAllowedUploadType(originalFilename, file.getContentType());
+        // 【U1 2026-11-17】.pdf 扩展名须含 %PDF- 魔数(前 1024 字节内, PDF 规范 7.5.1)——
+        // 挡"任意内容改名 .pdf"的内容伪装(T5f 实测: 纯文本 fake.pdf 可上传挂载致阅读器打不开)
+        if ("pdf".equals(extOf(originalFilename))) {
+            assertPdfMagic(file);
+        }
         String dir = scope + "/" + userId;
         String fileKey = dir + "/" + resolveUniqueFilename(dir, originalFilename);
         if (isLocal()) {
@@ -1658,6 +1663,29 @@ public class FileService {
         if (!ALLOWED_UPLOAD_EXTS.contains(ext)) {
             throw new BusinessException(400, "不支持的文件类型");
         }
+    }
+
+    /**
+     * 【U1 2026-11-17】pdf 内容魔数校验：前 1024 字节内须含 "%PDF-"（PDF 规范 7.5.1 允许头
+     * 位于文件起始处，部分工具会前置少量字节；1024 字节窗口与主流解析器一致）。
+     * 只依赖内容不信任扩展名——任何真 PDF 100% 有此头，误拒风险为零。
+     * 调用点：uploadStorage（.pdf 扩展名上传时），MultipartFile#getInputStream 可重复获取新流，
+     * 此处读头不影响后续落盘/OSS 写入。
+     */
+    static void assertPdfMagic(MultipartFile file) {
+        byte[] head;
+        try (java.io.InputStream in = file.getInputStream()) {
+            head = in.readNBytes(1024);
+        } catch (java.io.IOException e) {
+            throw new BusinessException(400, "PDF 文件读取失败, 请重试");
+        }
+        for (int i = 0; i + 5 <= head.length; i++) {
+            if (head[i] == '%' && head[i + 1] == 'P' && head[i + 2] == 'D'
+                    && head[i + 3] == 'F' && head[i + 4] == '-') {
+                return;
+            }
+        }
+        throw new BusinessException(400, "PDF 文件内容校验失败(缺少 %PDF- 标识), 请确认文件是真实的 PDF");
     }
 
     /**
