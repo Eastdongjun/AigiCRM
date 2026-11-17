@@ -188,22 +188,42 @@ wait_started() {
   docker logs "${APP_SLUG}-backend" --tail 50 >&2 2>&1 || true
   return 1
 }
+fast_rollback_container() {
+  # 【2026-11-17 build 通道挂死事故】免重建快滚: docker cp 直换容器内 jar + 重启。
+  # 救急通道——容器内 jar 与镜像脱钩(镜像内 jar 陈旧), 标准通道恢复后需重建自愈;
+  # 容器已被删除时无救(无 cp 载体), 只能走镜像重建。
+  docker inspect "${APP_SLUG}-backend" >/dev/null 2>&1 \
+    || { echo "❌ 快滚通道不可用: 容器不存在(需镜像重建)" >&2; return 1; }
+  docker cp "$DEPLOY_DIR/app.jar" "${APP_SLUG}-backend:/app/app.jar" || return 1
+  local exp act
+  exp=$(md5sum "$DEPLOY_DIR/app.jar" | cut -d' ' -f1 | tr -d '\r\n ')
+  act=$(docker exec "${APP_SLUG}-backend" md5sum /app/app.jar 2>/dev/null | cut -d' ' -f1 | tr -d '\r\n ')
+  [ "$exp" = "$act" ] || { echo "❌ 快滚后容器内 jar 校验不符(exp=$exp act=$act)" >&2; return 1; }
+  docker restart "${APP_SLUG}-backend" >/dev/null || return 1
+  wait_started || return 1
+}
 rollback_to_backup() {
   [ -s "$BACKUP_JAR" ] || { echo "❌ 备份 jar 不存在/为空: $BACKUP_JAR" >&2; return 1; }
   echo "↩ 使用备份 jar 回滚: $BACKUP_JAR" >&2
   cp -p "$BACKUP_JAR" "$DEPLOY_DIR/app.jar" || return 1
-  build_image || return 1
-  local exp act
-  exp=$(md5sum "$BACKUP_JAR" | cut -d' ' -f1 | tr -d '\r\n ')
-  act=$(image_jar_md5)
-  [ "$exp" = "$act" ] || { echo "❌ 回滚镜像内 jar 校验不符(exp=$exp act=$act)" >&2; return 1; }
-  start_backend || return 1
-  wait_started || return 1
+  if build_image; then
+    local exp act
+    exp=$(md5sum "$BACKUP_JAR" | cut -d' ' -f1 | tr -d '\r\n ')
+    act=$(image_jar_md5)
+    [ "$exp" = "$act" ] || { echo "❌ 回滚镜像内 jar 校验不符(exp=$exp act=$act)" >&2; return 1; }
+    start_backend || return 1
+    wait_started || return 1
+  else
+    # 镜像重建不可用(dockerd 构建挂死等) → 免重建快滚, 保服务恢复优先
+    echo "↩ 镜像重建失败, 走免重建快滚(docker cp + restart) ..." >&2
+    fast_rollback_container || return 1
+  fi
 }
 on_error() {
   rc=$?
   trap - ERR
   rm -f "$REMOTE_STAGE"
+  echo "RESULT=FAIL rc=$rc" >&2
   if [ "$SWITCHED" = "1" ]; then
     echo "❌ 部署失败(阶段退出码 $rc)，自动回滚到备份 jar ..." >&2
     if rollback_to_backup; then
@@ -293,12 +313,23 @@ wait_started() {
 }
 [ -s "$BACKUP_JAR" ] || { echo "❌ 备份 jar 不存在，无法回滚" >&2; exit 1; }
 cp -p "$BACKUP_JAR" "$DEPLOY_DIR/app.jar"
-build_image
-[ "$(md5sum "$BACKUP_JAR" | cut -d' ' -f1 | tr -d '\r\n ')" = \
-  "$(docker run --rm --entrypoint sh "${APP_SLUG}-backend:${BACKEND_TAG}" -c 'md5sum /app/app.jar' | cut -d' ' -f1 | tr -d '\r\n ')" ] \
-  || { echo "❌ 回滚镜像内 jar 校验不符" >&2; exit 1; }
-start_backend
-wait_started
+# 【2026-11-17 build 通道挂死事故】镜像重建失败时走免重建快滚(docker cp+restart), 服务恢复优先
+if build_image; then
+  [ "$(md5sum "$BACKUP_JAR" | cut -d' ' -f1 | tr -d '\r\n ')" = \
+    "$(docker run --rm --entrypoint sh "${APP_SLUG}-backend:${BACKEND_TAG}" -c 'md5sum /app/app.jar' | cut -d' ' -f1 | tr -d '\r\n ')" ] \
+    || { echo "❌ 回滚镜像内 jar 校验不符" >&2; exit 1; }
+  start_backend
+  wait_started
+else
+  echo "↩ 镜像重建失败, 走免重建快滚(docker cp + restart) ..." >&2
+  docker inspect "${APP_SLUG}-backend" >/dev/null 2>&1 || { echo "❌ 容器不存在, 快滚不可用" >&2; exit 1; }
+  docker cp "$DEPLOY_DIR/app.jar" "${APP_SLUG}-backend:/app/app.jar"
+  [ "$(md5sum "$DEPLOY_DIR/app.jar" | cut -d' ' -f1 | tr -d '\r\n ')" = \
+    "$(docker exec "${APP_SLUG}-backend" md5sum /app/app.jar | cut -d' ' -f1 | tr -d '\r\n ')" ] \
+    || { echo "❌ 快滚后容器内 jar 校验不符" >&2; exit 1; }
+  docker restart "${APP_SLUG}-backend" >/dev/null
+  wait_started
+fi
 echo "↩ 已回滚旧 jar 并重启"
 REMOTE_ROLLBACK
   } | ssh_prod_once "bash -s" || {
@@ -314,3 +345,4 @@ fi
 echo "=== [5/5] 部署记录 ==="
 ssh_prod "echo \"$(date +%Y-%m-%d\ %H:%M:%S) backend deploy commit=$COMMIT\" >> $DEPLOY_DIR/deploy.log"
 echo "✅ 后端部署完成 (commit: $COMMIT, backup: $BACKUP_JAR)"
+echo "RESULT=PASS"
