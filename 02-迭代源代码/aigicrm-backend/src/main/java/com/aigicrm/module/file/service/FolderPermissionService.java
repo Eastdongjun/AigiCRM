@@ -356,6 +356,12 @@ public class FolderPermissionService {
         return checkFile(file.getId(), P_REPLACE, userId);
     }
 
+    /** 【2026-11-17 P1-1】供 FileService 的快速放行路径前置查 DENY（owner/公开/分享路径也受 DENY 约束）。 */
+    public boolean hasFileGrantDeny(BizFile file, String action, Long userId) {
+        return fileGrantService != null && file != null
+                && fileGrantService.decideFile(file, action, userId) == FileGrantService.Decision.DENY;
+    }
+
     /** 模块级 OWNER 锚单条判定：null=all 放行；SecurityUser 缺席 fail-closed。 */
     private boolean moduleOwnerVisible(Long targetUserId, String module, String action) {
         if (targetUserId == null) return false;

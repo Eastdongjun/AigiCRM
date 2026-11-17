@@ -4,7 +4,9 @@ import com.aigicrm.module.file.entity.BizFile;
 import com.aigicrm.module.file.entity.BizFileFolder;
 import com.aigicrm.common.BusinessException;
 import com.aigicrm.module.file.entity.BizFileGrant;
+import com.aigicrm.module.file.mapper.BizFileFolderMapper;
 import com.aigicrm.module.file.mapper.BizFileGrantMapper;
+import com.aigicrm.module.file.mapper.BizFileMapper;
 import com.aigicrm.module.system.entity.SysPosition;
 import com.aigicrm.module.system.entity.SysRole;
 import com.aigicrm.module.system.mapper.SysRoleMapper;
@@ -44,6 +46,15 @@ public class FileGrantService {
     private final BizFileGrantMapper grantMapper;
     private final SysRoleMapper roleMapper;
 
+    /** 目标对象存在性校验（P0 纵深防御）；单测可缺省。 */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private BizFileMapper fileMapper;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private BizFileFolderMapper folderMapper;
+    /** 授权变更审计；单测可缺省。 */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.aigicrm.security.SecurityAuditService securityAudit;
+
     /** 文件判定。 */
     public Decision decideFile(BizFile file, String action, Long userId) {
         if (file == null || userId == null || SecurityUtils.isAdmin()) return Decision.ABSTAIN;
@@ -82,6 +93,7 @@ public class FileGrantService {
                           String scopeLevel, LocalDateTime expireAt) { }
 
     public List<Map<String, Object>> list(String objectType, Long objectId) {
+        requireAdmin();
         return grantMapper.selectList(new LambdaQueryWrapper<BizFileGrant>()
                         .eq(BizFileGrant::getTenantId, tenantId())
                         .eq(objectType != null && !objectType.isBlank(), BizFileGrant::getObjectType,
@@ -92,6 +104,7 @@ public class FileGrantService {
     }
 
     public Map<String, Object> save(Command c) {
+        requireAdmin();
         if (c == null) throw new BusinessException("授权内容不能为空");
         BizFileGrant g = new BizFileGrant();
         g.setId(c.id());
@@ -137,6 +150,7 @@ public class FileGrantService {
         g.setInherit(g.getInherit() == null ? 1 : g.getInherit());
         g.setTenantId(tenantId());
         g.setCreatedBy(SecurityUtils.getCurrentUserId());
+        validateTarget(g);
         try {
             if (g.getId() == null) {
                 grantMapper.insert(g);
@@ -152,6 +166,7 @@ public class FileGrantService {
         } catch (Exception e) {
             throw new BusinessException("授权保存失败（主体+对象+动作可能已存在）");
         }
+        audit("file_grant_save", g);
         return view(g);
     }
 
@@ -174,11 +189,45 @@ public class FileGrantService {
     }
 
     public void delete(Long id) {
+        requireAdmin();
         BizFileGrant old = id == null ? null : grantMapper.selectById(id);
         if (old == null || !Objects.equals(old.getTenantId(), tenantId())) {
             throw new BusinessException("授权不存在");
         }
         grantMapper.deleteById(id);
+        audit("file_grant_delete", old);
+    }
+
+    /** P0：文件授权管理仅系统管理员；控制器功能码之外再收口。 */
+    private void requireAdmin() {
+        if (!SecurityUtils.isAdmin()) throw new BusinessException(403, "文件统一授权仅系统管理员可配置");
+    }
+
+    /** 目标对象必须真实存在，避免对任意 ID 建授权（P0 纵深防御）。 */
+    private void validateTarget(BizFileGrant g) {
+        if (OBJ_FILE.equals(g.getObjectType())) {
+            if (fileMapper == null || fileMapper.selectById(g.getObjectId()) == null) {
+                throw new BusinessException("目标文件不存在");
+            }
+        } else if (OBJ_FOLDER.equals(g.getObjectType())) {
+            if (folderMapper == null || folderMapper.selectById(g.getObjectId()) == null) {
+                throw new BusinessException("目标文件夹不存在");
+            }
+        } else if (g.getScopeLevel() != null && !g.getScopeLevel().isBlank()
+                && !Set.of("public", "private", "incentive", "fabushi").contains(g.getScopeLevel())) {
+            throw new BusinessException("空间类型非法");
+        }
+    }
+
+    private void audit(String action, BizFileGrant g) {
+        if (securityAudit == null || g == null) return;
+        try {
+            securityAudit.permissionChange(action, "grantId=" + g.getId() + " subject=" + g.getSubjectType()
+                    + "#" + g.getSubjectId() + " object=" + g.getObjectType() + "#" + g.getObjectId()
+                    + " action=" + g.getAction() + " effect=" + g.getEffect());
+        } catch (Exception ignored) {
+            // 审计失败不阻断授权保存；主日志仍有记录。
+        }
     }
 
     private String upper(String s) {

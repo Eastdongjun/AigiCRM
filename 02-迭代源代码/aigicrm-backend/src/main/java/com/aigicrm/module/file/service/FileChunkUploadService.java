@@ -42,6 +42,8 @@ public class FileChunkUploadService {
     /** 分片临时目录：默认系统临时目录（不要求 uploads 根可写）；多实例部署配置为共享 NAS。 */
     @Value("${file.chunk-dir:}")
     private String chunkDirConfig;
+    @Value("${file.chunk.max-age-hours:24}")
+    private int maxAgeHours;
 
     public Map<String, Object> init(String fileName, long fileSize, String md5, String scope, Long folderId) {
         Long userId = SecurityUtils.getCurrentUserId();
@@ -162,6 +164,24 @@ public class FileChunkUploadService {
             throw e;
         } catch (Exception e) {
             throw new BusinessException("合并上传失败: " + e.getMessage());
+        }
+    }
+
+    /** 【2026-11-17 P2-6】每小时清理超过 max-age-hours 的未完成分片会话与临时目录。 */
+    @org.springframework.scheduling.annotation.Scheduled(
+            fixedDelayString = "${file.chunk.cleanup-ms:3600000}")
+    public void cleanupExpiredSessions() {
+        try {
+            List<String> ids = jdbc.queryForList(
+                    "SELECT upload_id FROM biz_upload_session WHERE status='uploading' " +
+                            "AND updated_at < DATE_SUB(NOW(), INTERVAL ? HOUR) LIMIT 200",
+                    String.class, maxAgeHours);
+            for (String id : ids) {
+                deleteRecursively(chunkDir(id));
+                jdbc.update("UPDATE biz_upload_session SET status='expired' WHERE upload_id=? AND status='uploading'", id);
+            }
+        } catch (Exception ignored) {
+            // 清理失败不阻断上传主链，下一轮重试。
         }
     }
 

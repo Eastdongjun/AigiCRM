@@ -24,7 +24,8 @@ public class LifecycleController {
     @PostMapping("/handover")
     public Result<Map<String, Object>> handover(@RequestBody HandoverRequest body) {
         return Result.ok(lifecycleService.createHandover(
-                body.fromUserId, body.toUserId, body.reason, Boolean.TRUE.equals(body.copyRoles)));
+                body.fromUserId, body.toUserId, body.reason, Boolean.TRUE.equals(body.copyRoles),
+                Boolean.TRUE.equals(body.transferIncentives), Boolean.TRUE.equals(body.transferReports)));
     }
 
     @PreAuthorize("hasAuthority('system:user:edit')")
@@ -71,6 +72,8 @@ public class LifecycleController {
         public Long toUserId;
         public String reason;
         public Boolean copyRoles;
+        public Boolean transferIncentives;
+        public Boolean transferReports;
     }
 
     public static class OrgMoveRequest {

@@ -17,6 +17,14 @@
             <el-switch v-model="handover.copyRoles" />
             <span class="hint">默认关闭；开启后复制离职人现有角色（审批人负责确认）</span>
           </el-form-item>
+          <el-form-item label="迁移激励">
+            <el-switch v-model="handover.transferIncentives" />
+            <span class="hint">开启后将离职人当前激励记录的归属人改为继任人（历史业绩随之转移）</span>
+          </el-form-item>
+          <el-form-item label="迁移直属下级">
+            <el-switch v-model="handover.transferReports" />
+            <span class="hint">开启后将 manager_id=离职人的直属下级改挂继任人</span>
+          </el-form-item>
           <el-form-item label="原因">
             <el-input v-model="handover.reason" type="textarea" :rows="2" maxlength="500" show-word-limit />
           </el-form-item>
@@ -95,7 +103,7 @@ const tab = ref('handover')
 const saving = ref(false)
 const requests = ref([])
 const filterStatus = ref('')
-const handover = reactive({ fromUserId: null, toUserId: null, reason: '', copyRoles: false })
+const handover = reactive({ fromUserId: null, toUserId: null, reason: '', copyRoles: false, transferIncentives: false, transferReports: false })
 const move = reactive({ userId: null, toDeptId: null, reason: '' })
 
 const open = () => {
@@ -118,7 +126,7 @@ const submitHandover = async () => {
   try {
     await request.post('/system/lifecycle/handover', handover)
     ElMessage.success('已提交审批')
-    Object.assign(handover, { fromUserId: null, toUserId: null, reason: '', copyRoles: false })
+    Object.assign(handover, { fromUserId: null, toUserId: null, reason: '', copyRoles: false, transferIncentives: false, transferReports: false })
     tab.value = 'list'
     loadRequests()
   } catch (e) { /* 统一拦截器提示 */ } finally { saving.value = false }

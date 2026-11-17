@@ -1855,6 +1855,8 @@ public class FileService {
 
     /** 文件访问权限校验：上传者 / 被分享者 / 管理员 / 公共文件（/download/{id} 与 /download/{key} 同权） */
     public boolean canAccessFile(BizFile file, Long userId) {
+        // 【2026-11-17 P1-1】DENY 必须压过 owner/公开/分享快速放行。
+        if (folderPermissionService.hasFileGrantDeny(file, FolderPermissionService.P_VIEW, userId)) return false;
         if ("public".equals(file.getFileScope())) return true;
         if (userId.equals(file.getUploaderId())) return true;
         // 检查是否被分享
@@ -1883,6 +1885,8 @@ public class FileService {
     }
 
     public boolean canDownloadFile(BizFile file, Long userId) {
+        // 【2026-11-17 P1-1】下载动作的 DENY 前置；与 canAccessFile 的 view DENY 双保险。
+        if (folderPermissionService.hasFileGrantDeny(file, FolderPermissionService.P_DOWNLOAD, userId)) return false;
         boolean canDownload = canAccessFile(file, userId);
         if (!canDownload && file.getFolderId() != null) {
             canDownload = folderPermissionService.checkFile(file.getId(), FolderPermissionService.P_DOWNLOAD, userId);

@@ -60,6 +60,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class RecycleService {
 
+    private static final com.fasterxml.jackson.databind.ObjectMapper JSON =
+            new com.fasterxml.jackson.databind.ObjectMapper();
     private static final int MAX_PAGE_SIZE = 100;
     /** 客户彻底删除时随删的辅助关联(不阻断删除); 其余业务关联(含任务)存在即拒绝 */
     private static final Set<String> CUSTOMER_AUX_REFS = Set.of("分享", "提醒", "公海池记录", "联系人");
@@ -946,10 +948,32 @@ public class RecycleService {
         int n = jdbc.update("UPDATE biz_incentive_record SET deleted=0, deleted_at=NULL, deleted_by=NULL, "
                 + "deleted_reason=NULL WHERE id=? AND deleted=1", id);
         if (n != 1) throw new BusinessException("恢复失败（状态已变化），请刷新后重试");
+        restoreIncentiveReads(id);
         if (incentiveService != null) incentiveService.evictScoreboardCacheAfterRecycle();
         writeAuditLog("恢复激励记录", "biz_incentive_record", id, "客户ID=" + customerId);
         if (recycleBinService != null) recycleBinService.markRestored("incentive", id);
         return "激励记录已恢复";
+    }
+
+    /** 【2026-11-17 P2-5】按删除时快照回填已读用户（只回填仍存在的用户，外键安全）。 */
+    private void restoreIncentiveReads(Long recordId) {
+        try {
+            List<String> raws = jdbc.queryForList(
+                    "SELECT snapshot_json FROM biz_recycle_bin WHERE biz_type='incentive' AND biz_id=? " +
+                            "AND status='deleted' ORDER BY id DESC LIMIT 1", String.class, recordId);
+            if (raws.isEmpty() || raws.get(0) == null) return;
+            com.fasterxml.jackson.databind.JsonNode root = JSON.readTree(raws.get(0));
+            com.fasterxml.jackson.databind.JsonNode users = root.path("readUsers");
+            if (!users.isArray()) return;
+            for (com.fasterxml.jackson.databind.JsonNode u : users) {
+                long uid = u.path("user_id").asLong(0);
+                if (uid <= 0) continue;
+                jdbc.update("INSERT IGNORE INTO biz_incentive_read(user_id,record_id,read_at) VALUES(?,?,NOW())",
+                        uid, recordId);
+            }
+        } catch (Exception ignored) {
+            // 快照缺失/脏值不阻断恢复；已读状态可后续重算。
+        }
     }
 
     @Transactional

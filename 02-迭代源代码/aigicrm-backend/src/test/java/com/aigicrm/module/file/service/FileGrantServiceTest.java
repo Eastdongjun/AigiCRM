@@ -1,5 +1,6 @@
 package com.aigicrm.module.file.service;
 
+import com.aigicrm.common.BusinessException;
 import com.aigicrm.module.file.entity.BizFile;
 import com.aigicrm.module.file.entity.BizFileGrant;
 import com.aigicrm.module.file.mapper.BizFileGrantMapper;
@@ -65,6 +66,16 @@ class FileGrantServiceTest {
         g.setScopeOrgId(scopeOrgId);
         g.setExpireAt(expireAt);
         return g;
+    }
+
+    @Test
+    void nonAdminCannotCreateFileGrant() {
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            m.when(SecurityUtils::getCurrentUser).thenReturn(user(2L));
+            assertThrows(BusinessException.class, () -> svc.save(new FileGrantService.Command(
+                    null, "USER", 2L, "FILE", 10L, "download", "ALLOW", 1, null, null, null)));
+        }
     }
 
     @Test

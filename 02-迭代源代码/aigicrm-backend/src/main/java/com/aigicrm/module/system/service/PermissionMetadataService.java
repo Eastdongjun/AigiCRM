@@ -51,7 +51,7 @@ public class PermissionMetadataService {
     /** 仅平台管理员可用的功能码(授权给非 admin 角色 = 死配置) */
     public static final Set<String> ADMIN_ONLY = Set.of(
             "system:group:add", "system:group:edit", "system:group:delete", "system:task:run",
-            "system:recycle:restore", "system:recycle:purge");
+            "system:recycle:restore", "system:recycle:purge", "file:acl:manage");
 
     /** 持码仍需组织管理员身份(canManageUser) */
     public static final Set<String> REQUIRES_ORG_ADMIN = Set.of(

@@ -71,12 +71,20 @@ def main():
     if dup_ids:
         out.write("UPDATE biz_customer SET dup_exempt=1 WHERE id IN ("
                   + ",".join(str(i) for i in sorted(dup_ids)) + ");\n")
-    for r in rows:
-        if r["norm"] is None:
-            continue
-        exempt = 1 if r["id"] in dup_ids else 0
-        out.write(f"UPDATE biz_customer SET name_norm={sql_quote(r['norm'])}, "
-                  f"dup_exempt={exempt} WHERE id={r['id']};\n")
+    # 【2026-11-17 P2-7】按 500 行批量 CASE/IN，避免百万客户逐行 UPDATE 的往返与日志压力。
+    BATCH = 500
+    pending = [r for r in rows if r["norm"] is not None]
+    for start in range(0, len(pending), BATCH):
+        part = pending[start:start + BATCH]
+        ids = ",".join(str(r["id"]) for r in part)
+        norm_case = " ".join(
+            f"WHEN {r['id']} THEN {sql_quote(r['norm'])}" for r in part)
+        exempt_case = " ".join(
+            f"WHEN {r['id']} THEN {1 if r['id'] in dup_ids else 0}" for r in part)
+        out.write("UPDATE biz_customer SET "
+                  f"name_norm=CASE id {norm_case} ELSE name_norm END, "
+                  f"dup_exempt=CASE id {exempt_case} ELSE dup_exempt END "
+                  f"WHERE id IN ({ids});\n")
     sys.stderr.write(f"rows={len(rows)} duplicate_exempt={len(dup_ids)}\n")
 
 

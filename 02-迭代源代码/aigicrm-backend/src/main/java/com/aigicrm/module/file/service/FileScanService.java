@@ -52,17 +52,25 @@ public class FileScanService {
         }
     }
 
+    /** 全文件流式扫描（P2-3）：64KB 块 + 签名长度-1 重叠，避免 200MB 文件读入堆。 */
     private boolean containsEicar(Path file) throws Exception {
-        byte[] buf = new byte[4096];
-        int n;
+        final int chunk = 64 * 1024;
+        byte[] buf = new byte[chunk + EICAR.length - 1];
+        int keep = 0;
         try (InputStream in = Files.newInputStream(file)) {
-            n = in.read(buf);
-        }
-        if (n <= 0) return false;
-        outer:
-        for (int i = 0; i + EICAR.length <= n; i++) {
-            for (int j = 0; j < EICAR.length; j++) if (buf[i + j] != EICAR[j]) continue outer;
-            return true;
+            int n;
+            while ((n = in.read(buf, keep, chunk)) != -1) {
+                int total = keep + n;
+                for (int i = 0; i + EICAR.length <= total; i++) {
+                    boolean hit = true;
+                    for (int j = 0; j < EICAR.length; j++) {
+                        if (buf[i + j] != EICAR[j]) { hit = false; break; }
+                    }
+                    if (hit) return true;
+                }
+                keep = Math.min(EICAR.length - 1, total);
+                System.arraycopy(buf, total - keep, buf, 0, keep);
+            }
         }
         return false;
     }

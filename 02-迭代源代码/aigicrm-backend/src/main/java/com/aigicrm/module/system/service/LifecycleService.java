@@ -43,7 +43,8 @@ public class LifecycleService {
     // ==================== 创建 ====================
 
     @Transactional
-    public Map<String, Object> createHandover(Long fromUserId, Long toUserId, String reason, boolean copyRoles) {
+    public Map<String, Object> createHandover(Long fromUserId, Long toUserId, String reason, boolean copyRoles,
+                                              boolean transferIncentives, boolean transferReports) {
         requireUserEdit();
         if (fromUserId == null || toUserId == null) throw new BusinessException("离职人与继任人不能为空");
         if (fromUserId.equals(toUserId)) throw new BusinessException("离职人与继任人不能是同一人");
@@ -55,7 +56,7 @@ public class LifecycleService {
             throw new BusinessException("审批人不能是申请人，请配置其他审批人");
         }
         long id = insertRequest("HANDOVER", applicant, fromUserId, toUserId, null,
-                reason, copyRoles, approver, null);
+                reason, copyRoles, transferIncentives, transferReports, approver, null);
         return requestView(id);
     }
 
@@ -76,17 +77,19 @@ public class LifecycleService {
             throw new BusinessException("审批人不能是申请人，请配置其他审批人");
         }
         long id = insertRequest("ORG_MOVE", applicant, userId, null, toDeptId,
-                reason, false, approver, null);
+                reason, false, false, false, approver, null);
         return requestView(id);
     }
 
     private long insertRequest(String type, Long applicant, Long subject, Long targetUser, Long targetDept,
-                               String reason, boolean copyRoles, Long approver, String snapshotJson) {
+                               String reason, boolean copyRoles, boolean transferIncentives,
+                               boolean transferReports, Long approver, String snapshotJson) {
         jdbc.update("INSERT INTO biz_lifecycle_request " +
-                        "(request_type, applicant_id, subject_user_id, target_user_id, target_dept_id, reason, copy_roles, status, approver_id, snapshot_json) " +
-                        "VALUES (?,?,?,?,?,?,?, 'pending', ?, ?)",
+                        "(request_type, applicant_id, subject_user_id, target_user_id, target_dept_id, reason, copy_roles, " +
+                        "transfer_incentives, transfer_reports, status, approver_id, snapshot_json) " +
+                        "VALUES (?,?,?,?,?,?,?,?,?, 'pending', ?, ?)",
                 type, applicant, subject, targetUser, targetDept, reason, copyRoles ? 1 : 0,
-                approver, snapshotJson);
+                transferIncentives ? 1 : 0, transferReports ? 1 : 0, approver, snapshotJson);
         Long id = jdbc.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
         return id == null ? 0L : id;
     }
@@ -117,7 +120,7 @@ public class LifecycleService {
 
     @Transactional
     public Map<String, Object> approve(Long id, String comment) {
-        Map<String, Object> req = requirePending(id);
+        Map<String, Object> req = requirePendingForUpdate(id);
         Long current = SecurityUtils.getCurrentUserId();
         Long approver = longVal(req.get("approver_id"));
         if (!SecurityUtils.isAdmin() && !current.equals(approver)) {
@@ -127,8 +130,9 @@ public class LifecycleService {
         Map<String, Object> result = "HANDOVER".equals(type)
                 ? executeHandover(req)
                 : executeOrgMove(req);
-        jdbc.update("UPDATE biz_lifecycle_request SET status='approved', approved_by=?, approved_at=?, result_json=? WHERE id=? AND status='pending'",
+        int updated = jdbc.update("UPDATE biz_lifecycle_request SET status='approved', approved_by=?, approved_at=?, result_json=? WHERE id=? AND status='pending'",
                 current, LocalDateTime.now(), toJson(result), id);
+        if (updated != 1) throw new BusinessException("该请求已被其他审批人处理，请刷新");
         Map<String, Object> out = requestView(id);
         out.put("result", result);
         return out;
@@ -136,13 +140,14 @@ public class LifecycleService {
 
     @Transactional
     public Map<String, Object> reject(Long id, String reason) {
-        Map<String, Object> req = requirePending(id);
+        Map<String, Object> req = requirePendingForUpdate(id);
         Long current = SecurityUtils.getCurrentUserId();
         if (!SecurityUtils.isAdmin() && !current.equals(longVal(req.get("approver_id")))) {
             throw new BusinessException(403, "只有配置的审批人可审批");
         }
-        jdbc.update("UPDATE biz_lifecycle_request SET status='rejected', rejected_by=?, rejected_at=?, reject_reason=? WHERE id=? AND status='pending'",
+        int updated = jdbc.update("UPDATE biz_lifecycle_request SET status='rejected', rejected_by=?, rejected_at=?, reject_reason=? WHERE id=? AND status='pending'",
                 current, LocalDateTime.now(), reason, id);
+        if (updated != 1) throw new BusinessException("该请求已被其他审批人处理，请刷新");
         return requestView(id);
     }
 
@@ -151,7 +156,7 @@ public class LifecycleService {
     @Transactional
     public Map<String, Object> rollback(Long id) {
         requireUserEdit();
-        Map<String, Object> req = requestMap(id);
+        Map<String, Object> req = requestMapForUpdate(id);
         if (req == null) throw new BusinessException("请求不存在");
         if (!"approved".equals(req.get("status"))) throw new BusinessException("只有已通过的请求可以回滚");
         if (req.get("rolled_back_at") != null) throw new BusinessException("该请求已回滚");
@@ -172,7 +177,34 @@ public class LifecycleService {
         long id = longVal(req.get("id"));
         long from = longVal(req.get("subject_user_id"));
         long to = longVal(req.get("target_user_id"));
+        Map<String, Object> target = user(to);
+        if (target == null) throw new BusinessException("继任人不存在");
+        Long toDept = longVal(target.get("dept_id"));
+        Long toOffice = longVal(target.get("office_id"));
+        Long toOrg = longVal(target.get("org_id"));
+        if (toOrg == null) toOrg = toOffice != null ? toOffice : toDept;
+        if (toDept == null || toOrg == null) throw new BusinessException("继任人未配置部门/组织，无法交接组织快照");
         Map<String, Object> counts = new LinkedHashMap<>();
+
+        // 【2026-11-17 P1-2】交接同时把当前数据的组织快照改派到继任人组织；旧值写明细供回滚。
+        jdbc.update("INSERT INTO biz_lifecycle_item(request_id,biz_type,biz_id,old_ref,new_ref,old_ref2,new_ref2) " +
+                        "SELECT ?, 'customer_org', id, dept_id, ?, office_id, ? FROM biz_customer " +
+                        "WHERE owner_id=? AND deleted=0",
+                id, toDept, toOffice, from);
+        counts.put("customerOrg", jdbc.update("UPDATE biz_customer SET dept_id=?, office_id=?, updated_at=NOW() WHERE owner_id=? AND deleted=0",
+                toDept, toOffice, from));
+        jdbc.update("INSERT INTO biz_lifecycle_item(request_id,biz_type,biz_id,old_ref,new_ref) " +
+                        "SELECT ?, 'file_org', id, org_id, ? FROM biz_file WHERE uploader_id=? AND deleted=0",
+                id, toOrg, from);
+        counts.put("fileOrg", jdbc.update("UPDATE biz_file SET org_id=? WHERE uploader_id=? AND deleted=0", toOrg, from));
+        jdbc.update("INSERT INTO biz_lifecycle_item(request_id,biz_type,biz_id,old_ref,new_ref) " +
+                        "SELECT ?, 'folder_org', id, org_id, ? FROM biz_file_folder WHERE owner_id=? AND deleted=0",
+                id, toOrg, from);
+        counts.put("folderOrg", jdbc.update("UPDATE biz_file_folder SET org_id=? WHERE owner_id=? AND deleted=0", toOrg, from));
+        jdbc.update("INSERT INTO biz_lifecycle_item(request_id,biz_type,biz_id,old_ref,new_ref) " +
+                        "SELECT ?, 'reminder_office', id, office_id, ? FROM biz_reminder WHERE owner_id=? AND deleted=0",
+                id, toOffice, from);
+        counts.put("reminderOffice", jdbc.update("UPDATE biz_reminder SET office_id=? WHERE owner_id=? AND deleted=0", toOffice, from));
 
         counts.put("customer", move("customer", "biz_customer", "owner_id", id, from, to));
         counts.put("task", move("task", "biz_task", "assignee_id", id, from, to));
@@ -207,6 +239,25 @@ public class LifecycleService {
             }
         }
         counts.put("role", roles);
+
+        // 【2026-11-17 P1-5】可选：激励记录/直属下级随交接迁移（默认关闭）。
+        int incentives = 0;
+        if (Integer.valueOf(1).equals(intVal(req.get("transfer_incentives")))) {
+            jdbc.update("INSERT INTO biz_lifecycle_item(request_id,biz_type,biz_id,old_ref,new_ref) " +
+                            "SELECT ?, 'incentive', id, user_id, ? FROM biz_incentive_record WHERE user_id=? AND deleted=0",
+                    id, to, from);
+            incentives = jdbc.update("UPDATE biz_incentive_record SET user_id=? WHERE user_id=? AND deleted=0", to, from);
+        }
+        counts.put("incentive", incentives);
+
+        int reports = 0;
+        if (Integer.valueOf(1).equals(intVal(req.get("transfer_reports")))) {
+            jdbc.update("INSERT INTO biz_lifecycle_item(request_id,biz_type,biz_id,old_ref,new_ref) " +
+                            "SELECT ?, 'report_manager', id, manager_id, ? FROM sys_user WHERE manager_id=? AND deleted=0",
+                    id, to, from);
+            reports = jdbc.update("UPDATE sys_user SET manager_id=? WHERE manager_id=? AND deleted=0", to, from);
+        }
+        counts.put("report", reports);
         return counts;
     }
 
@@ -218,12 +269,12 @@ public class LifecycleService {
                 to, from);
     }
 
-    /** 提醒表无 deleted 列（状态机 pending/processed），单独口径。 */
+    /** 提醒表在 V2026.11.17.5 后已有 deleted；只迁当前数据，回收站行不动。 */
     private int moveNoDeleted(String bizType, String table, String col, long requestId, long from, long to) {
         jdbc.update("INSERT INTO biz_lifecycle_item(request_id,biz_type,biz_id,old_ref,new_ref) " +
-                        "SELECT ?, ?, id, " + col + ", ? FROM " + table + " WHERE " + col + "=?",
+                        "SELECT ?, ?, id, " + col + ", ? FROM " + table + " WHERE " + col + "=? AND deleted=0",
                 requestId, bizType, to, from);
-        return jdbc.update("UPDATE " + table + " SET " + col + "=? WHERE " + col + "=?", to, from);
+        return jdbc.update("UPDATE " + table + " SET " + col + "=? WHERE " + col + "=? AND deleted=0", to, from);
     }
 
     // ==================== 执行：组织移动 ====================
@@ -264,6 +315,12 @@ public class LifecycleService {
                 id, toOrg, userId);
         counts.put("folder", jdbc.update("UPDATE biz_file_folder SET org_id=? WHERE owner_id=? AND deleted=0", toOrg, userId));
 
+        // 【2026-11-17 P1-4】提醒的 office_id 同步到新办事处；旧值写明细供回滚。
+        jdbc.update("INSERT INTO biz_lifecycle_item(request_id,biz_type,biz_id,old_ref,new_ref) " +
+                        "SELECT ?, 'reminder_office', id, office_id, ? FROM biz_reminder WHERE owner_id=? AND deleted=0",
+                id, toOffice, userId);
+        counts.put("reminder", jdbc.update("UPDATE biz_reminder SET office_id=? WHERE owner_id=? AND deleted=0", toOffice, userId));
+
         counts.put("user", jdbc.update("UPDATE sys_user SET dept_id=?, office_id=?, org_id=?, perm_version=perm_version+1, updated_at=NOW() WHERE id=?",
                 toDept, toOffice, toOrg, userId));
         permissionCacheService.evict(userId);
@@ -274,6 +331,15 @@ public class LifecycleService {
 
     private Map<String, Integer> rollbackHandover(long id) {
         Map<String, Integer> counts = new LinkedHashMap<>();
+        counts.put("customerOrg", jdbc.update("UPDATE biz_customer c JOIN biz_lifecycle_item i ON i.biz_id=c.id " +
+                "SET c.dept_id=i.old_ref, c.office_id=i.old_ref2, c.updated_at=NOW() " +
+                "WHERE i.request_id=? AND i.biz_type='customer_org' AND c.dept_id=i.new_ref AND c.office_id=i.new_ref2", id));
+        counts.put("fileOrg", jdbc.update("UPDATE biz_file f JOIN biz_lifecycle_item i ON i.biz_id=f.id " +
+                "SET f.org_id=i.old_ref WHERE i.request_id=? AND i.biz_type='file_org' AND f.org_id=i.new_ref", id));
+        counts.put("folderOrg", jdbc.update("UPDATE biz_file_folder f JOIN biz_lifecycle_item i ON i.biz_id=f.id " +
+                "SET f.org_id=i.old_ref WHERE i.request_id=? AND i.biz_type='folder_org' AND f.org_id=i.new_ref", id));
+        counts.put("reminderOffice", jdbc.update("UPDATE biz_reminder r JOIN biz_lifecycle_item i ON i.biz_id=r.id " +
+                "SET r.office_id=i.old_ref WHERE i.request_id=? AND i.biz_type='reminder_office' AND r.office_id=i.new_ref", id));
         counts.put("customer", jdbc.update("UPDATE biz_customer c JOIN biz_lifecycle_item i ON i.biz_id=c.id " +
                 "SET c.owner_id=i.old_ref, c.updated_at=NOW() WHERE i.request_id=? AND i.biz_type='customer' AND c.owner_id=i.new_ref", id));
         counts.put("task", jdbc.update("UPDATE biz_task t JOIN biz_lifecycle_item i ON i.biz_id=t.id " +
@@ -291,6 +357,10 @@ public class LifecycleService {
         counts.put("role", jdbc.update("DELETE ur FROM sys_user_role ur JOIN biz_lifecycle_item i " +
                 "ON i.biz_id=ur.role_id AND i.new_ref=ur.user_id " +
                 "WHERE i.request_id=? AND i.biz_type='user_role'", id));
+        counts.put("incentive", jdbc.update("UPDATE biz_incentive_record r JOIN biz_lifecycle_item i ON i.biz_id=r.id " +
+                "SET r.user_id=i.old_ref WHERE i.request_id=? AND i.biz_type='incentive' AND r.user_id=i.new_ref", id));
+        counts.put("report", jdbc.update("UPDATE sys_user u JOIN biz_lifecycle_item i ON i.biz_id=u.id " +
+                "SET u.manager_id=i.old_ref WHERE i.request_id=? AND i.biz_type='report_manager' AND u.manager_id=i.new_ref", id));
         return counts;
     }
 
@@ -310,6 +380,8 @@ public class LifecycleService {
                 "SET f.org_id=i.old_ref WHERE i.request_id=? AND i.biz_type='file_org'", id));
         counts.put("folder", jdbc.update("UPDATE biz_file_folder f JOIN biz_lifecycle_item i ON i.biz_id=f.id " +
                 "SET f.org_id=i.old_ref WHERE i.request_id=? AND i.biz_type='folder_org'", id));
+        counts.put("reminder", jdbc.update("UPDATE biz_reminder r JOIN biz_lifecycle_item i ON i.biz_id=r.id " +
+                "SET r.office_id=i.old_ref WHERE i.request_id=? AND i.biz_type='reminder_office'", id));
         permissionCacheService.evict(userId);
         return counts;
     }
@@ -405,8 +477,8 @@ public class LifecycleService {
         return rows.isEmpty() ? null : rows.get(0);
     }
 
-    private Map<String, Object> requirePending(Long id) {
-        Map<String, Object> req = requestMap(id);
+    private Map<String, Object> requirePendingForUpdate(Long id) {
+        Map<String, Object> req = requestMapForUpdate(id);
         if (req == null) throw new BusinessException("请求不存在");
         if (!"pending".equals(req.get("status"))) throw new BusinessException("该请求已处理");
         return req;
@@ -414,6 +486,12 @@ public class LifecycleService {
 
     private Map<String, Object> requestMap(Long id) {
         List<Map<String, Object>> rows = jdbc.queryForList("SELECT * FROM biz_lifecycle_request WHERE id=?", id);
+        return rows.isEmpty() ? null : rows.get(0);
+    }
+
+    private Map<String, Object> requestMapForUpdate(Long id) {
+        List<Map<String, Object>> rows = jdbc.queryForList(
+                "SELECT * FROM biz_lifecycle_request WHERE id=? FOR UPDATE", id);
         return rows.isEmpty() ? null : rows.get(0);
     }
 

@@ -434,6 +434,9 @@ public class IncentiveService {
     @Transactional
     public void deleteRecord(Long id) {
         // 【2026-11-17 阶段三】软删进统一回收站：保留原分值与文件引用，管理员可恢复。
+        // 【2026-11-17 P2-5】已读记录先快照进 bin，恢复时回填，避免“恢复后全员变未读”。
+        java.util.List<java.util.Map<String, Object>> reads = jdbc.queryForList(
+                "SELECT user_id FROM biz_incentive_read WHERE record_id=?", id);
         jdbc.update("UPDATE biz_incentive_record SET deleted_at=NOW(), deleted_by=?, deleted_reason=? WHERE id=?",
                 SecurityUtils.getCurrentUserId(), "用户删除", id);
         jdbc.update("DELETE FROM biz_incentive_read WHERE record_id = ?", id);
@@ -441,6 +444,7 @@ public class IncentiveService {
         if (recycleBinService != null) {
             java.util.Map<String, Object> snap = new java.util.LinkedHashMap<>();
             snap.put("id", id);
+            snap.put("readUsers", reads);
             recycleBinService.record("incentive", id, snap, "用户删除", "user");
         }
         evictScoreboardCache();
