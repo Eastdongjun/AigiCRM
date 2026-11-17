@@ -1857,6 +1857,11 @@ public class FileService {
     public boolean canAccessFile(BizFile file, Long userId) {
         // 【2026-11-17 P1-1】DENY 必须压过 owner/公开/分享快速放行。
         if (folderPermissionService.hasFileGrantDeny(file, FolderPermissionService.P_VIEW, userId)) return false;
+        return canAccessFileNoDeny(file, userId);
+    }
+
+    /** 下载路径已用 download DENY（actionsFor(download) 含 view）覆盖，避免重复查一遍 view DENY。 */
+    private boolean canAccessFileNoDeny(BizFile file, Long userId) {
         if ("public".equals(file.getFileScope())) return true;
         if (userId.equals(file.getUploaderId())) return true;
         // 检查是否被分享
@@ -1887,7 +1892,7 @@ public class FileService {
     public boolean canDownloadFile(BizFile file, Long userId) {
         // 【2026-11-17 P1-1】下载动作的 DENY 前置；与 canAccessFile 的 view DENY 双保险。
         if (folderPermissionService.hasFileGrantDeny(file, FolderPermissionService.P_DOWNLOAD, userId)) return false;
-        boolean canDownload = canAccessFile(file, userId);
+        boolean canDownload = canAccessFileNoDeny(file, userId);
         if (!canDownload && file.getFolderId() != null) {
             canDownload = folderPermissionService.checkFile(file.getId(), FolderPermissionService.P_DOWNLOAD, userId);
         }

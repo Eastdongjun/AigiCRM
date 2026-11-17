@@ -21,3 +21,6 @@ SELECT r.`id`, m.`id`
 UPDATE `sys_permission_meta`
    SET `admin_only` = 1
  WHERE `code` = 'file:acl:manage';
+
+-- 权限缓存自愈：绑定变化后全员 perm_version +1，避免 Redis perm:ctx TTL 内旧权限继续生效。
+UPDATE `sys_user` SET `perm_version` = `perm_version` + 1;

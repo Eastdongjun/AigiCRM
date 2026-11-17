@@ -40,6 +40,10 @@ public class LifecycleService {
     private final BizApprovalConfigMapper approvalConfigMapper;
     private final PermissionCacheService permissionCacheService;
 
+    /** 【2026-11-17 P2】激励归属改派后清排行缓存；单测可缺省。 */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.aigicrm.module.incentive.service.IncentiveService incentiveService;
+
     // ==================== 创建 ====================
 
     @Transactional
@@ -184,6 +188,7 @@ public class LifecycleService {
         Long toOrg = longVal(target.get("org_id"));
         if (toOrg == null) toOrg = toOffice != null ? toOffice : toDept;
         if (toDept == null || toOrg == null) throw new BusinessException("继任人未配置部门/组织，无法交接组织快照");
+        if (toOffice == null) throw new BusinessException("继任人未配置办事处，无法交接客户/提醒组织快照");
         Map<String, Object> counts = new LinkedHashMap<>();
 
         // 【2026-11-17 P1-2】交接同时把当前数据的组织快照改派到继任人组织；旧值写明细供回滚。
@@ -258,6 +263,8 @@ public class LifecycleService {
             reports = jdbc.update("UPDATE sys_user SET manager_id=? WHERE manager_id=? AND deleted=0", to, from);
         }
         counts.put("report", reports);
+        if (incentives > 0 && incentiveService != null) incentiveService.evictScoreboardCacheAfterRecycle();
+        if (reports > 0 || roles > 0) permissionCacheService.evictAll();
         return counts;
     }
 
@@ -295,6 +302,9 @@ public class LifecycleService {
         snapshot.put("deptId", oldDept);
         snapshot.put("officeId", oldOffice);
         snapshot.put("orgId", oldOrg);
+        snapshot.put("newDeptId", toDept);
+        snapshot.put("newOfficeId", toOffice);
+        snapshot.put("newOrgId", toOrg);
         jdbc.update("UPDATE biz_lifecycle_request SET snapshot_json=? WHERE id=?", toJson(snapshot), id);
 
         Map<String, Object> counts = new LinkedHashMap<>();
@@ -371,17 +381,21 @@ public class LifecycleService {
         Long oldOffice = longVal(snapshot.get("officeId"));
         Long oldOrg = longVal(snapshot.get("orgId"));
         long userId = longVal(req.get("subject_user_id"));
-        counts.put("user", jdbc.update("UPDATE sys_user SET dept_id=?, office_id=?, org_id=?, perm_version=perm_version+1, updated_at=NOW() WHERE id=?",
-                oldDept, oldOffice, oldOrg, userId));
+        Long newDept = longVal(snapshot.get("newDeptId"));
+        Long newOffice = longVal(snapshot.get("newOfficeId"));
+        Long newOrg = longVal(snapshot.get("newOrgId"));
+        counts.put("user", jdbc.update("UPDATE sys_user SET dept_id=?, office_id=?, org_id=?, perm_version=perm_version+1, updated_at=NOW() " +
+                        "WHERE id=? AND dept_id <=> ? AND office_id <=> ? AND org_id <=> ?",
+                oldDept, oldOffice, oldOrg, userId, newDept, newOffice, newOrg));
         counts.put("customer", jdbc.update("UPDATE biz_customer c JOIN biz_lifecycle_item i ON i.biz_id=c.id " +
                 "SET c.dept_id=i.old_ref, c.office_id=i.old_ref2, c.updated_at=NOW() " +
-                "WHERE i.request_id=? AND i.biz_type='customer_org'", id));
+                "WHERE i.request_id=? AND i.biz_type='customer_org' AND c.dept_id=i.new_ref AND c.office_id=i.new_ref2", id));
         counts.put("file", jdbc.update("UPDATE biz_file f JOIN biz_lifecycle_item i ON i.biz_id=f.id " +
-                "SET f.org_id=i.old_ref WHERE i.request_id=? AND i.biz_type='file_org'", id));
+                "SET f.org_id=i.old_ref WHERE i.request_id=? AND i.biz_type='file_org' AND f.org_id=i.new_ref", id));
         counts.put("folder", jdbc.update("UPDATE biz_file_folder f JOIN biz_lifecycle_item i ON i.biz_id=f.id " +
-                "SET f.org_id=i.old_ref WHERE i.request_id=? AND i.biz_type='folder_org'", id));
+                "SET f.org_id=i.old_ref WHERE i.request_id=? AND i.biz_type='folder_org' AND f.org_id=i.new_ref", id));
         counts.put("reminder", jdbc.update("UPDATE biz_reminder r JOIN biz_lifecycle_item i ON i.biz_id=r.id " +
-                "SET r.office_id=i.old_ref WHERE i.request_id=? AND i.biz_type='reminder_office'", id));
+                "SET r.office_id=i.old_ref WHERE i.request_id=? AND i.biz_type='reminder_office' AND r.office_id=i.new_ref", id));
         permissionCacheService.evict(userId);
         return counts;
     }
