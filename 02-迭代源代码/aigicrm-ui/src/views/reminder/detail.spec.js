@@ -46,7 +46,7 @@ function detailPayload() {
     updatedAt: '2026-09-13T11:20:38',
     processedAt: null,
     customerId: 295,
-    ownerName: '白晓炯',
+    ownerName: '测试负责人',
     officeName: '内蒙办销售部',
     customer: {
       id: 295,
@@ -87,7 +87,7 @@ describe('reminder/detail.vue 组件冒烟', () => {
     expect(text).toContain('山西平阳重工机械有限责任公司')
     expect(text).toContain('NM-202607-037')
     expect(text).toContain('预警')
-    expect(text).toContain('白晓炯')
+    expect(text).toContain('测试负责人')
     expect(text).toContain('内蒙办销售部')
     expect(text).toMatch(/剩余 \d+ 天到期/)
   })

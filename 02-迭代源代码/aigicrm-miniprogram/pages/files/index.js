@@ -268,7 +268,7 @@ function formatDateTimeText(value) {
 function buildFileRowView(item, data) {
   // 【对齐 PC 2026-11-13】四项服务 tab 不再排除写动作——PC FileTable 四项服务 tab 有
   // 改名/删除/分享按钮(仅 share 排除 public/shared_to_me), 后端 checkFile 对激励附件
-  // 按上级链/授权正常放行(生产 API 实证 NO001 对郑磊附件返回全量 perms), MP 只读硬编码
+  // 按上级链/授权正常放行(生产 API 实证总监账号对附件返回全量 perms), MP 只读硬编码
   // 属显示层与 PC/后端不一致("勾了权限看不到")。分享给我 tab 保留只读(他人分享浏览)。
   const canMutateOwnTab = data.activeTab !== '分享给我'
   // 【mp-4 2026-10-17】行操作按当前文件夹 ACL + downloadable 收敛（与 PC FileTable 同口径）；
@@ -295,7 +295,7 @@ function buildFileRowView(item, data) {
   if (showDownload) sheetActions.push({ key: 'download', label: '下载' })
   // 【2026-11-06 用户令"加一个可以修改文件名称的"】重命名=file:edit+夹 edit(后端与 replace 同门
   // checkFile P_RENAME); 【11-08 审计项3】码前置; 【2026-11-10 用户令"A"】∨ 是我传的(本人短路)
-  // 【修复 2026-11-11 NO001 验收发现】文件夹树回填 perms 是权限终版细词(rename/replace),
+  // 【修复 2026-11-11 验收发现】文件夹树回填 perms 是权限终版细词(rename/replace),
   // 此前只认旧 'edit' 伞词 → 勾了"改名"的夹里非本人文件的重命名入口恒不出现(仅 isOwn 兜底);
   // 兼容双词表: 'edit' ∨ 'rename' 均放行; 【T2-MP】行级 rowPerms 优先(公共根目录类型授权直达)
   if (data.canEditFile && (actionPerms.includes('edit') || actionPerms.includes('rename') || isOwn)) sheetActions.push({ key: 'rename', label: '重命名' })

@@ -68,12 +68,12 @@ describe('登录页 B1: 口令不落盘 localStorage', () => {
     localStorage.setItem(PASS_KEY, b64(PWD_OLD))
     login.mockResolvedValue({ data: { token: 'tk-1', pwdResetRequired: 0, groupIds: [], currentGroupId: null } })
     const wrapper = mountLogin()
-    wrapper.vm.form.username = 'NO001'
+    wrapper.vm.form.username = 'spec_user'
     wrapper.vm.form.password = PWD_LOGIN
     await wrapper.vm.handleLogin()
     await flushPromises()
     expect(localStorage.getItem('token')).toBe('tk-1')
-    expect(localStorage.getItem(USER_KEY)).toBe('NO001')
+    expect(localStorage.getItem(USER_KEY)).toBe('spec_user')
     expect(localStorage.getItem(PASS_KEY)).toBeNull()
     expectNoPasswordAnywhere(PWD_LOGIN, PWD_OLD)
   })
@@ -81,7 +81,7 @@ describe('登录页 B1: 口令不落盘 localStorage', () => {
   it('取消"记住账号"登录后账号/口令键均不存在', async () => {
     login.mockResolvedValue({ data: { token: 'tk-2', pwdResetRequired: 0, groupIds: [], currentGroupId: null } })
     const wrapper = mountLogin()
-    wrapper.vm.form.username = 'NO001'
+    wrapper.vm.form.username = 'spec_user'
     wrapper.vm.form.password = PWD_LOGIN
     wrapper.vm.form.rememberUser = false
     await wrapper.vm.handleLogin()
@@ -95,13 +95,13 @@ describe('登录页 B1: 口令不落盘 localStorage', () => {
     ElMessageBox.prompt.mockResolvedValue({ value: PWD_NEW })
     changePassword.mockResolvedValue({})
     const wrapper = mountLogin()
-    wrapper.vm.form.username = 'NO001'
+    wrapper.vm.form.username = 'spec_user'
     wrapper.vm.form.password = PWD_INIT
     await wrapper.vm.handleLogin()
     await flushPromises()
     expect(changePassword).toHaveBeenCalledWith({ oldPassword: PWD_INIT, newPassword: PWD_NEW })
     expect(localStorage.getItem('token')).toBeNull()
-    expect(localStorage.getItem(USER_KEY)).toBe('NO001')
+    expect(localStorage.getItem(USER_KEY)).toBe('spec_user')
     expect(localStorage.getItem(PASS_KEY)).toBeNull()
     expectNoPasswordAnywhere(PWD_NEW, PWD_INIT)
   })
@@ -111,7 +111,7 @@ describe('登录页 B1: 口令不落盘 localStorage', () => {
     login.mockResolvedValue({ data: { token: 'tk-4', pwdResetRequired: 1, groupIds: [], currentGroupId: null } })
     ElMessageBox.prompt.mockRejectedValue(new Error('cancel'))
     const wrapper = mountLogin()
-    wrapper.vm.form.username = 'NO001'
+    wrapper.vm.form.username = 'spec_user'
     wrapper.vm.form.password = PWD_INIT
     await wrapper.vm.handleLogin()
     await flushPromises()
@@ -122,14 +122,14 @@ describe('登录页 B1: 口令不落盘 localStorage', () => {
   })
 
   it('挂载登录页清除遗留口令键且不回填密码(管理员重置/旧版本残留场景)', async () => {
-    localStorage.setItem(USER_KEY, 'NO001')
+    localStorage.setItem(USER_KEY, 'spec_user')
     localStorage.setItem(PASS_KEY, b64(PWD_OLD))
     const wrapper = mountLogin()
     await flushPromises()
-    expect(wrapper.vm.form.username).toBe('NO001')
+    expect(wrapper.vm.form.username).toBe('spec_user')
     expect(wrapper.vm.form.password).toBe('')
     expect(localStorage.getItem(PASS_KEY)).toBeNull()
-    expect(localStorage.getItem(USER_KEY)).toBe('NO001')
+    expect(localStorage.getItem(USER_KEY)).toBe('spec_user')
   })
 
   it('2026-11-05 用户翻案恢复: 提供"记住密码"勾选, 口令走加密档(auth_v2)且旧 base64 键仍禁写', async () => {
@@ -140,7 +140,7 @@ describe('登录页 B1: 口令不落盘 localStorage', () => {
     await flushPromises()
     expect(wrapper.text()).toContain('记住账号')
     expect(wrapper.text()).toContain('记住密码')
-    wrapper.vm.form.username = 'NO001'
+    wrapper.vm.form.username = 'spec_user'
     wrapper.vm.form.password = PWD_INIT
     wrapper.vm.form.rememberPassword = true
     login.mockResolvedValue({ data: { token: 'tk-9', pwdResetRequired: 0, groupIds: [], currentGroupId: null } })

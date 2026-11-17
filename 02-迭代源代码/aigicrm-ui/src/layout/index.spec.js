@@ -34,7 +34,7 @@ describe('layout B1: 普通改密走 logout 清理口令遗留键', () => {
     setActivePinia(createPinia())
     push.mockClear()
     getUserInfo.mockResolvedValue({ data: {
-      userId: 1, username: 'NO001', realName: '测试', avatar: '',
+      userId: 1, username: 'spec_user', realName: '测试', avatar: '',
       deptName: '', officeName: '', roles: [], roleName: '', dataScope: 'self',
       permissions: ['statistics:view'], menus: []
     } })
@@ -44,7 +44,7 @@ describe('layout B1: 普通改密走 logout 清理口令遗留键', () => {
   it('submitPassword 成功 → logout 清除口令键，保留"记住账号"', async () => {
     // 模拟旧版本遗留: token + 记住账号 + 可逆口令键
     localStorage.setItem('token', 'tk-live')
-    localStorage.setItem('aigicrm_remember_username', 'NO001')
+    localStorage.setItem('aigicrm_remember_username', 'spec_user')
     localStorage.setItem('aigicrm_remember_password', btoa(PWD_OLD))
 
     const wrapper = mount(LayoutIndex, {
@@ -62,7 +62,7 @@ describe('layout B1: 普通改密走 logout 清理口令遗留键', () => {
     expect(changePassword).toHaveBeenCalledWith({ oldPassword: PWD_OLD, newPassword: PWD_NEW })
     // B1: 普通改密路径经 logout 统一清理口令键；"记住账号"保留
     expect(localStorage.getItem('aigicrm_remember_password')).toBeNull()
-    expect(localStorage.getItem('aigicrm_remember_username')).toBe('NO001')
+    expect(localStorage.getItem('aigicrm_remember_username')).toBe('spec_user')
     expect(localStorage.getItem('token')).toBeNull()
     expect(push).toHaveBeenCalledWith('/login')
     wrapper.unmount()

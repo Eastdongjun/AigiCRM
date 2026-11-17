@@ -38,8 +38,8 @@ const stubs = {
 }
 
 const users = [
-  { id: 1, username: 'NO001', realName: '马吉亮', phone: '13800000000', status: 1, roleName: '销售总监' },
-  { id: 2, username: 'NM005', realName: '王磊磊', phone: '13900000000', status: 1, roleName: '销售员' },
+  { id: 1, username: 'spec_dir', realName: '测试总监', phone: '13800000000', status: 1, roleName: '销售总监' },
+  { id: 2, username: 'spec_sale', realName: '测试销售', phone: '13900000000', status: 1, roleName: '销售员' },
 ]
 const depts = [
   { id: 1, parentId: 0, deptName: '公司', deptType: 1 },

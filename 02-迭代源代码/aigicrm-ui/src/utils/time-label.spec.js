@@ -84,9 +84,9 @@ describe('月份分组（时间轴）', () => {
  * 2. filterRecordsByKeyword: 详情页内多字段检索(分类/产品/上传人/描述/备注/附件名)
  */
 const toolbarRecs = [
-  { id: 3, createdAt: '2026-09-02 10:00', categoryName: '交流拜访', userName: '王磊磊', remark: '现场沟通' },
-  { id: 1, createdAt: '2026-08-01 09:00', categoryName: '产品试点', userName: '李帮文', preInstallQuestion: '泵体密封改造', fileName: '方案A.pdf' },
-  { id: 2, createdAt: '2026-08-15 15:00', categoryName: '交流拜访', userName: '王磊磊', relatedProducts: '涂层类', filePreName: '现场照片.jpg,设备.png' },
+  { id: 3, createdAt: '2026-09-02 10:00', categoryName: '交流拜访', userName: '测试销售员', remark: '现场沟通' },
+  { id: 1, createdAt: '2026-08-01 09:00', categoryName: '产品试点', userName: '测试主管', preInstallQuestion: '泵体密封改造', fileName: '方案A.pdf' },
+  { id: 2, createdAt: '2026-08-15 15:00', categoryName: '交流拜访', userName: '测试销售员', relatedProducts: '涂层类', filePreName: '现场照片.jpg,设备.png' },
 ]
 
 describe('groupRecordsByMonth 方向(详情工具条)', () => {
@@ -110,7 +110,7 @@ describe('filterRecordsByKeyword 详情检索', () => {
 
   it('命中分类/上传人/描述/备注/附件名(大小写不敏感)', () => {
     expect(filterRecordsByKeyword(toolbarRecs, '试点').map((r) => r.id)).toEqual([1])
-    expect(filterRecordsByKeyword(toolbarRecs, '王磊磊').map((r) => r.id)).toEqual([3, 2])
+    expect(filterRecordsByKeyword(toolbarRecs, '测试销售员').map((r) => r.id)).toEqual([3, 2])
     expect(filterRecordsByKeyword(toolbarRecs, '泵体').map((r) => r.id)).toEqual([1])
     expect(filterRecordsByKeyword(toolbarRecs, '现场').map((r) => r.id)).toEqual([3, 2])
     expect(filterRecordsByKeyword(toolbarRecs, '设备.png').map((r) => r.id)).toEqual([2])

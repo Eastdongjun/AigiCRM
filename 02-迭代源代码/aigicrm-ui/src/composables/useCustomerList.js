@@ -162,7 +162,7 @@ export function useCustomerList() {
   // 【FM3 2026-10-07】空态判定带服务端 total（tableData 现为当前页，单看它区分不了"筛选无匹配"与"范围无数据"）
   // 【UI 整改 2026-10-08】带搜索词时改提示"未找到与XX匹配"，不再误导去找管理员查数据范围
   // 【⑬B 2026-10-17】带页签第四参：非"全部"页签空表用 tabCounts['全部']（counts 接口同口径但不含 devType）
-  // 区分"该分类为空"与"数据范围无客户"，修 NM005/郑磊案的误导文案
+  // 区分"该分类为空"与"数据范围无客户"，修一线销售员空表案的误导文案
   const emptyTableText = computed(() => customerEmptyText(tableData.value, total.value, buildListParams().keyword, {
     allTotal: tabCounts.value['全部'],
     tabLabel: TAB_DEV_TYPE[activeTab.value],

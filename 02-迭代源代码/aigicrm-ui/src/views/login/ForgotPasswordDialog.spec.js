@@ -43,12 +43,12 @@ describe('忘记密码 B1: 重置成功清除记住账号/口令键', () => {
 
   it('三步重置成功后两个 localStorage 键均被清除', async () => {
     // 模拟旧版本遗留的账号+口令键
-    localStorage.setItem(USER_KEY, 'NO001')
+    localStorage.setItem(USER_KEY, 'spec_user')
     localStorage.setItem(PASS_KEY, btoa('legacy'))
 
     const wrapper = mountDialog()
     // 步骤1: 验证账号
-    wrapper.vm.form.username = 'NO001'
+    wrapper.vm.form.username = 'spec_user'
     await wrapper.vm.handleNext()
     await flushPromises()
     expect(wrapper.vm.step).toBe(2)
@@ -62,17 +62,17 @@ describe('忘记密码 B1: 重置成功清除记住账号/口令键', () => {
     await wrapper.vm.handleNext()
     await flushPromises()
 
-    expect(forgotPasswordReset).toHaveBeenCalledWith({ username: 'NO001', code: '123456', newPassword: PWD_NEW })
+    expect(forgotPasswordReset).toHaveBeenCalledWith({ username: 'spec_user', code: '123456', newPassword: PWD_NEW })
     // B1: 重置成功后口令键(旧口令已作废)与账号键一并清除
     expect(localStorage.getItem(PASS_KEY)).toBeNull()
     expect(localStorage.getItem(USER_KEY)).toBeNull()
   })
 
   it('重置请求失败时不清除键(由拦截器提示错误)', async () => {
-    localStorage.setItem(USER_KEY, 'NO001')
+    localStorage.setItem(USER_KEY, 'spec_user')
     forgotPasswordReset.mockRejectedValue(new Error('bad code'))
     const wrapper = mountDialog()
-    wrapper.vm.form.username = 'NO001'
+    wrapper.vm.form.username = 'spec_user'
     await wrapper.vm.handleNext()
     await flushPromises()
     wrapper.vm.form.code = '123456'
@@ -81,6 +81,6 @@ describe('忘记密码 B1: 重置成功清除记住账号/口令键', () => {
     wrapper.vm.form.confirmPassword = PWD_NEW
     await wrapper.vm.handleNext()
     await flushPromises()
-    expect(localStorage.getItem(USER_KEY)).toBe('NO001')
+    expect(localStorage.getItem(USER_KEY)).toBe('spec_user')
   })
 })

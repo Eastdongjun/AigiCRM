@@ -165,7 +165,7 @@ public class CustomerService {
         String status = statusOverride != null ? statusOverride : f.status();
         // 【议题五.4 裁决】归档客户默认隐藏;status=include_archived 时包含(显式传 'archived' 即只看归档)
         if ("include_archived".equals(status)) {
-            // 【回归修复 2026-10-09 NM005 反馈】此处必须是 ne(sea) 而非 B5 统一口径的
+            // 【回归修复 2026-10-09 一线反馈】此处必须是 ne(sea) 而非 B5 统一口径的
             // notIn(sea,archived): "显示已归档"=包含归档仅排公海。B5 批量替换(2026-09-22 31处)误伤本特例,
             // 勾选后归档客户仍被过滤=勾了没用,用户归档后自己看不到。测试已补 assertFalse(archived) 钉住。
             wrapper.ne(BizCustomer::getStatus, "sea");
@@ -708,7 +708,7 @@ public class CustomerService {
      */
     private boolean protectCustomerDateFields(BizCustomer existing, BizCustomer requested) {
         // 【裁决 2026-11-02 用户名单】最近开票日人工维护: 持 customer:invoice-date:edit(行政/总监/admin
-        // 绑定, 名单=毛颖娜/肖赟/李艳梅/马吉亮/admin)可直改——覆盖 2026-09-24"纯推导任何角色不可直改"裁决。
+        // 绑定, 持码角色=行政/总监/admin, 名单以权限中心绑定为准)可直改——覆盖 2026-09-24"纯推导任何角色不可直改"裁决。
         // 人工设定=新基准语义(与开票前移同款); 自动推导"只前进"与其共存(更晚开票照常前移, 作废回算跟随剩余真实票)。
         boolean invoiceDateManuallyChanged = fieldChanged(existing.getLastInvoiceDate(), requested.getLastInvoiceDate());
         if (invoiceDateManuallyChanged) {

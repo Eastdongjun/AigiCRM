@@ -90,7 +90,7 @@ describe('客户详情 InfoTab 展示字段', () => {
       regionName: '内蒙古大区',
       officeName: '内蒙办',
       deptName: '内蒙办销售部',
-      ownerName: '王磊磊',
+      ownerName: '测试销售员',
       managerName: '张上级',
     })
     const text = wrapper.text()
