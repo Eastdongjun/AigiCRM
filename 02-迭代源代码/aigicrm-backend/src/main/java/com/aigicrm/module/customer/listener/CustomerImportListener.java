@@ -39,8 +39,8 @@ public class CustomerImportListener implements ReadListener<CustomerImportDTO> {
             }
             String name = dto.getCustomerName().trim();
 
-            // 2. 检查重名
-            if (customerService.existsByName(name)) {
+            // 2. 检查重名（【2026-11-17】集团级归一化唯一，含历史豁免行）
+            if (customerService.existsByNameGlobal(name, null)) {
                 addFailure(rowNum, name, "客户名称已存在");
                 return;
             }

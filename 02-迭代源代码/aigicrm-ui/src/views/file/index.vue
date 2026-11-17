@@ -41,7 +41,7 @@
              按钮不隐藏改为预禁用 + tooltip 提示原因(与"申请扩容"禁用态同款 span 包裹写法),
              其余无 upload 权限场景照旧隐藏 -->
         <el-tooltip
-          v-if="activeTab!=='incentive' && activeTab!=='shared_to_me' && (canUpload || isPublicRootNonAdmin)"
+          v-if="activeTab!=='incentive' && activeTab!=='shared_to_me' && activeTab!=='fabushi' && (canUpload || isPublicRootNonAdmin)"
           :content="uploadDisabledReason"
           :disabled="canUpload"
           placement="bottom"
@@ -72,7 +72,7 @@
 
       <div class="content-body">
         <!-- 左侧: 文件夹树（四项服务和分享给我Tab不显示） -->
-        <template v-if="activeTab !== 'incentive' && activeTab !== 'shared_to_me'">
+        <template v-if="activeTab !== 'incentive' && activeTab !== 'shared_to_me' && activeTab !== 'fabushi'">
           <FolderPanel />
           <!-- 分隔线 -->
           <div class="divider"></div>

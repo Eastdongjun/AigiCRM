@@ -185,7 +185,7 @@ public class FileService {
         // 【安全修复 FEAT-20260804-FILE-AUTHZ】scope 白名单：缺省/空串/未知 scope 一律返回空页，
         // 在查询前拒绝，避免未识别 scope 落入下方 folderType=scope 空候选集 → isNull(folder_id)
         // 分支后跨 scope 枚举他人私有无文件夹文件的元数据。
-        if (scope == null || !("public".equals(scope) || "private".equals(scope) || "incentive".equals(scope))) {
+        if (scope == null || !("public".equals(scope) || "private".equals(scope) || "incentive".equals(scope) || "fabushi".equals(scope))) {
             return new Page<>(current, size, 0);
         }
         LambdaQueryWrapper<BizFile> wrapper = new LambdaQueryWrapper<>();
@@ -552,6 +552,12 @@ public class FileService {
             } else if ("private".equals(scope) || "incentive".equals(scope)) {
                 if (!userId.equals(file.getUploaderId())) {
                     throw new BusinessException(403, "无权删除该文件");
+                }
+            } else if ("fabushi".equals(scope)) {
+                // 【2026-11-17 文件统一管理】法布施文件不进 public/private/incentive 分支，
+                // 删除动作由独立权限码控制（默认仅 admin；管理员在法布施权限里按角色/人员勾选）。
+                if (!SecurityUtils.hasAuthority("fabushi:file:delete")) {
+                    throw new BusinessException(403, "删除法布施文件需要 fabushi:file:delete 权限");
                 }
             } else {
                 throw new BusinessException(403, "无权删除该文件");

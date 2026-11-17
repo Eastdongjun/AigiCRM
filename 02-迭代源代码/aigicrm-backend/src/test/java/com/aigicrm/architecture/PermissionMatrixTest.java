@@ -515,7 +515,7 @@ public class PermissionMatrixTest {
         Method deleteFile = com.aigicrm.module.file.controller.FileController.class
                 .getDeclaredMethod("deleteFile", Long.class);
 
-        assertPreAuthorize(deleteFile, "hasAuthority('file:delete')");
+        assertPreAuthorize(deleteFile, "hasAnyAuthority('file:delete','fabushi:file:delete')");
 
         Path src = Paths.get("src/main/java/com/aigicrm/module/file/service/FileService.java")
                 .toAbsolutePath().normalize();

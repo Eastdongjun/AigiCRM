@@ -403,6 +403,12 @@ public class FolderPermissionService {
                             || users == null || (uploader != null && users.contains(uploader));
                 }
                 if (hit) mergePerms(perms, p);
+                // 【2026-11-17 文件统一管理】法布施文件删除走独立权限码；行级 perms 同步点亮，
+            // 否则管理员已勾选 fabushi:file:delete 的用户看不到删除按钮（点击仍由 deleteFile 复核）。
+            if (!hit && P_DELETE.equals(p) && "fabushi".equals(anchorType)
+                    && SecurityUtils.hasAuthority("fabushi:file:delete")) {
+                mergePerms(perms, p);
+            }
             }
             result.put(file.getId(), perms);
         }

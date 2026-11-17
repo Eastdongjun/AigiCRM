@@ -18,6 +18,22 @@ public class BizCustomer {
     private String customerCode;
     @ExcelProperty("客户名称")
     private String customerName;
+    /** 【2026-11-17 客户名称唯一】归一化名称（NFKC/空格折叠/大小写/中文括号）；用于唯一索引与查重 */
+    @ExcelIgnore
+    private String nameNorm;
+    /** 1=历史同名豁免（祖父条款）：保留不参与活跃唯一索引；新建/改名一律 0 */
+    @ExcelIgnore
+    private Integer dupExempt;
+    /** 注销审计字段（客户表原先只有 deleted 标志，2026-11-17 补齐） */
+    @ExcelIgnore
+    private LocalDateTime deletedAt;
+    @ExcelIgnore
+    private Long deletedBy;
+    @ExcelIgnore
+    private String deletedReason;
+    @ExcelIgnore
+    private String deleteSource;
+
     /** 【议题五.1 裁决】别名/简称/曾用名(搜索命中) */
     @ExcelProperty("别名")
     private String alias;

@@ -115,7 +115,7 @@
 | GET | `/api/fabushi/stats/monthly/export` | `hasAuthority('fabushi:stats:export')` | monthlyExport | FabushiStatsController.java |
 | GET | `/api/fabushi/stats/personal` | `hasAuthority('fabushi:view')` | personal | FabushiStatsController.java |
 | GET | `/api/fabushi/stats/team` | `hasAuthority('fabushi:stats:view')` | team | FabushiStatsController.java |
-| POST | `/api/file/batch-delete` | `hasAuthority('file:delete')` | batchDelete | FileController.java |
+| POST | `/api/file/batch-delete` | `hasAnyAuthority('file:delete','fabushi:file:delete')` | batchDelete | FileController.java |
 | POST | `/api/file/batch-download` | `hasAuthority('file:download')` | batchDownload | FileController.java |
 | GET | `/api/file/download-token` | `hasAuthority('file:download')` | downloadToken | FileController.java |
 | GET | `/api/file/download/**` | `hasAuthority('file:download')` | download | FileController.java |
@@ -147,13 +147,13 @@
 | GET | `/api/file/storage` | `hasAuthority('file:view')` | getStorageInfo | FileController.java |
 | GET | `/api/file/storage/apply-info` | `hasAuthority('file:view')` | storageApplyInfo | FileController.java |
 | POST | `/api/file/upload` | `hasAuthority('file:upload')` | upload | FileController.java |
-| DELETE | `/api/file/{id}` | `hasAuthority('file:delete')` | deleteFile | FileController.java |
+| DELETE | `/api/file/{id}` | `hasAnyAuthority('file:delete','fabushi:file:delete')` | deleteFile | FileController.java |
 | PUT | `/api/file/{id}/rename` | `hasAuthority('file:edit')` | renameFile | FileController.java |
 | POST | `/api/file/{id}/replace` | `hasAuthority('file:edit')` | replaceFile | FileController.java |
 | POST | `/api/file/{id}/share` | `hasAuthority('file:share')` | shareFile | FileController.java |
 | GET | `/api/file/{id}/versions` | `hasAuthority('file:view')` | listVersions | FileController.java |
 | GET | `/api/file/{id}/versions/{versionNo}/download` | `hasAuthority('file:download')` | downloadVersion | FileController.java |
-| POST | `/api/file/{id}/versions/{versionNo}/rollback` | `hasAuthority('file:edit')` | rollbackToVersion | FileController.java |
+| POST | `/api/file/{id}/versions/{versionNo}/rollback` | `hasAnyAuthority('file:edit','file:version:rollback')` | rollbackToVersion | FileController.java |
 | GET | `/api/incentive/categories` | `hasAuthority('incentive:view')` | getCategoryTree | IncentiveController.java |
 | POST | `/api/incentive/categories` | `hasAuthority('incentive:edit')` | createCategory | IncentiveController.java |
 | DELETE | `/api/incentive/categories/{id}` | `hasAuthority('incentive:edit')` | deleteCategory | IncentiveController.java |

@@ -647,7 +647,7 @@
   {
    "method": "POST",
    "path": "/api/file/batch-delete",
-   "permission": "hasAuthority('file:delete')",
+   "permission": "hasAnyAuthority('file:delete','fabushi:file:delete')",
    "handler": "batchDelete"
   },
   {
@@ -839,7 +839,7 @@
   {
    "method": "DELETE",
    "path": "/api/file/{id}",
-   "permission": "hasAuthority('file:delete')",
+   "permission": "hasAnyAuthority('file:delete','fabushi:file:delete')",
    "handler": "deleteFile"
   },
   {
@@ -875,7 +875,7 @@
   {
    "method": "POST",
    "path": "/api/file/{id}/versions/{versionNo}/rollback",
-   "permission": "hasAuthority('file:edit')",
+   "permission": "hasAnyAuthority('file:edit','file:version:rollback')",
    "handler": "rollbackToVersion"
   },
   {

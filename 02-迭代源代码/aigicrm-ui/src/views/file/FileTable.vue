@@ -4,7 +4,7 @@
     <div class="batch-bar" v-if="selection.length">
       <span class="batch-count">已选 {{ selection.length }} 项</span>
       <el-button v-if="userStore.hasPermission('file:download')" size="small" type="primary" plain :icon="Download" @click="doBatchDownload">批量下载</el-button>
-      <el-button v-if="userStore.hasPermission('file:delete')" size="small" type="danger" plain :icon="Delete" @click="doBatchDelete">批量删除</el-button>
+      <el-button v-if="userStore.hasPermission('file:delete') || userStore.hasPermission('fabushi:file:delete')" size="small" type="danger" plain :icon="Delete" @click="doBatchDelete">批量删除</el-button>
       <el-button size="small" link @click="clearSelection">取消选择</el-button>
     </div>
     <!-- 【C12/D13 2026-10-08 二轮】列表请求期间 v-loading，与其他 18 处列表加载反馈对齐 -->
@@ -74,7 +74,7 @@
             <el-tooltip v-if="canRename(row)" content="改名" placement="top">
               <el-icon class="act-icon" @click.stop="handleRenameFile(row)"><EditPen /></el-icon>
             </el-tooltip>
-            <el-tooltip v-if="canFileAction(row, 'file:delete', 'delete')" content="删除" placement="top">
+            <el-tooltip v-if="canDeleteRow(row)" content="删除" placement="top">
               <el-icon class="act-icon act-danger" @click.stop="handleDelete(row)"><Delete /></el-icon>
             </el-tooltip>
           </div>
@@ -171,6 +171,12 @@ const canFileAction = (row, code, ...perms) => {
   return userStore.hasPermission(code) && (perms.some((p) => src.includes(p)) || isOwn(row))
 }
 const canRename = (row) => canFileAction(row, 'file:edit', 'edit', 'rename')
+// 【2026-11-17】法布施文件删除走独立权限码 fabushi:file:delete；行级 perms 由后端
+// permsForFiles 同码点亮（避免“勾了权限看不到按钮”）。普通文件仍走 file:delete。
+const canDeleteRow = (row) => activeTab.value === 'fabushi'
+  ? (userStore.hasPermission('fabushi:file:delete')
+      && (Array.isArray(row?.perms) ? row.perms.includes('delete') : true))
+  : canFileAction(row, 'file:delete', 'delete')
 
 // 【2026-11-08 用户令"改名不更改格式"】扩展名自动保留: 输入带不带/换不换后缀,
 // 提交前统一剥掉输入后缀拼回原扩展名(与后端 keepOriginalExtension 同口径, 后端为铁律守卫)

@@ -396,6 +396,18 @@ public class CustomerService {
 
     @Transactional
     public void create(BizCustomer customer) {
+        // 【2026-11-17 客户名称全集团唯一】归一化后查重（含历史豁免行，防“新客绕过旧同名”），
+        // 写入 name_norm；dup_exempt=0。展示名只 trim，不改变用户输入形态。
+        // 兼容服务层单测/历史内部调用：name 为 null 时交由调用方/DB 约束处理（Controller/导入已前置校验）。
+        if (customer.getCustomerName() != null) {
+            String nameNorm = CustomerNameNormalizer.normalizeOrThrow(customer.getCustomerName());
+            if (existsByNameGlobal(nameNorm, null)) {
+                throw new BusinessException(400, "客户名称已存在");
+            }
+            customer.setCustomerName(CustomerNameNormalizer.displayName(customer.getCustomerName()));
+            customer.setNameNorm(nameNorm);
+            customer.setDupExempt(0);
+        }
         // 【A1 2026-10-20】approved_extend_days 是审批域服务端派生字段, 新建一律强制置 0:
         // 请求体显式携带的值(接口直调可注入, 全仓 PC/小程序表单均无此字段)不得进入到期日公式。
         // 合法写入点仅三类: 审批通过累加(ApprovalService.executeApprovalAction)、捞取回私海清零
@@ -513,6 +525,19 @@ public class CustomerService {
         customerMapper.update(null, new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<BizCustomer>()
                 .eq(BizCustomer::getId, customerId)
                 .set(BizCustomer::getDeptId, deptId));
+    }
+
+    /** 【2026-11-17 客户名称全集团唯一】归一化查重：包含历史 dup_exempt 行（防新客绕过旧同名），
+     *  排除自身 id；不做数据范围限制——唯一性是集团级不变量，不因调用者可见范围而改变。 */
+    public boolean existsByNameGlobal(String customerName, Long excludeId) {
+        String norm = CustomerNameNormalizer.normalize(customerName);
+        if (norm == null || norm.isBlank()) return false;
+        LambdaQueryWrapper<BizCustomer> w = new LambdaQueryWrapper<BizCustomer>()
+                .eq(BizCustomer::getNameNorm, norm);
+        if (excludeId != null) {
+            w.ne(BizCustomer::getId, excludeId);
+        }
+        return customerMapper.selectCount(w) > 0;
     }
 
     public boolean existsByName(String customerName) {
@@ -660,6 +685,21 @@ public class CustomerService {
                     || fieldChanged(existing.getProtectionStatus(), customer.getProtectionStatus())) {
                 throw new BusinessException("客户状态/保护状态变更请通过归档、恢复、释放或保护期机制操作");
             }
+        }
+        // 【2026-11-17 客户名称全集团唯一】改名才查重；未改名保留历史 dup_exempt（祖父条款）。
+        // 改名后 dup_exempt=0，进入严格唯一集合；归一化只影响 name_norm，展示名仅 trim。
+        if (customer.getCustomerName() != null) {
+            String nameNorm = CustomerNameNormalizer.normalizeOrThrow(customer.getCustomerName());
+            String existingNorm = existing.getNameNorm() != null
+                    ? existing.getNameNorm()
+                    : CustomerNameNormalizer.normalize(existing.getCustomerName());
+            boolean nameChanged = existingNorm == null || !existingNorm.equals(nameNorm);
+            if (nameChanged && existsByNameGlobal(nameNorm, customer.getId())) {
+                throw new BusinessException(400, "客户名称已存在");
+            }
+            customer.setCustomerName(CustomerNameNormalizer.displayName(customer.getCustomerName()));
+            customer.setNameNorm(nameNorm);
+            customer.setDupExempt(nameChanged ? 0 : (existing.getDupExempt() == null ? 0 : existing.getDupExempt()));
         }
         boolean invoiceDateManuallyChanged = protectCustomerDateFields(existing, customer);
         // 【P2-2 2026-08-12 A3】始终按最终负责人(请求显式或库内现有)重同步 dept_id——

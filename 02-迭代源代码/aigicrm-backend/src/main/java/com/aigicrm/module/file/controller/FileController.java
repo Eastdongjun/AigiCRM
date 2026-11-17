@@ -103,7 +103,7 @@ public class FileController {
         return Result.ok();
     }
 
-    @PreAuthorize("hasAuthority('file:delete')")
+    @PreAuthorize("hasAnyAuthority('file:delete','fabushi:file:delete')")
     @DeleteMapping("/{id}")
     public Result<Void> deleteFile(@PathVariable Long id) {
         fileService.deleteFile(id);
@@ -140,14 +140,14 @@ public class FileController {
     }
 
     /** 回滚到指定版本(当前内容先归档不丢); 权限=checkFile replace, 佐证文件禁回滚 */
-    @PreAuthorize("hasAuthority('file:edit')")
+    @PreAuthorize("hasAnyAuthority('file:edit','file:version:rollback')")
     @PostMapping("/{id}/versions/{versionNo}/rollback")
     public Result<BizFile> rollbackToVersion(@PathVariable Long id, @PathVariable Integer versionNo) {
         return Result.ok(fileService.rollbackToVersion(id, versionNo));
     }
 
     /** 批量删除(ids[]): 逐条走单文件守卫链, 部分成功不回滚, 返回 {id:"OK"|"原因"} */
-    @PreAuthorize("hasAuthority('file:delete')")
+    @PreAuthorize("hasAnyAuthority('file:delete','fabushi:file:delete')")
     @PostMapping("/batch-delete")
     public Result<java.util.Map<Long, String>> batchDelete(@RequestBody Map<String, List<Long>> body) {
         return Result.ok(fileService.batchDeleteFiles(body == null ? null : body.get("ids")));

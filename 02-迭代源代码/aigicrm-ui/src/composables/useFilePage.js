@@ -44,6 +44,7 @@ export function useFilePage() {
   const publicCount = ref(0)
   const privateCount = ref(0)
   const incentiveCount = ref(0)
+  const fabushiCount = ref(0)
   const sharedToMeCount = ref(0)
   const storageUsed = ref('0MB')
   const storageQuota = ref('10GB')
@@ -72,6 +73,7 @@ export function useFilePage() {
     { label: '公共', value: 'public', count: publicCount.value },
     { label: '私人', value: 'private', count: privateCount.value },
     { label: '四项服务', value: 'incentive', count: incentiveCount.value },
+    { label: '法布施', value: 'fabushi', count: fabushiCount.value },
     { label: '分享给我', value: 'shared_to_me', count: sharedToMeCount.value }
   ])
 
@@ -94,7 +96,7 @@ export function useFilePage() {
   // 子夹按当前文件夹 upload 权限（ACL 判定）。
   const canCreateFolder = computed(() => {
     if (!hasFolderCreate.value) return false
-    if (activeTab.value === 'incentive' || activeTab.value === 'shared_to_me') return false
+    if (activeTab.value === 'incentive' || activeTab.value === 'shared_to_me' || activeTab.value === 'fabushi') return false
     if (activeTab.value === 'public' && selectedFolderId.value == null) return hasFolderCreate.value
     return folderPerms.value.includes('upload')
   })
@@ -110,6 +112,7 @@ export function useFilePage() {
   // 按钮可见可点、提交必 403(必败入口)。MP files 页 11-08 批已同口径, PC 此处补齐。
   const canUpload = computed(() => {
     if (!userStore.hasPermission('file:upload')) return false
+    if (activeTab.value === 'fabushi') return false // 法布施文件由法布施发布/书目管理上传，文件中心只读管理
     if (activeTab.value === 'public' && selectedFolderId.value == null && !hasFolderCreate.value) return false
     return folderPerms.value.includes('upload')
   })
@@ -121,7 +124,7 @@ export function useFilePage() {
   //    FileService.upload 管理员门槛对齐，非管理员无 upload），私人根目录本人全量
   //  - 选中文件夹：调 permissions 接口（管理员/本人/ACL 角色/公共兜底由后端判定）
   const loadFolderPerms = async () => {
-    if (activeTab.value === 'incentive' || activeTab.value === 'shared_to_me') {
+    if (activeTab.value === 'incentive' || activeTab.value === 'shared_to_me' || activeTab.value === 'fabushi') {
       folderPerms.value = ['view', 'download']
       folderDownloadable.value = 1
       return
@@ -194,15 +197,17 @@ export function useFilePage() {
 
   const loadTabCounts = async () => {
     try {
-      const [pub, pri, inc, shared] = await Promise.all([
+      const [pub, pri, inc, fab, shared] = await Promise.all([
         getFileList({ current: 1, size: 1, scope: 'public' }),
         getFileList({ current: 1, size: 1, scope: 'private' }),
         getFileList({ current: 1, size: 1, scope: 'incentive' }),
+        getFileList({ current: 1, size: 1, scope: 'fabushi' }),
         getSharedToMeCount()
       ])
       publicCount.value = pub.data?.total || 0
       privateCount.value = pri.data?.total || 0
       incentiveCount.value = inc.data?.total || 0
+      fabushiCount.value = fab.data?.total || 0
       sharedToMeCount.value = shared.data || 0
     } catch (e) {}
   }
@@ -239,7 +244,7 @@ export function useFilePage() {
     activeTab.value = tab
     selectedFolderId.value = null
     query.value.current = 1
-    if (tab !== 'incentive' && tab !== 'shared_to_me') loadFolders()
+    if (tab !== 'incentive' && tab !== 'shared_to_me' && tab !== 'fabushi') loadFolders()
     loadFolderPerms()
     loadFiles()
   }
@@ -359,7 +364,7 @@ export function useFilePage() {
   return {
     activeTab, selectedFolderId, keyword, query,
     files, fileTotal, filesLoading, allFolders, folderPerms, folderDownloadable,
-    publicCount, privateCount, incentiveCount, sharedToMeCount,
+    publicCount, privateCount, incentiveCount, fabushiCount, sharedToMeCount,
     storageUsed, storageQuota, storagePercent, storageApplyInfo,
     uploadVisible, createFolderVisible, renameFolderVisible, renameFolderTarget,
     shareDialogVisible, shareFileTarget, storageApplyVisible,

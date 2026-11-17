@@ -288,7 +288,9 @@ function buildFileRowView(item, data) {
     ? (item.canDownload !== false && (rowPerms.includes('download') || isOwn))
     : ((item.canDownload !== false && downloadable && folderPerms.includes('download')) || isOwn)
   // 【2026-10-26 用户令"三个点不需要替换"】替换入口从操作面板移除(详情页与后端 API 不动)
-  const showDelete = Boolean(data.canDelete && canMutateOwnTab && (actionPerms.includes('delete') || isOwn))
+  // 【2026-11-17】法布施文件删除走独立权限码；普通文件仍走 file:delete
+  const fabushiDelete = data.activeTab === '法布施' && hasPermission('fabushi:file:delete')
+  const showDelete = Boolean(data.canDelete && canMutateOwnTab && (actionPerms.includes('delete') || isOwn || fabushiDelete))
   const showShare = Boolean(data.canShare && canMutateOwnTab && data.activeTab !== '公共' && (actionPerms.includes('share') || isOwn))
   // 【需求A】行内按钮全部收进「⋯」半屏面板;打开保留为整行首选操作(点行=打开)
   const sheetActions = [{ key: 'open', label: '打开' }]
@@ -342,6 +344,7 @@ function isDemoMode() {
 // 公共与私人共用非激励文件, 分享给我没有可展示的分享数据
 function demoFileMatchesTab(item, activeTab) {
   if (activeTab === '四项服务') return item.folder === '激励资料'
+  if (activeTab === '法布施') return false
   if (activeTab === '分享给我') return false
   return item.folder !== '激励资料'
 }
@@ -369,7 +372,8 @@ function buildFileView(data) {
   const totalFiles = Number(data.total)
   const fileCount = Number.isFinite(totalFiles) && totalFiles > 0 ? totalFiles : files.length
   const isIncentiveTab = data.activeTab === '四项服务'
-  const showFolderCard = !isIncentiveTab && data.activeTab !== '分享给我'
+  const isFabushiTab = data.activeTab === '法布施'
+  const showFolderCard = !isIncentiveTab && !isFabushiTab && data.activeTab !== '分享给我'
   return {
     showUploadAction,
     tabs,
@@ -398,7 +402,7 @@ function buildFileView(data) {
 }
 
 Page({
-  data: { keyword: '', activeTab: '公共', activeFolderId: '', activeFolderName: '', tabs: ['公共', '私人', '四项服务', '分享给我'], tabCounts: { 公共: 0, 私人: 0, 四项服务: 0, 分享给我: 0 }, folders: [], files: [], filteredFiles: [], capacity: { used: '-', total: '-', percent: 0, hint: '存储统计加载中' }, canUpload: false, canDelete: false, canShare: false, canEditFile: false, canManageFolder: false, canDevUploadSmoke: false, uploading: false, loaded: false, loading: false, page: 1, pageSize: 10, total: 0, folderPerms: [], folderDownloadable: 1, previewing: false, dlToken: '', previewVideoPath: '', actionSheet: { visible: false, index: -1, name: '', actions: [] }, storageApplyInfo: { enabled: false, canApply: false, reason: '', used: 0, quota: 0, maxQuota: 0, allowDecrease: false }, storageApplyForm: { visible: false, submitting: false, quotaInput: '', reasonInput: '', errorText: '' }, storageApplyView: buildStorageApplyView({}), folderSelect: { visible: false, mode: 'album', folders: [], selectedId: '', selectedName: '根目录', rootLocked: false, rootLockText: '', emptyText: '当前分类暂无文件夹，将上传到根目录' }, renameModal: { visible: false, id: '', input: '' }, fileView: buildFileView({ tabs: ['公共', '私人', '四项服务', '分享给我'], tabCounts: { 公共: 0, 私人: 0, 四项服务: 0, 分享给我: 0 }, folders: [], filteredFiles: [], activeTab: '公共', activeFolderName: '', previewVideoPath: '', total: 0 }) },
+  data: { keyword: '', activeTab: '公共', activeFolderId: '', activeFolderName: '', tabs: ['公共', '私人', '四项服务', '法布施', '分享给我'], tabCounts: { 公共: 0, 私人: 0, 四项服务: 0, 法布施: 0, 分享给我: 0 }, folders: [], files: [], filteredFiles: [], capacity: { used: '-', total: '-', percent: 0, hint: '存储统计加载中' }, canUpload: false, canDelete: false, canShare: false, canEditFile: false, canManageFolder: false, canDevUploadSmoke: false, uploading: false, loaded: false, loading: false, page: 1, pageSize: 10, total: 0, folderPerms: [], folderDownloadable: 1, previewing: false, dlToken: '', previewVideoPath: '', actionSheet: { visible: false, index: -1, name: '', actions: [] }, storageApplyInfo: { enabled: false, canApply: false, reason: '', used: 0, quota: 0, maxQuota: 0, allowDecrease: false }, storageApplyForm: { visible: false, submitting: false, quotaInput: '', reasonInput: '', errorText: '' }, storageApplyView: buildStorageApplyView({}), folderSelect: { visible: false, mode: 'album', folders: [], selectedId: '', selectedName: '根目录', rootLocked: false, rootLockText: '', emptyText: '当前分类暂无文件夹，将上传到根目录' }, renameModal: { visible: false, id: '', input: '' }, fileView: buildFileView({ tabs: ['公共', '私人', '四项服务', '法布施', '分享给我'], tabCounts: { 公共: 0, 私人: 0, 四项服务: 0, 法布施: 0, 分享给我: 0 }, folders: [], filteredFiles: [], activeTab: '公共', activeFolderName: '', previewVideoPath: '', total: 0 }) },
 
   setFileData(patch) {
     const nextData = { ...this.data, ...patch }
@@ -442,7 +446,7 @@ Page({
   /** 当前 Tab/文件夹的有效权限：根目录沿用 PC useFilePage 的默认口径，
    *  选中文件夹时使用 getFolderTree 返回的该夹 perms/downloadable（管理员 perms 为全量）。 */
   resolveFolderPermissions(data) {
-    if (data.activeTab === '四项服务' || data.activeTab === '分享给我') {
+    if (data.activeTab === '四项服务' || data.activeTab === '分享给我' || data.activeTab === '法布施') {
       return { perms: ['view', 'download'], downloadable: 1 }
     }
     if (!data.activeFolderId) {
@@ -506,7 +510,7 @@ Page({
     } catch (_) { /* API missing or unavailable → fail-closed */ }
     const isLocalApi = /^https?:\/\/(127\.0\.0\.1|localhost|192\.168\.|10\.|172\.(1[6-9]|2\d|3[0-1])\.)/.test(apiBaseUrl)
     const canDevUploadSmoke = !globalData.demoMode && isLocalApi && isDevelopEnv
-    this.setFileData({ canUpload: globalData.demoMode || isAdmin() || hasPermission('file:upload'), canDelete: !globalData.demoMode && (isAdmin() || hasPermission('file:delete')), canShare: !globalData.demoMode && (isAdmin() || hasPermission('file:share')), canEditFile: globalData.demoMode || isAdmin() || hasPermission('file:edit'), canManageFolder: globalData.demoMode || isAdmin() || hasPermission('file:folder:manage'), canDevUploadSmoke })
+    this.setFileData({ canUpload: globalData.demoMode || isAdmin() || hasPermission('file:upload'), canDelete: !globalData.demoMode && (isAdmin() || hasPermission('file:delete') || hasPermission('fabushi:file:delete')), canShare: !globalData.demoMode && (isAdmin() || hasPermission('file:share')), canEditFile: globalData.demoMode || isAdmin() || hasPermission('file:edit'), canManageFolder: globalData.demoMode || isAdmin() || hasPermission('file:folder:manage'), canDevUploadSmoke })
     this._permVersion = permissionRefresh.getVersion()
     this.loadFiles()
     this.loadStorageApplyInfo()
@@ -745,6 +749,7 @@ Page({
     // 【对齐 PC 2026-09-20】公共=public / 私人=private / 四项服务=incentive, 分享给我走独立接口
     if (this.data.activeTab === '公共') return 'public'
     if (this.data.activeTab === '四项服务') return 'incentive'
+    if (this.data.activeTab === '法布施') return 'fabushi'
     return 'private'
   },
 
@@ -775,10 +780,11 @@ Page({
       return
     }
     try {
-      const [publicFiles, privateFiles, incentiveFiles, sharedCount] = await Promise.all([
+      const [publicFiles, privateFiles, incentiveFiles, fabushiFiles, sharedCount] = await Promise.all([
         getFileList({ current: 1, size: 1, scope: 'public' }),
         getFileList({ current: 1, size: 1, scope: 'private' }),
         getFileList({ current: 1, size: 1, scope: 'incentive' }),
+        getFileList({ current: 1, size: 1, scope: 'fabushi' }),
         getSharedToMeCount()
       ])
       this.setFileData({
@@ -786,6 +792,7 @@ Page({
           公共: pageTotal(publicFiles),
           私人: pageTotal(privateFiles),
           四项服务: pageTotal(incentiveFiles),
+          法布施: pageTotal(fabushiFiles),
           分享给我: Number((sharedCount && (sharedCount.data ?? sharedCount)) || 0)
         }
       })
