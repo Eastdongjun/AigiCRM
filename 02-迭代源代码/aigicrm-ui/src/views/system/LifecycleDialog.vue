@@ -157,8 +157,17 @@ const reject = async (row) => {
 }
 const rollback = async (row) => {
   await ElMessageBox.confirm('将按申请明细恢复原归属，确定回滚？', '回滚', { type: 'warning' })
-  await request.post(`/system/lifecycle/requests/${row.id}/rollback`, {})
-  ElMessage.success('已回滚')
+  const res = await request.post(`/system/lifecycle/requests/${row.id}/rollback`, {})
+  // 【2026-11-17 P3】显示逐类恢复计数；全部为 0 时提示“可能已被后续变更”，避免误以为全量恢复。
+  const result = res.data?.result || {}
+  const labels = { customer: '客户', customerOrg: '客户组织', file: '文件', fileOrg: '文件组织',
+    folder: '文件夹', folderOrg: '文件夹组织', reminder: '提醒', reminderOffice: '提醒办事处',
+    task: '任务', approval: '审批', approvalNode: '审批节点', role: '角色', incentive: '激励', report: '直属下级' }
+  const parts = Object.entries(result)
+    .filter(([k, v]) => Number(v) > 0 && labels[k])
+    .map(([k, v]) => `${labels[k]} ${v}`)
+  if (!parts.length) ElMessage.warning('已标记回滚，但没有行被恢复（数据可能已被后续变更）')
+  else ElMessage.success(`已回滚：${parts.join('、')}`)
   loadRequests()
 }
 const statusText = (s) => ({ pending: '待审批', approved: '已通过', rejected: '已驳回', rolled_back: '已回滚' }[s] || s)
