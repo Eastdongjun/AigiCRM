@@ -535,6 +535,9 @@ local_contracts() {
   # 禁止页级夹 perms 顶替(销售总监"不能改文件"=MP 1.0.69 旧逻辑漏消费行级 perms,
   # 修复 42b9ac2e 已含于 1.0.70+; 同类漏端已发生 4 次, 机器防复发)
   run python3 "$ROOT/scripts/check-perms-row-consumption-parity.py"
+  # 【2026-11-17 用户令"不要硬编码人员"】业务代码禁写死员工(姓名/工号/用户ID):
+  # 人员=权限中心勾选的数据(按角色主路径/按用户例外), 不是代码; 组织变化走勾选不走改码
+  run python3 "$ROOT/scripts/check-no-hardcoded-persons.py"
   # 【底座评估 2026-11-11】三端词表消费侧一致(前端码⊆后端码∪白名单)
   run "$ROOT/scripts/check-permission-code-consumption.sh"
   # 【底座收敛 P1】权限码生成物(PC/MP 常量)与后端权威集一致
