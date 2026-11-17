@@ -92,6 +92,77 @@ public class RecycleController {
         return Result.ok(Map.of("message", recycleService.hardDeleteUser(id)));
     }
 
+    // ==================== 【2026-11-17 阶段三】任务/激励 ====================
+
+    @PreAuthorize("hasAuthority('system:recycle:view')")
+    @GetMapping("/tasks")
+    public Result<RecycleService.PageResult<RecycleService.DeletedTaskRow>> deletedTasks(
+            @RequestParam(defaultValue = "1") int current,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String keyword) {
+        return Result.ok(recycleService.deletedTasks(current, size, keyword));
+    }
+
+    @PreAuthorize("hasAuthority('system:recycle:restore')")
+    @PostMapping("/tasks/{id}/restore")
+    public Result<Map<String, String>> restoreTask(@PathVariable Long id) {
+        requireAdmin();
+        return Result.ok(Map.of("message", recycleService.restoreTask(id)));
+    }
+
+    @PreAuthorize("hasAuthority('system:recycle:purge')")
+    @PostMapping("/tasks/{id}/purge")
+    public Result<Map<String, String>> hardDeleteTask(@PathVariable Long id) {
+        requireAdmin();
+        return Result.ok(Map.of("message", recycleService.hardDeleteTask(id)));
+    }
+
+    @PreAuthorize("hasAuthority('system:recycle:view')")
+    @GetMapping("/reminders")
+    public Result<RecycleService.PageResult<RecycleService.DeletedReminderRow>> deletedReminders(
+            @RequestParam(defaultValue = "1") int current,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String keyword) {
+        return Result.ok(recycleService.deletedReminders(current, size, keyword));
+    }
+
+    @PreAuthorize("hasAuthority('system:recycle:restore')")
+    @PostMapping("/reminders/{id}/restore")
+    public Result<Map<String, String>> restoreReminder(@PathVariable Long id) {
+        requireAdmin();
+        return Result.ok(Map.of("message", recycleService.restoreReminder(id)));
+    }
+
+    @PreAuthorize("hasAuthority('system:recycle:purge')")
+    @PostMapping("/reminders/{id}/purge")
+    public Result<Map<String, String>> hardDeleteReminder(@PathVariable Long id) {
+        requireAdmin();
+        return Result.ok(Map.of("message", recycleService.hardDeleteReminder(id)));
+    }
+
+    @PreAuthorize("hasAuthority('system:recycle:view')")
+    @GetMapping("/incentives")
+    public Result<RecycleService.PageResult<RecycleService.DeletedIncentiveRow>> deletedIncentives(
+            @RequestParam(defaultValue = "1") int current,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String keyword) {
+        return Result.ok(recycleService.deletedIncentives(current, size, keyword));
+    }
+
+    @PreAuthorize("hasAuthority('system:recycle:restore')")
+    @PostMapping("/incentives/{id}/restore")
+    public Result<Map<String, String>> restoreIncentive(@PathVariable Long id) {
+        requireAdmin();
+        return Result.ok(Map.of("message", recycleService.restoreIncentive(id)));
+    }
+
+    @PreAuthorize("hasAuthority('system:recycle:purge')")
+    @PostMapping("/incentives/{id}/purge")
+    public Result<Map<String, String>> hardDeleteIncentive(@PathVariable Long id) {
+        requireAdmin();
+        return Result.ok(Map.of("message", recycleService.hardDeleteIncentive(id)));
+    }
+
     @PreAuthorize("hasAuthority('system:recycle:view')")
     @GetMapping("/files")
     public Result<RecycleService.PageResult<RecycleService.DeletedFileRow>> deletedFiles(

@@ -30,6 +30,12 @@ public class BizIncentiveRecord {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private Long updatedBy;             // 最后修改人ID（审计，对齐 biz_customer_indicator.updated_by）
+    /** 【2026-11-17 阶段三】统一回收站：软删标志 + 审计字段 */
+    @TableLogic
+    private Integer deleted;
+    private LocalDateTime deletedAt;
+    private Long deletedBy;
+    private String deletedReason;
 
     @TableField(exist = false)
     private String userName;

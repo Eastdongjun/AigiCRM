@@ -225,11 +225,17 @@ const tableRef = ref(null)
 const versionDialogRef = ref(null)
 
 const openVersionHistory = (row) => {
-  // 【V2026.11.14.3 P2】弹窗内按钮按真实行权限分控: 下载=行 download, 回滚=file:edit+行 replace
+  // 【V2026.11.14.3 P2】弹窗内按钮按真实行权限分控: 下载=行 download, 回滚=行 replace。
+  // 【2026-11-17 阶段二】回滚独立码 file:version:rollback（后端再按 file|version_rollback 数据范围判定）；
+  // 旧 file:edit 路径保留兼容：持 file:edit 且行 replace 仍可回滚。
   const canDownload = userStore.hasPermission('file:download')
       && (((folderPerms.value.includes('download') || isOwn(row)) && folderDownloadable === 1)
         || canFileAction(row, 'file:view', 'download'))
-  const canRollback = canFileAction(row, 'file:edit', 'edit', 'replace')
+  const rowAllowsRollback = Array.isArray(row?.perms)
+    ? row.perms.includes('replace')
+    : folderPerms.value.includes('replace')
+  const canRollback = (userStore.hasPermission('file:version:rollback')
+      || userStore.hasPermission('file:edit')) && (rowAllowsRollback || isOwn(row))
   versionDialogRef.value?.open(row, { canDownload, canRollback })
 }
 

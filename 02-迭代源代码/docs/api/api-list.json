@@ -1,6 +1,6 @@
 {
  "generated_at": "2026-11-17",
- "count": 291,
+ "count": 317,
  "endpoints": [
   {
    "method": "POST",
@@ -657,6 +657,24 @@
    "handler": "batchDownload"
   },
   {
+   "method": "POST",
+   "path": "/api/file/chunk/init",
+   "permission": "hasAuthority('file:upload')",
+   "handler": "chunkInit"
+  },
+  {
+   "method": "POST",
+   "path": "/api/file/chunk/{uploadId}",
+   "permission": "hasAuthority('file:upload')",
+   "handler": "chunkPut"
+  },
+  {
+   "method": "POST",
+   "path": "/api/file/chunk/{uploadId}/complete",
+   "permission": "hasAuthority('file:upload')",
+   "handler": "chunkComplete"
+  },
+  {
    "method": "GET",
    "path": "/api/file/download-token",
    "permission": "hasAuthority('file:download')",
@@ -745,6 +763,30 @@
    "path": "/api/file/folders/{id}/permissions",
    "permission": "hasAuthority('file:view')",
    "handler": "permissions"
+  },
+  {
+   "method": "GET",
+   "path": "/api/file/grants",
+   "permission": "hasAuthority('file:acl:manage')",
+   "handler": "list"
+  },
+  {
+   "method": "POST",
+   "path": "/api/file/grants",
+   "permission": "hasAuthority('file:acl:manage')",
+   "handler": "create"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/file/grants/{id}",
+   "permission": "hasAuthority('file:acl:manage')",
+   "handler": "delete"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/file/grants/{id}",
+   "permission": "hasAuthority('file:acl:manage')",
+   "handler": "update"
   },
   {
    "method": "GET",
@@ -841,6 +883,12 @@
    "path": "/api/file/{id}",
    "permission": "hasAnyAuthority('file:delete','fabushi:file:delete')",
    "handler": "deleteFile"
+  },
+  {
+   "method": "GET",
+   "path": "/api/file/{id}/preview",
+   "permission": "hasAuthority('file:view')",
+   "handler": "preview"
   },
   {
    "method": "PUT",
@@ -1033,6 +1081,12 @@
    "path": "/api/reminder/pending-count",
    "permission": "hasAuthority('reminder:view')",
    "handler": "pendingCount"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/reminder/{id}",
+   "permission": "hasAuthority('reminder:view')",
+   "handler": "delete"
   },
   {
    "method": "GET",
@@ -1371,6 +1425,48 @@
    "handler": "update"
   },
   {
+   "method": "POST",
+   "path": "/api/system/lifecycle/handover",
+   "permission": "hasAuthority('system:user:edit')",
+   "handler": "handover"
+  },
+  {
+   "method": "POST",
+   "path": "/api/system/lifecycle/org-move",
+   "permission": "hasAuthority('system:user:edit')",
+   "handler": "orgMove"
+  },
+  {
+   "method": "GET",
+   "path": "/api/system/lifecycle/requests",
+   "permission": "hasAnyAuthority('system:user:edit','approval:view')",
+   "handler": "list"
+  },
+  {
+   "method": "GET",
+   "path": "/api/system/lifecycle/requests/{id}",
+   "permission": "hasAnyAuthority('system:user:edit','approval:view')",
+   "handler": "detail"
+  },
+  {
+   "method": "POST",
+   "path": "/api/system/lifecycle/requests/{id}/approve",
+   "permission": "hasAnyAuthority('system:user:edit','approval:view')",
+   "handler": "approve"
+  },
+  {
+   "method": "POST",
+   "path": "/api/system/lifecycle/requests/{id}/reject",
+   "permission": "hasAnyAuthority('system:user:edit','approval:view')",
+   "handler": "reject"
+  },
+  {
+   "method": "POST",
+   "path": "/api/system/lifecycle/requests/{id}/rollback",
+   "permission": "hasAuthority('system:user:edit')",
+   "handler": "rollback"
+  },
+  {
    "method": "GET",
    "path": "/api/system/logs",
    "permission": "hasAuthority('system:log:view')",
@@ -1564,6 +1660,60 @@
   },
   {
    "method": "GET",
+   "path": "/api/system/recycle/incentives",
+   "permission": "hasAuthority('system:recycle:view')",
+   "handler": "deletedIncentives"
+  },
+  {
+   "method": "POST",
+   "path": "/api/system/recycle/incentives/{id}/purge",
+   "permission": "hasAuthority('system:recycle:purge')",
+   "handler": "hardDeleteIncentive"
+  },
+  {
+   "method": "POST",
+   "path": "/api/system/recycle/incentives/{id}/restore",
+   "permission": "hasAuthority('system:recycle:restore')",
+   "handler": "restoreIncentive"
+  },
+  {
+   "method": "GET",
+   "path": "/api/system/recycle/reminders",
+   "permission": "hasAuthority('system:recycle:view')",
+   "handler": "deletedReminders"
+  },
+  {
+   "method": "POST",
+   "path": "/api/system/recycle/reminders/{id}/purge",
+   "permission": "hasAuthority('system:recycle:purge')",
+   "handler": "hardDeleteReminder"
+  },
+  {
+   "method": "POST",
+   "path": "/api/system/recycle/reminders/{id}/restore",
+   "permission": "hasAuthority('system:recycle:restore')",
+   "handler": "restoreReminder"
+  },
+  {
+   "method": "GET",
+   "path": "/api/system/recycle/tasks",
+   "permission": "hasAuthority('system:recycle:view')",
+   "handler": "deletedTasks"
+  },
+  {
+   "method": "POST",
+   "path": "/api/system/recycle/tasks/{id}/purge",
+   "permission": "hasAuthority('system:recycle:purge')",
+   "handler": "hardDeleteTask"
+  },
+  {
+   "method": "POST",
+   "path": "/api/system/recycle/tasks/{id}/restore",
+   "permission": "hasAuthority('system:recycle:restore')",
+   "handler": "restoreTask"
+  },
+  {
+   "method": "GET",
    "path": "/api/system/recycle/users",
    "permission": "hasAuthority('system:recycle:view')",
    "handler": "deletedUsers"
@@ -1723,6 +1873,12 @@
    "path": "/api/task/statistics",
    "permission": "hasAuthority('task:view')",
    "handler": "statistics"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/task/{id}",
+   "permission": "hasAuthority('task:manage')",
+   "handler": "delete"
   },
   {
    "method": "PUT",

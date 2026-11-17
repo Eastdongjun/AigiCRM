@@ -63,6 +63,10 @@ public class FolderPermissionService {
     private final BizFolderTypeDefaultMapper grantMapper;
     private final OrgScopeResolver scopeResolver;
 
+    /** 【2026-11-17 阶段二】统一授权引擎；单测/旧上下文可缺省（缺省=只走旧链）。 */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private FileGrantService fileGrantService;
+
     // ==================== 判定入口 ====================
 
     /**
@@ -103,6 +107,14 @@ public class FolderPermissionService {
         return p;
     }
 
+    /** 法布施空间行级按钮：只读 + 独立删除码，不继承 public/private/incentive 的编辑/分享动作。 */
+    private List<String> fabushiRowPerms(BizFile file) {
+        List<String> p = new ArrayList<>();
+        if (SecurityUtils.hasAuthority("fabushi:view")) { p.add(P_VIEW); p.add(P_DOWNLOAD); }
+        if (canDeleteFabushiFile(file, SecurityUtils.getCurrentUserId())) p.add(P_DELETE);
+        return p;
+    }
+
     /** 夹上下文的动作归组: 夹内文件动作(upload/view/download/share)→FILE 定向授权; 夹自身动作(rename/delete/create)→FOLDER */
     static String ctxObjectTypeOf(String action) {
         return switch (action == null ? "" : action) {
@@ -116,6 +128,12 @@ public class FolderPermissionService {
         if (SecurityUtils.isAdmin()) return adminActionAllowed(action);
         BizFileFolder folder = folderMapper.selectById(folderId);
         if (folder == null) return false;
+        // 【2026-11-17 阶段二】统一授权 DENY 优先于本人/矩阵；ALLOW 作为例外通道。
+        if (fileGrantService != null) {
+            FileGrantService.Decision d = fileGrantService.decideFolder(folder, action, userId);
+            if (d == FileGrantService.Decision.DENY) return false;
+            if (d == FileGrantService.Decision.ALLOW) return true;
+        }
         if (Objects.equals(folder.getOwnerId(), userId)) return true;
         if (isManagerChain(userId, folder.getOwnerId())) return true;
         if (grantGranted(ctxObjectTypeOf(action), folder.getFolderType(), folder.getId(), folder.getOrgId(), folder.getOwnerId(), action, userId)) return true;
@@ -136,6 +154,12 @@ public class FolderPermissionService {
         if (SecurityUtils.isAdmin()) return adminActionAllowed(action);
         BizFile file = fileMapper.selectById(fileId);
         if (file == null) return false;
+        // 【2026-11-17 阶段二】统一授权 DENY 优先于“上传者本人恒管”；ALLOW 作为例外通道。
+        if (fileGrantService != null) {
+            FileGrantService.Decision d = fileGrantService.decideFile(file, action, userId);
+            if (d == FileGrantService.Decision.DENY) return false;
+            if (d == FileGrantService.Decision.ALLOW) return true;
+        }
         // 【2026-11-10 用户令"A"】上传者本人恒可管理自己上传的文件(改名/替换/删除/分享/下载), 无论在哪个夹
         if (Objects.equals(file.getUploaderId(), userId)) return true;
         if (isManagerChain(userId, file.getUploaderId())) return true;
@@ -275,6 +299,75 @@ public class FolderPermissionService {
         return ids == null ? null : new HashSet<>(ids);
     }
 
+    // ==================== 法布施空间 / 版本回滚：独立组织数据范围 ====================
+
+    /**
+     * 【2026-11-17 阶段二】法布施文件可见范围(carrier 锚=上传人)：默认 all（公司级），
+     * 管理员可在权限中心按角色/人员配置大区/办事处/部门/self。null=全部。
+     */
+    public Set<Long> fabushiVisibleUploaderIds(Long userId) {
+        if (!SecurityUtils.hasAuthority("fabushi:view")) return Set.of();
+        if (SecurityUtils.isAdmin()) return null;
+        com.aigicrm.security.SecurityUser user = SecurityUtils.getCurrentUser();
+        if (user == null) return Set.of();
+        List<Long> ids = scopeResolver.resolveModuleUsers(user, "fabushi", "file_view");
+        return ids == null ? null : new HashSet<>(ids);
+    }
+
+    /** 法布施单文件可见：功能码 fabushi:view + 上传人 ∈ fabushi|file_view 范围。 */
+    public boolean canViewFabushiFile(BizFile file, Long userId) {
+        if (file == null || !SecurityUtils.hasAuthority("fabushi:view")) return false;
+        if (SecurityUtils.isAdmin()) return true;
+        if (fileGrantService != null) {
+            FileGrantService.Decision d = fileGrantService.decideFile(file, P_VIEW, userId);
+            if (d == FileGrantService.Decision.DENY) return false;
+            if (d == FileGrantService.Decision.ALLOW) return true;
+        }
+        return moduleOwnerVisible(file.getUploaderId(), "fabushi", "file_view");
+    }
+
+    /**
+     * 法布施删除：独立功能码 fabushi:file:delete + 上传人 ∈ fabushi|file_delete 范围。
+     * 普通销售员/行政默认无此码；管理员勾选角色/人员后再由数据范围收窄。
+     */
+    public boolean canDeleteFabushiFile(BizFile file, Long userId) {
+        if (file == null || !SecurityUtils.hasAuthority("fabushi:file:delete")) return false;
+        if (SecurityUtils.isAdmin()) return true;
+        if (fileGrantService != null) {
+            FileGrantService.Decision d = fileGrantService.decideFile(file, P_DELETE, userId);
+            if (d == FileGrantService.Decision.DENY) return false;
+            if (d == FileGrantService.Decision.ALLOW) return true;
+        }
+        return moduleOwnerVisible(file.getUploaderId(), "fabushi", "file_delete");
+    }
+
+    /** 文件版本回滚：独立码 + file|version_rollback 范围；未持新码时保留旧 file:edit(replace) 兼容。 */
+    public boolean canRollbackVersion(BizFile file, Long userId) {
+        if (file == null) return false;
+        if (SecurityUtils.hasAuthority("file:version:rollback")) {
+            if (SecurityUtils.isAdmin()) return true;
+            if (fileGrantService != null) {
+                FileGrantService.Decision d = fileGrantService.decideFile(file, "version_rollback", userId);
+                if (d == FileGrantService.Decision.DENY) return false;
+                if (d == FileGrantService.Decision.ALLOW) return true;
+            }
+            if (moduleOwnerVisible(file.getUploaderId(), "file", "version_rollback")) return true;
+        }
+        return checkFile(file.getId(), P_REPLACE, userId);
+    }
+
+    /** 模块级 OWNER 锚单条判定：null=all 放行；SecurityUser 缺席 fail-closed。 */
+    private boolean moduleOwnerVisible(Long targetUserId, String module, String action) {
+        if (targetUserId == null) return false;
+        com.aigicrm.security.SecurityUser user = SecurityUtils.getCurrentUser();
+        if (user == null) return false;
+        var req = com.aigicrm.common.scope.ScopeRequest.builder()
+                .user(user).module(module).action(action)
+                .anchor(com.aigicrm.common.scope.ScopeRequest.AnchorType.OWNER)
+                .targetOwnerId(targetUserId).build();
+        return scopeResolver.canAccess(req);
+    }
+
     // ==================== 例外授权(必须过期) ====================
 
     /** 授权命中: 主体匹配 ∧ 对象组匹配 ∧ 空间/逐夹定向匹配 ∧ 组织范围匹配 ∧ 词表命中 ∧ 未过期
@@ -363,7 +456,9 @@ public class FolderPermissionService {
         if (files == null || files.isEmpty()) return result;
         if (SecurityUtils.isAdmin()) {
             List<String> adminPerms = adminFileRowPerms();
-            for (BizFile f : files) result.put(f.getId(), adminPerms);
+            for (BizFile f : files) {
+                result.put(f.getId(), "fabushi".equals(f.getFileScope()) ? fabushiRowPerms(f) : adminPerms);
+            }
             return result;
         }
         List<BizFolderTypeDefault> grants = grantMapper.selectList(new LambdaQueryWrapper<>());
@@ -376,14 +471,25 @@ public class FolderPermissionService {
         Map<String, Set<Long>> matrixCache = new HashMap<>();
         Map<Long, Boolean> chainCache = new HashMap<>();
         for (BizFile file : files) {
+            BizFileFolder ref = file.getFolderId() != null ? refCache.get(file.getFolderId()) : null;
+            String anchorType = ref != null ? ref.getFolderType() : file.getFileScope(); // 无夹=空间锚(修4 同口径)
+            // 【2026-11-17 阶段二】统一授权 DENY 隐藏行按钮（后端 checkFile 已同步拒绝）。
+            if (fileGrantService != null
+                    && fileGrantService.decideFile(file, P_VIEW, userId) == FileGrantService.Decision.DENY) {
+                result.put(file.getId(), List.of());
+                continue;
+            }
+            // 【2026-11-17 阶段二】法布施空间独立收口：只读 + fabushi:file:delete，不继承“本人恒管全动作”。
+            if ("fabushi".equals(anchorType)) {
+                result.put(file.getId(), fabushiRowPerms(file));
+                continue;
+            }
             Long uploader = file.getUploaderId();
             if (uploader != null && (uploader.equals(userId)
                     || chainCache.computeIfAbsent(uploader, uid -> isManagerChain(userId, uid)))) {
                 result.put(file.getId(), FILE_ROW_ACTIONS); // 本人恒管/上级链=全动作
                 continue;
             }
-            BizFileFolder ref = file.getFolderId() != null ? refCache.get(file.getFolderId()) : null;
-            String anchorType = ref != null ? ref.getFolderType() : file.getFileScope(); // 无夹=空间锚(修4 同口径)
             boolean privateScope = "private".equals(anchorType); // 【拍板 A】私人空间不进矩阵(仅授权行)
             List<String> perms = new ArrayList<>();
             for (String p : FILE_ROW_ACTIONS) {
@@ -403,12 +509,12 @@ public class FolderPermissionService {
                             || users == null || (uploader != null && users.contains(uploader));
                 }
                 if (hit) mergePerms(perms, p);
-                // 【2026-11-17 文件统一管理】法布施文件删除走独立权限码；行级 perms 同步点亮，
-            // 否则管理员已勾选 fabushi:file:delete 的用户看不到删除按钮（点击仍由 deleteFile 复核）。
-            if (!hit && P_DELETE.equals(p) && "fabushi".equals(anchorType)
-                    && SecurityUtils.hasAuthority("fabushi:file:delete")) {
-                mergePerms(perms, p);
             }
+            // 【2026-11-17 阶段二】版本回滚独立码+数据范围：行级 replace 仅作“可回滚”视图信号；
+            // 替换按钮仍由 file:edit 控制，回滚按钮由前端 file:version:rollback 控制。
+            if (!perms.contains(P_REPLACE) && SecurityUtils.hasAuthority("file:version:rollback")
+                    && canRollbackVersion(file, userId)) {
+                mergePerms(perms, P_REPLACE);
             }
             result.put(file.getId(), perms);
         }
@@ -428,6 +534,11 @@ public class FolderPermissionService {
         List<BizFolderTypeDefault> grants = grantMapper.selectList(new LambdaQueryWrapper<>());
         Map<Long, Boolean> chainCache = new HashMap<>();
         for (BizFileFolder folder : folders) {
+            if (fileGrantService != null
+                    && fileGrantService.decideFolder(folder, P_VIEW, userId) == FileGrantService.Decision.DENY) {
+                result.put(folder.getId(), List.of());
+                continue;
+            }
             boolean privileged = chainCache.computeIfAbsent(folder.getOwnerId() == null ? -1L : folder.getOwnerId(),
                     oid -> oid.equals(userId) || (oid > 0 && isManagerChain(userId, oid)));
             if (privileged) { result.put(folder.getId(), ALL_PERMS); continue; }

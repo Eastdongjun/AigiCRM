@@ -47,8 +47,8 @@ spring:
       timeout: 3000  # 毫秒
   servlet:
     multipart:
-      max-file-size: 500MB
-      max-request-size: 500MB
+      max-file-size: 200MB
+      max-request-size: 200MB
   jackson:
     date-format: yyyy-MM-dd HH:mm:ss
     time-zone: Asia/Shanghai

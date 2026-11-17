@@ -71,4 +71,13 @@ public class ReminderController {
         reminderService.process(id);
         return Result.ok();
     }
+
+    /** 【2026-11-17 阶段三】删除提醒（软删进回收站） */
+    @PreAuthorize("hasAuthority('reminder:view')")
+    @DeleteMapping("/{id}")
+    public Result<Void> delete(@PathVariable Long id,
+                               @RequestParam(required = false) String reason) {
+        reminderService.delete(id, reason);
+        return Result.ok();
+    }
 }

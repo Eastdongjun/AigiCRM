@@ -101,6 +101,20 @@ public class FileService {
     @Value("${file.thumbnail-cache-dir:}")
     private String thumbnailCacheDir;
 
+    /** 【2026-11-17 阶段三】视频 5 秒预览：ffmpeg 路径/开关（默认开，失败回退 503，不泄露原文件）。 */
+    @Value("${file.video-preview-enabled:true}")
+    private boolean videoPreviewEnabled;
+    @Value("${file.ffmpeg-path:ffmpeg}")
+    private String ffmpegPath;
+
+    /** 【2026-11-17 阶段三】统一回收站台账；单测可缺省。 */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.aigicrm.module.system.service.RecycleBinService recycleBinService;
+
+    /** 【2026-11-17 阶段三】上传病毒扫描钩子；单测可缺省。 */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private FileScanService fileScanService;
+
     /** 写缓存次数计数（用于摊销容量巡检，非业务状态） */
     private final java.util.concurrent.atomic.AtomicInteger thumbnailCacheOps = new java.util.concurrent.atomic.AtomicInteger();
 
@@ -227,12 +241,23 @@ public class FileService {
                 }
             }
         }
+        // 【2026-11-17 阶段二】法布施空间：默认公司级 all，但可由权限中心按角色/人员收窄到
+        // 大区/办事处/部门/self；按上传人 ∈ fabushi|file_view 范围过滤。法布施无文件夹。
+        if ("fabushi".equals(scope)) {
+            if (folderId != null) return new Page<>(current, size, 0);
+            Set<Long> visibleUploaders = folderPermissionService.fabushiVisibleUploaderIds(userId);
+            if (visibleUploaders != null) {
+                if (visibleUploaders.isEmpty()) return new Page<>(current, size, 0);
+                wrapper.in(BizFile::getUploaderId, visibleUploaders);
+            }
+        }
         // 【文件权限体系】统一文件夹可见性过滤（除 incentive 外的所有 scope 生效）：
         // 夹内文件仅返回用户可见文件夹中的（本人创建/上级链/ACL view/public），上级可查看下级私有文件夹内文件；
         // private scope 的无文件夹文件仍需本人上传；未知/空 scope 候选集为空 → 夹内文件一律不可见
         // （与 getFolderTree 的 scope 默认拒绝对称，封堵"任意 file:view 用户枚举任意文件夹文件"）。
-        // incentive scope 已有文件级归属约束（本人上传/被分享），不在此过滤。
-        if (!"incentive".equals(scope)) {
+        // incentive scope 已有文件级归属约束（本人上传/被分享），不在此过滤；
+        // fabushi 已在上面按 fabushi|file_view 过滤，且无文件夹，同样跳过夹树逻辑。
+        if (!"incentive".equals(scope) && !"fabushi".equals(scope)) {
             List<BizFileFolder> folders = folderMapper.selectList(
                     new LambdaQueryWrapper<BizFileFolder>()
                             .eq(BizFileFolder::getFolderType, scope));
@@ -377,12 +402,16 @@ public class FileService {
                     "，配额: " + formatSize(user != null ? user.getStorageQuota() : 0L));
         }
 
+        String uploadedKey = null;
         try {
             String originalFilename = file.getOriginalFilename();
             if (originalFilename == null || originalFilename.isBlank()) {
                 originalFilename = "unnamed";
             }
             String fileKey = uploadStorage(file, scope, userId);
+            uploadedKey = fileKey;
+            // 【2026-11-17 阶段三】落盘后、台账前扫描；命中/扫描失败即删除新字节并由 catch 归还配额。
+            scanStored(fileKey);
             String fileUrl;
             if (isLocal()) {
                 fileUrl = "/api/file/download/" + fileKey;
@@ -408,11 +437,24 @@ public class FileService {
 
             return bizFile;
         } catch (Exception e) {
+            // 【2026-11-17 阶段三】扫描/入库失败时清理已落盘新字节，避免病毒样本/孤儿文件留存。
+            if (uploadedKey != null) deleteStorage(uploadedKey);
             // 【P2 2026-10-09】扣减成功后存储/入库失败 → 补偿归还(GREATEST 守护)
             // 【T2 2026-11-11】全 scope 扣减 → 补偿归还同步去 scope 条件
             userMapper.adjustStorageUsed(userId, -file.getSize());
             throw new BusinessException("文件上传失败: " + e.getMessage());
         }
+    }
+
+    /** 【2026-11-17 阶段三】分片上传完成回读/回填 md5。 */
+    public BizFile findById(Long id) {
+        return id == null ? null : fileMapper.selectById(id);
+    }
+
+    public void updateMd5(Long id, String md5) {
+        if (id == null || md5 == null) return;
+        fileMapper.update(null, new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<BizFile>()
+                .eq(BizFile::getId, id).set(BizFile::getMd5, md5));
     }
 
     /**
@@ -555,9 +597,9 @@ public class FileService {
                 }
             } else if ("fabushi".equals(scope)) {
                 // 【2026-11-17 文件统一管理】法布施文件不进 public/private/incentive 分支，
-                // 删除动作由独立权限码控制（默认仅 admin；管理员在法布施权限里按角色/人员勾选）。
-                if (!SecurityUtils.hasAuthority("fabushi:file:delete")) {
-                    throw new BusinessException(403, "删除法布施文件需要 fabushi:file:delete 权限");
+                // 删除动作由独立权限码 + fabushi|file_delete 数据范围控制（默认仅 admin）。
+                if (!folderPermissionService.canDeleteFabushiFile(file, userId)) {
+                    throw new BusinessException(403, "删除法布施文件需要 fabushi:file:delete 权限且在上传人数据范围内");
                 }
             } else {
                 throw new BusinessException(403, "无权删除该文件");
@@ -584,6 +626,16 @@ public class FileService {
         if (affected != 1) {
             // 并发/重复删除: 台账已不在活跃态, 不得二次归还配额; 幂等返回成功(前端不报错)
             return;
+        }
+        if (recycleBinService != null) {
+            java.util.Map<String, Object> snap = new java.util.LinkedHashMap<>();
+            snap.put("id", fileId);
+            snap.put("fileName", file.getFileName());
+            snap.put("fileSize", file.getFileSize());
+            snap.put("fileScope", file.getFileScope());
+            snap.put("uploaderId", file.getUploaderId());
+            snap.put("folderId", file.getFolderId());
+            recycleBinService.record("file", fileId, snap, "用户删除", "user");
         }
         // 【2026-11-10 拍板③】删除审计(高敏动作, 失败不阻断)
         try { securityAudit.permissionChange("file_delete",
@@ -612,6 +664,9 @@ public class FileService {
     public void renameFile(Long fileId, String fileName) {
         BizFile file = fileMapper.selectById(fileId);
         if (file == null) throw new BusinessException("文件不存在");
+        if ("fabushi".equals(file.getFileScope())) {
+            throw new BusinessException(403, "法布施文件只支持查看/下载/删除，不支持改名");
+        }
         Long userId = SecurityUtils.getCurrentUserId();
         if (!folderPermissionService.checkFile(fileId, FolderPermissionService.P_RENAME, userId)) {
             throw new BusinessException(403, "没有访问权限，请联系管理员授权");
@@ -660,6 +715,9 @@ public class FileService {
     public BizFile replaceFile(Long fileId, MultipartFile newFile) {
         BizFile file = fileMapper.selectById(fileId);
         if (file == null) throw new BusinessException("文件不存在");
+        if ("fabushi".equals(file.getFileScope())) {
+            throw new BusinessException(403, "法布施文件只支持查看/下载/删除，不支持替换");
+        }
         Long userId = SecurityUtils.getCurrentUserId();
         if (!folderPermissionService.checkFile(fileId, FolderPermissionService.P_REPLACE, userId)) {
             throw new BusinessException(403, "没有访问权限，请联系管理员授权");
@@ -675,6 +733,7 @@ public class FileService {
             // 【GPT三轮 FILE-P1-008】无扩展名拒绝后, replace 的 null 文件名场景改用旧文件扩展兜底
             // (类型继承自已过白名单的旧文件, 治理语义不破), 保持 M-2② 的 ossUrl 更新行为可测
             newKey = uploadStorage(newFile, scope, file.getUploaderId(), extOf(file.getFileName()));
+            scanStored(newKey);
             String oldKey = file.getOssKey();
             long oldSize = file.getFileSize() != null ? file.getFileSize() : 0L;
             // 【V2026.11.14.1 版本历史】主行覆盖前先快照旧版本(旧 key/type/size/version):
@@ -786,6 +845,12 @@ public class FileService {
      */
     private String uploadStorage(MultipartFile file, String scope, Long userId) throws Exception {
         return uploadStorage(file, scope, userId, null);
+    }
+
+    /** 本地存储路径扫描；OSS 模式暂无本地字节，扫描器在下载/转存链路上补（部署期配置）。 */
+    private void scanStored(String key) {
+        if (fileScanService == null || key == null) return;
+        fileScanService.scan(Paths.get(uploadDir, key));
     }
 
     /**
@@ -1021,7 +1086,7 @@ public class FileService {
         BizFile file = fileMapper.selectById(fileId);
         if (file == null) throw new BusinessException("文件不存在");
         Long userId = SecurityUtils.getCurrentUserId();
-        if (!folderPermissionService.checkFile(fileId, FolderPermissionService.P_REPLACE, userId)) {
+        if (!folderPermissionService.canRollbackVersion(file, userId)) {
             throw new BusinessException(403, "没有访问权限，请联系管理员授权");
         }
         assertNotIncentiveEvidence(fileId);
@@ -1177,6 +1242,61 @@ public class FileService {
 
     public static String dispositionFor(String filename) {
         return filename != null && SAFE_INLINE_EXT.matcher(filename).matches() ? "inline" : "attachment";
+    }
+
+    /** 【2026-11-17 阶段三】视频 5 秒预览（ffmpeg 转码缓存）；非视频返回 415。 */
+    public void writeVideoPreview(Long fileId, jakarta.servlet.http.HttpServletResponse response) {
+        BizFile file = fileMapper.selectById(fileId);
+        if (file == null) { response.setStatus(404); return; }
+        Long userId = SecurityUtils.getCurrentUserId();
+        if (!canDownloadFile(file, userId)) { response.setStatus(403); return; }
+        String name = file.getFileName() == null ? "" : file.getFileName().toLowerCase(java.util.Locale.ROOT);
+        if (!name.matches(".*\\.(mp4|webm|mov|avi|mkv|m4v)$")) { response.setStatus(415); return; }
+        if (!videoPreviewEnabled) { response.setStatus(503); return; }
+        try {
+            Path source = Paths.get(uploadDir, file.getOssKey());
+            if (!Files.isRegularFile(source)) {
+                if (file.getOssUrl() != null && file.getOssUrl().startsWith("https://")) {
+                    response.setStatus(302);
+                    response.setHeader(HttpHeaders.LOCATION, file.getOssUrl());
+                    return;
+                }
+                response.setStatus(404);
+                return;
+            }
+            Path cacheRoot = thumbnailCacheRoot();
+            Files.createDirectories(cacheRoot);
+            String key = "preview-" + file.getId() + "-" + (file.getVersion() == null ? 1 : file.getVersion())
+                    + "-" + Integer.toHexString(Objects.hash(file.getOssKey(), file.getFileSize(),
+                    Files.getLastModifiedTime(source).toMillis())) + ".mp4";
+            Path cached = cacheRoot.resolve(key);
+            if (!Files.isRegularFile(cached)) {
+                Path tmp = Files.createTempFile(cacheRoot, "preview-", ".tmp");
+                Process p = new ProcessBuilder(ffmpegPath, "-y", "-ss", "0", "-i", source.toString(),
+                        "-t", "5", "-an", "-vf", "scale='min(1280,iw)':-2",
+                        "-c:v", "libx264", "-preset", "veryfast", "-movflags", "+faststart",
+                        tmp.toString()).redirectErrorStream(true).start();
+                boolean done = p.waitFor(60, java.util.concurrent.TimeUnit.SECONDS);
+                if (!done) p.destroyForcibly();
+                if (!done || p.exitValue() != 0 || Files.size(tmp) == 0) {
+                    Files.deleteIfExists(tmp);
+                    response.setStatus(503);
+                    return;
+                }
+                Files.move(tmp, cached, StandardCopyOption.REPLACE_EXISTING);
+            }
+            response.setStatus(200);
+            response.setContentType("video/mp4");
+            response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "inline");
+            response.setContentLengthLong(Files.size(cached));
+            try (InputStream in = Files.newInputStream(cached)) {
+                in.transferTo(response.getOutputStream());
+                response.getOutputStream().flush();
+            }
+        } catch (Exception e) {
+            log.warn("视频预览生成失败 fileId={}: {}", fileId, e.getMessage());
+            response.setStatus(503);
+        }
     }
 
     public void downloadById(Long fileId, String range, boolean thumbnail, jakarta.servlet.http.HttpServletResponse response) {
@@ -1772,9 +1892,8 @@ public class FileService {
             canDownload = incentiveViewAllGranted() || isIncentiveFileVisible(file.getId(), userId);
         }
         if (!canDownload && "fabushi".equals(file.getFileScope())) {
-            // 【法布施一期 2026-11-15】社区内容旁路: 持 fabushi:view 即可下载法布施空间文件
-            // (帖子附件/书目PDF 对全员社区可见; 上传侧 scope 门禁已限定 fabushi:create)
-            canDownload = SecurityUtils.hasAuthority("fabushi:view");
+            // 【2026-11-17 阶段二】法布施下载与列表同口径：fabushi:view + fabushi|file_view 数据范围。
+            canDownload = folderPermissionService.canViewFabushiFile(file, userId);
         }
         if (!canDownload) {
             return false;

@@ -35,7 +35,8 @@ public class ApprovalConfigService {
 
     /** 【2026-11-01 审计修复】流程类型白名单=提交侧 SUPPORTED_APPROVAL_TYPES 同源(claim/transfer/extend/storage);
      *  原配置入口零校验且前端 placeholder 引导填白名单外的值, 照示例配的流程永不生效 */
-    private static final java.util.Set<String> SUPPORTED_FLOW_TYPES = java.util.Set.of("claim", "transfer", "extend", "storage");
+    private static final java.util.Set<String> SUPPORTED_FLOW_TYPES = java.util.Set.of(
+            "claim", "transfer", "extend", "storage", "handover", "org_move");
 
     private void validateFlowType(String flowType) {
         if (flowType == null || !SUPPORTED_FLOW_TYPES.contains(flowType)) {

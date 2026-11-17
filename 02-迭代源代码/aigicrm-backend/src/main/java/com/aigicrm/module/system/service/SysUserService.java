@@ -83,6 +83,10 @@ public class SysUserService {
     /** 【议题四裁决】停用/删除时立即清理全部草稿 */
     private final com.aigicrm.module.common.service.FormDraftService formDraftService;
 
+    /** 【2026-11-17 阶段三】统一回收站台账；单测可缺省。 */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.aigicrm.module.system.service.RecycleBinService recycleBinService;
+
     /** 【2026-08-14 安全 P0】随机初始口令(12 位, 去易混字符, SecureRandom)——替代硬编码 123456 */
     private String generateRandomPassword() {
         final String chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
@@ -817,6 +821,15 @@ public class SysUserService {
 
         // 4. 软删除用户
         userMapper.deleteById(userId);
+        if (recycleBinService != null) {
+            java.util.Map<String, Object> snap = new java.util.LinkedHashMap<>();
+            snap.put("id", userId);
+            snap.put("username", user.getUsername());
+            snap.put("realName", user.getRealName());
+            snap.put("deptId", user.getDeptId());
+            snap.put("officeId", user.getOfficeId());
+            recycleBinService.record("user", userId, snap, "用户删除", "user");
+        }
         // 【Redis 权限缓存】删除用户立即失效，避免软删用户在 TTL 内仍可访问
         permissionCacheService.evict(userId);
     }

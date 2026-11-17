@@ -33,6 +33,10 @@ public class FileController {
     /** 【D1=A 2026-10-18】在途 storage 单判定(与提交侧同一口径) */
     private final com.aigicrm.module.approval.service.ApprovalService approvalService;
 
+    /** 【2026-11-17 阶段三】分片上传；旧单测构造器可缺省。 */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.aigicrm.module.file.service.FileChunkUploadService fileChunkUploadService;
+
     /** F2: 签发短时下载专用 token（1h，scope=download，仅下载/导出路径可用）——主 JWT 不再进 URL/日志。
      *  【2026-10-27 深度检查修复】dlToken 携带当前主 token 的 jti: 登出拉黑主 token 后, 派生下载 token 联动失效 */
     @PreAuthorize("hasAuthority('file:download')")
@@ -193,6 +197,42 @@ public class FileController {
             info.put("reason", "您已有进行中的存储空间申请，请等待审批完成");
         }
         return Result.ok(info);
+    }
+
+    // ==================== 【2026-11-17 阶段三】200MB 分片上传/秒传 ====================
+
+    @PreAuthorize("hasAuthority('file:upload')")
+    @PostMapping("/chunk/init")
+    public Result<Map<String, Object>> chunkInit(@RequestBody Map<String, Object> body) {
+        Long folderId = body.get("folderId") instanceof Number n ? n.longValue() : null;
+        long size = body.get("fileSize") instanceof Number n ? n.longValue() : 0L;
+        return Result.ok(fileChunkUploadService.init(
+                body.get("fileName") == null ? null : body.get("fileName").toString(),
+                size,
+                body.get("md5") == null ? null : body.get("md5").toString(),
+                body.get("scope") == null ? null : body.get("scope").toString(),
+                folderId));
+    }
+
+    @PreAuthorize("hasAuthority('file:upload')")
+    @PostMapping("/chunk/{uploadId}")
+    public Result<Map<String, Object>> chunkPut(@PathVariable String uploadId,
+                                                @RequestParam("index") int index,
+                                                @RequestParam("chunk") org.springframework.web.multipart.MultipartFile chunk) {
+        return Result.ok(fileChunkUploadService.uploadChunk(uploadId, index, chunk));
+    }
+
+    @PreAuthorize("hasAuthority('file:upload')")
+    @PostMapping("/chunk/{uploadId}/complete")
+    public Result<com.aigicrm.module.file.entity.BizFile> chunkComplete(@PathVariable String uploadId) {
+        return Result.ok(fileChunkUploadService.complete(uploadId));
+    }
+
+    /** 【2026-11-17 阶段三】视频 5 秒预览；权限与下载同源（服务内 canDownloadFile）。 */
+    @PreAuthorize("hasAuthority('file:view')")
+    @GetMapping("/{id}/preview")
+    public void preview(@PathVariable Long id, jakarta.servlet.http.HttpServletResponse response) {
+        fileService.writeVideoPreview(id, response);
     }
 
     @PreAuthorize("hasAuthority('file:download')")

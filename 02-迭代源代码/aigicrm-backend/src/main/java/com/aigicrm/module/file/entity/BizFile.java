@@ -31,6 +31,10 @@ public class BizFile {
     /** 【V2026.11.14.1 我的回收站】删除人/删除时间(存量行 NULL=删除人未知, 仅 admin 可恢复) */
     private java.time.LocalDateTime deletedAt;
     private Long deletedBy;
+    /** 【2026-11-17 阶段三】秒传/完整性校验 + 删除审计 */
+    private String md5;
+    private String deletedReason;
+    private String deleteSource;
 
     @TableField(exist = false)
     private String uploaderName;

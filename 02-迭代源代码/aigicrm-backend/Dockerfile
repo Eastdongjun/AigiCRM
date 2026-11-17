@@ -11,7 +11,10 @@ WORKDIR /app
 # 【2026-09-13 修复上传失败】预建上传目录并归 appuser 所有：
 # 命名卷首次挂载时会继承镜像内该目录的属主，否则卷根目录是 root:root 755，
 # 以 10001 运行的进程无法创建 scope 子目录 ⇒ 所有上传报 "文件上传失败: /app/uploads/public"。
-RUN useradd --system --uid 10001 --create-home appuser \
+# 【2026-11-17 阶段三】视频 5 秒预览依赖 ffmpeg；未安装时预览端点 503，不影响上传/下载。
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg \
+ && rm -rf /var/lib/apt/lists/* \
+ && useradd --system --uid 10001 --create-home appuser \
  && mkdir -p /app/uploads/public /app/uploads/private \
  && chown -R 10001:10001 /app/uploads
 COPY --from=build /app/target/*.jar app.jar

@@ -43,7 +43,10 @@ public class PermissionMetadataService {
             Map.entry("score:view", new String[]{"score", "view"}),
             Map.entry("incentive:stats:view", new String[]{"incentive", "stats_view"}),
             Map.entry("incentive:rank:view", new String[]{"incentive", "stats_view"}),
-            Map.entry("fabushi:stats:view", new String[]{"fabushi", "stats_view"}));
+            Map.entry("fabushi:stats:view", new String[]{"fabushi", "stats_view"}),
+            Map.entry("fabushi:view", new String[]{"fabushi", "file_view"}),
+            Map.entry("fabushi:file:delete", new String[]{"fabushi", "file_delete"}),
+            Map.entry("file:version:rollback", new String[]{"file", "version_rollback"}));
 
     /** 仅平台管理员可用的功能码(授权给非 admin 角色 = 死配置) */
     public static final Set<String> ADMIN_ONLY = Set.of(

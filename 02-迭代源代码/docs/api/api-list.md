@@ -4,7 +4,7 @@
 > 本文件由 scripts/gen-api.py 自动生成,**禁止手改**;接口变更后重新运行。
 > 权限码与 docs/permission/permission-dict.md 对应。
 
-## 接口清单(291 个)
+## 接口清单(317 个)
 
 | 方法 | 路径 | 权限码 | 方法名 | 文件 |
 |---|---|---|---|---|
@@ -117,6 +117,9 @@
 | GET | `/api/fabushi/stats/team` | `hasAuthority('fabushi:stats:view')` | team | FabushiStatsController.java |
 | POST | `/api/file/batch-delete` | `hasAnyAuthority('file:delete','fabushi:file:delete')` | batchDelete | FileController.java |
 | POST | `/api/file/batch-download` | `hasAuthority('file:download')` | batchDownload | FileController.java |
+| POST | `/api/file/chunk/init` | `hasAuthority('file:upload')` | chunkInit | FileController.java |
+| POST | `/api/file/chunk/{uploadId}` | `hasAuthority('file:upload')` | chunkPut | FileController.java |
+| POST | `/api/file/chunk/{uploadId}/complete` | `hasAuthority('file:upload')` | chunkComplete | FileController.java |
 | GET | `/api/file/download-token` | `hasAuthority('file:download')` | downloadToken | FileController.java |
 | GET | `/api/file/download/**` | `hasAuthority('file:download')` | download | FileController.java |
 | GET | `/api/file/download/public/**` | `匿名` | downloadPublic | FileController.java |
@@ -132,6 +135,10 @@
 | PUT | `/api/file/folders/{id}` | `hasAnyAuthority('file:folder:rename','file:folder:manage')` | renameFolder | FileController.java |
 | PUT | `/api/file/folders/{id}/downloadable` | `hasAuthority('file:acl:manage')` | setDownloadable | FolderAclController.java |
 | GET | `/api/file/folders/{id}/permissions` | `hasAuthority('file:view')` | permissions | FolderAclController.java |
+| GET | `/api/file/grants` | `hasAuthority('file:acl:manage')` | list | FileGrantController.java |
+| POST | `/api/file/grants` | `hasAuthority('file:acl:manage')` | create | FileGrantController.java |
+| DELETE | `/api/file/grants/{id}` | `hasAuthority('file:acl:manage')` | delete | FileGrantController.java |
+| PUT | `/api/file/grants/{id}` | `hasAuthority('file:acl:manage')` | update | FileGrantController.java |
 | GET | `/api/file/list` | `hasAuthority('file:view')` | pageFiles | FileController.java |
 | GET | `/api/file/reconciliation` | `hasAnyAuthority('file:reconcile','file:folder:manage')` | reconcile | FileReconciliationController.java |
 | POST | `/api/file/recycle/batch-purge` | `hasAuthority('file:purge')` | batchPurge | FileRecycleController.java |
@@ -148,6 +155,7 @@
 | GET | `/api/file/storage/apply-info` | `hasAuthority('file:view')` | storageApplyInfo | FileController.java |
 | POST | `/api/file/upload` | `hasAuthority('file:upload')` | upload | FileController.java |
 | DELETE | `/api/file/{id}` | `hasAnyAuthority('file:delete','fabushi:file:delete')` | deleteFile | FileController.java |
+| GET | `/api/file/{id}/preview` | `hasAuthority('file:view')` | preview | FileController.java |
 | PUT | `/api/file/{id}/rename` | `hasAuthority('file:edit')` | renameFile | FileController.java |
 | POST | `/api/file/{id}/replace` | `hasAuthority('file:edit')` | replaceFile | FileController.java |
 | POST | `/api/file/{id}/share` | `hasAuthority('file:share')` | shareFile | FileController.java |
@@ -180,6 +188,7 @@
 | GET | `/api/reminder/expiring-list` | `hasAuthority('reminder:view')` | expiringList | ReminderController.java |
 | GET | `/api/reminder/list` | `hasAuthority('reminder:view')` | page | ReminderController.java |
 | GET | `/api/reminder/pending-count` | `hasAuthority('reminder:view')` | pendingCount | ReminderController.java |
+| DELETE | `/api/reminder/{id}` | `hasAuthority('reminder:view')` | delete | ReminderController.java |
 | GET | `/api/reminder/{id}` | `hasAuthority('reminder:view')` | detail | ReminderController.java |
 | POST | `/api/reminder/{id}/process` | `hasAuthority('reminder:view')` | process | ReminderController.java |
 | POST | `/api/score/entries/batch` | `hasAuthority('score:entry')` | batchSave | ScoreController.java |
@@ -236,6 +245,13 @@
 | POST | `/api/system/groups` | `hasAuthority('system:group:add')` | create | SysGroupController.java |
 | DELETE | `/api/system/groups/{id}` | `hasAuthority('system:group:delete')` | delete | SysGroupController.java |
 | PUT | `/api/system/groups/{id}` | `hasAuthority('system:group:edit')` | update | SysGroupController.java |
+| POST | `/api/system/lifecycle/handover` | `hasAuthority('system:user:edit')` | handover | LifecycleController.java |
+| POST | `/api/system/lifecycle/org-move` | `hasAuthority('system:user:edit')` | orgMove | LifecycleController.java |
+| GET | `/api/system/lifecycle/requests` | `hasAnyAuthority('system:user:edit','approval:view')` | list | LifecycleController.java |
+| GET | `/api/system/lifecycle/requests/{id}` | `hasAnyAuthority('system:user:edit','approval:view')` | detail | LifecycleController.java |
+| POST | `/api/system/lifecycle/requests/{id}/approve` | `hasAnyAuthority('system:user:edit','approval:view')` | approve | LifecycleController.java |
+| POST | `/api/system/lifecycle/requests/{id}/reject` | `hasAnyAuthority('system:user:edit','approval:view')` | reject | LifecycleController.java |
+| POST | `/api/system/lifecycle/requests/{id}/rollback` | `hasAuthority('system:user:edit')` | rollback | LifecycleController.java |
 | GET | `/api/system/logs` | `hasAuthority('system:log:view')` | page | SysLogController.java |
 | GET | `/api/system/logs/counts` | `hasAuthority('system:log:view')` | counts | SysLogController.java |
 | GET | `/api/system/menus/tree` | `hasAuthority('system:menu:view')` | tree | SysMenuController.java |
@@ -268,6 +284,15 @@
 | GET | `/api/system/recycle/folders` | `hasAuthority('system:recycle:view')` | deletedFolders | RecycleController.java |
 | POST | `/api/system/recycle/folders/{id}/purge` | `hasAuthority('system:recycle:purge')` | hardDeleteFolder | RecycleController.java |
 | POST | `/api/system/recycle/folders/{id}/restore` | `hasAuthority('system:recycle:restore')` | restoreFolder | RecycleController.java |
+| GET | `/api/system/recycle/incentives` | `hasAuthority('system:recycle:view')` | deletedIncentives | RecycleController.java |
+| POST | `/api/system/recycle/incentives/{id}/purge` | `hasAuthority('system:recycle:purge')` | hardDeleteIncentive | RecycleController.java |
+| POST | `/api/system/recycle/incentives/{id}/restore` | `hasAuthority('system:recycle:restore')` | restoreIncentive | RecycleController.java |
+| GET | `/api/system/recycle/reminders` | `hasAuthority('system:recycle:view')` | deletedReminders | RecycleController.java |
+| POST | `/api/system/recycle/reminders/{id}/purge` | `hasAuthority('system:recycle:purge')` | hardDeleteReminder | RecycleController.java |
+| POST | `/api/system/recycle/reminders/{id}/restore` | `hasAuthority('system:recycle:restore')` | restoreReminder | RecycleController.java |
+| GET | `/api/system/recycle/tasks` | `hasAuthority('system:recycle:view')` | deletedTasks | RecycleController.java |
+| POST | `/api/system/recycle/tasks/{id}/purge` | `hasAuthority('system:recycle:purge')` | hardDeleteTask | RecycleController.java |
+| POST | `/api/system/recycle/tasks/{id}/restore` | `hasAuthority('system:recycle:restore')` | restoreTask | RecycleController.java |
 | GET | `/api/system/recycle/users` | `hasAuthority('system:recycle:view')` | deletedUsers | RecycleController.java |
 | GET | `/api/system/recycle/users/{id}` | `hasAuthority('system:recycle:view')` | deletedUserDetail | RecycleController.java |
 | POST | `/api/system/recycle/users/{id}/purge` | `hasAuthority('system:recycle:purge')` | hardDeleteUser | RecycleController.java |
@@ -295,6 +320,7 @@
 | POST | `/api/task` | `hasAuthority('task:manage')` | create | TaskController.java |
 | GET | `/api/task/list` | `hasAuthority('task:view')` | list | TaskController.java |
 | GET | `/api/task/statistics` | `hasAuthority('task:view')` | statistics | TaskController.java |
+| DELETE | `/api/task/{id}` | `hasAuthority('task:manage')` | delete | TaskController.java |
 | PUT | `/api/task/{id}` | `hasAuthority('task:manage')` | update | TaskController.java |
 | POST | `/api/task/{id}/cancel` | `hasAuthority('task:manage')` | cancel | TaskController.java |
 | POST | `/api/task/{id}/complete` | `hasAuthority('task:manage')` | complete | TaskController.java |

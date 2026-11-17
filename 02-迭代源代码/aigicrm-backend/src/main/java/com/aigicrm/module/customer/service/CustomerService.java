@@ -64,6 +64,10 @@ public class CustomerService {
     private final com.aigicrm.module.approval.mapper.BizApprovalMapper approvalMapper;
     // 【裁决 2026-09-24】财务删除审计(sys_log 快照留痕)
     private final com.aigicrm.module.system.mapper.SysLogMapper financeAuditLogMapper;
+
+    /** 【2026-11-17 阶段三】统一回收站台账；单测可缺省。 */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.aigicrm.module.system.service.RecycleBinService recycleBinService;
     /** 【生命线 2026-11-02 裁决D】客户日期事件追加记录 */
     private final CustomerEventService customerEventService;
 
@@ -816,6 +820,17 @@ public class CustomerService {
         // 【议题五.3 裁决 2026-09-19】有业务数据的客户不允许删,转停用:
         assertDeletable(id);
         customerMapper.deleteById(id);
+        if (recycleBinService != null) {
+            java.util.Map<String, Object> snap = new java.util.LinkedHashMap<>();
+            snap.put("id", id);
+            snap.put("customerName", existing.getCustomerName());
+            snap.put("customerCode", existing.getCustomerCode());
+            snap.put("ownerId", existing.getOwnerId());
+            snap.put("deptId", existing.getDeptId());
+            snap.put("officeId", existing.getOfficeId());
+            snap.put("status", existing.getStatus());
+            recycleBinService.record("customer", id, snap, "用户删除", "user");
+        }
         removeAllShares(id);
         // 【体检 P1 2026-10-12】INV-05 全量口径: 删除是终态, 该客户全部类型的 pending 提醒
         // (expiring/invoice_*)一并清理, 防死行重新积压(摸底 59 条的主供给源)

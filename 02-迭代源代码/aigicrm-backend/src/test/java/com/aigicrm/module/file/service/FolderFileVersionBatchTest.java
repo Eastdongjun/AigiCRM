@@ -163,6 +163,8 @@ class FolderFileVersionBatchTest {
         file.setVersion(2);
         when(fileMapper.selectById(11L)).thenReturn(file);
         when(folderPermissionService.checkFile(eq(11L), eq(FolderPermissionService.P_REPLACE), eq(7L))).thenReturn(true);
+        // 【2026-11-17 阶段二】回滚改为独立码+数据范围；单测直接放行判定口。
+        when(folderPermissionService.canRollbackVersion(file, 7L)).thenReturn(true);
         BizFileVersion v1 = new BizFileVersion();
         v1.setFileId(11L);
         v1.setVersionNo(1);

@@ -48,7 +48,8 @@ public class RolePermScopeService {
      */
     private static final java.util.Set<String> CONSUMED_AXIS = java.util.Set.of(
             "customer|view", "customer|edit", "customer|delete", "customer|finance_edit",
-            "file|view", "file|manage", "file|delete",
+            "file|view", "file|manage", "file|delete", "file|version_rollback",
+            "fabushi|file_view", "fabushi|file_delete",
             // 【WP1.5 2026-11-13 锁定决策#7】statistics|view 数据范围档退役: statistics:view 只做入口码,
             // 统计项按来源动作(customer:view 等)过滤——本表移除后写入面拒绝新增该档(存量行走清理迁移)
             "sea|view", "incentive|stats_view",

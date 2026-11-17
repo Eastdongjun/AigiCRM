@@ -38,6 +38,10 @@ public class IncentiveService {
     /** 激励专项授权表直查（2026-08-16 授权表化，替代载体角色+权限码判定） */
     private final org.springframework.jdbc.core.JdbcTemplate jdbc;
 
+    /** 【2026-11-17 阶段三】统一回收站台账；单测可缺省。 */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.aigicrm.module.system.service.RecycleBinService recycleBinService;
+
     /**
      * 独立"看全部"资格：admin ∨ 授权表 can_view_all=1
      *
@@ -429,8 +433,16 @@ public class IncentiveService {
      */
     @Transactional
     public void deleteRecord(Long id) {
+        // 【2026-11-17 阶段三】软删进统一回收站：保留原分值与文件引用，管理员可恢复。
+        jdbc.update("UPDATE biz_incentive_record SET deleted_at=NOW(), deleted_by=?, deleted_reason=? WHERE id=?",
+                SecurityUtils.getCurrentUserId(), "用户删除", id);
         jdbc.update("DELETE FROM biz_incentive_read WHERE record_id = ?", id);
         recordMapper.deleteById(id);
+        if (recycleBinService != null) {
+            java.util.Map<String, Object> snap = new java.util.LinkedHashMap<>();
+            snap.put("id", id);
+            recycleBinService.record("incentive", id, snap, "用户删除", "user");
+        }
         evictScoreboardCache();
     }
 
@@ -1030,6 +1042,11 @@ public class IncentiveService {
      * (清的是公司级少量键, 开销可忽略)。前端写后强制刷新机制(小程序 forceRefresh.incentive /
      * PC 保存后重进页)配合此失效, 构成"上传完立刻见新排行"的完整链路。
      */
+    /** 回收站恢复/彻底删除后清排行缓存（管理面单入口，避免把 private 实现暴露给业务调用方）。 */
+    public void evictScoreboardCacheAfterRecycle() {
+        evictScoreboardCache();
+    }
+
     private void evictScoreboardCache() {
         scoreboardCache.clear();
     }

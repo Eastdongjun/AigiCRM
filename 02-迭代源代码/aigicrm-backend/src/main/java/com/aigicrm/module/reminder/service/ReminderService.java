@@ -62,6 +62,10 @@ public class ReminderService {
     private final SysDeptMapper deptMapper;
     private final SysConfigService configService;
     private final com.aigicrm.common.scope.OrgScopeResolver scopeResolver;
+
+    /** 【2026-11-17 阶段三】统一回收站台账；单测可缺省。 */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.aigicrm.module.system.service.RecycleBinService recycleBinService;
     // 【WP7 2026-11-13】模块接入零改动: 可见负责人解析仍走 resolveModuleUsers(双轨读开关
     // 已内置于 OrgScopeResolver.resolveModuleUsers 入口), perm.read.reminder=new 即切内核授予表。
 
@@ -493,6 +497,28 @@ public class ReminderService {
         reminder.setStatus("processed");
         reminder.setProcessedAt(LocalDateTime.now());
         reminderMapper.updateById(reminder);
+    }
+
+    /** 【2026-11-17 阶段三】删除提醒（软删进统一回收站；保留原状态，可恢复）。 */
+    @org.springframework.transaction.annotation.Transactional
+    public void delete(Long id, String reason) {
+        BizReminder reminder = reminderMapper.selectById(id);
+        if (reminder == null) return;
+        assertVisible(reminder, "无权删除该提醒");
+        reminder.setDeletedAt(LocalDateTime.now());
+        reminder.setDeletedBy(com.aigicrm.security.SecurityUtils.getCurrentUserId());
+        reminder.setDeletedReason(reason == null || reason.isBlank() ? "用户删除" : reason.trim());
+        reminderMapper.updateById(reminder);
+        reminderMapper.deleteById(id);
+        if (recycleBinService != null) {
+            java.util.Map<String, Object> snap = new java.util.LinkedHashMap<>();
+            snap.put("id", id);
+            snap.put("customerId", reminder.getCustomerId());
+            snap.put("ownerId", reminder.getOwnerId());
+            snap.put("reminderType", reminder.getReminderType());
+            snap.put("status", reminder.getStatus());
+            recycleBinService.record("reminder", id, snap, reminder.getDeletedReason(), "user");
+        }
     }
 
     /**

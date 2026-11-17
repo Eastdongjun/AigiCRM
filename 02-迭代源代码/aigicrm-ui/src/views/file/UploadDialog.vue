@@ -52,7 +52,39 @@ const handleFilesChosen = (e) => {
   e.target.value = ''
 }
 
+const MAX_FILE_SIZE = 200 * 1024 * 1024
+const CHUNK_SIZE = 5 * 1024 * 1024
+const CHUNK_THRESHOLD = 10 * 1024 * 1024
+
+// 【2026-11-17 阶段三】大文件走分片上传：5MB/片，可断点重传同一片；complete 复用后端配额/权限校验。
+const uploadChunked = async (file) => {
+  const init = await request.post('/file/chunk/init', {
+    fileName: file.name,
+    fileSize: file.size,
+    scope: activeTab.value,
+    folderId: selectedFolderId.value
+  })
+  if (init.data?.instant) return init.data
+  const uploadId = init.data?.uploadId
+  const totalChunks = init.data?.totalChunks
+  if (!uploadId || !totalChunks) throw new Error(init.data?.message || '分片上传初始化失败')
+  for (let i = 0; i < totalChunks; i++) {
+    const formData = new FormData()
+    formData.append('chunk', file.slice(i * CHUNK_SIZE, Math.min(file.size, (i + 1) * CHUNK_SIZE)))
+    // 同一 index 重复上传会覆盖该片，天然支持断点续传
+    await request.post(`/file/chunk/${uploadId}?index=${i}`, formData, {
+      timeout: 600000,
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+  }
+  const done = await request.post(`/file/chunk/${uploadId}/complete`, {}, { timeout: 600000 })
+  if (!done.data?.id) throw new Error(done.data?.message || '分片合并失败')
+  return done.data
+}
+
 const uploadOne = async (file) => {
+  if (file.size > MAX_FILE_SIZE) throw new Error(`${file.name} 超过 200MB 单文件上限`)
+  if (file.size > CHUNK_THRESHOLD) return uploadChunked(file)
   const formData = new FormData()
   formData.append('file', file)
   formData.append('scope', activeTab.value)

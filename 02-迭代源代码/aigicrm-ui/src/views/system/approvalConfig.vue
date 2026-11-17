@@ -46,6 +46,8 @@
             <el-option label="客户转移 (transfer)" value="transfer" />
             <el-option label="保护期延期 (extend)" value="extend" />
             <el-option label="存储扩容 (storage)" value="storage" />
+            <el-option label="离职交接 (handover)" value="handover" />
+            <el-option label="组织移动/人员调动 (org_move)" value="org_move" />
           </el-select>
         </el-form-item>
         <el-divider content-position="left">审批人设置</el-divider>

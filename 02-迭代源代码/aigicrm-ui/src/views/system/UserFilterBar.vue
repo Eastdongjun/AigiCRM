@@ -5,7 +5,10 @@
         <span class="filter-title-text">人员管理</span>
         <span class="filter-title-count">共 {{ total }} 人</span>
       </div>
-      <el-button v-if="userStore.isAdmin() || userStore.isOrgAdmin()" type="primary" :icon="Plus" @click="openDialog()">新增用户</el-button>
+      <div class="filter-actions">
+        <el-button v-if="userStore.isAdmin() || userStore.hasPermission('system:user:edit')" @click="lifecycleRef?.open()">离职交接/调动</el-button>
+        <el-button v-if="userStore.isAdmin() || userStore.isOrgAdmin()" type="primary" :icon="Plus" @click="openDialog()">新增用户</el-button>
+      </div>
     </div>
     <div class="filter-row">
       <el-input v-model="query.keyword" placeholder="搜索姓名 / 账号 / 手机号..." clearable prefix-icon="Search" class="filter-search" @keyup.enter="search" />
@@ -14,20 +17,25 @@
         <el-option label="正常" :value="1" /><el-option label="禁用" :value="0" />
       </el-select>
     </div>
+    <LifecycleDialog ref="lifecycleRef" />
   </div>
 </template>
 
 <script setup>
+import { ref } from 'vue'
 import { Plus } from '@element-plus/icons-vue'
 import { injectUserList } from '@/composables/useUserList'
+import LifecycleDialog from './LifecycleDialog.vue'
 
 const { userStore, query, total, deptTree, search, onDeptFilterChange, openDialog } = injectUserList()
+const lifecycleRef = ref(null)
 </script>
 
 <style scoped>
 .section-box { background: #fff; border: 1px solid #e4e7ed; border-radius: var(--radius-md); padding: 14px 20px; flex-shrink: 0 }
 .filter-box { display: flex; flex-direction: column; gap: 12px; padding: 16px 20px }
 .filter-head { display: flex; align-items: center; justify-content: space-between }
+.filter-actions { display: flex; align-items: center; gap: 8px }
 .filter-title { display: flex; align-items: baseline; gap: 10px }
 .filter-title-text { font-size: 16px; font-weight: 700; color: #1f2329; letter-spacing: 0.5px }
 .filter-title-count { font-size: 12px; color: var(--el-color-info); background: #f4f4f5; border-radius: 20px; padding: 2px 10px }

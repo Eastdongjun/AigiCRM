@@ -29,6 +29,10 @@ public class BizTask {
     private LocalDateTime updatedAt;
     @TableLogic
     private Integer deleted;
+    /** 【2026-11-17 阶段三】统一回收站审计字段 */
+    private LocalDateTime deletedAt;
+    private Long deletedBy;
+    private String deletedReason;
     private Long tenantId;
 
     @TableField(exist = false)

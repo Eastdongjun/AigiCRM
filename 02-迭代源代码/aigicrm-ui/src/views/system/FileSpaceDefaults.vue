@@ -8,7 +8,10 @@
         <div class="fsd-title">文件权限</div>
         <div class="fsd-hint">底座=组织矩阵（全员可看 · 本部门可管 · 删仅本人，「功能与范围」调档）；类型默认与夹级授权在此勾选即生效、删除即收回</div>
       </div>
-      <el-button v-if="canEdit" type="primary" size="small" @click="openAdd(null)">＋ 添加授权</el-button>
+      <div>
+        <el-button v-if="canEdit" size="small" @click="grantRef?.open()">统一授权</el-button>
+        <el-button v-if="canEdit" type="primary" size="small" @click="openAdd(null)">＋ 添加授权</el-button>
+      </div>
     </div>
 
     <div v-for="t in TYPES" :key="t.value" class="fsd-sec">
@@ -181,6 +184,7 @@
         </div>
       </template>
     </el-dialog>
+    <FileGrantDialog ref="grantRef" :can-edit="canEdit" />
   </div>
 </template>
 
@@ -190,8 +194,10 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { getFolderTypeDefaults, saveFolderTypeDefault, removeFolderTypeDefault, renewFolderTypeDefault, getAclRoles, getFolderTree } from '@/api/file'
 import { getUserList } from '@/api/system'
 import request from '@/utils/request'
+import FileGrantDialog from './FileGrantDialog.vue'
 
 defineProps({ canEdit: { type: Boolean, default: false } })
+const grantRef = ref(null)
 
 const TYPES = [
   { value: 'public', icon: '📁', label: '公共空间', hint: '公司文件；文件夹动作=在此空间建夹/删夹/改名夹' },

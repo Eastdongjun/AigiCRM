@@ -78,6 +78,14 @@ public class RecycleService {
     private final JdbcTemplate jdbc;
     private final com.aigicrm.security.PermissionCacheService permissionCacheService;
 
+    /** 【2026-11-17 阶段三】激励恢复后清排行缓存；单测/旧上下文可缺省。 */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.aigicrm.module.incentive.service.IncentiveService incentiveService;
+
+    /** 【2026-11-17 阶段三】统一回收站台账状态回写。 */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private RecycleBinService recycleBinService;
+
     // ==================== 已删除客户 ====================
 
     public PageResult<DeletedCustomerRow> deletedCustomers(int current, int size, String keyword) {
@@ -120,6 +128,7 @@ public class RecycleService {
         writeAuditLog("恢复客户", "customer", id,
                 "客户名=" + c.getCustomerName() + ", 编码=" + c.getCustomerCode()
                         + ", 原负责人ID=" + c.getOwnerId());
+        if (recycleBinService != null) recycleBinService.markRestored("customer", id);
         return "客户已恢复" + (c.getOwnerId() == null ? "（无负责人，请到客户列表分配）" : "");
     }
 
@@ -160,6 +169,7 @@ public class RecycleService {
         permissionCacheService.evict(id);
         writeAuditLog("恢复人员", "sys_user", id,
                 "账号=" + u.getUsername() + ", 姓名=" + u.getRealName() + ", 部门ID=" + u.getDeptId());
+        if (recycleBinService != null) recycleBinService.markRestored("user", id);
         return "人员已恢复；删除时已清除其角色/岗位/组织归属，请到「人员管理」重新分配角色后再通知本人登录";
     }
 
@@ -237,6 +247,7 @@ public class RecycleService {
         }
         writeAuditLog("彻底删除客户", "customer", id,
                 "客户名=" + c.getCustomerName() + ", 编码=" + c.getCustomerCode());
+        if (recycleBinService != null) recycleBinService.markPurged("customer", id);
         return "客户已彻底删除（不可恢复）";
     }
 
@@ -269,6 +280,7 @@ public class RecycleService {
         permissionCacheService.evict(id);
         writeAuditLog("彻底删除人员", "sys_user", id,
                 "账号=" + u.getUsername() + ", 姓名=" + u.getRealName());
+        if (recycleBinService != null) recycleBinService.markPurged("user", id);
         return "人员已彻底删除（不可恢复）";
     }
 
@@ -288,6 +300,7 @@ public class RecycleService {
         purgeFileCascade(f);
         writeAuditLog("彻底删除文件", "biz_file", id,
                 "文件名=" + f.getFileName() + ", scope=" + f.getFileScope());
+        if (recycleBinService != null) recycleBinService.markPurged("file", id);
         return "文件已彻底删除（不可恢复）";
     }
 
@@ -372,6 +385,7 @@ public class RecycleService {
         if (restored != 1) {
             throw new BusinessException("恢复失败：数据状态已变化，请刷新后重试");
         }
+        if (recycleBinService != null) recycleBinService.markRestored("file", id);
         String message = folderMissing
                 ? "文件已恢复到“" + ("private".equals(f.getFileScope()) ? "我的文件" : "公共文件")
                         + "”根目录（原文件夹已删除）"
@@ -742,6 +756,18 @@ public class RecycleService {
                                    Long deletedBy, LocalDateTime deletedAt) {
     }
 
+    public record DeletedTaskRow(Long id, String title, Long assigneeId, String assigneeName,
+                                 String status, LocalDateTime deletedAt) {
+    }
+
+    public record DeletedIncentiveRow(Long id, Long userId, String userName, Long customerId,
+                                      String customerName, Integer score, LocalDateTime deletedAt) {
+    }
+
+    public record DeletedReminderRow(Long id, Long customerId, String customerName, String reminderType,
+                                     String status, Long ownerId, String ownerName, LocalDateTime deletedAt) {
+    }
+
     private static final RowMapper<BizFileFolder> FOLDER_ROW_MAPPER = new BeanPropertyRowMapper<>(BizFileFolder.class);
 
     /** 回收站归属查询(归属闸门用): 文件的删除人(未填=存量行 NULL, 仅 admin 可动; 不在回收站=null) */
@@ -830,6 +856,169 @@ public class RecycleService {
         if (deleted == 0) throw new BusinessException("彻底删除失败（并发状态已变化），请刷新后重试");
         writeAuditLog("彻底删除文件夹", "biz_file_folder", id, "文件夹名=" + f.getFolderName());
         return "文件夹「" + f.getFolderName() + "」已彻底删除";
+    }
+
+    // ==================== 【2026-11-17 阶段三】任务/激励统一回收站 ====================
+
+    public PageResult<DeletedTaskRow> deletedTasks(int current, int size, String keyword) {
+        int pageSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
+        int offset = (Math.max(current, 1) - 1) * pageSize;
+        String pattern = "%" + (keyword == null ? "" : keyword.trim()) + "%";
+        List<DeletedTaskRow> rows = jdbc.query(
+                "SELECT t.id, t.title, t.assignee_id, u.real_name, t.status, t.deleted_at "
+                        + "FROM biz_task t LEFT JOIN sys_user u ON u.id=t.assignee_id "
+                        + "WHERE t.deleted=1 AND t.title LIKE ? ORDER BY t.deleted_at DESC LIMIT ?, ?",
+                (rs, i) -> new DeletedTaskRow(rs.getLong(1), rs.getString(2), rs.getLong(3), rs.getString(4),
+                        rs.getString(5), rs.getTimestamp(6) == null ? null : rs.getTimestamp(6).toLocalDateTime()),
+                pattern, offset, pageSize);
+        long total = jdbc.queryForObject("SELECT COUNT(*) FROM biz_task WHERE deleted=1 AND title LIKE ?",
+                Long.class, pattern);
+        return new PageResult<>(rows, total);
+    }
+
+    @Transactional
+    public String restoreTask(Long id) {
+        List<Map<String, Object>> rows = jdbc.queryForList("SELECT * FROM biz_task WHERE id=? AND deleted=1 FOR UPDATE", id);
+        if (rows.isEmpty()) throw new BusinessException("该任务不在回收站");
+        Map<String, Object> t = rows.get(0);
+        Long assigneeId = t.get("assignee_id") == null ? null : ((Number) t.get("assignee_id")).longValue();
+        if (assigneeId != null) {
+            Integer active = jdbc.queryForObject(
+                    "SELECT COUNT(*) FROM sys_user WHERE id=? AND deleted=0 AND status=1", Integer.class, assigneeId);
+            if (active == null || active == 0) throw new BusinessException("任务责任人已删除/停用，请先在回收站恢复人员");
+        }
+        int n = jdbc.update("UPDATE biz_task SET deleted=0, deleted_at=NULL, deleted_by=NULL, deleted_reason=NULL "
+                + "WHERE id=? AND deleted=1", id);
+        if (n != 1) throw new BusinessException("恢复失败（状态已变化），请刷新后重试");
+        writeAuditLog("恢复任务", "biz_task", id, "标题=" + t.get("title"));
+        if (recycleBinService != null) recycleBinService.markRestored("task", id);
+        return "任务已恢复";
+    }
+
+    @Transactional
+    public String hardDeleteTask(Long id) {
+        int n = jdbc.update("DELETE FROM biz_task WHERE id=? AND deleted=1", id);
+        if (n != 1) throw new BusinessException("彻底删除失败（状态已变化），请刷新后重试");
+        writeAuditLog("彻底删除任务", "biz_task", id, null);
+        if (recycleBinService != null) recycleBinService.markPurged("task", id);
+        return "任务已彻底删除";
+    }
+
+    public PageResult<DeletedIncentiveRow> deletedIncentives(int current, int size, String keyword) {
+        int pageSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
+        int offset = (Math.max(current, 1) - 1) * pageSize;
+        String pattern = "%" + (keyword == null ? "" : keyword.trim()) + "%";
+        List<DeletedIncentiveRow> rows = jdbc.query(
+                "SELECT r.id, r.user_id, u.real_name, r.customer_id, c.customer_name, r.score, r.deleted_at "
+                        + "FROM biz_incentive_record r "
+                        + "LEFT JOIN sys_user u ON u.id=r.user_id "
+                        + "LEFT JOIN biz_customer c ON c.id=r.customer_id "
+                        + "WHERE r.deleted=1 AND (u.real_name LIKE ? OR c.customer_name LIKE ? OR r.period LIKE ?) "
+                        + "ORDER BY r.deleted_at DESC LIMIT ?, ?",
+                (rs, i) -> new DeletedIncentiveRow(rs.getLong(1), rs.getLong(2), rs.getString(3),
+                        rs.getLong(4), rs.getString(5), rs.getInt(6),
+                        rs.getTimestamp(7) == null ? null : rs.getTimestamp(7).toLocalDateTime()),
+                pattern, pattern, pattern, offset, pageSize);
+        long total = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM biz_incentive_record r LEFT JOIN sys_user u ON u.id=r.user_id "
+                        + "LEFT JOIN biz_customer c ON c.id=r.customer_id "
+                        + "WHERE r.deleted=1 AND (u.real_name LIKE ? OR c.customer_name LIKE ? OR r.period LIKE ?)",
+                Long.class, pattern, pattern, pattern);
+        return new PageResult<>(rows, total);
+    }
+
+    @Transactional
+    public String restoreIncentive(Long id) {
+        List<Map<String, Object>> rows = jdbc.queryForList(
+                "SELECT * FROM biz_incentive_record WHERE id=? AND deleted=1 FOR UPDATE", id);
+        if (rows.isEmpty()) throw new BusinessException("该激励记录不在回收站");
+        Map<String, Object> r = rows.get(0);
+        Long userId = r.get("user_id") == null ? null : ((Number) r.get("user_id")).longValue();
+        if (userId != null && !activeUser(userId)) {
+            throw new BusinessException("激励记录所属人员已删除/停用，请先恢复人员");
+        }
+        Long customerId = r.get("customer_id") == null ? null : ((Number) r.get("customer_id")).longValue();
+        if (customerId != null) {
+            Integer active = jdbc.queryForObject(
+                    "SELECT COUNT(*) FROM biz_customer WHERE id=? AND deleted=0", Integer.class, customerId);
+            if (active == null || active == 0) throw new BusinessException("激励记录关联客户已删除，请先恢复客户");
+        }
+        int n = jdbc.update("UPDATE biz_incentive_record SET deleted=0, deleted_at=NULL, deleted_by=NULL, "
+                + "deleted_reason=NULL WHERE id=? AND deleted=1", id);
+        if (n != 1) throw new BusinessException("恢复失败（状态已变化），请刷新后重试");
+        if (incentiveService != null) incentiveService.evictScoreboardCacheAfterRecycle();
+        writeAuditLog("恢复激励记录", "biz_incentive_record", id, "客户ID=" + customerId);
+        if (recycleBinService != null) recycleBinService.markRestored("incentive", id);
+        return "激励记录已恢复";
+    }
+
+    @Transactional
+    public String hardDeleteIncentive(Long id) {
+        jdbc.update("DELETE FROM biz_incentive_read WHERE record_id=?", id);
+        int n = jdbc.update("DELETE FROM biz_incentive_record WHERE id=? AND deleted=1", id);
+        if (n != 1) throw new BusinessException("彻底删除失败（状态已变化），请刷新后重试");
+        if (incentiveService != null) incentiveService.evictScoreboardCacheAfterRecycle();
+        writeAuditLog("彻底删除激励记录", "biz_incentive_record", id, null);
+        if (recycleBinService != null) recycleBinService.markPurged("incentive", id);
+        return "激励记录已彻底删除";
+    }
+
+    public PageResult<DeletedReminderRow> deletedReminders(int current, int size, String keyword) {
+        int pageSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
+        int offset = (Math.max(current, 1) - 1) * pageSize;
+        String pattern = "%" + (keyword == null ? "" : keyword.trim()) + "%";
+        List<DeletedReminderRow> rows = jdbc.query(
+                "SELECT r.id, r.customer_id, c.customer_name, r.reminder_type, r.status, r.owner_id, "
+                        + "u.real_name, r.deleted_at FROM biz_reminder r "
+                        + "LEFT JOIN biz_customer c ON c.id=r.customer_id "
+                        + "LEFT JOIN sys_user u ON u.id=r.owner_id "
+                        + "WHERE r.deleted=1 AND (c.customer_name LIKE ? OR u.real_name LIKE ?) "
+                        + "ORDER BY r.deleted_at DESC LIMIT ?, ?",
+                (rs, i) -> new DeletedReminderRow(rs.getLong(1), rs.getLong(2), rs.getString(3),
+                        rs.getString(4), rs.getString(5), rs.getLong(6), rs.getString(7),
+                        rs.getTimestamp(8) == null ? null : rs.getTimestamp(8).toLocalDateTime()),
+                pattern, pattern, offset, pageSize);
+        long total = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM biz_reminder r LEFT JOIN biz_customer c ON c.id=r.customer_id "
+                        + "LEFT JOIN sys_user u ON u.id=r.owner_id "
+                        + "WHERE r.deleted=1 AND (c.customer_name LIKE ? OR u.real_name LIKE ?)",
+                Long.class, pattern, pattern);
+        return new PageResult<>(rows, total);
+    }
+
+    @Transactional
+    public String restoreReminder(Long id) {
+        List<Map<String, Object>> rows = jdbc.queryForList(
+                "SELECT * FROM biz_reminder WHERE id=? AND deleted=1 FOR UPDATE", id);
+        if (rows.isEmpty()) throw new BusinessException("该提醒不在回收站");
+        Map<String, Object> r = rows.get(0);
+        Long customerId = r.get("customer_id") == null ? null : ((Number) r.get("customer_id")).longValue();
+        if (customerId != null) {
+            Integer active = jdbc.queryForObject(
+                    "SELECT COUNT(*) FROM biz_customer WHERE id=? AND deleted=0", Integer.class, customerId);
+            if (active == null || active == 0) throw new BusinessException("提醒关联客户已删除，请先恢复客户");
+        }
+        int n = jdbc.update("UPDATE biz_reminder SET deleted=0, deleted_at=NULL, deleted_by=NULL, "
+                + "deleted_reason=NULL WHERE id=? AND deleted=1", id);
+        if (n != 1) throw new BusinessException("恢复失败（状态已变化），请刷新后重试");
+        writeAuditLog("恢复提醒", "biz_reminder", id, "客户ID=" + customerId);
+        if (recycleBinService != null) recycleBinService.markRestored("reminder", id);
+        return "提醒已恢复";
+    }
+
+    @Transactional
+    public String hardDeleteReminder(Long id) {
+        int n = jdbc.update("DELETE FROM biz_reminder WHERE id=? AND deleted=1", id);
+        if (n != 1) throw new BusinessException("彻底删除失败（状态已变化），请刷新后重试");
+        writeAuditLog("彻底删除提醒", "biz_reminder", id, null);
+        if (recycleBinService != null) recycleBinService.markPurged("reminder", id);
+        return "提醒已彻底删除";
+    }
+
+    private boolean activeUser(Long id) {
+        Integer active = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM sys_user WHERE id=? AND deleted=0 AND status=1", Integer.class, id);
+        return active != null && active > 0;
     }
 
     /** 我的回收站·文件(非 admin 视角): 只列本人删除的(deleted_by 归属口径; V2026.11.14.1 补列) */

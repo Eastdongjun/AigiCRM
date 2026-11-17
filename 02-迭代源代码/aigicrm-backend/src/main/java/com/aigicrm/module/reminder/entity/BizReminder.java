@@ -18,6 +18,12 @@ public class BizReminder {
     private LocalDateTime processedAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    /** 【2026-11-17 阶段三】统一回收站：软删 + 审计 */
+    @TableLogic
+    private Integer deleted;
+    private LocalDateTime deletedAt;
+    private Long deletedBy;
+    private String deletedReason;
 
     @TableField(exist = false)
     private String customerName;

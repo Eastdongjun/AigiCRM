@@ -33,7 +33,10 @@ incentive|stats_view|resolveModuleUsers\(user, "incentive", "stats_view"\)|四�
 task|view|resolveModuleUsersWithinGroup\(SecurityUtils\.getCurrentUser\(\), "task"\)|任务分派可见集(仅 view, WithinGroup 集团收口)
 score|view|resolveModuleUsersWithinGroup\(SecurityUtils\.getCurrentUser\(\), "score"\)|学分录入/排行可见集(仅 view, WithinGroup 集团收口)
 system|view|resolveModuleUsersWithinGroup\(SecurityUtils\.getCurrentUser\(\), "system"\)|系统日志可见集(仅 view, admin 全集团; WithinGroup 集团收口)
-fabushi|stats_view|resolveModuleUsers\(user, "fabushi", "stats_view"\)|法布施团队统计可见集(2026-11-15 一期, 照 incentive stats_view 模式; 内容流社区型全员可见不设范围档)'
+fabushi|stats_view|resolveModuleUsers\(user, "fabushi", "stats_view"\)|法布施团队统计可见集(2026-11-15 一期, 照 incentive stats_view 模式; 内容流社区型全员可见不设范围档)
+fabushi|file_view|resolveModuleUsers\(user, "fabushi", "file_view"\)|法布施文件可见范围(2026-11-17 阶段二, OWNER 锚=上传人; 默认 all 公司级, 可收窄大区/办事处/部门/self)
+fabushi|file_delete|canDeleteFabushiFile|法布施文件删除范围(2026-11-17 阶段二, OWNER 锚; 功能码 fabushi:file:delete + 数据范围)
+file|version_rollback|canRollbackVersion|文件版本回滚范围(2026-11-17 阶段二, OWNER 锚; 功能码 file:version:rollback + 数据范围)'
 
 # ① 源码消费字面量 ⊆ 枚举
 # 【N6 2026-11-11 修复】链式 .module()/.action() 之外, resolveModuleUsers/WithinGroup 的

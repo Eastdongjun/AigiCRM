@@ -39,6 +39,10 @@ public class TaskService {
     private final com.aigicrm.common.scope.OrgScopeResolver orgScopeResolver;
     private final com.aigicrm.common.engine.CustomerAccessService customerAccessService;
 
+    /** 【2026-11-17 阶段三】统一回收站台账；单测可缺省。 */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.aigicrm.module.system.service.RecycleBinService recycleBinService;
+
     /** 控制器 Map → 实体转换(控制器零 entity 依赖) */
     public BizTask createFromMap(Map<String, Object> body) {
         BizTask task = new BizTask();
@@ -138,6 +142,28 @@ public class TaskService {
         task.setStatus("cancelled");
         task.setCompletionNote("取消原因: " + reason.trim());
         taskMapper.updateById(task);
+    }
+
+    /** 【2026-11-17 阶段三】删除任务进统一回收站：软删 + 删除审计，可在系统回收站恢复。 */
+    @Transactional
+    public void delete(Long id, String reason) {
+        BizTask task = getOwnOrManaged(id);
+        if ("completed".equals(task.getStatus())) {
+            throw new BusinessException("已完成的任务不能删除");
+        }
+        task.setDeletedAt(LocalDateTime.now());
+        task.setDeletedBy(SecurityUtils.getCurrentUserId());
+        task.setDeletedReason(reason == null || reason.isBlank() ? "用户删除" : reason.trim());
+        taskMapper.updateById(task);
+        taskMapper.deleteById(id);
+        if (recycleBinService != null) {
+            java.util.Map<String, Object> snap = new java.util.LinkedHashMap<>();
+            snap.put("id", id);
+            snap.put("title", task.getTitle());
+            snap.put("assigneeId", task.getAssigneeId());
+            snap.put("customerId", task.getCustomerId());
+            recycleBinService.record("task", id, snap, task.getDeletedReason(), "user");
+        }
     }
 
     /** 转交任务(责任人变更) */
