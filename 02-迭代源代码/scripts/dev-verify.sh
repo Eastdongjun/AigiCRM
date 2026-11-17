@@ -531,6 +531,10 @@ local_contracts() {
   run "$ROOT/scripts/check-api-contract-diff.sh"
   # 【2026-11-17 生产缺陷固化】前端 axios 重复 /api 前缀(法布施挂载电子书 404)
   run python3 "$ROOT/scripts/check-ui-api-prefix.py"
+  # 【2026-11-17 用户报障固化】双端权限消费对齐: 后端行级 perms 须被 PC/MP 消费,
+  # 禁止页级夹 perms 顶替(销售总监"不能改文件"=MP 1.0.69 旧逻辑漏消费行级 perms,
+  # 修复 42b9ac2e 已含于 1.0.70+; 同类漏端已发生 4 次, 机器防复发)
+  run python3 "$ROOT/scripts/check-perms-row-consumption-parity.py"
   # 【底座评估 2026-11-11】三端词表消费侧一致(前端码⊆后端码∪白名单)
   run "$ROOT/scripts/check-permission-code-consumption.sh"
   # 【底座收敛 P1】权限码生成物(PC/MP 常量)与后端权威集一致
