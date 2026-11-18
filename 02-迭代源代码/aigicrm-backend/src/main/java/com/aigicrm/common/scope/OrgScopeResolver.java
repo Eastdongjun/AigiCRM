@@ -329,23 +329,34 @@ public class OrgScopeResolver {
         List<String> exact = new ArrayList<>();
         List<String> wildcard = new ArrayList<>();
         for (com.aigicrm.common.scope.ScopeConfig c : configs) {
-            String cMod = c.getModule() != null ? c.getModule() : "";
-            String cAct = c.getAction() != null ? c.getAction() : "";
-            boolean matched = (cMod.equals(module) || "*".equals(cMod))
-                    && (cAct.equals(action) || "*".equals(cAct))
-                    && c.getScopeLevel() != null && !c.getScopeLevel().isBlank();
-            if (matched) {
-                String type = c.getAssigneeType() != null ? c.getAssigneeType() : "ROLE";
-                if (seenType == null) {
-                    seenType = type; // 首个有匹配的主体(USER>POSITION>ROLE 装载序)
-                }
-                if (seenType.equals(type)) {
-                    if (cMod.equals(module) && cAct.equals(action)) exact.add(c.getScopeLevel());
-                    else wildcard.add(c.getScopeLevel());
-                }
+            String type = matchedScopeType(c, module, action);
+            if (type == null) continue;
+            if (seenType == null) {
+                seenType = type; // 首个有匹配的主体(USER>POSITION>ROLE 装载序)
+            }
+            if (seenType.equals(type)) {
+                if (isExactScope(c, module, action)) exact.add(c.getScopeLevel());
+                else wildcard.add(c.getScopeLevel());
             }
         }
         return new ScopeCodes(seenType, exact, wildcard);
+    }
+
+    /** 配置行是否匹配 (module,action) 且范围码非空；匹配返回主体类型，否则 null。 */
+    private String matchedScopeType(com.aigicrm.common.scope.ScopeConfig c, String module, String action) {
+        String cMod = c.getModule() != null ? c.getModule() : "";
+        String cAct = c.getAction() != null ? c.getAction() : "";
+        boolean matched = (cMod.equals(module) || "*".equals(cMod))
+                && (cAct.equals(action) || "*".equals(cAct))
+                && c.getScopeLevel() != null && !c.getScopeLevel().isBlank();
+        if (!matched) return null;
+        return c.getAssigneeType() != null ? c.getAssigneeType() : "ROLE";
+    }
+
+    private boolean isExactScope(com.aigicrm.common.scope.ScopeConfig c, String module, String action) {
+        String cMod = c.getModule() != null ? c.getModule() : "";
+        String cAct = c.getAction() != null ? c.getAction() : "";
+        return cMod.equals(module) && cAct.equals(action);
     }
 
     /**
