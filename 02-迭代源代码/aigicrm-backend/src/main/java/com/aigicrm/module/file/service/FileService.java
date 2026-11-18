@@ -1208,7 +1208,7 @@ public class FileService {
         return allowed;
     }
 
-    private void writeZip(List<BizFile> allowed, jakarta.servlet.http.HttpServletResponse response) throws Exception {
+    private void writeZip(List<BizFile> allowed, jakarta.servlet.http.HttpServletResponse response) throws java.io.IOException {
         response.setContentType("application/zip");
         String zipName = "files-" + java.time.LocalDate.now() + ".zip";
         String encoded = java.net.URLEncoder.encode(zipName, java.nio.charset.StandardCharsets.UTF_8).replace("+", "%20");
@@ -1311,7 +1311,7 @@ public class FileService {
         return null;
     }
 
-    private Path generateCachedPreview(Path source, BizFile file) throws Exception {
+    private Path generateCachedPreview(Path source, BizFile file) throws java.io.IOException, InterruptedException {
         Path cacheRoot = thumbnailCacheRoot();
         Files.createDirectories(cacheRoot);
         String key = "preview-" + file.getId() + "-" + (file.getVersion() == null ? 1 : file.getVersion())
