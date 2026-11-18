@@ -76,43 +76,13 @@ public class FabushiDashboardService {
         data.put("periodStart", start.toString());
         data.put(LIT_MEMBERCOUNT, visible == null ? -1 : visible.size());
         if (visible != null && visible.isEmpty()) {
-            data.put("todayReadUsers", 0);
-            data.put(LIT_COVERAGEPCT, null);
-            data.put("periodPosts", 0);
-            data.put("periodLikes", 0);
-            data.put("periodComments", 0);
-            data.put(LIT_RANKING, List.of());
-            data.put(LIT_DEPTPROGRESS, List.of());
-            data.put("categoryHeat", List.of());
-            data.put(LIT_TREND, List.of());
-            return data;
+            return emptyDashboard(data);
         }
 
-        LambdaQueryWrapper<BizFabushiPost> pq = new LambdaQueryWrapper<BizFabushiPost>()
-                .eq(BizFabushiPost::getStatus, LIT_PUBLISHED)
-                .ge(BizFabushiPost::getCreatedAt, startAt);
-        if (visible != null) pq.in(BizFabushiPost::getUserId, visible);
-        List<BizFabushiPost> periodPosts = postMapper.selectList(pq);
-
-        LambdaQueryWrapper<BizFabushiLike> lq = new LambdaQueryWrapper<BizFabushiLike>()
-                .ge(BizFabushiLike::getCreatedAt, startAt);
-        if (visible != null) lq.in(BizFabushiLike::getUserId, visible);
-        List<BizFabushiLike> periodLikes = likeMapper.selectList(lq);
-
-        LambdaQueryWrapper<BizFabushiComment> cq = new LambdaQueryWrapper<BizFabushiComment>()
-                .eq(BizFabushiComment::getStatus, LIT_PUBLISHED)
-                .ge(BizFabushiComment::getCreatedAt, startAt);
-        if (visible != null) cq.in(BizFabushiComment::getUserId, visible);
-        List<BizFabushiComment> periodComments = commentMapper.selectList(cq);
-
-        LocalDateTime todayAt = today.atStartOfDay();
-        LambdaQueryWrapper<BizFabushiReadStatus> todayRq = new LambdaQueryWrapper<BizFabushiReadStatus>()
-                .ge(BizFabushiReadStatus::getReadAt, todayAt);
-        List<BizFabushiReadStatus> todayReads = readStatusMapper.selectList(todayRq);
-        Set<Long> todayReaders = todayReads.stream()
-                .map(BizFabushiReadStatus::getUserId)
-                .filter(uid -> visible == null || visible.contains(uid))
-                .collect(Collectors.toSet());
+        List<BizFabushiPost> periodPosts = loadPeriodPosts(visible, startAt);
+        List<BizFabushiLike> periodLikes = loadPeriodLikes(visible, startAt);
+        List<BizFabushiComment> periodComments = loadPeriodComments(visible, startAt);
+        Set<Long> todayReaders = todayReaderIds(visible, today.atStartOfDay());
 
         data.put("todayReadUsers", todayReaders.size());
         data.put(LIT_COVERAGEPCT, visible == null ? null
@@ -123,14 +93,59 @@ public class FabushiDashboardService {
 
         List<BizFabushiReadStatus> periodReads = readStatusMapper.selectList(new LambdaQueryWrapper<BizFabushiReadStatus>()
                 .ge(BizFabushiReadStatus::getReadAt, startAt));
-
-        // 榜单：发布数 / 获木鱼 / 已读天数（【2026-11-16 P3】提取为共用方法, 月度报告复用同一口径）
         data.put(LIT_RANKING, buildRanking(visible, periodPosts, periodReads, startAt));
-        // 【2026-11-16 P3】部门进度: 同一周期数据按 sys_user.dept_id → sys_dept 内存分组
-        // (口径与 score/statistics 部门排行先例同构), 覆盖率分母=可见集成员数
         data.put(LIT_DEPTPROGRESS, buildDeptProgress(visible, periodPosts, periodLikes, periodComments, periodReads));
+        data.put("categoryHeat", buildCategoryHeat(periodPosts));
+        data.put(LIT_TREND, buildTrend(visible, today));
+        return data;
+    }
 
-        // 类别热度
+    private Map<String, Object> emptyDashboard(Map<String, Object> data) {
+        data.put("todayReadUsers", 0);
+        data.put(LIT_COVERAGEPCT, null);
+        data.put("periodPosts", 0);
+        data.put("periodLikes", 0);
+        data.put("periodComments", 0);
+        data.put(LIT_RANKING, List.of());
+        data.put(LIT_DEPTPROGRESS, List.of());
+        data.put("categoryHeat", List.of());
+        data.put(LIT_TREND, List.of());
+        return data;
+    }
+
+    private List<BizFabushiPost> loadPeriodPosts(Set<Long> visible, LocalDateTime startAt) {
+        LambdaQueryWrapper<BizFabushiPost> pq = new LambdaQueryWrapper<BizFabushiPost>()
+                .eq(BizFabushiPost::getStatus, LIT_PUBLISHED)
+                .ge(BizFabushiPost::getCreatedAt, startAt);
+        if (visible != null) pq.in(BizFabushiPost::getUserId, visible);
+        return postMapper.selectList(pq);
+    }
+
+    private List<BizFabushiLike> loadPeriodLikes(Set<Long> visible, LocalDateTime startAt) {
+        LambdaQueryWrapper<BizFabushiLike> lq = new LambdaQueryWrapper<BizFabushiLike>()
+                .ge(BizFabushiLike::getCreatedAt, startAt);
+        if (visible != null) lq.in(BizFabushiLike::getUserId, visible);
+        return likeMapper.selectList(lq);
+    }
+
+    private List<BizFabushiComment> loadPeriodComments(Set<Long> visible, LocalDateTime startAt) {
+        LambdaQueryWrapper<BizFabushiComment> cq = new LambdaQueryWrapper<BizFabushiComment>()
+                .eq(BizFabushiComment::getStatus, LIT_PUBLISHED)
+                .ge(BizFabushiComment::getCreatedAt, startAt);
+        if (visible != null) cq.in(BizFabushiComment::getUserId, visible);
+        return commentMapper.selectList(cq);
+    }
+
+    private Set<Long> todayReaderIds(Set<Long> visible, LocalDateTime todayAt) {
+        return readStatusMapper.selectList(new LambdaQueryWrapper<BizFabushiReadStatus>()
+                        .ge(BizFabushiReadStatus::getReadAt, todayAt))
+                .stream()
+                .map(BizFabushiReadStatus::getUserId)
+                .filter(uid -> visible == null || visible.contains(uid))
+                .collect(Collectors.toSet());
+    }
+
+    private List<Map<String, Object>> buildCategoryHeat(List<BizFabushiPost> periodPosts) {
         Map<String, String> catNames = dictService.listDataByCode("fabushi_category").stream()
                 .collect(Collectors.toMap(SysDictData::getDictValue, SysDictData::getDictLabel, (a, b) -> a));
         Set<Long> bookIds = periodPosts.stream().map(BizFabushiPost::getBookId).filter(Objects::nonNull).collect(Collectors.toSet());
@@ -142,7 +157,7 @@ public class FabushiDashboardService {
             String code = bookCategories.get(p.getBookId());
             if (code != null) heat.merge(code, 1L, Long::sum);
         });
-        List<Map<String, Object>> categoryHeat = heat.entrySet().stream()
+        return heat.entrySet().stream()
                 .sorted((a, b) -> Long.compare(b.getValue(), a.getValue()))
                 .map(e -> {
                     Map<String, Object> row = new LinkedHashMap<>();
@@ -151,9 +166,9 @@ public class FabushiDashboardService {
                     row.put(LIT_COUNT, e.getValue());
                     return row;
                 }).collect(Collectors.toList());
-        data.put("categoryHeat", categoryHeat);
+    }
 
-        // 每日已读趋势（最近 7 天）
+    private List<Map<String, Object>> buildTrend(Set<Long> visible, LocalDate today) {
         Map<LocalDate, Set<Long>> dailyReaders = new TreeMap<>();
         for (int i = 6; i >= 0; i--) dailyReaders.put(today.minusDays(i), new HashSet<>());
         readStatusMapper.selectList(new LambdaQueryWrapper<BizFabushiReadStatus>()
@@ -164,15 +179,13 @@ public class FabushiDashboardService {
                     LocalDate d = r.getReadAt().toLocalDate();
                     if (dailyReaders.containsKey(d)) dailyReaders.get(d).add(r.getUserId());
                 });
-        List<Map<String, Object>> trend = dailyReaders.entrySet().stream().map(e -> {
+        return dailyReaders.entrySet().stream().map(e -> {
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("date", e.getKey().toString());
             row.put("label", e.getKey().getMonthValue() + "-" + String.format("%02d", e.getKey().getDayOfMonth()));
             row.put(LIT_COUNT, e.getValue().size());
             return row;
         }).collect(Collectors.toList());
-        data.put(LIT_TREND, trend);
-        return data;
     }
 
     /**
