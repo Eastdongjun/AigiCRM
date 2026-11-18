@@ -287,7 +287,8 @@ public class RolePermScopeService {
         if (memoryAnchor != null) return memoryAnchor;
         if (user.getRoleCodes() != null) {
             for (String roleCode : user.getRoleCodes()) {
-                return anchorFromRole(roleCode, module, action);
+                ScopeRequest.AnchorType roleAnchor = anchorFromRole(roleCode, module, action);
+                if (roleAnchor != null) return roleAnchor;
             }
         }
         return ScopeRequest.AnchorType.OWNER;
