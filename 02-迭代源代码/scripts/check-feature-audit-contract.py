@@ -233,6 +233,50 @@ def assert_registered_pages_in_manifest() -> list[str]:
     return sorted(registered_pages - documented_pages)
 
 
+def check_endpoint_parity(wiring_endpoints, backend_endpoints, api_list):
+    generated_endpoints = {
+        (endpoint.method, endpoint.path)
+        for endpoint in backend_endpoints
+    }
+    missing = sorted(wiring_endpoints - generated_endpoints)
+    extra = sorted(generated_endpoints - wiring_endpoints)
+    if missing or extra:
+        return f"FAIL: feature audit endpoint drift; missing={missing}, extra={extra}"
+    generated_api_list = {
+        (item["method"], item["path"])
+        for item in api_list.extract_apis(str(ROOT / BACKEND_JAVA_SRC))
+    }
+    api_missing = sorted(wiring_endpoints - generated_api_list)
+    api_extra = sorted(generated_api_list - wiring_endpoints)
+    if api_missing or api_extra:
+        return f"FAIL: API list endpoint drift; missing={api_missing}, extra={api_extra}"
+    return None
+
+
+def check_migration_permissions(migration_permissions):
+    required_permissions = {
+        "incentive:read-ranking:view": "nested INSERT ... SELECT permission registration",
+    }
+    missing_permissions = sorted(set(required_permissions) - set(migration_permissions))
+    if missing_permissions:
+        return (
+            "FAIL: feature audit migration permission drift; "
+            f"missing={missing_permissions}"
+        )
+    read_ranking_source = migration_permissions["incentive:read-ranking:view"]
+    if "V2026.09.13.4__add_incentive_read_ranking_menu.sql" not in read_ranking_source:
+        return (
+            "FAIL: feature audit migration permission source drift; "
+            f"incentive:read-ranking:view source={read_ranking_source!r}"
+        )
+    if "本月激励查询阅读排行榜" not in read_ranking_source:
+        return (
+            "FAIL: feature audit migration permission label drift; "
+            f"incentive:read-ranking:view source={read_ranking_source!r}"
+        )
+    return None
+
+
 def main() -> int:
     wiring = load(ROOT / "scripts/check_api_wiring.py", "aigicrm_check_api_wiring")
     audit = load(ROOT / "scripts/gen-unified-feature-audit.py", "aigicrm_feature_audit")
@@ -243,49 +287,16 @@ def main() -> int:
         ROOT / BACKEND_JAVA_SRC, ROOT
     )
     wiring_endpoints = {tuple(item.split(" ", 1)) for item in readable}
-    generated_endpoints = {
-        (endpoint.method, endpoint.path)
-        for endpoint in backend_endpoints
-    }
-    missing = sorted(wiring_endpoints - generated_endpoints)
-    extra = sorted(generated_endpoints - wiring_endpoints)
-    if missing or extra:
-        print(f"FAIL: feature audit endpoint drift; missing={missing}, extra={extra}")
-        return 1
-    generated_api_list = {
-        (item["method"], item["path"])
-        for item in api_list.extract_apis(str(ROOT / BACKEND_JAVA_SRC))
-    }
-    api_missing = sorted(wiring_endpoints - generated_api_list)
-    api_extra = sorted(generated_api_list - wiring_endpoints)
-    if api_missing or api_extra:
-        print(f"FAIL: API list endpoint drift; missing={api_missing}, extra={api_extra}")
+    err = check_endpoint_parity(wiring_endpoints, backend_endpoints, api_list)
+    if err:
+        print(err)
         return 1
     migration_permissions = audit.extract_migration_permissions(
         ROOT / "aigicrm-backend/src/main/resources/db/migration"
     )
-    required_permissions = {
-        "incentive:read-ranking:view": "nested INSERT ... SELECT permission registration",
-    }
-    missing_permissions = sorted(set(required_permissions) - set(migration_permissions))
-    if missing_permissions:
-        print(
-            "FAIL: feature audit migration permission drift; "
-            f"missing={missing_permissions}"
-        )
-        return 1
-    read_ranking_source = migration_permissions["incentive:read-ranking:view"]
-    if "V2026.09.13.4__add_incentive_read_ranking_menu.sql" not in read_ranking_source:
-        print(
-            "FAIL: feature audit migration permission source drift; "
-            f"incentive:read-ranking:view source={read_ranking_source!r}"
-        )
-        return 1
-    if "本月激励查询阅读排行榜" not in read_ranking_source:
-        print(
-            "FAIL: feature audit migration permission label drift; "
-            f"incentive:read-ranking:view source={read_ranking_source!r}"
-        )
+    err = check_migration_permissions(migration_permissions)
+    if err:
+        print(err)
         return 1
     dictionary_codes = ["sea:claim"]
     code_references = audit.extract_backend_permission_references(

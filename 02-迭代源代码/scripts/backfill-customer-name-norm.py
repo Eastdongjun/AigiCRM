@@ -39,7 +39,7 @@ def sql_quote(s: str) -> str:
     return "'" + s.replace("\\", "\\\\").replace("'", "''") + "'"
 
 
-def main():
+def parse_rows():
     rows = []
     for line in sys.stdin:
         line = line.rstrip("\n")
@@ -53,24 +53,24 @@ def main():
             name = None
         rows.append({"id": int(rid), "tenant": tenant, "name": name,
                      "deleted": int(deleted), "norm": normalize(name)})
+    return rows
 
+
+def group_duplicate_ids(rows) -> set[int]:
     # 活跃同名组：按 tenant + norm 分组，id 最小者保留非豁免
     groups = {}
     for r in rows:
         if r["deleted"] == 0 and r["norm"]:
             groups.setdefault((r["tenant"], r["norm"]), []).append(r)
-
     dup_ids = set()
     for group in groups.values():
         group.sort(key=lambda x: x["id"])
         for r in group[1:]:
             dup_ids.add(r["id"])
+    return dup_ids
 
-    out = sys.stdout
-    # 先写豁免，避免 name_norm 更新触发唯一索引瞬时冲突
-    if dup_ids:
-        out.write("UPDATE biz_customer SET dup_exempt=1 WHERE id IN ("
-                  + ",".join(str(i) for i in sorted(dup_ids)) + ");\n")
+
+def write_updates(out, rows, dup_ids) -> None:
     # 【2026-11-17 P2-7】按 500 行批量 CASE/IN，避免百万客户逐行 UPDATE 的往返与日志压力。
     BATCH = 500
     pending = [r for r in rows if r["norm"] is not None]
@@ -85,6 +85,17 @@ def main():
                   f"name_norm=CASE id {norm_case} ELSE name_norm END, "
                   f"dup_exempt=CASE id {exempt_case} ELSE dup_exempt END "
                   f"WHERE id IN ({ids});\n")
+
+
+def main():
+    rows = parse_rows()
+    dup_ids = group_duplicate_ids(rows)
+    out = sys.stdout
+    # 先写豁免，避免 name_norm 更新触发唯一索引瞬时冲突
+    if dup_ids:
+        out.write("UPDATE biz_customer SET dup_exempt=1 WHERE id IN ("
+                  + ",".join(str(i) for i in sorted(dup_ids)) + ");\n")
+    write_updates(out, rows, dup_ids)
     sys.stderr.write(f"rows={len(rows)} duplicate_exempt={len(dup_ids)}\n")
 
 

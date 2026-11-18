@@ -293,17 +293,16 @@ def split_top_level_commas(value: str) -> list[str]:
         ch = value[i]
         if ch == "'":
             if in_string and i + 1 < len(value) and value[i + 1] == "'":
-                i += 2
-                continue
-            in_string = not in_string
-        elif not in_string:
-            if ch == "(":
-                depth += 1
-            elif ch == ")" and depth > 0:
-                depth -= 1
-            elif ch == "," and depth == 0:
-                parts.append(value[start:i].strip())
-                start = i + 1
+                i += 1  # 跳过 SQL 转义引号对（循环末尾再 +1）
+            else:
+                in_string = not in_string
+        elif not in_string and ch == "(":
+            depth += 1
+        elif not in_string and ch == ")" and depth > 0:
+            depth -= 1
+        elif not in_string and ch == "," and depth == 0:
+            parts.append(value[start:i].strip())
+            start = i + 1
         i += 1
     tail = value[start:].strip()
     if tail:
@@ -328,6 +327,13 @@ def extract_sys_menu_insert_row(columns: list[str], body: str) -> dict[str, str]
     return {key: value for key, value in row.items() if value}
 
 
+def matched_permissions(line: str, permissions: list[str]) -> list[str]:
+    return [
+        permission for permission in permissions
+        if quote_token(permission) in line or f'"{permission}"' in line
+    ]
+
+
 def extract_backend_permission_references(java_root: Path, root: Path, permissions: list[str]) -> dict[str, list[PermissionReference]]:
     refs: dict[str, list[PermissionReference]] = {permission: [] for permission in permissions}
     if not java_root.exists() or not permissions:
@@ -337,11 +343,9 @@ def extract_backend_permission_references(java_root: Path, root: Path, permissio
         text = read(path)
         for line_no, line in enumerate(text.splitlines(), start=1):
             stripped = line.strip()
-            if not stripped or stripped.startswith("//") or stripped.startswith("*") or "@PreAuthorize" in stripped:
+            if not stripped or stripped.startswith(("//", "*")) or "@PreAuthorize" in stripped:
                 continue
-            for permission in permissions:
-                if quote_token(permission) not in line and f'"{permission}"' not in line:
-                    continue
+            for permission in matched_permissions(stripped, permissions):
                 refs[permission].append(
                     PermissionReference(
                         permission=permission,

@@ -91,14 +91,27 @@ def is_placeholder(value: str) -> bool:
     return value.strip() in PLACEHOLDERS
 
 
-def validate(path: Path) -> list[str]:
-    text = path.read_text(encoding="utf-8")
-    errors: list[str] = []
-
+def check_sensitive_patterns(text: str, errors: list[str]) -> None:
     for pattern in SENSITIVE_PATTERNS:
         match = pattern.search(text)
         if match:
             errors.append(f"possible sensitive value matched `{pattern.pattern}` near `{match.group(0)[:24]}`")
+
+
+def validate_row(item: str, row: dict[str, str], errors: list[str]) -> None:
+    for field in ["后端环境", "账号角色/权限组合", "PC 证据", "小程序证据", "接口/权限结果", "结论"]:
+        if is_placeholder(row[field]):
+            errors.append(f"{item}: `{field}` is not filled")
+    if row["结论"] not in ALLOWED_CONCLUSIONS:
+        errors.append(f"{item}: `结论` must be one of {' / '.join(sorted(ALLOWED_CONCLUSIONS))}")
+    if row["结论"] in {"失败", "阻塞"} and is_placeholder(row["遗留差异"]):
+        errors.append(f"{item}: failed or blocked rows must describe `遗留差异`")
+
+
+def validate(path: Path) -> list[str]:
+    text = path.read_text(encoding="utf-8")
+    errors: list[str] = []
+    check_sensitive_patterns(text, errors)
 
     try:
         rows = parse_table(text)
@@ -110,15 +123,7 @@ def validate(path: Path) -> list[str]:
         if item not in by_item:
             errors.append(f"missing required reconciliation item: {item}")
             continue
-        row = by_item[item]
-        for field in ["后端环境", "账号角色/权限组合", "PC 证据", "小程序证据", "接口/权限结果", "结论"]:
-            if is_placeholder(row[field]):
-                errors.append(f"{item}: `{field}` is not filled")
-        if row["结论"] not in ALLOWED_CONCLUSIONS:
-            errors.append(f"{item}: `结论` must be one of {' / '.join(sorted(ALLOWED_CONCLUSIONS))}")
-        if row["结论"] in {"失败", "阻塞"} and is_placeholder(row["遗留差异"]):
-            errors.append(f"{item}: failed or blocked rows must describe `遗留差异`")
-
+        validate_row(item, by_item[item], errors)
     return errors
 
 

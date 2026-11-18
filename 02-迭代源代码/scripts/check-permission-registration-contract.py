@@ -136,21 +136,27 @@ def insert_is_constant_source(statement):
     return not ANY_FROM.search(body)
 
 
-def sys_menu_operation(statement):
-    """返回 (op, value)。op ∈ insert / insert-dependent / status / status-unknown / update / delete。"""
+def sys_menu_target(statement):
     for op, pattern in TARGETS.items():
         match = pattern.search(statement)
-        if not match or match.group(1).lower() != 'sys_menu':
-            continue
-        if op == 'update':
-            value = STATUS_VALUE.search(statement)
-            if value:
-                return 'status', int(value.group(1))
-            return ('status-unknown', None) if STATUS_MENTION.search(statement) else ('update', None)
-        if op == 'insert':
-            return ('insert', None) if insert_is_constant_source(statement) else ('insert-dependent', None)
-        return op, None
-    return None, None
+        if match and match.group(1).lower() == 'sys_menu':
+            return op
+    return None
+
+
+def sys_menu_operation(statement):
+    """返回 (op, value)。op ∈ insert / insert-dependent / status / status-unknown / update / delete。"""
+    op = sys_menu_target(statement)
+    if op is None:
+        return None, None
+    if op == 'update':
+        value = STATUS_VALUE.search(statement)
+        if value:
+            return 'status', int(value.group(1))
+        return ('status-unknown', None) if STATUS_MENTION.search(statement) else ('update', None)
+    if op == 'insert':
+        return ('insert', None) if insert_is_constant_source(statement) else ('insert-dependent', None)
+    return op, None
 
 
 def simulate(codes, files):
