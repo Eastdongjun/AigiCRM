@@ -167,8 +167,7 @@ public class FileGrantService {
             return out;
         }
         // load 一次：动作集 = 所有请求动作的归并词并集
-        Set<String> loadActions = new LinkedHashSet<>();
-        for (String a : actions) loadActions.addAll(actionsFor(a));
+        Set<String> loadActions = loadActions(actions);
         SecurityUser user = SecurityUtils.getCurrentUser();
         List<BizFileGrant> grants = loadGrants(user, loadActions);
         Map<Long, Set<Long>> orgCache = new HashMap<>();
@@ -177,21 +176,7 @@ public class FileGrantService {
             Set<Long> orgs = orgCache.computeIfAbsent(file.getOrgId(), this::orgAncestors);
             Set<Long> folders = file.getFolderId() == null ? Set.of()
                     : folderCache.computeIfAbsent(file.getFolderId(), this::folderAncestors);
-            // 【parity 修复】归并语义与 decideFiles 一致：grant.action ∈ actionsFor(a) 即服务请求 a
-            //（view grant 服务 download；manage/* 服务全部）——遍历全部 grants 而非按 grant.action 分组。
-            Map<String, Decision> per = new HashMap<>();
-            for (String a : actions) {
-                Set<String> covering = actionsFor(a);
-                Decision d = Decision.ABSTAIN;
-                for (BizFileGrant g : grants) {
-                    if (g.getAction() == null || !covering.contains(g.getAction())) continue;
-                    if (!coversFile(g, file, orgs, folders)) continue;
-                    if ("DENY".equalsIgnoreCase(g.getEffect())) { d = Decision.DENY; break; }
-                    if (LIT_ALLOW.equalsIgnoreCase(g.getEffect())) d = Decision.ALLOW;
-                }
-                per.put(a, d);
-            }
-            out.put(file.getId(), per);
+            out.put(file.getId(), decideActionsForFile(file, grants, orgs, folders, actions));
         }
         return out;
     }
@@ -209,8 +194,7 @@ public class FileGrantService {
             for (BizFileFolder f : folders) out.put(f.getId(), Map.of());
             return out;
         }
-        Set<String> loadActions = new LinkedHashSet<>();
-        for (String a : actions) loadActions.addAll(actionsFor(a));
+        Set<String> loadActions = loadActions(actions);
         SecurityUser user = SecurityUtils.getCurrentUser();
         List<BizFileGrant> grants = loadGrants(user, loadActions);
         Map<Long, Set<Long>> orgCache = new HashMap<>();
@@ -218,22 +202,52 @@ public class FileGrantService {
         for (BizFileFolder folder : folders) {
             Set<Long> orgs = orgCache.computeIfAbsent(folder.getOrgId(), this::orgAncestors);
             Set<Long> ancestors = folderAncestors(folder.getId());
-            // 【parity 修复】同 decideFilesMulti：归并语义遍历全部 grants
-            Map<String, Decision> per = new HashMap<>();
-            for (String a : actions) {
-                Set<String> covering = actionsFor(a);
-                Decision d = Decision.ABSTAIN;
-                for (BizFileGrant g : grants) {
-                    if (g.getAction() == null || !covering.contains(g.getAction())) continue;
-                    if (!coversFolder(g, folder, orgs, ancestors)) continue;
-                    if ("DENY".equalsIgnoreCase(g.getEffect())) { d = Decision.DENY; break; }
-                    if (LIT_ALLOW.equalsIgnoreCase(g.getEffect())) d = Decision.ALLOW;
-                }
-                per.put(a, d);
-            }
-            out.put(folder.getId(), per);
+            out.put(folder.getId(), decideActionsForFolder(folder, grants, orgs, ancestors, actions));
         }
         return out;
+    }
+
+    private Set<String> loadActions(Collection<String> actions) {
+        Set<String> loadActions = new LinkedHashSet<>();
+        for (String a : actions) loadActions.addAll(actionsFor(a));
+        return loadActions;
+    }
+
+    private Map<String, Decision> decideActionsForFile(BizFile file, List<BizFileGrant> grants,
+                                                       Set<Long> orgs, Set<Long> folders, Collection<String> actions) {
+        // 【parity 修复】归并语义与 decideFiles 一致：grant.action ∈ actionsFor(a) 即服务请求 a
+        //（view grant 服务 download；manage/* 服务全部）——遍历全部 grants 而非按 grant.action 分组。
+        Map<String, Decision> per = new HashMap<>();
+        for (String a : actions) {
+            Set<String> covering = actionsFor(a);
+            Decision d = Decision.ABSTAIN;
+            for (BizFileGrant g : grants) {
+                if (g.getAction() == null || !covering.contains(g.getAction())) continue;
+                if (!coversFile(g, file, orgs, folders)) continue;
+                if ("DENY".equalsIgnoreCase(g.getEffect())) { d = Decision.DENY; break; }
+                if (LIT_ALLOW.equalsIgnoreCase(g.getEffect())) d = Decision.ALLOW;
+            }
+            per.put(a, d);
+        }
+        return per;
+    }
+
+    private Map<String, Decision> decideActionsForFolder(BizFileFolder folder, List<BizFileGrant> grants,
+                                                         Set<Long> orgs, Set<Long> ancestors, Collection<String> actions) {
+        // 【parity 修复】同 decideFilesMulti：归并语义遍历全部 grants
+        Map<String, Decision> per = new HashMap<>();
+        for (String a : actions) {
+            Set<String> covering = actionsFor(a);
+            Decision d = Decision.ABSTAIN;
+            for (BizFileGrant g : grants) {
+                if (g.getAction() == null || !covering.contains(g.getAction())) continue;
+                if (!coversFolder(g, folder, orgs, ancestors)) continue;
+                if ("DENY".equalsIgnoreCase(g.getEffect())) { d = Decision.DENY; break; }
+                if (LIT_ALLOW.equalsIgnoreCase(g.getEffect())) d = Decision.ALLOW;
+            }
+            per.put(a, d);
+        }
+        return per;
     }
 
     private Set<Long> resolveRoleIds(SecurityUser user) {
