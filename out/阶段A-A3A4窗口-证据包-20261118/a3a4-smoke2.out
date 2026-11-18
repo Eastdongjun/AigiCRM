@@ -1,0 +1,26 @@
+[s] token=OK
+=== grants 总数(全量拉取计数) ===
+[s] grants code,len=200 279
+=== A4 建单验证 ===
+[s] 首启用成员=11 调动人=38 目标部门=44
+[s] 调动人现部门=4(若与 TGT 相同则换一个)
+[s] 建单resp={"code":200,"data":{"id":1,"tenant_id":1,"request_type":"ORG_MOVE","applicant_id":1,"subject_user_id":38,"target_user_id":null,"target_dept_id":44,"reason":"窗口冒烟验证(将驳回)","copy_roles":0,"status":"pending
+[s] 单=1 approver=11 status=pending
+[s] snapshot={"type": "ROLE", "roleId": 10, "source": "config:ROLE#10 first-active", "userId": 11, "roleCode": "0", "userName": "???", "resolvedAt": "2026-11-18T23:32:41"}
+[s] ✅ A4 解析=角色首启用成员+pending
+[s] 驳回后=rejected(期望 rejected)
+=== A3 导出全链 ===
+[s] export id=2 resp={"code":200,"data":{"id":2,"tenant_id":1,"export_no":"EXP20261118233242-ba370502","requested_by":1,"types_json":"[\"customer\", \"user\", \"file\", \"
+[s] export status=ready err=
+[s] download=200 size=7199 sha_hdr=2dcfc81f7f28489c… sha_match=YES
+[s] zip entries=8 manifest=True checksums=True
+    data/customers.csv 20817 B
+    data/files.csv 2837 B
+    data/incentives.csv 75 B
+    data/reminders.csv 78 B
+    data/tasks.csv 73 B
+    data/users.csv 1910 B
+=== 对账 --prod ===
+[s] 本地另行执行 reconcile --prod
+SMOKE2_DONE
+⚠️ SSH_OPTS 中的主机密钥校验类选项已被忽略(脚本强制 StrictHostKeyChecking=yes + BatchMode + UserKnownHostsFile): StrictHostKeyChecking=no

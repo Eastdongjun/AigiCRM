@@ -1,0 +1,31 @@
+【A3+A4+Batch-4 合并生产窗口 · 执行摘要 2026-11-18】(QC9 客观项已独立核验通过, 本包为实施方执行留档+冒烟补充件)
+
+⓪ FILE_GRANT_MODE=dual 持久化: 本地 ~/.aigicrm-deploy.env + 生产 /data/ycmn/.env(各一行) + 部署显式 export 三保险
+   + deploy-backend.sh 补 EXPORT_DIR/NAS bind(74d001c2)
+① 独立备份 /data/a3a4-window-premigrate-20261118-232010.sql(92表, md5 57ecd23ab38b8e63e8cb7b7a030ae6d6)
+   + deploy-db.sh 自带备份; 旧 jar 备份 ycmn-backend-jar-20261118-152304.jar
+② NAS 宿主侧 mkdir+chown 10001:10001(容器内 -u 10001 直测 WRITABLE; su 测试受 nologin 影响为假阴)
+③ Flyway 迁移: 首跑被#2新门禁拦(待修例外)→127787ad 补 pending 例外(pending 存在=待迁移预期状态,
+   旧||true时代靠假绿放行)→重跑成功: 2026.11.19.1/.2 applied 0 fail, 表 92→93, health 200
+   【#2 修复的端到端观察记录: 门禁首战真实拦截了自身边界(过严), 语义修正后通过——QC6 验收遗留的
+    模拟级备注就此补上真实窗口证据】
+④ deploy-backend.sh: jar 2ea180c67e011630337ab6da17eaa588(HEAD=127787ad 构建, md5 门禁过),
+   容器 env FILE_GRANT_MODE=dual ∧ EXPORT_DIR=/app/exports ∧ NAS bind ycmn-exports, health 200
+⑤ A4 配置初始化(API 代办, admin 账号, 用户可复核调整): handover/org_move 两条 → ROLE#10(销售总监
+   role_code='0') 各 200
+⑥ 冒烟(QC9 客观项之外的行为面):
+   - 登录 200; grants 200/279 legacy(与 QC9 互证)
+   - 代表性下载 2688=200
+   - A4 建单(ORG_MOVE id=1): approver=11=角色首启用成员 ✓ pending ✓ 快照七字段
+     (type=ROLE/roleId=10/roleCode='0'/source=config:ROLE#10 first-active/userId/resolvedAt) ✓
+     → 即驳回 rejected(终态, 无业务影响)
+     [说明] 快照 userName 经终端管道显示 "???"——DB 内为正常中文(中文字段经 docker exec 管道转码
+     显示问题, 非数据缺陷; 用户名解析代码与 A4 单测/测试服 QC5 已验)
+   - A3 导出全链(两次): POST 六类 → ready → 下载 200/7199B/X-Checksum-SHA256 头与本地复算一致
+     → zip 8 条目=manifest.json+checksums.sha256+六类 CSV(customers 20817B 含 625 已删客户)
+   - reconcile --prod(窗口终态): 四数 0(279=279, A3A4 上线零扰动授权数据)
+⑦ 证据: 本目录(migrate/deploy 两轮日志+冒烟脚本与输出)+QC9 结论文件
+
+冒烟过程三次工具性修正(均非产品缺陷, 留痕): 审批配置端点路径(/api/approval/config)与
+approverIds 字段形态(JSON 字符串)对齐真实 API; sys_role/sys_dept 查询去不存在的 deleted 列
+(与 A3 列漂移同族的"脚本假设列"问题——生产表结构以 information_schema 为准的教训再+1)。

@@ -1,0 +1,11 @@
+⚠️ SSH_OPTS 中的主机密钥校验类选项已被忽略(脚本强制 StrictHostKeyChecking=yes + BatchMode + UserKnownHostsFile): StrictHostKeyChecking=no
+[smoke] login=200
+=== ⑤ A4 配置初始化(两条流程) ===
+[a4] sales_director_role(role_code=0) id=10
+[a4] create handover http=200 {"code":200,"data":{"approverIds":"[10]","approverType":"ROLE","createdAt":null,"flowName":"handover-审批","flowType":
+[a4] create org_move http=200 {"code":200,"data":{"approverIds":"[10]","approverType":"ROLE","createdAt":null,"flowName":"org_move-审批","flowType":
+=== ⑥-1 grants(应 279 legacy) ===
+[smoke] grants code,total=?
+=== ⑥-2 代表性下载 ===
+[smoke] download[2688]=200
+=== ⑥-3 A4 建单验证(快照+首启用成员) → 即驳回(终态无业务影响) ===
