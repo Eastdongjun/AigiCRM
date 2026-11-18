@@ -1,0 +1,33 @@
+【A2 生产切换窗口 · 证据摘要 2026-11-18】(QC 第4轮已独立核验通过, 本包为实施方执行留档+P5补充件)
+
+P1 备份:
+- 独立备份 /data/a2-window-premigrate-20261118-150253.sql (86表, 3.08MB, md5 c9cd73ce41819267bcb74233f352b503)
+- deploy-db.sh 自带 /root/ycmn/backup-pre-migrate-20261118-150302.sql
+- 旧 jar fcac2205… 备份于 /Aigicrm/files/backup/ycmn-backend-jar-20261118-080819.jar (二次部署再备 081228)
+
+P2 迁移 (手动通道, 根因处置见 prod-migrate-retry.log):
+- 首次: flyway validate 容器挂死(0 CPU) → 根因=生产 dockerd 拉 Docker Hub 超时(加速器亦不稳)
+- 处置: 测试服 docker save → 本地中转 → 生产 docker load flyway:9.22.3-alpine (32678f42631f)
+- 手动 validate+migrate (deploy-db.sh 原样命令): 10 支全部 applied 0 fail, 1.183s, 现在 2026.11.18.3
+  (2026.11.17.1-.7 + 2026.11.18.1/.2/.3 合并窗口, V18.3 如预期 0 行受影响)
+
+P3 对账硬门 (prod-reconcile.sh, 只读):
+- missing=0 extra=0 expire_diff=0 old=279 new=279 ✅ (87 旧行展开 279 legacy)
+
+P4 部署 (deploy-backend.sh 标准通道):
+- 提取测试服已验证 jar dbbbfcb4d43114fad8595c7e606afeb6 → md5 门禁(本地=镜像内) → 公网 health 200
+- 首次 dual 注入缺陷(单引号 heredoc 远端取不到 env 恒落 legacy) → 修复 d8b943b6 → 重部署
+- 终态: jar=dbbbfc ∧ FILE_GRANT_MODE=dual ∧ health 200 (QC4 亲测一致)
+
+P5 冒烟 (补充件, 凭据 stdin 注入未打印):
+- 登录 200 + token ✓
+- 文件列表: public 10行(首2688)/incentive 10行(2692)/private 1行(2674), 行级 perms 正常(全动作) ✓
+- 下载抽核: 2688/2692/2674 = 200/200/200 (三空间) ✓
+- GET /api/file/grants: 200, 279 行, source=legacy ✓
+
+波折与修复登记(交 Batch-4):
+1. deploy-db.sh 假绿缺口: docker run 失败文本不含 error/failed → 误判"validate 通过"(QC 已列 Batch-4 #2)
+2. deploy-backend.sh dual 注入缺陷 → 已修 d8b943b6(QC 已核)
+3. 基础镜像本地化预置(QC 已列 Batch-4 #3)
+
+回滚通道(随时可用): FILE_GRANT_MODE=legacy 重跑 deploy-backend.sh(即时) / 数据级 DELETE source IN('legacy','dual_write') / 双备份恢复
