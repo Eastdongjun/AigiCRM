@@ -48,27 +48,15 @@ public class UserDetailsServiceImpl implements UserDetailsService {
     @SuppressWarnings("deprecation")
     @Override
     public UserDetails loadUserByUsername(String usernameOrId) throws UsernameNotFoundException {
-        SysUser user;
-        try {
-            Long userId = Long.parseLong(usernameOrId);
-            user = userMapper.selectById(userId);
-        } catch (NumberFormatException e) {
-            user = userMapper.selectOne(
-                    new LambdaQueryWrapper<SysUser>()
-                            .eq(SysUser::getUsername, usernameOrId)
-                            .eq(SysUser::getDeleted, 0)
-            );
-        }
-
+        SysUser user = findUser(usernameOrId);
         if (user == null || user.getStatus() == 0) {
             throw new UsernameNotFoundException("用户不存在或已禁用");
         }
 
         // 【2026-08-09 Redis 权限缓存】命中缓存直接从 PermissionContext 重组返回（构建需 10+ 条 SQL）
-        // 【2026-08-14 缓存自愈】命中时比对权限版本号：evict 漏网/写失败时，版本不一致即重建，旧权限最长残留由 TTL 降到 1 个请求
+        // 【2026-08-14 缓存自愈】版本不一致即重建，旧权限最长残留由 TTL 降到 1 个请求
         PermissionContext cached = permissionCacheService.get(user.getId());
-        if (cached != null && cached.getPermVersion() != null
-                && cached.getPermVersion().equals(user.getPermVersion())) {
+        if (isCacheFresh(cached, user)) {
             SecurityUser su = rebuildFromContext(cached);
             // pwdChangedAt/pwdResetRequired 每请求从 DB 行读取（不入缓存）：改密撤销与首登强制改密不依赖 Redis
             su.setPwdChangedAt(user.getPwdChangedAt());
@@ -76,6 +64,64 @@ public class UserDetailsServiceImpl implements UserDetailsService {
             return su;
         }
 
+        SecurityUser securityUser = buildSecurityUser(user);
+        Long uid = user.getId();
+
+        // ======================== 1. 加载角色 ========================
+        List<SysRole> roles = roleMapper.selectRolesByUserId(uid);
+        applyRoles(securityUser, roles, uid);
+
+        // ======================== 1b. 用户级数据范围覆盖（层2：用户级 > 角色级） ========================
+        applyUserScopeOverride(securityUser, user, uid);
+
+        // ======================== 2. 加载岗位（一人多岗） ========================
+        List<SysPosition> positions = positionMapper.selectByUserId(uid);
+        securityUser.setPositions(positions);
+
+        // ======================== 2d.【WP3 2026-11-13】装载任职组织(sys_employment) ========================
+        loadEmploymentOrgs(securityUser, uid);
+
+        // ======================== 2c. 【批③ 正交配置层】装载数据范围配置(USER>POSITION>ROLE 三级) ========================
+        java.util.List<Long> positionIds = positions.stream().map(SysPosition::getId).toList();
+        securityUser.setScopeConfigs(rolePermScopeService.loadScopeConfigs(uid,
+                securityUser.getRoleCodes(), positionIds));
+
+        // ======================== 2b. 从岗位推导集团和法人公司归属 ========================
+        applyGroupAndLegalEntity(securityUser, positions, user);
+
+        // ======================== 3. 聚合所有权限规则 ========================
+        applyPermissionRules(securityUser, positions, roles);
+
+        // ======================== 4. 预求值规则 ========================
+        RuleResult ruleResult = PermissionRuleEngine.evaluate(securityUser.getPermissionRules(), securityUser);
+        securityUser.setRuleResult(ruleResult);
+
+        // ======================== 5. 加载组织管理员 ========================
+        applyOrgAdminUpgrade(securityUser, uid);
+
+        permissionCacheService.put(user.getId(), toContext(securityUser));
+        return securityUser;
+    }
+
+    private SysUser findUser(String usernameOrId) {
+        try {
+            Long userId = Long.parseLong(usernameOrId);
+            return userMapper.selectById(userId);
+        } catch (NumberFormatException e) {
+            return userMapper.selectOne(
+                    new LambdaQueryWrapper<SysUser>()
+                            .eq(SysUser::getUsername, usernameOrId)
+                            .eq(SysUser::getDeleted, 0)
+            );
+        }
+    }
+
+    private boolean isCacheFresh(PermissionContext cached, SysUser user) {
+        return cached != null && cached.getPermVersion() != null
+                && cached.getPermVersion().equals(user.getPermVersion());
+    }
+
+    private SecurityUser buildSecurityUser(SysUser user) {
         Set<String> permissions = menuMapper.selectPermissionsByUserId(user.getId());
         List<SimpleGrantedAuthority> authorities = permissions.stream()
                 .map(SimpleGrantedAuthority::new)
@@ -94,45 +140,40 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         securityUser.setPermVersion(user.getPermVersion());
         securityUser.setPwdChangedAt(user.getPwdChangedAt());
         securityUser.setPwdResetRequired(user.getPwdResetRequired());
+        return securityUser;
+    }
 
-        Long uid = user.getId();
+    /** 角色并集基础（设计 §4.2）：dataScopes 收集全部角色 code；dataScope 取最宽(min-rank)向后兼容。 */
+    private void applyRoles(SecurityUser securityUser, List<SysRole> roles, Long uid) {
+        if (roles.isEmpty()) return;
+        List<String> roleCodes = roles.stream()
+                .map(SysRole::getRoleCode)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+        securityUser.setRoleCodes(roleCodes);
 
-        // ======================== 1. 加载角色 ========================
-        List<SysRole> roles = roleMapper.selectRolesByUserId(uid);
-        if (!roles.isEmpty()) {
-            List<String> roleCodes = roles.stream()
-                    .map(SysRole::getRoleCode)
-                    .filter(Objects::nonNull)
-                    .collect(Collectors.toList());
-            securityUser.setRoleCodes(roleCodes);
+        List<String> scopeCodes = roles.stream()
+                .map(SysRole::getDataScope)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+        securityUser.setDataScopes(scopeCodes);
 
-            // 多角色并集基础（设计 §4.2）：收集所有角色各自的 dataScope code，
-            // OrgScopeResolver 对 size>1 逐 code 解析后并集合并；dataScope 单值（min-rank）保留向后兼容
-            List<String> scopeCodes = roles.stream()
-                    .map(SysRole::getDataScope)
-                    .filter(Objects::nonNull)
-                    .collect(Collectors.toList());
-            securityUser.setDataScopes(scopeCodes);
+        DataScopeType bestScope = roles.stream()
+                .map(r -> DataScopeType.fromCode(r.getDataScope()))
+                .min(Comparator.comparingInt(DataScopeType::rank))
+                .orElse(DataScopeType.SELF);
+        securityUser.setDataScope(bestScope.getCode());
 
-            DataScopeType bestScope = roles.stream()
-                    .map(r -> DataScopeType.fromCode(r.getDataScope()))
-                    .min(Comparator.comparingInt(DataScopeType::rank))
-                    .orElse(DataScopeType.SELF);
-            securityUser.setDataScope(bestScope.getCode());
-
-            if (bestScope == DataScopeType.CUSTOM) {
-                // 【WP1.2 2026-11-13】可见性解析改走原始行 refs(不预展开, 展开时机在 OrgScopeResolver);
-                // managedOrgIds 保持旧计算不动——它同时是 isOrgAdmin 管理通道
-                // (OrgAdminService.canManageUser/canManageOrg 消费), 本 WP 不改管理语义, 仅改数据解析。
-                securityUser.setManagedOrgIds(loadLegacyCustomOrgIds(uid));
-                securityUser.setManagedOrgRefs(loadCustomOrgRefs(uid));
-            }
+        if (bestScope == DataScopeType.CUSTOM) {
+            // 【WP1.2 2026-11-13】可见性解析改走原始行 refs(不预展开, 展开时机在 OrgScopeResolver);
+            // managedOrgIds 保持旧计算不动——它同时是 isOrgAdmin 管理通道
+            securityUser.setManagedOrgIds(loadLegacyCustomOrgIds(uid));
+            securityUser.setManagedOrgRefs(loadCustomOrgRefs(uid));
         }
+    }
 
-        // ======================== 1b. 用户级数据范围覆盖（层2：用户级 > 角色级） ========================
-        // 【WP1.1 2026-11-13 并集语义】override 改为**追加**到角色并集("额外范围只能加"),
-        // 不再清空 dataScopes 整体取代(旧"覆盖=替换"在并集模型下是收紧漏洞也是收紧假象)。
-        // 展示用 dataScope 同步取并集最宽值; 解析侧由 OrgScopeResolver 逐 code 并集。
+    /** 【WP1.1 2026-11-13 并集语义】用户级 override 改为追加（"额外范围只能加"）。 */
+    private void applyUserScopeOverride(SecurityUser securityUser, SysUser user, Long uid) {
         String override = user.getDataScopeOverride();
         if (override != null && !override.isBlank()) {
             List<String> scopes = new ArrayList<>(securityUser.getDataScopes());
@@ -140,41 +181,35 @@ public class UserDetailsServiceImpl implements UserDetailsService {
             securityUser.setDataScopes(scopes);
             securityUser.setDataScope(securityUser.getWidestDataScope());
         }
-        // 【2026-08-08 用户级自定义授权组织】override=custom 时加载个人授权组织原始行（sys_user_org），
-        // 【WP1.2】refs 与角色级行**并集**装载(均不预展开), 不再"用户级行存在即取代角色级行";
-        // managedOrgIds(管理通道)保持旧"用户行存在即取代"语义不动。
+        // 【2026-08-08 用户级自定义授权组织】override=custom 时加载个人授权组织原始行（sys_user_org）
         if ("custom".equals(override)) {
-            List<com.aigicrm.module.system.entity.SysUserOrg> userOrgs = userOrgMapper.selectByUserId(uid);
-            if (userOrgs != null && !userOrgs.isEmpty()) {
-                java.util.List<ManagedOrgRef> refs = new ArrayList<>(securityUser.getManagedOrgRefs());
-                List<Long> legacyIds = new ArrayList<>();
-                for (com.aigicrm.module.system.entity.SysUserOrg uo : userOrgs) {
-                    if (uo.getOrgId() == null) continue;
-                    refs.add(new ManagedOrgRef(uo.getOrgId(), uo.getIncludeChildren()));
-                    if (uo.getIncludeChildren() != null && uo.getIncludeChildren() == 1) {
-                        legacyIds.addAll(deptMapper.selectDescendantIds(uo.getOrgId()));
-                    } else {
-                        legacyIds.add(uo.getOrgId());
-                    }
+            applyCustomUserOrgs(securityUser, uid);
+        }
+    }
+
+    private void applyCustomUserOrgs(SecurityUser securityUser, Long uid) {
+        List<com.aigicrm.module.system.entity.SysUserOrg> userOrgs = userOrgMapper.selectByUserId(uid);
+        if (userOrgs == null || userOrgs.isEmpty()) return;
+        java.util.List<ManagedOrgRef> refs = new ArrayList<>(securityUser.getManagedOrgRefs());
+        List<Long> legacyIds = new ArrayList<>();
+        for (com.aigicrm.module.system.entity.SysUserOrg uo : userOrgs) {
+            if (uo.getOrgId() != null) {
+                refs.add(new ManagedOrgRef(uo.getOrgId(), uo.getIncludeChildren()));
+                if (uo.getIncludeChildren() != null && uo.getIncludeChildren() == 1) {
+                    legacyIds.addAll(deptMapper.selectDescendantIds(uo.getOrgId()));
+                } else {
+                    legacyIds.add(uo.getOrgId());
                 }
-                securityUser.setManagedOrgRefs(refs);
-                securityUser.setManagedOrgIds(legacyIds);
             }
         }
+        securityUser.setManagedOrgRefs(refs);
+        securityUser.setManagedOrgIds(legacyIds);
+    }
 
-        // ======================== 2. 加载岗位（一人多岗） ========================
-        List<SysPosition> positions = positionMapper.selectByUserId(uid);
-        securityUser.setPositions(positions);
-
-        // ======================== 2d.【WP3 2026-11-13】装载任职组织(sys_employment) ========================
-        // 新内核 ScopeSpecResolver 的"本部门"解析源(锁定决策#2: 本部门=全部有效任职组织, 主职/兼职都算)
-        // 【P1-7 修复 2026-11-13】主职查询改 findFirst: queryForObject 在"有任职无主职"(历史脏数据)
-        // 时抛 EmptyResultDataAccessException, 旧 catch 会把全部任职组织清空 → 新轨 MY_DEPT 变空。
-        // 现异常只兜底主职, 不再清空任职列表。
+    /** 【WP3/P1-7 2026-11-13】任职组织装载失败 fail-closed 为空集，不阻断登录。 */
+    private void loadEmploymentOrgs(SecurityUser securityUser, Long uid) {
         try {
-            // 【P1 修复 2026-11-17】原 SQL 用 SELECT DISTINCT + ORDER BY e.is_primary（非选列），
-            // MySQL 3065 使任职组织装载恒失败、登录时静默降级为"仅主职/空任职"。
-            // 改为派生表：内层 GROUP BY org_id 去重并携带 MAX(is_primary)，外层排序。
+            // 【P1 修复 2026-11-17】派生表去重并携带 MAX(is_primary)，外层排序（MySQL 3065 修复）
             java.util.List<Long> empOrgs = jdbc.queryForList(
                     "SELECT t.org_id FROM (" +
                     "SELECT e.org_id, MAX(e.is_primary) AS is_primary FROM sys_employment e " +
@@ -194,13 +229,9 @@ public class UserDetailsServiceImpl implements UserDetailsService {
             log.warn("装载任职组织失败(内核表未就绪?) userId={}", uid, e);
             securityUser.setEmploymentOrgIds(new ArrayList<>());
         }
+    }
 
-        // ======================== 2c. 【批③ 正交配置层】装载数据范围配置(USER>POSITION>ROLE 三级) ========================
-        java.util.List<Long> positionIds = positions.stream().map(SysPosition::getId).toList();
-        securityUser.setScopeConfigs(rolePermScopeService.loadScopeConfigs(uid,
-                securityUser.getRoleCodes(), positionIds));
-
-        // ======================== 2b. 从岗位推导集团和法人公司归属 ========================
+    private void applyGroupAndLegalEntity(SecurityUser securityUser, List<SysPosition> positions, SysUser user) {
         Set<Long> allGroupIds = new HashSet<>();
         Set<Long> allLegalEntityIds = new HashSet<>();
         for (SysPosition pos : positions) {
@@ -220,60 +251,50 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         }
         securityUser.setGroupIds(new ArrayList<>(allGroupIds));
         securityUser.setLegalEntityIds(new ArrayList<>(allLegalEntityIds));
+    }
 
-        // ======================== 3. 聚合所有权限规则 ========================
-        List<SysPermissionRule> allRules = new ArrayList<>();
-
+    private void applyPermissionRules(SecurityUser securityUser, List<SysPosition> positions, List<SysRole> roles) {
         // 3a. 从岗位关联的规则
+        List<SysPermissionRule> allRules = new ArrayList<>();
         for (SysPosition pos : positions) {
-            List<SysPermissionRule> posRules = permissionRuleMapper.selectByPositionId(pos.getId());
-            allRules.addAll(posRules);
+            allRules.addAll(permissionRuleMapper.selectByPositionId(pos.getId()));
         }
-
         // 3b. 从角色关联的规则
         for (SysRole role : roles) {
-            List<SysPermissionRule> roleRules = permissionRuleMapper.selectByRoleId(role.getId());
-            allRules.addAll(roleRules);
+            allRules.addAll(permissionRuleMapper.selectByRoleId(role.getId()));
         }
-
         // 去重 + 按优先级排序
-        allRules = allRules.stream()
+        List<SysPermissionRule> deduped = allRules.stream()
                 .collect(Collectors.toMap(SysPermissionRule::getId, r -> r, (a, b) -> a))
                 .values().stream()
                 .sorted(Comparator.comparingInt(r -> r.getPriority() != null ? r.getPriority() : DEFAULT_RULE_PRIORITY))
                 .toList();
-        securityUser.setPermissionRules(allRules);
+        securityUser.setPermissionRules(deduped);
+    }
 
-        // ======================== 4. 预求值规则 ========================
-        RuleResult ruleResult = PermissionRuleEngine.evaluate(allRules, securityUser);
-        securityUser.setRuleResult(ruleResult);
-
-        // ======================== 5. 加载组织管理员 ========================
+    /** 组织管理员管理通道：托管组织并入 + dataScope 提升到 ORG_AND_CHILDREN（含并集列表同步）。 */
+    private void applyOrgAdminUpgrade(SecurityUser securityUser, Long uid) {
         try {
             List<Long> managedOrgIds = orgAdminMapper.selectManagedOrgIds(uid);
-            if (!managedOrgIds.isEmpty()) {
-                Set<Long> allManaged = new HashSet<>(securityUser.getManagedOrgIds());
-                allManaged.addAll(managedOrgIds);
-                securityUser.setManagedOrgIds(new ArrayList<>(allManaged));
+            if (managedOrgIds.isEmpty()) return;
+            Set<Long> allManaged = new HashSet<>(securityUser.getManagedOrgIds());
+            allManaged.addAll(managedOrgIds);
+            securityUser.setManagedOrgIds(new ArrayList<>(allManaged));
 
-                DataScopeType currentScope = DataScopeType.fromCode(securityUser.getDataScope());
-                if (currentScope.rank() > DataScopeType.ORG_AND_CHILDREN.rank()) {
-                    securityUser.setDataScope(DataScopeType.ORG_AND_CHILDREN.getCode());
-                    // 多角色并集路径同样生效：把升级后的 org_and_children 并入并集列表
-                    List<String> scopes = new ArrayList<>(securityUser.getDataScopes());
-                    if (!scopes.contains(DataScopeType.ORG_AND_CHILDREN.getCode())) {
-                        scopes.add(DataScopeType.ORG_AND_CHILDREN.getCode());
-                    }
-                    securityUser.setDataScopes(scopes);
+            DataScopeType currentScope = DataScopeType.fromCode(securityUser.getDataScope());
+            if (currentScope.rank() > DataScopeType.ORG_AND_CHILDREN.rank()) {
+                securityUser.setDataScope(DataScopeType.ORG_AND_CHILDREN.getCode());
+                // 多角色并集路径同样生效：把升级后的 org_and_children 并入并集列表
+                List<String> scopes = new ArrayList<>(securityUser.getDataScopes());
+                if (!scopes.contains(DataScopeType.ORG_AND_CHILDREN.getCode())) {
+                    scopes.add(DataScopeType.ORG_AND_CHILDREN.getCode());
                 }
+                securityUser.setDataScopes(scopes);
             }
         } catch (Exception e) {
             // S4: 组织管理员 dataScope 提升查询失败不得静默——记录日志（当前未提升，保守 fail-closed）
             log.error("查询组织管理员 dataScope 失败 userId={}", securityUser.getUserId(), e);
         }
-
-        permissionCacheService.put(user.getId(), toContext(securityUser));
-        return securityUser;
     }
 
     /** 【WP1.2 2026-11-13】角色级自定义授权组织原始行(sys_role_org, 含 includeChildren, 不预展开) */

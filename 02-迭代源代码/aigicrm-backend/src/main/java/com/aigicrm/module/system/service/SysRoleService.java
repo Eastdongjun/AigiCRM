@@ -310,88 +310,119 @@ public class SysRoleService {
         // 【P1-2 四轮修复 2026-11-13】null=未提供(保持现状); 空集合=取消全部勾选——**必须继续走**,
         // 让 includedCodes 为空的剪枝逻辑清掉 sys_perm_grant 幽灵授权(此前 early return 导致残留)
         if (menuIds == null) return;
+        java.util.Set<Long> expanded = expandDirectoryAnchors(menuIds);
+        // 【安全 2026-08-11】闭包后的集合也要过权限子集校验(非超管)——纵深防御
+        if (!SecurityUtils.hasAuthority(LIT_SYSTEM_ROLE_GRANT)) {
+            assertCallerCanGrant(expanded);
+        }
+        java.util.Set<String> includedCodes = collectIncludedCodes(expanded);
+        pruneOrRejectFieldDependencies(includedCodes, expanded, previousCodes);
+        assertNoAdminOnlyCodes(roleId, includedCodes);
+        expandByCode(expanded, includedCodes);
+        insertRoleMenus(roleId, expanded);
+        // 【P0-5 修复 2026-11-13 方案二】槽码授权双写: 动作轴权威仍在 sys_role_menu(本期不迁移)
+        dualUpsertSlotGrants(roleId, includedCodes);
+    }
+
+    /** 提交集补全目录锚点父链（仅 menu_type=1 目录行，环保护 20 层）。 */
+    private java.util.Set<Long> expandDirectoryAnchors(List<Long> menuIds) {
         java.util.Set<Long> expanded = new java.util.LinkedHashSet<>(menuIds);
         for (Long menuId : menuIds) {
             Long cur = menuId;
             int guard = 0;
             while (cur != null && guard++ < 20) { // 环保护
-                com.aigicrm.module.system.entity.SysMenu m = menuMapper.selectById(cur);
-                if (m == null || m.getParentId() == null || m.getParentId() == 0L) break;
-                Long parentId = m.getParentId();
-                com.aigicrm.module.system.entity.SysMenu parent = menuMapper.selectById(parentId);
-                // 【P0 2026-08-12】只补 menu_type=1 目录行锚点(permission 空, 无 RBAC);
-                // menu_type=2/3 父菜单是真实权限载体, 不静默注入, 须用户显式勾选
-                if (parent != null && parent.getMenuType() != null && parent.getMenuType() == 1) {
-                    if (!expanded.add(parentId)) break; // 目录锚点已含则父链已完整
-                }
-                cur = parentId;
+                cur = climbDirectoryAnchor(cur, expanded);
             }
         }
-        // 【安全 2026-08-11】闭包后的集合也要过权限子集校验(非超管)——纵深防御:
-        // 现闭包仅注入 permission 空的目录行(type=1), 本循环主要兜底提交集本身,
-        // 防止任何未来变更重新引入带权限码的静默注入。
-        if (!SecurityUtils.hasAuthority(LIT_SYSTEM_ROLE_GRANT)) {
-            Set<String> callerPerms = SecurityUtils.getCurrentUser() != null
-                    ? SecurityUtils.getCurrentUser().getPermissions() : Set.of();
-            for (Long menuId : expanded) {
-                com.aigicrm.module.system.entity.SysMenu m = menuMapper.selectById(menuId);
-                if (m != null && m.getPermission() != null && !m.getPermission().isBlank()
-                        && !callerPerms.contains(m.getPermission())) {
-                    throw new BusinessException(403, "无权授予权限: " + m.getPermission());
-                }
+        return expanded;
+    }
+
+    /** 向上爬一层目录锚点；返回 null 表示父链结束/已含（原实现的 break 语义）。 */
+    private Long climbDirectoryAnchor(Long cur, java.util.Set<Long> expanded) {
+        com.aigicrm.module.system.entity.SysMenu m = menuMapper.selectById(cur);
+        if (m == null || m.getParentId() == null || m.getParentId() == 0L) return null;
+        Long parentId = m.getParentId();
+        com.aigicrm.module.system.entity.SysMenu parent = menuMapper.selectById(parentId);
+        // 【P0 2026-08-12】只补 menu_type=1 目录行锚点(permission 空, 无 RBAC);
+        // menu_type=2/3 父菜单是真实权限载体, 不静默注入, 须用户显式勾选
+        if (parent != null && parent.getMenuType() != null && parent.getMenuType() == 1
+                && !expanded.add(parentId)) {
+            return null; // 目录锚点已含则父链已完整
+        }
+        return parentId;
+    }
+
+    /** 非超管调用者的权限子集校验：提交集内任一权限码调用者不具备即拒绝。 */
+    private void assertCallerCanGrant(java.util.Set<Long> expanded) {
+        Set<String> callerPerms = SecurityUtils.getCurrentUser() != null
+                ? SecurityUtils.getCurrentUser().getPermissions() : Set.of();
+        for (Long menuId : expanded) {
+            com.aigicrm.module.system.entity.SysMenu m = menuMapper.selectById(menuId);
+            if (m != null && m.getPermission() != null && !m.getPermission().isBlank()
+                    && !callerPerms.contains(m.getPermission())) {
+                throw new BusinessException(403, "无权授予权限: " + m.getPermission());
             }
         }
+    }
+
+    private java.util.Set<String> collectIncludedCodes(java.util.Set<Long> expanded) {
         // 【H-1 2026-11-12 外部审计 HIGH 修复】码级收敛: 同一 permission 码在 sys_menu 有多行时
         // (如 customer:view 页面行×2+按钮行), 只提交其中一行=码已授予 → 自动补全所有同码行。
-        // 码为原子单位(全有或全无): 取消最后一行=码收回; 保留任意一行=码生效+所有同码入口可见。
-        // 修前问题: 取消"主页面行"但"详情行"仍在 → 侧栏消失但接口仍放行(权限回收不彻底)。
-        Set<String> includedCodes = new java.util.HashSet<>();
+        java.util.Set<String> includedCodes = new java.util.HashSet<>();
         for (Long menuId : expanded) {
             com.aigicrm.module.system.entity.SysMenu m = menuMapper.selectById(menuId);
             if (m != null && m.getPermission() != null && !m.getPermission().isBlank()) {
                 includedCodes.add(m.getPermission());
             }
         }
-        pruneOrRejectFieldDependencies(includedCodes, expanded, previousCodes);
-        // 【P1-3 2026-11-15】adminOnly 码不得授予非 admin 角色(授了也是运行期 403, 属死配置)
-        if (!includedCodes.isEmpty()) {
-            SysRole target = roleMapper.selectById(roleId);
-            boolean targetAdmin = target != null && LIT_ADMIN.equals(target.getRoleCode());
-            if (!targetAdmin) {
-                for (String code : includedCodes) {
-                    if (PermissionMetadataService.ADMIN_ONLY.contains(code)) {
-                        throw new BusinessException(400, "ADMIN_ONLY",
-                                "权限码 " + code + " 仅系统管理员角色可授予");
-                    }
-                }
+        return includedCodes;
+    }
+
+    /** 【P1-3 2026-11-15】adminOnly 码不得授予非 admin 角色(授了也是运行期 403, 属死配置)。 */
+    private void assertNoAdminOnlyCodes(Long roleId, java.util.Set<String> includedCodes) {
+        if (includedCodes.isEmpty()) return;
+        SysRole target = roleMapper.selectById(roleId);
+        boolean targetAdmin = target != null && LIT_ADMIN.equals(target.getRoleCode());
+        if (targetAdmin) return;
+        for (String code : includedCodes) {
+            if (PermissionMetadataService.ADMIN_ONLY.contains(code)) {
+                throw new BusinessException(400, "ADMIN_ONLY",
+                        "权限码 " + code + " 仅系统管理员角色可授予");
             }
         }
-        if (!includedCodes.isEmpty()) {
-            // 全量拉取按码过滤(避免 LambdaQueryWrapper 在测试上下文需 TableInfo 预初始化)
-            for (com.aigicrm.module.system.entity.SysMenu m : menuMapper.selectList(null)) {
-                if (m.getPermission() != null && !m.getPermission().isBlank()
-                        && includedCodes.contains(m.getPermission())) {
-                    expanded.add(m.getId());
-                }
+    }
+
+    /** 码为原子单位: 提交集中任一码生效 → 补全所有同码菜单行（全有或全无）。 */
+    private void expandByCode(java.util.Set<Long> expanded, java.util.Set<String> includedCodes) {
+        if (includedCodes.isEmpty()) return;
+        // 全量拉取按码过滤(避免 LambdaQueryWrapper 在测试上下文需 TableInfo 预初始化)
+        for (com.aigicrm.module.system.entity.SysMenu m : menuMapper.selectList(null)) {
+            if (m.getPermission() != null && !m.getPermission().isBlank()
+                    && includedCodes.contains(m.getPermission())) {
+                expanded.add(m.getId());
             }
         }
+    }
+
+    private void insertRoleMenus(Long roleId, java.util.Set<Long> expanded) {
         for (Long menuId : expanded) {
             SysRoleMenu rm = new SysRoleMenu();
             rm.setRoleId(roleId);
             rm.setMenuId(menuId);
             roleMenuMapper.insert(rm);
         }
+    }
+
+    private void dualUpsertSlotGrants(Long roleId, java.util.Set<String> includedCodes) {
         // 【P0-5 修复 2026-11-13 方案二】槽码授权双写: 动作轴权威仍在 sys_role_menu(本期不迁移),
         // 但新轨范围解析按 sys_perm_grant——新绑槽码的角色必须即时有授权行(否则切轨后范围恒空)。
         // scope 取 匹配 role_perm_scope → 角色 data_scope → SELF(与回填迁移同优先级)。
         // 【P1-2 四轮修复】无条件调用: includedCodes 为空(取消全部勾选)时全量剪枝幽灵授权。
-        {
-            com.aigicrm.module.system.entity.SysRole role = roleMapper.selectById(roleId);
-            rolePermScopeService.dualUpsertRoleSlotGrants(
-                    role != null ? role.getRoleCode() : null,
-                    role != null ? role.getDataScope() : null,
-                    includedCodes);
-        }
+        com.aigicrm.module.system.entity.SysRole role = roleMapper.selectById(roleId);
+        rolePermScopeService.dualUpsertRoleSlotGrants(
+                role != null ? role.getRoleCode() : null,
+                role != null ? role.getDataScope() : null,
+                includedCodes);
     }
 
     /** 字段/附属码依赖校验：统一规则见 PermissionDependencyRules（2026-11-15） */
