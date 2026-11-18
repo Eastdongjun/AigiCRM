@@ -213,37 +213,43 @@ public class CustomerController {
         // 【PR-05 残余 2026-09-21】强幂等:客户端随机 Idempotency-Key + Redis PENDING/RESULT。
         // 重试/双击拿到同一个客户 id(响应头 Idempotent-Replay: true),不再重复建客;
         // Redis 异常按"无幂等"放行,不阻断业务(与安全审计同口径的旁路降级)。
-        String scoped = null;
-        boolean owner = false;
-        if (idempotencyService.isValidKey(idempotencyKey)) {
-            scoped = idempotencyService.scope("customer:full", SecurityUtils.getCurrentUserId(), idempotencyKey);
-            String prior = idempotencyService.awaitResult(scoped, 0);
-            if (prior != null) {
-                response.setHeader("Idempotent-Replay", "true");
-                return Result.ok(Long.valueOf(prior));
-            }
-            owner = idempotencyService.tryBegin(scoped);
-            if (!owner) {
-                // 同键请求正在执行:短等其结果(最多 5s),等不到则放行(幂等降级)
-                String waited = idempotencyService.awaitResult(scoped, 5000);
-                if (waited != null) {
-                    response.setHeader("Idempotent-Replay", "true");
-                    return Result.ok(Long.valueOf(waited));
-                }
-            }
-        }
+        IdemState idem = beginIdempotency(idempotencyKey, response);
+        if (idem.replayId() != null) return Result.ok(idem.replayId());
         try {
             Long id = customerService.createWithIndicator(body.getCustomer(), body.getIndicator());
-            if (scoped != null && owner) {
-                idempotencyService.finish(scoped, String.valueOf(id));
+            if (idem.scoped() != null && idem.owner()) {
+                idempotencyService.finish(idem.scoped(), String.valueOf(id));
             }
             return Result.ok(id);
         } catch (RuntimeException e) {
-            if (scoped != null && owner) {
-                idempotencyService.abort(scoped);   // 失败释放,允许立即重试
+            if (idem.scoped() != null && idem.owner()) {
+                idempotencyService.abort(idem.scoped());   // 失败释放,允许立即重试
             }
             throw e;
         }
+    }
+
+    private record IdemState(String scoped, boolean owner, Long replayId) {}
+
+    /** 幂等键预处理：回放历史结果或抢占执行权（S3776 拆分，语义与原内联逻辑一致）。 */
+    private IdemState beginIdempotency(String idempotencyKey, HttpServletResponse response) {
+        if (!idempotencyService.isValidKey(idempotencyKey)) return new IdemState(null, false, null);
+        String scoped = idempotencyService.scope("customer:full", SecurityUtils.getCurrentUserId(), idempotencyKey);
+        String prior = idempotencyService.awaitResult(scoped, 0);
+        if (prior != null) {
+            response.setHeader("Idempotent-Replay", "true");
+            return new IdemState(scoped, false, Long.valueOf(prior));
+        }
+        boolean owner = idempotencyService.tryBegin(scoped);
+        if (!owner) {
+            // 同键请求正在执行:短等其结果(最多 5s),等不到则放行(幂等降级)
+            String waited = idempotencyService.awaitResult(scoped, 5000);
+            if (waited != null) {
+                response.setHeader("Idempotent-Replay", "true");
+                return new IdemState(scoped, false, Long.valueOf(waited));
+            }
+        }
+        return new IdemState(scoped, owner, null);
     }
 
     @PreAuthorize("hasAuthority('customer:edit')")

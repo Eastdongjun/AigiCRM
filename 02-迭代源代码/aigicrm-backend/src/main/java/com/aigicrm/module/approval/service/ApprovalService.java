@@ -200,6 +200,30 @@ public class ApprovalService {
         });
     }
 
+    private void fillNodeApproverNames(List<BizApprovalNode> nodes) {
+        for (BizApprovalNode node : nodes) {
+            if (node.getApproverId() == null) continue;
+            SysUser approver = userMapper.selectById(node.getApproverId());
+            if (approver == null) {
+                markApproverInvalidIfPending(node);
+                continue;
+            }
+            node.setApproverName(approver.getRealName());
+            if (isInvalidApprover(approver)) markApproverInvalidIfPending(node);
+        }
+    }
+
+    private boolean isInvalidApprover(SysUser approver) {
+        return (approver.getStatus() == null || approver.getStatus() != 1)
+                || (approver.getDeleted() != null && approver.getDeleted() == 1);
+    }
+
+    private void markApproverInvalidIfPending(BizApprovalNode node) {
+        if (LIT_PENDING.equals(node.getStatus()) || LIT_WAITING.equals(node.getStatus())) {
+            node.setApproverInvalid(true);
+        }
+    }
+
     public Map<String, Object> detail(Long approvalId, Long userId) {
         BizApproval approval = approvalMapper.selectById(approvalId);
         if (approval == null || !canViewApproval(approval, userId)) {
@@ -209,26 +233,7 @@ public class ApprovalService {
         List<BizApprovalNode> nodes = approvalNodeMapper.selectList(new LambdaQueryWrapper<BizApprovalNode>()
                 .eq(BizApprovalNode::getApprovalId, approvalId)
                 .orderByAsc(BizApprovalNode::getNodeOrder).orderByAsc(BizApprovalNode::getId));
-        for (BizApprovalNode node : nodes) {
-            if (node.getApproverId() != null) {
-                SysUser approver = userMapper.selectById(node.getApproverId());
-                if (approver != null) {
-                    node.setApproverName(approver.getRealName());
-                    // 【PR-03 2026-09-19】在途卡单可见性:待办节点归属停用/删除用户 → 标记,
-                    // 前端提示"审批人已停用",异常可定位(处置规则待业务确认,引擎不自动跳过/批准)
-                    boolean invalid = (approver.getStatus() == null || approver.getStatus() != 1)
-                            || (approver.getDeleted() != null && approver.getDeleted() == 1);
-                    if (invalid && (LIT_PENDING.equals(node.getStatus()) || LIT_WAITING.equals(node.getStatus()))) {
-                        node.setApproverInvalid(true);
-                    }
-                } else {
-                    // 审批人已被物理删除:名字无可展示,同样标记
-                    if (LIT_PENDING.equals(node.getStatus()) || LIT_WAITING.equals(node.getStatus())) {
-                        node.setApproverInvalid(true);
-                    }
-                }
-            }
-        }
+        fillNodeApproverNames(nodes);
         Map<String, Object> result = new HashMap<>();
         result.put(LIT_APPROVAL, approval);
         result.put("nodes", nodes);

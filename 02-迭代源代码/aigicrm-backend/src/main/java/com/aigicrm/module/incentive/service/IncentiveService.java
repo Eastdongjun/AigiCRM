@@ -1140,26 +1140,34 @@ public class IncentiveService {
         return result;
     }
 
+    private record ScoreAggregation(Map<Long, int[]> userAgg, Map<Long, Map<Long, int[]>> userByCat) {}
+
     private List<Map<String, Object>> computeScoreboard(String period) {
         LambdaQueryWrapper<BizIncentiveRecord> wrapper = new LambdaQueryWrapper<>();
         if (period != null && !period.isBlank()) wrapper.eq(BizIncentiveRecord::getPeriod, period);
-        // 【2026-11-04 用户令"四项服务/四项激励也设置上对应的数据的权限"】个人榜(激励统计页签)按当前
-        // 权限账号数据范围收口(可见人员基线, 上传人在范围内的记录才计分), 取代 2026-08-08 公司级口径
         List<BizIncentiveRecord> records = filterRecordsByVisibleUsers(recordMapper.selectList(wrapper));
+        ScoreAggregation agg = aggregateRecords(records);
+        List<Map.Entry<Long, int[]>> sorted = new ArrayList<>(agg.userAgg().entrySet());
+        sorted.sort((a, b) -> b.getValue()[0] - a.getValue()[0]);
+        List<Map<String, Object>> result = new ArrayList<>();
+        int rank = 0;
+        for (Map.Entry<Long, int[]> e : sorted) {
+            result.add(scoreboardItem(e.getKey(), e.getValue(), ++rank, agg.userByCat()));
+        }
+        return result;
+    }
 
-        Map<Long, int[]> userAgg = new LinkedHashMap<>(); // userId -> [score, recordCount, pre, mid, post]
-        Map<Long, java.util.Map<Long, int[]>> userByCat = new HashMap<>(); // userId -> categoryId -> [记录数, 分值]
+    private ScoreAggregation aggregateRecords(List<BizIncentiveRecord> records) {
+        Map<Long, int[]> userAgg = new LinkedHashMap<>();
+        Map<Long, Map<Long, int[]>> userByCat = new HashMap<>();
         for (BizIncentiveRecord r : records) {
             int sc = fileCountOf(r) > 0 ? (r.getScore() != null ? r.getScore() : 0) : 0;
-            int pre = r.hasFiles(r.getFilePreId()) ? 1 : 0;
-            int mid = r.hasFiles(r.getFileMidId()) ? 1 : 0;
-            int post = r.hasFiles(r.getFilePostId()) ? 1 : 0;
             int[] agg = userAgg.computeIfAbsent(r.getUserId(), k -> new int[5]);
             agg[0] += sc;
             agg[1] += 1;
-            agg[2] += pre;
-            agg[3] += mid;
-            agg[4] += post;
+            agg[2] += r.hasFiles(r.getFilePreId()) ? 1 : 0;
+            agg[3] += r.hasFiles(r.getFileMidId()) ? 1 : 0;
+            agg[4] += r.hasFiles(r.getFilePostId()) ? 1 : 0;
             if (r.getCategoryId() != null) {
                 int[] cagg = userByCat.computeIfAbsent(r.getUserId(), k -> new HashMap<>())
                         .computeIfAbsent(r.getCategoryId(), k -> new int[2]);
@@ -1167,38 +1175,32 @@ public class IncentiveService {
                 cagg[1] += sc; // 分值
             }
         }
+        return new ScoreAggregation(userAgg, userByCat);
+    }
 
-        List<Map<String, Object>> result = new ArrayList<>();
-        int rank = 0;
-        List<Map.Entry<Long, int[]>> sorted = new ArrayList<>(userAgg.entrySet());
-        sorted.sort((a, b) -> b.getValue()[0] - a.getValue()[0]);
-
-        for (Map.Entry<Long, int[]> e : sorted) {
-            rank++;
-            int[] agg = e.getValue();
-            Map<String, Object> item = new LinkedHashMap<>();
-            item.put("rank", rank);
-            item.put(LIT_USERID, e.getKey());
-            item.put(LIT_TOTALSCORE, agg[0]);
-            item.put("recordCount", agg[1]);
-            item.put("preCount", agg[2]);
-            item.put("midCount", agg[3]);
-            item.put("postCount", agg[4]);
-            item.put(LIT_BYCATEGORY, userByCat.getOrDefault(e.getKey(), java.util.Map.of()));
-            SysUser user = userMapper.selectById(e.getKey());
-            if (user != null) {
-                item.put(LIT_REALNAME, user.getRealName());
-                item.put("deptId", user.getDeptId());
-                String officeName = "未知";
-                if (user.getOfficeId() != null) {
-                    SysDept office = deptMapper.selectById(user.getOfficeId());
-                    if (office != null) officeName = office.getDeptName();
-                }
-                item.put("officeName", officeName);
-            }
-            result.add(item);
+    private Map<String, Object> scoreboardItem(Long userId, int[] agg, int rank, Map<Long, Map<Long, int[]>> userByCat) {
+        Map<String, Object> item = new LinkedHashMap<>();
+        item.put("rank", rank);
+        item.put(LIT_USERID, userId);
+        item.put(LIT_TOTALSCORE, agg[0]);
+        item.put("recordCount", agg[1]);
+        item.put("preCount", agg[2]);
+        item.put("midCount", agg[3]);
+        item.put("postCount", agg[4]);
+        item.put(LIT_BYCATEGORY, userByCat.getOrDefault(userId, java.util.Map.of()));
+        SysUser user = userMapper.selectById(userId);
+        if (user != null) {
+            item.put(LIT_REALNAME, user.getRealName());
+            item.put("deptId", user.getDeptId());
+            item.put("officeName", officeNameOf(user));
         }
-        return result;
+        return item;
+    }
+
+    private String officeNameOf(SysUser user) {
+        if (user.getOfficeId() == null) return "未知";
+        SysDept office = deptMapper.selectById(user.getOfficeId());
+        return office == null ? "未知" : office.getDeptName();
     }
 
     // 部门排行

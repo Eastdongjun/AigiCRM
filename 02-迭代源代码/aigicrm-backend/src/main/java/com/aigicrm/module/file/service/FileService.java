@@ -362,16 +362,13 @@ public class FileService {
         return page;
     }
 
-    public BizFile upload(MultipartFile file, Long folderId, String scope) {
-
-        Long userId = SecurityUtils.getCurrentUserId();
-
+    /** scope 白名单 + 无夹公共上传门槛（S3776 拆分，语义与原内联校验一致）。 */
+    private void validateUploadScope(String scope, Long folderId) {
         // 【安全加固】scope 白名单：允许 public/private/incentive/fabushi，未识别 scope 直接拒绝
         // （与 pageFiles/getFolderTree 的 scope 白名单对称，防止任意 scope 落盘后绕过查询过滤/占用存储）
         if (scope == null || !(LIT_PUBLIC.equals(scope) || LIT_PRIVATE.equals(scope) || LIT_INCENTIVE.equals(scope) || LIT_FABUSHI.equals(scope))) {
             throw new BusinessException(403, "非法的文件范围");
         }
-
         // 【2026-10-27 深度检查修复】无夹 public 上传补管理员门槛: 该路径落盘 public/{userId}/ 且
         // file_scope=public 后立即进入匿名无鉴权下载通道(/api/file/download/public/**), 与
         // "根级公共文件夹仅管理员可建"门槛对称——普通用户要发公共资源, 走公共文件夹(ACL 判定)。
@@ -379,14 +376,16 @@ public class FileService {
                 && !SecurityUtils.hasAuthority("file:folder:manage")) {
             throw new BusinessException(403, "公共根目录上传需要 file:folder:manage 权限");
         }
+    }
 
+    /** 激励/法布施/文件夹上传权限校验（S3776 拆分，语义与原内联校验一致）。 */
+    private void validateUploadPermissions(String scope, Long folderId, Long userId) {
         // 【T2 2026-11-11 审计整改】激励空间上传=激励计分动作: 与 IncentiveController /records
         // 同码门槛(incentive:add, 设计 §3.2 上传语义), 防无激励权限者借文件上传端点向激励空间
         // 无限落盘(此前仅 private 扣配额, incentive 是绕过面, 审计 P1-2)。
         if (LIT_INCENTIVE.equals(scope) && !SecurityUtils.hasAuthority("incentive:add")) {
             throw new BusinessException(403, LIT_X);
         }
-
         // 【法布施一期 2026-11-15】法布施空间上传=发布动作: 与 FabushiPostController /posts 同码门槛
         // (fabushi:create, 需求 G2 独立命名空间裁决——附件不进文件管理列表, 但计个人配额)。
         // 注意 scope 判定与 hasAuthority 必须拆行: 同行会让命令式码提取把裸 LIT_FABUSHI 串
@@ -395,11 +394,17 @@ public class FileService {
         if (fabushiScope && !SecurityUtils.hasAuthority("fabushi:create")) {
             throw new BusinessException(403, LIT_X);
         }
-
         // 【文件权限体系】上传到文件夹需文件夹上传权限（管理员/本人/上级链/ACL upload）
         if (folderId != null && !folderPermissionService.check(folderId, FolderPermissionService.P_UPLOAD, userId)) {
             throw new BusinessException(403, LIT_X);
         }
+    }
+
+    public BizFile upload(MultipartFile file, Long folderId, String scope) {
+
+        Long userId = SecurityUtils.getCurrentUserId();
+        validateUploadScope(scope, folderId);
+        validateUploadPermissions(scope, folderId, userId);
 
         // 【P2 2026-10-09 配额并发修复】配额检查与扣减原子化: WHERE used+size<=quota 命中才扣,
         // 0 行=配额不足——并发上传在 DB 端串行判定, 消除"两请求同过内存检查"的超配额竞态。
@@ -1486,12 +1491,13 @@ public class FileService {
         return true;
     }
 
+    private record ThumbnailPlan(javax.imageio.ImageReadParam param, int width, int height, boolean needScale) {}
+
     /**
      * 解码 + 缩放为缩略图字节（保留原有子采样防 OOM 设计）。
      * 返回 null 表示非图片/读取失败，调用方回退完整下载。
      */
     private byte[] generateThumbnailBytes(Path filePath, boolean png) {
-        int maxDim = THUMBNAIL_MAX_DIM;
         try (javax.imageio.stream.ImageInputStream iis = javax.imageio.ImageIO.createImageInputStream(filePath.toFile())) {
             if (iis == null) return null;
             java.util.Iterator<javax.imageio.ImageReader> readers = javax.imageio.ImageIO.getImageReaders(iis);
@@ -1501,42 +1507,58 @@ public class FileService {
                 reader.setInput(iis, true, true);
                 int w = reader.getWidth(0), h = reader.getHeight(0);
                 if (w <= 0 || h <= 0) return null;
-
-                // 大图子采样解码：只解码部分像素（解码尺寸≈2×目标），避免整图解码——5MB+ JPEG 解码后
-                // 原始像素 ~96MB/张，激励查询页首屏并发生成缩略图时撑爆 -Xmx512m 堆（2026-08-09 OOM 复盘）。
-                int nw = w, nh = h;
-                boolean needScale = w > maxDim || h > maxDim;
-                javax.imageio.ImageReadParam param = reader.getDefaultReadParam();
-                if (needScale) {
-                    double scale = Math.min((double) maxDim / w, (double) maxDim / h);
-                    nw = Math.max(1, (int) (w * scale));
-                    nh = Math.max(1, (int) (h * scale));
-                    int sub = 1;
-                    while (Math.max(w, h) / sub > maxDim * 2 && sub < 64) sub <<= 1;
-                    if (sub > 1) param.setSourceSubsampling(sub, sub, 0, 0);
-                }
-
-                java.awt.image.BufferedImage img = reader.read(0, param);
+                ThumbnailPlan plan = thumbnailPlan(reader, w, h);
+                java.awt.image.BufferedImage img = reader.read(0, plan.param());
                 if (img == null) return null;
 
                 java.awt.image.BufferedImage out = img;
-                if (needScale && (img.getWidth() != nw || img.getHeight() != nh)) {
-                    // PNG 保留透明通道，其余转 JPG
-                    out = new java.awt.image.BufferedImage(
-                            nw, nh, png ? java.awt.image.BufferedImage.TYPE_INT_ARGB : java.awt.image.BufferedImage.TYPE_INT_RGB);
-                    java.awt.Graphics2D g = out.createGraphics();
-                    g.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION, java.awt.RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-                    g.drawImage(img, 0, 0, nw, nh, null);
-                    g.dispose();
+                if (plan.needScale() && (img.getWidth() != plan.width() || img.getHeight() != plan.height())) {
+                    out = scaleThumbnail(img, plan.width(), plan.height(), png);
                 }
-
-                java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream(16 * 1024);
-                if (!javax.imageio.ImageIO.write(out, png ? "png" : "jpg", bos)) return null;
-                return bos.toByteArray();
+                return thumbnailBytes(out, png);
             }
         } catch (Exception ignored) {
             return null;
         }
+    }
+
+    /** 计算目标尺寸与子采样参数（S3776 拆分，语义与原内联逻辑一致）。 */
+    private ThumbnailPlan thumbnailPlan(javax.imageio.ImageReader reader, int w, int h) {
+        int maxDim = THUMBNAIL_MAX_DIM;
+        // 大图子采样解码：只解码部分像素（解码尺寸≈2×目标），避免整图解码——5MB+ JPEG 解码后
+        // 原始像素 ~96MB/张，激励查询页首屏并发生成缩略图时撑爆 -Xmx512m 堆（2026-08-09 OOM 复盘）。
+        int nw = w, nh = h;
+        boolean needScale = w > maxDim || h > maxDim;
+        javax.imageio.ImageReadParam param = reader.getDefaultReadParam();
+        if (needScale) {
+            double scale = Math.min((double) maxDim / w, (double) maxDim / h);
+            nw = Math.max(1, (int) (w * scale));
+            nh = Math.max(1, (int) (h * scale));
+            int sub = 1;
+            while (Math.max(w, h) / sub > maxDim * 2 && sub < 64) sub <<= 1;
+            if (sub > 1) param.setSourceSubsampling(sub, sub, 0, 0);
+        }
+        return new ThumbnailPlan(param, nw, nh, needScale);
+    }
+
+    private java.awt.image.BufferedImage scaleThumbnail(java.awt.image.BufferedImage img, int nw, int nh, boolean png) {
+        // PNG 保留透明通道，其余转 JPG
+        java.awt.image.BufferedImage out = new java.awt.image.BufferedImage(
+                nw, nh, png ? java.awt.image.BufferedImage.TYPE_INT_ARGB : java.awt.image.BufferedImage.TYPE_INT_RGB);
+        java.awt.Graphics2D g = out.createGraphics();
+        try {
+            g.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION, java.awt.RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            g.drawImage(img, 0, 0, nw, nh, null);
+        } finally {
+            g.dispose();
+        }
+        return out;
+    }
+
+    private byte[] thumbnailBytes(java.awt.image.BufferedImage out, boolean png) throws java.io.IOException {
+        java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream(16 * 1024);
+        if (!javax.imageio.ImageIO.write(out, png ? "png" : "jpg", bos)) return null;
+        return bos.toByteArray();
     }
 
     /** 写缩略图响应：私有缓存（不得被共享代理缓存已授权内容）+ 基于缓存键的强 ETag。 */

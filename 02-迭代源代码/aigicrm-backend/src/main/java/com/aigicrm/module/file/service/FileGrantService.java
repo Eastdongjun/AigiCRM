@@ -522,35 +522,7 @@ public class FileGrantService {
     }
 
     private List<BizFileGrant> load(SecurityUser user, String action) {
-        Set<Long> roleIds = new LinkedHashSet<>();
-        List<String> roleCodes = user.getRoleCodes();
-        if (roleCodes != null && !roleCodes.isEmpty()) {
-            for (SysRole r : roleMapper.selectList(new LambdaQueryWrapper<SysRole>()
-                    .in(SysRole::getRoleCode, roleCodes).eq(SysRole::getStatus, 1))) {
-                if (r.getId() != null) roleIds.add(r.getId());
-            }
-        }
-        Set<Long> positionIds = new LinkedHashSet<>();
-        if (user.getPositions() != null) {
-            for (SysPosition p : user.getPositions()) if (p.getId() != null) positionIds.add(p.getId());
-        }
-        Set<String> actions = actionsFor(action);
-        LambdaQueryWrapper<BizFileGrant> q = new LambdaQueryWrapper<BizFileGrant>()
-                .eq(BizFileGrant::getTenantId, tenantId())
-                .in(BizFileGrant::getAction, actions)
-                .and(w -> {
-                    w.and(x -> x.eq(BizFileGrant::getSubjectType, "USER")
-                            .eq(BizFileGrant::getSubjectId, user.getUserId()));
-                    if (!roleIds.isEmpty()) {
-                        w.or(x -> x.eq(BizFileGrant::getSubjectType, "ROLE")
-                                .in(BizFileGrant::getSubjectId, roleIds));
-                    }
-                    if (!positionIds.isEmpty()) {
-                        w.or(x -> x.eq(BizFileGrant::getSubjectType, LIT_POSITION)
-                                .in(BizFileGrant::getSubjectId, positionIds));
-                    }
-                });
-        return grantMapper.selectList(q);
+        return loadGrants(user, actionsFor(action));
     }
 
     private boolean coversFile(BizFileGrant g, BizFile file, Set<Long> orgAncestors, Set<Long> folderAncestors) {

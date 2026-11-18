@@ -620,18 +620,31 @@ public class FolderPermissionService {
     private boolean grantHitIn(List<BizFolderTypeDefault> grants, String objectType, String folderType, Long targetFolderId, Long targetOrgId, Long targetOwnerId, String action, Long userId) {
         LocalDateTime now = LocalDateTime.now();
         for (BizFolderTypeDefault g : grants) {
-            if (g.getExpiresAt() != null && g.getExpiresAt().isBefore(now)) continue;
-            if (!Objects.equals(g.getObjectType(), objectType)) continue;
-            if (g.getFolderId() != null && !g.getFolderId().equals(targetFolderId)) continue;
-            if (g.getFolderId() == null && folderType != null && !Objects.equals(g.getFolderType(), folderType)) continue;
-            if (g.getScopeOrgId() != null && !g.getScopeOrgId().equals(targetOrgId)) continue;
-            if (!subjectMatches(g, userId)) continue;
-            // 【治本② 2026-11-11】补 scopeCovers(与单点判定 grantGranted 对齐): 原批量版漏范围命中
-            // 检查, 带 scope_level 档位的授权行在按钮视图绕过范围(与实际 checkFile 判定不一致)。
-            if (!scopeCovers(g, targetOrgId, targetOwnerId)) continue;
-            if (csvHas(g.getPerms(), action)) return true;
+            if (!grantTargetMatches(g, objectType, folderType, targetFolderId, targetOrgId)) continue;
+            if (grantSubjectMatches(g, targetOrgId, targetOwnerId, action, userId, now)) return true;
         }
         return false;
+    }
+
+    /** 授权行与目标对象/组织是否匹配（S3776 拆分，语义与原内联校验一致）。 */
+    private boolean grantTargetMatches(BizFolderTypeDefault g, String objectType, String folderType,
+                                       Long targetFolderId, Long targetOrgId) {
+        if (!Objects.equals(g.getObjectType(), objectType)) return false;
+        if (g.getFolderId() != null && !g.getFolderId().equals(targetFolderId)) return false;
+        if (g.getFolderId() == null && folderType != null && !Objects.equals(g.getFolderType(), folderType)) return false;
+        if (g.getScopeOrgId() != null && !g.getScopeOrgId().equals(targetOrgId)) return false;
+        return true;
+    }
+
+    /** 授权行与当前用户/动作是否匹配（S3776 拆分，语义与原内联校验一致）。 */
+    private boolean grantSubjectMatches(BizFolderTypeDefault g, Long targetOrgId, Long targetOwnerId,
+                                        String action, Long userId, LocalDateTime now) {
+        if (g.getExpiresAt() != null && g.getExpiresAt().isBefore(now)) return false;
+        if (!subjectMatches(g, userId)) return false;
+        // 【治本② 2026-11-11】补 scopeCovers(与单点判定 grantGranted 对齐): 原批量版漏范围命中
+        // 检查, 带 scope_level 档位的授权行在按钮视图绕过范围(与实际 checkFile 判定不一致)。
+        if (!scopeCovers(g, targetOrgId, targetOwnerId)) return false;
+        return csvHas(g.getPerms(), action);
     }
 
     /** 【①B 列表过滤】该夹是否存在命中当前人的 FILE view 定向授权(=夹内全部文件对其可见) */

@@ -45,23 +45,31 @@ public final class ClientIpUtils {
         long addr = ipToLong(ip);
         if (addr == -1) return false;
         for (String cidr : trustedCidrs) {
-            if (cidr == null || cidr.isBlank()) continue;
-            String[] parts = cidr.trim().split("/");
-            if (parts.length != 2) continue;
-            long network = ipToLong(parts[0]);
-            if (network == -1) continue;
-            int prefix;
-            try {
-                prefix = Integer.parseInt(parts[1]);
-            } catch (NumberFormatException e) {
-                continue;
-            }
-            if (prefix < 0 || prefix > 32) continue;
-            long mask = prefix == 0 ? 0 : (0xFFFFFFFFL << (32 - prefix)) & 0xFFFFFFFFL;
-            if ((addr & mask) == (network & mask)) return true;
+            Cidr parsed = parseCidr(cidr);
+            if (parsed != null && (addr & parsed.mask()) == (parsed.network() & parsed.mask())) return true;
         }
         return false;
     }
+
+    /** 解析 CIDR；非法返回 null（S3776 拆分，语义与原内联校验一致）。 */
+    private static Cidr parseCidr(String cidr) {
+        if (cidr == null || cidr.isBlank()) return null;
+        String[] parts = cidr.trim().split("/");
+        if (parts.length != 2) return null;
+        long network = ipToLong(parts[0]);
+        if (network == -1) return null;
+        int prefix;
+        try {
+            prefix = Integer.parseInt(parts[1]);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+        if (prefix < 0 || prefix > 32) return null;
+        long mask = prefix == 0 ? 0 : (0xFFFFFFFFL << (32 - prefix)) & 0xFFFFFFFFL;
+        return new Cidr(network, mask);
+    }
+
+    private record Cidr(long network, long mask) {}
 
     private static long ipToLong(String ip) {
         try {

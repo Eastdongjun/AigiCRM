@@ -277,24 +277,28 @@ public class SysUserService {
     private boolean isUserVisible(SysUser target) {
         Long targetDeptId = target.getDeptId();
         java.util.List<Long> visibleDeptIds = scopeResolver.resolveVisibleDeptIds(SecurityUtils.getCurrentUser());
-        if (visibleDeptIds == null) {
-            // all 范围(总监等): 补集团边界——与列表 applyGroupScope 同口径, 防跨集团枚举
-            if (targetDeptId == null) return false;
-            String scoped = applyGroupScope(String.valueOf(targetDeptId));
-            return scoped != null && java.util.Arrays.asList(scoped.split(",")).contains(String.valueOf(targetDeptId));
+        if (visibleDeptIds == null) return isAllScopeVisible(targetDeptId);
+        if (targetDeptId == null) return false;
+        if (visibleDeptIds.contains(targetDeptId)) return true;
+        return isInManagedOrg(targetDeptId);
+    }
+
+    private boolean isAllScopeVisible(Long targetDeptId) {
+        // all 范围(总监等): 补集团边界——与列表 applyGroupScope 同口径, 防跨集团枚举
+        if (targetDeptId == null) return false;
+        String scoped = applyGroupScope(String.valueOf(targetDeptId));
+        return scoped != null && java.util.Arrays.asList(scoped.split(",")).contains(String.valueOf(targetDeptId));
+    }
+
+    private boolean isInManagedOrg(Long targetDeptId) {
+        if (!SecurityUtils.isOrgAdmin()) return false;
+        java.util.List<Long> managedOrgIds = SecurityUtils.getCurrentManagedOrgIds();
+        if (managedOrgIds == null) return false;
+        for (Long orgId : managedOrgIds) {
+            if (orgId == null) continue;
+            if (deptMapper.selectDescendantIds(orgId).contains(targetDeptId)) return true;
         }
-        boolean allowed = targetDeptId != null && visibleDeptIds.contains(targetDeptId);
-        if (!allowed && targetDeptId != null && SecurityUtils.isOrgAdmin()) {
-            // 组织管理员兜底: 目标在其管辖组织子树内也可读(与写操作 canManageUser 同权)
-            java.util.List<Long> managedOrgIds = SecurityUtils.getCurrentManagedOrgIds();
-            if (managedOrgIds != null) {
-                for (Long orgId : managedOrgIds) {
-                    if (orgId == null) continue;
-                    if (deptMapper.selectDescendantIds(orgId).contains(targetDeptId)) return true;
-                }
-            }
-        }
-        return allowed;
+        return false;
     }
 
     /**
@@ -357,31 +361,35 @@ public class SysUserService {
         if (officeId != null) targets.add(officeId);
         if (orgId != null) targets.add(orgId);
         if (targets.isEmpty()) return;
-
         List<Long> visibleDeptIds = scopeResolver.resolveVisibleDeptIds(SecurityUtils.getCurrentUser());
-        Set<Long> managedOrgScope = new HashSet<>();
-        List<Long> managedOrgIds = SecurityUtils.getCurrentManagedOrgIds();
-        if (managedOrgIds != null) {
-            for (Long managedOrgId : managedOrgIds) {
-                if (managedOrgId == null) continue;
-                managedOrgScope.add(managedOrgId);
-                List<Long> descendants = deptMapper.selectDescendantIds(managedOrgId);
-                if (descendants != null) managedOrgScope.addAll(descendants);
-            }
-        }
+        Set<Long> managedOrgScope = managedOrgScope();
         for (Long target : targets) {
-            boolean allowed;
-            if (visibleDeptIds == null) {
-                // all 范围：仍须落在当前用户集团的组织集合内（防跨集团）
-                String scoped = applyGroupScope(String.valueOf(target));
-                allowed = scoped != null && Arrays.asList(scoped.split(",")).contains(String.valueOf(target));
-            } else {
-                allowed = visibleDeptIds.contains(target) || managedOrgScope.contains(target);
-            }
-            if (!allowed) {
+            if (!isTargetOrgVisible(target, visibleDeptIds, managedOrgScope)) {
                 throw new BusinessException(403, "无权在目标部门/组织下创建或修改用户");
             }
         }
+    }
+
+    private Set<Long> managedOrgScope() {
+        Set<Long> managedOrgScope = new HashSet<>();
+        List<Long> managedOrgIds = SecurityUtils.getCurrentManagedOrgIds();
+        if (managedOrgIds == null) return managedOrgScope;
+        for (Long managedOrgId : managedOrgIds) {
+            if (managedOrgId == null) continue;
+            managedOrgScope.add(managedOrgId);
+            List<Long> descendants = deptMapper.selectDescendantIds(managedOrgId);
+            if (descendants != null) managedOrgScope.addAll(descendants);
+        }
+        return managedOrgScope;
+    }
+
+    private boolean isTargetOrgVisible(Long target, List<Long> visibleDeptIds, Set<Long> managedScope) {
+        if (visibleDeptIds == null) {
+            // all 范围：仍须落在当前用户集团的组织集合内（防跨集团）
+            String scoped = applyGroupScope(String.valueOf(target));
+            return scoped != null && Arrays.asList(scoped.split(",")).contains(String.valueOf(target));
+        }
+        return visibleDeptIds.contains(target) || managedScope.contains(target);
     }
 
     @Transactional
@@ -769,20 +777,23 @@ public class SysUserService {
             com.fasterxml.jackson.databind.JsonNode node = JSON.readTree(raw.trim());
             if (node == null || !node.isArray()) return false;
             for (com.fasterxml.jackson.databind.JsonNode item : node) {
-                if (item == null) continue;
-                if (item.isIntegralNumber() && item.asLong() == userId) return true;
-                if (item.isTextual()) {
-                    try {
-                        if (Long.parseLong(item.asText().trim()) == userId) return true;
-                    } catch (NumberFormatException ignored) {
-                        // 非数字元素忽略
-                    }
-                }
+                if (matchesStorageUser(item, userId)) return true;
             }
         } catch (Exception ignored) {
             return false; // 配置脏值: 名单不可信, 按未授权处理
         }
         return false;
+    }
+
+    private boolean matchesStorageUser(com.fasterxml.jackson.databind.JsonNode item, Long userId) {
+        if (item == null) return false;
+        if (item.isIntegralNumber() && item.asLong() == userId) return true;
+        if (!item.isTextual()) return false;
+        try {
+            return Long.parseLong(item.asText().trim()) == userId;
+        } catch (NumberFormatException ignored) {
+            return false;
+        }
     }
 
     @Transactional

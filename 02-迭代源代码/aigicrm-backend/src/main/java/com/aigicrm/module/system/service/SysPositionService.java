@@ -170,24 +170,32 @@ public class SysPositionService {
     public void assignUserPositions(Long userId, List<Long> positionIds) {
         // 目标用户可见性（存在性/跨部门/跨集团）；admin 内部直接放行
         userService.assertCanManageUser(userId);
-        if (positionIds != null) {
-            for (Long positionId : positionIds) {
-                SysPosition position = positionId != null ? positionMapper.selectById(positionId) : null;
-                if (position == null) throw new BusinessException("岗位不存在");
-                if (!com.aigicrm.security.SecurityUtils.isAdmin()) {
-                    if (!GroupScopeUtil.canAccessGroup(position.getGroupId())) {
-                        throw new BusinessException(403, "无权分配其他集团的岗位");
-                    }
-                    // 岗位所属组织（org_id）同样必须在可见部门/管辖组织子树内
-                    userService.assertTargetOrgVisible(null, null, position.getOrgId());
-                }
-            }
-        }
+        validateAssignablePositions(positionIds);
         userPositionMapper.delete(new LambdaQueryWrapper<SysUserPosition>().eq(SysUserPosition::getUserId, userId));
         // 【2026-09-29 同类缺陷】清空全部岗位也是权限变更: 缓存失效+版本递增必须在 early-return 之前
         permissionCacheService.evict(userId);
         bumpPermVersion(userId);
         if (positionIds == null || positionIds.isEmpty()) return;
+        insertUserPositions(userId, positionIds);
+    }
+
+    /** 岗位存在性/集团/组织可见性校验（S3776 拆分，语义与原内联校验一致）。 */
+    private void validateAssignablePositions(List<Long> positionIds) {
+        if (positionIds == null) return;
+        for (Long positionId : positionIds) {
+            SysPosition position = positionId != null ? positionMapper.selectById(positionId) : null;
+            if (position == null) throw new BusinessException("岗位不存在");
+            if (!com.aigicrm.security.SecurityUtils.isAdmin()) {
+                if (!GroupScopeUtil.canAccessGroup(position.getGroupId())) {
+                    throw new BusinessException(403, "无权分配其他集团的岗位");
+                }
+                // 岗位所属组织（org_id）同样必须在可见部门/管辖组织子树内
+                userService.assertTargetOrgVisible(null, null, position.getOrgId());
+            }
+        }
+    }
+
+    private void insertUserPositions(Long userId, List<Long> positionIds) {
         for (int i = 0; i < positionIds.size(); i++) {
             SysUserPosition up = new SysUserPosition();
             up.setUserId(userId);

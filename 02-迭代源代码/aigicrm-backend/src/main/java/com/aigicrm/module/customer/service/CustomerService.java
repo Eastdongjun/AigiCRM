@@ -2123,6 +2123,21 @@ public class CustomerService {
     public void saveStageAmount(Long customerId, com.aigicrm.module.customer.dto.StageAmountRequest req) {
         BizCustomer customer = customerMapper.selectById(customerId);
         if (customer == null) throw new BusinessException(LIT_X);
+        StageInput input = validateStageInput(req);
+        BizCustomerStageAmount existing = stageAmountMapper.selectByPeriodForUpdate(customerId, input.year(), input.type());
+        String before = existing == null ? "无(首次录入)"
+                : "开票 " + existing.getInvoiceAmount() + " 万 / 回款 " + existing.getPaymentAmount() + " 万";
+        Long uid = SecurityUtils.getCurrentUserId();
+        upsertStageAmount(customerId, input, existing, uid);
+        logRecordDeletion("客户", "保存阶段开票回款", "stage_amount", customerId,
+                periodLabel(input.year(), input.type()) + ": " + before + " → 开票 " + input.invoice() + " 万 / 回款 " + input.payment() + " 万; customerId=" + customerId);
+        if (input.invoice().signum() > 0) advanceInvoicePeriod(customer, customerId, input.year(), input.type());
+        recalculateCoreStatus(customerId);
+    }
+
+    private record StageInput(String type, int year, BigDecimal invoice, BigDecimal payment) {}
+
+    private StageInput validateStageInput(com.aigicrm.module.customer.dto.StageAmountRequest req) {
         String type = req.periodType() == null ? "" : req.periodType().trim();
         if (!PERIOD_TYPES.contains(type)) throw new BusinessException("周期类型无效(须为 上半年/下半年/全年)");
         int year = req.periodYear() == null ? 0 : req.periodYear();
@@ -2136,45 +2151,39 @@ public class CustomerService {
         if (invoice.compareTo(new BigDecimal("999999999999.99")) > 0
                 || payment.compareTo(new BigDecimal("999999999999.99")) > 0)
             throw new BusinessException("金额超出上限");
+        return new StageInput(type, year, invoice, payment);
+    }
 
-        BizCustomerStageAmount existing = stageAmountMapper.selectByPeriodForUpdate(customerId, year, type);
-        String before = existing == null ? "无(首次录入)"
-                : "开票 " + existing.getInvoiceAmount() + " 万 / 回款 " + existing.getPaymentAmount() + " 万";
-        Long uid = SecurityUtils.getCurrentUserId();
+    private void upsertStageAmount(Long customerId, StageInput input, BizCustomerStageAmount existing, Long uid) {
         if (existing == null) {
             BizCustomerStageAmount row = new BizCustomerStageAmount();
             row.setCustomerId(customerId);
-            row.setPeriodYear(year);
-            row.setPeriodType(type);
-            row.setInvoiceAmount(invoice);
-            row.setPaymentAmount(payment);
+            row.setPeriodYear(input.year());
+            row.setPeriodType(input.type());
+            row.setInvoiceAmount(input.invoice());
+            row.setPaymentAmount(input.payment());
             row.setCreatedBy(uid);
             row.setUpdatedBy(uid);
             stageAmountMapper.insert(row);
-        } else {
-            existing.setInvoiceAmount(invoice);
-            existing.setPaymentAmount(payment);
-            existing.setUpdatedBy(uid);
-            stageAmountMapper.updateById(existing);
+            return;
         }
-        logRecordDeletion("客户", "保存阶段开票回款", "stage_amount", customerId,
-                periodLabel(year, type) + ": " + before + " → 开票 " + invoice + " 万 / 回款 " + payment + " 万; customerId=" + customerId);
+        existing.setInvoiceAmount(input.invoice());
+        existing.setPaymentAmount(input.payment());
+        existing.setUpdatedBy(uid);
+        stageAmountMapper.updateById(existing);
+    }
 
-        if (invoice.signum() > 0) {
-            LocalDate periodEnd = "H1".equals(type)
-                    ? LocalDate.of(year, 6, 30) : LocalDate.of(year, 12, 31);
-            // 提前录入进行中的周期时按今天封顶, 防止把保护期推到未来
-            LocalDate effective = periodEnd.isAfter(LocalDate.now()) ? LocalDate.now() : periodEnd;
-            // 【延期规则收敛 2026-10-18】与 addInvoice 同口:仅前移才清零已批延期并重算一次;
-            // 补录早于当前基准的旧周期不清零、不重算(原实现阶段入口从不清零,与逐笔入口双轨)。
-            if (advanceLastInvoiceDate(customer, effective)) {
-                // 【体检 P1 2026-10-12】治愈回收: 重新开票(开票日前移)后, pending 的
-                // invoice_never/invoice_overdue 提醒即清——凌晨任务按新事实重建,
-                // 防「待首次开票/已超期N天(N冻结)」旧文案持续误导跟进
-                cleanInvoicePendingReminders(customerId);
-            }
+    private void advanceInvoicePeriod(BizCustomer customer, Long customerId, int year, String type) {
+        LocalDate periodEnd = "H1".equals(type) ? LocalDate.of(year, 6, 30) : LocalDate.of(year, 12, 31);
+        // 提前录入进行中的周期时按今天封顶, 防止把保护期推到未来
+        LocalDate effective = periodEnd.isAfter(LocalDate.now()) ? LocalDate.now() : periodEnd;
+        // 【延期规则收敛 2026-10-18】与 addInvoice 同口:仅前移才清零已批延期并重算一次;
+        // 补录早于当前基准的旧周期不清零、不重算(原实现阶段入口从不清零,与逐笔入口双轨)。
+        if (advanceLastInvoiceDate(customer, effective)) {
+            // 【体检 P1 2026-10-12】治愈回收: 重新开票(开票日前移)后, pending 的
+            // invoice_never/invoice_overdue 提醒即清——凌晨任务按新事实重建
+            cleanInvoicePendingReminders(customerId);
         }
-        recalculateCoreStatus(customerId);
     }
 
     // ====== 客户分享 ======

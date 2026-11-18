@@ -49,34 +49,39 @@ public class SysConfigService {
             // 按 configKey upsert:存在则更新值,不存在则插入(兼容生产缺失的配置键,如 system.logo)
             SysConfig existing = configMapper.selectOne(
                     new LambdaQueryWrapper<SysConfig>().eq(SysConfig::getConfigKey, config.getConfigKey()));
-            if (existing != null) {
-                // 【PR-24 2026-09-19】规则键值变更自动记录版本(append-only,可追溯)
-                if (isRuleKey(config.getConfigKey())
-                        && existing.getConfigValue() != null
-                        && !existing.getConfigValue().equals(config.getConfigValue())) {
-                    recordRuleVersion(config.getConfigKey(), existing.getConfigValue(), config.getConfigValue());
-                }
-                // 【WP1.4】上级/负责人开关变更审计(旧值/新值/操作人)——权限语义键不静默变更;
-                // 旧值必须在 set 前捕获
-                String oldVal = existing.getConfigValue();
-                existing.setConfigValue(config.getConfigValue());
-                if (config.getDescription() != null) existing.setDescription(config.getDescription());
-                configMapper.updateById(existing);
-                if (ADMIN_ONLY_KEYS.contains(config.getConfigKey())
-                        && oldVal != null
-                        && !oldVal.equals(config.getConfigValue())) {
-                    securityAudit.permissionChange("perm_switch_changed",
-                            "key=" + config.getConfigKey()
-                                    + " old=" + oldVal
-                                    + " new=" + config.getConfigValue());
-                    // 【WP5】开关变更即时感知: 30s TTL 缓存外, 双端 epoch 比对即刻拉新
-                    com.aigicrm.common.auth.PermEpochService epoch = permEpochServiceProvider.getIfAvailable();
-                    if (epoch != null) epoch.markChanged();
-                }
-            } else {
+            if (existing == null) {
                 config.setId(null);
                 configMapper.insert(config);
+                continue;
             }
+            applyExistingConfig(config, existing);
+        }
+    }
+
+    /** 既有配置键更新：规则版本、权限开关审计与即时感知（S3776 拆分，语义与原内联逻辑一致）。 */
+    private void applyExistingConfig(SysConfig config, SysConfig existing) {
+        // 【PR-24 2026-09-19】规则键值变更自动记录版本(append-only,可追溯)
+        if (isRuleKey(config.getConfigKey())
+                && existing.getConfigValue() != null
+                && !existing.getConfigValue().equals(config.getConfigValue())) {
+            recordRuleVersion(config.getConfigKey(), existing.getConfigValue(), config.getConfigValue());
+        }
+        // 【WP1.4】上级/负责人开关变更审计(旧值/新值/操作人)——权限语义键不静默变更;
+        // 旧值必须在 set 前捕获
+        String oldVal = existing.getConfigValue();
+        existing.setConfigValue(config.getConfigValue());
+        if (config.getDescription() != null) existing.setDescription(config.getDescription());
+        configMapper.updateById(existing);
+        if (ADMIN_ONLY_KEYS.contains(config.getConfigKey())
+                && oldVal != null
+                && !oldVal.equals(config.getConfigValue())) {
+            securityAudit.permissionChange("perm_switch_changed",
+                    "key=" + config.getConfigKey()
+                            + " old=" + oldVal
+                            + " new=" + config.getConfigValue());
+            // 【WP5】开关变更即时感知: 30s TTL 缓存外, 双端 epoch 比对即刻拉新
+            com.aigicrm.common.auth.PermEpochService epoch = permEpochServiceProvider.getIfAvailable();
+            if (epoch != null) epoch.markChanged();
         }
     }
 
