@@ -25,6 +25,24 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class IncentiveService {
+    // P0-5 batch A: duplicated string literals (Sonar java:S1192)
+    private static final String LIT_TRACK = "track";
+    private static final String LIT_FILEPREID = "filePreId";
+    private static final String LIT_FILEMIDID = "fileMidId";
+    private static final String LIT_FILEPOSTID = "filePostId";
+    private static final String LIT_FILEID = "fileId";
+    private static final String LIT_FILETRACKID = "fileTrackId";
+    private static final String LIT_REALNAME = "realName";
+    private static final String LIT_USERID = "userId";
+    private static final String LIT_DEPTNAME = "deptName";
+    private static final String LIT_PUBLISHEDCOUNT = "publishedCount";
+    private static final String LIT_READCOUNT = "readCount";
+    private static final String LIT_UNREADCOUNT = "unreadCount";
+    private static final String LIT_EXCHANGE = "exchange";
+    private static final String LIT_VISIT = "visit";
+    private static final String LIT_TOTALSCORE = "totalScore";
+    private static final String LIT_BYCATEGORY = "byCategory";
+
 
     private final BizIncentiveCategoryMapper categoryMapper;
     private final BizIncentiveRecordMapper recordMapper;
@@ -118,10 +136,10 @@ public class IncentiveService {
         for (SysUser u : users) {
             Map<String, Object> m = new HashMap<>();
             m.put("id", u.getId());
-            m.put("realName", u.getRealName());
+            m.put(LIT_REALNAME, u.getRealName());
             list.add(m);
         }
-        list.sort(Comparator.comparing(m -> (String) m.getOrDefault("realName", "")));
+        list.sort(Comparator.comparing(m -> (String) m.getOrDefault(LIT_REALNAME, "")));
         return list;
     }
 
@@ -495,11 +513,11 @@ public class IncentiveService {
         Set<Long> beforeFileIds = fileTouched ? new HashSet<>(collectFileIds(existing)) : Collections.emptySet();
         // 【三轮复检修复】槽位只接受合法 JSON 数组: 空白串一律视为"未提供"(清空槽位的唯一
         // 途径=remove-file 专用接口, 统一空槽表示为 NULL), 非法脏串直接拒绝不落库
-        mergeSlotJson(update, existing, "filePreId");
-        mergeSlotJson(update, existing, "fileMidId");
-        mergeSlotJson(update, existing, "filePostId");
-        mergeSlotJson(update, existing, "fileId");
-        mergeSlotJson(update, existing, "fileTrackId");
+        mergeSlotJson(update, existing, LIT_FILEPREID);
+        mergeSlotJson(update, existing, LIT_FILEMIDID);
+        mergeSlotJson(update, existing, LIT_FILEPOSTID);
+        mergeSlotJson(update, existing, LIT_FILEID);
+        mergeSlotJson(update, existing, LIT_FILETRACKID);
         // 【DeepSeek四审 P1 修复 2026-09-22】update 新增文件槽时与 create 同口径核对归属:
         // 旧代码只赋值不校验, 填他人/不存在文件 ID 也能保住上传材料分。核对对象=新引入的文件 ID
         if (fileTouched) {
@@ -592,21 +610,21 @@ public class IncentiveService {
     private void mergeSlotJson(BizIncentiveRecord update, BizIncentiveRecord existing, String field) {
         String v;
         switch (field) {
-            case "filePreId" -> v = update.getFilePreId();
-            case "fileMidId" -> v = update.getFileMidId();
-            case "filePostId" -> v = update.getFilePostId();
-            case "fileId" -> v = update.getFileId();
-            case "fileTrackId" -> v = update.getFileTrackId();
+            case LIT_FILEPREID -> v = update.getFilePreId();
+            case LIT_FILEMIDID -> v = update.getFileMidId();
+            case LIT_FILEPOSTID -> v = update.getFilePostId();
+            case LIT_FILEID -> v = update.getFileId();
+            case LIT_FILETRACKID -> v = update.getFileTrackId();
             default -> v = null;
         }
         if (v == null || v.isBlank()) return;
         assertValidSlotJson(v);
         switch (field) {
-            case "filePreId" -> existing.setFilePreId(v.trim());
-            case "fileMidId" -> existing.setFileMidId(v.trim());
-            case "filePostId" -> existing.setFilePostId(v.trim());
-            case "fileId" -> existing.setFileId(v.trim());
-            case "fileTrackId" -> existing.setFileTrackId(v.trim());
+            case LIT_FILEPREID -> existing.setFilePreId(v.trim());
+            case LIT_FILEMIDID -> existing.setFileMidId(v.trim());
+            case LIT_FILEPOSTID -> existing.setFilePostId(v.trim());
+            case LIT_FILEID -> existing.setFileId(v.trim());
+            case LIT_FILETRACKID -> existing.setFileTrackId(v.trim());
             default -> { }
         }
     }
@@ -639,7 +657,7 @@ public class IncentiveService {
             case "pre" -> existing.getFilePreIds();
             case "mid" -> existing.getFileMidIds();
             case "post" -> existing.getFilePostIds();
-            case "track" -> existing.getFileTrackIds();
+            case LIT_TRACK -> existing.getFileTrackIds();
             default -> null;
         };
         if (ids == null) throw new BusinessException(400, "无效槽位: " + slot);
@@ -664,7 +682,7 @@ public class IncentiveService {
             case "pre" -> existing.setFilePreIds(next);
             case "mid" -> existing.setFileMidIds(next);
             case "post" -> existing.setFilePostIds(next);
-            case "track" -> existing.setFileTrackIds(next);
+            case LIT_TRACK -> existing.setFileTrackIds(next);
             default -> { /* unreachable，上方已校验 */ }
         }
         BizIncentiveCategory category = categoryMapper.selectById(existing.getCategoryId());
@@ -681,7 +699,7 @@ public class IncentiveService {
             case "pre" -> uw.set(BizIncentiveRecord::getFilePreId, nextJson);
             case "mid" -> uw.set(BizIncentiveRecord::getFileMidId, nextJson);
             case "post" -> uw.set(BizIncentiveRecord::getFilePostId, nextJson);
-            case "track" -> uw.set(BizIncentiveRecord::getFileTrackId, nextJson);
+            case LIT_TRACK -> uw.set(BizIncentiveRecord::getFileTrackId, nextJson);
             default -> { /* unreachable */ }
         }
         recordMapper.update(null, uw);
@@ -720,7 +738,7 @@ public class IncentiveService {
             slots.put("pre", r.getFilePreIds() == null ? new ArrayList<>() : new ArrayList<>(r.getFilePreIds()));
             slots.put("mid", r.getFileMidIds() == null ? new ArrayList<>() : new ArrayList<>(r.getFileMidIds()));
             slots.put("post", r.getFilePostIds() == null ? new ArrayList<>() : new ArrayList<>(r.getFilePostIds()));
-            slots.put("track", r.getFileTrackIds() == null ? new ArrayList<>() : new ArrayList<>(r.getFileTrackIds()));
+            slots.put(LIT_TRACK, r.getFileTrackIds() == null ? new ArrayList<>() : new ArrayList<>(r.getFileTrackIds()));
             boolean touched = false;
             int totalAfter = 0;
             for (List<Long> list : slots.values()) {
@@ -738,7 +756,7 @@ public class IncentiveService {
             r.setFilePreIds(slots.get("pre"));
             r.setFileMidIds(slots.get("mid"));
             r.setFilePostIds(slots.get("post"));
-            r.setFileTrackIds(slots.get("track"));
+            r.setFileTrackIds(slots.get(LIT_TRACK));
             BizIncentiveCategory category = categoryMapper.selectById(r.getCategoryId());
             int base = (category != null && category.getScore() != null) ? category.getScore() : 0;
             r.setScore(calcScore(r, category, base));
@@ -752,7 +770,7 @@ public class IncentiveService {
                             .set(BizIncentiveRecord::getFilePreId, slots.get("pre").isEmpty() ? null : toJsonArray(slots.get("pre")))
                             .set(BizIncentiveRecord::getFileMidId, slots.get("mid").isEmpty() ? null : toJsonArray(slots.get("mid")))
                             .set(BizIncentiveRecord::getFilePostId, slots.get("post").isEmpty() ? null : toJsonArray(slots.get("post")))
-                            .set(BizIncentiveRecord::getFileTrackId, slots.get("track").isEmpty() ? null : toJsonArray(slots.get("track")));
+                            .set(BizIncentiveRecord::getFileTrackId, slots.get(LIT_TRACK).isEmpty() ? null : toJsonArray(slots.get(LIT_TRACK)));
             recordMapper.update(null, uw);
         }
         evictScoreboardCache();
@@ -881,10 +899,10 @@ public class IncentiveService {
     /** 判断子类是否属于"外出参观/交流拜访"大类（category_code = 'visit'/'exchange'） */
     private boolean isVisitExchangeCategory(BizIncentiveCategory category) {
         if (category == null) return false;
-        if ("visit".equals(category.getCategoryCode()) || "exchange".equals(category.getCategoryCode())) return true;
+        if (LIT_VISIT.equals(category.getCategoryCode()) || LIT_EXCHANGE.equals(category.getCategoryCode())) return true;
         if (category.getParentId() != null) {
             BizIncentiveCategory parent = categoryMapper.selectById(category.getParentId());
-            return parent != null && ("visit".equals(parent.getCategoryCode()) || "exchange".equals(parent.getCategoryCode()));
+            return parent != null && (LIT_VISIT.equals(parent.getCategoryCode()) || LIT_EXCHANGE.equals(parent.getCategoryCode()));
         }
         return false;
     }
@@ -906,8 +924,8 @@ public class IncentiveService {
         return switch (code) {
             case "trial" -> 0;
             case "plan" -> 1;
-            case "exchange" -> 2;
-            case "visit" -> 3;
+            case LIT_EXCHANGE -> 2;
+            case LIT_VISIT -> 3;
             default -> 4;
         };
     }
@@ -1038,16 +1056,16 @@ public class IncentiveService {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("categoryId", e.getKey());
             m.put("fileCount", e.getValue()[0]);
-            m.put("totalScore", e.getValue()[1]);
+            m.put(LIT_TOTALSCORE, e.getValue()[1]);
             m.put("preCount", e.getValue()[2]);
             m.put("midCount", e.getValue()[3]);
             m.put("postCount", e.getValue()[4]);
             byCategory.add(m);
         }
         Map<String, Object> result = new HashMap<>();
-        result.put("byCategory", byCategory);
+        result.put(LIT_BYCATEGORY, byCategory);
         result.put("totalFiles", totalFiles);
-        result.put("totalScore", totalScore);
+        result.put(LIT_TOTALSCORE, totalScore);
         result.put("totalPre", totalPre);
         result.put("totalMid", totalMid);
         result.put("totalPost", totalPost);
@@ -1145,16 +1163,16 @@ public class IncentiveService {
             int[] agg = e.getValue();
             Map<String, Object> item = new LinkedHashMap<>();
             item.put("rank", rank);
-            item.put("userId", e.getKey());
-            item.put("totalScore", agg[0]);
+            item.put(LIT_USERID, e.getKey());
+            item.put(LIT_TOTALSCORE, agg[0]);
             item.put("recordCount", agg[1]);
             item.put("preCount", agg[2]);
             item.put("midCount", agg[3]);
             item.put("postCount", agg[4]);
-            item.put("byCategory", userByCat.getOrDefault(e.getKey(), java.util.Map.of()));
+            item.put(LIT_BYCATEGORY, userByCat.getOrDefault(e.getKey(), java.util.Map.of()));
             SysUser user = userMapper.selectById(e.getKey());
             if (user != null) {
-                item.put("realName", user.getRealName());
+                item.put(LIT_REALNAME, user.getRealName());
                 item.put("deptId", user.getDeptId());
                 String officeName = "未知";
                 if (user.getOfficeId() != null) {
@@ -1176,11 +1194,11 @@ public class IncentiveService {
         for (Map<String, Object> p : personal) {
             String dept = (String) p.getOrDefault("officeName", "未知");
             int[] agg = deptAgg.computeIfAbsent(dept, k -> new int[]{0, 0});
-            agg[0] += ((Number) p.getOrDefault("totalScore", 0)).intValue();
+            agg[0] += ((Number) p.getOrDefault(LIT_TOTALSCORE, 0)).intValue();
             agg[1] += 1;
             // 部门品类聚合（个人 byCategory 求和: [记录数, 分值]）
             @SuppressWarnings("unchecked")
-            java.util.Map<Long, int[]> pbc = (java.util.Map<Long, int[]>) p.getOrDefault("byCategory", java.util.Map.of());
+            java.util.Map<Long, int[]> pbc = (java.util.Map<Long, int[]>) p.getOrDefault(LIT_BYCATEGORY, java.util.Map.of());
             for (Map.Entry<Long, int[]> en : pbc.entrySet()) {
                 int[] dagg = deptByCat.computeIfAbsent(dept, k -> new HashMap<>())
                         .computeIfAbsent(en.getKey(), k -> new int[2]);
@@ -1198,10 +1216,10 @@ public class IncentiveService {
             rank++;
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("rank", rank);
-            row.put("deptName", e.getKey());
-            row.put("totalScore", e.getValue()[0]);
+            row.put(LIT_DEPTNAME, e.getKey());
+            row.put(LIT_TOTALSCORE, e.getValue()[0]);
             row.put("participantCount", e.getValue()[1]);
-            row.put("byCategory", deptByCat.getOrDefault(e.getKey(), java.util.Map.of()));
+            row.put(LIT_BYCATEGORY, deptByCat.getOrDefault(e.getKey(), java.util.Map.of()));
             row.put("avgScore", e.getValue()[1] > 0
                     ? Math.round((double) e.getValue()[0] / e.getValue()[1] * 10) / 10.0 : 0);
             result.add(row);
@@ -1484,12 +1502,12 @@ public class IncentiveService {
             item.put("industryOrder", orderMap.getOrDefault(ind, 99));
             item.put("count", e.getValue().size());
             int totalScore = e.getValue().stream().mapToInt(r -> r.getScore() != null ? r.getScore() : 0).sum();
-            item.put("totalScore", totalScore);
+            item.put(LIT_TOTALSCORE, totalScore);
             item.put("records", e.getValue());
             flatList.add(item);
         }
         flatList.sort(Comparator
-                .comparingInt((Map<String, Object> m) -> -((Number) m.getOrDefault("totalScore", 0)).intValue())
+                .comparingInt((Map<String, Object> m) -> -((Number) m.getOrDefault(LIT_TOTALSCORE, 0)).intValue())
                 .thenComparingInt(m -> (int) m.get("industryOrder"))
                 .thenComparing(m -> String.valueOf(m.getOrDefault("customerName", ""))));
         return flatList;
@@ -1570,8 +1588,8 @@ public class IncentiveService {
         int readTotal = 0;
         int participantCount = 0;
         for (Map<String, Object> row : rows) {
-            int published = toInt(row.get("publishedCount"));
-            int read = toInt(row.get("readCount"));
+            int published = toInt(row.get(LIT_PUBLISHEDCOUNT));
+            int read = toInt(row.get(LIT_READCOUNT));
             publishedTotal = Math.max(publishedTotal, published); // 本月发布数对所有人相同，取最大值即真实发布量
             readTotal += read;
             if (read > 0) participantCount++;
@@ -1579,25 +1597,25 @@ public class IncentiveService {
 
         List<Map<String, Object>> ranking = new ArrayList<>();
         for (Map<String, Object> row : rows) {
-            int published = toInt(row.get("publishedCount"));
-            int read = toInt(row.get("readCount"));
-            int unread = Math.max(0, toInt(row.get("unreadCount")));
+            int published = toInt(row.get(LIT_PUBLISHEDCOUNT));
+            int read = toInt(row.get(LIT_READCOUNT));
+            int unread = Math.max(0, toInt(row.get(LIT_UNREADCOUNT)));
             Map<String, Object> item = new LinkedHashMap<>();
-            item.put("userId", row.get("userId"));
-            item.put("realName", row.get("realName"));
-            item.put("deptName", row.get("deptName"));
-            item.put("publishedCount", published);
-            item.put("readCount", read);
-            item.put("unreadCount", unread);
+            item.put(LIT_USERID, row.get(LIT_USERID));
+            item.put(LIT_REALNAME, row.get(LIT_REALNAME));
+            item.put(LIT_DEPTNAME, row.get(LIT_DEPTNAME));
+            item.put(LIT_PUBLISHEDCOUNT, published);
+            item.put(LIT_READCOUNT, read);
+            item.put(LIT_UNREADCOUNT, unread);
             item.put("readRate", rate(read, published));
             ranking.add(item);
         }
         ranking.sort((a, b) -> {
-            int byRead = Integer.compare(toInt(b.get("readCount")), toInt(a.get("readCount")));
+            int byRead = Integer.compare(toInt(b.get(LIT_READCOUNT)), toInt(a.get(LIT_READCOUNT)));
             if (byRead != 0) return byRead;
-            int byUnread = Integer.compare(toInt(a.get("unreadCount")), toInt(b.get("unreadCount")));
+            int byUnread = Integer.compare(toInt(a.get(LIT_UNREADCOUNT)), toInt(b.get(LIT_UNREADCOUNT)));
             if (byUnread != 0) return byUnread;
-            return String.valueOf(a.get("realName")).compareTo(String.valueOf(b.get("realName")));
+            return String.valueOf(a.get(LIT_REALNAME)).compareTo(String.valueOf(b.get(LIT_REALNAME)));
         });
         for (int i = 0; i < ranking.size(); i++) {
             ranking.get(i).put("rank", i + 1);

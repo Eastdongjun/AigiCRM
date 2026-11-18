@@ -27,7 +27,7 @@ class StabilityInvariantTest {
 
     private static String readSource(String relative, String label) {
         try {
-            return Files.readString(BACKEND_ROOT.resolve(relative), StandardCharsets.UTF_8);
+            return SourceNormalizer.read(BACKEND_ROOT.resolve(relative));
         } catch (IOException e) {
             throw new IllegalStateException("无法读取 " + label + ": " + e.getMessage(), e);
         }

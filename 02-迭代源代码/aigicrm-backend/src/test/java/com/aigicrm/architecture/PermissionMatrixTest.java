@@ -181,7 +181,7 @@ public class PermissionMatrixTest {
         assertTrue(Files.exists(src), "CustomerController 源文件不存在: " + src);
         String body;
         try {
-            body = Files.readString(src);
+            body = SourceNormalizer.read(src);
         } catch (IOException e) {
             throw new IllegalStateException("读取 CustomerController 源码失败", e);
         }
@@ -242,7 +242,7 @@ public class PermissionMatrixTest {
         assertTrue(Files.exists(src), "ApprovalController 源文件不存在: " + src);
         String body;
         try {
-            body = Files.readString(src);
+            body = SourceNormalizer.read(src);
         } catch (IOException e) {
             throw new IllegalStateException("读取 ApprovalController 源码失败", e);
         }
@@ -266,7 +266,7 @@ public class PermissionMatrixTest {
         assertTrue(Files.exists(controllerSrc), "ApprovalController 源文件不存在: " + controllerSrc);
         String controllerBody;
         try {
-            controllerBody = Files.readString(controllerSrc);
+            controllerBody = SourceNormalizer.read(controllerSrc);
         } catch (IOException e) {
             throw new IllegalStateException("读取 ApprovalController 源码失败", e);
         }
@@ -280,7 +280,7 @@ public class PermissionMatrixTest {
         assertTrue(Files.exists(serviceSrc), "ApprovalService 源文件不存在: " + serviceSrc);
         String serviceBody;
         try {
-            serviceBody = Files.readString(serviceSrc);
+            serviceBody = SourceNormalizer.read(serviceSrc);
         } catch (IOException e) {
             throw new IllegalStateException("读取 ApprovalService 源码失败", e);
         }
@@ -315,7 +315,7 @@ public class PermissionMatrixTest {
         assertTrue(Files.exists(serviceSrc), "ApprovalService 源文件不存在: " + serviceSrc);
         String serviceBody;
         try {
-            serviceBody = Files.readString(serviceSrc);
+            serviceBody = SourceNormalizer.read(serviceSrc);
         } catch (IOException e) {
             throw new IllegalStateException("读取 ApprovalService 源码失败", e);
         }
@@ -388,7 +388,7 @@ public class PermissionMatrixTest {
         assertTrue(Files.exists(userSrc), "SysUserController 源文件不存在: " + userSrc);
         String userBody;
         try {
-            userBody = Files.readString(userSrc);
+            userBody = SourceNormalizer.read(userSrc);
         } catch (IOException e) {
             throw new IllegalStateException("读取 SysUserController 源码失败", e);
         }
@@ -463,7 +463,7 @@ public class PermissionMatrixTest {
         assertTrue(Files.exists(src), "SysConfigController 源文件不存在: " + src);
         String body;
         try {
-            body = Files.readString(src);
+            body = SourceNormalizer.read(src);
         } catch (IOException e) {
             throw new IllegalStateException("读取 SysConfigController 源码失败", e);
         }
@@ -522,7 +522,7 @@ public class PermissionMatrixTest {
         assertTrue(Files.exists(src), "FileService 源文件不存在: " + src);
         String body;
         try {
-            body = Files.readString(src);
+            body = SourceNormalizer.read(src);
         } catch (IOException e) {
             throw new IllegalStateException("读取 FileService 源码失败", e);
         }
@@ -574,7 +574,7 @@ public class PermissionMatrixTest {
         assertTrue(Files.exists(src), "FileService 源文件不存在: " + src);
         String body;
         try {
-            body = Files.readString(src);
+            body = SourceNormalizer.read(src);
         } catch (IOException e) {
             throw new IllegalStateException("读取 FileService 源码失败", e);
         }
@@ -619,7 +619,7 @@ public class PermissionMatrixTest {
         assertTrue(Files.exists(controllerSrc), "FileController 源文件不存在: " + controllerSrc);
         String controllerBody;
         try {
-            controllerBody = Files.readString(controllerSrc);
+            controllerBody = SourceNormalizer.read(controllerSrc);
         } catch (IOException e) {
             throw new IllegalStateException("读取 FileController 源码失败", e);
         }
@@ -632,7 +632,7 @@ public class PermissionMatrixTest {
         assertTrue(Files.exists(providerSrc), "JwtTokenProvider 源文件不存在: " + providerSrc);
         String providerBody;
         try {
-            providerBody = Files.readString(providerSrc);
+            providerBody = SourceNormalizer.read(providerSrc);
         } catch (IOException e) {
             throw new IllegalStateException("读取 JwtTokenProvider 源码失败", e);
         }
@@ -647,7 +647,7 @@ public class PermissionMatrixTest {
         assertTrue(Files.exists(filterSrc), "JwtAuthFilter 源文件不存在: " + filterSrc);
         String filterBody;
         try {
-            filterBody = Files.readString(filterSrc);
+            filterBody = SourceNormalizer.read(filterSrc);
         } catch (IOException e) {
             throw new IllegalStateException("读取 JwtAuthFilter 源码失败", e);
         }
@@ -682,7 +682,7 @@ public class PermissionMatrixTest {
         assertTrue(Files.exists(controllerSrc), "FileController 源文件不存在: " + controllerSrc);
         String body;
         try {
-            body = Files.readString(controllerSrc);
+            body = SourceNormalizer.read(controllerSrc);
         } catch (IOException e) {
             throw new IllegalStateException("读取 FileController 源码失败", e);
         }
@@ -715,7 +715,7 @@ public class PermissionMatrixTest {
         assertTrue(Files.exists(src), "SeaService 源文件不存在: " + src);
         String body;
         try {
-            body = Files.readString(src);
+            body = SourceNormalizer.read(src);
         } catch (IOException e) {
             throw new IllegalStateException("读取 SeaService 源码失败", e);
         }
@@ -749,7 +749,7 @@ public class PermissionMatrixTest {
         assertTrue(Files.exists(src), "SeaConfigService 源文件不存在: " + src);
         String body;
         try {
-            body = Files.readString(src);
+            body = SourceNormalizer.read(src);
         } catch (IOException e) {
             throw new IllegalStateException("读取 SeaConfigService 源码失败", e);
         }
@@ -776,7 +776,7 @@ public class PermissionMatrixTest {
         assertTrue(Files.exists(src), "SeaService 源文件不存在: " + src);
         String body;
         try {
-            body = Files.readString(src);
+            body = SourceNormalizer.read(src);
         } catch (IOException e) {
             throw new IllegalStateException("读取 SeaService 源码失败", e);
         }
@@ -816,7 +816,7 @@ public class PermissionMatrixTest {
         assertTrue(Files.exists(src), "SeaService 源文件不存在: " + src);
         String body;
         try {
-            body = Files.readString(src);
+            body = SourceNormalizer.read(src);
         } catch (IOException e) {
             throw new IllegalStateException("读取 SeaService 源码失败", e);
         }
@@ -1261,7 +1261,7 @@ public class PermissionMatrixTest {
     private static String readSource(Path src, String label) {
         assertTrue(Files.exists(src), label + " 源文件不存在: " + src);
         try {
-            return Files.readString(src);
+            return SourceNormalizer.read(src);
         } catch (IOException e) {
             throw new IllegalStateException("读取 " + label + " 源码失败", e);
         }
@@ -1313,7 +1313,7 @@ public class PermissionMatrixTest {
         }
         String text;
         try {
-            text = Files.readString(dictPath);
+            text = SourceNormalizer.read(dictPath);
         } catch (IOException e) {
             throw new IllegalStateException("读取权限码字典失败: " + dictPath, e);
         }
@@ -1361,7 +1361,7 @@ public class PermissionMatrixTest {
                     .sorted()
                     .forEach(p -> {
                         try {
-                            Matcher m = codePattern.matcher(Files.readString(p));
+                            Matcher m = codePattern.matcher(SourceNormalizer.read(p));
                             while (m.find()) {
                                 codes.add(m.group(1));
                             }
@@ -1452,7 +1452,7 @@ public class PermissionMatrixTest {
         try (Stream<Path> paths = Files.walk(srcDir)) {
             paths.filter(p -> p.toString().endsWith(".java")).forEach(p -> {
                 try {
-                    all.append(Files.readString(p));
+                    all.append(SourceNormalizer.read(p));
                 } catch (IOException ignored) {
                     // 单文件读取失败不影响整体扫描
                 }
@@ -1478,7 +1478,7 @@ public class PermissionMatrixTest {
         Path dictPath = Paths.get(DICT_REL_PATH).toAbsolutePath().normalize();
         String text;
         try {
-            text = Files.readString(dictPath);
+            text = SourceNormalizer.read(dictPath);
         } catch (IOException e) {
             throw new IllegalStateException("读取权限码字典失败: " + dictPath, e);
         }

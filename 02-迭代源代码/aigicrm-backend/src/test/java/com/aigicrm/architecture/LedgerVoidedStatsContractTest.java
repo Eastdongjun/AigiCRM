@@ -28,7 +28,7 @@ class LedgerVoidedStatsContractTest {
         Path src = Paths.get(relative).toAbsolutePath().normalize();
         assertTrue(Files.exists(src), label + " 源文件不存在: " + src);
         try {
-            return Files.readString(src);
+            return SourceNormalizer.read(src);
         } catch (IOException e) {
             throw new IllegalStateException("读取 " + label + " 源码失败", e);
         }

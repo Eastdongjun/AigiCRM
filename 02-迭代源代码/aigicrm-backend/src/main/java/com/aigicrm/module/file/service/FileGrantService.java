@@ -49,6 +49,10 @@ import java.util.Set;
 @Service
 @RequiredArgsConstructor
 public class FileGrantService {
+    // P0-5 batch A: duplicated string literals (Sonar java:S1192)
+    private static final String LIT_ALLOW = "ALLOW";
+    private static final String LIT_POSITION = "POSITION";
+
 
     public enum Decision { ALLOW, DENY, ABSTAIN }
 
@@ -134,7 +138,7 @@ public class FileGrantService {
             for (BizFileGrant g : grants) {
                 if (!coversFile(g, file, orgs, folders)) continue;
                 if ("DENY".equalsIgnoreCase(g.getEffect())) { decision = Decision.DENY; break; }
-                if ("ALLOW".equalsIgnoreCase(g.getEffect())) decision = Decision.ALLOW;
+                if (LIT_ALLOW.equalsIgnoreCase(g.getEffect())) decision = Decision.ALLOW;
             }
             out.put(file.getId(), decision);
         }
@@ -178,7 +182,7 @@ public class FileGrantService {
                     if (g.getAction() == null || !covering.contains(g.getAction())) continue;
                     if (!coversFile(g, file, orgs, folders)) continue;
                     if ("DENY".equalsIgnoreCase(g.getEffect())) { d = Decision.DENY; break; }
-                    if ("ALLOW".equalsIgnoreCase(g.getEffect())) d = Decision.ALLOW;
+                    if (LIT_ALLOW.equalsIgnoreCase(g.getEffect())) d = Decision.ALLOW;
                 }
                 per.put(a, d);
             }
@@ -218,7 +222,7 @@ public class FileGrantService {
                     if (g.getAction() == null || !covering.contains(g.getAction())) continue;
                     if (!coversFolder(g, folder, orgs, ancestors)) continue;
                     if ("DENY".equalsIgnoreCase(g.getEffect())) { d = Decision.DENY; break; }
-                    if ("ALLOW".equalsIgnoreCase(g.getEffect())) d = Decision.ALLOW;
+                    if (LIT_ALLOW.equalsIgnoreCase(g.getEffect())) d = Decision.ALLOW;
                 }
                 per.put(a, d);
             }
@@ -251,7 +255,7 @@ public class FileGrantService {
                                 .in(BizFileGrant::getSubjectId, roleIds));
                     }
                     if (!positionIds.isEmpty()) {
-                        w.or(x -> x.eq(BizFileGrant::getSubjectType, "POSITION")
+                        w.or(x -> x.eq(BizFileGrant::getSubjectType, LIT_POSITION)
                                 .in(BizFileGrant::getSubjectId, positionIds));
                     }
                 });
@@ -270,7 +274,7 @@ public class FileGrantService {
         for (BizFileGrant g : grants) {
             if (!coversFolder(g, folder, orgs, folders)) continue;
             if ("DENY".equalsIgnoreCase(g.getEffect())) return Decision.DENY;
-            if ("ALLOW".equalsIgnoreCase(g.getEffect())) allow = true;
+            if (LIT_ALLOW.equalsIgnoreCase(g.getEffect())) allow = true;
         }
         return allow ? Decision.ALLOW : Decision.ABSTAIN;
     }
@@ -349,7 +353,7 @@ public class FileGrantService {
         g.setScopeMode(c.scopeMode());
         g.setExpireAt(c.expireAt());
         String subjectType = upper(g.getSubjectType());
-        if (!Set.of("USER", "ROLE", "POSITION").contains(subjectType)) {
+        if (!Set.of("USER", "ROLE", LIT_POSITION).contains(subjectType)) {
             throw new BusinessException("主体类型仅支持 USER/ROLE/POSITION");
         }
         if (g.getSubjectId() == null) throw new BusinessException("主体不能为空");
@@ -378,8 +382,8 @@ public class FileGrantService {
             throw new BusinessException("动作仅支持 view/download/upload/edit/delete/share/manage/create/*");
         }
         String effect = upper(g.getEffect());
-        if (effect == null || effect.isBlank()) effect = "ALLOW";
-        if (!Set.of("ALLOW", "DENY").contains(effect)) throw new BusinessException("效果仅支持 ALLOW/DENY");
+        if (effect == null || effect.isBlank()) effect = LIT_ALLOW;
+        if (!Set.of(LIT_ALLOW, "DENY").contains(effect)) throw new BusinessException("效果仅支持 ALLOW/DENY");
         if (g.getExpireAt() != null && !g.getExpireAt().isAfter(LocalDateTime.now())) {
             throw new BusinessException("到期时间必须晚于当前时间");
         }
@@ -532,7 +536,7 @@ public class FileGrantService {
                                 .in(BizFileGrant::getSubjectId, roleIds));
                     }
                     if (!positionIds.isEmpty()) {
-                        w.or(x -> x.eq(BizFileGrant::getSubjectType, "POSITION")
+                        w.or(x -> x.eq(BizFileGrant::getSubjectType, LIT_POSITION)
                                 .in(BizFileGrant::getSubjectId, positionIds));
                     }
                 });

@@ -43,6 +43,22 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class ApprovalService {
+    // P0-5 batch A: duplicated string literals (Sonar java:S1192)
+    private static final String LIT_PENDING = "pending";
+    private static final String LIT_STORAGE = "storage";
+    private static final String LIT_EXTEND = "extend";
+    private static final String LIT_CLAIM = "claim";
+    private static final String LIT_TRANSFER = "transfer";
+    private static final String LIT_REVIEWING = "reviewing";
+    private static final String LIT_EXTENDDAYS = "extendDays";
+    private static final String LIT_APPROVED = "approved";
+    private static final String LIT_REJECTED = "rejected";
+    private static final String LIT_APPROVAL = "approval";
+    private static final String LIT_WAITING = "waiting";
+    private static final String LIT_X = "资源不存在或无权访问";
+    private static final String LIT_PENDING_APPROVAL = "pending_approval";
+    private static final String LIT_AVAILABLE = "available";
+
 
     private final BizApprovalConfigMapper approvalConfigMapper;
     private final BizApprovalMapper approvalMapper;
@@ -74,17 +90,17 @@ public class ApprovalService {
 
     /** 【D1=A 2026-10-18】审批类型白名单: 未知类型在提交入口一律 400, 不落无法执行的单据 */
     private static final java.util.Set<String> SUPPORTED_APPROVAL_TYPES =
-            java.util.Set.of("claim", "transfer", "extend", "storage");
+            java.util.Set.of(LIT_CLAIM, LIT_TRANSFER, LIT_EXTEND, LIT_STORAGE);
 
     public IPage<BizApproval> page(int current, int size, String tab, String type, String keyword, Long userId, Long deptId) {
         LambdaQueryWrapper<BizApproval> wrapper = new LambdaQueryWrapper<>();
 
-        if ("pending".equals(tab)) {
+        if (LIT_PENDING.equals(tab)) {
             // 待我审批的
             List<BizApprovalNode> nodes = approvalNodeMapper.selectList(
                     new LambdaQueryWrapper<BizApprovalNode>()
                             .eq(BizApprovalNode::getApproverId, userId)
-                            .eq(BizApprovalNode::getStatus, "pending")
+                            .eq(BizApprovalNode::getStatus, LIT_PENDING)
             );
             if (nodes.isEmpty()) {
                 return new Page<>(current, size);
@@ -93,7 +109,7 @@ public class ApprovalService {
             wrapper.in(BizApproval::getId, approvalIds);
         } else if ("mine".equals(tab)) {
             wrapper.eq(BizApproval::getApplicantId, userId);
-        } else if ("reviewing".equals(tab) || "approved".equals(tab) || "rejected".equals(tab)) {
+        } else if (LIT_REVIEWING.equals(tab) || LIT_APPROVED.equals(tab) || LIT_REJECTED.equals(tab)) {
             wrapper.eq(BizApproval::getStatus, tab);
             // 历史/进行中数据范围：所有人（含 admin）都按角色数据范围过滤
             applyDataScope(wrapper, userId);
@@ -141,7 +157,7 @@ public class ApprovalService {
         List<BizApprovalNode> pendingNodes = approvalNodeMapper.selectList(
                 new LambdaQueryWrapper<BizApprovalNode>()
                         .in(BizApprovalNode::getApprovalId, ids)
-                        .eq(BizApprovalNode::getStatus, "pending")
+                        .eq(BizApprovalNode::getStatus, LIT_PENDING)
                         .orderByAsc(BizApprovalNode::getNodeOrder).orderByAsc(BizApprovalNode::getId));
         Map<Long, List<BizApprovalNode>> byApproval = new HashMap<>();
         for (BizApprovalNode n : pendingNodes) {
@@ -187,7 +203,7 @@ public class ApprovalService {
     public Map<String, Object> detail(Long approvalId, Long userId) {
         BizApproval approval = approvalMapper.selectById(approvalId);
         if (approval == null || !canViewApproval(approval, userId)) {
-            throw new BusinessException("资源不存在或无权访问");
+            throw new BusinessException(LIT_X);
         }
         fillApprovalNames(approval);
         List<BizApprovalNode> nodes = approvalNodeMapper.selectList(new LambdaQueryWrapper<BizApprovalNode>()
@@ -202,23 +218,23 @@ public class ApprovalService {
                     // 前端提示"审批人已停用",异常可定位(处置规则待业务确认,引擎不自动跳过/批准)
                     boolean invalid = (approver.getStatus() == null || approver.getStatus() != 1)
                             || (approver.getDeleted() != null && approver.getDeleted() == 1);
-                    if (invalid && ("pending".equals(node.getStatus()) || "waiting".equals(node.getStatus()))) {
+                    if (invalid && (LIT_PENDING.equals(node.getStatus()) || LIT_WAITING.equals(node.getStatus()))) {
                         node.setApproverInvalid(true);
                     }
                 } else {
                     // 审批人已被物理删除:名字无可展示,同样标记
-                    if ("pending".equals(node.getStatus()) || "waiting".equals(node.getStatus())) {
+                    if (LIT_PENDING.equals(node.getStatus()) || LIT_WAITING.equals(node.getStatus())) {
                         node.setApproverInvalid(true);
                     }
                 }
             }
         }
         Map<String, Object> result = new HashMap<>();
-        result.put("approval", approval);
+        result.put(LIT_APPROVAL, approval);
         result.put("nodes", nodes);
         // 【11-08 修复清单9】详情同批带 currentApprover(与列表行同口径: 当前 pending 节点审批人==登录用户)
         boolean currentApprover = nodes.stream()
-                .filter(n -> "pending".equals(n.getStatus()))
+                .filter(n -> LIT_PENDING.equals(n.getStatus()))
                 .anyMatch(n -> userId != null && userId.equals(n.getApproverId()));
         approval.setCurrentApprover(currentApprover);
         result.put("currentApprover", currentApprover);
@@ -231,7 +247,7 @@ public class ApprovalService {
                 .eq(BizApprovalNode::getApprovalId, approval.getId())
                 .eq(BizApprovalNode::getApproverId, userId)) > 0) return true;
         // 【2026-09-19 接入权限矩阵】(approval,view) 显式配置优先，未配置回退角色数据范围
-        List<Long> visible = scopeResolver.resolveModuleUsers(SecurityUtils.getCurrentUser(), "approval");
+        List<Long> visible = scopeResolver.resolveModuleUsers(SecurityUtils.getCurrentUser(), LIT_APPROVAL);
         return visible == null || visible.contains(approval.getApplicantId());
     }
 
@@ -248,7 +264,7 @@ public class ApprovalService {
         // 【D1=A 存储空间】申请与客户无关: 忽略客户端 customerId;
         // 忽略客户端 oldQuota, 从库重新取当前配额后规范化 extraData
         // {"quota":new,"oldQuota":old,"reason":...} 落单(审批详情/执行侧单源读取)。
-        if ("storage".equals(type)) {
+        if (LIT_STORAGE.equals(type)) {
             StorageQuotaRequest request = parseStorageQuotaRequest(extraData);
             String reason = userService.validateStorageApplyReason(request.reason());
             // 串行化同一申请人的并发提交: 在任何普通读(会建立 RR 快照)之前先锁用户行,
@@ -264,11 +280,11 @@ public class ApprovalService {
         }
 
         // 公海捞取：检查是否已被他人申请
-        if ("claim".equals(type) && customerId != null) {
+        if (LIT_CLAIM.equals(type) && customerId != null) {
             BizSeaPool pool = seaPoolMapper.selectOne(
                     new LambdaQueryWrapper<BizSeaPool>()
                             .eq(BizSeaPool::getCustomerId, customerId)
-                            .in(BizSeaPool::getStatus, List.of("available", "pending_approval"))
+                            .in(BizSeaPool::getStatus, List.of(LIT_AVAILABLE, LIT_PENDING_APPROVAL))
                             .orderByDesc(BizSeaPool::getEnterDate)
                             .last("LIMIT 1")
             );
@@ -286,7 +302,7 @@ public class ApprovalService {
                             .noneMatch(c -> c.getId().equals(pool.getPoolId())))) {
                 throw new BusinessException("您没有该公海池的可见权限，无法捞取");
             }
-            if ("pending_approval".equals(pool.getStatus())) {
+            if (LIT_PENDING_APPROVAL.equals(pool.getStatus())) {
                 throw new BusinessException("该客户已被他人申请捞取，正在审批中");
             }
             // 原子锁定：条件更新防止并发双捞（仅 status=available 可更新，affected==1 才成功）
@@ -294,11 +310,11 @@ public class ApprovalService {
             // .releaseStaleClaimLocks)以 lt(claim_date, 截止) 筛超时行, 不写时间戳则 NULL 永不命中,
             // 无人审批的锁永久 pending_approval 锁死池行(此前生产 0 行受害, 纯代码修复)
             int locked = seaPoolMapper.update(null, new LambdaUpdateWrapper<BizSeaPool>()
-                    .set(BizSeaPool::getStatus, "pending_approval")
+                    .set(BizSeaPool::getStatus, LIT_PENDING_APPROVAL)
                     .set(BizSeaPool::getClaimUserId, applicantId)
                     .set(BizSeaPool::getClaimDate, LocalDateTime.now())
                     .eq(BizSeaPool::getId, pool.getId())
-                    .eq(BizSeaPool::getStatus, "available"));
+                    .eq(BizSeaPool::getStatus, LIT_AVAILABLE));
             if (locked != 1) {
                 throw new BusinessException("该客户已被他人申请捞取，正在审批中");
             }
@@ -307,17 +323,17 @@ public class ApprovalService {
         // 【体检 P1 2026-10-12】公海守卫(提交侧): 池内客户禁止发起延期/转移——审批通过会把
         // 客户拉回私海口径(延期直接 setStatus(normal)、转移盲改属主), 而池行仍 available 可被
         // 他人再捞, 造成双归属。与编辑接口的池内禁改守卫(CustomerService)同防线, 此处补审批入口。
-        if (("extend".equals(type) || "transfer".equals(type)) && customerId != null) {
+        if ((LIT_EXTEND.equals(type) || LIT_TRANSFER.equals(type)) && customerId != null) {
             BizCustomer guard = customerMapper.selectById(customerId);
             if (guard != null && "sea".equals(guard.getStatus())) {
                 throw new BusinessException("客户已在公海池中，不能发起"
-                        + ("extend".equals(type) ? "保护期延期" : "客户转移") + "；请先捞取回私海再操作");
+                        + (LIT_EXTEND.equals(type) ? "保护期延期" : "客户转移") + "；请先捞取回私海再操作");
             }
             // 【P0 2026-10-16 体检修复】extend 提交侧归属校验: 发起人必须对该客户有查看权限
             // (负责人/被分享/数据范围/公海池可见, 与详情页 canView 同链路)。
             // 旧实现只拦"池内客户", 任何持 incentive:view 者可对无权限客户发起 +360 天延期,
             // 审批人误批即生效(体检 P0-2 / 测试报告 M1)。
-            if ("extend".equals(type) && customerId != null) {
+            if (LIT_EXTEND.equals(type) && customerId != null) {
                 if (guard == null) {
                     throw new BusinessException("客户不存在, 无法发起保护期延期");
                 }
@@ -332,8 +348,8 @@ public class ApprovalService {
                 Long activeExtend = approvalMapper.selectCount(
                         new LambdaQueryWrapper<BizApproval>()
                                 .eq(BizApproval::getCustomerId, customerId)
-                                .eq(BizApproval::getApprovalType, "extend")
-                                .in(BizApproval::getStatus, "reviewing", "pending"));
+                                .eq(BizApproval::getApprovalType, LIT_EXTEND)
+                                .in(BizApproval::getStatus, LIT_REVIEWING, LIT_PENDING));
                 if (activeExtend != null && activeExtend > 0) {
                     throw new BusinessException("该客户已有进行中的保护期延期审批，请等待审批完成后再提交");
                 }
@@ -345,7 +361,7 @@ public class ApprovalService {
         // 【2026-09-23 转移校验前移】接收人有效性+集团边界原先只在审批通过时校验(applyApprovalAction),
         // 接收人失效(停用/删除/跨集团)时错误在审批人端爆发、发起人无感知——单据永远无法生效却显示"已提交"。
         // 前移到提交时 fail-fast,校验口径与审批执行侧逐字一致(消息复用);审批执行侧校验保留作最终防线。
-        if ("transfer".equals(type)) {
+        if (LIT_TRANSFER.equals(type)) {
             if (customerId == null) throw new BusinessException("转移必须指定客户");
             Long newOwnerId = parseTransferNewOwner(extraData);
             SysUser newOwner = userMapper.selectById(newOwnerId);
@@ -376,10 +392,10 @@ public class ApprovalService {
         // 审批通过前可调整,approve 侧 extendDays 参数覆盖此值)。默认取 sys_config
         // customer.extend.days;申请人显式传 extendDays 时校验 1~3650 后采用。存量/未带天数的
         // 在途单由执行侧回退 sys_config,兼容 2026-10-17 前发起的单据。
-        if ("extend".equals(type)) {
+        if (LIT_EXTEND.equals(type)) {
             Integer requestedDays = extractExtendDaysOrNull(extraData);
             int days = requestedDays != null ? requestedDays : getConfigInt("customer.extend.days", 360);
-            extraData = mergeExtraDataField(extraData, "extendDays", days);
+            extraData = mergeExtraDataField(extraData, LIT_EXTENDDAYS, days);
         }
 
         String prefix = "P" + Year.now().getValue() + "-";
@@ -390,7 +406,7 @@ public class ApprovalService {
         approval.setCustomerId(customerId);
         approval.setActionAfterApprove(actionAfterApprove);
         approval.setExtraData(extraData);
-        approval.setStatus("reviewing");
+        approval.setStatus(LIT_REVIEWING);
         // 【A3 2026-10-20/21 复核修复】取号+插入改为"集团行 FOR UPDATE 取号锁 + 锁定读 +
         // 唯一键冲突有限重试": MAX+1 取号原本无行锁, 并发提交会算出同一编号, 后提交方撞
         // uk_tenant_approval_code 直接 500; 详见 insertWithCodeGenerationRetry 注释
@@ -440,7 +456,7 @@ public class ApprovalService {
                     node.setApprovalId(approval.getId());
                     node.setApproverId(leaderId);
                     node.setNodeOrder(flow.getSortOrder());
-                    node.setStatus("pending");
+                    node.setStatus(LIT_PENDING);
                     approvalNodeMapper.insert(node);
                     createdNodes++;
                 } else {
@@ -452,7 +468,7 @@ public class ApprovalService {
                         node.setApprovalId(approval.getId());
                         node.setApproverId(ur.getUserId());
                         node.setNodeOrder(flow.getSortOrder());
-                        node.setStatus("pending");
+                        node.setStatus(LIT_PENDING);
                         approvalNodeMapper.insert(node);
                         createdNodes++;
                     }
@@ -538,14 +554,14 @@ public class ApprovalService {
         }
         BizApproval approval = approvalMapper.selectByIdForUpdate(approvalId);
         if (approval == null
-                || "approved".equals(approval.getStatus()) || "rejected".equals(approval.getStatus())) {
+                || LIT_APPROVED.equals(approval.getStatus()) || LIT_REJECTED.equals(approval.getStatus())) {
             throw new BusinessException("审批不存在或已结束,无法转交");
         }
         BizApprovalNode node = approvalNodeMapper.selectById(nodeId);
         if (node == null || !approvalId.equals(node.getApprovalId())) {
             throw new BusinessException("审批节点不存在或不属于该审批单");
         }
-        if (!"pending".equals(node.getStatus()) && !"waiting".equals(node.getStatus())) {
+        if (!LIT_PENDING.equals(node.getStatus()) && !LIT_WAITING.equals(node.getStatus())) {
             throw new BusinessException("仅待审批(pending/waiting)节点可转交");
         }
         SysUser target = userMapper.selectById(newApproverId);
@@ -580,21 +596,21 @@ public class ApprovalService {
         // 走统一 404 文案而非 500 死锁
         BizApproval approval = approvalMapper.selectByIdForUpdate(approvalId);
         // 【2026-08-14 404 防探测】单条语义接口统一文案: 不存在/已结束/无审批节点均返回同一消息, 消除存在性 oracle
-        if (approval == null) throw new BusinessException("资源不存在或无权访问");
+        if (approval == null) throw new BusinessException(LIT_X);
 
         // 【P0 审批状态机】终态守卫：已驳回/已通过的审批不得再操作（防驳回后复活）。
         // 合法态含 pending(库默认值/历史存量) 与 reviewing(发起时写入)，终态仅 approved/rejected。
-        if ("approved".equals(approval.getStatus()) || "rejected".equals(approval.getStatus())) {
-            throw new BusinessException("资源不存在或无权访问");
+        if (LIT_APPROVED.equals(approval.getStatus()) || LIT_REJECTED.equals(approval.getStatus())) {
+            throw new BusinessException(LIT_X);
         }
 
         BizApprovalNode node = approvalNodeMapper.selectOne(
                 new LambdaQueryWrapper<BizApprovalNode>()
                         .eq(BizApprovalNode::getApprovalId, approvalId)
                         .eq(BizApprovalNode::getApproverId, approverId)
-                        .eq(BizApprovalNode::getStatus, "pending")
+                        .eq(BizApprovalNode::getStatus, LIT_PENDING)
         );
-        if (node == null) throw new BusinessException("资源不存在或无权访问");
+        if (node == null) throw new BusinessException(LIT_X);
 
         // 【L1 2026-10-12 测试报告】自审自批闸门(审批侧兜底): 申请人不得审批自己发起的申请
         // (此前 extend 未配置独立流程时节点回退到直属领导, 领导本人发起即可自批 +360 真实生效)。
@@ -607,7 +623,7 @@ public class ApprovalService {
         // 调整值合并进 extraData 并在节点意见中留痕
         Integer adjustedExtendDays = null;
         if (extendDaysOverride != null) {
-            if (!"extend".equals(approval.getApprovalType())) {
+            if (!LIT_EXTEND.equals(approval.getApprovalType())) {
                 throw new BusinessException("仅延期审批可调整延期天数");
             }
             adjustedExtendDays = validateExtendDays(extendDaysOverride);
@@ -621,16 +637,16 @@ public class ApprovalService {
                 .set(BizApprovalNode::getAction, "approve")
                 .set(BizApprovalNode::getComment, comment)
                 .set(BizApprovalNode::getOperatedAt, LocalDateTime.now())
-                .set(BizApprovalNode::getStatus, "approved")
+                .set(BizApprovalNode::getStatus, LIT_APPROVED)
                 .eq(BizApprovalNode::getId, node.getId())
-                .eq(BizApprovalNode::getStatus, "pending"));
+                .eq(BizApprovalNode::getStatus, LIT_PENDING));
         if (transitioned != 1) {
             throw new BusinessException("该审批已处理，请刷新后查看");
         }
-        node.setStatus("approved");
+        node.setStatus(LIT_APPROVED);
         // 【延期B】调整值持久化进审批单(执行侧单源读 extraData.extendDays;多节点下后调整者覆盖)
         if (adjustedExtendDays != null) {
-            approval.setExtraData(mergeExtraDataField(approval.getExtraData(), "extendDays", adjustedExtendDays));
+            approval.setExtraData(mergeExtraDataField(approval.getExtraData(), LIT_EXTENDDAYS, adjustedExtendDays));
             approvalMapper.updateById(approval);
         }
         advanceApproval(approval, node);
@@ -653,7 +669,7 @@ public class ApprovalService {
 
         boolean legacy = nodes.stream().noneMatch(n -> n.getConfigId() != null);
         if (legacy) {
-            long pendingCount = nodes.stream().filter(n -> "pending".equals(n.getStatus())).count();
+            long pendingCount = nodes.stream().filter(n -> LIT_PENDING.equals(n.getStatus())).count();
             if (pendingCount == 0) {
                 finalizeApproval(approval);
             }
@@ -666,19 +682,19 @@ public class ApprovalService {
                 .filter(n -> n.getNodeOrder() != null && n.getNodeOrder() == myStage).toList();
         // 或签:本人已通过(条件流转保证唯一)即阶段完成;会签:本阶段 pending 清零
         boolean stageDone = anySignMode
-                || stageNodes.stream().noneMatch(n -> "pending".equals(n.getStatus()));
+                || stageNodes.stream().noneMatch(n -> LIT_PENDING.equals(n.getStatus()));
         if (!stageDone) return;
 
         for (BizApprovalNode s : stageNodes) {
-            if ("pending".equals(s.getStatus())) {
+            if (LIT_PENDING.equals(s.getStatus())) {
                 approvalNodeMapper.update(null, new LambdaUpdateWrapper<BizApprovalNode>()
-                        .set(BizApprovalNode::getStatus, "rejected")
+                        .set(BizApprovalNode::getStatus, LIT_REJECTED)
                         .set(BizApprovalNode::getAction, "cancelled")
                         .set(BizApprovalNode::getComment, "或签已完成，本节点自动取消")
                         .set(BizApprovalNode::getOperatedAt, LocalDateTime.now())
                         .eq(BizApprovalNode::getId, s.getId())
-                        .eq(BizApprovalNode::getStatus, "pending"));
-                s.setStatus("rejected"); // 内存态与库同步,后续"全单是否完结"判定不吃过期快照
+                        .eq(BizApprovalNode::getStatus, LIT_PENDING));
+                s.setStatus(LIT_REJECTED); // 内存态与库同步,后续"全单是否完结"判定不吃过期快照
             }
         }
 
@@ -691,18 +707,18 @@ public class ApprovalService {
         if (nextStage == Integer.MAX_VALUE) {
             // 无后续阶段:确认全单无未完结节点(防御性,串行下自然成立)
             boolean anyOpen = nodes.stream()
-                    .anyMatch(n -> "pending".equals(n.getStatus()) || "waiting".equals(n.getStatus()));
+                    .anyMatch(n -> LIT_PENDING.equals(n.getStatus()) || LIT_WAITING.equals(n.getStatus()));
             if (!anyOpen) {
                 finalizeApproval(approval);
             }
             return;
         }
         for (BizApprovalNode n : nodes) {
-            if (n.getNodeOrder() == nextStage && "waiting".equals(n.getStatus())) {
+            if (n.getNodeOrder() == nextStage && LIT_WAITING.equals(n.getStatus())) {
                 approvalNodeMapper.update(null, new LambdaUpdateWrapper<BizApprovalNode>()
-                        .set(BizApprovalNode::getStatus, "pending")
+                        .set(BizApprovalNode::getStatus, LIT_PENDING)
                         .eq(BizApprovalNode::getId, n.getId())
-                        .eq(BizApprovalNode::getStatus, "waiting"));
+                        .eq(BizApprovalNode::getStatus, LIT_WAITING));
             }
         }
         final int activatedStage = nextStage;
@@ -721,11 +737,11 @@ public class ApprovalService {
     /** 【PR-02】整单通过:reviewing→approved 条件更新,并发竞争下仅一个事务执行业务回写(只回写一次) */
     private void finalizeApproval(BizApproval approval) {
         int won = approvalMapper.update(null, new LambdaUpdateWrapper<BizApproval>()
-                .set(BizApproval::getStatus, "approved")
+                .set(BizApproval::getStatus, LIT_APPROVED)
                 .eq(BizApproval::getId, approval.getId())
-                .in(BizApproval::getStatus, "reviewing", "pending"));
+                .in(BizApproval::getStatus, LIT_REVIEWING, LIT_PENDING));
         if (won == 1) {
-            approval.setStatus("approved");
+            approval.setStatus(LIT_APPROVED);
             executeApprovalAction(approval);
         }
     }
@@ -736,50 +752,50 @@ public class ApprovalService {
         // 【PR-22 活体发现】与 approve 同款主行锁:同单驳回/通过并发也须串行
         BizApproval approval = approvalMapper.selectByIdForUpdate(approvalId);
         // 【2026-08-14 404 防探测】与 approve 同款统一文案(不存在/已结束/无审批节点), 防存在性探测
-        if (approval == null) throw new BusinessException("资源不存在或无权访问");
+        if (approval == null) throw new BusinessException(LIT_X);
 
         // 【P0 审批状态机】终态守卫：已通过/已驳回的审批不得再操作（防反向状态翻转）
-        if ("approved".equals(approval.getStatus()) || "rejected".equals(approval.getStatus())) {
-            throw new BusinessException("资源不存在或无权访问");
+        if (LIT_APPROVED.equals(approval.getStatus()) || LIT_REJECTED.equals(approval.getStatus())) {
+            throw new BusinessException(LIT_X);
         }
 
         BizApprovalNode node = approvalNodeMapper.selectOne(
                 new LambdaQueryWrapper<BizApprovalNode>()
                         .eq(BizApprovalNode::getApprovalId, approvalId)
                         .eq(BizApprovalNode::getApproverId, approverId)
-                        .eq(BizApprovalNode::getStatus, "pending")
+                        .eq(BizApprovalNode::getStatus, LIT_PENDING)
         );
-        if (node == null) throw new BusinessException("资源不存在或无权访问");
+        if (node == null) throw new BusinessException(LIT_X);
 
         // 【PR-02 并发/重复点击】与 approve 同款条件流转
         int transitioned = approvalNodeMapper.update(null, new LambdaUpdateWrapper<BizApprovalNode>()
                 .set(BizApprovalNode::getAction, "reject")
                 .set(BizApprovalNode::getComment, comment)
                 .set(BizApprovalNode::getOperatedAt, LocalDateTime.now())
-                .set(BizApprovalNode::getStatus, "rejected")
+                .set(BizApprovalNode::getStatus, LIT_REJECTED)
                 .eq(BizApprovalNode::getId, node.getId())
-                .eq(BizApprovalNode::getStatus, "pending"));
+                .eq(BizApprovalNode::getStatus, LIT_PENDING));
         if (transitioned != 1) {
             throw new BusinessException("该审批已处理，请刷新后查看");
         }
 
         // 【PR-02】整单驳回条件更新:并发下仅一个事务执行公海释放等业务回写
         int won = approvalMapper.update(null, new LambdaUpdateWrapper<BizApproval>()
-                .set(BizApproval::getStatus, "rejected")
+                .set(BizApproval::getStatus, LIT_REJECTED)
                 .eq(BizApproval::getId, approval.getId())
-                .in(BizApproval::getStatus, "reviewing", "pending"));
+                .in(BizApproval::getStatus, LIT_REVIEWING, LIT_PENDING));
         if (won == 1) {
-            approval.setStatus("rejected");
+            approval.setStatus(LIT_REJECTED);
 
             // 捞取被拒绝时，释放公海锁定，其他人可以再捞取
-            if ("claim".equals(approval.getApprovalType()) && approval.getCustomerId() != null) {
+            if (LIT_CLAIM.equals(approval.getApprovalType()) && approval.getCustomerId() != null) {
                 BizSeaPool pool = seaPoolMapper.selectOne(
                         new LambdaQueryWrapper<BizSeaPool>()
                                 .eq(BizSeaPool::getCustomerId, approval.getCustomerId())
-                                .eq(BizSeaPool::getStatus, "pending_approval")
+                                .eq(BizSeaPool::getStatus, LIT_PENDING_APPROVAL)
                 );
                 if (pool != null) {
-                    pool.setStatus("available");
+                    pool.setStatus(LIT_AVAILABLE);
                     pool.setClaimUserId(null);
                     // 【体检 H5 2026-10-12】同步清 claim_date(锁定时已写入), 与超时释放口径一致,
                     // 防 available 行残留旧时间戳干扰排查
@@ -794,9 +810,9 @@ public class ApprovalService {
         List<BizApprovalNode> siblings = approvalNodeMapper.selectList(
                 new LambdaQueryWrapper<BizApprovalNode>()
                         .eq(BizApprovalNode::getApprovalId, approvalId)
-                        .in(BizApprovalNode::getStatus, "pending", "waiting"));
+                        .in(BizApprovalNode::getStatus, LIT_PENDING, LIT_WAITING));
         for (BizApprovalNode s : siblings) {
-            s.setStatus("rejected");
+            s.setStatus(LIT_REJECTED);
             s.setAction("cancelled");
             s.setComment("审批已驳回，本节点自动作废");
             s.setOperatedAt(LocalDateTime.now());
@@ -816,7 +832,7 @@ public class ApprovalService {
         // 上级/组织负责人可见下级审批；all 范围(null)不过滤。
         // 【2026-09-19 接入权限矩阵】(approval,view) 显式配置优先，未配置回退角色数据范围
         // 【WP7】双轨读开关已内置于 resolveModuleUsers 入口(perm.read.approval=new 切内核)
-        List<Long> visible = scopeResolver.resolveModuleUsers(SecurityUtils.getCurrentUser(), "approval");
+        List<Long> visible = scopeResolver.resolveModuleUsers(SecurityUtils.getCurrentUser(), LIT_APPROVAL);
         if (visible == null) return; // all 范围：全量可见
         List<Long> involved = myInvolvedApprovalIds(userId);
         boolean hasVisible = !visible.isEmpty();
@@ -837,9 +853,9 @@ public class ApprovalService {
         long pending = approvalNodeMapper.selectCount(
                 new LambdaQueryWrapper<BizApprovalNode>()
                         .eq(BizApprovalNode::getApproverId, userId)
-                        .eq(BizApprovalNode::getStatus, "pending")
+                        .eq(BizApprovalNode::getStatus, LIT_PENDING)
         );
-        stats.put("pending", pending);
+        stats.put(LIT_PENDING, pending);
 
         stats.put("mine", approvalMapper.selectCount(
                 new LambdaQueryWrapper<BizApproval>().eq(BizApproval::getApplicantId, userId)));
@@ -848,24 +864,24 @@ public class ApprovalService {
         LambdaQueryWrapper<BizApproval> scoped = new LambdaQueryWrapper<>();
         applyDataScope(scoped, userId);
 
-        stats.put("reviewing", approvalMapper.selectCount(
-                scoped.clone().eq(BizApproval::getStatus, "reviewing")));
+        stats.put(LIT_REVIEWING, approvalMapper.selectCount(
+                scoped.clone().eq(BizApproval::getStatus, LIT_REVIEWING)));
 
         stats.put("all", approvalMapper.selectCount(scoped.clone()));
 
         LocalDateTime monthStart = LocalDate.now().withDayOfMonth(1).atStartOfDay();
         stats.put("approvedThisMonth", approvalMapper.selectCount(
-                scoped.clone().eq(BizApproval::getStatus, "approved")
+                scoped.clone().eq(BizApproval::getStatus, LIT_APPROVED)
                         .ge(BizApproval::getUpdatedAt, monthStart)));
         stats.put("rejectedThisMonth", approvalMapper.selectCount(
-                scoped.clone().eq(BizApproval::getStatus, "rejected")
+                scoped.clone().eq(BizApproval::getStatus, LIT_REJECTED)
                         .ge(BizApproval::getUpdatedAt, monthStart)));
         // 【工作流复核确认修复】补全量口径键: 页签角标原用 ThisMonth 而列表 tab=approved/rejected 返回
         // 全部历史,凡有历史单据角标与分页 total 必对不上(INV-12)。前端角标换用全量键,ThisMonth 保留给指标条。
         stats.put("approvedTotal", approvalMapper.selectCount(
-                scoped.clone().eq(BizApproval::getStatus, "approved")));
+                scoped.clone().eq(BizApproval::getStatus, LIT_APPROVED)));
         stats.put("rejectedTotal", approvalMapper.selectCount(
-                scoped.clone().eq(BizApproval::getStatus, "rejected")));
+                scoped.clone().eq(BizApproval::getStatus, LIT_REJECTED)));
         return stats;
     }
 
@@ -879,11 +895,11 @@ public class ApprovalService {
 
     private void executeApprovalAction(BizApproval approval) {
         switch (approval.getApprovalType()) {
-            case "claim" -> {
+            case LIT_CLAIM -> {
                 // 公海捞取 - 通过后客户归属变更（completeClaim 内部按 customerId 定位公海行）
                 seaService.completeClaim(approval.getCustomerId(), approval.getApplicantId());
             }
-            case "extend" -> {
+            case LIT_EXTEND -> {
                 // 【议题一裁决 2026-09-19 保护期决策表】延期天数走 sys_config(customer.extend.days,
                 // 管理员可改,与保护期同口径);approved_extend_days 累加后由统一公式重算到期日
                 // (=开票推导+累计已批延期)——删票回算开票部分不收回已批延期。
@@ -917,7 +933,7 @@ public class ApprovalService {
                             SecurityUtils.getCurrentUserId());
                 }
             }
-            case "transfer" -> {
+            case LIT_TRANSFER -> {
                 // 转移 - 负责人变更（解析失败必须显式报错，随事务回滚，不得静默成功）
                 // 【PR-09 2026-09-19 议题二/五裁决衔接】接收人有效性+集团边界+部门同步
                 if (approval.getExtraData() != null) {
@@ -979,7 +995,7 @@ public class ApprovalService {
                     }
                 }
             }
-            case "storage" -> {
+            case LIT_STORAGE -> {
                 // 【D1=A 2026-10-18】存储空间配额调整: 执行侧从库锁行取当前值并做"只升不降"复核,
                 // 并发导致 newQuota<=current 时抛明确业务异常, approve 事务整体回滚(不得静默成功)。
                 StorageQuotaRequest request = parseStorageQuotaRequest(approval.getExtraData());
@@ -1006,8 +1022,8 @@ public class ApprovalService {
         Long active = approvalMapper.selectCount(
                 new LambdaQueryWrapper<BizApproval>()
                         .eq(BizApproval::getApplicantId, applicantId)
-                        .eq(BizApproval::getApprovalType, "storage")
-                        .in(BizApproval::getStatus, "reviewing", "pending"));
+                        .eq(BizApproval::getApprovalType, LIT_STORAGE)
+                        .in(BizApproval::getStatus, LIT_REVIEWING, LIT_PENDING));
         return active != null && active > 0;
     }
 
@@ -1089,7 +1105,7 @@ public class ApprovalService {
         try {
             Map<String, Object> data = new com.fasterxml.jackson.databind.ObjectMapper()
                     .readValue(extraData, Map.class);
-            Object v = data.get("extendDays");
+            Object v = data.get(LIT_EXTENDDAYS);
             if (v == null) return null;
             return validateExtendDays(v instanceof Number n ? n.intValue()
                     : Integer.parseInt(String.valueOf(v).trim()));

@@ -36,6 +36,23 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class FabushiDashboardService {
+    // P0-5 batch A: duplicated string literals (Sonar java:S1192)
+    private static final String LIT_MONTH = "month";
+    private static final String LIT_MEMBERCOUNT = "memberCount";
+    private static final String LIT_COVERAGEPCT = "coveragePct";
+    private static final String LIT_RANKING = "ranking";
+    private static final String LIT_DEPTPROGRESS = "deptProgress";
+    private static final String LIT_TREND = "trend";
+    private static final String LIT_PUBLISHED = "published";
+    private static final String LIT_COUNT = "count";
+    private static final String LIT_POSTS = "posts";
+    private static final String LIT_LIKES = "likes";
+    private static final String LIT_COMMENTS = "comments";
+    private static final String LIT_READUSERS = "readUsers";
+    private static final String LIT_DEPTNAME = "deptName";
+    private static final String LIT_POSTCOUNT = "postCount";
+    private static final String LIT_READDAYS = "readDays";
+
 
     private final FabushiStatsService statsService;
     private final BizFabushiPostMapper postMapper;
@@ -48,31 +65,31 @@ public class FabushiDashboardService {
     private final SysDictService dictService;
 
     public Map<String, Object> dashboard(String period) {
-        boolean month = "month".equalsIgnoreCase(period);
+        boolean month = LIT_MONTH.equalsIgnoreCase(period);
         LocalDate today = LocalDate.now();
         LocalDate start = month ? today.withDayOfMonth(1) : today.with(DayOfWeek.MONDAY);
         LocalDateTime startAt = start.atStartOfDay();
         Set<Long> visible = statsService.visibleUserIdsOrNull(com.aigicrm.security.SecurityUtils.getCurrentUser());
 
         Map<String, Object> data = new LinkedHashMap<>();
-        data.put("period", month ? "month" : "week");
+        data.put("period", month ? LIT_MONTH : "week");
         data.put("periodStart", start.toString());
-        data.put("memberCount", visible == null ? -1 : visible.size());
+        data.put(LIT_MEMBERCOUNT, visible == null ? -1 : visible.size());
         if (visible != null && visible.isEmpty()) {
             data.put("todayReadUsers", 0);
-            data.put("coveragePct", null);
+            data.put(LIT_COVERAGEPCT, null);
             data.put("periodPosts", 0);
             data.put("periodLikes", 0);
             data.put("periodComments", 0);
-            data.put("ranking", List.of());
-            data.put("deptProgress", List.of());
+            data.put(LIT_RANKING, List.of());
+            data.put(LIT_DEPTPROGRESS, List.of());
             data.put("categoryHeat", List.of());
-            data.put("trend", List.of());
+            data.put(LIT_TREND, List.of());
             return data;
         }
 
         LambdaQueryWrapper<BizFabushiPost> pq = new LambdaQueryWrapper<BizFabushiPost>()
-                .eq(BizFabushiPost::getStatus, "published")
+                .eq(BizFabushiPost::getStatus, LIT_PUBLISHED)
                 .ge(BizFabushiPost::getCreatedAt, startAt);
         if (visible != null) pq.in(BizFabushiPost::getUserId, visible);
         List<BizFabushiPost> periodPosts = postMapper.selectList(pq);
@@ -83,7 +100,7 @@ public class FabushiDashboardService {
         List<BizFabushiLike> periodLikes = likeMapper.selectList(lq);
 
         LambdaQueryWrapper<BizFabushiComment> cq = new LambdaQueryWrapper<BizFabushiComment>()
-                .eq(BizFabushiComment::getStatus, "published")
+                .eq(BizFabushiComment::getStatus, LIT_PUBLISHED)
                 .ge(BizFabushiComment::getCreatedAt, startAt);
         if (visible != null) cq.in(BizFabushiComment::getUserId, visible);
         List<BizFabushiComment> periodComments = commentMapper.selectList(cq);
@@ -98,7 +115,7 @@ public class FabushiDashboardService {
                 .collect(Collectors.toSet());
 
         data.put("todayReadUsers", todayReaders.size());
-        data.put("coveragePct", visible == null ? null
+        data.put(LIT_COVERAGEPCT, visible == null ? null
                 : Math.round(todayReaders.size() * 1000.0 / visible.size()) / 10.0);
         data.put("periodPosts", (long) periodPosts.size());
         data.put("periodLikes", (long) periodLikes.size());
@@ -108,10 +125,10 @@ public class FabushiDashboardService {
                 .ge(BizFabushiReadStatus::getReadAt, startAt));
 
         // 榜单：发布数 / 获木鱼 / 已读天数（【2026-11-16 P3】提取为共用方法, 月度报告复用同一口径）
-        data.put("ranking", buildRanking(visible, periodPosts, periodReads, startAt));
+        data.put(LIT_RANKING, buildRanking(visible, periodPosts, periodReads, startAt));
         // 【2026-11-16 P3】部门进度: 同一周期数据按 sys_user.dept_id → sys_dept 内存分组
         // (口径与 score/statistics 部门排行先例同构), 覆盖率分母=可见集成员数
-        data.put("deptProgress", buildDeptProgress(visible, periodPosts, periodLikes, periodComments, periodReads));
+        data.put(LIT_DEPTPROGRESS, buildDeptProgress(visible, periodPosts, periodLikes, periodComments, periodReads));
 
         // 类别热度
         Map<String, String> catNames = dictService.listDataByCode("fabushi_category").stream()
@@ -131,7 +148,7 @@ public class FabushiDashboardService {
                     Map<String, Object> row = new LinkedHashMap<>();
                     row.put("categoryCode", e.getKey());
                     row.put("categoryName", catNames.getOrDefault(e.getKey(), e.getKey()));
-                    row.put("count", e.getValue());
+                    row.put(LIT_COUNT, e.getValue());
                     return row;
                 }).collect(Collectors.toList());
         data.put("categoryHeat", categoryHeat);
@@ -151,10 +168,10 @@ public class FabushiDashboardService {
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("date", e.getKey().toString());
             row.put("label", e.getKey().getMonthValue() + "-" + String.format("%02d", e.getKey().getDayOfMonth()));
-            row.put("count", e.getValue().size());
+            row.put(LIT_COUNT, e.getValue().size());
             return row;
         }).collect(Collectors.toList());
-        data.put("trend", trend);
+        data.put(LIT_TREND, trend);
         return data;
     }
 
@@ -178,34 +195,34 @@ public class FabushiDashboardService {
         Set<Long> visible = statsService.visibleUserIdsOrNull(com.aigicrm.security.SecurityUtils.getCurrentUser());
 
         Map<String, Object> data = new LinkedHashMap<>();
-        data.put("month", ym.toString());
+        data.put(LIT_MONTH, ym.toString());
         data.put("periodStart", start.toString());
         data.put("periodEnd", nextMonthStart.minusDays(1).toString());
-        data.put("memberCount", visible == null ? -1 : visible.size());
+        data.put(LIT_MEMBERCOUNT, visible == null ? -1 : visible.size());
         if (visible != null && visible.isEmpty()) {
-            data.put("posts", 0L);
-            data.put("likes", 0L);
-            data.put("comments", 0L);
+            data.put(LIT_POSTS, 0L);
+            data.put(LIT_LIKES, 0L);
+            data.put(LIT_COMMENTS, 0L);
             data.put("readCount", 0L);
-            data.put("readUsers", 0);
+            data.put(LIT_READUSERS, 0);
             data.put("activeUsers", 0);
-            data.put("coveragePct", null);
+            data.put(LIT_COVERAGEPCT, null);
             data.put("prev", Map.of());
-            data.put("deptProgress", List.of());
-            data.put("ranking", List.of());
-            data.put("trend", List.of());
+            data.put(LIT_DEPTPROGRESS, List.of());
+            data.put(LIT_RANKING, List.of());
+            data.put(LIT_TREND, List.of());
             return data;
         }
 
         List<BizFabushiPost> posts = postMapper.selectList(new LambdaQueryWrapper<BizFabushiPost>()
-                .eq(BizFabushiPost::getStatus, "published")
+                .eq(BizFabushiPost::getStatus, LIT_PUBLISHED)
                 .ge(BizFabushiPost::getCreatedAt, startAt).lt(BizFabushiPost::getCreatedAt, endAt));
         if (visible != null) posts = posts.stream().filter(p -> visible.contains(p.getUserId())).collect(Collectors.toList());
         List<BizFabushiLike> likes = likeMapper.selectList(new LambdaQueryWrapper<BizFabushiLike>()
                 .ge(BizFabushiLike::getCreatedAt, startAt).lt(BizFabushiLike::getCreatedAt, endAt));
         if (visible != null) likes = likes.stream().filter(l -> visible.contains(l.getUserId())).collect(Collectors.toList());
         List<BizFabushiComment> comments = commentMapper.selectList(new LambdaQueryWrapper<BizFabushiComment>()
-                .eq(BizFabushiComment::getStatus, "published")
+                .eq(BizFabushiComment::getStatus, LIT_PUBLISHED)
                 .ge(BizFabushiComment::getCreatedAt, startAt).lt(BizFabushiComment::getCreatedAt, endAt));
         if (visible != null) comments = comments.stream().filter(c -> visible.contains(c.getUserId())).collect(Collectors.toList());
         List<BizFabushiReadStatus> reads = readStatusMapper.selectList(new LambdaQueryWrapper<BizFabushiReadStatus>()
@@ -219,13 +236,13 @@ public class FabushiDashboardService {
         comments.forEach(c -> activeUsers.add(c.getUserId()));
         activeUsers.remove(null);
 
-        data.put("posts", (long) posts.size());
-        data.put("likes", (long) likes.size());
-        data.put("comments", (long) comments.size());
+        data.put(LIT_POSTS, (long) posts.size());
+        data.put(LIT_LIKES, (long) likes.size());
+        data.put(LIT_COMMENTS, (long) comments.size());
         data.put("readCount", (long) reads.size());
-        data.put("readUsers", readUsers.size());
+        data.put(LIT_READUSERS, readUsers.size());
         data.put("activeUsers", activeUsers.size());
-        data.put("coveragePct", visible == null ? null
+        data.put(LIT_COVERAGEPCT, visible == null ? null
                 : Math.round(readUsers.size() * 1000.0 / visible.size()) / 10.0);
 
         // 环比上月(同口径同可见集; 上月基数为 0 时百分比给 null, 前端显示 "—")
@@ -233,14 +250,14 @@ public class FabushiDashboardService {
         LocalDate prevStart = ym.minusMonths(1).atDay(1);
         LocalDateTime prevStartAt = prevStart.atStartOfDay();
         Long prevPosts = postMapper.selectCount(new LambdaQueryWrapper<BizFabushiPost>()
-                .eq(BizFabushiPost::getStatus, "published")
+                .eq(BizFabushiPost::getStatus, LIT_PUBLISHED)
                 .ge(BizFabushiPost::getCreatedAt, prevStartAt).lt(BizFabushiPost::getCreatedAt, startAt)
                 .in(visible != null, BizFabushiPost::getUserId, visible == null ? List.of(-1L) : visible));
         Long prevLikes = likeMapper.selectCount(new LambdaQueryWrapper<BizFabushiLike>()
                 .ge(BizFabushiLike::getCreatedAt, prevStartAt).lt(BizFabushiLike::getCreatedAt, startAt)
                 .in(visible != null, BizFabushiLike::getUserId, visible == null ? List.of(-1L) : visible));
         Long prevComments = commentMapper.selectCount(new LambdaQueryWrapper<BizFabushiComment>()
-                .eq(BizFabushiComment::getStatus, "published")
+                .eq(BizFabushiComment::getStatus, LIT_PUBLISHED)
                 .ge(BizFabushiComment::getCreatedAt, prevStartAt).lt(BizFabushiComment::getCreatedAt, startAt)
                 .in(visible != null, BizFabushiComment::getUserId, visible == null ? List.of(-1L) : visible));
         Long prevReadUsers = readStatusMapper.selectList(new LambdaQueryWrapper<BizFabushiReadStatus>()
@@ -249,11 +266,11 @@ public class FabushiDashboardService {
                 .stream().map(BizFabushiReadStatus::getUserId)
                 .filter(uid -> visible == null || visible.contains(uid))
                 .distinct().count();
-        prev.put("month", ym.minusMonths(1).toString());
-        prev.put("posts", prevPosts == null ? 0L : prevPosts);
-        prev.put("likes", prevLikes == null ? 0L : prevLikes);
-        prev.put("comments", prevComments == null ? 0L : prevComments);
-        prev.put("readUsers", prevReadUsers);
+        prev.put(LIT_MONTH, ym.minusMonths(1).toString());
+        prev.put(LIT_POSTS, prevPosts == null ? 0L : prevPosts);
+        prev.put(LIT_LIKES, prevLikes == null ? 0L : prevLikes);
+        prev.put(LIT_COMMENTS, prevComments == null ? 0L : prevComments);
+        prev.put(LIT_READUSERS, prevReadUsers);
         prev.put("postsPct", pct((long) posts.size(), prevPosts));
         prev.put("likesPct", pct((long) likes.size(), prevLikes));
         prev.put("commentsPct", pct((long) comments.size(), prevComments));
@@ -272,13 +289,13 @@ public class FabushiDashboardService {
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("date", e.getKey().toString());
             row.put("label", String.format("%02d-%02d", e.getKey().getMonthValue(), e.getKey().getDayOfMonth()));
-            row.put("count", e.getValue().size());
+            row.put(LIT_COUNT, e.getValue().size());
             return row;
         }).collect(Collectors.toList());
-        data.put("trend", trend);
+        data.put(LIT_TREND, trend);
 
-        data.put("deptProgress", buildDeptProgress(visible, posts, likes, comments, reads));
-        data.put("ranking", buildRanking(visible, posts, reads, startAt));
+        data.put(LIT_DEPTPROGRESS, buildDeptProgress(visible, posts, likes, comments, reads));
+        data.put(LIT_RANKING, buildRanking(visible, posts, reads, startAt));
         return data;
     }
 
@@ -294,7 +311,7 @@ public class FabushiDashboardService {
         Map<Long, Long> postCount = periodPosts.stream()
                 .collect(Collectors.groupingBy(BizFabushiPost::getUserId, Collectors.counting()));
         Set<Long> allPostIdsOfVisible = postMapper.selectList(new LambdaQueryWrapper<BizFabushiPost>()
-                        .eq(BizFabushiPost::getStatus, "published")
+                        .eq(BizFabushiPost::getStatus, LIT_PUBLISHED)
                         .in(BizFabushiPost::getUserId, visible == null ? List.of(-1L) : visible)
                         .select(BizFabushiPost::getId, BizFabushiPost::getUserId))
                 .stream().map(BizFabushiPost::getId).collect(Collectors.toSet());
@@ -335,14 +352,14 @@ public class FabushiDashboardService {
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("userId", uid);
             row.put("userName", u.getRealName());
-            row.put("deptName", depts.getOrDefault(u.getDeptId(), "—"));
-            row.put("postCount", p);
+            row.put(LIT_DEPTNAME, depts.getOrDefault(u.getDeptId(), "—"));
+            row.put(LIT_POSTCOUNT, p);
             row.put("likesReceived", likesReceived.getOrDefault(uid, 0L));
-            row.put("readDays", readDays.getOrDefault(uid, Set.of()).size());
+            row.put(LIT_READDAYS, readDays.getOrDefault(uid, Set.of()).size());
             row.put("activityPct", Math.round(p * 100.0 / Math.max(maxPost, 1)));
             ranking.add(row);
         }
-        ranking.sort((a, b) -> Long.compare((Long) b.get("postCount"), (Long) a.get("postCount")));
+        ranking.sort((a, b) -> Long.compare((Long) b.get(LIT_POSTCOUNT), (Long) a.get(LIT_POSTCOUNT)));
         return ranking.size() > 10 ? new ArrayList<>(ranking.subList(0, 10)) : ranking;
     }
 
@@ -397,14 +414,14 @@ public class FabushiDashboardService {
             long readDaysSum = uids.stream().mapToLong(uid -> userReadDays.getOrDefault(uid, Set.of()).size()).sum();
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("deptId", e.getKey());
-            row.put("deptName", depts.getOrDefault(e.getKey(), "—"));
-            row.put("memberCount", uids.size());
-            row.put("readUsers", readUsers);
-            row.put("coveragePct", Math.round(readUsers * 1000.0 / uids.size()) / 10.0);
-            row.put("posts", uids.stream().mapToLong(uid -> postCnt.getOrDefault(uid, 0L)).sum());
-            row.put("likes", uids.stream().mapToLong(uid -> likeCnt.getOrDefault(uid, 0L)).sum());
-            row.put("comments", uids.stream().mapToLong(uid -> commentCnt.getOrDefault(uid, 0L)).sum());
-            row.put("readDays", readDaysSum);
+            row.put(LIT_DEPTNAME, depts.getOrDefault(e.getKey(), "—"));
+            row.put(LIT_MEMBERCOUNT, uids.size());
+            row.put(LIT_READUSERS, readUsers);
+            row.put(LIT_COVERAGEPCT, Math.round(readUsers * 1000.0 / uids.size()) / 10.0);
+            row.put(LIT_POSTS, uids.stream().mapToLong(uid -> postCnt.getOrDefault(uid, 0L)).sum());
+            row.put(LIT_LIKES, uids.stream().mapToLong(uid -> likeCnt.getOrDefault(uid, 0L)).sum());
+            row.put(LIT_COMMENTS, uids.stream().mapToLong(uid -> commentCnt.getOrDefault(uid, 0L)).sum());
+            row.put(LIT_READDAYS, readDaysSum);
             rows.add(row);
         }
         if (noDeptCount > 0) {
@@ -414,25 +431,25 @@ public class FabushiDashboardService {
                     .filter(noDeptIds::contains).distinct().count();
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("deptId", null);
-            row.put("deptName", "未分配");
-            row.put("memberCount", noDeptCount);
-            row.put("readUsers", readUsers);
-            row.put("coveragePct", Math.round(readUsers * 1000.0 / noDeptCount) / 10.0);
-            row.put("posts", noDeptIds.stream().mapToLong(uid -> postCnt.getOrDefault(uid, 0L)).sum());
-            row.put("likes", noDeptIds.stream().mapToLong(uid -> likeCnt.getOrDefault(uid, 0L)).sum());
-            row.put("comments", noDeptIds.stream().mapToLong(uid -> commentCnt.getOrDefault(uid, 0L)).sum());
-            row.put("readDays", noDeptIds.stream().mapToLong(uid -> userReadDays.getOrDefault(uid, Set.of()).size()).sum());
+            row.put(LIT_DEPTNAME, "未分配");
+            row.put(LIT_MEMBERCOUNT, noDeptCount);
+            row.put(LIT_READUSERS, readUsers);
+            row.put(LIT_COVERAGEPCT, Math.round(readUsers * 1000.0 / noDeptCount) / 10.0);
+            row.put(LIT_POSTS, noDeptIds.stream().mapToLong(uid -> postCnt.getOrDefault(uid, 0L)).sum());
+            row.put(LIT_LIKES, noDeptIds.stream().mapToLong(uid -> likeCnt.getOrDefault(uid, 0L)).sum());
+            row.put(LIT_COMMENTS, noDeptIds.stream().mapToLong(uid -> commentCnt.getOrDefault(uid, 0L)).sum());
+            row.put(LIT_READDAYS, noDeptIds.stream().mapToLong(uid -> userReadDays.getOrDefault(uid, Set.of()).size()).sum());
             rows.add(row);
         }
         // 排序: 覆盖率降序 → 已读人数降序 → 成员数降序
         // (memberCount 来自 Set.size() 是 Integer、readUsers 是 long——统一经 Number 取值,
         //  【2026-11-16 实测教训】直接 (Long) 强转 Integer 在运行时 ClassCastException→500)
         rows.sort((a, b) -> {
-            int c = Double.compare(((Number) b.get("coveragePct")).doubleValue(), ((Number) a.get("coveragePct")).doubleValue());
+            int c = Double.compare(((Number) b.get(LIT_COVERAGEPCT)).doubleValue(), ((Number) a.get(LIT_COVERAGEPCT)).doubleValue());
             if (c != 0) return c;
-            c = Long.compare(((Number) b.get("readUsers")).longValue(), ((Number) a.get("readUsers")).longValue());
+            c = Long.compare(((Number) b.get(LIT_READUSERS)).longValue(), ((Number) a.get(LIT_READUSERS)).longValue());
             if (c != 0) return c;
-            return Long.compare(((Number) b.get("memberCount")).longValue(), ((Number) a.get("memberCount")).longValue());
+            return Long.compare(((Number) b.get(LIT_MEMBERCOUNT)).longValue(), ((Number) a.get(LIT_MEMBERCOUNT)).longValue());
         });
         return rows;
     }

@@ -53,6 +53,25 @@ import java.util.Set;
 @Service
 @RequiredArgsConstructor
 public class StatisticsQueryService {
+    // P0-5 batch A: duplicated string literals (Sonar java:S1192)
+    private static final String LIT_ARCHIVED = "archived";
+    private static final String LIT_QUASI = "quasi";
+    private static final String LIT_COREMINORWAN = "coreMinorWan";
+    private static final String LIT_COREMAJORWAN = "coreMajorWan";
+    private static final String LIT_CORECOUNT = "coreCount";
+    private static final String LIT_CORETYPE = "coreType";
+    private static final String LIT_CUSTOMER = "customer";
+    private static final String LIT_EXPIRING = "expiring";
+    private static final String LIT_CUSTOMERNAME = "customerName";
+    private static final String LIT_AVGSCORE = "avgScore";
+    private static final String LIT_RELATIONSHIPSCORE = "relationshipScore";
+    private static final String LIT_TOTALSCORE = "totalScore";
+    private static final String LIT_DEPTNAME = "deptName";
+    private static final String LIT_CUSTOMERCOUNT = "customerCount";
+    private static final String LIT_RECORDCOUNT = "recordCount";
+    private static final String LIT_BYPARENT = "byParent";
+    private static final String LIT_LIMIT_5 = "LIMIT 5";
+
 
     /** 【2026-11-03 用户令门槛配置化】核心客户判定双门槛 sys_config 键(万元, 键名与 CustomerService/迁移 V2026.11.03.1 同源)。 */
     static final String CORE_MINOR_WAN_KEY = CustomerService.CORE_MINOR_WAN_KEY;
@@ -68,7 +87,7 @@ public class StatisticsQueryService {
         if (invoiceMet && paymentMet) return "core";
         boolean invoiceQuasi = invoice != null && invoice.compareTo(minorWan) >= 0;
         boolean paymentQuasi = payment != null && payment.compareTo(minorWan) >= 0;
-        return invoiceQuasi && paymentQuasi ? "quasi" : "";
+        return invoiceQuasi && paymentQuasi ? LIT_QUASI : "";
     }
 
     /** 每请求读一次双门槛配置(脏值/非正数回退默认 50/100); 统计接口同时回传给前端做门槛文案。 */
@@ -265,7 +284,7 @@ public class StatisticsQueryService {
      *   getTenantId/resolveTenantId 同口径):原 "all"/"own:..." 等键无集团维度，第二集团上线后
      *   同键跨集团互串(取不到集团=fail-closed 固定前缀 "g-none:"，不与任何真实集团互串)。
      * 【C1 2026-10-08】非 admin 分支同样并入规则引擎指纹:applyDataScope 对非 admin 在可见集合之外
-     *   还会追加 applyRuleEngineFilter(同一 evaluateForEntity(rules, user, "customer") 维度)，
+     *   还会追加 applyRuleEngineFilter(同一 evaluateForEntity(rules, user, LIT_CUSTOMER) 维度)，
      *   同可见集合不同规则的两用户统计口径不同，原签名漏该维度会互相命中对方口径；无规则=固定值 "all"
      *   (与 admin 分支同一取法)。
      * admin → "adm:" + 规则指纹（无规则即纯 all）；
@@ -285,9 +304,9 @@ public class StatisticsQueryService {
         String ruleFp = ruleFingerprint(user);
         com.aigicrm.common.scope.ScopeRequest req = com.aigicrm.common.scope.ScopeRequest.builder()
                 .user(user)
-                .module("customer")
+                .module(LIT_CUSTOMER)
                 .action("view")
-                .anchor(rolePermScopeService.anchorOf(user, "customer", "view"))
+                .anchor(rolePermScopeService.anchorOf(user, LIT_CUSTOMER, "view"))
                 .build();
         com.aigicrm.common.scope.ScopeDecision d = orgScopeResolver.resolveScope(req);
         String base;
@@ -306,14 +325,14 @@ public class StatisticsQueryService {
     }
 
     /**
-     * 规则引擎指纹:PermissionRuleEngine.evaluateForEntity(rules, user, "customer") 的 WHERE 指纹，
+     * 规则引擎指纹:PermissionRuleEngine.evaluateForEntity(rules, user, LIT_CUSTOMER) 的 WHERE 指纹，
      * 无规则(或无 customer 实体匹配规则)时=固定值 "all"——与 CustomerService.applyDataScope 尾部
      * 追加的 applyRuleEngineFilter 完全同维度，签名漏掉该维度会让同可见集合不同规则的用户互串统计。
      */
     private static String ruleFingerprint(com.aigicrm.security.SecurityUser user) {
         if (user.getPermissionRules() == null || user.getPermissionRules().isEmpty()) return "all";
         String ruleWhere = com.aigicrm.common.engine.PermissionRuleEngine
-                .evaluateForEntity(user.getPermissionRules(), user, "customer");
+                .evaluateForEntity(user.getPermissionRules(), user, LIT_CUSTOMER);
         return (ruleWhere == null || ruleWhere.isEmpty()) ? "all" : Integer.toHexString(ruleWhere.hashCode());
     }
 
@@ -336,7 +355,7 @@ public class StatisticsQueryService {
 
         data.put("myCustomers", customerService.countByScope());
         data.put("inProtection", customerService.countInProtectionByScope());
-        data.put("expiring", customerService.countExpiringByScope());
+        data.put(LIT_EXPIRING, customerService.countExpiringByScope());
         data.put("expired", customerService.countExpiredByScope());
 
         LocalDate today = LocalDate.now();
@@ -344,7 +363,7 @@ public class StatisticsQueryService {
         List<Map<String, Object>> expiringDetails = new ArrayList<>();
         for (BizCustomer c : expiringList) {
             Map<String, Object> item = new HashMap<>();
-            item.put("customerName", c.getCustomerName());
+            item.put(LIT_CUSTOMERNAME, c.getCustomerName());
             item.put("officeName", c.getOfficeName() != null ? c.getOfficeName() : "");
             long days = c.getExpireDate() != null ?
                     java.time.temporal.ChronoUnit.DAYS.between(today, c.getExpireDate()) : 0;
@@ -477,7 +496,7 @@ public class StatisticsQueryService {
             if (ann != null) {
                 String ct = coreTypeOf(ann[0], ann[1], coreThresholds[0], coreThresholds[1]);
                 if ("core".equals(ct)) coreCount++;
-                else if ("quasi".equals(ct)) quasiCount++;
+                else if (LIT_QUASI.equals(ct)) quasiCount++;
             }
         }
         int qualifyCount = 0;
@@ -487,11 +506,11 @@ public class StatisticsQueryService {
         }
 
         data.put("coveredCount", coveredCount);
-        data.put("coreCount", coreCount);
+        data.put(LIT_CORECOUNT, coreCount);
         data.put("quasiCount", quasiCount);
-        data.put("coreMinorWan", coreThresholds[0]);
-        data.put("coreMajorWan", coreThresholds[1]);
-        data.put("avgScore", coveredCount > 0 ? Math.round(scoreSum / coveredCount * 10) / 10.0 : 0);
+        data.put(LIT_COREMINORWAN, coreThresholds[0]);
+        data.put(LIT_COREMAJORWAN, coreThresholds[1]);
+        data.put(LIT_AVGSCORE, coveredCount > 0 ? Math.round(scoreSum / coveredCount * 10) / 10.0 : 0);
         data.put("qualifyRate", allCustomers.size() > 0 ? Math.round(qualifyCount * 1000.0 / allCustomers.size()) / 10.0 : 0);
 
         List<Map<String, Object>> customerRanking = new ArrayList<>();
@@ -506,26 +525,26 @@ public class StatisticsQueryService {
             String coreType = ann != null ? coreTypeOf(invTotal, paymentTotal, coreThresholds[0], coreThresholds[1]) : "";
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("customerId", ind.getCustomerId());
-            row.put("customerName", c.getCustomerName());
+            row.put(LIT_CUSTOMERNAME, c.getCustomerName());
             row.put("ownerName", c.getOwnerName());
             row.put("industry", c.getIndustry());
             row.put("devType", c.getDevType());
             row.put("invoiceTotal", invTotal);
             row.put("paymentTotal", paymentTotal);
-            row.put("relationshipScore", ind.getRelationshipScore() != null ? ind.getRelationshipScore() : 0);
+            row.put(LIT_RELATIONSHIPSCORE, ind.getRelationshipScore() != null ? ind.getRelationshipScore() : 0);
             row.put("indicator02", ind.getIndicator02() != null ? ind.getIndicator02() : 0);
             row.put("indicator03", ind.getIndicator03() != null ? ind.getIndicator03() : 0);
             row.put("indicator04", ind.getIndicator04() != null ? ind.getIndicator04() : 0);
             row.put("indicator05", ind.getIndicator05() != null ? ind.getIndicator05() : 0);
-            row.put("totalScore", s);
+            row.put(LIT_TOTALSCORE, s);
             row.put("core", "core".equals(coreType));
-            row.put("coreType", coreType);
+            row.put(LIT_CORETYPE, coreType);
             customerRanking.add(row);
         }
         customerRanking.sort((a, b) -> {
-            int cmp = Integer.compare(((Number) b.get("totalScore")).intValue(), ((Number) a.get("totalScore")).intValue());
+            int cmp = Integer.compare(((Number) b.get(LIT_TOTALSCORE)).intValue(), ((Number) a.get(LIT_TOTALSCORE)).intValue());
             if (cmp != 0) return cmp;
-            return String.valueOf(a.getOrDefault("customerName", "")).compareTo(String.valueOf(b.getOrDefault("customerName", "")));
+            return String.valueOf(a.getOrDefault(LIT_CUSTOMERNAME, "")).compareTo(String.valueOf(b.getOrDefault(LIT_CUSTOMERNAME, "")));
         });
         data.put("customerRanking", customerRanking);
 
@@ -578,43 +597,43 @@ public class StatisticsQueryService {
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("userId", uid);
             row.put("realName", user.getRealName());
-            row.put("deptName", deptName);
-            row.put("customerCount", custCount);
-            row.put("coreCount", cores);
-            row.put("avgScore", avgScoreP);
+            row.put(LIT_DEPTNAME, deptName);
+            row.put(LIT_CUSTOMERCOUNT, custCount);
+            row.put(LIT_CORECOUNT, cores);
+            row.put(LIT_AVGSCORE, avgScoreP);
             row.put("maxScore", maxScore);
-            row.put("totalScore", totalScore);
+            row.put(LIT_TOTALSCORE, totalScore);
             row.put("level", cores > 0 ? "优秀" : "一般");
             personalRanking.add(row);
         }
         personalRanking.sort((a, b) -> {
-            int cmp = Integer.compare(((Number) b.get("totalScore")).intValue(), ((Number) a.get("totalScore")).intValue());
+            int cmp = Integer.compare(((Number) b.get(LIT_TOTALSCORE)).intValue(), ((Number) a.get(LIT_TOTALSCORE)).intValue());
             if (cmp != 0) return cmp;
-            return Long.compare(((Number) b.get("customerCount")).longValue(), ((Number) a.get("customerCount")).longValue());
+            return Long.compare(((Number) b.get(LIT_CUSTOMERCOUNT)).longValue(), ((Number) a.get(LIT_CUSTOMERCOUNT)).longValue());
         });
         data.put("personalRanking", personalRanking);
 
         Map<String, int[]> deptAgg = new LinkedHashMap<>();
         for (var p : personalRanking) {
-            String dn = (String) p.getOrDefault("deptName", "未知");
+            String dn = (String) p.getOrDefault(LIT_DEPTNAME, "未知");
             int[] agg = deptAgg.computeIfAbsent(dn, k -> new int[4]);
-            agg[0] += ((Number) p.get("totalScore")).intValue();
-            agg[1] += ((Number) p.get("customerCount")).intValue();
-            agg[2] += ((Number) p.get("coreCount")).intValue();
+            agg[0] += ((Number) p.get(LIT_TOTALSCORE)).intValue();
+            agg[1] += ((Number) p.get(LIT_CUSTOMERCOUNT)).intValue();
+            agg[2] += ((Number) p.get(LIT_CORECOUNT)).intValue();
             agg[3] += 1;
         }
         List<Map<String, Object>> deptRanking = new ArrayList<>();
         for (var e : deptAgg.entrySet()) {
             Map<String, Object> row = new LinkedHashMap<>();
-            row.put("deptName", e.getKey());
-            row.put("totalScore", e.getValue()[0]);
-            row.put("customerCount", e.getValue()[1]);
-            row.put("coreCount", e.getValue()[2]);
+            row.put(LIT_DEPTNAME, e.getKey());
+            row.put(LIT_TOTALSCORE, e.getValue()[0]);
+            row.put(LIT_CUSTOMERCOUNT, e.getValue()[1]);
+            row.put(LIT_CORECOUNT, e.getValue()[2]);
             row.put("memberCount", e.getValue()[3]);
-            row.put("avgScore", e.getValue()[1] > 0 ? Math.round(e.getValue()[0] * 10.0 / e.getValue()[1]) / 10.0 : 0);
+            row.put(LIT_AVGSCORE, e.getValue()[1] > 0 ? Math.round(e.getValue()[0] * 10.0 / e.getValue()[1]) / 10.0 : 0);
             deptRanking.add(row);
         }
-        deptRanking.sort((a, b) -> Integer.compare(((Number) b.get("totalScore")).intValue(), ((Number) a.get("totalScore")).intValue()));
+        deptRanking.sort((a, b) -> Integer.compare(((Number) b.get(LIT_TOTALSCORE)).intValue(), ((Number) a.get(LIT_TOTALSCORE)).intValue()));
         data.put("deptRanking", deptRanking);
 
         // 批量预取办事处，避免循环内逐条 selectById
@@ -645,13 +664,13 @@ public class StatisticsQueryService {
         for (var e : officeAgg.entrySet()) {
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("regionName", e.getKey());
-            row.put("totalScore", e.getValue()[0]);
-            row.put("customerCount", e.getValue()[1]);
-            row.put("coreCount", e.getValue()[2]);
-            row.put("avgScore", e.getValue()[1] > 0 ? Math.round(e.getValue()[0] * 10.0 / e.getValue()[1]) / 10.0 : 0);
+            row.put(LIT_TOTALSCORE, e.getValue()[0]);
+            row.put(LIT_CUSTOMERCOUNT, e.getValue()[1]);
+            row.put(LIT_CORECOUNT, e.getValue()[2]);
+            row.put(LIT_AVGSCORE, e.getValue()[1] > 0 ? Math.round(e.getValue()[0] * 10.0 / e.getValue()[1]) / 10.0 : 0);
             regionRanking.add(row);
         }
-        regionRanking.sort((a, b) -> Integer.compare(((Number) b.get("totalScore")).intValue(), ((Number) a.get("totalScore")).intValue()));
+        regionRanking.sort((a, b) -> Integer.compare(((Number) b.get(LIT_TOTALSCORE)).intValue(), ((Number) a.get(LIT_TOTALSCORE)).intValue()));
         data.put("regionRanking", regionRanking);
 
         return data;
@@ -700,10 +719,10 @@ public class StatisticsQueryService {
             if (customer == null) continue;
             Map<String, Object> row = incentiveRows.computeIfAbsent(record.getCustomerId(), id -> customerBaseRow(customer));
             int score = safeValue(record.getScore());
-            row.put("totalScore", ((Number) row.getOrDefault("totalScore", 0)).intValue() + score);
-            row.put("recordCount", ((Number) row.getOrDefault("recordCount", 0)).intValue() + 1);
+            row.put(LIT_TOTALSCORE, ((Number) row.getOrDefault(LIT_TOTALSCORE, 0)).intValue() + score);
+            row.put(LIT_RECORDCOUNT, ((Number) row.getOrDefault(LIT_RECORDCOUNT, 0)).intValue() + 1);
             @SuppressWarnings("unchecked")
-            Map<Long, int[]> byParent = (Map<Long, int[]>) row.computeIfAbsent("byParent", key -> new LinkedHashMap<Long, int[]>());
+            Map<Long, int[]> byParent = (Map<Long, int[]>) row.computeIfAbsent(LIT_BYPARENT, key -> new LinkedHashMap<Long, int[]>());
             Long parentId = rootCategoryId(record.getCategoryId(), categoryMap);
             if (parentId != null) {
                 int[] summary = byParent.computeIfAbsent(parentId, key -> new int[2]);
@@ -712,7 +731,7 @@ public class StatisticsQueryService {
             }
         }
         List<Map<String, Object>> incentiveRanking = incentiveRows.values().stream()
-                .filter(row -> ((Number) row.getOrDefault("totalScore", 0)).intValue() > 0)
+                .filter(row -> ((Number) row.getOrDefault(LIT_TOTALSCORE, 0)).intValue() > 0)
                 .map(this::serializeIncentiveRankingRow)
                 .sorted(this::compareTotalScoreThenCustomer)
                 .toList();
@@ -721,12 +740,12 @@ public class StatisticsQueryService {
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> indicatorRanking = (List<Map<String, Object>>) indicatorStats.getOrDefault("customerRanking", List.of());
         List<Map<String, Object>> relationshipRanking = indicatorRanking.stream()
-                .filter(row -> ((Number) row.getOrDefault("relationshipScore", 0)).intValue() > 0)
+                .filter(row -> ((Number) row.getOrDefault(LIT_RELATIONSHIPSCORE, 0)).intValue() > 0)
                 .sorted((a, b) -> {
-                    int cmp = Integer.compare(((Number) b.getOrDefault("relationshipScore", 0)).intValue(),
-                            ((Number) a.getOrDefault("relationshipScore", 0)).intValue());
+                    int cmp = Integer.compare(((Number) b.getOrDefault(LIT_RELATIONSHIPSCORE, 0)).intValue(),
+                            ((Number) a.getOrDefault(LIT_RELATIONSHIPSCORE, 0)).intValue());
                     if (cmp != 0) return cmp;
-                    return String.valueOf(a.getOrDefault("customerName", "")).compareTo(String.valueOf(b.getOrDefault("customerName", "")));
+                    return String.valueOf(a.getOrDefault(LIT_CUSTOMERNAME, "")).compareTo(String.valueOf(b.getOrDefault(LIT_CUSTOMERNAME, "")));
                 })
                 .toList();
 
@@ -735,11 +754,11 @@ public class StatisticsQueryService {
         data.put("incentiveRanking", incentiveRanking);
         data.put("relationshipRanking", relationshipRanking);
         data.put("indicatorRanking", indicatorRanking);
-        data.put("coreCount", indicatorRanking.stream().filter(row -> "core".equals(row.get("coreType"))).count());
-        data.put("quasiCount", indicatorRanking.stream().filter(row -> "quasi".equals(row.get("coreType"))).count());
+        data.put(LIT_CORECOUNT, indicatorRanking.stream().filter(row -> "core".equals(row.get(LIT_CORETYPE))).count());
+        data.put("quasiCount", indicatorRanking.stream().filter(row -> LIT_QUASI.equals(row.get(LIT_CORETYPE))).count());
         // 【2026-11-03 门槛配置化】排行页门槛文案同源回传(与 indicatorStats 同一份配置读数)
-        data.put("coreMinorWan", indicatorStats.get("coreMinorWan"));
-        data.put("coreMajorWan", indicatorStats.get("coreMajorWan"));
+        data.put(LIT_COREMINORWAN, indicatorStats.get(LIT_COREMINORWAN));
+        data.put(LIT_COREMAJORWAN, indicatorStats.get(LIT_COREMAJORWAN));
         return data;
     }
 
@@ -760,11 +779,11 @@ public class StatisticsQueryService {
     private Map<String, Object> customerBaseRow(BizCustomer customer) {
         Map<String, Object> row = new LinkedHashMap<>();
         row.put("customerId", customer.getId());
-        row.put("customerName", customer.getCustomerName());
+        row.put(LIT_CUSTOMERNAME, customer.getCustomerName());
         row.put("ownerName", customer.getOwnerName());
         row.put("industry", customer.getIndustry());
-        row.put("totalScore", 0);
-        row.put("recordCount", 0);
+        row.put(LIT_TOTALSCORE, 0);
+        row.put(LIT_RECORDCOUNT, 0);
         return row;
     }
 
@@ -784,7 +803,7 @@ public class StatisticsQueryService {
     private Map<String, Object> serializeIncentiveRankingRow(Map<String, Object> source) {
         Map<String, Object> row = new LinkedHashMap<>(source);
         @SuppressWarnings("unchecked")
-        Map<Long, int[]> raw = (Map<Long, int[]>) row.remove("byParent");
+        Map<Long, int[]> raw = (Map<Long, int[]>) row.remove(LIT_BYPARENT);
         Map<String, Map<String, Integer>> serialized = new LinkedHashMap<>();
         if (raw != null) {
             for (Map.Entry<Long, int[]> entry : raw.entrySet()) {
@@ -794,15 +813,15 @@ public class StatisticsQueryService {
                 serialized.put(String.valueOf(entry.getKey()), value);
             }
         }
-        row.put("byParent", serialized);
+        row.put(LIT_BYPARENT, serialized);
         return row;
     }
 
     private int compareTotalScoreThenCustomer(Map<String, Object> a, Map<String, Object> b) {
-        int cmp = Integer.compare(((Number) b.getOrDefault("totalScore", 0)).intValue(),
-                ((Number) a.getOrDefault("totalScore", 0)).intValue());
+        int cmp = Integer.compare(((Number) b.getOrDefault(LIT_TOTALSCORE, 0)).intValue(),
+                ((Number) a.getOrDefault(LIT_TOTALSCORE, 0)).intValue());
         if (cmp != 0) return cmp;
-        return String.valueOf(a.getOrDefault("customerName", "")).compareTo(String.valueOf(b.getOrDefault("customerName", "")));
+        return String.valueOf(a.getOrDefault(LIT_CUSTOMERNAME, "")).compareTo(String.valueOf(b.getOrDefault(LIT_CUSTOMERNAME, "")));
     }
 
     /**
@@ -819,7 +838,7 @@ public class StatisticsQueryService {
             LocalDateTime from = LocalDateTime.of(year, m, 1, 0, 0);
             LocalDateTime to = (m < 12) ? LocalDateTime.of(year, m + 1, 1, 0, 0) : LocalDateTime.of(year + 1, 1, 1, 0, 0);
             LambdaQueryWrapper<BizCustomer> cw = new LambdaQueryWrapper<>();
-            cw.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", "archived") // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
+            cw.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", LIT_ARCHIVED) // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
               .ge(BizCustomer::getCreatedAt, from).lt(BizCustomer::getCreatedAt, to);
             if (deptId != null) cw.in(BizCustomer::getOfficeId, com.aigicrm.common.util.DeptTreeUtils.expandSubtree(deptMapper, deptId));
             else if (officeId != null) cw.eq(BizCustomer::getOfficeId, officeId);
@@ -853,7 +872,7 @@ public class StatisticsQueryService {
                 if (!visOwners.isEmpty()) {
                     LambdaQueryWrapper<BizCustomer> vwc = new LambdaQueryWrapper<>();
                     vwc.eq(BizCustomer::getDeleted, 0)
-                       .notIn(BizCustomer::getStatus, "sea", "archived")
+                       .notIn(BizCustomer::getStatus, "sea", LIT_ARCHIVED)
                        .isNotNull(BizCustomer::getOfficeId)
                        .in(BizCustomer::getOwnerId, visOwners);
                     for (BizCustomer vc : customerMapper.selectList(vwc)) {
@@ -866,7 +885,7 @@ public class StatisticsQueryService {
         for (var dept : allDepts) {
             if (visibleOfficeIds != null && !visibleOfficeIds.contains(dept.getId())) continue; // 【WP1.5】范围外办事处不入列表
             LambdaQueryWrapper<BizCustomer> w = new LambdaQueryWrapper<>();
-            w.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", "archived") // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
+            w.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", LIT_ARCHIVED) // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
              .eq(BizCustomer::getOfficeId, dept.getId());
             applyCustomerScope(w);
             long total = customerMapper.selectCount(w);
@@ -876,13 +895,13 @@ public class StatisticsQueryService {
             // 【体检 P1 2026-10-12】活跃率分子补 notIn(sea/archived)与分母/同方法 inProtection 对齐:
             // 归档不清 protectionStatus, 不排时分子可含归档客户(虚高, 极端时 >100%)
             aw.eq(BizCustomer::getDeleted, 0).eq(BizCustomer::getProtectionStatus, "active")
-              .notIn(BizCustomer::getStatus, "sea", "archived")
+              .notIn(BizCustomer::getStatus, "sea", LIT_ARCHIVED)
               .eq(BizCustomer::getOfficeId, dept.getId());
             applyCustomerScope(aw);
             long active = customerMapper.selectCount(aw);
 
             LambdaQueryWrapper<BizCustomer> nw = new LambdaQueryWrapper<>();
-            nw.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", "archived") // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
+            nw.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", LIT_ARCHIVED) // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
               .eq(BizCustomer::getOfficeId, dept.getId())
               .ge(BizCustomer::getCreatedAt, monthStart);
             applyCustomerScope(nw);
@@ -894,7 +913,7 @@ public class StatisticsQueryService {
                 LocalDateTime mf = md.atStartOfDay();
                 LocalDateTime mt = md.plusMonths(1).atStartOfDay();
                 LambdaQueryWrapper<BizCustomer> rw = new LambdaQueryWrapper<>();
-                rw.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", "archived") // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
+                rw.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", LIT_ARCHIVED) // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
                   .eq(BizCustomer::getOfficeId, dept.getId())
                   .ge(BizCustomer::getCreatedAt, mf).lt(BizCustomer::getCreatedAt, mt);
                 applyCustomerScope(rw);
@@ -903,25 +922,25 @@ public class StatisticsQueryService {
 
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("officeName", dept.getDeptName());
-            row.put("customerCount", total);
+            row.put(LIT_CUSTOMERCOUNT, total);
             row.put("monthNew", monthNew);
             row.put("activeRate", total > 0 ? Math.round(active * 1000.0 / total) / 10.0 : 0);
             row.put("recent5", recent5);
             officeComparison.add(row);
         }
-        officeComparison.sort((a, b) -> Long.compare((long) b.get("customerCount"), (long) a.get("customerCount")));
+        officeComparison.sort((a, b) -> Long.compare((long) b.get(LIT_CUSTOMERCOUNT), (long) a.get(LIT_CUSTOMERCOUNT)));
         data.put("officeComparison", officeComparison);
 
         LocalDate today = LocalDate.now();
         LambdaQueryWrapper<BizCustomer> baseW = new LambdaQueryWrapper<BizCustomer>()
-                .eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", "archived"); // B5 统一口径: 排sea+archived
+                .eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", LIT_ARCHIVED); // B5 统一口径: 排sea+archived
         if (deptId != null) baseW.in(BizCustomer::getOfficeId, com.aigicrm.common.util.DeptTreeUtils.expandSubtree(deptMapper, deptId));
         else if (officeId != null) baseW.eq(BizCustomer::getOfficeId, officeId);
         applyCustomerScope(baseW);
         long totalCustomers = customerMapper.selectCount(baseW);
 
         LambdaQueryWrapper<BizCustomer> protW = new LambdaQueryWrapper<BizCustomer>()
-                .eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", "archived") // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
+                .eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", LIT_ARCHIVED) // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
                 .eq(BizCustomer::getProtectionStatus, "active");
         if (deptId != null) protW.in(BizCustomer::getOfficeId,
                 com.aigicrm.common.util.DeptTreeUtils.expandSubtree(deptMapper, deptId));
@@ -930,8 +949,8 @@ public class StatisticsQueryService {
         long inProtection = customerMapper.selectCount(protW);
 
         LambdaQueryWrapper<BizCustomer> expingW = new LambdaQueryWrapper<BizCustomer>()
-                .eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", "archived") // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
-                .eq(BizCustomer::getProtectionStatus, "expiring");
+                .eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", LIT_ARCHIVED) // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
+                .eq(BizCustomer::getProtectionStatus, LIT_EXPIRING);
         if (deptId != null) expingW.in(BizCustomer::getOfficeId,
                 com.aigicrm.common.util.DeptTreeUtils.expandSubtree(deptMapper, deptId));
         else if (officeId != null) expingW.eq(BizCustomer::getOfficeId, officeId);
@@ -939,7 +958,7 @@ public class StatisticsQueryService {
         long expiring = customerMapper.selectCount(expingW);
 
         LambdaQueryWrapper<BizCustomer> expW = new LambdaQueryWrapper<BizCustomer>()
-                .eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", "archived") // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
+                .eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", LIT_ARCHIVED) // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
                 .lt(BizCustomer::getExpireDate, today);
         if (deptId != null) expW.in(BizCustomer::getOfficeId,
                 com.aigicrm.common.util.DeptTreeUtils.expandSubtree(deptMapper, deptId));
@@ -948,7 +967,7 @@ public class StatisticsQueryService {
         long expired = customerMapper.selectCount(expW);
 
         LambdaQueryWrapper<BizCustomer> todayExpiringW = new LambdaQueryWrapper<BizCustomer>()
-                .eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", "archived") // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
+                .eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", LIT_ARCHIVED) // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
                 .eq(BizCustomer::getExpireDate, today);
         if (deptId != null) todayExpiringW.in(BizCustomer::getOfficeId,
                 com.aigicrm.common.util.DeptTreeUtils.expandSubtree(deptMapper, deptId));
@@ -960,7 +979,7 @@ public class StatisticsQueryService {
         LocalDateTime yearStart = LocalDateTime.of(finalYear, 1, 1, 0, 0);
         LocalDateTime yearEnd = LocalDateTime.of(finalYear + 1, 1, 1, 0, 0);
         LambdaQueryWrapper<BizCustomer> newW = new LambdaQueryWrapper<BizCustomer>()
-                .eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", "archived") // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
+                .eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", LIT_ARCHIVED) // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
                 .ge(BizCustomer::getCreatedAt, yearStart).lt(BizCustomer::getCreatedAt, yearEnd);
         if (deptId != null) newW.in(BizCustomer::getOfficeId,
                 com.aigicrm.common.util.DeptTreeUtils.expandSubtree(deptMapper, deptId));
@@ -969,7 +988,7 @@ public class StatisticsQueryService {
         long yearNew = customerMapper.selectCount(newW);
 
         LambdaQueryWrapper<BizCustomer> indW = new LambdaQueryWrapper<BizCustomer>()
-                .eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", "archived") // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
+                .eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", LIT_ARCHIVED) // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
                 .isNotNull(BizCustomer::getIndustry);
         if (deptId != null) indW.in(BizCustomer::getOfficeId,
                 com.aigicrm.common.util.DeptTreeUtils.expandSubtree(deptMapper, deptId));
@@ -986,7 +1005,7 @@ public class StatisticsQueryService {
 
         data.put("totalCustomers", totalCustomers);
         data.put("inProtection", inProtection);
-        data.put("expiring", expiring);
+        data.put(LIT_EXPIRING, expiring);
         data.put("expired", expired);
         data.put("todayExpiring", todayExpiring);
         data.put("yearNew", yearNew);
@@ -1027,7 +1046,7 @@ public class StatisticsQueryService {
 
         LambdaQueryWrapper<BizIncentiveRecord> incWrapper = new LambdaQueryWrapper<>();
         if (!scopeAll) incWrapper.in(BizIncentiveRecord::getUserId, visibleUserIds);
-        incWrapper.orderByDesc(BizIncentiveRecord::getCreatedAt).last("LIMIT 5");
+        incWrapper.orderByDesc(BizIncentiveRecord::getCreatedAt).last(LIT_LIMIT_5);
         // 循环变量避开受限标识符 record（SonarLint S6213）
         for (BizIncentiveRecord incRecord : incentiveRecordMapper.selectList(incWrapper)) {
             SysUser user = userMapper.selectById(incRecord.getUserId());
@@ -1039,7 +1058,7 @@ public class StatisticsQueryService {
 
         LambdaQueryWrapper<BizFile> fileWrapper = new LambdaQueryWrapper<>();
         if (!scopeAll) fileWrapper.in(BizFile::getUploaderId, visibleUserIds);
-        fileWrapper.orderByDesc(BizFile::getCreatedAt).last("LIMIT 5");
+        fileWrapper.orderByDesc(BizFile::getCreatedAt).last(LIT_LIMIT_5);
         for (BizFile file : fileMapper.selectList(fileWrapper)) {
             SysUser user = file.getUploaderId() != null ? userMapper.selectById(file.getUploaderId()) : null;
             activities.add(buildActivity(
@@ -1049,7 +1068,7 @@ public class StatisticsQueryService {
 
         LambdaQueryWrapper<BizApproval> apprWrapper = new LambdaQueryWrapper<>();
         if (!scopeAll) apprWrapper.in(BizApproval::getApplicantId, visibleUserIds);
-        apprWrapper.orderByDesc(BizApproval::getCreatedAt).last("LIMIT 5");
+        apprWrapper.orderByDesc(BizApproval::getCreatedAt).last(LIT_LIMIT_5);
         for (BizApproval appr : approvalMapper.selectList(apprWrapper)) {
             SysUser user = appr.getApplicantId() != null ? userMapper.selectById(appr.getApplicantId()) : null;
             BizCustomer customer = appr.getCustomerId() != null ? customerMapper.selectById(appr.getCustomerId()) : null;
@@ -1067,7 +1086,7 @@ public class StatisticsQueryService {
 
         LambdaQueryWrapper<BizCustomer> custWrapper = new LambdaQueryWrapper<>();
         if (!scopeAll) custWrapper.in(BizCustomer::getOwnerId, visibleUserIds);
-        custWrapper.orderByDesc(BizCustomer::getCreatedAt).last("LIMIT 5");
+        custWrapper.orderByDesc(BizCustomer::getCreatedAt).last(LIT_LIMIT_5);
         for (BizCustomer cust : customerMapper.selectList(custWrapper)) {
             SysUser user = cust.getOwnerId() != null ? userMapper.selectById(cust.getOwnerId()) : null;
             activities.add(buildActivity(
@@ -1077,7 +1096,7 @@ public class StatisticsQueryService {
 
         LambdaQueryWrapper<SysLog> sysWrapper = new LambdaQueryWrapper<>();
         if (!scopeAll) sysWrapper.in(SysLog::getUserId, visibleUserIds);
-        sysWrapper.orderByDesc(SysLog::getCreatedAt).last("LIMIT 5");
+        sysWrapper.orderByDesc(SysLog::getCreatedAt).last(LIT_LIMIT_5);
         for (SysLog log : sysLogMapper.selectList(sysWrapper)) {
             SysUser user = log.getUserId() != null ? userMapper.selectById(log.getUserId()) : null;
             if (user == null && log.getUsername() != null) {
