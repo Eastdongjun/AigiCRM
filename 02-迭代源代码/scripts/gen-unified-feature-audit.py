@@ -113,19 +113,29 @@ def extract_mobile_apis(api_dir: Path, root: Path) -> list[ApiFunction]:
 
 
 CONTROLLER_CLASS_MAPPING_RE = re.compile(r"@RequestMapping\(\"([^\"]+)\"\)")
-CONTROLLER_METHOD_MAPPING_RE = re.compile(r"@(Get|Post|Put|Delete|Patch)Mapping(?:\((?:value\s*=\s*)?\"([^\"]*)\"\))?")
+CONTROLLER_MAPPING_BARE_RE = re.compile(r"@(Get|Post|Put|Delete|Patch)Mapping")
+CONTROLLER_MAPPING_ARGS_RE = re.compile(r"@(Get|Post|Put|Delete|Patch)Mapping\(\s*(?:value\s*=\s*)?\"([^\"]*)\"\s*\)")
 CONTROLLER_AUTH_RE = re.compile(r"@PreAuthorize\(\"([^\"]+)\"\)")
 CONTROLLER_SIGNATURE_RE = re.compile(r"public\s+.+\s+\w+\s*\(")
 
 
+def _controller_mapping(annotations: str):
+    """返回 (method, suffix)；无映射注解返回 (None, "")。拆两条正则避免 S5852 嵌套可选组。"""
+    mapping = CONTROLLER_MAPPING_ARGS_RE.search(annotations)
+    if mapping:
+        return mapping.group(1).upper(), mapping.group(2)
+    bare = CONTROLLER_MAPPING_BARE_RE.search(annotations)
+    if not bare:
+        return None, ""
+    return bare.group(1).upper(), ""
+
+
 def _endpoint_from_annotations(annotation_lines: list[str], class_mapping: str, path: Path, root: Path):
     annotations = "\n".join(annotation_lines)
-    mapping = CONTROLLER_METHOD_MAPPING_RE.search(annotations)
-    if not mapping:
+    method, suffix = _controller_mapping(annotations)
+    if method is None:
         return None
     auth = CONTROLLER_AUTH_RE.search(annotations)
-    method = mapping.group(1).upper()
-    suffix = mapping.group(2) or ""
     return Endpoint(method, join_paths(class_mapping, suffix), auth.group(1) if auth else "", rel(path, root))
 
 
