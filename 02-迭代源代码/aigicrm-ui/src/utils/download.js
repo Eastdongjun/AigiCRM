@@ -38,6 +38,20 @@ function saveBlob(blob, name) {
   URL.revokeObjectURL(blobUrl)
 }
 
+async function readStreamBlob(res, onChunk) {
+  const reader = res.body.getReader()
+  const chunks = []
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    // 读到数据即重置空闲计时器（大文件慢速传输不会被 60s 误杀）
+    onChunk()
+    if (value && value.byteLength) chunks.push(value)
+  }
+  const contentType = res.headers.get('content-type') || ''
+  return new Blob(chunks, { type: contentType.split(';')[0].trim() })
+}
+
 export async function downloadFile(url, {
   name = '下载',
   headers = {},
@@ -76,17 +90,7 @@ export async function downloadFile(url, {
     let blob
     if (res.body && typeof res.body.getReader === 'function') {
       // 流式读取：逐块感知数据到达，持续传输时不断重置空闲计时器
-      const reader = res.body.getReader()
-      const chunks = []
-      for (;;) {
-        const { done, value } = await reader.read()
-        if (done) break
-        // 读到数据即重置空闲计时器（大文件慢速传输不会被 60s 误杀）
-        resetIdleTimer()
-        if (value && value.byteLength) chunks.push(value)
-      }
-      const contentType = res.headers.get('content-type') || ''
-      blob = new Blob(chunks, { type: contentType.split(';')[0].trim() })
+      blob = await readStreamBlob(res, resetIdleTimer)
     } else {
       // 旧环境无流式 body：blob() 期间无法感知数据到达，若继续跑空闲计时会把
       // “正在下载但无进度事件”的大文件误判为卡死，故此处清除空闲计时（不启用总超时的

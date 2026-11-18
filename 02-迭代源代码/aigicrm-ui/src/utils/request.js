@@ -43,6 +43,43 @@ request.interceptors.request.use(
   error => Promise.reject(error)
 )
 
+function applyNewToken(response) {
+  // 【2026-11-05 用户选 C"保持登录"】滑动续期: 后端在剩余寿命<半周期时回 X-New-Token, 静默换新
+  const newToken = response.headers && (response.headers['x-new-token'] || response.headers['X-New-Token'])
+  if (newToken) localStorage.setItem('token', newToken)
+}
+
+function syncPermEpoch(response) {
+  // 【WP5 双端生效 2026-11-13】权限版本号比对: 与本地不一致 → 静默拉新用户信息
+  // (管理员保存授权 → 用户不刷新页面, 下一次请求后菜单/按钮/数据范围更新)
+  const permEpoch = response.headers && (response.headers['x-perm-epoch'] || response.headers['X-Perm-Epoch'])
+  if (!permEpoch || !isTokenValid()) return
+  const KEY = 'permEpoch'
+  const prev = localStorage.getItem(KEY)
+  if (prev && prev !== String(permEpoch) && !permRefreshing) {
+    permRefreshing = true
+    import('@/store/user').then(({ useUserStore }) => {
+      return useUserStore().fetchUserInfo(true)
+    }).catch(() => {}).finally(() => { permRefreshing = false })
+  }
+  localStorage.setItem(KEY, String(permEpoch))
+}
+
+function handleBusinessResponse(response) {
+  const res = response.data
+  if (res.code !== 200) {
+    // 登录接口的 401 是密码错误，不是会话过期
+    const isLoginApi = response.config.url?.includes('/auth/login')
+    if (res.code === 401 && !isLoginApi) {
+      handleSessionExpired()
+    } else if (!response.config.silent) {
+      notify(res.message || '请求失败')
+    }
+    return Promise.reject(new Error(res.message))
+  }
+  return res
+}
+
 // 响应拦截器
 request.interceptors.response.use(
   response => {
@@ -51,41 +88,15 @@ request.interceptors.response.use(
       if (response.status !== 200) return Promise.reject(new Error('下载失败(' + response.status + ')'))
       return response
     }
-    // 【2026-11-05 用户选 C"保持登录"】滑动续期: 后端在剩余寿命<半周期时回 X-New-Token, 静默换新
-    const newToken = response.headers && (response.headers['x-new-token'] || response.headers['X-New-Token'])
-    if (newToken) localStorage.setItem('token', newToken)
-    // 【WP5 双端生效 2026-11-13】权限版本号比对: 与本地不一致 → 静默拉新用户信息
-    // (管理员保存授权 → 用户不刷新页面, 下一次请求后菜单/按钮/数据范围更新)
-    const permEpoch = response.headers && (response.headers['x-perm-epoch'] || response.headers['X-Perm-Epoch'])
-    if (permEpoch && isTokenValid()) {
-      const KEY = 'permEpoch'
-      const prev = localStorage.getItem(KEY)
-      if (prev && prev !== String(permEpoch) && !permRefreshing) {
-        permRefreshing = true
-        import('@/store/user').then(({ useUserStore }) => {
-          return useUserStore().fetchUserInfo(true)
-        }).catch(() => {}).finally(() => { permRefreshing = false })
-      }
-      localStorage.setItem(KEY, String(permEpoch))
-    }
+    applyNewToken(response)
+    syncPermEpoch(response)
     // 【C2 2026-10-04】成功响应不再无条件重置 401 去重标记：
     // 过期临界窗口内，过期前发出、服务端在过期前已处理完的在途 200，其响应可能
     // 晚于同一批请求的 401 到达——无条件重置会让去重护栏失效，同批后续 401 再次
     // 触发多条「登录已过期」通知/跳转。仅当本地重新持有有效 token（用户已重新
     // 登录）时才重置，重新武装护栏，保留下一次会话过期仍能正常提示。
     if (sessionExpiredHandled && isTokenValid()) sessionExpiredHandled = false
-    const res = response.data
-    if (res.code !== 200) {
-      // 登录接口的 401 是密码错误，不是会话过期
-      const isLoginApi = response.config.url?.includes('/auth/login')
-      if (res.code === 401 && !isLoginApi) {
-        handleSessionExpired()
-      } else {
-        if (!response.config.silent) notify(res.message || '请求失败')
-      }
-      return Promise.reject(new Error(res.message))
-    }
-    return res
+    return handleBusinessResponse(response)
   },
   error => {
     const status = error.response?.status

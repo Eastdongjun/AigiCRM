@@ -42,7 +42,7 @@
   "src/utils/incentive-period.js": 2,
   "src/utils/pagination.spec.js": 2,
   "src/utils/reminder-detail.js": 2,
-  "src/utils/request.js": 2,
+  "src/utils/request.js": 1,
   "src/utils/time-label.js": 2,
   "src/views/customer/detail/FinanceTab.spec.js": 2,
   "src/api/system.js": 1,
