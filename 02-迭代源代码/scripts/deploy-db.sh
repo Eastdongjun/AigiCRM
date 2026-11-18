@@ -83,6 +83,8 @@ ssh_prod "
   # 【P0-4 2026-11-12 GoLive 审计加固】迁移前三防线:
   # ① 迁移冻结契约已在本地执行(上传前); ② validate; ③ 条件 repair
   echo \"=== [3b] Flyway validate(迁移前校验) ===\"
+  VALIDATE_RC=0  # 【Batch-4 #2 假绿修复 2026-11-18】A2 窗口实证: docker run 失败被 || true 吞退出码致假绿, 改退出码门禁
+  MIGRATE_RC=0
   VALIDATE_OUT=\$(docker run --rm --network ${APP_SLUG}_default -v $DEPLOY_DIR/flyway-sql:/flyway/sql \
     -e FLYWAY_PASSWORD \
     flyway/flyway:9.22.3-alpine \
@@ -90,15 +92,19 @@ ssh_prod "
     -user=root \
     -validateMigrationNaming=true \
     -ignoreMigrationPatterns='*:missing' \
-    validate 2>&1) || true
+    validate 2>&1) || VALIDATE_RC=\$?
   echo \"\$VALIDATE_OUT\" | tail -3
+  if [ \"\$VALIDATE_RC\" -ne 0 ] && ! echo \"\$VALIDATE_OUT\" | grep -q 'checksum mismatch'; then
+    echo \"❌ Flyway validate 未执行成功(rc=\${VALIDATE_RC}——通道/镜像/DB 故障, 非 checksum 预期失败)——拒绝继续\"; exit 1
+  fi
   if echo \"\$VALIDATE_OUT\" | grep -q 'checksum mismatch'; then
     echo '⚠️  checksum mismatch 检出——执行 repair(有据可查)'
-  elif echo \"\$VALIDATE_OUT\" | grep -qiE 'error|failed'; then
-    echo '❌ Flyway validate 失败(非 checksum mismatch)——不执行 repair, 拒绝继续'; exit 1
+  elif [ \"\$VALIDATE_RC\" -ne 0 ]; then
+    echo '❌ Flyway validate 失败(rc 非零)——不执行 repair, 拒绝继续'; exit 1
   else
     echo '✅ validate 通过——跳过 repair'
   fi
+  REPAIR_RC=0
   REPAIR=\$(docker run --rm --network ${APP_SLUG}_default -v $DEPLOY_DIR/flyway-sql:/flyway/sql \
     -e FLYWAY_PASSWORD \
     flyway/flyway:9.22.3-alpine \
@@ -106,8 +112,12 @@ ssh_prod "
     -user=root \
     -validateMigrationNaming=true \
     -ignoreMigrationPatterns='*:missing' \
-    repair 2>&1) || true
+    repair 2>&1) || REPAIR_RC=\$?
   echo \"\$REPAIR\" | grep -E 'Repairing|Successfully repaired|not necessary' | head -6
+  if [ \"\$REPAIR_RC\" -ne 0 ]; then
+    echo \"❌ Flyway repair 未执行成功(rc=\$REPAIR_RC)——拒绝继续\"; exit 1
+  fi
+  MIGRATE_RC=0
   OUT=\$(docker run --rm --network ${APP_SLUG}_default -v $DEPLOY_DIR/flyway-sql:/flyway/sql \
     -e FLYWAY_PASSWORD \
     flyway/flyway:9.22.3-alpine \
@@ -116,7 +126,10 @@ ssh_prod "
     -validateMigrationNaming=true \
     -baselineOnMigrate=true \
     -ignoreMigrationPatterns='*:missing' \
-    migrate 2>&1) || true
+    migrate 2>&1) || MIGRATE_RC=\$?
+  if [ \"\$MIGRATE_RC\" -ne 0 ]; then
+    echo \"❌ Flyway 迁移失败(rc=\$MIGRATE_RC):\"; echo \"\$OUT\" | tail -8; exit 1
+  fi
   if echo \"\$OUT\" | grep -qiE 'error|failed|did not follow the filename convention|No migrations found'; then
     echo '❌ Flyway 迁移失败:'; echo \"\$OUT\" | grep -iE 'error|failed|did not follow the filename convention|No migrations found' | head -5; exit 1
   fi
