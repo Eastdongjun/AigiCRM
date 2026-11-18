@@ -422,21 +422,29 @@ const loadScopesForSelected = async () => {
   await loadScopesFor(assigneeMode.value, selectedKey.value)
 }
 
+async function ensureRoleMode() {
+  if (!allRoles.value.length) await loadPermData()
+  if (allRoles.value.length && !currentRoleId.value) await switchRole(allRoles.value[0])
+  else if (currentRoleId.value) await loadScopesFor('ROLE', currentRole.value?.roleCode)
+}
+
+async function ensureAssigneeMode() {
+  try {
+    if (assigneeMode.value === 'POSITION') {
+      if (!positions.value.length) positions.value = (await getPositionList()).data || []
+      assigneeOptions.value = positions.value.map(p => ({ key: String(p.id), label: `${p.name}（岗位）` }))
+    } else {
+      await searchUserOptions('')
+    }
+  } catch { assigneeOptions.value = [] }
+}
+
 const onModeChange = async () => {
   selectedKey.value = ''
   if (assigneeMode.value === 'ROLE') {
-    if (!allRoles.value.length) await loadPermData()
-    if (allRoles.value.length && !currentRoleId.value) await switchRole(allRoles.value[0])
-    else if (currentRoleId.value) await loadScopesFor('ROLE', currentRole.value?.roleCode)
+    await ensureRoleMode()
   } else {
-    try {
-      if (assigneeMode.value === 'POSITION') {
-        if (!positions.value.length) positions.value = (await getPositionList()).data || []
-        assigneeOptions.value = positions.value.map(p => ({ key: String(p.id), label: `${p.name}（岗位）` }))
-      } else {
-        await searchUserOptions('')
-      }
-    } catch { assigneeOptions.value = [] }
+    await ensureAssigneeMode()
   }
 }
 

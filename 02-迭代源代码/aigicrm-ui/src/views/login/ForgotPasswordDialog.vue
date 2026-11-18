@@ -157,44 +157,52 @@ function handleClosed() {
   clearInterval(timer)
 }
 
+async function submitLookup() {
+  const valid = await step1Ref.value.validate().catch(() => false)
+  if (!valid) return
+  submitting.value = true
+  try {
+    const res = await forgotPasswordLookup({ username: form.username })
+    Object.assign(lookup, res.data)
+    if (!lookup.hasPhone) {
+      ElMessage.warning('该账号未绑定手机号，请联系管理员')
+      return
+    }
+    form.method = 'phone'
+    step.value = 2
+  } catch (_e) { /* interceptor handles */ }
+  finally { submitting.value = false }
+}
+
+function validateCodeStep() {
+  if (!form.method) { ElMessage.warning('请选择验证方式'); return }
+  if (!form.code || form.code.length !== 6) { ElMessage.warning('请输入6位验证码'); return }
+  step.value = 3
+}
+
+async function submitReset() {
+  const valid = await step3Ref.value.validate().catch(() => false)
+  if (!valid) return
+  submitting.value = true
+  try {
+    await forgotPasswordReset({
+      username: form.username,
+      code: form.code.trim(),
+      newPassword: form.newPassword
+    })
+    ElMessage.success('密码重置成功，请重新登录')
+    // 【B1 安全修复 2026-10-21】重置成功后清除"记住账号/口令"键：
+    // 口令已作废不可留，账号键一并清除(重置流程可能在他人/他机操作，保守全清)
+    clearRemembered()
+    visible.value = false
+  } catch (_e) { /* interceptor handles */ }
+  finally { submitting.value = false }
+}
+
 async function handleNext() {
-  if (step.value === 1) {
-    const valid = await step1Ref.value.validate().catch(() => false)
-    if (!valid) return
-    submitting.value = true
-    try {
-      const res = await forgotPasswordLookup({ username: form.username })
-      Object.assign(lookup, res.data)
-      if (!lookup.hasPhone) {
-        ElMessage.warning('该账号未绑定手机号，请联系管理员')
-        return
-      }
-      form.method = 'phone'
-      step.value = 2
-    } catch (_e) { /* interceptor handles */ }
-    finally { submitting.value = false }
-  } else if (step.value === 2) {
-    if (!form.method) { ElMessage.warning('请选择验证方式'); return }
-    if (!form.code || form.code.length !== 6) { ElMessage.warning('请输入6位验证码'); return }
-    step.value = 3
-  } else if (step.value === 3) {
-    const valid = await step3Ref.value.validate().catch(() => false)
-    if (!valid) return
-    submitting.value = true
-    try {
-      await forgotPasswordReset({
-        username: form.username,
-        code: form.code.trim(),
-        newPassword: form.newPassword
-      })
-      ElMessage.success('密码重置成功，请重新登录')
-      // 【B1 安全修复 2026-10-21】重置成功后清除"记住账号/口令"键：
-      // 口令已作废不可留，账号键一并清除(重置流程可能在他人/他机操作，保守全清)
-      clearRemembered()
-      visible.value = false
-    } catch (_e) { /* interceptor handles */ }
-    finally { submitting.value = false }
-  }
+  if (step.value === 1) return submitLookup()
+  if (step.value === 2) return validateCodeStep()
+  if (step.value === 3) return submitReset()
 }
 
 function handleBack() {
