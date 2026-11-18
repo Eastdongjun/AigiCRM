@@ -127,62 +127,63 @@ function stripWxmlComments(source) {
   return source.replace(/<!--[\s\S]*?-->/g, (comment) => comment.replace(/[^\n]/g, ' '))
 }
 
+function stepCode(chars, ctx, current, next) {
+  if (current === '"' || current === "'" || current === '`') {
+    ctx.state = current
+    ctx.i += 1
+  } else if (current === '/' && next === '/') {
+    chars[ctx.i] = ' '
+    chars[ctx.i + 1] = ' '
+    ctx.i += 2
+    ctx.state = 'line-comment'
+  } else if (current === '/' && next === '*') {
+    chars[ctx.i] = ' '
+    chars[ctx.i + 1] = ' '
+    ctx.i += 2
+    ctx.state = 'block-comment'
+  } else {
+    ctx.i += 1
+  }
+}
+
+function stepLineComment(chars, ctx, current) {
+  if (current === '\n') ctx.state = 'code'
+  else chars[ctx.i] = ' '
+  ctx.i += 1
+}
+
+function stepBlockComment(chars, ctx, current, next) {
+  if (current === '*' && next === '/') {
+    chars[ctx.i] = ' '
+    chars[ctx.i + 1] = ' '
+    ctx.i += 2
+    ctx.state = 'code'
+  } else {
+    if (current !== '\n') chars[ctx.i] = ' '
+    ctx.i += 1
+  }
+}
+
+function stepString(chars, ctx, current) {
+  if (current === '\\') {
+    ctx.i += 2
+  } else {
+    if (current === ctx.state) ctx.state = 'code'
+    ctx.i += 1
+  }
+}
+
 // 去掉 JS 注释（字符串/模板字符串内的 //、/* 不误删），保留换行与偏移。
 function stripJsComments(source) {
   const chars = source.split('')
-  let state = 'code'
-  let i = 0
-  while (i < source.length) {
-    const current = source[i]
-    const next = source[i + 1]
-
-    if (state === 'code') {
-      if (current === '"' || current === "'" || current === '`') {
-        state = current
-        i += 1
-      } else if (current === '/' && next === '/') {
-        chars[i] = ' '
-        chars[i + 1] = ' '
-        i += 2
-        state = 'line-comment'
-      } else if (current === '/' && next === '*') {
-        chars[i] = ' '
-        chars[i + 1] = ' '
-        i += 2
-        state = 'block-comment'
-      } else {
-        i += 1
-      }
-      continue
-    }
-
-    if (state === 'line-comment') {
-      if (current === '\n') state = 'code'
-      else chars[i] = ' '
-      i += 1
-      continue
-    }
-
-    if (state === 'block-comment') {
-      if (current === '*' && next === '/') {
-        chars[i] = ' '
-        chars[i + 1] = ' '
-        i += 2
-        state = 'code'
-      } else {
-        if (current !== '\n') chars[i] = ' '
-        i += 1
-      }
-      continue
-    }
-
-    // 字符串 / 模板字符串：跳过转义，遇到同种引号退出。
-    if (current === '\\') {
-      i += 2
-    } else {
-      if (current === state) state = 'code'
-      i += 1
-    }
+  const ctx = { state: 'code', i: 0 }
+  while (ctx.i < source.length) {
+    const current = source[ctx.i]
+    const next = source[ctx.i + 1]
+    if (ctx.state === 'code') stepCode(chars, ctx, current, next)
+    else if (ctx.state === 'line-comment') stepLineComment(chars, ctx, current)
+    else if (ctx.state === 'block-comment') stepBlockComment(chars, ctx, current, next)
+    else stepString(chars, ctx, current)
   }
   return chars.join('')
 }
@@ -264,6 +265,48 @@ function loadBaseline(file, explicit) {
   return { path: file, entries, warnings: [] }
 }
 
+function recordBinding(findings, ctx, field, index) {
+  const key = `${ctx.relativeFile}#${field}`
+  if (!findings.has(key)) {
+    findings.set(key, {
+      key,
+      file: ctx.relativeFile,
+      field,
+      binding: `item.${field}`,
+      lines: [],
+      jsFiles: ctx.jsFiles.map((file) => toPosix(path.relative(ctx.mpRoot, file))),
+    })
+  }
+  const finding = findings.get(key)
+  const line = ctx.lineOf(index)
+  if (!finding.lines.includes(line)) finding.lines.push(line)
+  finding.produced = finding.produced || hasProductionEvidence(ctx.jsSource, field)
+}
+
+function scanWxmlFile(wxmlFile, mpRoot, findings) {
+  const relativeFile = toPosix(path.relative(mpRoot, wxmlFile))
+  const source = stripWxmlComments(fs.readFileSync(wxmlFile, 'utf8'))
+  const lineOf = lineIndex(source)
+  const pageDir = path.dirname(wxmlFile)
+  const jsFiles = SAME_DIR_JS.map((name) => path.join(pageDir, name)).filter((file) => fs.existsSync(file))
+  const jsSource = jsFiles
+    .map((file) => stripJsComments(fs.readFileSync(file, 'utf8')))
+    .join('\n')
+  const ctx = { relativeFile, lineOf, jsFiles, jsSource, mpRoot }
+
+  let derivedBindingCount = 0
+  ITEM_BINDING.lastIndex = 0
+  let match
+  while ((match = ITEM_BINDING.exec(source)) !== null) {
+    const field = match[1]
+    if (isDerivedField(field)) {
+      derivedBindingCount += 1
+      recordBinding(findings, ctx, field, match.index)
+    }
+  }
+  return derivedBindingCount
+}
+
 function collectFindings(mpRoot) {
   const pagesRoot = path.join(mpRoot, 'pages')
   if (!fs.existsSync(pagesRoot) || !fs.statSync(pagesRoot).isDirectory()) {
@@ -275,44 +318,90 @@ function collectFindings(mpRoot) {
 
   const findings = new Map()
   let derivedBindingCount = 0
-
   for (const wxmlFile of wxmlFiles) {
-    const relativeFile = toPosix(path.relative(mpRoot, wxmlFile))
-    const source = stripWxmlComments(fs.readFileSync(wxmlFile, 'utf8'))
-    const lineOf = lineIndex(source)
-    const pageDir = path.dirname(wxmlFile)
-
-    const jsFiles = SAME_DIR_JS.map((name) => path.join(pageDir, name)).filter((file) => fs.existsSync(file))
-    const jsSource = jsFiles
-      .map((file) => stripJsComments(fs.readFileSync(file, 'utf8')))
-      .join('\n')
-
-    ITEM_BINDING.lastIndex = 0
-    let match
-    while ((match = ITEM_BINDING.exec(source)) !== null) {
-      const field = match[1]
-      if (!isDerivedField(field)) continue
-      derivedBindingCount += 1
-
-      const key = `${relativeFile}#${field}`
-      if (!findings.has(key)) {
-        findings.set(key, {
-          key,
-          file: relativeFile,
-          field,
-          binding: `item.${field}`,
-          lines: [],
-          jsFiles: jsFiles.map((file) => toPosix(path.relative(mpRoot, file))),
-        })
-      }
-      const finding = findings.get(key)
-      const line = lineOf(match.index)
-      if (!finding.lines.includes(line)) finding.lines.push(line)
-      finding.produced = finding.produced || hasProductionEvidence(jsSource, field)
-    }
+    derivedBindingCount += scanWxmlFile(wxmlFile, mpRoot, findings)
   }
 
   return { wxmlFiles: wxmlFiles.length, derivedBindingCount, findings: [...findings.values()] }
+}
+
+function classifyFindings(findings, baseline) {
+  const baselineByKey = new Map(baseline.entries.map((entry) => [entry.key, entry]))
+  const violations = []
+  const staleBaseline = []
+
+  for (const finding of findings) {
+    const baselineEntry = baselineByKey.get(finding.key)
+    if (!finding.produced && !baselineEntry) {
+      violations.push(finding)
+    } else if (baselineEntry) {
+      if (finding.produced) staleBaseline.push(baselineEntry)
+      else baselineEntry.matched = true
+    }
+  }
+
+  // 基线里有、但当前 WXML 已不再读取的条目：默认只告警，避免合并冲突时误伤。
+  for (const entry of baseline.entries) {
+    if (!entry.matched && !staleBaseline.includes(entry)) staleBaseline.push(entry)
+  }
+  return { violations, staleBaseline }
+}
+
+function writeJson(result) {
+  process.stdout.write(JSON.stringify({
+    ok: result.ok,
+    root: result.root,
+    wxmlFiles: result.wxmlFiles,
+    derivedBindings: result.derivedBindings,
+    uniqueBindings: result.uniqueBindings,
+    violations: result.violations.map((item) => ({
+      file: item.file,
+      field: item.field,
+      binding: item.binding,
+      lines: item.lines.slice().sort((a, b) => a - b),
+      jsFiles: item.jsFiles,
+      reason: 'field name does not occur in same-directory index.js/shared.js',
+    })),
+    baseline: {
+      path: result.baseline.path,
+      entries: result.baseline.entries.length,
+      matched: result.baseline.entries.filter((entry) => entry.matched).length,
+      stale: result.staleBaseline.map((entry) => ({
+        file: entry.file,
+        field: entry.field,
+        reason: entry.reason,
+      })),
+    },
+    warnings: result.warnings,
+  }, null, 2) + '\n')
+}
+
+function writeText(result, options) {
+  process.stdout.write('MP view binding guard\n')
+  process.stdout.write(`  root: ${result.root}\n`)
+  process.stdout.write(`  wxml files: ${result.wxmlFiles}; derived item bindings: ${result.derivedBindings}; unique bindings: ${result.uniqueBindings}\n`)
+  process.stdout.write(`  baseline: ${result.baseline.path} (${result.baseline.entries.length} entries, ${result.baseline.entries.filter((entry) => entry.matched).length} matched)\n`)
+  for (const warning of result.warnings) process.stderr.write(`WARN: ${warning}\n`)
+
+  if (result.violations.length > 0) {
+    process.stdout.write(`\nFAIL: ${result.violations.length} derived binding(s) have no production evidence in same-directory index.js/shared.js\n`)
+    for (const item of result.violations) {
+      const lines = item.lines.slice().sort((a, b) => a - b).join(',')
+      const checked = item.jsFiles.length > 0 ? item.jsFiles.join(', ') : '(no index.js/shared.js)'
+      process.stdout.write(`  ${item.file}:${lines}  ${item.binding}  checked: ${checked}\n`)
+    }
+    process.stdout.write('\nFix: produce the field in the page JS, or add a justified baseline entry.\n')
+  }
+
+  if (result.staleBaseline.length > 0) {
+    process.stdout.write(`\nWARN: ${result.staleBaseline.length} baseline entr${result.staleBaseline.length === 1 ? 'y is' : 'ies are'} stale (no matching binding, or field is now produced)\n`)
+    for (const entry of result.staleBaseline) {
+      process.stdout.write(`  ${entry.file}  item.${entry.field}  reason: ${entry.reason}\n`)
+    }
+    if (options.failOnStale) process.stdout.write('  --fail-on-stale is set, so this run fails.\n')
+  }
+
+  if (result.ok) process.stdout.write('\nOK: every derived item.* binding has same-directory production evidence.\n')
 }
 
 function main() {
@@ -323,87 +412,24 @@ function main() {
   }
 
   const baseline = loadBaseline(options.baseline, options.baselineExplicit)
-  const baselineByKey = new Map(baseline.entries.map((entry) => [entry.key, entry]))
   const { wxmlFiles, derivedBindingCount, findings } = collectFindings(mpRoot)
-
-  const violations = []
-  const staleBaseline = []
-
-  for (const finding of findings) {
-    const baselineEntry = baselineByKey.get(finding.key)
-    if (finding.produced) {
-      if (baselineEntry) staleBaseline.push(baselineEntry)
-      continue
-    }
-    if (baselineEntry) {
-      baselineEntry.matched = true
-      continue
-    }
-    violations.push(finding)
-  }
-
-  // 基线里有、但当前 WXML 已不再读取的条目：默认只告警，避免合并冲突时误伤。
-  for (const entry of baseline.entries) {
-    if (!entry.matched && !staleBaseline.includes(entry)) staleBaseline.push(entry)
-  }
-
+  const { violations, staleBaseline } = classifyFindings(findings, baseline)
   const staleOnlyFailure = options.failOnStale && staleBaseline.length > 0
   const ok = violations.length === 0 && !staleOnlyFailure
-
-  if (options.json) {
-    process.stdout.write(JSON.stringify({
-      ok,
-      root: mpRoot,
-      wxmlFiles,
-      derivedBindings: derivedBindingCount,
-      uniqueBindings: findings.length,
-      violations: violations.map((item) => ({
-        file: item.file,
-        field: item.field,
-        binding: item.binding,
-        lines: item.lines.slice().sort((a, b) => a - b),
-        jsFiles: item.jsFiles,
-        reason: 'field name does not occur in same-directory index.js/shared.js',
-      })),
-      baseline: {
-        path: baseline.path,
-        entries: baseline.entries.length,
-        matched: baseline.entries.filter((entry) => entry.matched).length,
-        stale: staleBaseline.map((entry) => ({
-          file: entry.file,
-          field: entry.field,
-          reason: entry.reason,
-        })),
-      },
-      warnings: baseline.warnings,
-    }, null, 2) + '\n')
-  } else {
-    process.stdout.write('MP view binding guard\n')
-    process.stdout.write(`  root: ${mpRoot}\n`)
-    process.stdout.write(`  wxml files: ${wxmlFiles}; derived item bindings: ${derivedBindingCount}; unique bindings: ${findings.length}\n`)
-    process.stdout.write(`  baseline: ${baseline.path} (${baseline.entries.length} entries, ${baseline.entries.filter((entry) => entry.matched).length} matched)\n`)
-    for (const warning of baseline.warnings) process.stderr.write(`WARN: ${warning}\n`)
-
-    if (violations.length > 0) {
-      process.stdout.write(`\nFAIL: ${violations.length} derived binding(s) have no production evidence in same-directory index.js/shared.js\n`)
-      for (const item of violations) {
-        const lines = item.lines.slice().sort((a, b) => a - b).join(',')
-        const checked = item.jsFiles.length > 0 ? item.jsFiles.join(', ') : '(no index.js/shared.js)'
-        process.stdout.write(`  ${item.file}:${lines}  ${item.binding}  checked: ${checked}\n`)
-      }
-      process.stdout.write('\nFix: produce the field in the page JS, or add a justified baseline entry.\n')
-    }
-
-    if (staleBaseline.length > 0) {
-      process.stdout.write(`\nWARN: ${staleBaseline.length} baseline entr${staleBaseline.length === 1 ? 'y is' : 'ies are'} stale (no matching binding, or field is now produced)\n`)
-      for (const entry of staleBaseline) {
-        process.stdout.write(`  ${entry.file}  item.${entry.field}  reason: ${entry.reason}\n`)
-      }
-      if (options.failOnStale) process.stdout.write('  --fail-on-stale is set, so this run fails.\n')
-    }
-
-    if (ok) process.stdout.write('\nOK: every derived item.* binding has same-directory production evidence.\n')
+  const result = {
+    ok,
+    root: mpRoot,
+    wxmlFiles,
+    derivedBindings: derivedBindingCount,
+    uniqueBindings: findings.length,
+    violations,
+    baseline,
+    staleBaseline,
+    warnings: baseline.warnings,
   }
+
+  if (options.json) writeJson(result)
+  else writeText(result, options)
 
   // 不直接 process.exit：stdout 走管道时避免输出未刷完就退出。
   process.exitCode = ok ? 0 : 1

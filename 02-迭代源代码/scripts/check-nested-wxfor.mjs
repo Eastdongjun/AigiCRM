@@ -30,6 +30,27 @@ function walk(dir, out = []) {
 // 多行标签由 [^>"'] 跨行匹配覆盖。
 const TAG_RE = /<(\/?)([A-Za-z][\w-]*)((?:"[^"]*"|'[^']*'|[^>"'])*?)(\/?)>/g
 
+function closeTag(stack, tag) {
+  for (let i = stack.length - 1; i >= 0; i--) {
+    if (stack[i].tag === tag) {
+      stack.splice(i, 1)
+      return
+    }
+  }
+}
+
+function recordForViolation(text, m, attrs, stack, violations) {
+  const hasIdx = /(^|\s)wx:for-index=/.test(attrs)
+  const hasItem = /(^|\s)wx:for-item=/.test(attrs)
+  const nested = stack.some((s) => s.isFor)
+  if (nested && (!hasIdx || !hasItem)) {
+    const line = text.slice(0, m.index).split('\n').length
+    const missing = [!hasIdx ? 'index' : null, !hasItem ? 'item' : null].filter(Boolean).join('+')
+    violations.push(`L${line}(${missing})`)
+  }
+  stack.push({ tag: m[2], isFor: true })
+}
+
 function scanFile(text) {
   const stack = []
   const violations = []
@@ -37,31 +58,13 @@ function scanFile(text) {
   TAG_RE.lastIndex = 0
   while ((m = TAG_RE.exec(text))) {
     const closing = m[1] === '/'
-    const tag = m[2]
     const attrs = m[3] || ''
     const selfClose = m[4] === '/'
     if (closing) {
-      for (let i = stack.length - 1; i >= 0; i--) {
-        if (stack[i].tag === tag) {
-          stack.splice(i, 1)
-          break
-        }
-      }
-      continue
-    }
-    const hasFor = /(^|\s)wx:for=/.test(attrs)
-    if (hasFor && !selfClose) {
-      const hasIdx = /(^|\s)wx:for-index=/.test(attrs)
-      const hasItem = /(^|\s)wx:for-item=/.test(attrs)
-      const nested = stack.some((s) => s.isFor)
-      if (nested && (!hasIdx || !hasItem)) {
-        const line = text.slice(0, m.index).split('\n').length
-        const missing = [!hasIdx ? 'index' : null, !hasItem ? 'item' : null].filter(Boolean).join('+')
-        violations.push(`L${line}(${missing})`)
-      }
-      stack.push({ tag, isFor: true })
+      closeTag(stack, m[2])
     } else if (!selfClose) {
-      stack.push({ tag, isFor: false })
+      if (/(^|\s)wx:for=/.test(attrs)) recordForViolation(text, m, attrs, stack, violations)
+      else stack.push({ tag: m[2], isFor: false })
     }
   }
   return violations
