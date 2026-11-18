@@ -210,7 +210,7 @@ public class FileService {
         // 【安全修复 FEAT-20260804-FILE-AUTHZ】scope 白名单：缺省/空串/未知 scope 一律返回空页，
         // 在查询前拒绝，避免未识别 scope 落入下方 folderType=scope 空候选集 → isNull(folder_id)
         // 分支后跨 scope 枚举他人私有无文件夹文件的元数据。
-        if (scope == null || !(LIT_PUBLIC.equals(scope) || LIT_PRIVATE.equals(scope) || LIT_INCENTIVE.equals(scope) || LIT_FABUSHI.equals(scope))) {
+        if (!isKnownScope(scope)) {
             return new Page<>(current, size, 0);
         }
         LambdaQueryWrapper<BizFile> wrapper = new LambdaQueryWrapper<>();
@@ -219,136 +219,194 @@ public class FileService {
         if (folderId != null) {
             wrapper.eq(BizFile::getFolderId, folderId);
         }
-        if (scope != null && !scope.isEmpty()) {
-            wrapper.eq(BizFile::getFileScope, scope);
-            if (LIT_INCENTIVE.equals(scope)) {
-                // 【2026-11-01 审计修复】admin/持 incentive:view-all 全量旁路——与激励侧 applyShareVisibility
-                // 同口径(原文件侧无旁路: 总监在 MP 四项服务tab可见的未分享激励文件, PC 文件中心不出现,
-                // 且下载分支无旁路时会出现"MP 可见 PC 下载 403"的双端分叉)
-                if (incentiveViewAllGranted()) {
-                    // 全量可见, 不加可见性过滤
-                } else
-                // 自己的 + 其他挂了分享的激励文件（与下载可见性同源，30s 缓存见 incentiveVisibleFileIds）
-                {
-                Set<Long> sharedFileIds = incentiveVisibleFileIds(userId);
-                // 【2026-11-10 拍板②激励按组织】可见 = 上传人 ∈ 组织矩阵(file,view)集 ∪ 本人 ∨ 记录分享
-                Set<Long> orgVisible = folderPermissionService.matrixSet(userId, "view");
-                if (orgVisible == null) {
-                    // 组织矩阵=全部(file view 配到 all): 激励附件本域不过滤(分享语义兜底在 record 侧)
-                    if (!sharedFileIds.isEmpty()) {
-                        wrapper.and(w -> w.in(BizFile::getUploaderId, java.util.List.of(userId))
-                                .or().in(BizFile::getId, sharedFileIds));
-                    }
-                } else {
-                    java.util.List<Long> allow = new java.util.ArrayList<>(orgVisible);
-                    if (!allow.contains(userId)) allow.add(userId);
-                    if (sharedFileIds.isEmpty()) {
-                        wrapper.in(BizFile::getUploaderId, allow);
-                    } else {
-                        wrapper.and(w -> w.in(BizFile::getUploaderId, allow)
-                                .or().in(BizFile::getId, sharedFileIds));
-                    }
-                }
-                }
-            }
+        wrapper.eq(BizFile::getFileScope, scope);
+        if (LIT_INCENTIVE.equals(scope) && !applyIncentiveVisibility(wrapper, userId)) {
+            return new Page<>(current, size, 0);
         }
+        if (LIT_FABUSHI.equals(scope) && !applyFabushiVisibility(wrapper, folderId, userId)) {
+            return new Page<>(current, size, 0);
+        }
+        if (!LIT_INCENTIVE.equals(scope) && !LIT_FABUSHI.equals(scope)
+                && !applyFolderVisibility(wrapper, scope, folderId, userId)) {
+            return new Page<>(current, size, 0);
+        }
+        if (keyword != null && !keyword.isEmpty()) {
+            applyGlobalKeyword(wrapper, keyword);
+        }
+        wrapper.orderByDesc(BizFile::getCreatedAt);
+        return decoratePage(fileMapper.selectPage(new Page<>(current, size), wrapper), userId);
+    }
+
+    /** public/private/incentive/fabushi 四类合法 scope。 */
+    private static boolean isKnownScope(String scope) {
+        return scope != null && (LIT_PUBLIC.equals(scope) || LIT_PRIVATE.equals(scope)
+                || LIT_INCENTIVE.equals(scope) || LIT_FABUSHI.equals(scope));
+    }
+
+    /** 激励空间可见性过滤；返回 false 表示候选集必空（直接回空页）。 */
+    private boolean applyIncentiveVisibility(LambdaQueryWrapper<BizFile> wrapper, Long userId) {
+        // 【2026-11-01 审计修复】admin/持 incentive:view-all 全量旁路——与激励侧 applyShareVisibility
+        // 同口径(原文件侧无旁路: 总监在 MP 四项服务tab可见的未分享激励文件, PC 文件中心不出现,
+        // 且下载分支无旁路时会出现"MP 可见 PC 下载 403"的双端分叉)
+        if (incentiveViewAllGranted()) {
+            return true; // 全量可见, 不加可见性过滤
+        }
+        // 自己的 + 其他挂了分享的激励文件（与下载可见性同源，30s 缓存见 incentiveVisibleFileIds）
+        Set<Long> sharedFileIds = incentiveVisibleFileIds(userId);
+        // 【2026-11-10 拍板②激励按组织】可见 = 上传人 ∈ 组织矩阵(file,view)集 ∪ 本人 ∨ 记录分享
+        Set<Long> orgVisible = folderPermissionService.matrixSet(userId, "view");
+        if (orgVisible == null) {
+            // 组织矩阵=全部(file view 配到 all): 激励附件本域不过滤(分享语义兜底在 record 侧)
+            if (!sharedFileIds.isEmpty()) {
+                wrapper.and(w -> w.in(BizFile::getUploaderId, java.util.List.of(userId))
+                        .or().in(BizFile::getId, sharedFileIds));
+            }
+            return true;
+        }
+        java.util.List<Long> allow = new java.util.ArrayList<>(orgVisible);
+        if (!allow.contains(userId)) allow.add(userId);
+        if (sharedFileIds.isEmpty()) {
+            wrapper.in(BizFile::getUploaderId, allow);
+        } else {
+            wrapper.and(w -> w.in(BizFile::getUploaderId, allow)
+                    .or().in(BizFile::getId, sharedFileIds));
+        }
+        return true;
+    }
+
+    /** 法布施空间可见性过滤；返回 false 表示候选集必空（法布施无文件夹，带 folderId 即空）。 */
+    private boolean applyFabushiVisibility(LambdaQueryWrapper<BizFile> wrapper, Long folderId, Long userId) {
         // 【2026-11-17 阶段二】法布施空间：默认公司级 all，但可由权限中心按角色/人员收窄到
         // 大区/办事处/部门/self；按上传人 ∈ fabushi|file_view 范围过滤。法布施无文件夹。
-        if (LIT_FABUSHI.equals(scope)) {
-            if (folderId != null) return new Page<>(current, size, 0);
-            Set<Long> visibleUploaders = folderPermissionService.fabushiVisibleUploaderIds(userId);
-            if (visibleUploaders != null) {
-                if (visibleUploaders.isEmpty()) return new Page<>(current, size, 0);
-                wrapper.in(BizFile::getUploaderId, visibleUploaders);
-            }
+        if (folderId != null) return false;
+        Set<Long> visibleUploaders = folderPermissionService.fabushiVisibleUploaderIds(userId);
+        if (visibleUploaders != null) {
+            if (visibleUploaders.isEmpty()) return false;
+            wrapper.in(BizFile::getUploaderId, visibleUploaders);
         }
+        return true;
+    }
+
+    /** 文件夹可见性过滤（incentive/fabushi 之外所有 scope）；返回 false 表示候选集必空。 */
+    private boolean applyFolderVisibility(LambdaQueryWrapper<BizFile> wrapper, String scope,
+                                          Long folderId, Long userId) {
         // 【文件权限体系】统一文件夹可见性过滤（除 incentive 外的所有 scope 生效）：
         // 夹内文件仅返回用户可见文件夹中的（本人创建/上级链/ACL view/public），上级可查看下级私有文件夹内文件；
         // private scope 的无文件夹文件仍需本人上传；未知/空 scope 候选集为空 → 夹内文件一律不可见
         // （与 getFolderTree 的 scope 默认拒绝对称，封堵"任意 file:view 用户枚举任意文件夹文件"）。
         // incentive scope 已有文件级归属约束（本人上传/被分享），不在此过滤；
         // fabushi 已在上面按 fabushi|file_view 过滤，且无文件夹，同样跳过夹树逻辑。
-        if (!LIT_INCENTIVE.equals(scope) && !LIT_FABUSHI.equals(scope)) {
-            List<BizFileFolder> folders = folderMapper.selectList(
-                    new LambdaQueryWrapper<BizFileFolder>()
-                            .eq(BizFileFolder::getFolderType, scope));
-            Set<Long> visibleIds = visibleFolderIds(folders, userId);
-            if (folderId != null) {
-                if (!visibleIds.contains(folderId)) {
-                    return new Page<>(current, size, 0);
-                }
-            } else if (visibleIds.isEmpty()) {
-                if (LIT_PRIVATE.equals(scope)) {
-                    // 【拍板 A 2026-11-14】私人无夹文件=本人 ∪ manager 链下属(上级可见下属, 链上其余人不可见)
-                    java.util.Set<Long> subs = folderPermissionService.subordinateUserIds(userId);
-                    java.util.List<Long> owners = new java.util.ArrayList<>(subs);
-                    owners.add(userId);
-                    wrapper.and(w -> w.isNull(BizFile::getFolderId)
-                            .and(w2 -> w2.in(BizFile::getUploaderId, owners)));
-                } else {
-                    wrapper.isNull(BizFile::getFolderId);
-                }
-            } else if (LIT_PRIVATE.equals(scope)) {
-                // 【拍板 A 2026-11-14】私人无夹文件=本人 ∪ 下属(原仅本人); 私人夹内文件=夹 ∈ visibleIds(本人/上级链/ACL)
-                java.util.Set<Long> subs = folderPermissionService.subordinateUserIds(userId);
-                java.util.List<Long> owners = new java.util.ArrayList<>(subs);
-                owners.add(userId);
-                wrapper.and(w -> w.isNull(BizFile::getFolderId)
-                        .and(w2 -> w2.in(BizFile::getUploaderId, owners))
-                        .or().in(BizFile::getFolderId, visibleIds));
-            } else {
-                wrapper.and(w -> w.isNull(BizFile::getFolderId)
-                        .or().in(BizFile::getFolderId, visibleIds));
+        List<BizFileFolder> folders = folderMapper.selectList(
+                new LambdaQueryWrapper<BizFileFolder>()
+                        .eq(BizFileFolder::getFolderType, scope));
+        Set<Long> visibleIds = visibleFolderIds(folders, userId);
+        if (folderId != null) {
+            if (!visibleIds.contains(folderId)) {
+                return false;
             }
-            // 【2026-11-10 终版二段·拍板①②】逐文件过滤(夹可见≠夹内全部文件可见):
-            // 夹内文件跟夹走(夹.org ∈ view 可见部门集) ∨ 无夹文件跟上传人(view 可见用户集) ∨ 本人 ∨ FILE view 定向授权(整夹覆盖)
-            // 【拍板 A 2026-11-14 私人空间收口】private scope 不再走部门/用户矩阵——
-            // 夹内文件=夹 ∈ visibleIds(本人/上级链/ACL) ∨ FILE view 授权整夹; 无夹=上传人 ∈ 本人∪下属。
-            // 原逻辑把"夹.org ∈ deptSet"的同部门他人私人夹文件捞进列表(与树口径打架), 本批拔除。
-            {
-                if (LIT_PRIVATE.equals(scope)) {
-                    java.util.Set<Long> subs = folderPermissionService.subordinateUserIds(userId);
-                    java.util.List<Long> owners = new java.util.ArrayList<>(subs);
-                    owners.add(userId);
-                    java.util.Set<Long> grantCovered = new java.util.HashSet<>();
-                    for (BizFileFolder f : folders) {
-                        if (folderPermissionService.grantCoversFolderFiles(f.getFolderType(), f.getId(), f.getOrgId(), userId)) {
-                            grantCovered.add(f.getId());
-                        }
-                    }
-                    wrapper.and(w -> {
-                        w.in(BizFile::getUploaderId, owners);
-                        if (!grantCovered.isEmpty()) w.or().in(BizFile::getFolderId, grantCovered);
-                        if (!visibleIds.isEmpty()) w.or().in(BizFile::getFolderId, visibleIds);
-                    });
-                } else {
-                    java.util.Set<Long> deptSet = folderPermissionService.matrixDeptSet(userId, "view");
-                    java.util.Set<Long> upSet = folderPermissionService.matrixSet(userId, "view");
-                    java.util.Set<Long> orgAllowed = new java.util.HashSet<>();
-                    java.util.Set<Long> grantCovered = new java.util.HashSet<>();
-                    for (BizFileFolder f : folders) {
-                        if (deptSet == null || (f.getOrgId() != null && deptSet.contains(f.getOrgId()))) orgAllowed.add(f.getId());
-                        if (folderPermissionService.grantCoversFolderFiles(f.getFolderType(), f.getId(), f.getOrgId(), userId)) {
-                            grantCovered.add(f.getId());
-                        }
-                    }
-                    if (upSet != null || !orgAllowed.isEmpty() || !grantCovered.isEmpty()) {
-                        wrapper.and(w -> {
-                            w.eq(BizFile::getUploaderId, userId);
-                            if (!orgAllowed.isEmpty()) w.or().in(BizFile::getFolderId, orgAllowed);
-                            if (upSet != null && !upSet.isEmpty()) w.or().in(BizFile::getUploaderId, upSet);
-                            if (!grantCovered.isEmpty()) w.or().in(BizFile::getFolderId, grantCovered);
-                        });
-                    }
-                }
-            }
+        } else if (visibleIds.isEmpty()) {
+            applyNoVisibleFolderBranch(wrapper, scope, userId);
+        } else if (LIT_PRIVATE.equals(scope)) {
+            applyPrivateMixedBranch(wrapper, userId, visibleIds);
+        } else {
+            applyNonPrivateMixedBranch(wrapper, visibleIds);
         }
-        if (keyword != null && !keyword.isEmpty()) {
-            applyGlobalKeyword(wrapper, keyword);
-        }
-        wrapper.orderByDesc(BizFile::getCreatedAt);
+        // 【2026-11-10 终版二段·拍板①②】逐文件过滤(夹可见≠夹内全部文件可见):
+        // 夹内文件跟夹走(夹.org ∈ view 可见部门集) ∨ 无夹文件跟上传人(view 可见用户集) ∨ 本人 ∨ FILE view 定向授权(整夹覆盖)
+        // 【拍板 A 2026-11-14 私人空间收口】private scope 不再走部门/用户矩阵——
+        // 夹内文件=夹 ∈ visibleIds(本人/上级链/ACL) ∨ FILE view 授权整夹; 无夹=上传人 ∈ 本人∪下属。
+        // 原逻辑把"夹.org ∈ deptSet"的同部门他人私人夹文件捞进列表(与树口径打架), 本批拔除。
+        applyFileLevelFilter(wrapper, folders, visibleIds, scope, userId);
+        return true;
+    }
 
-        IPage<BizFile> page = fileMapper.selectPage(new Page<>(current, size), wrapper);
+    /** 无任何可见文件夹时的分支：private 退化为 本人 ∪ 下属 的无夹文件，其余 scope 仅无夹文件。 */
+    private void applyNoVisibleFolderBranch(LambdaQueryWrapper<BizFile> wrapper, String scope, Long userId) {
+        if (LIT_PRIVATE.equals(scope)) {
+            // 【拍板 A 2026-11-14】私人无夹文件=本人 ∪ manager 链下属(上级可见下属, 链上其余人不可见)
+            java.util.Set<Long> subs = folderPermissionService.subordinateUserIds(userId);
+            java.util.List<Long> owners = new java.util.ArrayList<>(subs);
+            owners.add(userId);
+            wrapper.and(w -> w.isNull(BizFile::getFolderId)
+                    .and(w2 -> w2.in(BizFile::getUploaderId, owners)));
+        } else {
+            wrapper.isNull(BizFile::getFolderId);
+        }
+    }
+
+    /** private scope 且有可见夹：无夹文件按 本人∪下属，夹内文件按 visibleIds。 */
+    private void applyPrivateMixedBranch(LambdaQueryWrapper<BizFile> wrapper, Long userId, Set<Long> visibleIds) {
+        // 【拍板 A 2026-11-14】私人无夹文件=本人 ∪ 下属(原仅本人); 私人夹内文件=夹 ∈ visibleIds(本人/上级链/ACL)
+        java.util.Set<Long> subs = folderPermissionService.subordinateUserIds(userId);
+        java.util.List<Long> owners = new java.util.ArrayList<>(subs);
+        owners.add(userId);
+        wrapper.and(w -> w.isNull(BizFile::getFolderId)
+                .and(w2 -> w2.in(BizFile::getUploaderId, owners))
+                .or().in(BizFile::getFolderId, visibleIds));
+    }
+
+    /** 非 private scope 且有可见夹：无夹文件 OR 夹 ∈ visibleIds。 */
+    private void applyNonPrivateMixedBranch(LambdaQueryWrapper<BizFile> wrapper, Set<Long> visibleIds) {
+        wrapper.and(w -> w.isNull(BizFile::getFolderId)
+                .or().in(BizFile::getFolderId, visibleIds));
+    }
+
+    /** 逐文件过滤：private 走 本人∪下属∪授权覆盖夹∪visibleIds；其余 scope 走 本人∪部门夹∪用户矩阵∪授权覆盖夹。 */
+    private void applyFileLevelFilter(LambdaQueryWrapper<BizFile> wrapper, List<BizFileFolder> folders,
+                                      Set<Long> visibleIds, String scope, Long userId) {
+        if (LIT_PRIVATE.equals(scope)) {
+            applyPrivateFileLevelFilter(wrapper, folders, visibleIds, userId);
+        } else {
+            applyScopedFileLevelFilter(wrapper, folders, userId);
+        }
+    }
+
+    private void applyPrivateFileLevelFilter(LambdaQueryWrapper<BizFile> wrapper, List<BizFileFolder> folders,
+                                             Set<Long> visibleIds, Long userId) {
+        java.util.Set<Long> subs = folderPermissionService.subordinateUserIds(userId);
+        java.util.List<Long> owners = new java.util.ArrayList<>(subs);
+        owners.add(userId);
+        java.util.Set<Long> grantCovered = grantCoveredFolderIds(folders, userId);
+        wrapper.and(w -> {
+            w.in(BizFile::getUploaderId, owners);
+            if (!grantCovered.isEmpty()) w.or().in(BizFile::getFolderId, grantCovered);
+            if (!visibleIds.isEmpty()) w.or().in(BizFile::getFolderId, visibleIds);
+        });
+    }
+
+    private void applyScopedFileLevelFilter(LambdaQueryWrapper<BizFile> wrapper, List<BizFileFolder> folders, Long userId) {
+        java.util.Set<Long> deptSet = folderPermissionService.matrixDeptSet(userId, "view");
+        java.util.Set<Long> upSet = folderPermissionService.matrixSet(userId, "view");
+        java.util.Set<Long> orgAllowed = new java.util.HashSet<>();
+        java.util.Set<Long> grantCovered = new java.util.HashSet<>();
+        for (BizFileFolder f : folders) {
+            if (deptSet == null || (f.getOrgId() != null && deptSet.contains(f.getOrgId()))) orgAllowed.add(f.getId());
+            if (folderPermissionService.grantCoversFolderFiles(f.getFolderType(), f.getId(), f.getOrgId(), userId)) {
+                grantCovered.add(f.getId());
+            }
+        }
+        if (upSet != null || !orgAllowed.isEmpty() || !grantCovered.isEmpty()) {
+            wrapper.and(w -> {
+                w.eq(BizFile::getUploaderId, userId);
+                if (!orgAllowed.isEmpty()) w.or().in(BizFile::getFolderId, orgAllowed);
+                if (upSet != null && !upSet.isEmpty()) w.or().in(BizFile::getUploaderId, upSet);
+                if (!grantCovered.isEmpty()) w.or().in(BizFile::getFolderId, grantCovered);
+            });
+        }
+    }
+
+    private java.util.Set<Long> grantCoveredFolderIds(List<BizFileFolder> folders, Long userId) {
+        java.util.Set<Long> grantCovered = new java.util.HashSet<>();
+        for (BizFileFolder f : folders) {
+            if (folderPermissionService.grantCoversFolderFiles(f.getFolderType(), f.getId(), f.getOrgId(), userId)) {
+                grantCovered.add(f.getId());
+            }
+        }
+        return grantCovered;
+    }
+
+    /** 行级按钮权限 + 上传人姓名回填。 */
+    private IPage<BizFile> decoratePage(IPage<BizFile> page, Long userId) {
         // 【T2 2026-11-12】行级按钮视图(与 checkFile 同源): 根目录/夹内文件的动作判定以后端行级为准,
         // 前端 useFilePage 不再硬编码根目录写词(消费端 row.perms 优先, 缺失回退夹级 perms)。
         Map<Long, List<String>> rowPerms = folderPermissionService.permsForFiles(page.getRecords(), userId);
