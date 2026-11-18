@@ -265,14 +265,25 @@ public class RolePermScopeService {
         List<String> wildcard = new ArrayList<>();
         for (ScopeConfig c : user.getScopeConfigs()) {
             if (scopeConfigMatches(c, module, action) && hasScopeLevel(c)) {
-                String type = c.getAssigneeType() != null ? c.getAssigneeType() : "ROLE";
-                if (seenType == null) seenType = type;
-                if (seenType.equals(type)) {
-                    (isExactScopeConfig(c, module, action) ? exact : wildcard).add(c.getScopeLevel());
-                }
+                seenType = collectFromConfig(c, module, action, seenType, exact, wildcard);
             }
         }
         return !exact.isEmpty() ? exact : wildcard;
+    }
+
+    /** 首条命中的主体类型决定全量口径；同类型才收集（精确/通配分桶），返回当前生效类型。 */
+    private String collectFromConfig(ScopeConfig c, String module, String action, String seenType,
+                                     List<String> exact, List<String> wildcard) {
+        String type = c.getAssigneeType() != null ? c.getAssigneeType() : "ROLE";
+        String effectiveType = seenType == null ? type : seenType;
+        if (effectiveType.equals(type)) {
+            if (isExactScopeConfig(c, module, action)) {
+                exact.add(c.getScopeLevel());
+            } else {
+                wildcard.add(c.getScopeLevel());
+            }
+        }
+        return effectiveType;
     }
 
     private boolean scopeConfigMatches(ScopeConfig c, String module, String action) {

@@ -157,9 +157,8 @@ public class LogAspect {
         if (arg instanceof org.springframework.web.multipart.MultipartFile mf) {
             return mf.getOriginalFilename();
         }
-        String detail = arg instanceof Map<?, ?> map ? detailFromMap(map) : detailFromGetters(arg);
-        // Map 命中不到时原实现会再试 getter(必然返回 null), 等价于直接返回 detail
-        return detail;
+        // Map 命中不到时原实现会再试 getter(必然返回 null), 等价于直接返回
+        return arg instanceof Map<?, ?> map ? detailFromMap(map) : detailFromGetters(arg);
     }
 
     private String detailFromMap(Map<?, ?> map) {
