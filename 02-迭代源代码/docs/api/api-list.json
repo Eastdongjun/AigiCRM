@@ -1,6 +1,6 @@
 {
  "generated_at": "2026-11-18",
- "count": 318,
+ "count": 322,
  "endpoints": [
   {
    "method": "POST",
@@ -1609,6 +1609,30 @@
    "path": "/api/system/recycle/customers/{id}/restore",
    "permission": "hasAuthority('system:recycle:restore')",
    "handler": "restoreCustomer"
+  },
+  {
+   "method": "GET",
+   "path": "/api/system/recycle/exports",
+   "permission": "hasAuthority('system:recycle:export')",
+   "handler": "list"
+  },
+  {
+   "method": "POST",
+   "path": "/api/system/recycle/exports",
+   "permission": "hasAuthority('system:recycle:export')",
+   "handler": "create"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/system/recycle/exports/{id}",
+   "permission": "hasAuthority('system:recycle:export')",
+   "handler": "delete"
+  },
+  {
+   "method": "GET",
+   "path": "/api/system/recycle/exports/{id}/download",
+   "permission": "hasAuthority('system:recycle:export')",
+   "handler": "download"
   },
   {
    "method": "GET",

@@ -87,6 +87,8 @@ services:
       TZ: Asia/Shanghai
       # 【A2 2026-11-18】biz_file_grant 主链切换模式（默认 legacy；生产切 dual/new 须用户单独授权）
       FILE_GRANT_MODE: ${FILE_GRANT_MODE:-legacy}
+      # 【A3 2026-11-18】回收站导出目录（QC 挂载方案: NAS ycmn-exports 与 uploads 同 NFS 导出; 部署时宿主 mkdir+chown 10001）
+      EXPORT_DIR: /app/exports
     volumes:
       # 【GPT复审 P1-01 修复 2026-09-21】对齐部署规范: 上传文件走 NAS /Aigicrm/files/uploads,
       # 废弃历史 upload-data named volume(与 deploy-backend.sh 口径统一)

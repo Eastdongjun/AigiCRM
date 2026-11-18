@@ -4,7 +4,7 @@
 > 本文件由 scripts/gen-api.py 自动生成,**禁止手改**;接口变更后重新运行。
 > 权限码与 docs/permission/permission-dict.md 对应。
 
-## 接口清单(318 个)
+## 接口清单(322 个)
 
 | 方法 | 路径 | 权限码 | 方法名 | 文件 |
 |---|---|---|---|---|
@@ -276,6 +276,10 @@
 | GET | `/api/system/recycle/customers/{id}` | `hasAuthority('system:recycle:view')` | deletedCustomerDetail | RecycleController.java |
 | POST | `/api/system/recycle/customers/{id}/purge` | `hasAuthority('system:recycle:purge')` | hardDeleteCustomer | RecycleController.java |
 | POST | `/api/system/recycle/customers/{id}/restore` | `hasAuthority('system:recycle:restore')` | restoreCustomer | RecycleController.java |
+| GET | `/api/system/recycle/exports` | `hasAuthority('system:recycle:export')` | list | RecycleExportController.java |
+| POST | `/api/system/recycle/exports` | `hasAuthority('system:recycle:export')` | create | RecycleExportController.java |
+| DELETE | `/api/system/recycle/exports/{id}` | `hasAuthority('system:recycle:export')` | delete | RecycleExportController.java |
+| GET | `/api/system/recycle/exports/{id}/download` | `hasAuthority('system:recycle:export')` | download | RecycleExportController.java |
 | GET | `/api/system/recycle/files` | `hasAuthority('system:recycle:view')` | deletedFiles | RecycleController.java |
 | POST | `/api/system/recycle/files/purge` | `hasAuthority('system:recycle:purge')` | purgeFiles | RecycleController.java |
 | GET | `/api/system/recycle/files/{id}` | `hasAuthority('system:recycle:view')` | deletedFileDetail | RecycleController.java |

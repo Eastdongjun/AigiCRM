@@ -74,6 +74,7 @@ const PERMISSION_CODES = Object.freeze({
   SYSTEM_POSITION_EDIT: 'system:position:edit',
   SYSTEM_POSITION_RULE_EDIT: 'system:position:rule:edit',
   SYSTEM_POSITION_VIEW: 'system:position:view',
+  SYSTEM_RECYCLE_EXPORT: 'system:recycle:export',
   SYSTEM_RECYCLE_PURGE: 'system:recycle:purge',
   SYSTEM_RECYCLE_RESTORE: 'system:recycle:restore',
   SYSTEM_RECYCLE_VIEW: 'system:recycle:view',

@@ -79,6 +79,8 @@ security:
 file:
   storage-type: ${STORAGE_TYPE:local}
   upload-dir: ${UPLOAD_DIR:./uploads}
+  # 【A3 2026-11-18】回收站导出目录（QC 方案 #5: 生产 NAS bind /app/exports; 本地/测试服本地路径兜底）
+  export-dir: ${EXPORT_DIR:./exports}
   # 【A2 2026-11-18】biz_file_grant 主链切换模式（用户拍板 #4：FILE_GRANT_MODE 环境变量+重启生效，默认 legacy）
   # legacy=新引擎整体旁路（完全旧链）；dual=新引擎先判+ABSTAIN 回落旧表；new=不再回落旧表（基础规则不受影响）
   grant:
