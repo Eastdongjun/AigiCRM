@@ -367,11 +367,15 @@ public class FileService {
         java.util.List<Long> owners = new java.util.ArrayList<>(subs);
         owners.add(userId);
         java.util.Set<Long> grantCovered = grantCoveredFolderIds(folders, userId);
-        wrapper.and(w -> {
-            w.in(BizFile::getUploaderId, owners);
-            if (!grantCovered.isEmpty()) w.or().in(BizFile::getFolderId, grantCovered);
-            if (!visibleIds.isEmpty()) w.or().in(BizFile::getFolderId, visibleIds);
-        });
+        wrapper.and(w -> applyPrivateLevelAnd(w, owners, grantCovered, visibleIds));
+    }
+
+    /** private 逐文件过滤的 AND 子树（拆出 lambda 以免复杂度计入外层方法）。 */
+    private void applyPrivateLevelAnd(LambdaQueryWrapper<BizFile> w, java.util.List<Long> owners,
+                                      java.util.Set<Long> grantCovered, Set<Long> visibleIds) {
+        w.in(BizFile::getUploaderId, owners);
+        if (!grantCovered.isEmpty()) w.or().in(BizFile::getFolderId, grantCovered);
+        if (!visibleIds.isEmpty()) w.or().in(BizFile::getFolderId, visibleIds);
     }
 
     private void applyScopedFileLevelFilter(LambdaQueryWrapper<BizFile> wrapper, List<BizFileFolder> folders, Long userId) {
@@ -386,13 +390,18 @@ public class FileService {
             }
         }
         if (upSet != null || !orgAllowed.isEmpty() || !grantCovered.isEmpty()) {
-            wrapper.and(w -> {
-                w.eq(BizFile::getUploaderId, userId);
-                if (!orgAllowed.isEmpty()) w.or().in(BizFile::getFolderId, orgAllowed);
-                if (upSet != null && !upSet.isEmpty()) w.or().in(BizFile::getUploaderId, upSet);
-                if (!grantCovered.isEmpty()) w.or().in(BizFile::getFolderId, grantCovered);
-            });
+            wrapper.and(w -> applyScopedLevelAnd(w, userId, orgAllowed, upSet, grantCovered));
         }
+    }
+
+    /** 非 private 逐文件过滤的 AND 子树（拆出 lambda 以免复杂度计入外层方法）。 */
+    private void applyScopedLevelAnd(LambdaQueryWrapper<BizFile> w, Long userId,
+                                     java.util.Set<Long> orgAllowed, java.util.Set<Long> upSet,
+                                     java.util.Set<Long> grantCovered) {
+        w.eq(BizFile::getUploaderId, userId);
+        if (!orgAllowed.isEmpty()) w.or().in(BizFile::getFolderId, orgAllowed);
+        if (upSet != null && !upSet.isEmpty()) w.or().in(BizFile::getUploaderId, upSet);
+        if (!grantCovered.isEmpty()) w.or().in(BizFile::getFolderId, grantCovered);
     }
 
     private java.util.Set<Long> grantCoveredFolderIds(List<BizFileFolder> folders, Long userId) {
