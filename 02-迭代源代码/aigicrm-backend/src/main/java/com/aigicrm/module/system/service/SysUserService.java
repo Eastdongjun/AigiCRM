@@ -296,7 +296,7 @@ public class SysUserService {
      * 规则：非超管不可授予 admin 角色；授予角色的数据范围与 dataScopeOverride 不得宽于调用者自身范围。
      */
     private void validateGrantableRoleAndScope(Long roleId, String dataScopeOverride) {
-        if (SecurityUtils.hasAuthority("system:role:grant")) return;
+        if (SecurityUtils.hasAuthority(LIT_SYSTEM_ROLE_GRANT)) return;
         DataScopeType callerScope = DataScopeType.fromCode(SecurityUtils.getCurrentDataScope());
         if (roleId != null) {
             SysRole role = roleMapper.selectById(roleId);

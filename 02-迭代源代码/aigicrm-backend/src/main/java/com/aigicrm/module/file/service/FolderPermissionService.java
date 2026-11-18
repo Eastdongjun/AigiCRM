@@ -319,7 +319,7 @@ public class FolderPermissionService {
         if (SecurityUtils.isAdmin()) return null;
         com.aigicrm.security.SecurityUser user = SecurityUtils.getCurrentUser();
         if (user == null) return Set.of();
-        List<Long> ids = scopeResolver.resolveModuleUsers(user, "fabushi", "file_view");
+        List<Long> ids = scopeResolver.resolveModuleUsers(user, LIT_FABUSHI, "file_view");
         return ids == null ? null : new HashSet<>(ids);
     }
 

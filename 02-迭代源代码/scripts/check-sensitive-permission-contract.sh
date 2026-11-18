@@ -12,8 +12,9 @@ MOBILE_DETAIL_WXML="$ROOT/aigicrm-miniprogram/pages/customer/detail/index.wxml"
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
 for permission in finance:view contact:view; do
+  const_name=$(printf '%s' "$permission" | tr 'a-z:' 'A-Z_')
   grep -Fq "'$permission'" "$MIGRATION" || fail "migration missing $permission"
-  grep -Fq "SecurityUtils.hasAuthority(\"$permission\")" "$CONTROLLER" || fail "controller missing $permission guard"
+  grep -Eq "SecurityUtils\\.hasAuthority\\((\"$permission\"|LIT_${const_name})\\)" "$CONTROLLER" || fail "controller missing $permission guard"
   grep -Fq "\`$permission\`" "$MATRIX" || fail "permission matrix missing $permission"
 done
 

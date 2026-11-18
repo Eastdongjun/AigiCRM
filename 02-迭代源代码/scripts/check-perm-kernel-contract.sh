@@ -30,7 +30,7 @@ pass "② 开关只读(admin-only + fail-closed + 前端归一)"
 
 # ---- ③ 双轨守卫契约(WP7): resolveModuleUsers 入口守卫 + 锚点保真 + ObjectProvider 断环 ----
 grep -q "auth.isNewTrack(module)" "$BE/common/scope/OrgScopeResolver.java" || fail "③ resolveModuleUsers 缺双轨守卫"
-grep -q "auth.isNewTrack(\"customer\")" "$BE/module/customer/service/CustomerVisibilityService.java" || fail "③ customer 可见性缺双轨守卫"
+grep -Eq 'auth\.isNewTrack\(("customer"|LIT_CUSTOMER)\)' "$BE/module/customer/service/CustomerVisibilityService.java" || fail "③ customer 可见性缺双轨守卫"
 grep -q "legacyAnchor(module, action)" "$BE/common/auth/AuthorizationService.java" || fail "③ 旧轨缺锚点保真"
 grep -q "ObjectProvider<com.aigicrm.common.auth.AuthorizationService>" "$BE/common/scope/OrgScopeResolver.java" \
   || fail "③ 缺 ObjectProvider 断环"

@@ -26,15 +26,15 @@ customer|finance_edit|canAccessCustomer\(SecurityUtils\.getCurrentUser\(\), "fin
 file|view|matrixActionOf\(action\)|文件组织矩阵 view 档(view/download 归此档)
 file|manage|case P_UPLOAD, P_RENAME, P_REPLACE, P_SHARE, P_EDIT -> "manage"|文件矩阵 manage 档(upload/rename/replace/share/edit)
 file|delete|case P_DELETE -> P_DELETE|文件矩阵 delete 档(拍板③独立)
-approval|view|resolveModuleUsers\(SecurityUtils\.getCurrentUser\(\), "approval"\)|审批待办可见集(仅 view 档)
-reminder|view|resolveModuleUsers\(SecurityUtils\.getCurrentUser\(\), "reminder"\)|提醒可见集(仅 view 档)
+approval|view|resolveModuleUsers\(SecurityUtils\.getCurrentUser\(\), LIT_APPROVAL\)|审批待办可见集(仅 view 档)
+reminder|view|resolveModuleUsers\(SecurityUtils\.getCurrentUser\(\), LIT_REMINDER\)|提醒可见集(仅 view 档)
 sea|view|resolveModuleUsers\(SecurityUtils\.getCurrentUser\(\), "sea"\)|公海列表可见集(池级编辑走池名单, 不入此表)
 incentive|stats_view|resolveModuleUsers\(user, "incentive", "stats_view"\)|四项激励独立数据范围(2026-11-05 拍板B, V2026.11.05.7 回填; 其余 7 档为生产死配置见 design.md 已知问题#2)
 task|view|resolveModuleUsersWithinGroup\(SecurityUtils\.getCurrentUser\(\), "task"\)|任务分派可见集(仅 view, WithinGroup 集团收口)
 score|view|resolveModuleUsersWithinGroup\(SecurityUtils\.getCurrentUser\(\), "score"\)|学分录入/排行可见集(仅 view, WithinGroup 集团收口)
 system|view|resolveModuleUsersWithinGroup\(SecurityUtils\.getCurrentUser\(\), "system"\)|系统日志可见集(仅 view, admin 全集团; WithinGroup 集团收口)
 fabushi|stats_view|resolveModuleUsers\(user, "fabushi", "stats_view"\)|法布施团队统计可见集(2026-11-15 一期, 照 incentive stats_view 模式; 内容流社区型全员可见不设范围档)
-fabushi|file_view|resolveModuleUsers\(user, "fabushi", "file_view"\)|法布施文件可见范围(2026-11-17 阶段二, OWNER 锚=上传人; 默认 all 公司级, 可收窄大区/办事处/部门/self)
+fabushi|file_view|resolveModuleUsers\(user, LIT_FABUSHI, "file_view"\)|法布施文件可见范围(2026-11-17 阶段二, OWNER 锚=上传人; 默认 all 公司级, 可收窄大区/办事处/部门/self)
 fabushi|file_delete|canDeleteFabushiFile|法布施文件删除范围(2026-11-17 阶段二, OWNER 锚; 功能码 fabushi:file:delete + 数据范围)
 file|version_rollback|canRollbackVersion|文件版本回滚范围(2026-11-17 阶段二, OWNER 锚; 功能码 file:version:rollback + 数据范围)'
 

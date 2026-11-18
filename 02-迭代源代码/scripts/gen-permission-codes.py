@@ -27,11 +27,15 @@ def main(backend_root: str) -> None:
             text = f.read_text(encoding="utf-8", errors="replace")
         except Exception:
             continue
+        # P0-5 batch A: normalize LIT_* constants back to their literal values before scanning.
+        consts = dict(re.findall(r'String\s+(LIT_[A-Z0-9_]+)\s*=\s*"([^"]*)"', text))
+        for k, v in consts.items():
+            text = text.replace(k, '"' + v + '"')
         lines = [l for l in text.splitlines() if not l.lstrip().startswith(("*", "//", "/*"))]
         body = "\n".join(lines)
-        # 【T9】参数段整体捕获后逐码提取(单参/多参/命令式双引号全覆盖)
+        # 【T9】参数段整体捕获后逐码提取(单参/多参/命令式双引号全覆盖; P0-5 常量归一后为双引号)
         for m in re.finditer(r"has(?:Any)?Authority\(([^)]*)\)", body):
-            codes.update(re.findall(r"'([a-z][a-z0-9:_-]+)'", m.group(1)))
+            codes.update(re.findall(r"['\"]([a-z][a-z0-9:_-]+)['\"]", m.group(1)))
         for m in re.finditer(r'SecurityUtils\.hasAuthority\("([a-z][a-z0-9:_-]+)"\)', body):
             codes.add(m.group(1))
     assert codes, "权威码集为空(扫描器失灵?)"

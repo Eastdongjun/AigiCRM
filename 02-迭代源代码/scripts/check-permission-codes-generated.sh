@@ -25,7 +25,11 @@ from pathlib import Path
 root = Path(sys.argv[1])
 codes = set()
 for f in (root / "aigicrm-backend/src/main/java").rglob("*.java"):
-    for line in f.read_text(errors="replace").splitlines():
+    text = f.read_text(errors="replace")
+    consts = dict(re.findall(r'String\s+(LIT_[A-Z0-9_]+)\s*=\s*"([^"]*)"', text))
+    for k, v in consts.items():
+        text = text.replace(k, '"' + v + '"')
+    for line in text.splitlines():
         s = line.strip()
         if s.startswith(("*", "//", "/*")):
             continue

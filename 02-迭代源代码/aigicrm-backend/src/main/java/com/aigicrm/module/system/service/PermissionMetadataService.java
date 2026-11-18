@@ -30,6 +30,7 @@ public class PermissionMetadataService {
     private static final String LIT_FABUSHI = "fabushi";
     private static final String LIT_CUSTOMER = "customer";
     private static final String LIT_MODULE = "module";
+    private static final String LIT_SCOPE_AXIS = "scopeAxis";
     private static final String LIT_DEPRECATED = "deprecated";
 
 
@@ -104,9 +105,9 @@ public class PermissionMetadataService {
                 meta.put("group", GROUP_OF_PREFIX.get(str(row.get(LIT_MODULE))));
                 meta.put("parentCode", str(row.get("parent_code")));
                 if (scopeModule == null) {
-                    meta.put("scopeAxis", null);
+                    meta.put(LIT_SCOPE_AXIS, null);
                 } else {
-                    meta.put("scopeAxis", Map.of(LIT_MODULE, scopeModule, "action",
+                    meta.put(LIT_SCOPE_AXIS, Map.of(LIT_MODULE, scopeModule, "action",
                             scopeAction == null ? "view" : scopeAction));
                 }
                 meta.put("scopeMode", str(row.get("scope_mode")));
@@ -163,7 +164,7 @@ public class PermissionMetadataService {
             meta.put(LIT_MODULE, prefix);
             meta.put("group", GROUP_OF_PREFIX.getOrDefault(prefix, null));
             meta.put("parentCode", parentCode);
-            meta.put("scopeAxis", axis == null ? null : Map.of(LIT_MODULE, axis[0], "action", axis[1]));
+            meta.put(LIT_SCOPE_AXIS, axis == null ? null : Map.of(LIT_MODULE, axis[0], "action", axis[1]));
             meta.put("scopeMode", scopeMode);
             meta.put("adminOnly", ADMIN_ONLY.contains(code));
             meta.put("requiresOrgAdmin", REQUIRES_ORG_ADMIN.contains(code));

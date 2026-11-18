@@ -84,7 +84,7 @@ public class SysRoleService {
      * @param existing 更新场景的目标角色（create 传 null）
      */
     private void validateGrantableRole(SysRole role, SysRole existing) {
-        if (SecurityUtils.hasAuthority("system:role:grant")) return;
+        if (SecurityUtils.hasAuthority(LIT_SYSTEM_ROLE_GRANT)) return;
         if (LIT_ADMIN.equals(role.getRoleCode())
                 || (existing != null && LIT_ADMIN.equals(existing.getRoleCode()))) {
             throw new BusinessException(403, "无权操作系统管理员角色");

@@ -323,7 +323,7 @@ public class CustomerController {
     @GetMapping("/{id}/invoices")
     public Result<List<BizInvoice>> getInvoices(@PathVariable Long id) {
         accessService.assertCanView(id);
-        if (!SecurityUtils.hasAuthority("finance:view")) return Result.ok(List.of());
+        if (!SecurityUtils.hasAuthority(LIT_FINANCE_VIEW)) return Result.ok(List.of());
         return Result.ok(customerService.getInvoices(id));
     }
 

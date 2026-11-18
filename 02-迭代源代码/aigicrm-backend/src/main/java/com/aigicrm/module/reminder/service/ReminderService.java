@@ -139,7 +139,7 @@ public class ReminderService {
         List<Object> pre = supplyConcurrently(List.of(
                 (Supplier<Object>) () -> deptId != null
                         ? com.aigicrm.common.util.DeptTreeUtils.expandSubtree(deptMapper, deptId) : null,
-                (Supplier<Object>) () -> scopeResolver.resolveModuleUsers(SecurityUtils.getCurrentUser(), "reminder")
+                (Supplier<Object>) () -> scopeResolver.resolveModuleUsers(SecurityUtils.getCurrentUser(), LIT_REMINDER)
         ));
         if (deptId != null) {
             @SuppressWarnings("unchecked") List<Long> subtree = (List<Long>) pre.get(0);

@@ -53,7 +53,7 @@ public class CustomerVisibilityService {
         if (user == null) return List.of();
         com.aigicrm.common.auth.AuthorizationService auth =
                 authServiceProvider == null ? null : authServiceProvider.getIfAvailable();
-        if (auth != null && auth.isNewTrack("customer")) {
+        if (auth != null && auth.isNewTrack(LIT_CUSTOMER)) {
             String code = auth.actionCodeOf(LIT_CUSTOMER, "view");
             if (code != null) {
                 var d = auth.scope(code);
