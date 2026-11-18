@@ -219,15 +219,7 @@ public class FileGrantService {
         //（view grant 服务 download；manage/* 服务全部）——遍历全部 grants 而非按 grant.action 分组。
         Map<String, Decision> per = new HashMap<>();
         for (String a : actions) {
-            Set<String> covering = actionsFor(a);
-            Decision d = Decision.ABSTAIN;
-            for (BizFileGrant g : grants) {
-                if (g.getAction() == null || !covering.contains(g.getAction())) continue;
-                if (!coversFile(g, file, orgs, folders)) continue;
-                if ("DENY".equalsIgnoreCase(g.getEffect())) { d = Decision.DENY; break; }
-                if (LIT_ALLOW.equalsIgnoreCase(g.getEffect())) d = Decision.ALLOW;
-            }
-            per.put(a, d);
+            per.put(a, decideForAction(actionsFor(a), grants, g -> coversFile(g, file, orgs, folders)));
         }
         return per;
     }
@@ -237,17 +229,21 @@ public class FileGrantService {
         // 【parity 修复】同 decideFilesMulti：归并语义遍历全部 grants
         Map<String, Decision> per = new HashMap<>();
         for (String a : actions) {
-            Set<String> covering = actionsFor(a);
-            Decision d = Decision.ABSTAIN;
-            for (BizFileGrant g : grants) {
-                if (g.getAction() == null || !covering.contains(g.getAction())) continue;
-                if (!coversFolder(g, folder, orgs, ancestors)) continue;
-                if ("DENY".equalsIgnoreCase(g.getEffect())) { d = Decision.DENY; break; }
-                if (LIT_ALLOW.equalsIgnoreCase(g.getEffect())) d = Decision.ALLOW;
-            }
-            per.put(a, d);
+            per.put(a, decideForAction(actionsFor(a), grants, g -> coversFolder(g, folder, orgs, ancestors)));
         }
         return per;
+    }
+
+    private Decision decideForAction(Set<String> covering, List<BizFileGrant> grants,
+                                     java.util.function.Predicate<BizFileGrant> covers) {
+        Decision d = Decision.ABSTAIN;
+        for (BizFileGrant g : grants) {
+            if (g.getAction() == null || !covering.contains(g.getAction())) continue;
+            if (!covers.test(g)) continue;
+            if ("DENY".equalsIgnoreCase(g.getEffect())) return Decision.DENY;
+            if (LIT_ALLOW.equalsIgnoreCase(g.getEffect())) d = Decision.ALLOW;
+        }
+        return d;
     }
 
     private Set<Long> resolveRoleIds(SecurityUser user) {

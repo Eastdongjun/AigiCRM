@@ -673,14 +673,7 @@ public class ApprovalService {
                         .eq(BizApprovalNode::getApprovalId, approval.getId())
                         .orderByAsc(BizApprovalNode::getNodeOrder).orderByAsc(BizApprovalNode::getId));
 
-        boolean legacy = nodes.stream().noneMatch(n -> n.getConfigId() != null);
-        if (legacy) {
-            long pendingCount = nodes.stream().filter(n -> LIT_PENDING.equals(n.getStatus())).count();
-            if (pendingCount == 0) {
-                finalizeApproval(approval);
-            }
-            return;
-        }
+        if (handleLegacyApproval(approval, nodes)) return;
 
         int myStage = approvedNode.getNodeOrder() != null ? approvedNode.getNodeOrder() : 1;
         boolean anySignMode = "ANY".equalsIgnoreCase(approvedNode.getSignMode());
@@ -691,6 +684,33 @@ public class ApprovalService {
                 || stageNodes.stream().noneMatch(n -> LIT_PENDING.equals(n.getStatus()));
         if (!stageDone) return;
 
+        cancelPendingStageNodes(stageNodes);
+        int nextStage = findNextStage(nodes, myStage);
+        if (nextStage == Integer.MAX_VALUE) {
+            // 无后续阶段:确认全单无未完结节点(防御性,串行下自然成立)
+            boolean anyOpen = nodes.stream()
+                    .anyMatch(n -> LIT_PENDING.equals(n.getStatus()) || LIT_WAITING.equals(n.getStatus()));
+            if (!anyOpen) {
+                finalizeApproval(approval);
+            }
+            return;
+        }
+        activateStage(nodes, nextStage);
+        updateCurrentNode(approval, nodes, nextStage);
+    }
+
+    /** 存量扁平会签：全部 pending 清零即整单通过；返回 true 表示已按 legacy 处理。 */
+    private boolean handleLegacyApproval(BizApproval approval, List<BizApprovalNode> nodes) {
+        boolean legacy = nodes.stream().noneMatch(n -> n.getConfigId() != null);
+        if (!legacy) return false;
+        long pendingCount = nodes.stream().filter(n -> LIT_PENDING.equals(n.getStatus())).count();
+        if (pendingCount == 0) {
+            finalizeApproval(approval);
+        }
+        return true;
+    }
+
+    private void cancelPendingStageNodes(List<BizApprovalNode> stageNodes) {
         for (BizApprovalNode s : stageNodes) {
             if (LIT_PENDING.equals(s.getStatus())) {
                 approvalNodeMapper.update(null, new LambdaUpdateWrapper<BizApprovalNode>()
@@ -703,22 +723,19 @@ public class ApprovalService {
                 s.setStatus(LIT_REJECTED); // 内存态与库同步,后续"全单是否完结"判定不吃过期快照
             }
         }
+    }
 
+    private int findNextStage(List<BizApprovalNode> nodes, int myStage) {
         int nextStage = Integer.MAX_VALUE;
         for (BizApprovalNode n : nodes) {
             if (n.getNodeOrder() != null && n.getNodeOrder() > myStage && n.getNodeOrder() < nextStage) {
                 nextStage = n.getNodeOrder();
             }
         }
-        if (nextStage == Integer.MAX_VALUE) {
-            // 无后续阶段:确认全单无未完结节点(防御性,串行下自然成立)
-            boolean anyOpen = nodes.stream()
-                    .anyMatch(n -> LIT_PENDING.equals(n.getStatus()) || LIT_WAITING.equals(n.getStatus()));
-            if (!anyOpen) {
-                finalizeApproval(approval);
-            }
-            return;
-        }
+        return nextStage;
+    }
+
+    private void activateStage(List<BizApprovalNode> nodes, int nextStage) {
         for (BizApprovalNode n : nodes) {
             if (n.getNodeOrder() == nextStage && LIT_WAITING.equals(n.getStatus())) {
                 approvalNodeMapper.update(null, new LambdaUpdateWrapper<BizApprovalNode>()
@@ -727,7 +744,9 @@ public class ApprovalService {
                         .eq(BizApprovalNode::getStatus, LIT_WAITING));
             }
         }
-        final int activatedStage = nextStage;
+    }
+
+    private void updateCurrentNode(BizApproval approval, List<BizApprovalNode> nodes, int activatedStage) {
         Long nextConfigId = nodes.stream()
                 .filter(n -> n.getNodeOrder() != null && n.getNodeOrder() == activatedStage && n.getConfigId() != null)
                 .map(BizApprovalNode::getConfigId).findFirst().orElse(null);
