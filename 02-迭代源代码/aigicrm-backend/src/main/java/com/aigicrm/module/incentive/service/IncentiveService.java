@@ -890,21 +890,25 @@ public class IncentiveService {
      */
     private int calcScore(BizIncentiveRecord r, BizIncentiveCategory category, int base) {
         if (category == null || base <= 0) return 0;
-
-        boolean hasPre  = r.hasFiles(r.getFilePreId() != null ? r.getFilePreId() : null);
-        boolean hasMid  = r.hasFiles(r.getFileMidId() != null ? r.getFileMidId() : null);
-        boolean hasPost = r.hasFiles(r.getFilePostId() != null ? r.getFilePostId() : null);
-
-        if (isPlanCategory(category)) {
-            // 两谈两做方案(plan): 方案文件任一存在即 +base, 不论文件数量(上限5份)——多文件也只积一次(2026-08-10 用户确认)
-            return (hasPre || hasMid || hasPost) ? base : 0;
-        } else if (isVisitExchangeCategory(category)) {
-            // 外出参观/交流拜访：任一槽有文件即得分
-            return (hasPre || hasMid || hasPost) ? base : 0;
-        } else {
-            // 其他（含产品试点）：三文件齐全
-            return (hasPre && hasMid && hasPost) ? base : 0;
+        boolean hasAny = hasAnySlotFile(r);
+        if (isPlanCategory(category) || isVisitExchangeCategory(category)) {
+            // 两谈两做方案 / 外出参观 / 交流拜访：任一槽有文件即得分
+            return hasAny ? base : 0;
         }
+        // 其他（含产品试点）：三文件齐全
+        return hasAllSlotFiles(r) ? base : 0;
+    }
+
+    private boolean hasAnySlotFile(BizIncentiveRecord r) {
+        return r.hasFiles(r.getFilePreId() != null ? r.getFilePreId() : null)
+                || r.hasFiles(r.getFileMidId() != null ? r.getFileMidId() : null)
+                || r.hasFiles(r.getFilePostId() != null ? r.getFilePostId() : null);
+    }
+
+    private boolean hasAllSlotFiles(BizIncentiveRecord r) {
+        return r.hasFiles(r.getFilePreId() != null ? r.getFilePreId() : null)
+                && r.hasFiles(r.getFileMidId() != null ? r.getFileMidId() : null)
+                && r.hasFiles(r.getFilePostId() != null ? r.getFilePostId() : null);
     }
 
     /** 判断子类是否属于"外出参观/交流拜访"大类（category_code = 'visit'/'exchange'） */

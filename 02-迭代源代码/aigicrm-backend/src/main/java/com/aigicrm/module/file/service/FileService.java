@@ -580,6 +580,28 @@ public class FileService {
      * 都能读到同一行并各退一次配额(重复归还)。现在只有 deleted=0 行被本次请求真正删除
      * (affected==1)才归还；affected==0 = 重复/并发删除，幂等返回成功且不二次退款。
      */
+    private void assertCanDeleteFile(Long fileId, BizFile file, Long userId, String scope) {
+        if (file.getFolderId() != null) {
+            if (!folderPermissionService.checkFile(fileId, FolderPermissionService.P_DELETE, userId)) {
+                throw new BusinessException(403, LIT_X);
+            }
+        } else if (LIT_PUBLIC.equals(scope)) {
+            if (!SecurityUtils.hasAuthority("file:delete")) {
+                throw new BusinessException(403, "删除公共文件需要 file:delete 权限");
+            }
+        } else if (LIT_PRIVATE.equals(scope) || LIT_INCENTIVE.equals(scope)) {
+            if (!userId.equals(file.getUploaderId())) {
+                throw new BusinessException(403, "无权删除该文件");
+            }
+        } else if (LIT_FABUSHI.equals(scope)) {
+            if (!folderPermissionService.canDeleteFabushiFile(file, userId)) {
+                throw new BusinessException(403, "删除法布殊文件需要 fabushi:file:delete 权限且在上传人数据范围内");
+            }
+        } else {
+            throw new BusinessException(403, "无权删除该文件");
+        }
+    }
+
     @org.springframework.transaction.annotation.Transactional
     public void deleteFile(Long fileId) {
         BizFile file = fileMapper.selectById(fileId);
@@ -593,29 +615,7 @@ public class FileService {
         // 激励文件（IDOR）。现在改为白名单放行、默认拒绝，且新增 incentive scope 的归属校验。
         // 【文件权限体系】夹内文件（folderId 非空）改按文件夹权限判定（管理员/本人/上级链/ACL delete），
         // 无文件夹文件沿用下方 scope 白名单归属校验。
-        {
-            if (file.getFolderId() != null) {
-                if (!folderPermissionService.checkFile(fileId, FolderPermissionService.P_DELETE, userId)) {
-                    throw new BusinessException(403, LIT_X);
-                }
-            } else if (LIT_PUBLIC.equals(scope)) {
-                if (!SecurityUtils.hasAuthority("file:delete")) {
-                    throw new BusinessException(403, "删除公共文件需要 file:delete 权限");
-                }
-            } else if (LIT_PRIVATE.equals(scope) || LIT_INCENTIVE.equals(scope)) {
-                if (!userId.equals(file.getUploaderId())) {
-                    throw new BusinessException(403, "无权删除该文件");
-                }
-            } else if (LIT_FABUSHI.equals(scope)) {
-                // 【2026-11-17 文件统一管理】法布施文件不进 public/private/incentive 分支，
-                // 删除动作由独立权限码 + fabushi|file_delete 数据范围控制（默认仅 admin）。
-                if (!folderPermissionService.canDeleteFabushiFile(file, userId)) {
-                    throw new BusinessException(403, "删除法布施文件需要 fabushi:file:delete 权限且在上传人数据范围内");
-                }
-            } else {
-                throw new BusinessException(403, "无权删除该文件");
-            }
-        }
+        assertCanDeleteFile(fileId, file, userId, scope);
 
         // 【BIZ-007 2026-11-13 外部审计修复】删除激励佐证必须联动重算学分:
         // 反查引用该文件的激励记录 → 剔除槽位引用 → calcScore 重算(与记录侧 removeFile 同一套
@@ -1270,44 +1270,12 @@ public class FileService {
     /** 【2026-11-17 阶段三】视频 5 秒预览（ffmpeg 转码缓存）；非视频返回 415。 */
     public void writeVideoPreview(Long fileId, jakarta.servlet.http.HttpServletResponse response) {
         BizFile file = fileMapper.selectById(fileId);
-        if (file == null) { response.setStatus(404); return; }
         Long userId = SecurityUtils.getCurrentUserId();
-        if (!canDownloadFile(file, userId)) { response.setStatus(403); return; }
-        String name = file.getFileName() == null ? "" : file.getFileName().toLowerCase(java.util.Locale.ROOT);
-        if (!name.matches(".*\\.(mp4|webm|mov|avi|mkv|m4v)$")) { response.setStatus(415); return; }
-        if (!videoPreviewEnabled) { response.setStatus(503); return; }
+        Path source = resolveVideoSource(file, userId, response);
+        if (source == null) return;
         try {
-            Path source = Paths.get(uploadDir, file.getOssKey());
-            if (!Files.isRegularFile(source)) {
-                if (file.getOssUrl() != null && file.getOssUrl().startsWith(LIT_HTTPS)) {
-                    response.setStatus(302);
-                    response.setHeader(HttpHeaders.LOCATION, file.getOssUrl());
-                    return;
-                }
-                response.setStatus(404);
-                return;
-            }
-            Path cacheRoot = thumbnailCacheRoot();
-            Files.createDirectories(cacheRoot);
-            String key = "preview-" + file.getId() + "-" + (file.getVersion() == null ? 1 : file.getVersion())
-                    + "-" + Integer.toHexString(Objects.hash(file.getOssKey(), file.getFileSize(),
-                    Files.getLastModifiedTime(source).toMillis())) + ".mp4";
-            Path cached = cacheRoot.resolve(key);
-            if (!Files.isRegularFile(cached)) {
-                Path tmp = Files.createTempFile(cacheRoot, "preview-", ".tmp");
-                Process p = new ProcessBuilder(ffmpegPath, "-y", "-ss", "0", "-i", source.toString(),
-                        "-t", "5", "-an", "-vf", "scale='min(1280,iw)':-2",
-                        "-c:v", "libx264", "-preset", "veryfast", "-movflags", "+faststart",
-                        tmp.toString()).redirectErrorStream(true).start();
-                boolean done = p.waitFor(60, java.util.concurrent.TimeUnit.SECONDS);
-                if (!done) p.destroyForcibly();
-                if (!done || p.exitValue() != 0 || Files.size(tmp) == 0) {
-                    Files.deleteIfExists(tmp);
-                    response.setStatus(503);
-                    return;
-                }
-                Files.move(tmp, cached, StandardCopyOption.REPLACE_EXISTING);
-            }
+            Path cached = generateCachedPreview(source, file);
+            if (cached == null) { response.setStatus(503); return; }
             response.setStatus(200);
             response.setContentType("video/mp4");
             response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "inline");
@@ -1323,6 +1291,47 @@ public class FileService {
             log.warn("视频预览生成失败 fileId={}: {}", fileId, e.getMessage());
             response.setStatus(503);
         }
+    }
+
+    private Path resolveVideoSource(BizFile file, Long userId, jakarta.servlet.http.HttpServletResponse response) {
+        if (file == null) { response.setStatus(404); return null; }
+        if (!canDownloadFile(file, userId)) { response.setStatus(403); return null; }
+        String name = file.getFileName() == null ? "" : file.getFileName().toLowerCase(java.util.Locale.ROOT);
+        if (!name.matches(".*\\.(mp4|webm|mov|avi|mkv|m4v)$")) { response.setStatus(415); return null; }
+        if (!videoPreviewEnabled) { response.setStatus(503); return null; }
+        if (file.getOssKey() == null) { response.setStatus(404); return null; }
+        Path source = Paths.get(uploadDir, file.getOssKey());
+        if (Files.isRegularFile(source)) return source;
+        if (file.getOssUrl() != null && file.getOssUrl().startsWith(LIT_HTTPS)) {
+            response.setStatus(302);
+            response.setHeader(HttpHeaders.LOCATION, file.getOssUrl());
+            return null;
+        }
+        response.setStatus(404);
+        return null;
+    }
+
+    private Path generateCachedPreview(Path source, BizFile file) throws Exception {
+        Path cacheRoot = thumbnailCacheRoot();
+        Files.createDirectories(cacheRoot);
+        String key = "preview-" + file.getId() + "-" + (file.getVersion() == null ? 1 : file.getVersion())
+                + "-" + Integer.toHexString(Objects.hash(file.getOssKey(), file.getFileSize(),
+                Files.getLastModifiedTime(source).toMillis())) + ".mp4";
+        Path cached = cacheRoot.resolve(key);
+        if (Files.isRegularFile(cached)) return cached;
+        Path tmp = Files.createTempFile(cacheRoot, "preview-", ".tmp");
+        Process p = new ProcessBuilder(ffmpegPath, "-y", "-ss", "0", "-i", source.toString(),
+                "-t", "5", "-an", "-vf", "scale='min(1280,iw)':-2",
+                "-c:v", "libx264", "-preset", "veryfast", "-movflags", "+faststart",
+                tmp.toString()).redirectErrorStream(true).start();
+        boolean done = p.waitFor(60, java.util.concurrent.TimeUnit.SECONDS);
+        if (!done) p.destroyForcibly();
+        if (!done || p.exitValue() != 0 || Files.size(tmp) == 0) {
+            Files.deleteIfExists(tmp);
+            return null;
+        }
+        Files.move(tmp, cached, StandardCopyOption.REPLACE_EXISTING);
+        return cached;
     }
 
     public void downloadById(Long fileId, String range, boolean thumbnail, jakarta.servlet.http.HttpServletResponse response) {

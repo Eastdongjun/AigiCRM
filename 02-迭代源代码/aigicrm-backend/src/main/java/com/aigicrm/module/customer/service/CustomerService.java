@@ -1926,32 +1926,36 @@ public class CustomerService {
 
     /** computeCoreType 的纯函数核(单户与全量刷新共用): rows = 该客户全部阶段行, 门槛为参数不落死值。 */
     static String computeCoreTypeFromRows(List<BizCustomerStageAmount> rows, BigDecimal minorWan, BigDecimal majorWan) {
-        int baseYear = rows.stream()
+        int baseYear = baseYearOf(rows);
+        if (baseYear == 0) return "";
+        BigDecimal[] amounts = annualAmountsOf(rows, baseYear);
+        return coreTypeOf(amounts[0], amounts[1], minorWan, majorWan);
+    }
+
+    private static int baseYearOf(List<BizCustomerStageAmount> rows) {
+        return rows.stream()
                 .filter(r -> isPositiveAmount(r.getInvoiceAmount()) || isPositiveAmount(r.getPaymentAmount()))
                 .mapToInt(BizCustomerStageAmount::getPeriodYear).max().orElse(0);
-        if (baseYear == 0) return "";
-        BigDecimal invoice;
-        BigDecimal payment;
+    }
+
+    private static BigDecimal[] annualAmountsOf(List<BizCustomerStageAmount> rows, int baseYear) {
         BizCustomerStageAmount fy = rows.stream()
                 .filter(r -> r.getPeriodYear() == baseYear && "FY".equals(r.getPeriodType())
                         && (isPositiveAmount(r.getInvoiceAmount()) || isPositiveAmount(r.getPaymentAmount())))
                 .findFirst().orElse(null);
-        if (fy != null) {
-            invoice = fy.getInvoiceAmount();
-            payment = fy.getPaymentAmount();
-        } else {
-            BigDecimal[] halves = rows.stream()
-                    .filter(r -> r.getPeriodYear() == baseYear && ("H1".equals(r.getPeriodType()) || "H2".equals(r.getPeriodType())))
-                    .reduce(new BigDecimal[]{BigDecimal.ZERO, BigDecimal.ZERO},
-                            (acc, r) -> {
-                                acc[0] = acc[0].add(r.getInvoiceAmount() == null ? BigDecimal.ZERO : r.getInvoiceAmount());
-                                acc[1] = acc[1].add(r.getPaymentAmount() == null ? BigDecimal.ZERO : r.getPaymentAmount());
-                                return acc;
-                            },
-                            (a, b) -> a);
-            invoice = halves[0];
-            payment = halves[1];
-        }
+        if (fy != null) return new BigDecimal[]{fy.getInvoiceAmount(), fy.getPaymentAmount()};
+        return rows.stream()
+                .filter(r -> r.getPeriodYear() == baseYear && ("H1".equals(r.getPeriodType()) || "H2".equals(r.getPeriodType())))
+                .reduce(new BigDecimal[]{BigDecimal.ZERO, BigDecimal.ZERO},
+                        (acc, r) -> {
+                            acc[0] = acc[0].add(r.getInvoiceAmount() == null ? BigDecimal.ZERO : r.getInvoiceAmount());
+                            acc[1] = acc[1].add(r.getPaymentAmount() == null ? BigDecimal.ZERO : r.getPaymentAmount());
+                            return acc;
+                        },
+                        (a, b) -> a);
+    }
+
+    private static String coreTypeOf(BigDecimal invoice, BigDecimal payment, BigDecimal minorWan, BigDecimal majorWan) {
         boolean invoiceMet = invoice != null && invoice.compareTo(majorWan) >= 0;
         boolean paymentMet = payment != null && payment.compareTo(majorWan) >= 0;
         if (invoiceMet && paymentMet) return "core";
