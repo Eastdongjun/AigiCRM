@@ -124,6 +124,23 @@ public class ReminderService {
     public IPage<BizReminder> page(int current, int size, String type, String keyword,
                                     Long officeId, Long ownerId, String status, Long deptId) {
         LambdaQueryWrapper<BizReminder> wrapper = new LambdaQueryWrapper<>();
+        applyBasicFilters(wrapper, type, status, officeId);
+        // 【容量评估修复§2 串行段并发】deptId 子树展开与数据范围解析并发后再组装查询条件。
+        applyDeptAndOwnerScope(wrapper, deptId, ownerId);
+        // 【C1 2026-10-21】keyword 真正参与 SQL 过滤(此前形参零引用)
+        applyKeywordScope(wrapper, keyword);
+        wrapper.orderByDesc(BizReminder::getCreatedAt);
+
+        IPage<BizReminder> page = reminderMapper.selectPage(new Page<>(current, size), wrapper);
+        List<BizReminder> rows = page.getRecords();
+        // 【容量评估修复§1 N+1 批量化】整页去重 id → 每维一次批量查询 → Map 回填 + 孤儿行滤除
+        Map<Long, BizCustomer> customerMap = fillReminderRows(rows);
+        // 【F15① 2026-10-18 用户裁决·删除是终态】软删客户的孤儿提醒不再出现在列表
+        removeOrphanRows(rows, customerMap, page);
+        return page;
+    }
+
+    private void applyBasicFilters(LambdaQueryWrapper<BizReminder> wrapper, String type, String status, Long officeId) {
         if (StringUtils.hasText(type)) {
             wrapper.eq(BizReminder::getReminderType, type);
         }
@@ -133,9 +150,9 @@ public class ReminderService {
         if (officeId != null) {
             wrapper.eq(BizReminder::getOfficeId, officeId);
         }
-        // 【容量评估修复§2 串行段并发】deptId 子树展开(expandSubtree 递归查询)与数据范围解析
-        // (resolveModuleUsers) 互不依赖,原实现串行执行各持连接排队;二者并发后再组装查询条件。
-        // 两个调用的入参/内部逻辑/过滤语义完全不变,仅调度方式由串行改并发。
+    }
+
+    private void applyDeptAndOwnerScope(LambdaQueryWrapper<BizReminder> wrapper, Long deptId, Long ownerId) {
         List<Object> pre = supplyConcurrently(List.of(
                 (Supplier<Object>) () -> deptId != null
                         ? com.aigicrm.common.util.DeptTreeUtils.expandSubtree(deptMapper, deptId) : null,
@@ -146,18 +163,24 @@ public class ReminderService {
             wrapper.in(BizReminder::getOfficeId, subtree);
         }
         applyOwnerScope(wrapper, ownerId, (List<Long>) pre.get(1));
-        // 【C1 2026-10-21】keyword 真正参与 SQL 过滤(此前形参零引用, 前端只能对当前页做客户端过滤,
-        // total 仍是未过滤总数): 口径见方法 javadoc; 客户维查询独立于上方并发段, 保持 dept/owner 解析调度不变
-        applyKeywordScope(wrapper, keyword);
-        wrapper.orderByDesc(BizReminder::getCreatedAt);
+    }
 
-        IPage<BizReminder> page = reminderMapper.selectPage(new Page<>(current, size), wrapper);
+    /** 整页回填客户/负责人/办事处信息；返回客户 map 供孤儿行判定。 */
+    private Map<Long, BizCustomer> fillReminderRows(List<BizReminder> rows) {
+        RowIds ids = collectRowIds(rows);
+        List<Map<Long, ?>> fills = loadReminderFills(ids);
+        @SuppressWarnings("unchecked") Map<Long, BizCustomer> customerMap = (Map<Long, BizCustomer>) fills.get(0);
+        @SuppressWarnings("unchecked") Map<Long, SysUser> userMap = (Map<Long, SysUser>) fills.get(1);
+        @SuppressWarnings("unchecked") Map<Long, SysDept> deptMap = (Map<Long, SysDept>) fills.get(2);
+        for (BizReminder r : rows) {
+            fillCustomerFields(r, customerMap);
+            fillOwnerName(r, userMap);
+            fillOfficeName(r, deptMap);
+        }
+        return customerMap;
+    }
 
-        // 【容量评估修复§1 N+1 批量化】原循环内每行 3 次 selectById 点查(customer/user/dept),
-        // size=15 一页即 ~45 条串行 SQL、持连接 100-300ms——容量评估公认第一瓶颈。
-        // 改为: 收集本页去重 id → 每维一次 selectBatchIds → Map 回填。
-        // 字段写入与"查不到则跳过"的缺省行为同逐行版;回填按 records 原序二次遍历,行序不变。
-        List<BizReminder> rows = page.getRecords();
+    private RowIds collectRowIds(List<BizReminder> rows) {
         Set<Long> customerIds = new HashSet<>();
         Set<Long> ownerIds = new HashSet<>();
         Set<Long> officeIds = new HashSet<>();
@@ -166,50 +189,56 @@ public class ReminderService {
             if (r.getOwnerId() != null) ownerIds.add(r.getOwnerId());
             if (r.getOfficeId() != null) officeIds.add(r.getOfficeId());
         }
+        return new RowIds(customerIds, ownerIds, officeIds);
+    }
+
+    private List<Map<Long, ?>> loadReminderFills(RowIds ids) {
         // 三个回填查询互不依赖 → 并发执行;本页 SQL 由 3×size 条降为 ≤3 条(个位数,要求§1)
         Supplier<Map<Long, ?>> customerFill = () ->
-                batchIdMap(customerIds, () -> customerMapper.selectBatchIds(customerIds), BizCustomer::getId);
+                batchIdMap(ids.customerIds(), () -> customerMapper.selectBatchIds(ids.customerIds()), BizCustomer::getId);
         Supplier<Map<Long, ?>> ownerFill = () ->
-                batchIdMap(ownerIds, () -> userMapper.selectBatchIds(ownerIds), SysUser::getId);
+                batchIdMap(ids.ownerIds(), () -> userMapper.selectBatchIds(ids.ownerIds()), SysUser::getId);
         Supplier<Map<Long, ?>> officeFill = () ->
-                batchIdMap(officeIds, () -> deptMapper.selectBatchIds(officeIds), SysDept::getId);
-        List<Map<Long, ?>> fills = supplyConcurrently(List.of(customerFill, ownerFill, officeFill));
-        @SuppressWarnings("unchecked") Map<Long, BizCustomer> customerMap = (Map<Long, BizCustomer>) fills.get(0);
-        @SuppressWarnings("unchecked") Map<Long, SysUser> userMap = (Map<Long, SysUser>) fills.get(1);
-        @SuppressWarnings("unchecked") Map<Long, SysDept> deptMap = (Map<Long, SysDept>) fills.get(2);
-        for (BizReminder r : rows) {
-            if (r.getCustomerId() != null) {
-                BizCustomer customer = customerMap.get(r.getCustomerId());
-                if (customer != null) {
-                    r.setCustomerName(customer.getCustomerName());
-                    r.setLastInvoiceDate(customer.getLastInvoiceDate());
-                }
-            }
-            if (r.getOwnerId() != null) {
-                SysUser user = userMap.get(r.getOwnerId());
-                if (user != null) r.setOwnerName(user.getRealName());
-            }
-            if (r.getOfficeId() != null) {
-                SysDept dept = deptMap.get(r.getOfficeId());
-                if (dept != null) r.setOfficeName(dept.getDeptName());
-            }
-        }
-        // 【F15① 2026-10-18 用户裁决·删除是终态】软删客户的孤儿提醒不再出现在列表:
-        // 应用内删客户会清 pending 提醒(INV-05),但 SQL 直删(如 8-10 的 290 条)绕过该清理,
-        // 残留提醒在"到期提醒页/角标"(查客户表,自动滤已删)看不到、在本列表(查提醒表原始行)却照常
-        // 出现——两接口口径分叉。此处的 customerMap 来自 selectBatchIds(@TableLogic 已排除已删客户),
-        // customer_id 查不到的行即孤儿行,整行滤除并与 total 对齐;与 expiringPage/pendingCount 同口径。
-        if (!rows.isEmpty()) {
-            long orphans = rows.stream().filter(r ->
-                    r.getCustomerId() != null && !customerMap.containsKey(r.getCustomerId())).count();
-            if (orphans > 0) {
-                rows.removeIf(r ->
-                        r.getCustomerId() != null && !customerMap.containsKey(r.getCustomerId()));
-                page.setTotal(Math.max(0, page.getTotal() - orphans));
-            }
-        }
-        return page;
+                batchIdMap(ids.officeIds(), () -> deptMapper.selectBatchIds(ids.officeIds()), SysDept::getId);
+        return supplyConcurrently(List.of(customerFill, ownerFill, officeFill));
     }
+
+    private void fillCustomerFields(BizReminder r, Map<Long, BizCustomer> customerMap) {
+        if (r.getCustomerId() == null) return;
+        BizCustomer customer = customerMap.get(r.getCustomerId());
+        if (customer != null) {
+            r.setCustomerName(customer.getCustomerName());
+            r.setLastInvoiceDate(customer.getLastInvoiceDate());
+        }
+    }
+
+    private void fillOwnerName(BizReminder r, Map<Long, SysUser> userMap) {
+        if (r.getOwnerId() == null) return;
+        SysUser user = userMap.get(r.getOwnerId());
+        if (user != null) r.setOwnerName(user.getRealName());
+    }
+
+    private void fillOfficeName(BizReminder r, Map<Long, SysDept> deptMap) {
+        if (r.getOfficeId() == null) return;
+        SysDept dept = deptMap.get(r.getOfficeId());
+        if (dept != null) r.setOfficeName(dept.getDeptName());
+    }
+
+    private void removeOrphanRows(List<BizReminder> rows, Map<Long, BizCustomer> customerMap,
+                                  IPage<BizReminder> page) {
+        if (rows.isEmpty()) return;
+        // customerMap 来自 selectBatchIds(@TableLogic 已排除已删客户), customer_id 查不到的行即孤儿行,
+        // 整行滤除并与 total 对齐;与 expiringPage/pendingCount 同口径。
+        long orphans = rows.stream().filter(r ->
+                r.getCustomerId() != null && !customerMap.containsKey(r.getCustomerId())).count();
+        if (orphans > 0) {
+            rows.removeIf(r ->
+                    r.getCustomerId() != null && !customerMap.containsKey(r.getCustomerId()));
+            page.setTotal(Math.max(0, page.getTotal() - orphans));
+        }
+    }
+
+    private record RowIds(Set<Long> customerIds, Set<Long> ownerIds, Set<Long> officeIds) {}
 
     /**
      * 【C1 2026-10-21】提醒类型中文标签映射——与小程序 pages/reminder/index.js 的 reminderTypeLabel
@@ -281,18 +310,29 @@ public class ReminderService {
 
     public IPage<Map<String, Object>> expiringPage(int current, int size, String keyword,
                                                      Long officeId, Long ownerId, Long deptId) {
-        // 【容量评估修复§2 四段串行瀑布→并行】原实现 ①warningDays 配置读 → ②deptId 子树递归展开
-        // → ③数据范围解析(resolveModuleUsers,内部含部门树/成员/开关多条查询) → ④客户分页,四段串行
-        // 各持连接排队(历史结论: DB 无罪,慢在串行段与 N+1 点查)。①②③互不依赖,并发执行后再组装
-        // ④ 的查询条件;三段各自的调用方式与内部语义完全不变,仅调度由串行改并发。
-        List<Object> pre = supplyConcurrently(List.of(
+        // 【容量评估修复§2 四段串行瀑布→并行】warningDays 配置 / deptId 子树 / 数据范围解析并发执行
+        List<Object> pre = resolveExpiringScopes(deptId);
+        int warningDays = (Integer) pre.get(0);
+        LambdaQueryWrapper<BizCustomer> wrapper = buildExpiringWrapper(keyword, officeId, ownerId, deptId, pre, warningDays);
+        IPage<BizCustomer> customerPage = customerMapper.selectPage(new Page<>(current, size), wrapper);
+
+        List<Map<String, Object>> records = buildExpiringRows(customerPage.getRecords(), LocalDate.now());
+        IPage<Map<String, Object>> result = new Page<>(current, size, customerPage.getTotal());
+        result.setRecords(records);
+        return result;
+    }
+
+    private List<Object> resolveExpiringScopes(Long deptId) {
+        return supplyConcurrently(List.of(
                 (Supplier<Object>) () -> resolveWarningDays(),
                 (Supplier<Object>) () -> deptId != null
                         ? com.aigicrm.common.util.DeptTreeUtils.expandSubtree(deptMapper, deptId) : null,
                 (Supplier<Object>) () -> scopeResolver.resolveModuleUsers(SecurityUtils.getCurrentUser(), LIT_REMINDER)
         ));
-        int warningDays = (Integer) pre.get(0);
+    }
 
+    private LambdaQueryWrapper<BizCustomer> buildExpiringWrapper(String keyword, Long officeId, Long ownerId,
+                                                                Long deptId, List<Object> pre, int warningDays) {
         LambdaQueryWrapper<BizCustomer> wrapper = new LambdaQueryWrapper<>();
         LocalDate deadline = LocalDate.now().plusDays(warningDays);
         wrapper.isNotNull(BizCustomer::getExpireDate)
@@ -308,11 +348,12 @@ public class ReminderService {
         } else if (officeId != null) {
             wrapper.eq(BizCustomer::getOfficeId, officeId);
         }
+        // 按数据范围过滤负责人（同 page()；2026-09-19 接入权限矩阵：(reminder,view) 显式配置优先）
+        applyCustomerOwnerScope(wrapper, ownerId, (List<Long>) pre.get(2));
+        return wrapper;
+    }
 
-        // 按数据范围过滤负责人（同 page() 修复，替换原"非管理员只看自己"的粗粒度判断；
-        // 2026-09-19 接入权限矩阵：(reminder,view) 显式配置优先。
-        // 【容量评估修复§2】visibleOwners 改由上方并发段预解析,下方过滤分支与原实现逐行一致）
-        List<Long> visibleOwners = (List<Long>) pre.get(2);
+    private void applyCustomerOwnerScope(LambdaQueryWrapper<BizCustomer> wrapper, Long ownerId, List<Long> visibleOwners) {
         if (visibleOwners == null) { // all：不过滤
             if (ownerId != null) wrapper.eq(BizCustomer::getOwnerId, ownerId);
         } else if (ownerId != null) {
@@ -324,16 +365,10 @@ public class ReminderService {
         } else {
             wrapper.in(BizCustomer::getOwnerId, visibleOwners.isEmpty() ? List.of(-1L) : visibleOwners);
         }
+    }
 
-        IPage<BizCustomer> customerPage = customerMapper.selectPage(new Page<>(current, size), wrapper);
-        LocalDate today = LocalDate.now();
-
-        // 【容量评估修复§1 N+1 批量化】原循环内每行 4 查(dept/user 点查 + pending/processed 各一次
-        // selectOne),size=15 一页即 ~60 条串行 SQL。改为整页收集后 4 次批量查询并发执行。
-        // 语义等价: 原 selectOne 为 eq(customerId)+orderByDesc(id) LIMIT 1,即"该客户下 id 最大的
-        // 一条";批量版 in(customerIds) 一次取回后内存取每客户 max(id)(latestReminderPerCustomer),
-        // 结果与逐行版一致。行字段写入/键缺省行为("查不到不 put 该键")亦与逐行版一致。
-        List<BizCustomer> customers = customerPage.getRecords();
+    /** 【容量评估修复§1】整页 4 次批量查询（部门/用户/pending/processed）→ 逐行组装。 */
+    private List<Map<String, Object>> buildExpiringRows(List<BizCustomer> customers, LocalDate today) {
         Set<Long> customerIds = new HashSet<>();
         Set<Long> officeIds = new HashSet<>();
         Set<Long> ownerIds = new HashSet<>();
@@ -342,11 +377,27 @@ public class ReminderService {
             if (c.getOfficeId() != null) officeIds.add(c.getOfficeId());
             if (c.getOwnerId() != null) ownerIds.add(c.getOwnerId());
         }
+        List<Object> fills = loadExpiringFills(customerIds, officeIds, ownerIds, today);
+        @SuppressWarnings("unchecked") Map<Long, SysDept> deptMap = (Map<Long, SysDept>) fills.get(0);
+        @SuppressWarnings("unchecked") Map<Long, SysUser> userMap = (Map<Long, SysUser>) fills.get(1);
+        @SuppressWarnings("unchecked") Map<Long, BizReminder> pendingMap = (Map<Long, BizReminder>) fills.get(2);
+        @SuppressWarnings("unchecked") Map<Long, BizReminder> processedMap = (Map<Long, BizReminder>) fills.get(3);
+        List<Map<String, Object>> records = new ArrayList<>();
+        for (BizCustomer c : customers) {
+            records.add(buildExpiringRow(c, today, deptMap, userMap, pendingMap, processedMap));
+        }
+        return records;
+    }
+
+    private List<Object> loadExpiringFills(Set<Long> customerIds, Set<Long> officeIds, Set<Long> ownerIds,
+                                           LocalDate today) {
         LocalDateTime todayStart = today.atStartOfDay();
         Supplier<Object> deptFill = () ->
                 batchIdMap(officeIds, () -> deptMapper.selectBatchIds(officeIds), SysDept::getId);
         Supplier<Object> userFill = () ->
                 batchIdMap(ownerIds, () -> userMapper.selectBatchIds(ownerIds), SysUser::getId);
+        // 原 selectOne 为 eq(customerId)+orderByDesc(id) LIMIT 1，即"该客户下 id 最大的一条";
+        // 批量版 in(customerIds) 一次取回后内存取每客户 max(id)，结果与逐行版一致。
         Supplier<Object> pendingFill = () -> customerIds.isEmpty() ? Map.<Long, BizReminder>of()
                 : latestReminderPerCustomer(reminderMapper.selectList(new LambdaQueryWrapper<BizReminder>()
                         .in(BizReminder::getCustomerId, customerIds)
@@ -358,46 +409,38 @@ public class ReminderService {
                         .eq(BizReminder::getReminderType, LIT_EXPIRING)
                         .eq(BizReminder::getStatus, LIT_PROCESSED)
                         .ge(BizReminder::getProcessedAt, todayStart)));
-        List<Object> fills = supplyConcurrently(List.of(deptFill, userFill, pendingFill, processedFill));
-        @SuppressWarnings("unchecked") Map<Long, SysDept> deptMap = (Map<Long, SysDept>) fills.get(0);
-        @SuppressWarnings("unchecked") Map<Long, SysUser> userMap = (Map<Long, SysUser>) fills.get(1);
-        @SuppressWarnings("unchecked") Map<Long, BizReminder> pendingMap = (Map<Long, BizReminder>) fills.get(2);
-        @SuppressWarnings("unchecked") Map<Long, BizReminder> processedMap = (Map<Long, BizReminder>) fills.get(3);
+        return supplyConcurrently(List.of(deptFill, userFill, pendingFill, processedFill));
+    }
 
-        List<Map<String, Object>> records = customers.stream().map(c -> {
-            Map<String, Object> row = new HashMap<>();
-            row.put(LIT_CUSTOMERID, c.getId());
-            row.put("customerName", c.getCustomerName());
-            row.put("expireDate", c.getExpireDate());
-            row.put("remainingDays", ChronoUnit.DAYS.between(today, c.getExpireDate()));
+    private Map<String, Object> buildExpiringRow(BizCustomer c, LocalDate today, Map<Long, SysDept> deptMap,
+                                                 Map<Long, SysUser> userMap, Map<Long, BizReminder> pendingMap,
+                                                 Map<Long, BizReminder> processedMap) {
+        Map<String, Object> row = new HashMap<>();
+        row.put(LIT_CUSTOMERID, c.getId());
+        row.put("customerName", c.getCustomerName());
+        row.put("expireDate", c.getExpireDate());
+        row.put("remainingDays", ChronoUnit.DAYS.between(today, c.getExpireDate()));
 
-            // 【容量评估修复§1】dept/user 由逐行 selectById 改查批量 Map;字段写入与缺省行为同原版
-            if (c.getOfficeId() != null) {
-                SysDept dept = deptMap.get(c.getOfficeId());
-                if (dept != null) row.put("officeName", dept.getDeptName());
-            }
-            if (c.getOwnerId() != null) {
-                SysUser user = userMap.get(c.getOwnerId());
-                if (user != null) row.put("ownerName", user.getRealName());
-            }
+        // 【容量评估修复§1】dept/user 由逐行 selectById 改查批量 Map;字段写入与缺省行为同原版
+        if (c.getOfficeId() != null) {
+            SysDept dept = deptMap.get(c.getOfficeId());
+            if (dept != null) row.put("officeName", dept.getDeptName());
+        }
+        if (c.getOwnerId() != null) {
+            SysUser user = userMap.get(c.getOwnerId());
+            if (user != null) row.put("ownerName", user.getRealName());
+        }
 
-            // 跟进状态(【2026-09-23 去重口径统一】随 ensureExpiring 改为"pending 存在即不新建"后,
-            // 今日行可能不存在:reminderId 指向当前 pending(无则今日已处理行),todayFollowedUp=今日处理过)
-            // 【容量评估修复§1】两次逐行 selectOne 改查预取好的每客户 max(id) Map,判定逻辑不变
-            BizReminder currentPending = c.getId() == null ? null : pendingMap.get(c.getId());
-            BizReminder todayProcessed = c.getId() == null ? null : processedMap.get(c.getId());
-            boolean followedToday = todayProcessed != null;
-            BizReminder todayReminder = currentPending != null ? currentPending : todayProcessed;
-            // S8: GET 只读，不再自动建提醒——今日提醒物化由 POST /ensure-expiring 显式触发
-            row.put("reminderId", todayReminder == null ? null : todayReminder.getId());
-            row.put("todayFollowedUp", followedToday);
-
-            return row;
-        }).collect(Collectors.toList());
-
-        IPage<Map<String, Object>> result = new Page<>(current, size, customerPage.getTotal());
-        result.setRecords(records);
-        return result;
+        // 跟进状态(【2026-09-23 去重口径统一】pending 存在即不新建；今日行可能不存在:
+        // reminderId 指向当前 pending(无则今日已处理行),todayFollowedUp=今日处理过)
+        BizReminder currentPending = c.getId() == null ? null : pendingMap.get(c.getId());
+        BizReminder todayProcessed = c.getId() == null ? null : processedMap.get(c.getId());
+        boolean followedToday = todayProcessed != null;
+        BizReminder todayReminder = currentPending != null ? currentPending : todayProcessed;
+        // S8: GET 只读，不再自动建提醒——今日提醒物化由 POST /ensure-expiring 显式触发
+        row.put("reminderId", todayReminder == null ? null : todayReminder.getId());
+        row.put("todayFollowedUp", followedToday);
+        return row;
     }
 
     /** S8: 物化今日到期的 expiring 提醒（幂等，POST 显式触发，GET 分页不再写库） */
