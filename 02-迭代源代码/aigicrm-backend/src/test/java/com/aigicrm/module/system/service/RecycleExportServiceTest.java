@@ -64,8 +64,8 @@ class RecycleExportServiceTest {
                     CREATE TABLE IF NOT EXISTS sys_user (id BIGINT AUTO_INCREMENT PRIMARY KEY, username VARCHAR(50), real_name VARCHAR(50), password VARCHAR(100), dept_id BIGINT, status INT DEFAULT 1, leave_status VARCHAR(20), deleted INT DEFAULT 0, deleted_at DATETIME, deleted_by BIGINT);
                     CREATE TABLE IF NOT EXISTS biz_file (id BIGINT AUTO_INCREMENT PRIMARY KEY, file_name VARCHAR(200), file_scope VARCHAR(20), folder_id BIGINT, uploader_id BIGINT, oss_key VARCHAR(500), deleted INT DEFAULT 0, deleted_at DATETIME, deleted_by BIGINT, deleted_reason VARCHAR(200));
                     CREATE TABLE IF NOT EXISTS biz_task (id BIGINT AUTO_INCREMENT PRIMARY KEY, title VARCHAR(200), assignee_id BIGINT, customer_id BIGINT, deleted INT DEFAULT 0, deleted_at DATETIME, deleted_by BIGINT, deleted_reason VARCHAR(200));
-                    CREATE TABLE IF NOT EXISTS biz_incentive_record (id BIGINT AUTO_INCREMENT PRIMARY KEY, user_id BIGINT, customer_id BIGINT, category VARCHAR(20), deleted INT DEFAULT 0, deleted_at DATETIME, deleted_by BIGINT, deleted_reason VARCHAR(200));
-                    CREATE TABLE IF NOT EXISTS biz_reminder (id BIGINT AUTO_INCREMENT PRIMARY KEY, customer_id BIGINT, user_id BIGINT, type VARCHAR(30), deleted INT DEFAULT 0, deleted_at DATETIME, deleted_by BIGINT, deleted_reason VARCHAR(200));
+                    CREATE TABLE IF NOT EXISTS biz_incentive_record (id BIGINT AUTO_INCREMENT PRIMARY KEY, user_id BIGINT, customer_id BIGINT, category_id BIGINT, deleted INT DEFAULT 0, deleted_at DATETIME, deleted_by BIGINT, deleted_reason VARCHAR(200));
+                    CREATE TABLE IF NOT EXISTS biz_reminder (id BIGINT AUTO_INCREMENT PRIMARY KEY, customer_id BIGINT, user_id BIGINT, reminder_type VARCHAR(50), deleted INT DEFAULT 0, deleted_at DATETIME, deleted_by BIGINT, deleted_reason VARCHAR(200));
                     """;
             ResourceDatabasePopulator pop = new ResourceDatabasePopulator();
             pop.addScript(new ByteArrayResource(ddl.getBytes()));
@@ -125,8 +125,8 @@ class RecycleExportServiceTest {
         jdbc.update("INSERT INTO sys_user (id, username, real_name, dept_id, deleted, deleted_at) VALUES (11,'delu','已删用户',4,1,NOW()), (12,'actu','活跃用户',4,0,NULL)");
         jdbc.update("INSERT INTO biz_file (id, file_name, file_scope, uploader_id, oss_key, deleted, deleted_at) VALUES (21,'已删文件.txt','private',7,NULL,1,NOW()), (22,'活跃.txt','private',7,NULL,0,NULL)");
         jdbc.update("INSERT INTO biz_task (id, title, assignee_id, customer_id, deleted, deleted_at) VALUES (31,'已删任务',7,1,1,NOW())");
-        jdbc.update("INSERT INTO biz_incentive_record (id, user_id, customer_id, category, deleted, deleted_at) VALUES (41,7,1,'paper',1,NOW())");
-        jdbc.update("INSERT INTO biz_reminder (id, customer_id, user_id, type, deleted, deleted_at) VALUES (51,1,7,'invoice',1,NOW())");
+        jdbc.update("INSERT INTO biz_incentive_record (id, user_id, customer_id, category_id, deleted, deleted_at) VALUES (41,7,1,1,1,NOW())");
+        jdbc.update("INSERT INTO biz_reminder (id, customer_id, user_id, reminder_type, deleted, deleted_at) VALUES (51,1,7,'invoice_overdue',1,NOW())");
         auditSink.clear();
     }
 
@@ -238,8 +238,8 @@ class RecycleExportServiceTest {
             assertCsvContains(zip, "data/users.csv", "delu");
             assertCsvContains(zip, "data/files.csv", "已删文件.txt");
             assertCsvContains(zip, "data/tasks.csv", "已删任务");
-            assertCsvContains(zip, "data/incentives.csv", "paper");
-            assertCsvContains(zip, "data/reminders.csv", "invoice");
+            assertCsvContains(zip, "data/incentives.csv", "41,7,1,1,");  // category_id 列(数字字典ID)
+            assertCsvContains(zip, "data/reminders.csv", "invoice_overdue");
         }
     }
 

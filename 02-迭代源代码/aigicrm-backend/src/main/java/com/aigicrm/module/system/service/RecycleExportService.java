@@ -90,6 +90,16 @@ public class RecycleExportService {
                 throw new BusinessException("类型 " + t + " 已删除行数 " + n + " 超过单类型上限 10 万，请缩小过滤范围");
             }
         }
+        // 【QC6 缺陷2】导出目录 fail-fast：不可写立即报错并给配置指引（防异步 failed 哑弹）
+        try {
+            Path dir = Paths.get(exportDir, String.valueOf(tenantId()));
+            Files.createDirectories(dir);
+            if (!Files.isWritable(dir)) {
+                throw new IOException("目录不可写: " + dir);
+            }
+        } catch (Exception e) {
+            throw new BusinessException("导出目录不可用(" + e.getMessage() + ")——请检查 EXPORT_DIR 配置与目录属主(容器内需 appuser 可写, NAS 初始化用宿主侧 chown)");
+        }
         String exportNo = "EXP" + LocalDateTime.now().withNano(0).toString().replace("-", "").replace(":", "").replace("T", "").replace(" ", "")
                 + "-" + UUID.randomUUID().toString().substring(0, 8);
         Long uid = SecurityUtils.getCurrentUserId();
@@ -296,8 +306,8 @@ public class RecycleExportService {
             case "user" -> "SELECT id, username, real_name, dept_id, status, leave_status, deleted_at, deleted_by FROM sys_user WHERE deleted=1" + range;
             case "file" -> "SELECT id, file_name, file_scope, folder_id, uploader_id, oss_key, deleted_at, deleted_by, deleted_reason FROM biz_file WHERE deleted=1" + range;
             case "task" -> "SELECT id, title, assignee_id, customer_id, deleted_at, deleted_by, deleted_reason FROM biz_task WHERE deleted=1" + range;
-            case "incentive" -> "SELECT id, user_id, customer_id, category, deleted_at, deleted_by, deleted_reason FROM biz_incentive_record WHERE deleted=1" + range;
-            case "reminder" -> "SELECT id, customer_id, user_id, type, deleted_at, deleted_by, deleted_reason FROM biz_reminder WHERE deleted=1" + range;
+            case "incentive" -> "SELECT id, user_id, customer_id, category_id, deleted_at, deleted_by, deleted_reason FROM biz_incentive_record WHERE deleted=1" + range;
+            case "reminder" -> "SELECT id, customer_id, user_id, reminder_type, deleted_at, deleted_by, deleted_reason FROM biz_reminder WHERE deleted=1" + range;
             default -> throw new BusinessException("非法类型");
         };
     }
@@ -308,8 +318,8 @@ public class RecycleExportService {
             case "user" -> "id,username,real_name,dept_id,status,leave_status,deleted_at,deleted_by";
             case "file" -> "id,file_name,file_scope,folder_id,uploader_id,oss_key,contentMissing,deleted_at,deleted_by,deleted_reason";
             case "task" -> "id,title,assignee_id,customer_id,deleted_at,deleted_by,deleted_reason";
-            case "incentive" -> "id,user_id,customer_id,category,deleted_at,deleted_by,deleted_reason";
-            case "reminder" -> "id,customer_id,user_id,type,deleted_at,deleted_by,deleted_reason";
+            case "incentive" -> "id,user_id,customer_id,category_id,deleted_at,deleted_by,deleted_reason";
+            case "reminder" -> "id,customer_id,user_id,reminder_type,deleted_at,deleted_by,deleted_reason";
             default -> throw new BusinessException("非法类型");
         };
     }
@@ -336,9 +346,9 @@ public class RecycleExportService {
                     r.get("uploader_id"), r.get("oss_key"), r.get("oss_key") == null, r.get("deleted_at"), r.get("deleted_by"), r.get("deleted_reason"));
             case "task" -> csv(r.get("id"), r.get("title"), r.get("assignee_id"), r.get("customer_id"),
                     r.get("deleted_at"), r.get("deleted_by"), r.get("deleted_reason"));
-            case "incentive" -> csv(r.get("id"), r.get("user_id"), r.get("customer_id"), r.get("category"),
+            case "incentive" -> csv(r.get("id"), r.get("user_id"), r.get("customer_id"), r.get("category_id"),
                     r.get("deleted_at"), r.get("deleted_by"), r.get("deleted_reason"));
-            case "reminder" -> csv(r.get("id"), r.get("customer_id"), r.get("user_id"), r.get("type"),
+            case "reminder" -> csv(r.get("id"), r.get("customer_id"), r.get("user_id"), r.get("reminder_type"),
                     r.get("deleted_at"), r.get("deleted_by"), r.get("deleted_reason"));
             default -> throw new BusinessException("非法类型");
         };
