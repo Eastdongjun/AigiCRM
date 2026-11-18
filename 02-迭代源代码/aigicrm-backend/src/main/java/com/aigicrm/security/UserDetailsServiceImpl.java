@@ -235,22 +235,29 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         Set<Long> allGroupIds = new HashSet<>();
         Set<Long> allLegalEntityIds = new HashSet<>();
         for (SysPosition pos : positions) {
-            if (pos.getOrgId() != null) {
-                SysDept posDept = deptMapper.selectById(pos.getOrgId());
-                if (posDept != null) {
-                    if (posDept.getGroupId() != null) allGroupIds.add(posDept.getGroupId());
-                    if (posDept.getLegalEntityId() != null) allLegalEntityIds.add(posDept.getLegalEntityId());
-                }
-            }
+            collectPositionOrg(pos, allGroupIds, allLegalEntityIds);
         }
         // 如果岗位没有组织，用用户默认组织
         if (allGroupIds.isEmpty() && user.getOrgId() != null) {
-            SysDept userDept = deptMapper.selectById(user.getOrgId());
-            if (userDept != null && userDept.getGroupId() != null) allGroupIds.add(userDept.getGroupId());
-            if (userDept != null && userDept.getLegalEntityId() != null) allLegalEntityIds.add(userDept.getLegalEntityId());
+            collectUserOrg(user.getOrgId(), allGroupIds, allLegalEntityIds);
         }
         securityUser.setGroupIds(new ArrayList<>(allGroupIds));
         securityUser.setLegalEntityIds(new ArrayList<>(allLegalEntityIds));
+    }
+
+    private void collectPositionOrg(SysPosition pos, Set<Long> groupIds, Set<Long> legalEntityIds) {
+        if (pos.getOrgId() == null) return;
+        SysDept posDept = deptMapper.selectById(pos.getOrgId());
+        if (posDept != null) {
+            if (posDept.getGroupId() != null) groupIds.add(posDept.getGroupId());
+            if (posDept.getLegalEntityId() != null) legalEntityIds.add(posDept.getLegalEntityId());
+        }
+    }
+
+    private void collectUserOrg(Long orgId, Set<Long> groupIds, Set<Long> legalEntityIds) {
+        SysDept userDept = deptMapper.selectById(orgId);
+        if (userDept != null && userDept.getGroupId() != null) groupIds.add(userDept.getGroupId());
+        if (userDept != null && userDept.getLegalEntityId() != null) legalEntityIds.add(userDept.getLegalEntityId());
     }
 
     private void applyPermissionRules(SecurityUser securityUser, List<SysPosition> positions, List<SysRole> roles) {
@@ -272,7 +279,12 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         securityUser.setPermissionRules(deduped);
     }
 
-    /** 组织管理员管理通道：托管组织并入 + dataScope 提升到 ORG_AND_CHILDREN（含并集列表同步）。 */
+    /**
+     * 组织管理员管理通道：托管组织并入 + dataScope 提升到 ORG_AND_CHILDREN（含并集列表同步）。
+     * @SuppressWarnings("deprecation") 有意保留 ORG_AND_CHILDREN: 语义=本人部门 ∪ 托管组织子树,
+     * 与 DEPT(仅部门树)不等价——替换会收窄组织管理员可见范围, 属行为变更(见 loadUserByUsername 注释)。
+     */
+    @SuppressWarnings("deprecation")
     private void applyOrgAdminUpgrade(SecurityUser securityUser, Long uid) {
         try {
             List<Long> managedOrgIds = orgAdminMapper.selectManagedOrgIds(uid);
