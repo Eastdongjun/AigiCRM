@@ -819,6 +819,8 @@ Page({
       ossKey: item.ossKey || item.fileKey || item.path || '',
       fileUrl: item.fileUrl || item.url || '',
       canDownload: normalizeDownloadable(item),
+      // 【MP-PERMS-001 2026-11-18】保留行级 perms，视图/按钮与 PC 同源判定
+      perms: Array.isArray(item.perms) ? item.perms : String(item.perms || '').split(',').filter(Boolean),
       tone: extension === 'PDF' ? 'red' : extension === 'XLS' ? 'green' : 'blue',
       demoId: item.id || `file-${index}`
     }

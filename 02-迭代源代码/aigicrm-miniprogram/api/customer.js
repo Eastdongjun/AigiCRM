@@ -42,10 +42,6 @@ function getCustomerSimpleUsers() { return request({ url: '/api/customer/users/s
 function getCustomerGroupNames() { return request({ url: '/api/customer/group-names' }) }
 function addCustomerShares(id, userIds) { return request({ url: '/api/customer/' + id + '/shares', method: 'POST', data: { userIds } }) }
 function removeCustomerShare(id, userId) { return request({ url: '/api/customer/' + id + '/shares/' + userId, method: 'DELETE' }) }
-function addInvoice(id, data) { return request({ url: '/api/customer/' + id + '/invoices', method: 'POST', data }) }
-function deleteInvoice(id, invoiceId, reason) { return request({ url: '/api/customer/' + id + '/invoices/' + invoiceId + '?reason=' + encodeURIComponent(reason || ''), method: 'DELETE' }) }
-function addPayment(id, data) { return request({ url: '/api/customer/' + id + '/payments', method: 'POST', data }) }
-function deletePayment(id, paymentId, reason) { return request({ url: '/api/customer/' + id + '/payments/' + paymentId + '?reason=' + encodeURIComponent(reason || ''), method: 'DELETE' }) }
 function getCustomerIndicator(id) { return request({ url: '/api/customer/' + id + '/indicator' }) }
 function saveCustomerIndicator(id, data) { return request({ url: '/api/customer/' + id + '/indicator', method: 'POST', data }) }
 /** 【裁决 2026-10-10 + 2026-11-03 双门槛配置化】开票回款阶段总额(半年/全年录入制): 返回
@@ -84,10 +80,6 @@ module.exports = {
   getCustomerGroupNames,
   addCustomerShares,
   removeCustomerShare,
-  addInvoice,
-  deleteInvoice,
-  addPayment,
-  deletePayment,
   getCustomerIndicator,
   saveCustomerIndicator,
   getCustomerStageAmounts,
