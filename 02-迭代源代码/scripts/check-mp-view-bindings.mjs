@@ -60,6 +60,29 @@ function fail(message, code = 2) {
   process.exit(code)
 }
 
+function consumeOption(argv, i, options) {
+  const arg = argv[i]
+  if (arg === '--json') {
+    options.json = true
+    return i + 1
+  }
+  if (arg === '--fail-on-stale') {
+    options.failOnStale = true
+    return i + 1
+  }
+  if (arg === '--root' || arg === '--baseline') {
+    const value = argv[i + 1]
+    if (!value || value.startsWith('--')) fail(`missing value for ${arg}`)
+    if (arg === '--root') options.root = path.resolve(value)
+    else {
+      options.baseline = path.resolve(value)
+      options.baselineExplicit = true
+    }
+    return i + 2
+  }
+  return null
+}
+
 function parseArgs(argv) {
   const options = {
     root: DEFAULT_MP_ROOT,
@@ -76,28 +99,9 @@ function parseArgs(argv) {
       process.stdout.write(usage())
       process.exit(0)
     }
-    if (arg === '--json') {
-      options.json = true
-      i += 1
-      continue
-    }
-    if (arg === '--fail-on-stale') {
-      options.failOnStale = true
-      i += 1
-      continue
-    }
-    if (arg === '--root' || arg === '--baseline') {
-      const value = argv[i + 1]
-      if (!value || value.startsWith('--')) fail(`missing value for ${arg}`)
-      i += 2
-      if (arg === '--root') options.root = path.resolve(value)
-      else {
-        options.baseline = path.resolve(value)
-        options.baselineExplicit = true
-      }
-      continue
-    }
-    fail(`unknown argument: ${arg}\n\n${usage()}`)
+    const next = consumeOption(argv, i, options)
+    if (next === null) fail(`unknown argument: ${arg}\n\n${usage()}`)
+    i = next
   }
 
   return options
@@ -213,6 +217,24 @@ function toPosix(value) {
   return value.split(path.sep).join('/')
 }
 
+function parseBaselineEntry(raw, index) {
+  if (!raw || typeof raw !== 'object') fail(`baseline entry #${index + 1} is not an object`)
+  const fileValue = typeof raw.file === 'string' ? raw.file.trim() : ''
+  const fieldValue = typeof raw.field === 'string' ? raw.field.trim().replace(/^item\./, '') : ''
+  const reason = typeof raw.reason === 'string' ? raw.reason.trim() : ''
+  if (!fileValue) fail(`baseline entry #${index + 1} is missing "file"`)
+  if (!fieldValue) fail(`baseline entry #${index + 1} is missing "field"`)
+  if (!reason) fail(`baseline entry #${index + 1} (${fileValue} ${fieldValue}) is missing "reason"`)
+  const normalizedFile = toPosix(fileValue).replace(/^\.\//, '')
+  return {
+    file: normalizedFile,
+    field: fieldValue,
+    reason,
+    key: `${normalizedFile}#${fieldValue}`,
+    matched: false,
+  }
+}
+
 function loadBaseline(file, explicit) {
   if (!fs.existsSync(file)) {
     if (explicit) fail(`baseline not found: ${file}`)
@@ -233,19 +255,10 @@ function loadBaseline(file, explicit) {
   const entries = []
   const seen = new Set()
   for (const [index, raw] of parsed.entries.entries()) {
-    if (!raw || typeof raw !== 'object') fail(`baseline entry #${index + 1} is not an object`)
-    const fileValue = typeof raw.file === 'string' ? raw.file.trim() : ''
-    const fieldValue = typeof raw.field === 'string' ? raw.field.trim().replace(/^item\./, '') : ''
-    const reason = typeof raw.reason === 'string' ? raw.reason.trim() : ''
-    if (!fileValue) fail(`baseline entry #${index + 1} is missing "file"`)
-    if (!fieldValue) fail(`baseline entry #${index + 1} is missing "field"`)
-    if (!reason) fail(`baseline entry #${index + 1} (${fileValue} ${fieldValue}) is missing "reason"`)
-
-    const normalizedFile = toPosix(fileValue).replace(/^\.\//, '')
-    const key = `${normalizedFile}#${fieldValue}`
-    if (seen.has(key)) fail(`duplicate baseline entry: ${key}`)
-    seen.add(key)
-    entries.push({ file: normalizedFile, field: fieldValue, reason, key, matched: false })
+    const entry = parseBaselineEntry(raw, index)
+    if (seen.has(entry.key)) fail(`duplicate baseline entry: ${entry.key}`)
+    seen.add(entry.key)
+    entries.push(entry)
   }
 
   return { path: file, entries, warnings: [] }
