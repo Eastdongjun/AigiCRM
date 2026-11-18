@@ -486,11 +486,34 @@ public class StatisticsQueryService {
         return data;
     }
 
-    /** 本次请求共享的指标上下文：可见客户/指标、年度金额、核心门槛。 */
-    private record IndicatorContext(List<BizCustomerIndicator> indicators, List<BizCustomer> allCustomers,
-                                    Map<Long, BizCustomer> customerMap,
-                                    Map<Long, java.math.BigDecimal[]> annualAmounts,
-                                    java.math.BigDecimal[] coreThresholds) {}
+    /**
+     * 本次请求共享的指标上下文：可见客户/指标、年度金额、核心门槛。
+     * 普通载体类而非 record——内含数组值 Map，record 生成的 equals/hashCode 会按引用比较数组内容
+     * (Sonar java:S6218)，而本类只作方法间传参、从不参与比较。
+     */
+    private static final class IndicatorContext {
+        private final List<BizCustomerIndicator> indicators;
+        private final List<BizCustomer> allCustomers;
+        private final Map<Long, BizCustomer> customerMap;
+        private final Map<Long, java.math.BigDecimal[]> annualAmounts;
+        private final java.math.BigDecimal[] coreThresholds;
+
+        IndicatorContext(List<BizCustomerIndicator> indicators, List<BizCustomer> allCustomers,
+                         Map<Long, BizCustomer> customerMap, Map<Long, java.math.BigDecimal[]> annualAmounts,
+                         java.math.BigDecimal[] coreThresholds) {
+            this.indicators = indicators;
+            this.allCustomers = allCustomers;
+            this.customerMap = customerMap;
+            this.annualAmounts = annualAmounts;
+            this.coreThresholds = coreThresholds;
+        }
+
+        List<BizCustomerIndicator> indicators() { return indicators; }
+        List<BizCustomer> allCustomers() { return allCustomers; }
+        Map<Long, BizCustomer> customerMap() { return customerMap; }
+        Map<Long, java.math.BigDecimal[]> annualAmounts() { return annualAmounts; }
+        java.math.BigDecimal[] coreThresholds() { return coreThresholds; }
+    }
 
     /** 顶部四张卡片口径（覆盖数/真核心/争核心/平均分/达标率）。 */
     private record IndicatorCards(int coveredCount, int coreCount, int quasiCount,
@@ -525,6 +548,7 @@ public class StatisticsQueryService {
         int quasiCount = 0;
         double scoreSum = 0;
         for (BizCustomerIndicator ind : ctx.indicators()) {
+            java.util.Objects.requireNonNull(ind, "indicator");
             scoreSum += indicatorScore(ind);
             java.math.BigDecimal[] ann = ctx.annualAmounts().get(ind.getCustomerId());
             if (ann != null) {
