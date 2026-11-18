@@ -202,14 +202,15 @@ public class ApprovalService {
 
     private void fillNodeApproverNames(List<BizApprovalNode> nodes) {
         for (BizApprovalNode node : nodes) {
-            if (node.getApproverId() == null) continue;
-            SysUser approver = userMapper.selectById(node.getApproverId());
-            if (approver == null) {
-                markApproverInvalidIfPending(node);
-                continue;
+            if (node.getApproverId() != null) {
+                SysUser approver = userMapper.selectById(node.getApproverId());
+                if (approver == null) {
+                    markApproverInvalidIfPending(node);
+                } else {
+                    node.setApproverName(approver.getRealName());
+                    if (isInvalidApprover(approver)) markApproverInvalidIfPending(node);
+                }
             }
-            node.setApproverName(approver.getRealName());
-            if (isInvalidApprover(approver)) markApproverInvalidIfPending(node);
         }
     }
 

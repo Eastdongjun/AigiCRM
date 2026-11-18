@@ -632,8 +632,7 @@ public class FolderPermissionService {
         if (!Objects.equals(g.getObjectType(), objectType)) return false;
         if (g.getFolderId() != null && !g.getFolderId().equals(targetFolderId)) return false;
         if (g.getFolderId() == null && folderType != null && !Objects.equals(g.getFolderType(), folderType)) return false;
-        if (g.getScopeOrgId() != null && !g.getScopeOrgId().equals(targetOrgId)) return false;
-        return true;
+        return g.getScopeOrgId() == null || g.getScopeOrgId().equals(targetOrgId);
     }
 
     /** 授权行与当前用户/动作是否匹配（S3776 拆分，语义与原内联校验一致）。 */
