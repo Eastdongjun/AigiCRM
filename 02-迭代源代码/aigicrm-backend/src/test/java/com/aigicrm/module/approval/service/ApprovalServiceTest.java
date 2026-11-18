@@ -238,6 +238,36 @@ class ApprovalServiceTest {
     }
 
     @Test
+    void submit_blankExtraData_normalizedToEmptyJson_no500() {
+        // 【DEF-EXTRADATA-001 2026-11-18 W3】空串 extraData 直插 MySQL JSON 列 → 500；
+        // submit 入口必须规范化为 "{}"，无 extraData 语义的类型(claim)正常落单。
+        SecurityUser u = new SecurityUser();
+        u.setUserId(7L);
+        u.setDataScope("all");
+        setCurrentUser(u);
+
+        BizSeaPool pool = new BizSeaPool();
+        pool.setId(3L);
+        pool.setCustomerId(42L);
+        pool.setStatus("available");
+
+        BizSeaPoolMapper seaPoolMapper = mock(BizSeaPoolMapper.class);
+        when(seaPoolMapper.selectOne(any())).thenReturn(pool);
+        when(seaPoolMapper.update(isNull(), any())).thenReturn(1);
+
+        BizApprovalMapper approvalMapper = mock(BizApprovalMapper.class);
+        when(approvalMapper.selectMaxCodeByPrefix(anyString(), any())).thenReturn(0);
+
+        ApprovalService svc = newService(seaPoolMapper, approvalMapper, mock(BizApprovalNodeMapper.class));
+        assertDoesNotThrow(() -> svc.submit("claim", 42L, null, ""));
+
+        ArgumentCaptor<BizApproval> cap = ArgumentCaptor.forClass(BizApproval.class);
+        verify(approvalMapper, times(1)).insert(cap.capture());
+        assertEquals("{}", cap.getValue().getExtraData(),
+                "空串 extraData 必须规范化为 {}，避免 JSON 列 Invalid JSON text → 500");
+    }
+
+    @Test
     void submit_claim_atomicLockWritesClaimDate_forTimeoutRelease() {
         // 【体检 H5 2026-10-12】锁定必须写 claim_date: 超时释放任务 releaseStaleClaimLocks 以
         // lt(claim_date, deadline) 筛超时行, 锁定不写时间戳则 SQL 中 NULL 永不命中——无人审批的锁

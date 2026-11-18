@@ -262,6 +262,10 @@ public class ApprovalService {
         Long applicantId = SecurityUtils.getCurrentUserId();
         // 【D1=A 2026-10-18】类型白名单: 未知类型 400, 防落"永远无法执行"的脏单
         type = normalizeApprovalType(type);
+        // 【DEF-EXTRADATA-001 2026-11-18】空串/空白 extraData 规范化为 "{}"：
+        // biz_approval.extra_data 为 MySQL JSON 列，"" 直插触发 Invalid JSON text → 500；
+        // 无 extraData 语义的类型(如 claim)按空对象落库，需要参数的类型仍由各自解析器给出业务 400。
+        extraData = (extraData == null || extraData.isBlank()) ? "{}" : extraData;
 
         // 【D1=A 存储空间】申请与客户无关: 忽略客户端 customerId;
         // 忽略客户端 oldQuota, 从库重新取当前配额后规范化 extraData
