@@ -1536,6 +1536,16 @@ public class IncentiveService {
     /** 填充关联信息（分类名/上传人/更新人/客户名/未读）。 */
     private void decorateRecordNames(List<BizIncentiveRecord> records, Map<Long, BizCustomer> custMap,
                                      Map<Long, BizIncentiveCategory> catMap2, Set<Long> readRecordIds) {
+        Map<Long, SysUser> userMap = loadRecordUsers(records);
+        for (BizIncentiveRecord r : records) {
+            r.setUnread(r.getId() != null && !readRecordIds.contains(r.getId()));
+            applyCategoryName(r, catMap2);
+            applyUserNames(r, userMap);
+            applyCustomerName(r, custMap);
+        }
+    }
+
+    private Map<Long, SysUser> loadRecordUsers(List<BizIncentiveRecord> records) {
         // 【性能 2026-11-11 检索优化】用户名批量化: 原循环内逐条 userMapper.selectById,
         // 300+ 记录=600+ 次 DB 往返(实测组装层 ~2s 主因); 与客户/分类同款批量建 map, 数据源不变
         Set<Long> uidsAll = new LinkedHashSet<>();
@@ -1545,19 +1555,24 @@ public class IncentiveService {
         }
         Map<Long, SysUser> userMap = new HashMap<>();
         if (!uidsAll.isEmpty()) userMapper.selectByIds(uidsAll).forEach(u -> userMap.put(u.getId(), u));
-        for (BizIncentiveRecord r : records) {
-            r.setUnread(r.getId() != null && !readRecordIds.contains(r.getId()));
-            if (r.getCategoryId() != null) {
-                BizIncentiveCategory cat = catMap2.get(r.getCategoryId());
-                if (cat != null) r.setCategoryName(cat.getCategoryName());
-            }
-            if (r.getUserId() != null) { SysUser u = userMap.get(r.getUserId()); if (u != null) r.setUserName(u.getRealName()); }
-            if (r.getUpdatedBy() != null) { SysUser up = userMap.get(r.getUpdatedBy()); if (up != null) r.setUpdatedByName(up.getRealName()); }
-            if (r.getCustomerId() != null) {
-                BizCustomer c = custMap.get(r.getCustomerId());
-                if (c != null) r.setCustomerName(c.getCustomerName());
-            }
-        }
+        return userMap;
+    }
+
+    private void applyCategoryName(BizIncentiveRecord r, Map<Long, BizIncentiveCategory> catMap) {
+        if (r.getCategoryId() == null) return;
+        BizIncentiveCategory cat = catMap.get(r.getCategoryId());
+        if (cat != null) r.setCategoryName(cat.getCategoryName());
+    }
+
+    private void applyUserNames(BizIncentiveRecord r, Map<Long, SysUser> userMap) {
+        if (r.getUserId() != null) { SysUser u = userMap.get(r.getUserId()); if (u != null) r.setUserName(u.getRealName()); }
+        if (r.getUpdatedBy() != null) { SysUser up = userMap.get(r.getUpdatedBy()); if (up != null) r.setUpdatedByName(up.getRealName()); }
+    }
+
+    private void applyCustomerName(BizIncentiveRecord r, Map<Long, BizCustomer> custMap) {
+        if (r.getCustomerId() == null) return;
+        BizCustomer c = custMap.get(r.getCustomerId());
+        if (c != null) r.setCustomerName(c.getCustomerName());
     }
 
     private Map<Long, List<BizIncentiveRecord>> groupByCustomer(List<BizIncentiveRecord> records) {
