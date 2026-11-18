@@ -345,32 +345,34 @@ const onStorageGb = (v) => {
   const gb = Number(v)
   if (!isNaN(gb) && gb > 0) configMap['user.default.storage'] = String(Math.round(gb * 1073741824))
 }
-const handleSave = async () => {
-  // 仅 system:config:edit 可保存（按钮已按权限隐藏，此处防程序化调用/复制入口绕过）
-  if (!canEditConfig.value) {
-    ElMessage.warning('无权限修改系统设置（需 system:config:edit）')
-    return false
-  }
+function validateRetention(configMap) {
   // 文件回收站保留天数保存前兜底校验：必须是 0–3650 的整数（0 = 不自动清理）；
   // 输入控件已限制，这里防程序化赋值/历史脏值把非法内容提交给后端。
-  if (configMap[RETENTION_KEY] !== undefined && configMap[RETENTION_KEY] !== null && configMap[RETENTION_KEY] !== '') {
-    const days = Number(configMap[RETENTION_KEY])
-    if (!Number.isInteger(days) || days < 0 || days > RETENTION_MAX) {
-      ElMessage.error(`文件回收站保留天数需为 0–${RETENTION_MAX} 的整数（0 表示不自动清理）`)
-      return false
-    }
-    configMap[RETENTION_KEY] = String(days)
+  const raw = configMap[RETENTION_KEY]
+  if (raw === undefined || raw === null || raw === '') return true
+  const days = Number(raw)
+  if (!Number.isInteger(days) || days < 0 || days > RETENTION_MAX) {
+    ElMessage.error(`文件回收站保留天数需为 0–${RETENTION_MAX} 的整数（0 表示不自动清理）`)
+    return false
   }
+  configMap[RETENTION_KEY] = String(days)
+  return true
+}
+
+function validateStorageQuota(configMap, maxQuotaGb, applyUsers, applyEnabled) {
   // 存储扩容申请保存前校验：上限必须是 1–1024 的整数 GB（输入控件已限制，这里兜底）；
   // 人员名单按 JSON 数组序列化，避免把 Select 的响应式数组直接提交给后端。
-  const maxQuotaGb = Number(storageMaxQuotaGb.value)
   if (!Number.isInteger(maxQuotaGb) || maxQuotaGb < STORAGE_MAX_QUOTA_MIN_GB || maxQuotaGb > STORAGE_MAX_QUOTA_MAX_GB) {
     ElMessage.error(`单用户配额上限需为 ${STORAGE_MAX_QUOTA_MIN_GB}–${STORAGE_MAX_QUOTA_MAX_GB} GB 的整数`)
     return false
   }
   configMap[STORAGE_MAX_QUOTA_KEY] = String(gbToBytes(maxQuotaGb))
-  configMap[STORAGE_APPLY_USERS_KEY] = JSON.stringify(normalizeStorageApplyUsers(storageApplyUsers.value))
-  configMap[STORAGE_APPLY_ENABLED_KEY] = storageApplyEnabled.value ? 'true' : 'false'
+  configMap[STORAGE_APPLY_USERS_KEY] = JSON.stringify(normalizeStorageApplyUsers(applyUsers))
+  configMap[STORAGE_APPLY_ENABLED_KEY] = applyEnabled ? 'true' : 'false'
+  return true
+}
+
+function validateCoreThresholds(configMap) {
   // 【2026-11-03 门槛配置化】核心客户双门槛保存前兜底校验: 1–1000000 整数且 minor ≤ major
   // (输入控件已限制, 此处防程序化赋值/历史脏值提交; 后端 SysConfigController 同款校验双保险)
   const coreMajor = Number(configMap[CORE_MAJOR_KEY])
@@ -386,6 +388,18 @@ const handleSave = async () => {
   }
   configMap[CORE_MAJOR_KEY] = String(coreMajor)
   configMap[CORE_MINOR_KEY] = String(coreMinor)
+  return true
+}
+
+const handleSave = async () => {
+  // 仅 system:config:edit 可保存（按钮已按权限隐藏，此处防程序化调用/复制入口绕过）
+  if (!canEditConfig.value) {
+    ElMessage.warning('无权限修改系统设置（需 system:config:edit）')
+    return false
+  }
+  if (!validateRetention(configMap)) return false
+  if (!validateStorageQuota(configMap, Number(storageMaxQuotaGb.value), storageApplyUsers.value, storageApplyEnabled.value)) return false
+  if (!validateCoreThresholds(configMap)) return false
   // 门槛是否变化(旧值在已加载列表里): 变化时保存成功文案提示已刷新核心标签
   const coreThresholdChanged = [CORE_MAJOR_KEY, CORE_MINOR_KEY].some(k => {
     const old = configs.value.find(c => c.configKey === k)

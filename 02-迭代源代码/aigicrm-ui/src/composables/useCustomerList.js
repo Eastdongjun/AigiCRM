@@ -168,21 +168,28 @@ export function useCustomerList() {
     tabLabel: TAB_DEV_TYPE[activeTab.value],
   }))
 
-  const advFilterCount = computed(() => {
+  function countAdvFilter(filter) {
     let n = 0
-    for (const k in advFilter) {
+    for (const k in filter) {
       // 【M4 2026-10-04】角标补统计部门条件：deptIds 由 deptId 派生（onDeptFilterChange
       // 收集子部门），只按 deptId 计 1 个条件，避免同一条件双计
       if (k === 'deptIds') continue
-      if (k === 'deptId') { if (advFilter.deptId) n++; continue }
-      const v = advFilter[k]
-      if (v) {
-        if (k === 'orgIds' || k === 'userIds') { if (v.length) n++ }
-        else if (typeof v === 'string' && v.trim()) n++
+      if (k === 'deptId') {
+        if (filter.deptId) n++
+        continue
+      }
+      const v = filter[k]
+      if (!v) continue
+      if (k === 'orgIds' || k === 'userIds') {
+        if (v.length) n++
+      } else if (typeof v === 'string' && v.trim()) {
+        n++
       }
     }
     return n
-  })
+  }
+
+  const advFilterCount = computed(() => countAdvFilter(advFilter))
 
   const allIndustries = computed(() => industryOptions.value.length ? industryOptions.value : INDUSTRY_FALLBACK_OPTIONS)
 
