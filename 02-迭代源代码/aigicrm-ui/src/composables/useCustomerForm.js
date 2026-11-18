@@ -239,32 +239,98 @@ export function useCustomerForm() {
   const shouldSaveIndicator = () =>
     isEdit.value && (indicatorLoaded.value || sumIndicatorScore(indicatorForm) > 0)
 
-  const handleSubmit = async () => {
+  const scrollToFirstError = (selector) => {
+    // 【C11 2026-10-08】校验失败自动定位：滚动到首个错误字段（长表单不用凭红字逐段找；
+    // 锚点导航的 IntersectionObserver 会随滚动自动高亮所在分组）
+    nextTick(() => {
+      document.querySelector(selector)?.scrollIntoView?.({ behavior: 'smooth', block: 'center' })
+    })
+  }
+
+  const validateSubmit = async () => {
     // 【工作流复核确认修复】编辑数据没加载成功就不允许提交(防空表单整包覆盖原客户)
     if (isEdit.value && loadFailed.value) {
       ElMessage.error('客户数据加载失败，请刷新重试；为防覆盖原始数据已禁止提交')
-      return
+      return false
     }
     const valid = await formRef.value.validate().catch(() => false)
     if (!valid) {
-      // 【C11 2026-10-08】校验失败自动定位：滚动到首个错误字段（长表单不用凭红字逐段找；
-      // 锚点导航的 IntersectionObserver 会随滚动自动高亮所在分组）
-      nextTick(() => {
-        document.querySelector('.customer-add .el-form-item.is-error')
-          ?.scrollIntoView?.({ behavior: 'smooth', block: 'center' })
-      })
-      return
+      scrollToFirstError('.customer-add .el-form-item.is-error')
+      return false
     }
-
     const contactError = validateContacts()
     if (contactError) {
       // 【C11 2026-10-08】联系人错误改为行内字段级报错（ContactsSection 红框+行内文案）+ 滚动定位
-      nextTick(() => {
-        document.querySelector('.contact-row.contact-error')
-          ?.scrollIntoView?.({ behavior: 'smooth', block: 'center' })
-      })
-      return
+      scrollToFirstError('.contact-row.contact-error')
+      return false
     }
+    return true
+  }
+
+  const syncContacts = async (customerId, rows) => {
+    // 【P2 2026-10-04】联系人与 loadFormData 装入的原行集(originalContacts)做 diff 后提交：
+    // 无 id 的新行 → 新增；带 id 且内容有变的行 → 更新；原行集中被移除的行 → 删除。
+    // 后端契约：PUT/DELETE /customer/{id}/contacts/{contactId}（与详情页联系人管理同源）。
+    // 注：无 contact:view 权限时 getContacts 返回空列表 → 快照为空 → 不会误删库内联系人。
+    const pendingById = new Map(originalContacts.value.map(c => [c.id, c]))
+    for (const c of rows) {
+      if (!c.id) {
+        await addContact(customerId, c)
+        continue
+      }
+      const old = pendingById.get(c.id)
+      // contactRows 已统一 trim，原行同样按 trim 后比较，避免纯空格改动误判为变更
+      const changed = old && CONTACT_FIELDS.some(k => String(old[k] || '').trim() !== c[k])
+      if (changed) {
+        await updateContact(customerId, c.id, {
+          name: c.name, position: c.position, phone: c.phone, remark: c.remark,
+        })
+      }
+      pendingById.delete(c.id)
+    }
+    for (const removed of pendingById.values()) {
+      await deleteContact(customerId, removed.id)
+    }
+  }
+
+  const submitEdit = async (indicator, rows) => {
+    await updateCustomerWithIndicator(route.params.id, { customer: buildPayload(), indicator })
+    await syncContacts(route.params.id, rows)
+    ElMessage.success('客户更新成功')
+    router.push({ path: `/customer/detail/${route.params.id}`, query: detailQuery.value })
+  }
+
+  const submitCreate = async (indicator, rows) => {
+    // 【PR-05 残余 20260921】提交幂等键:同一次提交的重试/重复发包共用一个键,成功后换新
+    if (!createSubmitKey) createSubmitKey = newSubmitKey()
+    const res = await saveCustomerWithIndicator({ customer: buildPayload(), indicator }, createSubmitKey)
+    createSubmitKey = null
+    const newId = res.data
+    if (newId) {
+      try {
+        for (const c of rows) {
+          await addContact(newId, c)
+        }
+      } catch (e) {
+        // 【工作流复核确认修复】客户已创建但联系人保存失败: 引导去详情页补录,
+        // 不留在表单页(原实现改后重试会再次创建客户, 击穿幂等防重的目标场景)
+        ElMessage.warning('客户已创建，但联系人保存失败——请到客户详情页补录联系人')
+        router.push(`/customer/detail/${newId}`)
+        return
+      }
+    }
+    ElMessage.success('客户添加成功')
+    // 【UI 整改 2026-10-08·A3】新增成功后跳新客户详情页（与编辑分支回详情对齐），
+    // 用户可立即核对回显与继续补录联系人/指标；拿不到 newId 时兜底回列表
+    if (newId) {
+      router.push(`/customer/detail/${newId}`)
+    } else {
+      router.push('/customer')
+    }
+  }
+
+  const handleSubmit = async () => {
+    if (!(await validateSubmit())) return
     const rows = contactRows()
 
     loading.value = true
@@ -273,61 +339,8 @@ export function useCustomerForm() {
       // 指标失败→界面报失败"的部分成功;联系人仍独立提交(联系人职责拆分属 PR-06)。
       // indicator 为 null 时只存客户(与 shouldSaveIndicator 口径一致)。
       const indicator = shouldSaveIndicator() ? { ...indicatorForm } : null
-      if (isEdit.value) {
-        await updateCustomerWithIndicator(route.params.id, { customer: buildPayload(), indicator })
-        // 【P2 2026-10-04】联系人与 loadFormData 装入的原行集(originalContacts)做 diff 后提交：
-        // 无 id 的新行 → 新增；带 id 且内容有变的行 → 更新；原行集中被移除的行 → 删除。
-        // 后端契约：PUT/DELETE /customer/{id}/contacts/{contactId}（与详情页联系人管理同源）。
-        // 注：无 contact:view 权限时 getContacts 返回空列表 → 快照为空 → 不会误删库内联系人。
-        const pendingById = new Map(originalContacts.value.map(c => [c.id, c]))
-        for (const c of rows) {
-          if (!c.id) {
-            await addContact(route.params.id, c)
-            continue
-          }
-          const old = pendingById.get(c.id)
-          // contactRows 已统一 trim，原行同样按 trim 后比较，避免纯空格改动误判为变更
-          const changed = old && CONTACT_FIELDS.some(k => String(old[k] || '').trim() !== c[k])
-          if (changed) {
-            await updateContact(route.params.id, c.id, {
-              name: c.name, position: c.position, phone: c.phone, remark: c.remark,
-            })
-          }
-          pendingById.delete(c.id)
-        }
-        for (const removed of pendingById.values()) {
-          await deleteContact(route.params.id, removed.id)
-        }
-        ElMessage.success('客户更新成功')
-        router.push({ path: `/customer/detail/${route.params.id}`, query: detailQuery.value })
-      } else {
-        // 【PR-05 残余 20260921】提交幂等键:同一次提交的重试/重复发包共用一个键,成功后换新
-        if (!createSubmitKey) createSubmitKey = newSubmitKey()
-        const res = await saveCustomerWithIndicator({ customer: buildPayload(), indicator }, createSubmitKey)
-        createSubmitKey = null
-        const newId = res.data
-        if (newId) {
-          try {
-            for (const c of rows) {
-              await addContact(newId, c)
-            }
-          } catch (e) {
-            // 【工作流复核确认修复】客户已创建但联系人保存失败: 引导去详情页补录,
-            // 不留在表单页(原实现改后重试会再次创建客户, 击穿幂等防重的目标场景)
-            ElMessage.warning('客户已创建，但联系人保存失败——请到客户详情页补录联系人')
-            router.push(`/customer/detail/${newId}`)
-            return
-          }
-        }
-        ElMessage.success('客户添加成功')
-        // 【UI 整改 2026-10-08·A3】新增成功后跳新客户详情页（与编辑分支回详情对齐），
-        // 用户可立即核对回显与继续补录联系人/指标；拿不到 newId 时兜底回列表
-        if (newId) {
-          router.push(`/customer/detail/${newId}`)
-        } else {
-          router.push('/customer')
-        }
-      }
+      if (isEdit.value) await submitEdit(indicator, rows)
+      else await submitCreate(indicator, rows)
     } catch (e) {
       // 提示由 utils/request 响应拦截器统一弹出；此处只负责复位 loading，避免重复弹窗。
       // 【L6 2026-10-04】提交失败后弃用当前幂等键：失败后用户通常会改表单再提交，沿用旧键
@@ -339,7 +352,7 @@ export function useCustomerForm() {
   }
 
   // ---- 初始加载 ----
-  const loadFormData = async () => {
+  const loadOptions = async () => {
     try {
       const res = await getDeptList()
       const all = res.data || []
@@ -365,43 +378,48 @@ export function useCustomerForm() {
       const res = await getDictData('dev_type')
       devTypeOptions.value = (res.data || []).map(d => d.dictValue)
     } catch (e) { devTypeOptions.value = ['成熟创新', '突破开拓', '铺垫宣传', '新建改建扩建大修'] } // 【工作流复核确认修复】兜底补第四类(与列表/后端同口径)
+  }
+
+  const loadEditData = async () => {
+    try {
+      const res = await getCustomer(route.params.id)
+      const c = res.data
+      // 编辑：一律以库内值为准，null 也照实落到表单（不回退到新增默认值——否则默认"今天"会被
+      // 当成用户输入提交，触发后端保护期校验报错或静默改数据）
+      Object.keys(form).forEach(k => { if (c[k] !== undefined) form[k] = c[k] })
+      customerStatus.value = c.status || ''
+      if (c.province) regionValue.value = [c.province, c.city, c.district].filter(Boolean)
+    } catch (e) {
+      // 【工作流复核确认修复】客户数据加载失败必须阻断提交: 原实现空表单+新建默认值(注册日=今天)
+      // 可整包覆盖原客户, 是 INV-01 保护期锚点被误改的前端入口
+      loadFailed.value = true
+      customerStatus.value = ''
+    }
+    try {
+      const res = await getContacts(route.params.id)
+      const list = (res.data || []).map(c => ({ id: c.id, name: c.name, position: c.position, phone: c.phone, remark: c.remark }))
+      contacts.value = list
+      // 深拷贝快照：contacts 行会被表单原地编辑（v-model），diff 基准必须与编辑隔离（P2）
+      originalContacts.value = list.map(c => ({ ...c }))
+    } catch (e) { contacts.value = []; originalContacts.value = [] }
+    try {
+      const res = await getIndicator(route.params.id)
+      const ind = res.data
+      if (ind) {
+        indicatorLoaded.value = true
+        INDICATOR_FIELDS.forEach(f => { if (ind[f.field] !== undefined && ind[f.field] !== null) indicatorForm[f.field] = ind[f.field] })
+      }
+    } catch (e) { indicatorLoaded.value = false }
+  }
+
+  const loadFormData = async () => {
+    await loadOptions()
     // 【F4 复审 2026-10-13】编辑表单的客情选项随字典: 幂等触发(fetchRelationshipOptions 原地
     // 同步 INDICATOR_FIELDS[0].options 引用的兜底数组), 失败静默保持兜底文案
     fetchRelationshipOptions(getDictData)
     // 【2026-10-29 字典接线】指标 03~06 选项随 core_indicator_03..06 字典原地覆盖(失败静默保持静态表)
     fetchIndicatorDictOptions(getDictData)
-
-    if (isEdit.value) {
-      try {
-        const res = await getCustomer(route.params.id)
-        const c = res.data
-        // 编辑：一律以库内值为准，null 也照实落到表单（不回退到新增默认值——否则默认"今天"会被
-        // 当成用户输入提交，触发后端保护期校验报错或静默改数据）
-        Object.keys(form).forEach(k => { if (c[k] !== undefined) form[k] = c[k] })
-        customerStatus.value = c.status || ''
-        if (c.province) regionValue.value = [c.province, c.city, c.district].filter(Boolean)
-      } catch (e) {
-        // 【工作流复核确认修复】客户数据加载失败必须阻断提交: 原实现空表单+新建默认值(注册日=今天)
-        // 可整包覆盖原客户, 是 INV-01 保护期锚点被误改的前端入口
-        loadFailed.value = true
-        customerStatus.value = ''
-      }
-      try {
-        const res = await getContacts(route.params.id)
-        const list = (res.data || []).map(c => ({ id: c.id, name: c.name, position: c.position, phone: c.phone, remark: c.remark }))
-        contacts.value = list
-        // 深拷贝快照：contacts 行会被表单原地编辑（v-model），diff 基准必须与编辑隔离（P2）
-        originalContacts.value = list.map(c => ({ ...c }))
-      } catch (e) { contacts.value = []; originalContacts.value = [] }
-      try {
-        const res = await getIndicator(route.params.id)
-        const ind = res.data
-        if (ind) {
-          indicatorLoaded.value = true
-          INDICATOR_FIELDS.forEach(f => { if (ind[f.field] !== undefined && ind[f.field] !== null) indicatorForm[f.field] = ind[f.field] })
-        }
-      } catch (e) { indicatorLoaded.value = false }
-    }
+    if (isEdit.value) await loadEditData()
   }
 
   return {

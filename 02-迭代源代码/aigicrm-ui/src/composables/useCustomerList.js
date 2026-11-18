@@ -235,19 +235,27 @@ export function useCustomerList() {
   // 三层过滤语义逐项对齐——keyword 多词AND、行业/状态精确(csv)、省市包含(LIKE)、保护=protectionStatus、
   // 负责人=姓名模糊(后端解析为 ownerId)、注册/到期区间 ge/le、组织=office或dept命中、人员=ownerId IN、
   // 部门=含子树。orgIds 旧本地实现基于已拉数据间接推导 owner,服务端按字段直配(语义更准)。
-  const buildListParams = () => {
-    const p = { keyword: (searchText.value || '').trim(), scope: query.scope }
+  const applyIndustryFilter = (p) => {
     // 行业合并:高级筛选与快速筛选同列同语义(eq),高级筛选优先——与下方状态列口径一致
     const industry = filters.industry || query.industry || (query.industries?.length ? query.industries.join(',') : '')
     if (industry) p.industry = industry
     if (advFilter.industry) p.industry = advFilter.industry
+  }
+
+  const applyRegionFilter = (p) => {
     if (query.regionId) p.regionId = query.regionId
     else if (query.regionIds?.length) p.regionId = query.regionIds[0]
+  }
+
+  const applyStatusFilter = (p) => {
     // 状态合并:高级筛选与快速筛选同列同语义(eq),高级筛选优先;归档开关与具体状态互斥——
     // 【工作流复核确认修复】具体状态优先(选中"已归档"即只看归档), 仅在无状态选择时 include_archived
     // 生效(原 showArchived 无条件覆盖, 勾选后任何状态下拉选择都静默失效且 UI 仍显示已选状态)
     const status = advFilter.status || filters.status || query.status || (query.statuses?.length ? query.statuses.join(',') : '')
     p.status = status || (showArchived.value ? 'include_archived' : '')
+  }
+
+  const applyAdvancedFilters = (p) => {
     const devType = TAB_DEV_TYPE[activeTab.value]
     if (devType) p.devType = devType
     if (advFilter.province) p.province = advFilter.province.trim()
@@ -259,9 +267,21 @@ export function useCustomerList() {
     if (advFilter.orgIds?.length) p.officeIds = advFilter.orgIds.join(',')
     if (advFilter.userIds?.length) p.userIds = advFilter.userIds.join(',')
     if (advFilter.deptId) p.deptId = advFilter.deptId
+  }
+
+  const applyQueryFilters = (p) => {
     ;(query.filters || []).forEach(f => {
       p[f.field] = Array.isArray(f.value) ? f.value.join(',') : f.value
     })
+  }
+
+  const buildListParams = () => {
+    const p = { keyword: (searchText.value || '').trim(), scope: query.scope }
+    applyIndustryFilter(p)
+    applyRegionFilter(p)
+    applyStatusFilter(p)
+    applyAdvancedFilters(p)
+    applyQueryFilters(p)
     return p
   }
 
