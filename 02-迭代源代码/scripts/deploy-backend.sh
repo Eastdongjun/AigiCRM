@@ -121,6 +121,7 @@ echo "=== [3/5] 校验上传并原子替换, 重建镜像 (jar md5 门禁) ==="
   echo 'set -Eeuo pipefail'
   emit_remote_env
   emit_var LOCAL_MD5 "$LOCAL_MD5"
+  emit_var FILE_GRANT_MODE "${FILE_GRANT_MODE:-legacy}"
   cat <<'REMOTE_BUILD'
 SWITCHED=0
 build_image() {
