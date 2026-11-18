@@ -117,7 +117,7 @@ CONTROLLER_MAPPING_BARE_RE = re.compile(r"@(Get|Post|Put|Delete|Patch)Mapping")
 CONTROLLER_MAPPING_VALUE_RE = re.compile(r"@(Get|Post|Put|Delete|Patch)Mapping\(value\s*=\s*\"([^\"]*)\"\s*\)")
 CONTROLLER_MAPPING_STRING_RE = re.compile(r"@(Get|Post|Put|Delete|Patch)Mapping\(\"([^\"]*)\"\s*\)")
 CONTROLLER_AUTH_RE = re.compile(r"@PreAuthorize\(\"([^\"]+)\"\)")
-CONTROLLER_SIGNATURE_RE = re.compile(r"public\s+.+\s+\w+\s*\(")
+CONTROLLER_SIGNATURE_RE = re.compile(r"public\s+[^(\n]*\(")
 
 
 def _controller_mapping(annotations: str):
