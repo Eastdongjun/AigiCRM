@@ -1014,7 +1014,7 @@ public class ApprovalService {
             Long newOwnerId = parseExecuteTransferOwner(approval.getExtraData());
             BizCustomer customer = customerMapper.selectById(approval.getCustomerId());
             if (customer != null) {
-                applyTransferChange(approval, customer, newOwnerId);
+                applyTransferChange(customer, newOwnerId);
             }
         } catch (BusinessException be) {
             throw be; // 业务校验失败直接透传(不走通用 catch 拼接)
@@ -1030,7 +1030,7 @@ public class ApprovalService {
         return Long.valueOf(data.get("newOwnerId").toString());
     }
 
-    private void applyTransferChange(BizApproval approval, BizCustomer customer, Long newOwnerId) {
+    private void applyTransferChange(BizCustomer customer, Long newOwnerId) {
         // 【体检 P1 2026-10-12】公海守卫(执行侧): 在途期间客户入海后, 转移执行
         // 直接改属主绕过"池内禁改属主"防线(编辑接口同款守卫见 CustomerService),
         // 且新负责人列表看不到 sea 客户、池行仍可被他人捞走属主被静默覆盖。
