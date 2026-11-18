@@ -450,10 +450,18 @@ public class FolderPermissionService {
     public Map<Long, List<String>> folderActionsForBatch(Collection<BizFileFolder> folders, Long userId) {
         Map<Long, List<String>> result = new HashMap<>();
         if (folders == null || folders.isEmpty()) return result;
+        // 【Batch-4 #1】夹自身动作引擎多动作（legacy 旁路时 Map.of——check 内引擎亦旁路, 口径一致）
+        Map<Long, Map<String, FileGrantService.Decision>> engineFolders =
+                fileGrantService == null ? Map.of()
+                        : fileGrantService.decideFoldersMulti(folders, List.of(P_RENAME, P_DELETE), userId);
         for (BizFileFolder folder : folders) {
             List<String> actions = new ArrayList<>();
             if (check(folder.getId(), P_RENAME, userId)) mergePerms(actions, P_RENAME);
             if (check(folder.getId(), P_DELETE, userId)) mergePerms(actions, P_DELETE);
+            // 引擎 ALLOW 补亮（engine DENY 时 check 已拒——check 先引擎 DENY 短路）
+            Map<String, FileGrantService.Decision> e = engineFolders.getOrDefault(folder.getId(), Map.of());
+            if (e.get(P_RENAME) == FileGrantService.Decision.ALLOW) mergePerms(actions, P_RENAME);
+            if (e.get(P_DELETE) == FileGrantService.Decision.ALLOW) mergePerms(actions, P_DELETE);
             result.put(folder.getId(), actions);
         }
         return result;
@@ -490,6 +498,11 @@ public class FolderPermissionService {
         // 【A1 批量预载】一次查 grants + org/folder 缓存，避免逐文件 N×查询。
         Map<Long, FileGrantService.Decision> grantDecisions = fileGrantService == null
                 ? Map.of() : fileGrantService.decideFiles(files, P_VIEW, userId);
+        // 【Batch-4 #1 按钮视图收口】引擎多动作批量并入：任一模式（legacy 除外）下,
+        // 引擎 ALLOW 的动作亮按钮、引擎 DENY 的动作压按钮——与 checkFile 判定 parity。
+        Map<Long, Map<String, FileGrantService.Decision>> enginePerms =
+                fileGrantService == null ? Map.of()
+                        : fileGrantService.decideFilesMulti(files, FILE_ROW_ACTIONS, userId);
         for (BizFile file : files) {
             BizFileFolder ref = file.getFolderId() != null ? refCache.get(file.getFolderId()) : null;
             String anchorType = ref != null ? ref.getFolderType() : file.getFileScope(); // 无夹=空间锚(修4 同口径)
@@ -511,20 +524,24 @@ public class FolderPermissionService {
             }
             boolean privateScope = "private".equals(anchorType); // 【拍板 A】私人空间不进矩阵(仅授权行)
             List<String> perms = new ArrayList<>();
+            Map<String, FileGrantService.Decision> enginePerFile = enginePerms.getOrDefault(file.getId(), Map.of());
             for (String p : FILE_ROW_ACTIONS) {
+                // 【Batch-4 #1】引擎 per-action 判定先行：DENY 压按钮（矩阵/旧表命中也不亮——与判定链同序）
+                FileGrantService.Decision ed = enginePerFile.get(p);
+                if (ed == FileGrantService.Decision.DENY) continue;
                 // 矩阵档位集按动作缓存一次(部门集=有夹 org 锚 / 人员集=无夹 uploader 锚, 分键)
-                boolean hit;
+                boolean hit = ed == FileGrantService.Decision.ALLOW; // 引擎 ALLOW 直接亮
                 if (privateScope) {
                     // 【拍板 A 2026-11-14】私人文件按钮=仅本人/上级链(上方已全动作)+例外授权行, 部门/用户矩阵不参与
-                    hit = grantHitIn(grants, OBJ_FILE, anchorType, ref != null ? ref.getId() : null,
+                    hit = hit || grantHitIn(grants, OBJ_FILE, anchorType, ref != null ? ref.getId() : null,
                             ref != null ? ref.getOrgId() : file.getOrgId(), uploader, p, userId);
                 } else if (ref != null) {
                     Set<Long> depts = matrixCache.computeIfAbsent("org:" + matrixActionOf(p), k -> matrixDeptSet(userId, matrixActionOf(p)));
-                    hit = grantHitIn(grants, OBJ_FILE, anchorType, ref.getId(), ref.getOrgId(), ref.getOwnerId(), p, userId)
+                    hit = hit || grantHitIn(grants, OBJ_FILE, anchorType, ref.getId(), ref.getOrgId(), ref.getOwnerId(), p, userId)
                             || depts == null || (ref.getOrgId() != null && depts.contains(ref.getOrgId()));
                 } else {
                     Set<Long> users = matrixCache.computeIfAbsent("user:" + matrixActionOf(p), k -> matrixSet(userId, matrixActionOf(p)));
-                    hit = grantHitIn(grants, OBJ_FILE, anchorType, null, file.getOrgId(), uploader, p, userId)
+                    hit = hit || grantHitIn(grants, OBJ_FILE, anchorType, null, file.getOrgId(), uploader, p, userId)
                             || users == null || (uploader != null && users.contains(uploader));
                 }
                 if (hit) mergePerms(perms, p);
@@ -552,9 +569,15 @@ public class FolderPermissionService {
         Map<String, Set<Long>> matrixCache = new HashMap<>();
         List<BizFolderTypeDefault> grants = legacyGrants();
         Map<Long, Boolean> chainCache = new HashMap<>();
+        // 【Batch-4 #1】引擎多动作批量（替代逐夹 decideFolder——同时供 DENY 隐藏与 per-action 并入）
+        Map<Long, Map<String, FileGrantService.Decision>> engineFolders =
+                fileGrantService == null ? Map.of()
+                        : fileGrantService.decideFoldersMulti(folders,
+                                List.of(P_VIEW, P_UPLOAD, P_DOWNLOAD, P_RENAME, P_REPLACE, P_SHARE, P_DELETE), userId);
         for (BizFileFolder folder : folders) {
-            if (fileGrantService != null
-                    && fileGrantService.decideFolder(folder, P_VIEW, userId) == FileGrantService.Decision.DENY) {
+            Map<String, FileGrantService.Decision> enginePerFolder =
+                    engineFolders.getOrDefault(folder.getId(), Map.of());
+            if (enginePerFolder.get(P_VIEW) == FileGrantService.Decision.DENY) {
                 result.put(folder.getId(), List.of());
                 continue;
             }
@@ -569,6 +592,9 @@ public class FolderPermissionService {
             for (String p : List.of(P_VIEW, P_UPLOAD, P_DOWNLOAD, P_RENAME, P_REPLACE, P_SHARE, P_DELETE)) {
                 // 【拍板 A 2026-11-14】私人夹按钮视图跳过部门矩阵(仅授权行)——同部门同事不得亮他人私人夹按钮;
                 // 树可见性(visibleFolderIds 经 permsFor)随之收口, 树/列表/按钮三方同口径。
+                FileGrantService.Decision ed = enginePerFolder.get(p);
+                if (ed == FileGrantService.Decision.DENY) continue; // per-action DENY 压按钮(与判定链同序)
+                if (ed == FileGrantService.Decision.ALLOW) { mergePerms(perms, p); continue; } // 引擎命中直接亮
                 Set<Long> depts = "private".equals(folder.getFolderType())
                         ? Set.of() : matrixCache.computeIfAbsent(matrixActionOf(p), ma -> matrixDeptSet(userId, ma));
                 // 【2026-11-10 C区验收修复】null=全部(all档)放行, 对齐 FileService#255; 原写法致全员可看档在批量夹判定恒失效

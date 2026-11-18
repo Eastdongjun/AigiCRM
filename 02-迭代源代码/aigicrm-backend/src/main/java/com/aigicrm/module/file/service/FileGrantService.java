@@ -17,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -138,6 +139,123 @@ public class FileGrantService {
             out.put(file.getId(), decision);
         }
         return out;
+    }
+
+    // ==================== 【Batch-4 #1】多动作批量判定（按钮视图收口） ====================
+
+    /**
+     * 多动作批量文件判定（按钮视图专用）：一次 load，每 (grant,file) 的对象匹配只算一次，
+     * 按 actionsFor 归并到各请求动作。返回 Map&lt;fileId, Map&lt;action, Decision&gt;（仅请求的动作）。
+     * DENY 优先于 ALLOW（与 decideFiles 同序）；mode=legacy 恒 ABSTAIN（调用方按钮走旧链）。
+     */
+    public Map<Long, Map<String, Decision>> decideFilesMulti(Collection<BizFile> files,
+                                                             Collection<String> actions, Long userId) {
+        Map<Long, Map<String, Decision>> out = new HashMap<>();
+        if (files == null || files.isEmpty() || actions == null || actions.isEmpty()) return out;
+        if (userId == null || SecurityUtils.isAdmin() || SecurityUtils.getCurrentUser() == null
+                || engineBypassed()) {
+            for (BizFile f : files) out.put(f.getId(), Map.of());
+            return out;
+        }
+        // load 一次：动作集 = 所有请求动作的归并词并集
+        Set<String> loadActions = new LinkedHashSet<>();
+        for (String a : actions) loadActions.addAll(actionsFor(a));
+        SecurityUser user = SecurityUtils.getCurrentUser();
+        List<BizFileGrant> grants = loadGrants(user, loadActions);
+        Map<Long, Set<Long>> orgCache = new HashMap<>();
+        Map<Long, Set<Long>> folderCache = new HashMap<>();
+        for (BizFile file : files) {
+            Set<Long> orgs = orgCache.computeIfAbsent(file.getOrgId(), this::orgAncestors);
+            Set<Long> folders = file.getFolderId() == null ? Set.of()
+                    : folderCache.computeIfAbsent(file.getFolderId(), this::folderAncestors);
+            // 【parity 修复】归并语义与 decideFiles 一致：grant.action ∈ actionsFor(a) 即服务请求 a
+            //（view grant 服务 download；manage/* 服务全部）——遍历全部 grants 而非按 grant.action 分组。
+            Map<String, Decision> per = new HashMap<>();
+            for (String a : actions) {
+                Set<String> covering = actionsFor(a);
+                Decision d = Decision.ABSTAIN;
+                for (BizFileGrant g : grants) {
+                    if (g.getAction() == null || !covering.contains(g.getAction())) continue;
+                    if (!coversFile(g, file, orgs, folders)) continue;
+                    if ("DENY".equalsIgnoreCase(g.getEffect())) { d = Decision.DENY; break; }
+                    if ("ALLOW".equalsIgnoreCase(g.getEffect())) d = Decision.ALLOW;
+                }
+                per.put(a, d);
+            }
+            out.put(file.getId(), per);
+        }
+        return out;
+    }
+
+    /**
+     * 多动作批量夹判定（按钮视图专用）：夹行按钮（对夹内文件的文件动作）与夹自身动作（rename/delete）共用。
+     * SPACE 授权对夹按 folderType 匹配；FOLDER 授权按 coversFolder。与 decideFolder 同序。
+     */
+    public Map<Long, Map<String, Decision>> decideFoldersMulti(Collection<BizFileFolder> folders,
+                                                               Collection<String> actions, Long userId) {
+        Map<Long, Map<String, Decision>> out = new HashMap<>();
+        if (folders == null || folders.isEmpty() || actions == null || actions.isEmpty()) return out;
+        if (userId == null || SecurityUtils.isAdmin() || SecurityUtils.getCurrentUser() == null
+                || engineBypassed()) {
+            for (BizFileFolder f : folders) out.put(f.getId(), Map.of());
+            return out;
+        }
+        Set<String> loadActions = new LinkedHashSet<>();
+        for (String a : actions) loadActions.addAll(actionsFor(a));
+        SecurityUser user = SecurityUtils.getCurrentUser();
+        List<BizFileGrant> grants = loadGrants(user, loadActions);
+        Map<Long, Set<Long>> orgCache = new HashMap<>();
+        Map<Long, Set<Long>> folderCache = new HashMap<>();
+        for (BizFileFolder folder : folders) {
+            Set<Long> orgs = orgCache.computeIfAbsent(folder.getOrgId(), this::orgAncestors);
+            Set<Long> ancestors = folderAncestors(folder.getId());
+            // 【parity 修复】同 decideFilesMulti：归并语义遍历全部 grants
+            Map<String, Decision> per = new HashMap<>();
+            for (String a : actions) {
+                Set<String> covering = actionsFor(a);
+                Decision d = Decision.ABSTAIN;
+                for (BizFileGrant g : grants) {
+                    if (g.getAction() == null || !covering.contains(g.getAction())) continue;
+                    if (!coversFolder(g, folder, orgs, ancestors)) continue;
+                    if ("DENY".equalsIgnoreCase(g.getEffect())) { d = Decision.DENY; break; }
+                    if ("ALLOW".equalsIgnoreCase(g.getEffect())) d = Decision.ALLOW;
+                }
+                per.put(a, d);
+            }
+            out.put(folder.getId(), per);
+        }
+        return out;
+    }
+
+    private List<BizFileGrant> loadGrants(SecurityUser user, Set<String> loadActions) {
+        Set<Long> roleIds = new LinkedHashSet<>();
+        List<String> roleCodes = user.getRoleCodes();
+        if (roleCodes != null && !roleCodes.isEmpty()) {
+            for (SysRole r : roleMapper.selectList(new LambdaQueryWrapper<SysRole>()
+                    .in(SysRole::getRoleCode, roleCodes).eq(SysRole::getStatus, 1))) {
+                if (r.getId() != null) roleIds.add(r.getId());
+            }
+        }
+        Set<Long> positionIds = new LinkedHashSet<>();
+        if (user.getPositions() != null) {
+            for (SysPosition p : user.getPositions()) if (p.getId() != null) positionIds.add(p.getId());
+        }
+        LambdaQueryWrapper<BizFileGrant> q = new LambdaQueryWrapper<BizFileGrant>()
+                .eq(BizFileGrant::getTenantId, tenantId())
+                .in(BizFileGrant::getAction, loadActions)
+                .and(w -> {
+                    w.and(x -> x.eq(BizFileGrant::getSubjectType, "USER")
+                            .eq(BizFileGrant::getSubjectId, user.getUserId()));
+                    if (!roleIds.isEmpty()) {
+                        w.or(x -> x.eq(BizFileGrant::getSubjectType, "ROLE")
+                                .in(BizFileGrant::getSubjectId, roleIds));
+                    }
+                    if (!positionIds.isEmpty()) {
+                        w.or(x -> x.eq(BizFileGrant::getSubjectType, "POSITION")
+                                .in(BizFileGrant::getSubjectId, positionIds));
+                    }
+                });
+        return grantMapper.selectList(q);
     }
 
     /** 文件夹判定（建子夹/改名/删除等夹自身动作）。 */
