@@ -184,6 +184,13 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- 【A2 Batch-3 2026-11-18】双写故障注入集成测试(LegacyFileGrantSyncServiceTest 双事务回滚实证):
+             H2 内存库(MODE=MySQL) + 真实 DataSourceTransactionManager, 版本由 Spring Boot BOM 管理 -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>test</scope>
+        </dependency>
         <!-- 【底座收敛 P2 2026-11-11】权限行为矩阵(@WebMvcTest + @WithMockUser)专用;
              @WithMockUser/SecurityMockMvcRequestPostProcessors 来自此依赖, 无运行时影响 -->
         <dependency>

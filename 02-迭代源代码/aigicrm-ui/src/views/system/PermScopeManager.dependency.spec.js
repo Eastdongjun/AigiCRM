@@ -57,7 +57,8 @@ vi.mock('@/composables/usePermissionData', async () => {
       togglePerm: togglePermMock,
       hasPerm: (role, item) => (rolePermMap.value[role.id] || new Set()).has(item.id),
     }),
-    __test: { state, togglePermMock, rolePermSet, metaByCode, ROLE_ID, PARENT_ID: 174 },
+    // __test 句柄经 hoisted 传递(替代模块导出), 供断言读取工厂内部状态
+    __test: Object.assign(handle, { state, togglePermMock, rolePermSet, metaByCode, ROLE_ID, PARENT_ID: 174 }),
   }
 })
 
@@ -81,7 +82,8 @@ import PermScopeManager from './PermScopeManager.vue'
 import { getRolePermScopes } from '@/api/system'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/store/user'
-import { __test } from '@/composables/usePermissionData'
+// 【typecheck 修复 2026-11-18】__test 句柄改经 vi.hoisted 传递——vi.mock 工厂提供, 真实模块无此导出(顶层 import 会令 vue-tsc 误读真实模块导出)
+const handle = vi.hoisted(() => /** @type {any} */ ({}))
 
 const stubs = {
   'el-radio-group': { template: '<div><slot /></div>' },
@@ -119,8 +121,8 @@ const rowOf = (wrapper, code) =>
 describe('PermScopeManager 依赖提示契约(一期 C1)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    __test.rolePermSet.clear()
-    __test.state.toggleResult = true
+    handle.rolePermSet.clear()
+    handle.state.toggleResult = true
   })
 
   it('C1a 依赖缺失: 子码行渲染『需先勾选: 统计看板』警告tag 且 checkbox 禁用', async () => {
@@ -137,7 +139,7 @@ describe('PermScopeManager 依赖提示契约(一期 C1)', () => {
   })
 
   it('C1b 依赖满足: 父码勾选后 tag 消失且 checkbox 解锁', async () => {
-    __test.rolePermSet.add(__test.PARENT_ID)
+    handle.rolePermSet.add(handle.PARENT_ID)
     const wrapper = await mountMgr()
     const row = rowOf(wrapper, 'fabushi:stats:export')
     expect(row.find('.el-tag--warning').exists()).toBe(false)
@@ -148,11 +150,11 @@ describe('PermScopeManager 依赖提示契约(一期 C1)', () => {
   })
 
   it('C1c dependsLabel 回退: meta 缺父条目时显示 dependsOn 码本身', async () => {
-    delete __test.metaByCode.value['fabushi:stats:view']
+    delete handle.metaByCode.value['fabushi:stats:view']
     const wrapper = await mountMgr()
     const row = rowOf(wrapper, 'fabushi:stats:export')
     expect(row.find('.el-tag--warning').text()).toBe('需先勾选：fabushi:stats:view')
-    __test.metaByCode.value['fabushi:stats:view'] = { name: '统计看板' }
+    handle.metaByCode.value['fabushi:stats:view'] = { name: '统计看板' }
     wrapper.unmount()
   })
 })
@@ -160,7 +162,7 @@ describe('PermScopeManager 依赖提示契约(一期 C1)', () => {
 describe('PermScopeManager 专项面板直达契约(一期 C2)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    __test.state.toggleResult = true
+    handle.state.toggleResult = true
   })
 
   it('C2a incentive 行: 渲染『去激励授权面板』按钮, 点击 emit goto-panel=incentive', async () => {
@@ -195,10 +197,11 @@ describe('PermScopeManager 专项面板直达契约(一期 C2)', () => {
 describe('PermScopeManager 保存反馈契约(一期 C3)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    __test.rolePermSet.clear()
-    __test.rolePermSet.add(__test.PARENT_ID) // 依赖满足, 勾选可操作
-    __test.state.toggleResult = true
-    getRolePermScopes.mockResolvedValue({ data: [] })
+    handle.rolePermSet.clear()
+    handle.rolePermSet.add(handle.PARENT_ID) // 依赖满足, 勾选可操作
+    handle.state.toggleResult = true
+    const mockedGetRolePermScopes = /** @type {any} */ (getRolePermScopes)
+    mockedGetRolePermScopes.mockResolvedValue({ data: [] })
   })
 
   it('C3a 勾选成功: ElMessage.success 且文案含『已保存并生效』, togglePerm 收到 (role, item)', async () => {
@@ -206,17 +209,18 @@ describe('PermScopeManager 保存反馈契约(一期 C3)', () => {
     const row = rowOf(wrapper, 'fabushi:stats:export')
     await row.find('.psm-row-check').trigger('click')
     await flushPromises()
-    expect(__test.togglePermMock).toHaveBeenCalledTimes(1)
-    const [role, item] = __test.togglePermMock.mock.calls[0]
-    expect(role.id).toBe(__test.ROLE_ID)
+    expect(handle.togglePermMock).toHaveBeenCalledTimes(1)
+    const [role, item] = handle.togglePermMock.mock.calls[0]
+    expect(role.id).toBe(handle.ROLE_ID)
     expect(item.permission).toBe('fabushi:stats:export')
     expect(ElMessage.success).toHaveBeenCalledTimes(1)
-    expect(ElMessage.success.mock.calls[0][0]).toContain('已保存并生效')
+    const successMock = /** @type {any} */ (ElMessage.success)
+    expect(successMock.mock.calls[0][0]).toContain('已保存并生效')
     wrapper.unmount()
   })
 
   it('C3b 保存失败: togglePerm 返回 false → 不得出现 success 提示', async () => {
-    __test.state.toggleResult = false
+    handle.state.toggleResult = false
     const wrapper = await mountMgr()
     const row = rowOf(wrapper, 'fabushi:stats:export')
     await row.find('.psm-row-check').trigger('click')

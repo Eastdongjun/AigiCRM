@@ -1,0 +1,72 @@
+
+########## STEP0/1 探测+上传 ##########
+[ok] 无残留
+
+########## STEP2 建副本→M1→夹具→M2→对账#1 ##########
+[rows] old=70 legacy=186
++-------------------+-----+
+| diff              | cnt |
++-------------------+-----+
+| missing_in_new    |   0 |
+| extra_in_new      |   0 |
+| expire_diff       |   0 |
+| old_expanded_rows | 186 |
+| new_legacy_rows   | 186 |
++-------------------+-----+
+
+########## STEP3 合并前快照：冲突组总数 + 行为展开集合 ##########
+[before] conflict_total=38
+[before] behave_rows=186
+
+########## STEP4 执行 M3 → 断言①真重复(可合并)归零 ②对账四数 0 ③夹具语义 ④行为快照不变 ⑤清单=perms不同组 ##########
+Query OK, 1 row affected
+Rows matched: 2  Changed: 1  Warnings: 0
+Query OK, 2 rows affected
+[after] old_rows=68
+---- ① 对账四数（期望全 0）----
++-------------------+-----+
+| diff              | cnt |
++-------------------+-----+
+| missing_in_new    |   0 |
+| extra_in_new      |   0 |
+| expire_diff       |   0 |
+| old_expanded_rows | 186 |
+| new_legacy_rows   | 186 |
++-------------------+-----+
+---- ② 夹具断言 ----
+[fixtures] 201/202 合并正确、203(perms不同)与204(异scope)保持 2 行 ✅
+---- ③ 未合并真重复组清单（期望=203 一组）----
++------------+----------+
+| subject_id | rows_cnt |
++------------+----------+
+|        203 |        2 |
++------------+----------+
+
+########## STEP4b 行为快照对比 + 冲突组后值（隔离块） ##########
++----------------+-----+
+| side           | cnt |
++----------------+-----+
+| only_in_before |   0 |
+| only_in_after  |   0 |
++----------------+-----+
+[after] conflict_total=34（合并组退出冲突组）
+
+########## STEP5 幂等：重跑 M3 → 0 行受影响 + 对账仍 0 ##########
+[idempotent] 重跑 0 行受影响 ✅
++-------------------+-----+
+| diff              | cnt |
++-------------------+-----+
+| missing_in_new    |   0 |
+| extra_in_new      |   0 |
+| expire_diff       |   0 |
+| old_expanded_rows | 186 |
+| new_legacy_rows   | 186 |
++-------------------+-----+
+
+########## DRILL3 DONE ##########
+
+########## CLEANUP drill3 ##########
+[cleanup] dropped
+[cleanup] 剩余 drill 库: 0
+[cleanup] 暂存已删
+[cleanup] 源库 old_rows=62（期望 62）
