@@ -2204,7 +2204,7 @@ class CustomerServiceTest {
             sec.when(SecurityUtils::getCurrentOrgId).thenReturn(1L);
             com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<BizCustomer> w =
                     new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
-            ReflectionTestUtils.invokeMethod(service, "applyAutoShare", w);
+            ReflectionTestUtils.invokeMethod(service, "applyDataScopeAndAutoShare", w);
             Map<String, List<Long>> cols = columnValues(w);
             assertFalse(cols.containsKey("owner_id"),
                     "dataScope=all 用户不应被 auto_share roles 收窄到组织, 实际: " + cols);
@@ -2255,10 +2255,64 @@ class CustomerServiceTest {
             sec.when(SecurityUtils::getCurrentOrgId).thenReturn(1L);
             com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<BizCustomer> w =
                     new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
-            ReflectionTestUtils.invokeMethod(service, "applyAutoShare", w);
+            ReflectionTestUtils.invokeMethod(service, "applyDataScopeAndAutoShare", w);
             Map<String, List<Long>> cols = columnValues(w);
             assertEquals(List.of(11L, 1L), cols.get("owner_id"),
                     "非 all 用户 roles 命中应收窄到组织成员(本人+同组织用户), 实际: " + cols);
+        }
+    }
+
+    @Test
+    void autoShare_officeScope_notNarrowed() {
+        // 【B1-A 2026-11-18】office=全办事处, auto_share 只扩不缩: superior/roles 命中也不得把
+        // TY005 的 121 收窄到 17。DEF-1 回归钉。
+        SysConfigService configService = mock(SysConfigService.class);
+        when(configService.getValue("customer.auto_share")).thenReturn(
+                "{\"superior\":false,\"admin\":false,\"roles\":[\"0\"],\"users\":[]}");
+        SysUserMapper userMapper = mock(SysUserMapper.class);
+        com.aigicrm.module.system.entity.SysUser orgMate = new com.aigicrm.module.system.entity.SysUser();
+        orgMate.setId(1L);
+        when(userMapper.selectList(any())).thenReturn(List.of(orgMate));
+        OrgScopeResolver resolver = mock(OrgScopeResolver.class);
+        com.aigicrm.common.scope.ScopeDecision notAll = new com.aigicrm.common.scope.ScopeDecision();
+        notAll.setVisibleUserIds(List.of(11L));
+        when(resolver.resolveScope(any())).thenReturn(notAll);
+        com.aigicrm.module.system.service.RolePermScopeService rolePermScopeService =
+                mock(com.aigicrm.module.system.service.RolePermScopeService.class);
+        when(rolePermScopeService.effectiveScopeCode(any(), any(), any())).thenReturn("office");
+        CustomerService service = new CustomerService(
+                mock(BizCustomerMapper.class),
+                null,
+                mock(BizCustomerLogMapper.class),
+                mock(BizInvoiceMapper.class),
+                mock(BizCustomerShareMapper.class),
+                mock(BizCustomerIndicatorMapper.class),
+                mock(BizContactMapper.class),
+                mock(BizPaymentMapper.class),
+                mock(com.aigicrm.module.customer.mapper.BizCustomerStageAmountMapper.class), mock(com.aigicrm.module.sea.mapper.BizSeaPoolMapper.class),
+                userMapper,
+                mock(SysDeptMapper.class),
+                mock(BizReminderMapper.class),
+                mock(JdbcTemplate.class),
+                configService,
+                resolver,
+                mock(com.aigicrm.common.engine.CustomerAccessService.class),
+                rolePermScopeService,
+                mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class),
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
+        try (MockedStatic<SecurityUtils> sec = mockStatic(SecurityUtils.class)) {
+            sec.when(SecurityUtils::isAdmin).thenReturn(false);
+            sec.when(SecurityUtils::getCurrentUserId).thenReturn(11L);
+            sec.when(SecurityUtils::getCurrentUser).thenReturn(mock(SecurityUser.class));
+            sec.when(SecurityUtils::getCurrentRoleCodes).thenReturn(List.of("0"));
+            sec.when(SecurityUtils::getCurrentOrgId).thenReturn(1L);
+            com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<BizCustomer> w =
+                    new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
+            ReflectionTestUtils.invokeMethod(service, "applyDataScopeAndAutoShare", w);
+            Map<String, List<Long>> cols = columnValues(w);
+            assertEquals(List.of(11L), cols.get("owner_id"),
+                    "office 档应保留基础范围 11，不被 auto_share 扩/缩, 实际: " + cols);
         }
     }
 

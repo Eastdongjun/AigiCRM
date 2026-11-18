@@ -156,8 +156,7 @@ public class CustomerService {
         } else if ("mine".equals(f.scope())) {
             wrapper.eq(BizCustomer::getOwnerId, SecurityUtils.getCurrentUserId());
         } else {
-            applyDataScope(wrapper);
-            applyAutoShare(wrapper);
+            applyDataScopeAndAutoShare(wrapper);
         }
         applyFilterConditions(wrapper, f, devTypeOverride, statusOverride);
         return wrapper;
@@ -1028,38 +1027,80 @@ public class CustomerService {
         return null;
     }
 
-    /** 在客户查询时追加自动共享范围（当前登录人） */
-    private void applyAutoShare(LambdaQueryWrapper<BizCustomer> wrapper) {
-        if (getAutoShareConfig().isEmpty()) return;
-        if (isDataScopeAll()) return;
-        java.util.List<Long> shareOwnerIds = getAutoShareOwnerIds();
-        if (shareOwnerIds.isEmpty()) return;
-        if (shareOwnerIds.size() <= 1) return;
-        wrapper.in(BizCustomer::getOwnerId, shareOwnerIds);
+    /** B1-A 2026-11-18：auto_share 只扩不缩——office 档（全办事处）不再被 superior/roles 收窄。 */
+    private boolean isOfficeScopeFor(com.aigicrm.security.SecurityUser scopeUser) {
+        return scopeUser != null
+                && "office".equals(rolePermScopeService.effectiveScopeCode(scopeUser, "customer", "view"));
     }
 
-    /** 【D2 修复】auto_share 按指定用户生效，与列表同一实现。 */
-    private void applyAutoShareFor(LambdaQueryWrapper<BizCustomer> wrapper, com.aigicrm.security.SecurityUser scopeUser) {
-        if (scopeUser == null) return;
-        // 【F18 复审 2026-10-13】auto_share 未配置时零成本直退(此前会先付一次 scope 解析成本)
-        if (getAutoShareConfig().isEmpty()) return;
-        // 【F18 2026-10-13】数据范围为 all(本集团全量)的用户不再被 auto_share 收窄:
-        // auto_share 各规则(superior/roles)本意是给数据范围受限的用户扩大可见, 对已全量可见的用户
-        // 只剩收窄副作用——roles 的"同组织互看"曾把 dataScope=all 的销售总监从全量 285 收窄到组织 16 条,
-        // 与工作台/统计(纯 dataScope 口径)自相矛盾。与 admin 规则同型豁免。
-        if (isDataScopeAllFor(scopeUser)) return;
-        java.util.List<Long> shareOwnerIds = getAutoShareOwnerIdsFor(scopeUser);
-        if (shareOwnerIds.isEmpty()) return;
-        if (shareOwnerIds.size() <= 1) return;
-        wrapper.in(BizCustomer::getOwnerId, shareOwnerIds);
+    /** B1-A 2026-11-18：数据范围 + auto_share 合并为一组 (base OR share)，auto_share 只扩不缩。 */
+    private void applyDataScopeAndAutoShare(LambdaQueryWrapper<BizCustomer> wrapper) {
+        applyDataScopeAndAutoShareFor(wrapper, SecurityUtils.getCurrentUser(), getAutoShareOwnerIds());
     }
 
-    /** 客户查看范围的统一解析请求(F18 复审: isDataScopeAll 与 applyDataScope 共用, 消除复制粘贴口径分裂) */
-    private com.aigicrm.common.scope.ScopeRequest buildCustomerViewScopeRequest() {
-        return buildCustomerViewScopeRequest(SecurityUtils.getCurrentUser());
+    /** 【D2 修复】按指定用户解析，预览与列表同口径。 */
+    private void applyDataScopeAndAutoShareFor(LambdaQueryWrapper<BizCustomer> wrapper,
+                                               com.aigicrm.security.SecurityUser scopeUser) {
+        applyDataScopeAndAutoShareFor(wrapper, scopeUser, getAutoShareOwnerIdsFor(scopeUser));
     }
 
-    /** 【D2 修复 2026-11-16】同一解析请求支持"指定用户"（预览复用执行侧口径，不再各写一套）。 */
+    private void applyDataScopeAndAutoShareFor(LambdaQueryWrapper<BizCustomer> wrapper,
+                                               com.aigicrm.security.SecurityUser scopeUser,
+                                               java.util.List<Long> shareOwnerIds) {
+        if (scopeUser == null) {
+            wrapper.eq(BizCustomer::getOwnerId, -1L);
+            return;
+        }
+        com.aigicrm.common.scope.ScopeRequest req = buildCustomerViewScopeRequest(scopeUser);
+        com.aigicrm.common.scope.ScopeDecision d = scopeResolver.resolveScope(req);
+        if (d == null) {
+            wrapper.eq(BizCustomer::getOwnerId, -1L);
+            return;
+        }
+        java.util.List<Long> extra = applicableAutoShareOwnerIds(scopeUser, d, shareOwnerIds);
+        if (!d.isAll()) {
+            if (req.getAnchor() == com.aigicrm.common.scope.ScopeRequest.AnchorType.ORG) {
+                java.util.List<Long> deptIds = d.getVisibleDeptIds();
+                boolean hasBase = deptIds != null && !deptIds.isEmpty();
+                if (hasBase && !extra.isEmpty()) {
+                    wrapper.and(w -> w.in(BizCustomer::getDeptId, deptIds).or().in(BizCustomer::getOwnerId, extra));
+                } else if (hasBase) {
+                    wrapper.in(BizCustomer::getDeptId, deptIds);
+                } else if (!extra.isEmpty()) {
+                    wrapper.in(BizCustomer::getOwnerId, extra);
+                } else {
+                    wrapper.eq(BizCustomer::getDeptId, -1L); // 空集合: 不可见
+                }
+            } else {
+                java.util.LinkedHashSet<Long> union = new java.util.LinkedHashSet<>();
+                if (d.getVisibleUserIds() != null) union.addAll(d.getVisibleUserIds());
+                union.addAll(extra);
+                if (!union.isEmpty()) wrapper.in(BizCustomer::getOwnerId, union);
+                else wrapper.eq(BizCustomer::getOwnerId, -1L); // 空集合: 不可见
+            }
+        }
+        // 规则引擎：追加运行时 WHERE 条件（与统一层 AND 合并，追加条件层）
+        applyRuleEngineFilter(wrapper, scopeUser);
+    }
+
+    /** auto_share 的"扩展部分"：已在基础范围内的 owner 不重复加入；office 档不扩不缩。 */
+    private java.util.List<Long> applicableAutoShareOwnerIds(com.aigicrm.security.SecurityUser scopeUser,
+                                                             com.aigicrm.common.scope.ScopeDecision d,
+                                                             java.util.List<Long> shareOwnerIds) {
+        if (d == null || d.isAll()) return java.util.Collections.emptyList();
+        if (getAutoShareConfig().isEmpty()) return java.util.Collections.emptyList();
+        if (isOfficeScopeFor(scopeUser)) return java.util.Collections.emptyList();
+        if (shareOwnerIds == null || shareOwnerIds.size() <= 1) return java.util.Collections.emptyList();
+        java.util.List<Long> visible = d.getVisibleUserIds();
+        if (visible == null) return java.util.Collections.emptyList();
+        java.util.List<Long> extra = new java.util.ArrayList<>();
+        for (Long id : shareOwnerIds) {
+            if (!visible.contains(id)) extra.add(id);
+        }
+        return extra;
+    }
+
+    /** 【D2 修复 2026-11-16】客户查看范围统一解析请求（列表/预览/auto_share 共用，不再各写一套）。 */
     private com.aigicrm.common.scope.ScopeRequest buildCustomerViewScopeRequest(com.aigicrm.security.SecurityUser scopeUser) {
         if (scopeUser == null) return null;
         return com.aigicrm.common.scope.ScopeRequest.builder()
@@ -1068,17 +1109,6 @@ public class CustomerService {
                 .action("view")
                 .anchor(rolePermScopeService.anchorOf(scopeUser, "customer", "view"))
                 .build();
-    }
-
-    /** 当前用户客户查看范围是否为全量(all); admin 恒全量。与 applyDataScope 同一解析链路 */
-    private boolean isDataScopeAll() {
-        com.aigicrm.common.scope.ScopeRequest req = buildCustomerViewScopeRequest();
-        return req != null && scopeResolver.resolveScope(req).isAll();
-    }
-
-    private boolean isDataScopeAllFor(com.aigicrm.security.SecurityUser scopeUser) {
-        com.aigicrm.common.scope.ScopeRequest req = buildCustomerViewScopeRequest(scopeUser);
-        return req != null && scopeResolver.resolveScope(req).isAll();
     }
 
 
@@ -1119,8 +1149,7 @@ public class CustomerService {
         // 预览数字=列表真实可见数（执行侧为准）。
         LambdaQueryWrapper<BizCustomer> w = new LambdaQueryWrapper<>();
         w.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", "archived");
-        applyDataScopeFor(w, target);
-        applyAutoShareFor(w, target);
+        applyDataScopeAndAutoShareFor(w, target);
         return customerMapper.selectCount(w);
     }
 

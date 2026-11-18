@@ -110,11 +110,11 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '21'
-      - name: Compile backend for Sonar
+      - name: Compile and test backend for Sonar
         if: steps.sonar-token.outputs.ran == 'true'
         working-directory: 02-迭代源代码/aigicrm-backend
         run: |
-          mvn -B -q -DskipTests compile
+          mvn -B -q test jacoco:report
           mvn -B -q dependency:build-classpath -Dmdep.includeScope=test -Dmdep.outputFile="$RUNNER_TEMP/sonar-classpath.txt"
       - name: SonarCloud scan
         if: steps.sonar-token.outputs.ran == 'true'

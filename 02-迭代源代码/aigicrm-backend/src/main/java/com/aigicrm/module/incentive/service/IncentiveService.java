@@ -546,8 +546,30 @@ public class IncentiveService {
         if (t.length() > SLOT_JSON_MAX_LEN) {
             throw new BusinessException(400, "槽位文件数量超出上限");
         }
-        if (!SLOT_JSON_RE.matcher(t).matches()) {
+        if (!isValidSlotJson(t)) {
             throw new BusinessException(400, "安装文件槽位格式非法（应为文件ID数组）");
+        }
+    }
+
+    /** 线性解析槽位 JSON（等价原正则，无回溯风险）：[1,2] / [1]。 */
+    private static boolean isValidSlotJson(String t) {
+        if (t.length() < 3 || t.charAt(0) != '[' || t.charAt(t.length() - 1) != ']') return false;
+        String body = t.substring(1, t.length() - 1);
+        if (body.isEmpty()) return false;
+        int i = 0;
+        while (true) {
+            int start = i;
+            while (i < body.length()) {
+                char c = body.charAt(i);
+                if (c < '0' || c > '9') break;
+                i++;
+            }
+            int len = i - start;
+            if (len < 1 || len > 18) return false;
+            if (i == body.length()) return true;
+            if (body.charAt(i) != ',') return false;
+            i++;
+            if (i == body.length()) return false;
         }
     }
 
@@ -560,8 +582,9 @@ public class IncentiveService {
      * 槽位 JSON 合法形态: "[1,2]"（至少一个纯数字 ID；空/白串视为未提供）。
      * 【六轮复检修复】ID 限定 1-18 位(18 位以内恒在 Long 范围, 防 20 位数字落库后
      * parseJsonArray 溢出被吞成"看似有值实则恒空"的脏槽位)。
+     * 【P0-5/B14 2026-11-18】原正则 ^\[\d{1,18}(,\d{1,18})*\]$ 有回溯风险(S5998)，
+     * 改为线性解析（等价语义，O(n)，无回溯）。
      */
-    private static final java.util.regex.Pattern SLOT_JSON_RE = java.util.regex.Pattern.compile("^\\[\\d{1,18}(,\\d{1,18})*\\]$");
     /** 槽位列 DDL 为 varchar(500)，超长数组必须显式拒绝而非落库报 500/非严格模式截断 */
     private static final int SLOT_JSON_MAX_LEN = 500;
 
