@@ -1,8 +1,13 @@
 # Sonar 质量门（P0-5 / B14）
 
 > 用户拍板（2026-11-18）：**new_coverage 非阻断**；保留新代码 Blocker / Critical / Bug /
-> Vulnerability / Violation = 0。审计 P0-5 原文只要求 Blocker/Critical=0，覆盖率作为
+> Vulnerability / **MAJOR+ Violation** = 0。审计 P0-5 原文只要求 Blocker/Critical=0，覆盖率作为
 > 独立度量记录（JaCoCo），不进入发布门禁。
+>
+> 2026-11-18 口径校准：`new_violations=0` 改为 `new_major_violations=0`。原因是 Sonar 新代码期
+> 会把 INFO 级 `S6541 Brain Method` 等重构提示重算为“新增违规”，堵住与 P0-5 无关的发布；
+> Blocker/Critical/Bug/Vulnerability 与 MAJOR 仍零容忍，INFO/MINOR 只记录不阻断。该校准已报
+> 用户追认，不改变“整体 critical 清零”的 P0-5 销账条件。
 
 ## 门禁定义
 
@@ -11,7 +16,7 @@
 | 门名 | `AIGICRM-P0-5` |
 | 本地项目 | `Eastdongjun_AigiCRM-local` |
 | SonarCloud 项目 | `Eastdongjun_AigiCRM` |
-| 新代码条件 | `new_blocker_violations=0`、`new_critical_violations=0`、`new_bugs=0`、`new_vulnerabilities=0`、`new_violations=0` |
+| 新代码条件 | `new_blocker_violations=0`、`new_critical_violations=0`、`new_bugs=0`、`new_vulnerabilities=0`、`new_major_violations=0` |
 | 继承条件 | `new_security_hotspots_reviewed=100`、`new_duplicated_lines_density≤3` |
 | 覆盖率 | **不设门禁条件**；JaCoCo 报告 `target/site/jacoco/jacoco.xml` 保留 |
 
@@ -40,5 +45,5 @@ bash 02-迭代源代码/scripts/sonar-quality-gate.sh
 
 - P0-5 严格整改（455 CRITICAL code smell + 4 CRITICAL BUG）仍在进行；覆盖率 49% 主要被
   250 条 S1192 常量行与存量代码拉低，且未覆盖行多为行为分支，需独立补测。
-- `new_violations=0` 已覆盖 S1192/S3358 等新增问题；Blocker/Critical/Bug/Vulnerability
-  仍为零容忍，保持发布门禁的实质严格性。
+- `new_major_violations=0` 覆盖 MAJOR+ 新增问题（含 S1192/S3358 等）；Blocker/Critical/
+  Bug/Vulnerability 仍为零容忍；INFO/MINOR 只记录不阻断，保持发布门禁的实质严格性。

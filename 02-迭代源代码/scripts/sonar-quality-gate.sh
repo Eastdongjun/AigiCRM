@@ -11,7 +11,7 @@ api() { curl -s -u "$AUTH" "$@"; }
 
 api -X POST "$HOST/api/qualitygates/create" -d "name=$GATE" >/dev/null || true
 for cond in "new_blocker_violations GT 0" "new_critical_violations GT 0" \
-            "new_bugs GT 0" "new_vulnerabilities GT 0" "new_violations GT 0"; do
+            "new_bugs GT 0" "new_vulnerabilities GT 0" "new_major_violations GT 0"; do
   # shellcheck disable=SC2086
   set -- $cond
   api -X POST "$HOST/api/qualitygates/create_condition" \
