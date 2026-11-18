@@ -85,24 +85,34 @@ public class SysRoleService {
      */
     private void validateGrantableRole(SysRole role, SysRole existing) {
         if (SecurityUtils.hasAuthority(LIT_SYSTEM_ROLE_GRANT)) return;
+        requireNotAdminRole(role, existing);
+        requireGrantableDataScope(role);
+        requireGrantableMenus(role);
+    }
+
+    private void requireNotAdminRole(SysRole role, SysRole existing) {
         if (LIT_ADMIN.equals(role.getRoleCode())
                 || (existing != null && LIT_ADMIN.equals(existing.getRoleCode()))) {
             throw new BusinessException(403, "无权操作系统管理员角色");
         }
-        if (role.getDataScope() != null) {
-            DataScopeType caller = DataScopeType.fromCode(SecurityUtils.getCurrentDataScope());
-            if (DataScopeType.fromCode(role.getDataScope()).rank() < caller.rank()) {
-                throw new BusinessException(403, "无权授予超出自身数据范围的角色");
-            }
+    }
+
+    private void requireGrantableDataScope(SysRole role) {
+        if (role.getDataScope() == null) return;
+        DataScopeType caller = DataScopeType.fromCode(SecurityUtils.getCurrentDataScope());
+        if (DataScopeType.fromCode(role.getDataScope()).rank() < caller.rank()) {
+            throw new BusinessException(403, "无权授予超出自身数据范围的角色");
         }
-        if (role.getMenuIds() != null && !role.getMenuIds().isEmpty()) {
-            Set<String> callerPerms = SecurityUtils.getCurrentUser() != null
-                    ? SecurityUtils.getCurrentUser().getPermissions() : Set.of();
-            for (SysMenu m : menuMapper.selectByIds(role.getMenuIds())) {
-                if (m.getPermission() != null && !m.getPermission().isBlank()
-                        && !callerPerms.contains(m.getPermission())) {
-                    throw new BusinessException(403, "无权授予权限: " + m.getPermission());
-                }
+    }
+
+    private void requireGrantableMenus(SysRole role) {
+        if (role.getMenuIds() == null || role.getMenuIds().isEmpty()) return;
+        Set<String> callerPerms = SecurityUtils.getCurrentUser() != null
+                ? SecurityUtils.getCurrentUser().getPermissions() : Set.of();
+        for (SysMenu m : menuMapper.selectByIds(role.getMenuIds())) {
+            if (m.getPermission() != null && !m.getPermission().isBlank()
+                    && !callerPerms.contains(m.getPermission())) {
+                throw new BusinessException(403, "无权授予权限: " + m.getPermission());
             }
         }
     }

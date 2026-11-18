@@ -231,7 +231,7 @@ public class FileGrantService {
         return out;
     }
 
-    private List<BizFileGrant> loadGrants(SecurityUser user, Set<String> loadActions) {
+    private Set<Long> resolveRoleIds(SecurityUser user) {
         Set<Long> roleIds = new LinkedHashSet<>();
         List<String> roleCodes = user.getRoleCodes();
         if (roleCodes != null && !roleCodes.isEmpty()) {
@@ -240,10 +240,20 @@ public class FileGrantService {
                 if (r.getId() != null) roleIds.add(r.getId());
             }
         }
+        return roleIds;
+    }
+
+    private Set<Long> resolvePositionIds(SecurityUser user) {
         Set<Long> positionIds = new LinkedHashSet<>();
         if (user.getPositions() != null) {
             for (SysPosition p : user.getPositions()) if (p.getId() != null) positionIds.add(p.getId());
         }
+        return positionIds;
+    }
+
+    private List<BizFileGrant> loadGrants(SecurityUser user, Set<String> loadActions) {
+        Set<Long> roleIds = resolveRoleIds(user);
+        Set<Long> positionIds = resolvePositionIds(user);
         LambdaQueryWrapper<BizFileGrant> q = new LambdaQueryWrapper<BizFileGrant>()
                 .eq(BizFileGrant::getTenantId, tenantId())
                 .in(BizFileGrant::getAction, loadActions)
