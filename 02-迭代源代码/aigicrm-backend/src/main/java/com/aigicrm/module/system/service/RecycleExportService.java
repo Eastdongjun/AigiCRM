@@ -307,7 +307,7 @@ public class RecycleExportService {
             case "file" -> "SELECT id, file_name, file_scope, folder_id, uploader_id, oss_key, deleted_at, deleted_by, deleted_reason FROM biz_file WHERE deleted=1" + range;
             case "task" -> "SELECT id, title, assignee_id, customer_id, deleted_at, deleted_by, deleted_reason FROM biz_task WHERE deleted=1" + range;
             case "incentive" -> "SELECT id, user_id, customer_id, category_id, deleted_at, deleted_by, deleted_reason FROM biz_incentive_record WHERE deleted=1" + range;
-            case "reminder" -> "SELECT id, customer_id, user_id, reminder_type, deleted_at, deleted_by, deleted_reason FROM biz_reminder WHERE deleted=1" + range;
+            case "reminder" -> "SELECT id, customer_id, owner_id, reminder_type, deleted_at, deleted_by, deleted_reason FROM biz_reminder WHERE deleted=1" + range;
             default -> throw new BusinessException("非法类型");
         };
     }
@@ -319,7 +319,7 @@ public class RecycleExportService {
             case "file" -> "id,file_name,file_scope,folder_id,uploader_id,oss_key,contentMissing,deleted_at,deleted_by,deleted_reason";
             case "task" -> "id,title,assignee_id,customer_id,deleted_at,deleted_by,deleted_reason";
             case "incentive" -> "id,user_id,customer_id,category_id,deleted_at,deleted_by,deleted_reason";
-            case "reminder" -> "id,customer_id,user_id,reminder_type,deleted_at,deleted_by,deleted_reason";
+            case "reminder" -> "id,customer_id,owner_id,reminder_type,deleted_at,deleted_by,deleted_reason";
             default -> throw new BusinessException("非法类型");
         };
     }
@@ -348,7 +348,7 @@ public class RecycleExportService {
                     r.get("deleted_at"), r.get("deleted_by"), r.get("deleted_reason"));
             case "incentive" -> csv(r.get("id"), r.get("user_id"), r.get("customer_id"), r.get("category_id"),
                     r.get("deleted_at"), r.get("deleted_by"), r.get("deleted_reason"));
-            case "reminder" -> csv(r.get("id"), r.get("customer_id"), r.get("user_id"), r.get("reminder_type"),
+            case "reminder" -> csv(r.get("id"), r.get("customer_id"), r.get("owner_id"), r.get("reminder_type"),
                     r.get("deleted_at"), r.get("deleted_by"), r.get("deleted_reason"));
             default -> throw new BusinessException("非法类型");
         };
