@@ -50,8 +50,8 @@ else
   RM_DB="${DB_NAME:-$([ "$ENV" = "prod" ] && echo ycmn || echo aigicrm_prod_20261016)}"
   SQL_TABLES="SELECT t.table_name, t.table_comment FROM information_schema.tables t WHERE t.table_schema='$RM_DB' ORDER BY t.table_name;"
   SQL_COLS="SELECT c.table_name, c.column_name, c.column_type, c.is_nullable, c.column_default, c.column_key, c.column_comment FROM information_schema.columns c WHERE c.table_schema='$RM_DB' ORDER BY c.table_name, c.ordinal_position;"
-  printf '%s\n' "$SQL_TABLES" | "$SSH_FN" "docker exec -i $MYSQL_C sh -c 'mysql -uroot -p\$MYSQL_ROOT_PASSWORD -N --default-character-set=utf8mb4'" 2>/dev/null > /tmp/dict-tables.txt
-  printf '%s\n' "$SQL_COLS" | "$SSH_FN" "docker exec -i $MYSQL_C sh -c 'mysql -uroot -p\$MYSQL_ROOT_PASSWORD -N --default-character-set=utf8mb4'" 2>/dev/null > /tmp/dict-cols.txt
+  printf '%s\n' "$SQL_TABLES" | "$SSH_FN" "docker exec -i $MYSQL_C sh -c 'MYSQL_PWD=\"\$MYSQL_ROOT_PASSWORD\" mysql -uroot -N --default-character-set=utf8mb4'" 2>/dev/null > /tmp/dict-tables.txt
+  printf '%s\n' "$SQL_COLS" | "$SSH_FN" "docker exec -i $MYSQL_C sh -c 'MYSQL_PWD=\"\$MYSQL_ROOT_PASSWORD\" mysql -uroot -N --default-character-set=utf8mb4'" 2>/dev/null > /tmp/dict-cols.txt
 fi
 if [ ! -s /tmp/dict-tables.txt ] || [ ! -s /tmp/dict-cols.txt ]; then
   echo "错误: 数据库查询未返回完整的数据字典结果，文档生成未完成" >&2

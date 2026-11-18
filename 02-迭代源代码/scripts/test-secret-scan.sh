@@ -28,10 +28,8 @@ cat > "$REPO/bad-fill.mjs" <<'EOF'
 // 故意的 p2 夹具(登录表单位置填值)
 await inputs.nth(1).fill('zz9-positional-cred');
 EOF
-cat > "$REPO/bad-url.env" <<'EOF'
-# 故意的 p4 夹具(URL 内嵌凭据)
-DB=mysql://root:zz9-url-cred@db.local/x
-EOF
+# 故意的 p4 夹具(URL 内嵌凭据)——运行时拼接，避免扫描器把夹具源码本身当作活凭据
+printf 'DB=mysql://root:%s@db.local/x\n' 'zz9-url-cred' > "$REPO/bad-url.env"
 PK_TAIL="PRIVATE KEY"
 printf -- '-----BEGIN RSA %s-----\n' "$PK_TAIL" > "$REPO/bad-key.pem"
 cat > "$REPO/clean-placeholder.js" <<'EOF'

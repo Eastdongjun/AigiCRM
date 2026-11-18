@@ -343,7 +343,7 @@ onMounted(async () => {
   font-size: 14px;
   color: #1f2329;
 }
-.dict-module-title { display: flex; justify-content: space-between; align-items: center; padding: 10rpx 4rpx 6rpx; font-size: 12px; color: var(--el-text-color-secondary); font-weight: 600; }
+.dict-module-title { display: flex; justify-content: space-between; align-items: center; padding: 5px 2px 3px; font-size: 12px; color: var(--el-text-color-secondary); font-weight: 600; }
 .dict-module-count { font-weight: 400; }
 .dict-type-list { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 2px }
 .dict-type-item {

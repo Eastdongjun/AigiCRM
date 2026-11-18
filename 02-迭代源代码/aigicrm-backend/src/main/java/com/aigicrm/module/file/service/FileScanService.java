@@ -47,6 +47,9 @@ public class FileScanService {
             if (real.exitValue() != 0) throw new BusinessException("文件未通过安全扫描");
         } catch (BusinessException e) {
             throw e;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new BusinessException("病毒扫描被中断，文件已拒绝");
         } catch (Exception e) {
             throw new BusinessException("病毒扫描失败，文件已拒绝: " + e.getMessage());
         }

@@ -543,11 +543,11 @@ public class IncentiveService {
     /** 【六轮复检修复】槽位共享校验: 格式正则 + 长度上限, create/update 同口径 */
     private static void assertValidSlotJson(String v) {
         String t = v.trim();
-        if (!SLOT_JSON_RE.matcher(t).matches()) {
-            throw new BusinessException(400, "安装文件槽位格式非法（应为文件ID数组）");
-        }
         if (t.length() > SLOT_JSON_MAX_LEN) {
             throw new BusinessException(400, "槽位文件数量超出上限");
+        }
+        if (!SLOT_JSON_RE.matcher(t).matches()) {
+            throw new BusinessException(400, "安装文件槽位格式非法（应为文件ID数组）");
         }
     }
 

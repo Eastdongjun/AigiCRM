@@ -80,7 +80,7 @@ public final class GroupScopeUtil {
             return "g-none:"; // fail-closed 固定前缀(对应租户插件 tenant_id = NULL 恒空)
         }
         // 多集团取排序最小 id, 与 MybatisPlusConfig.resolveTenantId 同口径
-        return "g" + groupIds.stream().sorted().findFirst().get() + ":";
+        return "g" + groupIds.stream().sorted().findFirst().orElseThrow() + ":";
     }
 
     /**

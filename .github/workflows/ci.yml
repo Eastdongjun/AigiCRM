@@ -105,6 +105,17 @@ jobs:
           else
             echo "ran=true" >> "$GITHUB_OUTPUT"
           fi
+      - uses: actions/setup-java@v4
+        if: steps.sonar-token.outputs.ran == 'true'
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+      - name: Compile backend for Sonar
+        if: steps.sonar-token.outputs.ran == 'true'
+        working-directory: 02-迭代源代码/aigicrm-backend
+        run: |
+          mvn -B -q -DskipTests compile
+          mvn -B -q dependency:build-classpath -Dmdep.includeScope=test -Dmdep.outputFile="$RUNNER_TEMP/sonar-classpath.txt"
       - name: SonarCloud scan
         if: steps.sonar-token.outputs.ran == 'true'
         env:
@@ -115,7 +126,8 @@ jobs:
           npx --yes sonar-scanner \
             -Dsonar.scanner.skipJreProvisioning=true \
             -Dsonar.ws.timeout=300 \
-            -Dsonar.qualitygate.wait=true
+            -Dsonar.qualitygate.wait=true \
+            -Dsonar.java.libraries="$(cat "$RUNNER_TEMP/sonar-classpath.txt")"
 
   # P0 质量门禁（2026-08-12）：修改范围空白检查 + 密钥粗检（PR 相对基准 / push 相对父提交）
   diff-check:

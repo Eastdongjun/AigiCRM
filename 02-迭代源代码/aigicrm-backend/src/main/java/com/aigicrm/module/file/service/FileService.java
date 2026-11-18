@@ -1294,6 +1294,9 @@ public class FileService {
                 response.getOutputStream().flush();
             }
         } catch (Exception e) {
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
             log.warn("视频预览生成失败 fileId={}: {}", fileId, e.getMessage());
             response.setStatus(503);
         }
