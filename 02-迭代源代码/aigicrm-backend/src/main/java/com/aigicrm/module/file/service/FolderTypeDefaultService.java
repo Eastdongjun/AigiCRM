@@ -91,40 +91,10 @@ public class FolderTypeDefaultService {
     @org.springframework.transaction.annotation.Transactional
     public void saveGrant(String folderType, String objectType, Long folderId, Long scopeOrgId, String scopeLevel,
                           String subjectType, Long subjectId, List<String> perms, LocalDateTime expiresAt) {
-        if (!TYPES.contains(folderType)) throw new BusinessException("不支持的文件夹类型");
-        if (!FolderPermissionService.OBJ_FOLDER.equals(objectType) && !FolderPermissionService.OBJ_FILE.equals(objectType)) {
-            throw new BusinessException("动作对象必须是 FOLDER 或 FILE");
-        }
-        // 四项激励=纯文件域(无文件夹层)
-        if (TYPE_INCENTIVE.equals(folderType) && FolderPermissionService.OBJ_FOLDER.equals(objectType)) {
-            throw new BusinessException("四项激励类型只有文件动作");
-        }
-        if (scopeLevel != null && !SCOPES.contains(scopeLevel)) throw new BusinessException("非法数据范围: " + scopeLevel);
-        if (folderId != null && folderMapper.selectById(folderId) == null) throw new BusinessException("定向文件夹不存在");
-        if (subjectId == null) throw new BusinessException("授权主体不能为空");
-        if (perms == null || perms.isEmpty()) throw new BusinessException("权限不能为空");
-        Set<String> allowed = new java.util.HashSet<>(FolderPermissionService.OBJ_FOLDER.equals(objectType) ? FOLDER_ACTIONS : FILE_ACTIONS);
-        allowed.add(FolderPermissionService.P_EDIT); // 旧调用方 'edit' 伞: 校验放行, 落库归一 rename+replace
-        for (String p : perms) if (!allowed.contains(p)) throw new BusinessException("非法权限项: " + p);
-        if (!SUBJECT_ROLE.equals(subjectType) && !SUBJECT_USER.equals(subjectType)) {
-            throw new BusinessException("授权主体类型必须是 ROLE 或 USER");
-        }
-        // 【2026-11-10 用户令】到期可选: NULL=永久(勾选即生效); 填了才校验须晚于当前
-        if (expiresAt != null && !expiresAt.isAfter(LocalDateTime.now())) throw new BusinessException("到期时间必须晚于当前时间");
-        if (subjectType.equals(SUBJECT_ROLE)) {
-            SysRole role = roleMapper.selectById(subjectId);
-            if (role == null || role.getStatus() == null || role.getStatus() != 1) throw new BusinessException("角色不存在或已停用");
-        } else {
-            if (userMapper.selectById(subjectId) == null) throw new BusinessException("用户不存在");
-        }
-        Set<String> normalized = new LinkedHashSet<>();
-        for (String p : perms) {
-            if (FolderPermissionService.P_EDIT.equals(p)) {
-                normalized.add(FolderPermissionService.P_RENAME);
-                normalized.add(FolderPermissionService.P_REPLACE);
-            } else normalized.add(p);
-        }
-        String joined = String.join(",", normalized);
+        validateGrantShape(folderType, objectType, folderId, scopeLevel, subjectId, expiresAt);
+        validatePerms(objectType, perms);
+        validateSubject(subjectType, subjectId);
+        String joined = String.join(",", normalizePerms(perms));
         BizFolderTypeDefault existing = grantMapper.selectOne(new LambdaQueryWrapper<BizFolderTypeDefault>()
                 .eq(BizFolderTypeDefault::getFolderType, folderType)
                 .eq(BizFolderTypeDefault::getObjectType, objectType)
@@ -169,6 +139,53 @@ public class FolderTypeDefaultService {
                         + " subject:" + subjectType + ":" + subjectId + " perms:" + joined
                         + " scope:" + scopeLevel + " expires:" + expiresAt); }
         catch (Exception e) { log.warn("权限审计留痕失败(不阻断业务) file_grant_save folderType={} subject={}:{}", folderType, subjectType, subjectId, e); }
+    }
+
+    private void validateGrantShape(String folderType, String objectType, Long folderId,
+                                    String scopeLevel, Long subjectId, LocalDateTime expiresAt) {
+        if (!TYPES.contains(folderType)) throw new BusinessException("不支持的文件夹类型");
+        if (!FolderPermissionService.OBJ_FOLDER.equals(objectType) && !FolderPermissionService.OBJ_FILE.equals(objectType)) {
+            throw new BusinessException("动作对象必须是 FOLDER 或 FILE");
+        }
+        // 四项激励=纯文件域(无文件夹层)
+        if (TYPE_INCENTIVE.equals(folderType) && FolderPermissionService.OBJ_FOLDER.equals(objectType)) {
+            throw new BusinessException("四项激励类型只有文件动作");
+        }
+        if (scopeLevel != null && !SCOPES.contains(scopeLevel)) throw new BusinessException("非法数据范围: " + scopeLevel);
+        if (folderId != null && folderMapper.selectById(folderId) == null) throw new BusinessException("定向文件夹不存在");
+        if (subjectId == null) throw new BusinessException("授权主体不能为空");
+        // 【2026-11-10 用户令】到期可选: NULL=永久(勾选即生效); 填了才校验须晚于当前
+        if (expiresAt != null && !expiresAt.isAfter(LocalDateTime.now())) throw new BusinessException("到期时间必须晚于当前时间");
+    }
+
+    private void validatePerms(String objectType, List<String> perms) {
+        if (perms == null || perms.isEmpty()) throw new BusinessException("权限不能为空");
+        Set<String> allowed = new java.util.HashSet<>(FolderPermissionService.OBJ_FOLDER.equals(objectType) ? FOLDER_ACTIONS : FILE_ACTIONS);
+        allowed.add(FolderPermissionService.P_EDIT); // 旧调用方 'edit' 伞: 校验放行, 落库归一 rename+replace
+        for (String p : perms) if (!allowed.contains(p)) throw new BusinessException("非法权限项: " + p);
+    }
+
+    private void validateSubject(String subjectType, Long subjectId) {
+        if (!SUBJECT_ROLE.equals(subjectType) && !SUBJECT_USER.equals(subjectType)) {
+            throw new BusinessException("授权主体类型必须是 ROLE 或 USER");
+        }
+        if (subjectType.equals(SUBJECT_ROLE)) {
+            SysRole role = roleMapper.selectById(subjectId);
+            if (role == null || role.getStatus() == null || role.getStatus() != 1) throw new BusinessException("角色不存在或已停用");
+        } else {
+            if (userMapper.selectById(subjectId) == null) throw new BusinessException("用户不存在");
+        }
+    }
+
+    private Set<String> normalizePerms(List<String> perms) {
+        Set<String> normalized = new LinkedHashSet<>();
+        for (String p : perms) {
+            if (FolderPermissionService.P_EDIT.equals(p)) {
+                normalized.add(FolderPermissionService.P_RENAME);
+                normalized.add(FolderPermissionService.P_REPLACE);
+            } else normalized.add(p);
+        }
+        return normalized;
     }
 
     /** 按 id 删除授权(立即收回)——【A2 §2.5】事务内同步清空新表 ftd:<id>: 双写行 */
