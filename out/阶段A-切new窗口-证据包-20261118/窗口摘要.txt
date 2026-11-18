@@ -1,0 +1,13 @@
+【切 new 窗口 · 执行摘要 2026-11-18】(观察期终验 QC 通过后, 用户授权; 计时事实约 7.6 小时, 用户知情决定, QC 记录在案)
+
+① env 切换: 生产 /data/ycmn/.env dual→new ✓ + 本地 ~/.aigicrm-deploy.env 同步 ✓
+② 容器重建: deploy-backend.sh(FILE_GRANT_MODE=new) RESULT=PASS, jar 不变 2ea180c67e011630337ab6da17eaa588
+   (源码 HEAD 9db1e53e 构建, 与线上同 jar; md5 门禁过), 旧 jar 备份 ycmn-backend-jar-20261118-155144.jar
+③ 断言: 容器 env=FILE_GRANT_MODE=new ✓ / health 200 ✓ / Started 日志 1 次 ✓
+④ 行为抽核: 登录 200 / 公共下载[2688]=200 / GET /api/file/grants=200×279 / storage(权限码操作)=200
+   —— 与 dual 期一致(QC 观察期终验行为基线)
+⑤ reconcile --prod(切换后): 四数 0(279=279) —— mode 切换零数据扰动
+⑥ 本包(new-switch.log + new-smoke.sh) → QC 第 11 轮核验
+
+回滚通道(保持): .env 改回 dual + 重启(秒级, 无数据动作); 旧表 87 行永久保留。
+模式语义: new=新引擎判定不回落旧表(基础规则 owner/公共/私人仍在), 按钮视图已收口(QC7 三模式逐字符一致)。
