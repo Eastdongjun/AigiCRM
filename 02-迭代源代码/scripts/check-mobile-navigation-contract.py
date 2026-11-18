@@ -91,6 +91,32 @@ def scroll_preservation_violations():
     return page_scroll_hits, stack_breakers
 
 
+def _onload_missing(source, text):
+    if source.suffix == ".js":
+        return onload_bodies_missing_options(text)
+    return bool(re.search(r"\bonLoad\(\s*\)", text) and re.search(r"\boptions\.", text))
+
+
+def _url_targets(source, text, registered):
+    targets = set()
+    missing = []
+    for match in URL_RE.finditer(text):
+        target = match.group(1).lstrip("/")
+        targets.add(target)
+        if target not in registered:
+            missing.append(f"{source.relative_to(ROOT)} -> /{target}")
+    return targets, missing
+
+
+def _switch_tab_targets(source, text, tab_pages):
+    invalid = []
+    for match in SWITCH_TAB_RE.finditer(text):
+        target = match.group(1).lstrip('/')
+        if target not in tab_pages:
+            invalid.append(f"{source.relative_to(ROOT)} -> /{target}")
+    return invalid
+
+
 def _scan_pages(registered, tab_pages):
     missing = []
     invalid_tab_targets = []
@@ -101,20 +127,12 @@ def _scan_pages(registered, tab_pages):
     targets.update(tab_pages)
     for source in list(PAGES_DIR.rglob("*.js")) + list(PAGES_DIR.rglob("*.wxml")):
         text = source.read_text(errors="ignore")
-        if source.suffix == ".js":
-            if onload_bodies_missing_options(text):
-                missing_onload_options.append(str(source.relative_to(ROOT)))
-        elif re.search(r"\bonLoad\(\s*\)", text) and re.search(r"\boptions\.", text):
+        if _onload_missing(source, text):
             missing_onload_options.append(str(source.relative_to(ROOT)))
-        for match in URL_RE.finditer(text):
-            target = match.group(1).lstrip("/")
-            targets.add(target)
-            if target not in registered:
-                missing.append(f"{source.relative_to(ROOT)} -> /{target}")
-        for match in SWITCH_TAB_RE.finditer(text):
-            target = match.group(1).lstrip('/')
-            if target not in tab_pages:
-                invalid_tab_targets.append(f"{source.relative_to(ROOT)} -> /{target}")
+        file_targets, file_missing = _url_targets(source, text, registered)
+        targets.update(file_targets)
+        missing.extend(file_missing)
+        invalid_tab_targets.extend(_switch_tab_targets(source, text, tab_pages))
     return targets, missing, invalid_tab_targets, missing_onload_options
 
 

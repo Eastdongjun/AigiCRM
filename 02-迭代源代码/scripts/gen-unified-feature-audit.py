@@ -115,6 +115,22 @@ def extract_mobile_apis(api_dir: Path, root: Path) -> list[ApiFunction]:
 CONTROLLER_CLASS_MAPPING_RE = re.compile(r"@RequestMapping\(\"([^\"]+)\"\)")
 CONTROLLER_METHOD_MAPPING_RE = re.compile(r"@(Get|Post|Put|Delete|Patch)Mapping(?:\((?:value\s*=\s*)?\"([^\"]*)\"\))?")
 CONTROLLER_AUTH_RE = re.compile(r"@PreAuthorize\(\"([^\"]+)\"\)")
+CONTROLLER_SIGNATURE_RE = re.compile(r"public\s+.+\s+\w+\s*\(")
+
+
+def _endpoint_from_annotations(annotation_lines: list[str], class_mapping: str, path: Path, root: Path):
+    annotations = "\n".join(annotation_lines)
+    mapping = CONTROLLER_METHOD_MAPPING_RE.search(annotations)
+    if not mapping:
+        return None
+    auth = CONTROLLER_AUTH_RE.search(annotations)
+    method = mapping.group(1).upper()
+    suffix = mapping.group(2) or ""
+    return Endpoint(method, join_paths(class_mapping, suffix), auth.group(1) if auth else "", rel(path, root))
+
+
+def _resets_annotations(stripped: str) -> bool:
+    return bool(stripped and not stripped.startswith("//") and not stripped.startswith("*") and not stripped.startswith("/*"))
 
 
 def _controller_endpoints(path: Path, root: Path) -> list[Endpoint]:
@@ -126,18 +142,12 @@ def _controller_endpoints(path: Path, root: Path) -> list[Endpoint]:
         stripped = line.strip()
         if stripped.startswith("@"):
             annotation_lines.append(stripped)
-            continue
-        if re.match(r"public\s+.+\s+\w+\s*\(", stripped):
-            annotations = "\n".join(annotation_lines)
-            mapping = CONTROLLER_METHOD_MAPPING_RE.search(annotations)
-            if mapping:
-                auth = CONTROLLER_AUTH_RE.search(annotations)
-                method = mapping.group(1).upper()
-                suffix = mapping.group(2) or ""
-                endpoints.append(Endpoint(method, join_paths(class_mapping, suffix), auth.group(1) if auth else "", rel(path, root)))
+        elif CONTROLLER_SIGNATURE_RE.match(stripped):
+            endpoint = _endpoint_from_annotations(annotation_lines, class_mapping, path, root)
+            if endpoint is not None:
+                endpoints.append(endpoint)
             annotation_lines = []
-            continue
-        if stripped and not stripped.startswith("//") and not stripped.startswith("*") and not stripped.startswith("/*"):
+        elif _resets_annotations(stripped):
             annotation_lines = []
     return endpoints
 
