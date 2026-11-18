@@ -44,6 +44,17 @@ import org.springframework.beans.factory.ObjectProvider;
 @Service
 @RequiredArgsConstructor
 public class FileService {
+    // P0-5 batch A: duplicated string literals (Sonar java:S1192)
+    private static final String LIT_FABUSHI = "fabushi";
+    private static final String LIT_INCENTIVE = "incentive";
+    private static final String LIT_HTTPS = "https://";
+    private static final String LIT_PUBLIC = "public";
+    private static final String LIT_PRIVATE = "private";
+    private static final String LIT_X = "没有访问权限，请联系管理员授权";
+    private static final String LIT_API_FILE_DOWNLOAD = "/api/file/download/";
+    private static final String LIT_X_2 = "文件不存在";
+    private static final String LIT_UNNAMED = "unnamed";
+
     /** 字节换算单位:1KB=1024B(文件大小格式化用) */
     private static final long BYTES_PER_KB = 1024L;
 
@@ -140,12 +151,12 @@ public class FileService {
 
     public List<BizFileFolder> getFolderTree(String scope, Long userId) {
         LambdaQueryWrapper<BizFileFolder> wrapper = new LambdaQueryWrapper<>();
-        if ("public".equals(scope)) {
-            wrapper.eq(BizFileFolder::getFolderType, "public");
-        } else if ("private".equals(scope)) {
+        if (LIT_PUBLIC.equals(scope)) {
+            wrapper.eq(BizFileFolder::getFolderType, LIT_PUBLIC);
+        } else if (LIT_PRIVATE.equals(scope)) {
             // 【文件权限体系】私有树候选集扩展为全部私有文件夹，
             // 可见性（本人创建/上级链/ACL view）在下方内存过滤，支持上级与 ACL 授权用户查看他人私有树。
-            wrapper.eq(BizFileFolder::getFolderType, "private");
+            wrapper.eq(BizFileFolder::getFolderType, LIT_PRIVATE);
         } else {
             // 【安全修复 FEAT-20260804-FILE-AUTHZ】未识别的 scope 默认拒绝(返回空)，
             // 而不是默认放行返回全部文件夹(此前会泄露他人私有文件夹信息)。
@@ -199,7 +210,7 @@ public class FileService {
         // 【安全修复 FEAT-20260804-FILE-AUTHZ】scope 白名单：缺省/空串/未知 scope 一律返回空页，
         // 在查询前拒绝，避免未识别 scope 落入下方 folderType=scope 空候选集 → isNull(folder_id)
         // 分支后跨 scope 枚举他人私有无文件夹文件的元数据。
-        if (scope == null || !("public".equals(scope) || "private".equals(scope) || "incentive".equals(scope) || "fabushi".equals(scope))) {
+        if (scope == null || !(LIT_PUBLIC.equals(scope) || LIT_PRIVATE.equals(scope) || LIT_INCENTIVE.equals(scope) || LIT_FABUSHI.equals(scope))) {
             return new Page<>(current, size, 0);
         }
         LambdaQueryWrapper<BizFile> wrapper = new LambdaQueryWrapper<>();
@@ -210,7 +221,7 @@ public class FileService {
         }
         if (scope != null && !scope.isEmpty()) {
             wrapper.eq(BizFile::getFileScope, scope);
-            if ("incentive".equals(scope)) {
+            if (LIT_INCENTIVE.equals(scope)) {
                 // 【2026-11-01 审计修复】admin/持 incentive:view-all 全量旁路——与激励侧 applyShareVisibility
                 // 同口径(原文件侧无旁路: 总监在 MP 四项服务tab可见的未分享激励文件, PC 文件中心不出现,
                 // 且下载分支无旁路时会出现"MP 可见 PC 下载 403"的双端分叉)
@@ -243,7 +254,7 @@ public class FileService {
         }
         // 【2026-11-17 阶段二】法布施空间：默认公司级 all，但可由权限中心按角色/人员收窄到
         // 大区/办事处/部门/self；按上传人 ∈ fabushi|file_view 范围过滤。法布施无文件夹。
-        if ("fabushi".equals(scope)) {
+        if (LIT_FABUSHI.equals(scope)) {
             if (folderId != null) return new Page<>(current, size, 0);
             Set<Long> visibleUploaders = folderPermissionService.fabushiVisibleUploaderIds(userId);
             if (visibleUploaders != null) {
@@ -257,7 +268,7 @@ public class FileService {
         // （与 getFolderTree 的 scope 默认拒绝对称，封堵"任意 file:view 用户枚举任意文件夹文件"）。
         // incentive scope 已有文件级归属约束（本人上传/被分享），不在此过滤；
         // fabushi 已在上面按 fabushi|file_view 过滤，且无文件夹，同样跳过夹树逻辑。
-        if (!"incentive".equals(scope) && !"fabushi".equals(scope)) {
+        if (!LIT_INCENTIVE.equals(scope) && !LIT_FABUSHI.equals(scope)) {
             List<BizFileFolder> folders = folderMapper.selectList(
                     new LambdaQueryWrapper<BizFileFolder>()
                             .eq(BizFileFolder::getFolderType, scope));
@@ -267,7 +278,7 @@ public class FileService {
                     return new Page<>(current, size, 0);
                 }
             } else if (visibleIds.isEmpty()) {
-                if ("private".equals(scope)) {
+                if (LIT_PRIVATE.equals(scope)) {
                     // 【拍板 A 2026-11-14】私人无夹文件=本人 ∪ manager 链下属(上级可见下属, 链上其余人不可见)
                     java.util.Set<Long> subs = folderPermissionService.subordinateUserIds(userId);
                     java.util.List<Long> owners = new java.util.ArrayList<>(subs);
@@ -277,7 +288,7 @@ public class FileService {
                 } else {
                     wrapper.isNull(BizFile::getFolderId);
                 }
-            } else if ("private".equals(scope)) {
+            } else if (LIT_PRIVATE.equals(scope)) {
                 // 【拍板 A 2026-11-14】私人无夹文件=本人 ∪ 下属(原仅本人); 私人夹内文件=夹 ∈ visibleIds(本人/上级链/ACL)
                 java.util.Set<Long> subs = folderPermissionService.subordinateUserIds(userId);
                 java.util.List<Long> owners = new java.util.ArrayList<>(subs);
@@ -295,7 +306,7 @@ public class FileService {
             // 夹内文件=夹 ∈ visibleIds(本人/上级链/ACL) ∨ FILE view 授权整夹; 无夹=上传人 ∈ 本人∪下属。
             // 原逻辑把"夹.org ∈ deptSet"的同部门他人私人夹文件捞进列表(与树口径打架), 本批拔除。
             {
-                if ("private".equals(scope)) {
+                if (LIT_PRIVATE.equals(scope)) {
                     java.util.Set<Long> subs = folderPermissionService.subordinateUserIds(userId);
                     java.util.List<Long> owners = new java.util.ArrayList<>(subs);
                     owners.add(userId);
@@ -357,14 +368,14 @@ public class FileService {
 
         // 【安全加固】scope 白名单：允许 public/private/incentive/fabushi，未识别 scope 直接拒绝
         // （与 pageFiles/getFolderTree 的 scope 白名单对称，防止任意 scope 落盘后绕过查询过滤/占用存储）
-        if (scope == null || !("public".equals(scope) || "private".equals(scope) || "incentive".equals(scope) || "fabushi".equals(scope))) {
+        if (scope == null || !(LIT_PUBLIC.equals(scope) || LIT_PRIVATE.equals(scope) || LIT_INCENTIVE.equals(scope) || LIT_FABUSHI.equals(scope))) {
             throw new BusinessException(403, "非法的文件范围");
         }
 
         // 【2026-10-27 深度检查修复】无夹 public 上传补管理员门槛: 该路径落盘 public/{userId}/ 且
         // file_scope=public 后立即进入匿名无鉴权下载通道(/api/file/download/public/**), 与
         // "根级公共文件夹仅管理员可建"门槛对称——普通用户要发公共资源, 走公共文件夹(ACL 判定)。
-        if ("public".equals(scope) && folderId == null
+        if (LIT_PUBLIC.equals(scope) && folderId == null
                 && !SecurityUtils.hasAuthority("file:folder:manage")) {
             throw new BusinessException(403, "公共根目录上传需要 file:folder:manage 权限");
         }
@@ -372,22 +383,22 @@ public class FileService {
         // 【T2 2026-11-11 审计整改】激励空间上传=激励计分动作: 与 IncentiveController /records
         // 同码门槛(incentive:add, 设计 §3.2 上传语义), 防无激励权限者借文件上传端点向激励空间
         // 无限落盘(此前仅 private 扣配额, incentive 是绕过面, 审计 P1-2)。
-        if ("incentive".equals(scope) && !SecurityUtils.hasAuthority("incentive:add")) {
-            throw new BusinessException(403, "没有访问权限，请联系管理员授权");
+        if (LIT_INCENTIVE.equals(scope) && !SecurityUtils.hasAuthority("incentive:add")) {
+            throw new BusinessException(403, LIT_X);
         }
 
         // 【法布施一期 2026-11-15】法布施空间上传=发布动作: 与 FabushiPostController /posts 同码门槛
         // (fabushi:create, 需求 G2 独立命名空间裁决——附件不进文件管理列表, 但计个人配额)。
-        // 注意 scope 判定与 hasAuthority 必须拆行: 同行会让命令式码提取把裸 "fabushi" 串
+        // 注意 scope 判定与 hasAuthority 必须拆行: 同行会让命令式码提取把裸 LIT_FABUSHI 串
         // 混进 binding-coverage 码集, 造成"码未绑定"假红(2026-11-15 实测)。
-        boolean fabushiScope = "fabushi".equals(scope);
+        boolean fabushiScope = LIT_FABUSHI.equals(scope);
         if (fabushiScope && !SecurityUtils.hasAuthority("fabushi:create")) {
-            throw new BusinessException(403, "没有访问权限，请联系管理员授权");
+            throw new BusinessException(403, LIT_X);
         }
 
         // 【文件权限体系】上传到文件夹需文件夹上传权限（管理员/本人/上级链/ACL upload）
         if (folderId != null && !folderPermissionService.check(folderId, FolderPermissionService.P_UPLOAD, userId)) {
-            throw new BusinessException(403, "没有访问权限，请联系管理员授权");
+            throw new BusinessException(403, LIT_X);
         }
 
         // 【P2 2026-10-09 配额并发修复】配额检查与扣减原子化: WHERE used+size<=quota 命中才扣,
@@ -406,7 +417,7 @@ public class FileService {
         try {
             String originalFilename = file.getOriginalFilename();
             if (originalFilename == null || originalFilename.isBlank()) {
-                originalFilename = "unnamed";
+                originalFilename = LIT_UNNAMED;
             }
             String fileKey = uploadStorage(file, scope, userId);
             uploadedKey = fileKey;
@@ -414,9 +425,9 @@ public class FileService {
             scanStored(fileKey);
             String fileUrl;
             if (isLocal()) {
-                fileUrl = "/api/file/download/" + fileKey;
+                fileUrl = LIT_API_FILE_DOWNLOAD + fileKey;
             } else {
-                fileUrl = "https://" + ossConfig.getBucketName() + "." + ossConfig.getEndpoint() + "/" + fileKey;
+                fileUrl = LIT_HTTPS + ossConfig.getBucketName() + "." + ossConfig.getEndpoint() + "/" + fileKey;
             }
 
             BizFile bizFile = new BizFile();
@@ -464,15 +475,15 @@ public class FileService {
      */
     public static boolean quotaBearing(String scope) {
         // 【法布施一期 2026-11-15】fabushi 计个人配额(用户已裁决"计入现有个人配额"), 与 scope 门禁对称
-        return "public".equals(scope) || "private".equals(scope) || "incentive".equals(scope)
-                || "fabushi".equals(scope);
+        return LIT_PUBLIC.equals(scope) || LIT_PRIVATE.equals(scope) || LIT_INCENTIVE.equals(scope)
+                || LIT_FABUSHI.equals(scope);
     }
 
     public void createFolder(BizFileFolder folder) {
         String type = folder.getFolderType();
         // 【安全修复 FEAT-20260804-FILE-AUTHZ】folderType 白名单校验，避免传入未识别类型
         // 绕过 checkFolderManagePermission 的默认拒绝逻辑（此前会被后续接口当成"未识别类型"处理）。
-        if (!"public".equals(type) && !"private".equals(type)) {
+        if (!LIT_PUBLIC.equals(type) && !LIT_PRIVATE.equals(type)) {
             throw new BusinessException("不支持的文件夹类型");
         }
         // 【体检 H3 2026-10-12】parentId=0 与 null 同为根级（0 是 DDL 哨兵，buildFolderTree 以 0 为根）。
@@ -487,7 +498,7 @@ public class FileService {
         // 根级公共文件夹（无 parentId）保留管理员门槛。
         if (folder.getParentId() != null
                 && !folderPermissionService.check(folder.getParentId(), FolderPermissionService.P_UPLOAD, SecurityUtils.getCurrentUserId())) {
-            throw new BusinessException(403, "没有访问权限，请联系管理员授权");
+            throw new BusinessException(403, LIT_X);
         }
         // 【2026-11-10 文件权限终版】建夹门槛=判定链 canCreateFolder(admin ∨ 例外授权含 FOLDER:create),
         // 公共/私人分列配置; 归属: owner=创建人(公共私人同, 治存量公共夹 owner 全 NULL 的结构缺失),
@@ -500,7 +511,7 @@ public class FileService {
         // 【拍板④】公共夹归属=创建人所辖最高组织(负责人建夹=给本组织开抽屉); 私人夹/非负责人=创建人组织
         Long leaderOrg = folderPermissionService.leaderOrgId(creator);
         SysUser creatorUser = userMapper.selectById(creator);
-        if ("public".equals(type) && leaderOrg != null && leaderOrg > 0) {
+        if (LIT_PUBLIC.equals(type) && leaderOrg != null && leaderOrg > 0) {
             folder.setOrgId(leaderOrg);
         } else {
             folder.setOrgId(creatorUser != null ? java.util.Objects.requireNonNullElse(creatorUser.getOfficeId(), creatorUser.getDeptId()) : null);
@@ -518,7 +529,7 @@ public class FileService {
         }
         // 【文件权限 v2】文件夹改名走独立动作 rename(从 edit 伞拆出); 判定链 admin>本人>上级链>ACL>类型授权
         if (!folderPermissionService.check(folder.getId(), FolderPermissionService.P_RENAME, SecurityUtils.getCurrentUserId())) {
-            throw new BusinessException(403, "没有访问权限，请联系管理员授权");
+            throw new BusinessException(403, LIT_X);
         }
         folder.setFolderName(newName.trim());
         folderMapper.updateById(folder);
@@ -533,7 +544,7 @@ public class FileService {
         // 【文件权限体系】ACL/上级链/本人 删除权限（管理员恒通过），
         // 为操作唯一仲裁（已覆盖 admin>本人>上级链>ACL 优先级且 folder==null 已拒绝）
         if (!folderPermissionService.check(folder.getId(), FolderPermissionService.P_DELETE, SecurityUtils.getCurrentUserId())) {
-            throw new BusinessException(403, "没有访问权限，请联系管理员授权");
+            throw new BusinessException(403, LIT_X);
         }
 
         // 夹内有文件 → 拒绝删除
@@ -585,17 +596,17 @@ public class FileService {
         {
             if (file.getFolderId() != null) {
                 if (!folderPermissionService.checkFile(fileId, FolderPermissionService.P_DELETE, userId)) {
-                    throw new BusinessException(403, "没有访问权限，请联系管理员授权");
+                    throw new BusinessException(403, LIT_X);
                 }
-            } else if ("public".equals(scope)) {
+            } else if (LIT_PUBLIC.equals(scope)) {
                 if (!SecurityUtils.hasAuthority("file:delete")) {
                     throw new BusinessException(403, "删除公共文件需要 file:delete 权限");
                 }
-            } else if ("private".equals(scope) || "incentive".equals(scope)) {
+            } else if (LIT_PRIVATE.equals(scope) || LIT_INCENTIVE.equals(scope)) {
                 if (!userId.equals(file.getUploaderId())) {
                     throw new BusinessException(403, "无权删除该文件");
                 }
-            } else if ("fabushi".equals(scope)) {
+            } else if (LIT_FABUSHI.equals(scope)) {
                 // 【2026-11-17 文件统一管理】法布施文件不进 public/private/incentive 分支，
                 // 删除动作由独立权限码 + fabushi|file_delete 数据范围控制（默认仅 admin）。
                 if (!folderPermissionService.canDeleteFabushiFile(file, userId)) {
@@ -609,7 +620,7 @@ public class FileService {
         // 【BIZ-007 2026-11-13 外部审计修复】删除激励佐证必须联动重算学分:
         // 反查引用该文件的激励记录 → 剔除槽位引用 → calcScore 重算(与记录侧 removeFile 同一套
         // 不变量与空壳守卫)。守卫抛 400 时本事务回滚、文件保留——修前"佐证已删、分数还在"。
-        if ("incentive".equals(scope)) {
+        if (LIT_INCENTIVE.equals(scope)) {
             incentiveService.detachFileFromRecords(fileId);
         }
 
@@ -663,13 +674,13 @@ public class FileService {
      */
     public void renameFile(Long fileId, String fileName) {
         BizFile file = fileMapper.selectById(fileId);
-        if (file == null) throw new BusinessException("文件不存在");
-        if ("fabushi".equals(file.getFileScope())) {
+        if (file == null) throw new BusinessException(LIT_X_2);
+        if (LIT_FABUSHI.equals(file.getFileScope())) {
             throw new BusinessException(403, "法布施文件只支持查看/下载/删除，不支持改名");
         }
         Long userId = SecurityUtils.getCurrentUserId();
         if (!folderPermissionService.checkFile(fileId, FolderPermissionService.P_RENAME, userId)) {
-            throw new BusinessException(403, "没有访问权限，请联系管理员授权");
+            throw new BusinessException(403, LIT_X);
         }
         String name = fileName == null ? "" : fileName.trim();
         if (name.isEmpty()) throw new BusinessException("文件名不能为空");
@@ -714,19 +725,19 @@ public class FileService {
     @org.springframework.transaction.annotation.Transactional
     public BizFile replaceFile(Long fileId, MultipartFile newFile) {
         BizFile file = fileMapper.selectById(fileId);
-        if (file == null) throw new BusinessException("文件不存在");
-        if ("fabushi".equals(file.getFileScope())) {
+        if (file == null) throw new BusinessException(LIT_X_2);
+        if (LIT_FABUSHI.equals(file.getFileScope())) {
             throw new BusinessException(403, "法布施文件只支持查看/下载/删除，不支持替换");
         }
         Long userId = SecurityUtils.getCurrentUserId();
         if (!folderPermissionService.checkFile(fileId, FolderPermissionService.P_REPLACE, userId)) {
-            throw new BusinessException(403, "没有访问权限，请联系管理员授权");
+            throw new BusinessException(403, LIT_X);
         }
         // 【决策5 2026-10-18 用户裁决·佐证锁定】激励计分佐证禁替换:佐证文件(安装前三槽/跟踪槽/旧单槽)
         // 是计分依据(安装前三槽齐全即得分),同 ID 换内容会无声替换计分证据(先传A得分再换B)。
         // 需更新佐证走激励模块"删除后重传"(删除触发重算,分数随新证据重出)。记录表为百级量,全量扫可接受。
         assertNotIncentiveEvidence(fileId);
-        String scope = file.getFileScope() != null ? file.getFileScope() : "private";
+        String scope = file.getFileScope() != null ? file.getFileScope() : LIT_PRIVATE;
         String newKey = null;
         try {
             // 先存新文件（沿用原文件的 scope/uploaderId 目录，保证 key 下载路由语义一致）
@@ -743,8 +754,8 @@ public class FileService {
             archived.setFileId(fileId);
             archived.setVersionNo(file.getVersion() == null ? 1 : file.getVersion());
             archived.setOssKey(oldKey);
-            archived.setOssUrl(isLocal() ? "/api/file/download/" + oldKey
-                    : "https://" + ossConfig.getBucketName() + "." + ossConfig.getEndpoint() + "/" + oldKey);
+            archived.setOssUrl(isLocal() ? LIT_API_FILE_DOWNLOAD + oldKey
+                    : LIT_HTTPS + ossConfig.getBucketName() + "." + ossConfig.getEndpoint() + "/" + oldKey);
             archived.setFileSize(oldSize);
             archived.setFileType(file.getFileType());
             archived.setFileName(file.getFileName());
@@ -752,8 +763,8 @@ public class FileService {
             fileVersionMapper.insert(archived);
             // ossUrl 与 upload 的 URL 方案一致：本地走 key 下载路由，OSS 走桶地址（保证替换后两种模式均可下载）
             String newOssUrl = isLocal()
-                    ? "/api/file/download/" + newKey
-                    : "https://" + ossConfig.getBucketName() + "." + ossConfig.getEndpoint() + "/" + newKey;
+                    ? LIT_API_FILE_DOWNLOAD + newKey
+                    : LIT_HTTPS + ossConfig.getBucketName() + "." + ossConfig.getEndpoint() + "/" + newKey;
             file.setOssKey(newKey);
             // 【安全修复】ossUrl 无条件更新为新 key 的 URL：旧对象已随 deleteStorage 删除，
             // 保留旧 URL 会指向已删除文件（M-2②：originalFilename==null 时同样更新）
@@ -1056,10 +1067,10 @@ public class FileService {
 
     /** 版本列表(新→旧)。查看权限=checkFile view; 当前主行不在列表内(它就是"现行版") */
     public List<VersionRow> listVersions(Long fileId) {
-        if (fileMapper.selectById(fileId) == null) throw new BusinessException("文件不存在");
+        if (fileMapper.selectById(fileId) == null) throw new BusinessException(LIT_X_2);
         Long userId = SecurityUtils.getCurrentUserId();
         if (!folderPermissionService.checkFile(fileId, FolderPermissionService.P_VIEW, userId)) {
-            throw new BusinessException(403, "没有访问权限，请联系管理员授权");
+            throw new BusinessException(403, LIT_X);
         }
         return fileVersionMapper.listByFileId(fileId).stream().map(VersionRow::of).toList();
     }
@@ -1068,7 +1079,7 @@ public class FileService {
     public void downloadVersion(Long fileId, Integer versionNo, jakarta.servlet.http.HttpServletResponse response) {
         Long userId = SecurityUtils.getCurrentUserId();
         if (!folderPermissionService.checkFile(fileId, FolderPermissionService.P_DOWNLOAD, userId)) {
-            throw new BusinessException(403, "没有访问权限，请联系管理员授权");
+            throw new BusinessException(403, LIT_X);
         }
         BizFileVersion v = fileVersionMapper.byVersionNo(fileId, versionNo);
         if (v == null) throw new BusinessException("版本不存在");
@@ -1084,10 +1095,10 @@ public class FileService {
     @org.springframework.transaction.annotation.Transactional
     public BizFile rollbackToVersion(Long fileId, Integer versionNo) {
         BizFile file = fileMapper.selectById(fileId);
-        if (file == null) throw new BusinessException("文件不存在");
+        if (file == null) throw new BusinessException(LIT_X_2);
         Long userId = SecurityUtils.getCurrentUserId();
         if (!folderPermissionService.canRollbackVersion(file, userId)) {
-            throw new BusinessException(403, "没有访问权限，请联系管理员授权");
+            throw new BusinessException(403, LIT_X);
         }
         assertNotIncentiveEvidence(fileId);
         BizFileVersion v = fileVersionMapper.byVersionNo(fileId, versionNo);
@@ -1152,7 +1163,7 @@ public class FileService {
         for (Long id : fileIds == null ? List.<Long>of() : fileIds) {
             try {
                 if (fileMapper.selectById(id) == null) {
-                    out.put(id, "文件不存在");
+                    out.put(id, LIT_X_2);
                     continue;
                 }
                 // 【V2026.11.14.3 P1】逐条事务: 内部 this 调用不走 @Transactional 代理(自调用失效),
@@ -1256,7 +1267,7 @@ public class FileService {
         try {
             Path source = Paths.get(uploadDir, file.getOssKey());
             if (!Files.isRegularFile(source)) {
-                if (file.getOssUrl() != null && file.getOssUrl().startsWith("https://")) {
+                if (file.getOssUrl() != null && file.getOssUrl().startsWith(LIT_HTTPS)) {
                     response.setStatus(302);
                     response.setHeader(HttpHeaders.LOCATION, file.getOssUrl());
                     return;
@@ -1373,7 +1384,7 @@ public class FileService {
             }
             // 【2026-10-27 深度检查修复】OSS 302 与 FileController 路由白名单同口径:
             // startsWith("http") 可被 httpx:// 绕过, 收紧为 https:// (OSS 地址均 https)
-            if (file.getOssUrl() != null && file.getOssUrl().startsWith("https://")) {
+            if (file.getOssUrl() != null && file.getOssUrl().startsWith(LIT_HTTPS)) {
                 response.setStatus(302);
                 response.setHeader(HttpHeaders.LOCATION, file.getOssUrl());
                 return;
@@ -1683,7 +1694,7 @@ public class FileService {
     /** 仅供匿名 Logo 路径使用：只取 public 范围文件的 OSS 地址（与 downloadPublic 同授权口径） */
     public String getOssUrlByKey(String fileKey) {
         BizFile file = getPublicFileByKey(fileKey);
-        if (file != null && file.getOssUrl() != null && file.getOssUrl().startsWith("https://")) {
+        if (file != null && file.getOssUrl() != null && file.getOssUrl().startsWith(LIT_HTTPS)) {
             return file.getOssUrl();
         }
         return null;
@@ -1746,20 +1757,20 @@ public class FileService {
      * 与下载路径的 normalize+前缀校验（FileController）同等级防护。
      */
     static String sanitizeFilename(String filename) {
-        if (filename == null) return "unnamed";
+        if (filename == null) return LIT_UNNAMED;
         String safe = filename.replace('\\', '/');
         int slash = safe.lastIndexOf('/');
         if (slash >= 0) safe = safe.substring(slash + 1); // 只取最后一段，忽略一切目录
         safe = safe.replace("..", "");                     // 移除 .. 序列
         safe = safe.replaceAll("[\\x00-\\x1f]", "");       // 移除控制字符
-        return safe.isBlank() ? "unnamed" : safe;
+        return safe.isBlank() ? LIT_UNNAMED : safe;
     }
 
     /**
      * 【PR-01 N-09 2026-09-18】上传文件类型白名单（扩展名判定为主，MIME 仅作参考不单独信任）。
      * 允许：办公文档/表格/演示/文本/图片/音视频/压缩包；拒绝：可执行脚本(js/jar/sh/exe/bat/
      * ps1/py 等)与可在浏览器直接执行的 html/htm/svg/xml/xhtml。
-     * 无扩展名文件默认拒绝（历史"unnamed"兜底不再放行未知类型）。
+     * 无扩展名文件默认拒绝（历史LIT_UNNAMED兜底不再放行未知类型）。
      */
     static final Set<String> ALLOWED_UPLOAD_EXTS = Set.of(
             "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "csv", "md",
@@ -1865,7 +1876,7 @@ public class FileService {
 
     /** 下载路径已用 download DENY（actionsFor(download) 含 view）覆盖，避免重复查一遍 view DENY。 */
     private boolean canAccessFileNoDeny(BizFile file, Long userId) {
-        if ("public".equals(file.getFileScope())) return true;
+        if (LIT_PUBLIC.equals(file.getFileScope())) return true;
         if (userId.equals(file.getUploaderId())) return true;
         // 检查是否被分享
         return fileShareMapper.selectCount(
@@ -1899,11 +1910,11 @@ public class FileService {
         if (!canDownload && file.getFolderId() != null) {
             canDownload = folderPermissionService.checkFile(file.getId(), FolderPermissionService.P_DOWNLOAD, userId);
         }
-        if (!canDownload && "incentive".equals(file.getFileScope())) {
+        if (!canDownload && LIT_INCENTIVE.equals(file.getFileScope())) {
             // 【2026-11-01 审计修复】与列表旁路同口径: admin/激励授权 can_view_all 可下载(原仅本人+shared)
             canDownload = incentiveViewAllGranted() || isIncentiveFileVisible(file.getId(), userId);
         }
-        if (!canDownload && "fabushi".equals(file.getFileScope())) {
+        if (!canDownload && LIT_FABUSHI.equals(file.getFileScope())) {
             // 【2026-11-17 阶段二】法布施下载与列表同口径：fabushi:view + fabushi|file_view 数据范围。
             canDownload = folderPermissionService.canViewFabushiFile(file, userId);
         }
@@ -2022,13 +2033,13 @@ public class FileService {
 
         // 只有文件上传者或管理员可以分享
         BizFile file = fileMapper.selectById(fileId);
-        if (file == null) throw new BusinessException("文件不存在");
+        if (file == null) throw new BusinessException(LIT_X_2);
         // 【文件权限体系】夹内文件按文件夹权限判定分享（管理员/本人/上级链/ACL share）；
         // 无文件夹文件沿用下方上传者归属校验
         {
             if (file.getFolderId() != null) {
                 if (!folderPermissionService.checkFile(fileId, FolderPermissionService.P_SHARE, currentUserId)) {
-                    throw new BusinessException(403, "没有访问权限，请联系管理员授权");
+                    throw new BusinessException(403, LIT_X);
                 }
             } else if (!currentUserId.equals(file.getUploaderId())) {
                 throw new BusinessException(403, "无权分享该文件");

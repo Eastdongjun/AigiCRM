@@ -17,6 +17,9 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/system/users")
 @RequiredArgsConstructor
 public class SysUserController {
+    // P0-5 batch A: duplicated string literals (Sonar java:S1192)
+    private static final String LIT_X = "无权操作该用户";
+
 
     private final SysUserService userService;
     private final OrgAdminService orgAdminService;
@@ -63,7 +66,7 @@ public class SysUserController {
         // 整体短路——持 system:user:edit 的行政角色实测可 PUT /api/system/users/1 禁用/篡改 admin。
         // 反转为: 非平台 admin 一律过 canManageUser(内部: 非 orgAdmin 恒 false / orgAdmin 受组织范围+
         // H1 admin 目标保护), 语义与 create 的 canManageOrg 同构
-        if (!orgAdminService.canManageUser(id)) throw new BusinessException(403, "无权操作该用户");
+        if (!orgAdminService.canManageUser(id)) throw new BusinessException(403, LIT_X);
         user.setId(id);
         userService.update(user);
         return Result.ok();
@@ -74,7 +77,7 @@ public class SysUserController {
     @AigicrmLog(module = "人员", action = "重置密码", targetType = "user")
     public Result<String> resetPassword(@PathVariable Long id) {
         // 同 P0-1: 非 admin 一律过 canManageUser(服务层另有 H1 admin 目标兜底, 此处双闸)
-        if (!orgAdminService.canManageUser(id)) throw new BusinessException(403, "无权操作该用户");
+        if (!orgAdminService.canManageUser(id)) throw new BusinessException(403, LIT_X);
         // 【2026-08-14 安全 P0】随机临时口令随响应返回，管理员转交用户并提醒首登改密
         return Result.ok(userService.resetPassword(id));
     }
@@ -90,7 +93,7 @@ public class SysUserController {
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {
         // 同 P0-1: 非 admin 一律过 canManageUser
-        if (!orgAdminService.canManageUser(id)) throw new BusinessException(403, "无权操作该用户");
+        if (!orgAdminService.canManageUser(id)) throw new BusinessException(403, LIT_X);
         userService.deleteUser(id);
         return Result.ok();
     }

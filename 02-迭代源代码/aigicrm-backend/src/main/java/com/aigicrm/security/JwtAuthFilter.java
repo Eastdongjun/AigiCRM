@@ -22,6 +22,9 @@ import java.util.Date;
 @Component
 @RequiredArgsConstructor
 public class JwtAuthFilter extends OncePerRequestFilter {
+    // P0-5 batch A: duplicated string literals (Sonar java:S1192)
+    private static final String LIT_DOWNLOAD = "download";
+
 
     private final JwtTokenProvider jwtTokenProvider;
     private final UserDetailsService userDetailsService;
@@ -34,7 +37,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         if (StringUtils.hasText(token) && jwtTokenProvider.validateToken(token)) {
             try {
                 // F2: 下载专用 token(scope=download)仅允许用于下载/导出路径，防泄漏后被当作会话滥用
-                if ("download".equals(jwtTokenProvider.getScopeFromToken(token)) && !isDownloadPath(request)) {
+                if (LIT_DOWNLOAD.equals(jwtTokenProvider.getScopeFromToken(token)) && !isDownloadPath(request)) {
                     filterChain.doFilter(request, response);
                     return;
                 }
@@ -45,7 +48,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 }
                 // 【2026-10-27 深度检查修复】下载 token 随主 token 注销联动撤销: dlToken 带签发时主
                 // token 的 pjti——主 token 被拉黑(登出/踢下线)后其派生下载 token 一并失效
-                if ("download".equals(jwtTokenProvider.getScopeFromToken(token))) {
+                if (LIT_DOWNLOAD.equals(jwtTokenProvider.getScopeFromToken(token))) {
                     String parentJti = jwtTokenProvider.getParentJtiFromToken(token);
                     if (parentJti != null && jwtTokenProvider.isBlacklisted(parentJti)) {
                         filterChain.doFilter(request, response);
@@ -116,7 +119,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         // 【2026-11-05 用户选 C"保持登录"】滑动续期: 成功鉴权且剩余寿命<半周期 → X-New-Token 换发
         // (前端 PC/MP 拦截器落盘; 续期失败不阻断本次请求; download 专用 token 不参与)
         if (SecurityContextHolder.getContext().getAuthentication() != null
-                && !"download".equals(jwtTokenProvider.getScopeFromToken(token))) {
+                && !LIT_DOWNLOAD.equals(jwtTokenProvider.getScopeFromToken(token))) {
             try {
                 if (jwtTokenProvider.shouldRenew(token)) {
                     String renewed = jwtTokenProvider.renewToken(token);
@@ -164,7 +167,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         if ("GET".equalsIgnoreCase(request.getMethod()) && isDownloadPath(request)) {
             String queryToken = request.getParameter("token");
             if (StringUtils.hasText(queryToken)
-                    && "download".equals(jwtTokenProvider.getScopeFromToken(queryToken))) {
+                    && LIT_DOWNLOAD.equals(jwtTokenProvider.getScopeFromToken(queryToken))) {
                 return queryToken;
             }
             return null;

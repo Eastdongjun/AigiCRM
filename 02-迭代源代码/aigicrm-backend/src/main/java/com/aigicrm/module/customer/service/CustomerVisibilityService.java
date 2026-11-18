@@ -30,6 +30,9 @@ import java.util.Set;
 @Service
 @RequiredArgsConstructor
 public class CustomerVisibilityService {
+    // P0-5 batch A: duplicated string literals (Sonar java:S1192)
+    private static final String LIT_CUSTOMER = "customer";
+
 
     private final OrgScopeResolver scopeResolver;
     private final RolePermScopeService rolePermScopeService;
@@ -51,7 +54,7 @@ public class CustomerVisibilityService {
         com.aigicrm.common.auth.AuthorizationService auth =
                 authServiceProvider == null ? null : authServiceProvider.getIfAvailable();
         if (auth != null && auth.isNewTrack("customer")) {
-            String code = auth.actionCodeOf("customer", "view");
+            String code = auth.actionCodeOf(LIT_CUSTOMER, "view");
             if (code != null) {
                 var d = auth.scope(code);
                 return d.isAll() ? null : d.getVisibleUserIds();
@@ -59,9 +62,9 @@ public class CustomerVisibilityService {
         }
         ScopeRequest req = ScopeRequest.builder()
                 .user(user)
-                .module("customer")
+                .module(LIT_CUSTOMER)
                 .action("view")
-                .anchor(rolePermScopeService.anchorOf(user, "customer", "view"))
+                .anchor(rolePermScopeService.anchorOf(user, LIT_CUSTOMER, "view"))
                 .build();
         return scopeResolver.resolveScope(req).getVisibleUserIds();
     }

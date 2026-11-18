@@ -8,6 +8,18 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 fail() { echo "FAIL: $1" >&2; exit 1; }
 
+# P0-5 batch A: normalize LIT_* constants back to literals before extraction.
+backend_scope_targets() {
+  python3 - "$1" <<'PY' | { grep -oE '\{"[a-z]+", "[a-z_]+"' || true; } | tr -d '{"' | tr -d ' ' | tr ',' '|' | sort -u
+import re, sys
+t = open(sys.argv[1], encoding="utf-8").read()
+consts = dict(re.findall(r'String\s+(LIT_[A-Z0-9_]+)\s*=\s*"([^"]*)"', t))
+for k, v in consts.items():
+    t = t.replace(k, '"' + v + '"')
+print(t)
+PY
+}
+
 # 【P1 修复 2026-11-12】负例自证通道(AIGI_NEGATIVE=1): 前端映射沙箱副本删一行——
 # 双源 diff 必须红; 证明对账器"改坏会红"。
 if [ "${AIGI_NEGATIVE:-0}" = "1" ]; then
@@ -21,7 +33,7 @@ t2 = t.replace("  'sea:view': { module: 'sea', action: 'view' },\n", "")
 assert t2 != t, "变异未生效: 沙箱中未找到 sea:view 映射行"
 p.write_text(t2)
 PY
-  backend=$({ grep -oE '\{"[a-z]+", "[a-z_]+"' "$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/PermCenterService.java" || true; } | tr -d '{"' | tr -d ' ' | tr ',' '|' | sort -u)
+  backend=$(backend_scope_targets "$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/PermCenterService.java")
   frontend=$({ grep -oE "module: '[a-z]+', action: '[a-z_]+'" "$NEG_DIR/PermScopeManager.vue" || true; } | sed "s/module: '//; s/', action: '/|/; s/'$//" | sort -u)
   if [ "$backend" = "$frontend" ]; then
     fail "[负例自证] 前端映射删行后 diff 未红——对账器失效"
@@ -35,7 +47,7 @@ UI="$ROOT/aigicrm-ui/src/views/system/PermScopeManager.vue"
 [ -f "$SVC" ] && [ -f "$UI" ] || fail "映射双源文件缺失"
 
 # 后端: SCOPE_TARGETS 数组的 {"module","action",...} 行
-backend=$({ grep -oE '\{"[a-z]+", "[a-z_]+"' "$SVC" || true; } | tr -d '{"' | tr -d ' ' | tr ',' '|' | sort -u)
+backend=$(backend_scope_targets "$SVC")
 # 前端: 'code': { module: 'x', action: 'y' } 行
 frontend=$({ grep -oE "module: '[a-z]+', action: '[a-z_]+'" "$UI" || true; } | sed "s/module: '//; s/', action: '/|/; s/'$//" | sort -u)
 

@@ -15,6 +15,9 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class SysGroupService {
+    // P0-5 batch A: duplicated string literals (Sonar java:S1192)
+    private static final String LIT_SINGLE_GROUP_ONLY = "SINGLE_GROUP_ONLY";
+
 
     private final SysGroupMapper groupMapper;
 
@@ -49,7 +52,7 @@ public class SysGroupService {
         requirePlatformAdmin();
         Long all = groupMapper.selectCount(null);
         if (all != null && all >= 1) {
-            throw new BusinessException(400, "SINGLE_GROUP_ONLY", "单集团部署仅允许一个集团");
+            throw new BusinessException(400, LIT_SINGLE_GROUP_ONLY, "单集团部署仅允许一个集团");
         }
         Long count = groupMapper.selectCount(
                 new LambdaQueryWrapper<SysGroup>().eq(SysGroup::getGroupCode, group.getGroupCode()));
@@ -79,7 +82,7 @@ public class SysGroupService {
             Long active = groupMapper.selectCount(
                     new LambdaQueryWrapper<SysGroup>().eq(SysGroup::getStatus, 1));
             if (active != null && active <= 1) {
-                throw new BusinessException(400, "SINGLE_GROUP_ONLY", "不能禁用唯一集团");
+                throw new BusinessException(400, LIT_SINGLE_GROUP_ONLY, "不能禁用唯一集团");
             }
         }
         groupMapper.updateById(group);
@@ -99,7 +102,7 @@ public class SysGroupService {
             Long active = groupMapper.selectCount(
                     new LambdaQueryWrapper<SysGroup>().eq(SysGroup::getStatus, 1));
             if (active != null && active <= 1) {
-                throw new BusinessException(400, "SINGLE_GROUP_ONLY", "不能删除唯一集团");
+                throw new BusinessException(400, LIT_SINGLE_GROUP_ONLY, "不能删除唯一集团");
             }
         }
         SysGroup group = new SysGroup();

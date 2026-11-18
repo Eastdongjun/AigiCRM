@@ -28,6 +28,11 @@ import java.util.Map;
 @RequestMapping("/api/file/recycle")
 @RequiredArgsConstructor
 public class FileRecycleController {
+    // P0-5 batch A: duplicated string literals (Sonar java:S1192)
+    private static final String LIT_MESSAGE = "message";
+    private static final String LIT_FILE = "file:";
+    private static final String LIT_FOLDER = "folder:";
+
 
     private final RecycleService recycleService;
 
@@ -67,28 +72,28 @@ public class FileRecycleController {
     @PostMapping("/files/{id}/restore")
     public Result<Map<String, String>> restoreFile(@PathVariable Long id) {
         requireOwner(recycleService.fileDeletedBy(id));
-        return Result.ok(Map.of("message", recycleService.restoreFile(id)));
+        return Result.ok(Map.of(LIT_MESSAGE, recycleService.restoreFile(id)));
     }
 
     @PreAuthorize("hasAuthority('file:purge')")
     @PostMapping("/files/{id}/purge")
     public Result<Map<String, String>> purgeFile(@PathVariable Long id) {
         requireOwner(recycleService.fileDeletedBy(id));
-        return Result.ok(Map.of("message", recycleService.hardDeleteFile(id)));
+        return Result.ok(Map.of(LIT_MESSAGE, recycleService.hardDeleteFile(id)));
     }
 
     @PreAuthorize("hasAnyAuthority('file:folder:restore','file:delete')")
     @PostMapping("/folders/{id}/restore")
     public Result<Map<String, String>> restoreFolder(@PathVariable Long id) {
         requireOwner(recycleService.folderDeletedBy(id));
-        return Result.ok(Map.of("message", recycleService.restoreFolder(id)));
+        return Result.ok(Map.of(LIT_MESSAGE, recycleService.restoreFolder(id)));
     }
 
     @PreAuthorize("hasAuthority('file:purge')")
     @PostMapping("/folders/{id}/purge")
     public Result<Map<String, String>> purgeFolder(@PathVariable Long id) {
         requireOwner(recycleService.folderDeletedBy(id));
-        return Result.ok(Map.of("message", recycleService.hardDeleteFolder(id)));
+        return Result.ok(Map.of(LIT_MESSAGE, recycleService.hardDeleteFolder(id)));
     }
 
     /** 批量恢复(文件+夹混合 ids): 逐条 try/catch, 部分成功不回滚已成功项, 返回逐条结果 */
@@ -104,20 +109,20 @@ public class FileRecycleController {
             try {
                 requireOwner(recycleService.fileDeletedBy(id));
                 recycleService.restoreFile(id);
-                results.put("file:" + id, "OK");
+                results.put(LIT_FILE + id, "OK");
                 ok++;
             } catch (Exception e) {
-                results.put("file:" + id, e.getMessage() == null ? "失败" : e.getMessage());
+                results.put(LIT_FILE + id, e.getMessage() == null ? "失败" : e.getMessage());
             }
         }
         for (Long id : folderIds) {
             try {
                 requireOwner(recycleService.folderDeletedBy(id));
                 recycleService.restoreFolder(id);
-                results.put("folder:" + id, "OK");
+                results.put(LIT_FOLDER + id, "OK");
                 ok++;
             } catch (Exception e) {
-                results.put("folder:" + id, e.getMessage() == null ? "失败" : e.getMessage());
+                results.put(LIT_FOLDER + id, e.getMessage() == null ? "失败" : e.getMessage());
             }
         }
         Map<String, Object> out = new LinkedHashMap<>();
@@ -140,20 +145,20 @@ public class FileRecycleController {
             try {
                 requireOwner(recycleService.fileDeletedBy(id));
                 recycleService.hardDeleteFile(id);
-                results.put("file:" + id, "OK");
+                results.put(LIT_FILE + id, "OK");
                 ok++;
             } catch (Exception e) {
-                results.put("file:" + id, e.getMessage() == null ? "失败" : e.getMessage());
+                results.put(LIT_FILE + id, e.getMessage() == null ? "失败" : e.getMessage());
             }
         }
         for (Long id : folderIds) {
             try {
                 requireOwner(recycleService.folderDeletedBy(id));
                 recycleService.hardDeleteFolder(id);
-                results.put("folder:" + id, "OK");
+                results.put(LIT_FOLDER + id, "OK");
                 ok++;
             } catch (Exception e) {
-                results.put("folder:" + id, e.getMessage() == null ? "失败" : e.getMessage());
+                results.put(LIT_FOLDER + id, e.getMessage() == null ? "失败" : e.getMessage());
             }
         }
         Map<String, Object> out = new LinkedHashMap<>();

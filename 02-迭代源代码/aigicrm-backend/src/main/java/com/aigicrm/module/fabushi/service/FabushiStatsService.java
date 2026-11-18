@@ -24,6 +24,9 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class FabushiStatsService {
+    // P0-5 batch A: duplicated string literals (Sonar java:S1192)
+    private static final String LIT_PUBLISHED = "published";
+
 
     private final OrgScopeResolver scopeResolver;
     private final BizFabushiPostMapper postMapper;
@@ -67,7 +70,7 @@ public class FabushiStatsService {
             totalPosts = likesTotal = commentsTotal = todayReadUsers = 0;
         } else {
             LambdaQueryWrapper<BizFabushiPost> pq = new LambdaQueryWrapper<BizFabushiPost>()
-                    .eq(BizFabushiPost::getStatus, "published");
+                    .eq(BizFabushiPost::getStatus, LIT_PUBLISHED);
             if (visible != null) {
                 pq.in(BizFabushiPost::getUserId, visible);
             }
@@ -82,7 +85,7 @@ public class FabushiStatsService {
 
             LambdaQueryWrapper<com.aigicrm.module.fabushi.entity.BizFabushiComment> cq =
                     new LambdaQueryWrapper<com.aigicrm.module.fabushi.entity.BizFabushiComment>()
-                            .eq(com.aigicrm.module.fabushi.entity.BizFabushiComment::getStatus, "published");
+                            .eq(com.aigicrm.module.fabushi.entity.BizFabushiComment::getStatus, LIT_PUBLISHED);
             if (visible != null) {
                 cq.in(com.aigicrm.module.fabushi.entity.BizFabushiComment::getUserId, visible);
             }
@@ -126,18 +129,18 @@ public class FabushiStatsService {
         }
 
         data.put("myPosts", postMapper.selectCount(new LambdaQueryWrapper<BizFabushiPost>()
-                .eq(BizFabushiPost::getUserId, uid).eq(BizFabushiPost::getStatus, "published")));
+                .eq(BizFabushiPost::getUserId, uid).eq(BizFabushiPost::getStatus, LIT_PUBLISHED)));
 
         data.put("myComments", commentMapper.selectCount(new LambdaQueryWrapper<com.aigicrm.module.fabushi.entity.BizFabushiComment>()
                 .eq(com.aigicrm.module.fabushi.entity.BizFabushiComment::getUserId, uid)
-                .eq(com.aigicrm.module.fabushi.entity.BizFabushiComment::getStatus, "published")));
+                .eq(com.aigicrm.module.fabushi.entity.BizFabushiComment::getStatus, LIT_PUBLISHED)));
 
         data.put("myReadCount", readStatusMapper.selectCount(new LambdaQueryWrapper<com.aigicrm.module.fabushi.entity.BizFabushiReadStatus>()
                 .eq(com.aigicrm.module.fabushi.entity.BizFabushiReadStatus::getUserId, uid)));
 
         // 获木鱼: 本人已发布内容的木鱼总数(先取本人 post ids, 再 count likes in ids)
         List<Long> myPostIds = postMapper.selectList(new LambdaQueryWrapper<BizFabushiPost>()
-                        .eq(BizFabushiPost::getUserId, uid).eq(BizFabushiPost::getStatus, "published")
+                        .eq(BizFabushiPost::getUserId, uid).eq(BizFabushiPost::getStatus, LIT_PUBLISHED)
                         .select(BizFabushiPost::getId))
                 .stream().map(BizFabushiPost::getId).collect(Collectors.toList());
         data.put("myLikesReceived", myPostIds.isEmpty() ? 0

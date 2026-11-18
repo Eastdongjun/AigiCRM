@@ -31,6 +31,14 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class TaskService {
+    // P0-5 batch A: duplicated string literals (Sonar java:S1192)
+    private static final String LIT_TITLE = "title";
+    private static final String LIT_COMPLETED = "completed";
+    private static final String LIT_CANCELLED = "cancelled";
+    private static final String LIT_DETAIL = "detail";
+    private static final String LIT_DUEDATE = "dueDate";
+    private static final String LIT_PENDING = "pending";
+
 
     private final BizTaskMapper taskMapper;
     private final SysUserMapper userMapper;
@@ -46,10 +54,10 @@ public class TaskService {
     /** 控制器 Map → 实体转换(控制器零 entity 依赖) */
     public BizTask createFromMap(Map<String, Object> body) {
         BizTask task = new BizTask();
-        if (body.get("title") != null) task.setTitle(body.get("title").toString());
-        if (body.get("detail") != null) task.setDetail(body.get("detail").toString());
+        if (body.get(LIT_TITLE) != null) task.setTitle(body.get(LIT_TITLE).toString());
+        if (body.get(LIT_DETAIL) != null) task.setDetail(body.get(LIT_DETAIL).toString());
         if (body.get("assigneeId") instanceof Number n) task.setAssigneeId(n.longValue());
-        if (body.get("dueDate") != null) task.setDueDate(LocalDate.parse(body.get("dueDate").toString()));
+        if (body.get(LIT_DUEDATE) != null) task.setDueDate(LocalDate.parse(body.get(LIT_DUEDATE).toString()));
         if (body.get("customerId") instanceof Number n) task.setCustomerId(n.longValue());
         if (body.get("sourceLogId") instanceof Number n) task.setSourceLogId(n.longValue());
         return create(task);
@@ -58,9 +66,9 @@ public class TaskService {
     public void updateFromMap(Long id, Map<String, Object> body) {
         BizTask task = new BizTask();
         task.setId(id);
-        if (body.get("title") != null) task.setTitle(body.get("title").toString());
-        if (body.get("detail") != null) task.setDetail(body.get("detail").toString());
-        if (body.get("dueDate") != null) task.setDueDate(LocalDate.parse(body.get("dueDate").toString()));
+        if (body.get(LIT_TITLE) != null) task.setTitle(body.get(LIT_TITLE).toString());
+        if (body.get(LIT_DETAIL) != null) task.setDetail(body.get(LIT_DETAIL).toString());
+        if (body.get(LIT_DUEDATE) != null) task.setDueDate(LocalDate.parse(body.get(LIT_DUEDATE).toString()));
         update(task);
     }
 
@@ -98,7 +106,7 @@ public class TaskService {
             }
         }
         task.setCreatedBy(SecurityUtils.getCurrentUserId());
-        task.setStatus("pending");
+        task.setStatus(LIT_PENDING);
         if (task.getDueDate() != null && task.getDueDate().isBefore(LocalDate.now())) {
             throw new BusinessException("计划时间不能早于今天");
         }
@@ -113,13 +121,13 @@ public class TaskService {
             throw new BusinessException("完成时必须记录结果(不是简单勾掉)");
         }
         BizTask task = getOwnOrManaged(id);
-        if ("completed".equals(task.getStatus())) {
+        if (LIT_COMPLETED.equals(task.getStatus())) {
             throw new BusinessException("该任务已完成");
         }
-        if ("cancelled".equals(task.getStatus())) {
+        if (LIT_CANCELLED.equals(task.getStatus())) {
             throw new BusinessException("该任务已取消");
         }
-        task.setStatus("completed");
+        task.setStatus(LIT_COMPLETED);
         task.setCompletedAt(LocalDateTime.now());
         task.setCompletionNote(completionNote.trim());
         taskMapper.updateById(task);
@@ -132,14 +140,14 @@ public class TaskService {
             throw new BusinessException("取消任务必须填写原因");
         }
         BizTask task = getOwnOrManaged(id);
-        if ("completed".equals(task.getStatus())) {
+        if (LIT_COMPLETED.equals(task.getStatus())) {
             throw new BusinessException("已完成的任务不能取消");
         }
         // 【P2 修复 2026-11-02】已取消任务不能重复取消(原漏挡, 重复取消会反复覆盖取消原因)
-        if ("cancelled".equals(task.getStatus())) {
+        if (LIT_CANCELLED.equals(task.getStatus())) {
             throw new BusinessException("该任务已取消");
         }
-        task.setStatus("cancelled");
+        task.setStatus(LIT_CANCELLED);
         task.setCompletionNote("取消原因: " + reason.trim());
         taskMapper.updateById(task);
     }
@@ -148,7 +156,7 @@ public class TaskService {
     @Transactional
     public void delete(Long id, String reason) {
         BizTask task = getOwnOrManaged(id);
-        if ("completed".equals(task.getStatus())) {
+        if (LIT_COMPLETED.equals(task.getStatus())) {
             throw new BusinessException("已完成的任务不能删除");
         }
         task.setDeletedAt(LocalDateTime.now());
@@ -159,7 +167,7 @@ public class TaskService {
         if (recycleBinService != null) {
             java.util.Map<String, Object> snap = new java.util.LinkedHashMap<>();
             snap.put("id", id);
-            snap.put("title", task.getTitle());
+            snap.put(LIT_TITLE, task.getTitle());
             snap.put("assigneeId", task.getAssigneeId());
             snap.put("customerId", task.getCustomerId());
             recycleBinService.record("task", id, snap, task.getDeletedReason(), "user");
@@ -171,10 +179,10 @@ public class TaskService {
     public void transfer(Long id, Long newAssigneeId) {
         BizTask task = getOwnOrManaged(id);
         // 【P2 修复 2026-11-02】终态任务不可转交(原无守卫, 已完成/已取消仍可换人制造僵尸归属)
-        if ("completed".equals(task.getStatus())) {
+        if (LIT_COMPLETED.equals(task.getStatus())) {
             throw new BusinessException("已完成的任务不能转交");
         }
-        if ("cancelled".equals(task.getStatus())) {
+        if (LIT_CANCELLED.equals(task.getStatus())) {
             throw new BusinessException("已取消的任务不能转交");
         }
         SysUser newAssignee = userMapper.selectById(newAssigneeId);
@@ -191,7 +199,7 @@ public class TaskService {
     @Transactional
     public void update(BizTask update) {
         BizTask existing = getOwnOrManaged(update.getId());
-        if ("completed".equals(existing.getStatus())) {
+        if (LIT_COMPLETED.equals(existing.getStatus())) {
             throw new BusinessException("已完成的任务不可编辑");
         }
         if (update.getTitle() != null) existing.setTitle(update.getTitle());
@@ -240,7 +248,7 @@ public class TaskService {
             wrapper.eq(BizTask::getCustomerId, customerId);
         }
         if (Boolean.TRUE.equals(overdue)) {
-            wrapper.eq(BizTask::getStatus, "pending")
+            wrapper.eq(BizTask::getStatus, LIT_PENDING)
                    .lt(BizTask::getDueDate, LocalDate.now());
         }
         wrapper.orderByAsc(BizTask::getDueDate).orderByDesc(BizTask::getId);
@@ -259,20 +267,20 @@ public class TaskService {
         Long targetUserId = userId != null ? userId : currentUserId;
         // 【权限审计批次1】同 page(): 他人统计须可见
         if (userId != null) assertAssigneeVisible(userId, currentUserId);
-        stats.put("pending", taskMapper.selectCount(new LambdaQueryWrapper<BizTask>()
+        stats.put(LIT_PENDING, taskMapper.selectCount(new LambdaQueryWrapper<BizTask>()
                 .eq(BizTask::getAssigneeId, targetUserId)
-                .eq(BizTask::getStatus, "pending")));
+                .eq(BizTask::getStatus, LIT_PENDING)));
         stats.put("overdue", taskMapper.selectCount(new LambdaQueryWrapper<BizTask>()
                 .eq(BizTask::getAssigneeId, targetUserId)
-                .eq(BizTask::getStatus, "pending")
+                .eq(BizTask::getStatus, LIT_PENDING)
                 .lt(BizTask::getDueDate, LocalDate.now())));
         stats.put("todayDue", taskMapper.selectCount(new LambdaQueryWrapper<BizTask>()
                 .eq(BizTask::getAssigneeId, targetUserId)
-                .eq(BizTask::getStatus, "pending")
+                .eq(BizTask::getStatus, LIT_PENDING)
                 .eq(BizTask::getDueDate, LocalDate.now())));
         stats.put("completedThisMonth", taskMapper.selectCount(new LambdaQueryWrapper<BizTask>()
                 .eq(BizTask::getAssigneeId, targetUserId)
-                .eq(BizTask::getStatus, "completed")
+                .eq(BizTask::getStatus, LIT_COMPLETED)
                 .ge(BizTask::getCompletedAt, LocalDate.now().withDayOfMonth(1).atStartOfDay())));
         return stats;
     }
@@ -298,7 +306,7 @@ public class TaskService {
             BizCustomer c = customerMapper.selectById(task.getCustomerId());
             if (c != null) task.setCustomerName(c.getCustomerName());
         }
-        task.setOverdue("pending".equals(task.getStatus())
+        task.setOverdue(LIT_PENDING.equals(task.getStatus())
                 && task.getDueDate() != null
                 && task.getDueDate().isBefore(LocalDate.now()));
     }

@@ -23,6 +23,10 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class FolderAclService {
+    // P0-5 batch A: duplicated string literals (Sonar java:S1192)
+    private static final String LIT_PERMS = "perms";
+    private static final String LIT_FOLDERACL = "folderAcl:";
+
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(FolderAclService.class);
 
     private static final Set<String> ALLOWED = Set.of(
@@ -45,7 +49,7 @@ public class FolderAclService {
             row.put("roleId", acl.getRoleId());
             SysRole role = roleMapper.selectById(acl.getRoleId());
             row.put("roleName", role != null ? role.getRoleName() : "未知角色");
-            row.put("perms", Arrays.asList(acl.getPerms().split(",")));
+            row.put(LIT_PERMS, Arrays.asList(acl.getPerms().split(",")));
             return row;
         }).collect(Collectors.toList());
     }
@@ -82,7 +86,7 @@ public class FolderAclService {
         } catch (NumberFormatException e) {
             throw new BusinessException("参数错误");
         }
-        Object rawPerms = body.get("perms");
+        Object rawPerms = body.get(LIT_PERMS);
         if (!(rawPerms instanceof List)) {
             throw new BusinessException("参数错误");
         }
@@ -107,7 +111,7 @@ public class FolderAclService {
             aclMapper.insert(acl);
         }
         // 【体检P4】ACL 授权留痕(失败不阻断)
-        try { securityAudit.permissionChange("folder_acl_save", "folderAcl:" + folderId + " role:" + roleId + " perms:" + joined); }
+        try { securityAudit.permissionChange("folder_acl_save", LIT_FOLDERACL + folderId + " role:" + roleId + " perms:" + joined); }
         catch (Exception e) { log.warn("权限审计留痕失败(不阻断业务) folder_acl_save folderId={} roleId={}", folderId, roleId, e); }
     }
 
@@ -116,7 +120,7 @@ public class FolderAclService {
         aclMapper.delete(new LambdaQueryWrapper<BizFolderAcl>()
                 .eq(BizFolderAcl::getFolderId, folderId).eq(BizFolderAcl::getRoleId, roleId));
         // 【体检P4】ACL 撤销留痕(失败不阻断)
-        try { securityAudit.permissionChange("folder_acl_remove", "folderAcl:" + folderId + " role:" + roleId); }
+        try { securityAudit.permissionChange("folder_acl_remove", LIT_FOLDERACL + folderId + " role:" + roleId); }
         catch (Exception e) { log.warn("权限审计留痕失败(不阻断业务) folder_acl_remove folderId={} roleId={}", folderId, roleId, e); }
     }
 
@@ -128,7 +132,7 @@ public class FolderAclService {
         folder.setDownloadable(downloadable);
         folderMapper.updateById(folder);
         // 【体检P4】下载开关留痕(失败不阻断)
-        try { securityAudit.permissionChange("folder_download_switch", "folderAcl:" + folderId + " downloadable:" + downloadable); }
+        try { securityAudit.permissionChange("folder_download_switch", LIT_FOLDERACL + folderId + " downloadable:" + downloadable); }
         catch (Exception e) { log.warn("权限审计留痕失败(不阻断业务) folder_download_switch folderId={}", folderId, e); }
     }
 
@@ -144,7 +148,7 @@ public class FolderAclService {
             throw new BusinessException(403, "没有访问权限，请联系管理员授权");
         }
         Map<String, Object> row = new LinkedHashMap<>();
-        row.put("perms", permissionService.permsFor(folderId, userId));
+        row.put(LIT_PERMS, permissionService.permsFor(folderId, userId));
         row.put("downloadable", folder.getDownloadable() != null ? folder.getDownloadable() : 1);
         return row;
     }

@@ -27,6 +27,9 @@ import java.util.Set;
 @Service
 @RequiredArgsConstructor
 public class PermReconcileService {
+    // P0-5 batch A: duplicated string literals (Sonar java:S1192)
+    private static final String LIT_MATCH = "match";
+
 
     private final OrgScopeResolver legacyResolver;
     private final com.aigicrm.module.system.mapper.SysUserMapper userMapper;
@@ -78,7 +81,7 @@ public class PermReconcileService {
                 SecurityUser su = (SecurityUser) userDetailsService().loadUserByUsername(String.valueOf(uid));
                 for (Slot slot : SLOTS) {
                     Map<String, Object> row = reconcileUser(su, slot);
-                    boolean same = Boolean.TRUE.equals(row.get("match"));
+                    boolean same = Boolean.TRUE.equals(row.get(LIT_MATCH));
                     if (!same) diff++;
                     rows.add(row);
                 }
@@ -90,7 +93,7 @@ public class PermReconcileService {
         out.put("sampled", targets.size());
         out.put("slots", SLOTS.size());
         out.put("diffCount", diff);
-        out.put("match", diff == 0);
+        out.put(LIT_MATCH, diff == 0);
         out.put("rows", rows);
         return out;
     }
@@ -149,7 +152,7 @@ public class PermReconcileService {
         } else {
             match = oldOwners.equals(newOwners);
         }
-        row.put("match", match);
+        row.put(LIT_MATCH, match);
         if (!match) {
             Set<Long> onlyOld = oldOwners == null || newOwners == null ? new HashSet<>() : new HashSet<>(oldOwners);
             Set<Long> onlyNew = oldOwners == null || newOwners == null ? new HashSet<>() : new HashSet<>(newOwners);

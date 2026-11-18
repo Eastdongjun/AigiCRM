@@ -24,6 +24,11 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class SeaConfigService {
+    // P0-5 batch A: duplicated string literals (Sonar java:S1192)
+    private static final String LIT_SEAPOOL = "seaPool:";
+    private static final String LIT_LABEL = "label";
+    private static final String LIT_DISABLED = "disabled";
+
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(SeaConfigService.class);
 
 
@@ -77,7 +82,7 @@ public class SeaConfigService {
         checkOfficeOverlap(config);
         configMapper.insert(config);
         // 【体检P4】池名单创建留痕(失败不阻断)
-        try { securityAudit.permissionChange("sea_pool_create", "seaPool:" + config.getPoolName()); }
+        try { securityAudit.permissionChange("sea_pool_create", LIT_SEAPOOL + config.getPoolName()); }
         catch (Exception e) { log.warn("权限审计留痕失败(不阻断业务) sea_pool_create pool={}", config.getPoolName(), e); }
     }
 
@@ -92,7 +97,7 @@ public class SeaConfigService {
         }
         configMapper.updateById(config);
         // 【体检P4】池名单变更留痕(失败不阻断)
-        try { securityAudit.permissionChange("sea_pool_update", "seaPool:" + config.getId()); }
+        try { securityAudit.permissionChange("sea_pool_update", LIT_SEAPOOL + config.getId()); }
         catch (Exception e) { log.warn("权限审计留痕失败(不阻断业务) sea_pool_update poolId={}", config.getId(), e); }
     }
 
@@ -131,7 +136,7 @@ public class SeaConfigService {
         }
         configMapper.deleteById(id);
         // 【体检P4】池删除留痕(失败不阻断)
-        try { securityAudit.permissionChange("sea_pool_delete", "seaPool:" + id); }
+        try { securityAudit.permissionChange("sea_pool_delete", LIT_SEAPOOL + id); }
         catch (Exception e) { log.warn("权限审计留痕失败(不阻断业务) sea_pool_delete poolId={}", id, e); }
     }
 
@@ -307,8 +312,8 @@ public class SeaConfigService {
         if (!orphans.isEmpty()) {
             Map<String, Object> group = new LinkedHashMap<>();
             group.put("id", "d_0");
-            group.put("label", "未分配部门");
-            group.put("disabled", true);
+            group.put(LIT_LABEL, "未分配部门");
+            group.put(LIT_DISABLED, true);
             group.put("children", orphans);
             tree.add(group);
         }
@@ -321,9 +326,9 @@ public class SeaConfigService {
             if (Objects.equals(d.getParentId(), parentId)) {
                 Map<String, Object> node = new LinkedHashMap<>();
                 node.put("id", "d_" + d.getId());
-                node.put("label", d.getDeptName());
+                node.put(LIT_LABEL, d.getDeptName());
                 boolean selectable = d.getDeptType() != null && d.getDeptType() != 1;
-                node.put("disabled", !selectable);
+                node.put(LIT_DISABLED, !selectable);
                 List<Map<String, Object>> children = buildDeptNodes(all, d.getId(), usersByDept);
                 List<SysUser> us = usersByDept.get(d.getId());
                 if (us != null) {
@@ -339,8 +344,8 @@ public class SeaConfigService {
     private Map<String, Object> userNode(SysUser u) {
         Map<String, Object> n = new LinkedHashMap<>();
         n.put("id", "u_" + u.getId());
-        n.put("label", u.getRealName());
-        n.put("disabled", false);
+        n.put(LIT_LABEL, u.getRealName());
+        n.put(LIT_DISABLED, false);
         return n;
     }
 

@@ -37,6 +37,15 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class FabushiPostService {
+    // P0-5 batch A: duplicated string literals (Sonar java:S1192)
+    private static final String LIT_PUBLISHED = "published";
+    private static final String LIT_X = "内容不存在或已下架";
+    private static final String LIT_FILEID = "fileId";
+    private static final String LIT_FILETYPE = "fileType";
+    private static final String LIT_DURATIONSECONDS = "durationSeconds";
+    private static final String LIT_X_2 = "内容不存在";
+    private static final String LIT_CONTENT = "content";
+
 
     private final BizFabushiPostMapper postMapper;
     private final BizFabushiCommentMapper commentMapper;
@@ -56,9 +65,9 @@ public class FabushiPostService {
      */
     public Page<BizFabushiPost> page(String scopeType, Long bookId, String status, boolean manageAllowed,
                                      Long viewerId, long current, long size) {
-        boolean publishedOnly = !manageAllowed || status == null || status.isBlank() || "published".equals(status);
+        boolean publishedOnly = !manageAllowed || status == null || status.isBlank() || LIT_PUBLISHED.equals(status);
         LambdaQueryWrapper<BizFabushiPost> qw = new LambdaQueryWrapper<BizFabushiPost>()
-                .eq(BizFabushiPost::getStatus, publishedOnly ? "published" : status)
+                .eq(BizFabushiPost::getStatus, publishedOnly ? LIT_PUBLISHED : status)
                 .eq(scopeType != null && !scopeType.isBlank(), BizFabushiPost::getScopeType, scopeType)
                 .eq(bookId != null, BizFabushiPost::getBookId, bookId)
                 .orderByDesc(BizFabushiPost::getCreatedAt);
@@ -84,7 +93,7 @@ public class FabushiPostService {
         BizFabushiPost post = new BizFabushiPost();
         post.setScopeType(body.get("scopeType") == null ? null : String.valueOf(body.get("scopeType")));
         post.setTitle(body.get("title") == null ? null : String.valueOf(body.get("title")));
-        post.setContent(body.get("content") == null ? null : String.valueOf(body.get("content")));
+        post.setContent(body.get(LIT_CONTENT) == null ? null : String.valueOf(body.get(LIT_CONTENT)));
         if (body.get("bookId") != null) {
             post.setBookId(Long.valueOf(String.valueOf(body.get("bookId"))));
         }
@@ -98,7 +107,7 @@ public class FabushiPostService {
     /** 评论 Map 化。 */
     public Map<String, Object> addCommentData(Long postId, Map<String, Object> body) {
         BizFabushiComment c = new BizFabushiComment();
-        Object content = body == null ? null : body.get("content");
+        Object content = body == null ? null : body.get(LIT_CONTENT);
         c.setContent(content == null ? null : String.valueOf(content));
         BizFabushiComment created = addComment(postId, c);
         return Map.of("id", created.getId());
@@ -107,8 +116,8 @@ public class FabushiPostService {
     /** 内容详情(fabushi:view 门): 帖+附件+互动计数(无 per-id 范围判定需求: 社区内容全员可见)。 */
     public Map<String, Object> detail(Long id, Long viewerId) {
         BizFabushiPost post = postMapper.selectById(id);
-        if (post == null || !"published".equals(post.getStatus())) {
-            throw new BusinessException(404, "内容不存在或已下架");
+        if (post == null || !LIT_PUBLISHED.equals(post.getStatus())) {
+            throw new BusinessException(404, LIT_X);
         }
         fillInteractions(List.of(post), viewerId);
         List<Map<String, Object>> attachments = attachmentData(id);
@@ -124,12 +133,12 @@ public class FabushiPostService {
     public Map<String, Object> addAttachment(Long postId, Map<String, Object> body) {
         Long uid = com.aigicrm.security.SecurityUtils.getCurrentUserId();
         BizFabushiPost post = postMapper.selectById(postId);
-        if (post == null || !"published".equals(post.getStatus())) throw new BusinessException(404, "内容不存在或已下架");
+        if (post == null || !LIT_PUBLISHED.equals(post.getStatus())) throw new BusinessException(404, LIT_X);
         if (!Objects.equals(post.getUserId(), uid) && !com.aigicrm.security.SecurityUtils.isAdmin()) {
             throw new BusinessException(403, "只能维护自己发布内容的附件");
         }
-        Long fileId = body == null || body.get("fileId") == null ? null : Long.valueOf(String.valueOf(body.get("fileId")));
-        String fileType = body == null || body.get("fileType") == null ? null : String.valueOf(body.get("fileType"));
+        Long fileId = body == null || body.get(LIT_FILEID) == null ? null : Long.valueOf(String.valueOf(body.get(LIT_FILEID)));
+        String fileType = body == null || body.get(LIT_FILETYPE) == null ? null : String.valueOf(body.get(LIT_FILETYPE));
         if (fileId == null || !Set.of("image", "audio", "video").contains(fileType)) {
             throw new BusinessException(400, "附件类型或文件不合法");
         }
@@ -141,16 +150,16 @@ public class FabushiPostService {
         BizFabushiPostAttachment row = new BizFabushiPostAttachment();
         row.setPostId(postId); row.setFileId(fileId); row.setFileType(fileType);
         row.setSortOrder(count == null ? 0 : count.intValue());
-        if (body.get("durationSeconds") != null) row.setDurationSeconds(Integer.parseInt(String.valueOf(body.get("durationSeconds"))));
+        if (body.get(LIT_DURATIONSECONDS) != null) row.setDurationSeconds(Integer.parseInt(String.valueOf(body.get(LIT_DURATIONSECONDS))));
         attachmentMapper.insert(row);
-        return Map.of("id", row.getId(), "fileId", fileId, "fileType", fileType);
+        return Map.of("id", row.getId(), LIT_FILEID, fileId, LIT_FILETYPE, fileType);
     }
 
     @Transactional
     public void removeAttachment(Long postId, Long attachmentId) {
         Long uid = com.aigicrm.security.SecurityUtils.getCurrentUserId();
         BizFabushiPost post = postMapper.selectById(postId);
-        if (post == null) throw new BusinessException(404, "内容不存在");
+        if (post == null) throw new BusinessException(404, LIT_X_2);
         if (!Objects.equals(post.getUserId(), uid) && !com.aigicrm.security.SecurityUtils.isAdmin()) {
             throw new BusinessException(403, "只能维护自己发布内容的附件");
         }
@@ -169,8 +178,8 @@ public class FabushiPostService {
         return rows.stream().map(row -> {
             BizFile file = files.get(row.getFileId());
             Map<String, Object> m = new LinkedHashMap<>();
-            m.put("id", row.getId()); m.put("postId", row.getPostId()); m.put("fileId", row.getFileId());
-            m.put("fileType", row.getFileType()); m.put("durationSeconds", row.getDurationSeconds());
+            m.put("id", row.getId()); m.put("postId", row.getPostId()); m.put(LIT_FILEID, row.getFileId());
+            m.put(LIT_FILETYPE, row.getFileType()); m.put(LIT_DURATIONSECONDS, row.getDurationSeconds());
             m.put("fileName", file == null ? null : file.getFileName());
             m.put("fileSize", file == null ? null : file.getFileSize());
             return m;
@@ -192,7 +201,7 @@ public class FabushiPostService {
         }
         post.setId(null);
         post.setUserId(user.getUserId());
-        post.setStatus("published");
+        post.setStatus(LIT_PUBLISHED);
         postMapper.insert(post);
         return post;
     }
@@ -205,7 +214,7 @@ public class FabushiPostService {
         }
         BizFabushiPost post = postMapper.selectById(id);
         if (post == null) {
-            throw new BusinessException(404, "内容不存在");
+            throw new BusinessException(404, LIT_X_2);
         }
         post.setStatus("offline");
         post.setOfflineBy(com.aigicrm.security.SecurityUtils.getCurrentUserId());
@@ -220,14 +229,14 @@ public class FabushiPostService {
     public void restore(Long id) {
         BizFabushiPost post = postMapper.selectById(id);
         if (post == null) {
-            throw new BusinessException(404, "内容不存在");
+            throw new BusinessException(404, LIT_X_2);
         }
         if (!"offline".equals(post.getStatus())) {
             throw new BusinessException(400, "只有已下架内容可以恢复");
         }
         postMapper.update(null, new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<BizFabushiPost>()
                 .eq(BizFabushiPost::getId, id)
-                .set(BizFabushiPost::getStatus, "published")
+                .set(BizFabushiPost::getStatus, LIT_PUBLISHED)
                 .set(BizFabushiPost::getOfflineBy, null)
                 .set(BizFabushiPost::getOfflineAt, null)
                 .set(BizFabushiPost::getOfflineReason, null));
@@ -237,8 +246,8 @@ public class FabushiPostService {
     /** 评论(fabushi:create 门): 帖须 published。 */
     public BizFabushiComment addComment(Long postId, BizFabushiComment comment) {
         BizFabushiPost post = postMapper.selectById(postId);
-        if (post == null || !"published".equals(post.getStatus())) {
-            throw new BusinessException(404, "内容不存在或已下架");
+        if (post == null || !LIT_PUBLISHED.equals(post.getStatus())) {
+            throw new BusinessException(404, LIT_X);
         }
         if (comment.getContent() == null || comment.getContent().isBlank()) {
             throw new BusinessException(400, "评论内容不能为空");
@@ -248,7 +257,7 @@ public class FabushiPostService {
         comment.setPostId(postId);
         comment.setUserId(user == null ? null : user.getUserId());
         comment.setType("text");
-        comment.setStatus("published");
+        comment.setStatus(LIT_PUBLISHED);
         commentMapper.insert(comment);
         return comment;
     }
@@ -257,7 +266,7 @@ public class FabushiPostService {
     public List<BizFabushiComment> listComments(Long postId) {
         List<BizFabushiComment> comments = commentMapper.selectList(new LambdaQueryWrapper<BizFabushiComment>()
                 .eq(BizFabushiComment::getPostId, postId)
-                .eq(BizFabushiComment::getStatus, "published")
+                .eq(BizFabushiComment::getStatus, LIT_PUBLISHED)
                 .orderByAsc(BizFabushiComment::getCreatedAt));
         if (!comments.isEmpty()) {
             Set<Long> uids = comments.stream().map(BizFabushiComment::getUserId).collect(Collectors.toSet());
@@ -283,8 +292,8 @@ public class FabushiPostService {
     @Transactional
     public Map<String, Object> toggleLike(Long postId, Long userId) {
         BizFabushiPost post = postMapper.selectById(postId);
-        if (post == null || !"published".equals(post.getStatus())) {
-            throw new BusinessException(404, "内容不存在或已下架");
+        if (post == null || !LIT_PUBLISHED.equals(post.getStatus())) {
+            throw new BusinessException(404, LIT_X);
         }
         Long existing = likeMapper.selectCount(new LambdaQueryWrapper<BizFabushiLike>()
                 .eq(BizFabushiLike::getPostId, postId).eq(BizFabushiLike::getUserId, userId));
@@ -314,7 +323,7 @@ public class FabushiPostService {
     public void markRead(Long postId, Long userId) {
         BizFabushiPost post = postMapper.selectById(postId);
         if (post == null) {
-            throw new BusinessException(404, "内容不存在");
+            throw new BusinessException(404, LIT_X_2);
         }
         Long existing = readStatusMapper.selectCount(new LambdaQueryWrapper<BizFabushiReadStatus>()
                 .eq(BizFabushiReadStatus::getUserId, userId).eq(BizFabushiReadStatus::getPostId, postId));
@@ -358,7 +367,7 @@ public class FabushiPostService {
                         .eq(BizFabushiReadStatus::getUserId, viewerId).in(BizFabushiReadStatus::getPostId, postIds)).stream()
                 .map(BizFabushiReadStatus::getPostId).collect(Collectors.toSet());
         Map<Long, Long> commentCounts = commentMapper.selectList(new LambdaQueryWrapper<BizFabushiComment>()
-                        .eq(BizFabushiComment::getStatus, "published").in(BizFabushiComment::getPostId, postIds)).stream()
+                        .eq(BizFabushiComment::getStatus, LIT_PUBLISHED).in(BizFabushiComment::getPostId, postIds)).stream()
                 .collect(Collectors.groupingBy(BizFabushiComment::getPostId, Collectors.counting()));
 
         for (BizFabushiPost p : posts) {

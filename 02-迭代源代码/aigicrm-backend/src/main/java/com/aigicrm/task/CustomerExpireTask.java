@@ -20,6 +20,12 @@ import java.util.List;
 @Component
 @RequiredArgsConstructor
 public class CustomerExpireTask {
+    // P0-5 batch A: duplicated string literals (Sonar java:S1192)
+    private static final String LIT_PENDING = "pending";
+    private static final String LIT_EXPIRING = "expiring";
+    private static final String LIT_ARCHIVED = "archived";
+    private static final String LIT_EXPIRED = "expired";
+
 
     private final BizCustomerMapper customerMapper;
     private final BizReminderMapper reminderMapper;
@@ -77,7 +83,7 @@ public class CustomerExpireTask {
                             .set(com.aigicrm.module.approval.entity.BizApprovalNode::getComment, "捞取审批锁超时自动释放")
                             .set(com.aigicrm.module.approval.entity.BizApprovalNode::getOperatedAt, java.time.LocalDateTime.now())
                             .eq(com.aigicrm.module.approval.entity.BizApprovalNode::getApprovalId, claim.getId())
-                            .eq(com.aigicrm.module.approval.entity.BizApprovalNode::getStatus, "pending"));
+                            .eq(com.aigicrm.module.approval.entity.BizApprovalNode::getStatus, LIT_PENDING));
                 }
                 meterRegistry.counter("sea.claim.lock.released").increment();
                 log.info("公海锁超时释放: customerId={}, 锁定于{}, 审批单{}",
@@ -152,7 +158,7 @@ public class CustomerExpireTask {
         List<BizCustomer> customers = customerMapper.selectList(
                 new LambdaQueryWrapper<BizCustomer>()
                         .eq(BizCustomer::getDeleted, 0)
-                        .notIn(BizCustomer::getStatus, "sea", "archived") // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
+                        .notIn(BizCustomer::getStatus, "sea", LIT_ARCHIVED) // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
                         .isNotNull(BizCustomer::getExpireDate)
         );
 
@@ -166,9 +172,9 @@ public class CustomerExpireTask {
 
             if (expireDate.isBefore(today) || expireDate.isEqual(today)) {
                 // 已到期 -> 更新状态 + 进入公海
-                if (!"expired".equals(customer.getProtectionStatus())) {
-                    customer.setProtectionStatus("expired");
-                    customer.setStatus("expired");
+                if (!LIT_EXPIRED.equals(customer.getProtectionStatus())) {
+                    customer.setProtectionStatus(LIT_EXPIRED);
+                    customer.setStatus(LIT_EXPIRED);
                     customerMapper.updateById(customer);
                 }
                 // 确保进了公海（防止状态已更新但未入池的情况）
@@ -189,8 +195,8 @@ public class CustomerExpireTask {
                 // 即将到期（30天内,含第30天——【修复 2026-10-08 需求对齐】与 ReminderService 的
                 // le(expireDate, today+warningDays) 口径对齐,原 isBefore 使剩余恰好30天的客户
                 // 页面可见/计角标/补生成会物化,凌晨任务却不物化,同窗两口径差1天）
-                if (!"expiring".equals(customer.getProtectionStatus())) {
-                    customer.setProtectionStatus("expiring");
+                if (!LIT_EXPIRING.equals(customer.getProtectionStatus())) {
+                    customer.setProtectionStatus(LIT_EXPIRING);
                     customer.setStatus("warning");
                     customerMapper.updateById(customer);
                 }
@@ -199,13 +205,13 @@ public class CustomerExpireTask {
                 long existExpiring = reminderMapper.selectCount(
                         new LambdaQueryWrapper<BizReminder>()
                                 .eq(BizReminder::getCustomerId, customer.getId())
-                                .eq(BizReminder::getReminderType, "expiring")
-                                .eq(BizReminder::getStatus, "pending")
+                                .eq(BizReminder::getReminderType, LIT_EXPIRING)
+                                .eq(BizReminder::getStatus, LIT_PENDING)
                 );
                 long processedToday = existExpiring > 0 ? 1 : reminderMapper.selectCount(
                         new LambdaQueryWrapper<BizReminder>()
                                 .eq(BizReminder::getCustomerId, customer.getId())
-                                .eq(BizReminder::getReminderType, "expiring")
+                                .eq(BizReminder::getReminderType, LIT_EXPIRING)
                                 .eq(BizReminder::getStatus, "processed")
                                 .ge(BizReminder::getProcessedAt, today.atStartOfDay())
                 );
@@ -213,11 +219,11 @@ public class CustomerExpireTask {
                     long daysLeft = ChronoUnit.DAYS.between(today, expireDate);
                     BizReminder reminder = new BizReminder();
                     reminder.setCustomerId(customer.getId());
-                    reminder.setReminderType("expiring");
+                    reminder.setReminderType(LIT_EXPIRING);
                     reminder.setOwnerId(customer.getOwnerId());
                     reminder.setOfficeId(customer.getOfficeId());
                     reminder.setOverdueDays((int) daysLeft);
-                    reminder.setStatus("pending");
+                    reminder.setStatus(LIT_PENDING);
                     reminderMapper.insert(reminder);
                     warned++;
                     log.info("客户 {} 还有{}天到期，已创建提醒", customer.getCustomerName(), daysLeft);
@@ -280,7 +286,7 @@ public class CustomerExpireTask {
         List<BizCustomer> overdueCustomers = customerMapper.selectList(
                 new LambdaQueryWrapper<BizCustomer>()
                         .eq(BizCustomer::getDeleted, 0)
-                        .notIn(BizCustomer::getStatus, "sea", "archived") // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
+                        .notIn(BizCustomer::getStatus, "sea", LIT_ARCHIVED) // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
                         .isNotNull(BizCustomer::getLastInvoiceDate)
                         .lt(BizCustomer::getLastInvoiceDate, oneYearAgo)
         );
@@ -299,7 +305,7 @@ public class CustomerExpireTask {
         List<BizCustomer> neverInvoiced = customerMapper.selectList(
                 new LambdaQueryWrapper<BizCustomer>()
                         .eq(BizCustomer::getDeleted, 0)
-                        .notIn(BizCustomer::getStatus, "sea", "archived") // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
+                        .notIn(BizCustomer::getStatus, "sea", LIT_ARCHIVED) // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
                         .isNull(BizCustomer::getLastInvoiceDate)
                         // 宽限天数<=0 时跳过宽限条件(条件重载),保持原"从未开票即提醒"行为;
                         // 注册日早于宽限界限 OR (注册日为空且回退 created_at 早于界限)——OR 必须嵌套在 and 内,
@@ -325,8 +331,8 @@ public class CustomerExpireTask {
     private void recycleStaleExpiringReminders(LocalDate warningDate) {
         List<BizReminder> pendingExpiring = reminderMapper.selectList(
                 new LambdaQueryWrapper<BizReminder>()
-                        .eq(BizReminder::getReminderType, "expiring")
-                        .eq(BizReminder::getStatus, "pending"));
+                        .eq(BizReminder::getReminderType, LIT_EXPIRING)
+                        .eq(BizReminder::getStatus, LIT_PENDING));
         if (pendingExpiring.isEmpty()) return;
         java.util.Set<Long> customerIds = pendingExpiring.stream()
                 .map(BizReminder::getCustomerId).collect(java.util.stream.Collectors.toSet());
@@ -358,7 +364,7 @@ public class CustomerExpireTask {
                 new LambdaQueryWrapper<BizReminder>()
                         .eq(BizReminder::getCustomerId, customer.getId())
                         .eq(BizReminder::getReminderType, type)
-                        .eq(BizReminder::getStatus, "pending")
+                        .eq(BizReminder::getStatus, LIT_PENDING)
         );
         if (existCount > 0) {
             return;
@@ -369,7 +375,7 @@ public class CustomerExpireTask {
         reminder.setOwnerId(customer.getOwnerId());
         reminder.setOfficeId(customer.getOfficeId());
         reminder.setOverdueDays(overdueDays);
-        reminder.setStatus("pending");
+        reminder.setStatus(LIT_PENDING);
         reminderMapper.insert(reminder);
         log.info("客户 {} 创建提醒 type={} overdueDays={}", customer.getCustomerName(), type, overdueDays);
     }

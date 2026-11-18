@@ -25,27 +25,34 @@ import java.util.Set;
 @Service
 @RequiredArgsConstructor
 public class PermissionMetadataService {
+    // P0-5 batch A: duplicated string literals (Sonar java:S1192)
+    private static final String LIT_STATS_VIEW = "stats_view";
+    private static final String LIT_FABUSHI = "fabushi";
+    private static final String LIT_CUSTOMER = "customer";
+    private static final String LIT_MODULE = "module";
+    private static final String LIT_DEPRECATED = "deprecated";
+
 
     private final SysMenuMapper menuMapper;
     private final JdbcTemplate jdbc;
 
     /** 权限码 → 后端真实消费的 (module, action) 数据范围轴(与 RolePermScopeService.CONSUMED_AXIS 对齐) */
     public static final Map<String, String[]> SCOPE_AXIS = Map.ofEntries(
-            Map.entry("customer:view", new String[]{"customer", "view"}),
-            Map.entry("customer:edit", new String[]{"customer", "edit"}),
-            Map.entry("customer:delete", new String[]{"customer", "delete"}),
-            Map.entry("customer:finance:edit", new String[]{"customer", "finance_edit"}),
+            Map.entry("customer:view", new String[]{LIT_CUSTOMER, "view"}),
+            Map.entry("customer:edit", new String[]{LIT_CUSTOMER, "edit"}),
+            Map.entry("customer:delete", new String[]{LIT_CUSTOMER, "delete"}),
+            Map.entry("customer:finance:edit", new String[]{LIT_CUSTOMER, "finance_edit"}),
             Map.entry("reminder:view", new String[]{"reminder", "view"}),
             Map.entry("approval:view", new String[]{"approval", "view"}),
             Map.entry("task:view", new String[]{"task", "view"}),
             Map.entry("sea:view", new String[]{"sea", "view"}),
             Map.entry("system:log:view", new String[]{"system", "view"}),
             Map.entry("score:view", new String[]{"score", "view"}),
-            Map.entry("incentive:stats:view", new String[]{"incentive", "stats_view"}),
-            Map.entry("incentive:rank:view", new String[]{"incentive", "stats_view"}),
-            Map.entry("fabushi:stats:view", new String[]{"fabushi", "stats_view"}),
-            Map.entry("fabushi:view", new String[]{"fabushi", "file_view"}),
-            Map.entry("fabushi:file:delete", new String[]{"fabushi", "file_delete"}),
+            Map.entry("incentive:stats:view", new String[]{"incentive", LIT_STATS_VIEW}),
+            Map.entry("incentive:rank:view", new String[]{"incentive", LIT_STATS_VIEW}),
+            Map.entry("fabushi:stats:view", new String[]{LIT_FABUSHI, LIT_STATS_VIEW}),
+            Map.entry("fabushi:view", new String[]{LIT_FABUSHI, "file_view"}),
+            Map.entry("fabushi:file:delete", new String[]{LIT_FABUSHI, "file_delete"}),
             Map.entry("file:version:rollback", new String[]{"file", "version_rollback"}));
 
     /** 仅平台管理员可用的功能码(授权给非 admin 角色 = 死配置) */
@@ -67,7 +74,7 @@ public class PermissionMetadataService {
             "customer:date:edit", "customer:invoice-date:edit");
 
     private static final Map<String, String> GROUP_OF_PREFIX = Map.of(
-            "finance", "客户管理", "contact", "客户管理", "ranking", "统计分析", "fabushi", "法布施");
+            "finance", "客户管理", "contact", "客户管理", "ranking", "统计分析", LIT_FABUSHI, "法布施");
 
     /** 全部权限点元数据(优先读 sys_permission_meta 注册表, 表未就绪时回退 sys_menu 推导) */
     public List<Map<String, Object>> list() {
@@ -93,15 +100,19 @@ public class PermissionMetadataService {
                 meta.put("code", code);
                 meta.put("name", str(row.get("name")));
                 meta.put("type", str(row.get("type")));
-                meta.put("module", str(row.get("module")));
-                meta.put("group", GROUP_OF_PREFIX.get(str(row.get("module"))));
+                meta.put(LIT_MODULE, str(row.get(LIT_MODULE)));
+                meta.put("group", GROUP_OF_PREFIX.get(str(row.get(LIT_MODULE))));
                 meta.put("parentCode", str(row.get("parent_code")));
-                meta.put("scopeAxis", scopeModule == null ? null
-                        : Map.of("module", scopeModule, "action", scopeAction == null ? "view" : scopeAction));
+                if (scopeModule == null) {
+                    meta.put("scopeAxis", null);
+                } else {
+                    meta.put("scopeAxis", Map.of(LIT_MODULE, scopeModule, "action",
+                            scopeAction == null ? "view" : scopeAction));
+                }
                 meta.put("scopeMode", str(row.get("scope_mode")));
                 meta.put("adminOnly", bool(row.get("admin_only")));
                 meta.put("requiresOrgAdmin", bool(row.get("requires_org_admin")));
-                meta.put("deprecated", bool(row.get("deprecated")));
+                meta.put(LIT_DEPRECATED, bool(row.get(LIT_DEPRECATED)));
                 meta.put("noEndpoint", bool(row.get("no_endpoint")));
                 meta.put("dependsOn", str(row.get("depends_on")));
                 out.add(meta);
@@ -149,14 +160,14 @@ public class PermissionMetadataService {
             meta.put("code", code);
             meta.put("name", m.getMenuName());
             meta.put("type", type);
-            meta.put("module", prefix);
+            meta.put(LIT_MODULE, prefix);
             meta.put("group", GROUP_OF_PREFIX.getOrDefault(prefix, null));
             meta.put("parentCode", parentCode);
-            meta.put("scopeAxis", axis == null ? null : Map.of("module", axis[0], "action", axis[1]));
+            meta.put("scopeAxis", axis == null ? null : Map.of(LIT_MODULE, axis[0], "action", axis[1]));
             meta.put("scopeMode", scopeMode);
             meta.put("adminOnly", ADMIN_ONLY.contains(code));
             meta.put("requiresOrgAdmin", REQUIRES_ORG_ADMIN.contains(code));
-            meta.put("deprecated", m.getStatus() != null && m.getStatus() == 0);
+            meta.put(LIT_DEPRECATED, m.getStatus() != null && m.getStatus() == 0);
             meta.put("noEndpoint", NO_ENDPOINT.contains(code));
             meta.put("dependsOn", dependsOn);
             out.add(meta);

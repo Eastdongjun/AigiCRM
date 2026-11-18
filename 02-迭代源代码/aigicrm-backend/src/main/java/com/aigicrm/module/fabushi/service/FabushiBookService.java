@@ -28,6 +28,10 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class FabushiBookService {
+    // P0-5 batch A: duplicated string literals (Sonar java:S1192)
+    private static final String LIT_BOOK = "book:";
+    private static final String LIT_APPROVED = "approved";
+
 
     private final BizFabushiBookMapper bookMapper;
     private final BizFabushiPostMapper postMapper;
@@ -71,7 +75,7 @@ public class FabushiBookService {
     /** 书目详情(fabushi:view 门): 非 approved 仅 book:manage 可看。 */
     public Map<String, Object> detailData(Long id) {
         BizFabushiBook book = requireBook(id);
-        if (!"approved".equals(book.getStatus())
+        if (!LIT_APPROVED.equals(book.getStatus())
                 && !com.aigicrm.security.SecurityUtils.hasAuthority("fabushi:book:manage")) {
             throw new BusinessException(404, "书目不存在");
         }
@@ -81,9 +85,9 @@ public class FabushiBookService {
 
     /** 书目列表(fabushi:view 门): approved 全员可见; manage 门可用 status 传参查全态。 */
     public Page<BizFabushiBook> page(String categoryCode, String keyword, String status, long current, long size) {
-        String st = (status == null || status.isBlank()) ? "approved" : status;
+        String st = (status == null || status.isBlank()) ? LIT_APPROVED : status;
         boolean canManage = com.aigicrm.security.SecurityUtils.hasAuthority("fabushi:book:manage");
-        if (!"approved".equals(st) && !canManage) st = "approved";
+        if (!LIT_APPROVED.equals(st) && !canManage) st = LIT_APPROVED;
         LambdaQueryWrapper<BizFabushiBook> qw = new LambdaQueryWrapper<BizFabushiBook>()
                 .eq(!"all".equals(st), BizFabushiBook::getStatus, st)
                 .eq(categoryCode != null && !categoryCode.isBlank(), BizFabushiBook::getCategoryCode, categoryCode)
@@ -118,12 +122,12 @@ public class FabushiBookService {
     @Transactional
     public void approve(Long id) {
         BizFabushiBook book = requireBook(id);
-        book.setStatus("approved");
+        book.setStatus(LIT_APPROVED);
         book.setApprovedBy(com.aigicrm.security.SecurityUtils.getCurrentUserId());
         book.setApprovedAt(LocalDateTime.now());
         book.setRejectReason(null);
         bookMapper.updateById(book);
-        securityAuditService.permissionChange("fabushi_book_approve", "book:" + id + ":" + book.getTitle());
+        securityAuditService.permissionChange("fabushi_book_approve", LIT_BOOK + id + ":" + book.getTitle());
     }
 
     /** 驳回(fabushi:book:manage 门; 驳回原因必填留痕)。 */
@@ -137,7 +141,7 @@ public class FabushiBookService {
         book.setRejectReason(reason);
         book.setApprovedBy(com.aigicrm.security.SecurityUtils.getCurrentUserId());
         bookMapper.updateById(book);
-        securityAuditService.permissionChange("fabushi_book_reject", "book:" + id + ":" + book.getTitle());
+        securityAuditService.permissionChange("fabushi_book_reject", LIT_BOOK + id + ":" + book.getTitle());
     }
 
     /** 停用(fabushi:book:manage 门; 停用不删内容, 书目从全员列表消失)。 */
@@ -146,7 +150,7 @@ public class FabushiBookService {
         BizFabushiBook book = requireBook(id);
         book.setStatus("disabled");
         bookMapper.updateById(book);
-        securityAuditService.permissionChange("fabushi_book_disable", "book:" + id + ":" + book.getTitle());
+        securityAuditService.permissionChange("fabushi_book_disable", LIT_BOOK + id + ":" + book.getTitle());
     }
 
     /** PDF 挂载/替换(fabushi:book:manage 门; fileId 须为 scope=fabushi 的已上传 PDF 文件, ≤100MB)。 */
@@ -232,7 +236,7 @@ public class FabushiBookService {
     public void deleteBook(Long id) {
         BizFabushiBook book = requireBook(id);
         bookMapper.deleteById(id);
-        securityAuditService.permissionChange("fabushi_book_delete", "book:" + id + ":" + book.getTitle());
+        securityAuditService.permissionChange("fabushi_book_delete", LIT_BOOK + id + ":" + book.getTitle());
     }
 
     private BizFabushiBook requireBook(Long id) {

@@ -21,6 +21,9 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class SysDictService {
+    // P0-5 batch A: duplicated string literals (Sonar java:S1192)
+    private static final String LIT_INDUSTRY = "industry";
+
 
     private final SysDictTypeMapper dictTypeMapper;
     private final SysDictDataMapper dictDataMapper;
@@ -81,7 +84,7 @@ public class SysDictService {
 
     // 字典code → 客户表字段的映射
     private static final Map<String, String> DICT_COLUMN_MAP = Map.of(
-            "industry", "industry",
+            LIT_INDUSTRY, LIT_INDUSTRY,
             "dev_type", "dev_type"
     );
 
@@ -167,10 +170,10 @@ public class SysDictService {
                     // 同步更新客户表中所有旧值
                     customerMapper.update(null,
                             new LambdaUpdateWrapper<BizCustomer>()
-                                    .eq("industry".equals(column)
+                                    .eq(LIT_INDUSTRY.equals(column)
                                             ? BizCustomer::getIndustry
                                             : BizCustomer::getDevType, old.getDictValue())
-                                    .set("industry".equals(column)
+                                    .set(LIT_INDUSTRY.equals(column)
                                             ? BizCustomer::getIndustry
                                             : BizCustomer::getDevType, data.getDictValue()));
                 }

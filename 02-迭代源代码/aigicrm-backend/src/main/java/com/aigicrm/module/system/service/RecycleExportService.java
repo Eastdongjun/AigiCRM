@@ -47,9 +47,22 @@ import java.util.zip.ZipOutputStream;
 @Service
 @RequiredArgsConstructor
 public class RecycleExportService {
+    // P0-5 batch A: duplicated string literals (Sonar java:S1192)
+    private static final String LIT_REMINDER = "reminder";
+    private static final String LIT_CUSTOMER_ID = "customer_id";
+    private static final String LIT_INCENTIVE = "incentive";
+    private static final String LIT_CUSTOMER = "customer";
+    private static final String LIT_STATUS = "status";
+    private static final String LIT_EXPORT_NO = "export_no";
+    private static final String LIT_FILE_PATH = "file_path";
+    private static final String LIT_OSS_KEY = "oss_key";
+    private static final String LIT_DELETED_REASON = "deleted_reason";
+    private static final String LIT_DELETED_AT = "deleted_at";
+    private static final String LIT_DELETED_BY = "deleted_by";
+
 
     private static final Logger log = LoggerFactory.getLogger(RecycleExportService.class);
-    private static final Set<String> TYPES = Set.of("customer", "user", "file", "task", "incentive", "reminder");
+    private static final Set<String> TYPES = Set.of(LIT_CUSTOMER, "user", "file", "task", LIT_INCENTIVE, LIT_REMINDER);
     private static final long MAX_ROWS_PER_TYPE = 100_000;   // 拍板 #1
     private static final long MAX_FILE_BYTES = 20L * 1024 * 1024 * 1024; // 20GB
     private static final int BATCH = 500;                    // 计划 §1.5 分批
@@ -128,17 +141,17 @@ public class RecycleExportService {
         requireAdmin();
         Map<String, Object> row = jdbc.queryForMap("SELECT * FROM biz_recycle_export WHERE id=? AND tenant_id=?", id, tenantId());
         if (row == null || row.isEmpty()) throw new BusinessException("导出记录不存在");
-        if (!"ready".equals(row.get("status"))) throw new BusinessException("导出未就绪或已失效: " + row.get("status"));
+        if (!"ready".equals(row.get(LIT_STATUS))) throw new BusinessException("导出未就绪或已失效: " + row.get(LIT_STATUS));
         LocalDateTime exp = toLdt(row.get("expires_at"));
         if (exp != null && exp.isBefore(LocalDateTime.now())) {
             jdbc.update("UPDATE biz_recycle_export SET status='expired' WHERE id=?", id);
             throw new BusinessException(410, "下载链接已过期（生成后 7 天），请重新导出");
         }
         jdbc.update("UPDATE biz_recycle_export SET downloaded_at=NOW() WHERE id=?", id);
-        audit("recycle_export_download", "id=" + id + " exportNo=" + row.get("export_no"));
+        audit("recycle_export_download", "id=" + id + " exportNo=" + row.get(LIT_EXPORT_NO));
         Map<String, Object> out = new LinkedHashMap<>();
-        out.put("filePath", String.valueOf(row.get("file_path")));
-        out.put("fileName", row.get("export_no") + ".zip");
+        out.put("filePath", String.valueOf(row.get(LIT_FILE_PATH)));
+        out.put("fileName", row.get(LIT_EXPORT_NO) + ".zip");
         out.put("checksumSha256", row.get("checksum_sha256"));
         out.put("fileSize", row.get("file_size"));
         return out;
@@ -150,7 +163,7 @@ public class RecycleExportService {
         requireAdmin();
         Map<String, Object> row = jdbc.queryForMap("SELECT * FROM biz_recycle_export WHERE id=? AND tenant_id=?", id, tenantId());
         if (row == null || row.isEmpty()) throw new BusinessException("导出记录不存在");
-        Object fp = row.get("file_path");
+        Object fp = row.get(LIT_FILE_PATH);
         if (fp != null) {
             try {
                 Files.deleteIfExists(Paths.get(String.valueOf(fp)));
@@ -159,7 +172,7 @@ public class RecycleExportService {
             }
         }
         jdbc.update("DELETE FROM biz_recycle_export WHERE id=?", id);
-        audit("recycle_export_delete", "id=" + id + " exportNo=" + row.get("export_no"));
+        audit("recycle_export_delete", "id=" + id + " exportNo=" + row.get(LIT_EXPORT_NO));
     }
 
     /** 过期清理（每小时）：删 ZIP + 置 expired。 */
@@ -168,7 +181,7 @@ public class RecycleExportService {
         List<Map<String, Object>> rows = jdbc.queryForList(
                 "SELECT id, file_path FROM biz_recycle_export WHERE status='ready' AND expires_at < NOW() LIMIT 50");
         for (Map<String, Object> r : rows) {
-            Object fp = r.get("file_path");
+            Object fp = r.get(LIT_FILE_PATH);
             if (fp != null) {
                 try {
                     Files.deleteIfExists(Paths.get(String.valueOf(fp)));
@@ -237,7 +250,7 @@ public class RecycleExportService {
             for (Map<String, Object> f : files) {
                 long fid = ((Number) f.get("id")).longValue();
                 String safe = sanitizeZipEntryName(String.valueOf(f.get("file_name")), fid);
-                byte[] content = readContent(String.valueOf(f.get("oss_key")));
+                byte[] content = readContent(String.valueOf(f.get(LIT_OSS_KEY)));
                 if (content == null) continue; // contentMissing: 清单已含行, 不打包内容
                 total += content.length;
                 if (total > MAX_FILE_BYTES) {
@@ -302,54 +315,54 @@ public class RecycleExportService {
             range += " AND deleted_at <= '" + String.valueOf(filter.get("deletedTo")).replace("'", "") + "'";
         }
         return switch (t) {
-            case "customer" -> "SELECT id, customer_name, owner_id, dept_id, deleted_at, deleted_by, deleted_reason FROM biz_customer WHERE deleted=1" + range;
+            case LIT_CUSTOMER -> "SELECT id, customer_name, owner_id, dept_id, deleted_at, deleted_by, deleted_reason FROM biz_customer WHERE deleted=1" + range;
             case "user" -> "SELECT id, username, real_name, dept_id, status, leave_status, deleted_at, deleted_by FROM sys_user WHERE deleted=1" + range;
             case "file" -> "SELECT id, file_name, file_scope, folder_id, uploader_id, oss_key, deleted_at, deleted_by, deleted_reason FROM biz_file WHERE deleted=1" + range;
             case "task" -> "SELECT id, title, assignee_id, customer_id, deleted_at, deleted_by, deleted_reason FROM biz_task WHERE deleted=1" + range;
-            case "incentive" -> "SELECT id, user_id, customer_id, category_id, deleted_at, deleted_by, deleted_reason FROM biz_incentive_record WHERE deleted=1" + range;
-            case "reminder" -> "SELECT id, customer_id, owner_id, reminder_type, deleted_at, deleted_by, deleted_reason FROM biz_reminder WHERE deleted=1" + range;
+            case LIT_INCENTIVE -> "SELECT id, user_id, customer_id, category_id, deleted_at, deleted_by, deleted_reason FROM biz_incentive_record WHERE deleted=1" + range;
+            case LIT_REMINDER -> "SELECT id, customer_id, owner_id, reminder_type, deleted_at, deleted_by, deleted_reason FROM biz_reminder WHERE deleted=1" + range;
             default -> throw new BusinessException("非法类型");
         };
     }
 
     private String headerOf(String t) {
         return switch (t) {
-            case "customer" -> "id,customer_name,owner_id,dept_id,deleted_at,deleted_by,deleted_reason";
+            case LIT_CUSTOMER -> "id,customer_name,owner_id,dept_id,deleted_at,deleted_by,deleted_reason";
             case "user" -> "id,username,real_name,dept_id,status,leave_status,deleted_at,deleted_by";
             case "file" -> "id,file_name,file_scope,folder_id,uploader_id,oss_key,contentMissing,deleted_at,deleted_by,deleted_reason";
             case "task" -> "id,title,assignee_id,customer_id,deleted_at,deleted_by,deleted_reason";
-            case "incentive" -> "id,user_id,customer_id,category_id,deleted_at,deleted_by,deleted_reason";
-            case "reminder" -> "id,customer_id,owner_id,reminder_type,deleted_at,deleted_by,deleted_reason";
+            case LIT_INCENTIVE -> "id,user_id,customer_id,category_id,deleted_at,deleted_by,deleted_reason";
+            case LIT_REMINDER -> "id,customer_id,owner_id,reminder_type,deleted_at,deleted_by,deleted_reason";
             default -> throw new BusinessException("非法类型");
         };
     }
 
     private String csvName(String t) {
         return switch (t) {
-            case "customer" -> "customers.csv";
+            case LIT_CUSTOMER -> "customers.csv";
             case "user" -> "users.csv";
             case "file" -> "files.csv";
             case "task" -> "tasks.csv";
-            case "incentive" -> "incentives.csv";
-            case "reminder" -> "reminders.csv";
+            case LIT_INCENTIVE -> "incentives.csv";
+            case LIT_REMINDER -> "reminders.csv";
             default -> throw new BusinessException("非法类型");
         };
     }
 
     private String csvRow(String t, Map<String, Object> r) {
         return switch (t) {
-            case "customer" -> csv(r.get("id"), r.get("customer_name"), r.get("owner_id"), r.get("dept_id"),
-                    r.get("deleted_at"), r.get("deleted_by"), r.get("deleted_reason"));
+            case LIT_CUSTOMER -> csv(r.get("id"), r.get("customer_name"), r.get("owner_id"), r.get("dept_id"),
+                    r.get(LIT_DELETED_AT), r.get(LIT_DELETED_BY), r.get(LIT_DELETED_REASON));
             case "user" -> csv(r.get("id"), r.get("username"), r.get("real_name"), r.get("dept_id"),
-                    r.get("status"), r.get("leave_status"), r.get("deleted_at"), r.get("deleted_by"));
+                    r.get(LIT_STATUS), r.get("leave_status"), r.get(LIT_DELETED_AT), r.get(LIT_DELETED_BY));
             case "file" -> csv(r.get("id"), r.get("file_name"), r.get("file_scope"), r.get("folder_id"),
-                    r.get("uploader_id"), r.get("oss_key"), r.get("oss_key") == null, r.get("deleted_at"), r.get("deleted_by"), r.get("deleted_reason"));
-            case "task" -> csv(r.get("id"), r.get("title"), r.get("assignee_id"), r.get("customer_id"),
-                    r.get("deleted_at"), r.get("deleted_by"), r.get("deleted_reason"));
-            case "incentive" -> csv(r.get("id"), r.get("user_id"), r.get("customer_id"), r.get("category_id"),
-                    r.get("deleted_at"), r.get("deleted_by"), r.get("deleted_reason"));
-            case "reminder" -> csv(r.get("id"), r.get("customer_id"), r.get("owner_id"), r.get("reminder_type"),
-                    r.get("deleted_at"), r.get("deleted_by"), r.get("deleted_reason"));
+                    r.get("uploader_id"), r.get(LIT_OSS_KEY), r.get(LIT_OSS_KEY) == null, r.get(LIT_DELETED_AT), r.get(LIT_DELETED_BY), r.get(LIT_DELETED_REASON));
+            case "task" -> csv(r.get("id"), r.get("title"), r.get("assignee_id"), r.get(LIT_CUSTOMER_ID),
+                    r.get(LIT_DELETED_AT), r.get(LIT_DELETED_BY), r.get(LIT_DELETED_REASON));
+            case LIT_INCENTIVE -> csv(r.get("id"), r.get("user_id"), r.get(LIT_CUSTOMER_ID), r.get("category_id"),
+                    r.get(LIT_DELETED_AT), r.get(LIT_DELETED_BY), r.get(LIT_DELETED_REASON));
+            case LIT_REMINDER -> csv(r.get("id"), r.get(LIT_CUSTOMER_ID), r.get("owner_id"), r.get("reminder_type"),
+                    r.get(LIT_DELETED_AT), r.get(LIT_DELETED_BY), r.get(LIT_DELETED_REASON));
             default -> throw new BusinessException("非法类型");
         };
     }
@@ -372,12 +385,12 @@ public class RecycleExportService {
 
     private long countDeleted(String t, Map<String, Object> filter) {
         String tbl = switch (t) {
-            case "customer" -> "biz_customer";
+            case LIT_CUSTOMER -> "biz_customer";
             case "user" -> "sys_user";
             case "file" -> "biz_file";
             case "task" -> "biz_task";
-            case "incentive" -> "biz_incentive_record";
-            case "reminder" -> "biz_reminder";
+            case LIT_INCENTIVE -> "biz_incentive_record";
+            case LIT_REMINDER -> "biz_reminder";
             default -> throw new BusinessException("非法类型");
         };
         Long n = jdbc.queryForObject("SELECT COUNT(*) FROM " + tbl + " WHERE deleted=1", Long.class);
@@ -430,7 +443,7 @@ public class RecycleExportService {
     private Map<String, Object> view(Map<String, Object> row) {
         Map<String, Object> out = new LinkedHashMap<>(row);
         LocalDateTime exp = toLdt(row.get("expires_at"));
-        out.put("expired", "ready".equals(row.get("status")) && exp != null && exp.isBefore(LocalDateTime.now()));
+        out.put("expired", "ready".equals(row.get(LIT_STATUS)) && exp != null && exp.isBefore(LocalDateTime.now()));
         return out;
     }
 

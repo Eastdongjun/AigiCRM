@@ -31,6 +31,9 @@ import java.util.*;
 @RequestMapping("/api/sea")
 @RequiredArgsConstructor
 public class SeaController {
+    // P0-5 batch A: duplicated string literals (Sonar java:S1192)
+    private static final String LIT_CLAIM = "claim";
+
 
     private final SeaService seaService;
     private final SeaConfigService seaConfigService;
@@ -148,7 +151,7 @@ public class SeaController {
             @RequestParam(required = false) String keyword) {
 
         LambdaQueryWrapper<BizApproval> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(BizApproval::getApprovalType, "claim")
+        wrapper.eq(BizApproval::getApprovalType, LIT_CLAIM)
                 .eq(BizApproval::getApplicantId, SecurityUtils.getCurrentUserId())
                 .orderByDesc(BizApproval::getCreatedAt);
 
@@ -227,18 +230,18 @@ public class SeaController {
         // 统计（【修复 2026-08-08 统计泄漏】按数据范围过滤申请人，上级/负责人可见下级捞取统计；
         // 2026-09-19 接入权限矩阵：(sea,view) 显式配置优先，未配置回退角色数据范围）
         LambdaQueryWrapper<BizApproval> claimBase = new LambdaQueryWrapper<BizApproval>()
-                .eq(BizApproval::getApprovalType, "claim");
+                .eq(BizApproval::getApprovalType, LIT_CLAIM);
         List<Long> visibleApplicants = scopeResolver.resolveModuleUsers(SecurityUtils.getCurrentUser(), "sea");
         if (visibleApplicants != null) claimBase.in(BizApproval::getApplicantId, visibleApplicants);
         long totalAll = approvalMapper.selectCount(claimBase);
         long approved = approvalMapper.selectCount(new LambdaQueryWrapper<BizApproval>()
-                .eq(BizApproval::getApprovalType, "claim").eq(BizApproval::getStatus, "approved")
+                .eq(BizApproval::getApprovalType, LIT_CLAIM).eq(BizApproval::getStatus, "approved")
                 .in(visibleApplicants != null, BizApproval::getApplicantId, visibleApplicants));
         long rejected = approvalMapper.selectCount(new LambdaQueryWrapper<BizApproval>()
-                .eq(BizApproval::getApprovalType, "claim").eq(BizApproval::getStatus, "rejected")
+                .eq(BizApproval::getApprovalType, LIT_CLAIM).eq(BizApproval::getStatus, "rejected")
                 .in(visibleApplicants != null, BizApproval::getApplicantId, visibleApplicants));
         long pending = approvalMapper.selectCount(new LambdaQueryWrapper<BizApproval>()
-                .eq(BizApproval::getApprovalType, "claim").eq(BizApproval::getStatus, "reviewing")
+                .eq(BizApproval::getApprovalType, LIT_CLAIM).eq(BizApproval::getStatus, "reviewing")
                 .in(visibleApplicants != null, BizApproval::getApplicantId, visibleApplicants));
 
         Map<String, Object> result = new HashMap<>();

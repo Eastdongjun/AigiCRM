@@ -19,6 +19,9 @@ import java.util.*;
 @Component
 @RequiredArgsConstructor
 public class OrgScopeResolver {
+    // P0-5 batch A: duplicated string literals (Sonar java:S1192)
+    private static final String LIT_ORG_AND_CHILDREN = "org_and_children";
+
 
     /** 团队递归上限（manager_id 链） */
     public static final int TEAM_MAX_DEPTH = 5;
@@ -375,11 +378,11 @@ public class OrgScopeResolver {
             }
             case "dept":
             case "dept_and_children":
-            case "org_and_children": {
+            case LIT_ORG_AND_CHILDREN: {
                 if (deptId == null) return List.of();
                 Set<Long> deptIds = new LinkedHashSet<>();
                 collectSubtree(deptId, deptIds);
-                if ("org_and_children".equals(scope) && user.getManagedOrgIds() != null) {
+                if (LIT_ORG_AND_CHILDREN.equals(scope) && user.getManagedOrgIds() != null) {
                     for (Long orgId : user.getManagedOrgIds()) {
                         if (orgId != null) collectSubtree(orgId, deptIds);
                     }
@@ -503,7 +506,7 @@ public class OrgScopeResolver {
             case "team": return resolveTeam(userId);
             // 旧码兼容（DataScopeType @Deprecated）：org_and_children=本组织及下级 → 部门树含子级；
             // org=仅本部门（不含子级）。组织管理员升级路径仍产出 org_and_children，必须可解析。
-            case "org_and_children": return resolveOrgAndChildren(user, userId, deptId);
+            case LIT_ORG_AND_CHILDREN: return resolveOrgAndChildren(user, userId, deptId);
             case "org": return resolveDeptOnly(userId, deptId);
             case "self":
             default: return List.of(userId);

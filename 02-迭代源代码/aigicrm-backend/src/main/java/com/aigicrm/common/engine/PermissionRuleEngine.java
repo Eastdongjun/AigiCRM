@@ -21,6 +21,10 @@ import java.util.*;
  *   time_range      → 时间范围过滤
  */
 public class PermissionRuleEngine {
+    // P0-5 batch A: duplicated string literals (Sonar java:S1192)
+    private static final String LIT_AND = " AND ";
+    private static final String LIT_USER_ORGIDSANDCHILDREN = "user.orgIdsAndChildren";
+
 
     /**
      * 对一批规则求值，生成合并后的过滤结果
@@ -86,7 +90,7 @@ public class PermissionRuleEngine {
             }
         }
 
-        return whereClauses.isEmpty() ? "" : String.join(" AND ", whereClauses);
+        return whereClauses.isEmpty() ? "" : String.join(LIT_AND, whereClauses);
     }
 
     // ======================== 各类型求值 ========================
@@ -147,7 +151,7 @@ public class PermissionRuleEngine {
             String[] parts = value.split(",");
             if (parts.length == 2) {
                 clauses.add(col + " BETWEEN " + quoteValue(parts[0].trim())
-                        + " AND " + quoteValue(parts[1].trim()));
+                        + LIT_AND + quoteValue(parts[1].trim()));
             }
         }
     }
@@ -195,7 +199,7 @@ public class PermissionRuleEngine {
     private static final Set<String> ALLOWED_VARIABLES = Collections.unmodifiableSet(
             new LinkedHashSet<>(Arrays.asList(
                     "user.userId", "user.username", "user.realName", "user.orgId", "user.deptId",
-                    "user.orgIdsAndChildren",
+                    LIT_USER_ORGIDSANDCHILDREN,
                     "time.today", "time.thisMonthStart", "time.thisMonthEnd",
                     "time.thisQuarterStart", "time.thisQuarterEnd")));
 
@@ -289,10 +293,10 @@ public class PermissionRuleEngine {
             // 组织ID列表（含下级）
             List<Long> managed = user.getManagedOrgIds();
             if (managed != null && !managed.isEmpty()) {
-                ctx.put("user.orgIdsAndChildren",
+                ctx.put(LIT_USER_ORGIDSANDCHILDREN,
                         String.join(",", managed.stream().map(String::valueOf).toList()));
             } else {
-                ctx.put("user.orgIdsAndChildren", "0");
+                ctx.put(LIT_USER_ORGIDSANDCHILDREN, "0");
             }
 
             // 时间变量
@@ -335,7 +339,7 @@ public class PermissionRuleEngine {
         /** 生成完整的 WHERE 子句 */
         public String toWhereClause() {
             if (whereClauses.isEmpty()) return "";
-            return String.join(" AND ", whereClauses);
+            return String.join(LIT_AND, whereClauses);
         }
     }
 }

@@ -30,6 +30,9 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class FileChunkUploadService {
+    // P0-5 batch A: duplicated string literals (Sonar java:S1192)
+    private static final String LIT_PART = ".part";
+
 
     public static final long MAX_FILE_SIZE = 200L * 1024 * 1024;
     public static final int CHUNK_SIZE = 5 * 1024 * 1024;
@@ -103,7 +106,7 @@ public class FileChunkUploadService {
         Path dir = chunkDir(uploadId);
         try {
             Files.createDirectories(dir);
-            Files.copy(chunk.getInputStream(), dir.resolve(index + ".part"), StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(chunk.getInputStream(), dir.resolve(index + LIT_PART), StandardCopyOption.REPLACE_EXISTING);
             int received = countParts(dir);
             jdbc.update("UPDATE biz_upload_session SET received_chunks=? WHERE upload_id=?", received, uploadId);
             Map<String, Object> out = new LinkedHashMap<>();
@@ -131,7 +134,7 @@ public class FileChunkUploadService {
             Path merged = Files.createTempFile(dir, "merged-", ".tmp");
             try (OutputStream out = Files.newOutputStream(merged)) {
                 for (int i = 0; i < total; i++) {
-                    Path part = dir.resolve(i + ".part");
+                    Path part = dir.resolve(i + LIT_PART);
                     if (!Files.isRegularFile(part)) throw new BusinessException("缺少分片 " + i);
                     Files.copy(part, out);
                 }
@@ -205,7 +208,7 @@ public class FileChunkUploadService {
     private int countParts(Path dir) throws Exception {
         if (!Files.isDirectory(dir)) return 0;
         try (var stream = Files.list(dir)) {
-            return (int) stream.filter(p -> p.getFileName().toString().endsWith(".part")).count();
+            return (int) stream.filter(p -> p.getFileName().toString().endsWith(LIT_PART)).count();
         }
     }
 

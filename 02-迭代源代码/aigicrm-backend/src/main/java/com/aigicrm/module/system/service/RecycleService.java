@@ -59,6 +59,19 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class RecycleService {
+    // P0-5 batch A: duplicated string literals (Sonar java:S1192)
+    private static final String LIT_USER_ID = "user_id";
+    private static final String LIT_CUSTOMER = "customer";
+    private static final String LIT_X = "恢复失败（状态已变化），请刷新后重试";
+    private static final String LIT_X_2 = "彻底删除失败（状态已变化），请刷新后重试";
+    private static final String LIT_CUSTOMER_ID = "customer_id";
+    private static final String LIT_X_3 = "彻底删除失败：数据状态已变化，请刷新后重试";
+    private static final String LIT_X_4 = "该文件不在回收站（可能已被恢复或已被彻底删除）";
+    private static final String LIT_BIZ_FILE = "biz_file";
+    private static final String LIT_X_5 = "该客户不在回收站（可能已被恢复或已被彻底删除）";
+    private static final String LIT_X_6 = "该人员不在回收站（可能已被恢复或已被彻底删除）";
+    private static final String LIT_X_7 = "恢复失败：数据状态已变化，请刷新后重试";
+
 
     private static final com.fasterxml.jackson.databind.ObjectMapper JSON =
             new com.fasterxml.jackson.databind.ObjectMapper();
@@ -110,7 +123,7 @@ public class RecycleService {
     public String restoreCustomer(Long id) {
         BizCustomer c = customerMapper.selectByIdIncludingDeleted(id);
         if (c == null || !Objects.equals(c.getDeleted(), 1)) {
-            throw new BusinessException("该客户不在回收站（可能已被恢复或已被彻底删除）");
+            throw new BusinessException(LIT_X_5);
         }
         if (customerMapper.countActiveByName(c.getCustomerName()) > 0) {
             throw new BusinessException("存在同名活跃客户，无法恢复（请先合并或修改活跃客户名称）");
@@ -125,12 +138,12 @@ public class RecycleService {
             throw new BusinessException("该客户仍有公海池记录未结束，请先在公海模块处理后恢复");
         }
         if (customerMapper.restoreDeleted(id) != 1) {
-            throw new BusinessException("恢复失败：数据状态已变化，请刷新后重试");
+            throw new BusinessException(LIT_X_7);
         }
-        writeAuditLog("恢复客户", "customer", id,
+        writeAuditLog("恢复客户", LIT_CUSTOMER, id,
                 "客户名=" + c.getCustomerName() + ", 编码=" + c.getCustomerCode()
                         + ", 原负责人ID=" + c.getOwnerId());
-        if (recycleBinService != null) recycleBinService.markRestored("customer", id);
+        if (recycleBinService != null) recycleBinService.markRestored(LIT_CUSTOMER, id);
         return "客户已恢复" + (c.getOwnerId() == null ? "（无负责人，请到客户列表分配）" : "");
     }
 
@@ -155,7 +168,7 @@ public class RecycleService {
     public String restoreUser(Long id) {
         SysUser u = userMapper.selectByIdIncludingDeleted(id);
         if (u == null || !Objects.equals(u.getDeleted(), 1)) {
-            throw new BusinessException("该人员不在回收站（可能已被恢复或已被彻底删除）");
+            throw new BusinessException(LIT_X_6);
         }
         if (userMapper.countActiveByUsername(u.getUsername()) > 0) {
             throw new BusinessException("账号 " + u.getUsername() + " 已被活跃用户占用，无法恢复");
@@ -164,7 +177,7 @@ public class RecycleService {
             throw new BusinessException("原部门已不存在，无法恢复；请先恢复部门或由管理员在回收站外处理");
         }
         if (userMapper.restoreDeleted(id) != 1) {
-            throw new BusinessException("恢复失败：数据状态已变化，请刷新后重试");
+            throw new BusinessException(LIT_X_7);
         }
         // 权限即时生效: 版本递增 + 缓存失效(与 SysUserService 删除/改权限同口径)
         jdbc.update("UPDATE sys_user SET perm_version = perm_version + 1 WHERE id = ?", id);
@@ -180,7 +193,7 @@ public class RecycleService {
     public DeletedCustomerDetail deletedCustomerDetail(Long id) {
         BizCustomer c = customerMapper.selectByIdIncludingDeleted(id);
         if (c == null || !Objects.equals(c.getDeleted(), 1)) {
-            throw new BusinessException("该客户不在回收站（可能已被恢复或已被彻底删除）");
+            throw new BusinessException(LIT_X_5);
         }
         String ownerName = c.getOwnerId() == null ? null
                 : namesOf(Set.of(c.getOwnerId())).get(c.getOwnerId());
@@ -190,7 +203,7 @@ public class RecycleService {
     public DeletedUserDetail deletedUserDetail(Long id) {
         SysUser u = userMapper.selectByIdIncludingDeleted(id);
         if (u == null || !Objects.equals(u.getDeleted(), 1)) {
-            throw new BusinessException("该人员不在回收站（可能已被恢复或已被彻底删除）");
+            throw new BusinessException(LIT_X_6);
         }
         Map<String, Object> safe = new java.util.LinkedHashMap<>();
         safe.put("id", u.getId());
@@ -227,7 +240,7 @@ public class RecycleService {
     public String hardDeleteCustomer(Long id) {
         BizCustomer c = customerMapper.selectByIdIncludingDeleted(id);
         if (c == null || !Objects.equals(c.getDeleted(), 1)) {
-            throw new BusinessException("该客户不在回收站（可能已被恢复或已被彻底删除）");
+            throw new BusinessException(LIT_X_5);
         }
         Map<String, Long> related = customerRelated(id);
         List<String> blocked = related.entrySet().stream()
@@ -245,11 +258,11 @@ public class RecycleService {
         jdbc.update("DELETE FROM biz_contact WHERE customer_id = ?", id);
         int deleted = jdbc.update("DELETE FROM biz_customer WHERE id = ? AND deleted = 1", id);
         if (deleted != 1) {
-            throw new BusinessException("彻底删除失败：数据状态已变化，请刷新后重试");
+            throw new BusinessException(LIT_X_3);
         }
-        writeAuditLog("彻底删除客户", "customer", id,
+        writeAuditLog("彻底删除客户", LIT_CUSTOMER, id,
                 "客户名=" + c.getCustomerName() + ", 编码=" + c.getCustomerCode());
-        if (recycleBinService != null) recycleBinService.markPurged("customer", id);
+        if (recycleBinService != null) recycleBinService.markPurged(LIT_CUSTOMER, id);
         return "客户已彻底删除（不可恢复）";
     }
 
@@ -258,7 +271,7 @@ public class RecycleService {
     public String hardDeleteUser(Long id) {
         SysUser u = userMapper.selectByIdIncludingDeleted(id);
         if (u == null || !Objects.equals(u.getDeleted(), 1)) {
-            throw new BusinessException("该人员不在回收站（可能已被恢复或已被彻底删除）");
+            throw new BusinessException(LIT_X_6);
         }
         Map<String, Long> related = userRelated(id);
         List<String> blocked = related.entrySet().stream()
@@ -277,7 +290,7 @@ public class RecycleService {
         jdbc.update("DELETE FROM sys_org_admin WHERE user_id = ?", id);
         int deleted = jdbc.update("DELETE FROM sys_user WHERE id = ? AND deleted = 1", id);
         if (deleted != 1) {
-            throw new BusinessException("彻底删除失败：数据状态已变化，请刷新后重试");
+            throw new BusinessException(LIT_X_3);
         }
         permissionCacheService.evict(id);
         writeAuditLog("彻底删除人员", "sys_user", id,
@@ -292,7 +305,7 @@ public class RecycleService {
         // 与恢复/批量清理共用行锁口径: 锁内复核 deleted=1, 防并发恢复后误删活跃文件
         BizFile f = lockDeletedFile(id);
         if (f == null) {
-            throw new BusinessException("该文件不在回收站（可能已被恢复或已被彻底删除）");
+            throw new BusinessException(LIT_X_4);
         }
         if (isIncentiveEvidence(id)) {
             throw new BusinessException("该文件仍被激励记录引用，不能彻底删除；请先在激励模块处理记录");
@@ -300,7 +313,7 @@ public class RecycleService {
         // 【V2026.11.14.2 P0 修正】级联改走 purgeFileCascade: 主行+全部版本+分享+台账,
         // 引用计数防误删——此前只删当前 ossKey, 版本行与旧字节全留(隐私/存储双重泄漏)。
         purgeFileCascade(f);
-        writeAuditLog("彻底删除文件", "biz_file", id,
+        writeAuditLog("彻底删除文件", LIT_BIZ_FILE, id,
                 "文件名=" + f.getFileName() + ", scope=" + f.getFileScope());
         if (recycleBinService != null) recycleBinService.markPurged("file", id);
         return "文件已彻底删除（不可恢复）";
@@ -351,7 +364,7 @@ public class RecycleService {
         // 并发清理(同样 FOR UPDATE 同一行)会等待, 提交后复核 deleted=1 失败则跳过。
         BizFile f = lockDeletedFile(id);
         if (f == null) {
-            throw new BusinessException("该文件不在回收站（可能已被恢复或已被彻底删除）");
+            throw new BusinessException(LIT_X_4);
         }
         // 删除文件时 deleteStorage 已物理清除字节: 内容不在则元数据恢复出来也是坏链接, fail-closed
         if (!fileService.contentExists(f.getOssKey())) {
@@ -385,14 +398,14 @@ public class RecycleService {
         }
         int restored = folderMissing ? fileMapper.restoreDeletedToRoot(id) : fileMapper.restoreDeleted(id);
         if (restored != 1) {
-            throw new BusinessException("恢复失败：数据状态已变化，请刷新后重试");
+            throw new BusinessException(LIT_X_7);
         }
         if (recycleBinService != null) recycleBinService.markRestored("file", id);
         String message = folderMissing
                 ? "文件已恢复到“" + ("private".equals(f.getFileScope()) ? "我的文件" : "公共文件")
                         + "”根目录（原文件夹已删除）"
                 : "文件已恢复";
-        writeAuditLog("恢复文件", "biz_file", id,
+        writeAuditLog("恢复文件", LIT_BIZ_FILE, id,
                 "文件名=" + f.getFileName() + ", scope=" + f.getFileScope() + ", 大小=" + f.getFileSize()
                         + (folderMissing ? ", 原文件夹已删除→根目录" : ""));
         return message;
@@ -440,7 +453,7 @@ public class RecycleService {
             }
         }
         if (!result.isEmpty()) {
-            writeAuditLog("清理文件回收站", "biz_file", null,
+            writeAuditLog("清理文件回收站", LIT_BIZ_FILE, null,
                     "保留期" + retentionDays + "天, 清理" + result.purged()
                             + "个, 跳过" + result.skipped() + "个, 失败" + result.failed() + "个");
         }
@@ -453,7 +466,7 @@ public class RecycleService {
         List<Long> ids = jdbc.queryForList("SELECT id FROM biz_file WHERE deleted = 1", Long.class);
         PurgeFilesResult result = purgeFileRows(ids);
         if (!result.isEmpty()) {
-            writeAuditLog("清空文件回收站", "biz_file", null,
+            writeAuditLog("清空文件回收站", LIT_BIZ_FILE, null,
                     "手动清空: 清理" + result.purged() + "个, 跳过" + result.skipped()
                             + "个, 失败" + result.failed() + "个");
         }
@@ -524,7 +537,7 @@ public class RecycleService {
         jdbc.update("DELETE FROM biz_file_share WHERE file_id = ?", id);
         int deleted = jdbc.update("DELETE FROM biz_file WHERE id = ? AND deleted = 1", id);
         if (deleted != 1) {
-            throw new BusinessException("彻底删除失败：数据状态已变化，请刷新后重试");
+            throw new BusinessException(LIT_X_3);
         }
     }
 
@@ -617,7 +630,7 @@ public class RecycleService {
     private BizFile requireDeletedFile(Long id) {
         BizFile f = fileMapper.selectByIdIncludingDeleted(id);
         if (f == null || !Objects.equals(f.getDeleted(), 1)) {
-            throw new BusinessException("该文件不在回收站（可能已被恢复或已被彻底删除）");
+            throw new BusinessException(LIT_X_4);
         }
         return f;
     }
@@ -891,7 +904,7 @@ public class RecycleService {
         }
         int n = jdbc.update("UPDATE biz_task SET deleted=0, deleted_at=NULL, deleted_by=NULL, deleted_reason=NULL "
                 + "WHERE id=? AND deleted=1", id);
-        if (n != 1) throw new BusinessException("恢复失败（状态已变化），请刷新后重试");
+        if (n != 1) throw new BusinessException(LIT_X);
         writeAuditLog("恢复任务", "biz_task", id, "标题=" + t.get("title"));
         if (recycleBinService != null) recycleBinService.markRestored("task", id);
         return "任务已恢复";
@@ -900,7 +913,7 @@ public class RecycleService {
     @Transactional
     public String hardDeleteTask(Long id) {
         int n = jdbc.update("DELETE FROM biz_task WHERE id=? AND deleted=1", id);
-        if (n != 1) throw new BusinessException("彻底删除失败（状态已变化），请刷新后重试");
+        if (n != 1) throw new BusinessException(LIT_X_2);
         writeAuditLog("彻底删除任务", "biz_task", id, null);
         if (recycleBinService != null) recycleBinService.markPurged("task", id);
         return "任务已彻底删除";
@@ -935,11 +948,11 @@ public class RecycleService {
                 "SELECT * FROM biz_incentive_record WHERE id=? AND deleted=1 FOR UPDATE", id);
         if (rows.isEmpty()) throw new BusinessException("该激励记录不在回收站");
         Map<String, Object> r = rows.get(0);
-        Long userId = r.get("user_id") == null ? null : ((Number) r.get("user_id")).longValue();
+        Long userId = r.get(LIT_USER_ID) == null ? null : ((Number) r.get(LIT_USER_ID)).longValue();
         if (userId != null && !activeUser(userId)) {
             throw new BusinessException("激励记录所属人员已删除/停用，请先恢复人员");
         }
-        Long customerId = r.get("customer_id") == null ? null : ((Number) r.get("customer_id")).longValue();
+        Long customerId = r.get(LIT_CUSTOMER_ID) == null ? null : ((Number) r.get(LIT_CUSTOMER_ID)).longValue();
         if (customerId != null) {
             Integer active = jdbc.queryForObject(
                     "SELECT COUNT(*) FROM biz_customer WHERE id=? AND deleted=0", Integer.class, customerId);
@@ -947,7 +960,7 @@ public class RecycleService {
         }
         int n = jdbc.update("UPDATE biz_incentive_record SET deleted=0, deleted_at=NULL, deleted_by=NULL, "
                 + "deleted_reason=NULL WHERE id=? AND deleted=1", id);
-        if (n != 1) throw new BusinessException("恢复失败（状态已变化），请刷新后重试");
+        if (n != 1) throw new BusinessException(LIT_X);
         restoreIncentiveReads(id);
         if (incentiveService != null) incentiveService.evictScoreboardCacheAfterRecycle();
         writeAuditLog("恢复激励记录", "biz_incentive_record", id, "客户ID=" + customerId);
@@ -966,7 +979,7 @@ public class RecycleService {
             com.fasterxml.jackson.databind.JsonNode users = root.path("readUsers");
             if (!users.isArray()) return;
             for (com.fasterxml.jackson.databind.JsonNode u : users) {
-                long uid = u.path("user_id").asLong(0);
+                long uid = u.path(LIT_USER_ID).asLong(0);
                 if (uid <= 0) continue;
                 jdbc.update("INSERT IGNORE INTO biz_incentive_read(user_id,record_id,read_at) VALUES(?,?,NOW())",
                         uid, recordId);
@@ -980,7 +993,7 @@ public class RecycleService {
     public String hardDeleteIncentive(Long id) {
         jdbc.update("DELETE FROM biz_incentive_read WHERE record_id=?", id);
         int n = jdbc.update("DELETE FROM biz_incentive_record WHERE id=? AND deleted=1", id);
-        if (n != 1) throw new BusinessException("彻底删除失败（状态已变化），请刷新后重试");
+        if (n != 1) throw new BusinessException(LIT_X_2);
         if (incentiveService != null) incentiveService.evictScoreboardCacheAfterRecycle();
         writeAuditLog("彻底删除激励记录", "biz_incentive_record", id, null);
         if (recycleBinService != null) recycleBinService.markPurged("incentive", id);
@@ -1016,7 +1029,7 @@ public class RecycleService {
                 "SELECT * FROM biz_reminder WHERE id=? AND deleted=1 FOR UPDATE", id);
         if (rows.isEmpty()) throw new BusinessException("该提醒不在回收站");
         Map<String, Object> r = rows.get(0);
-        Long customerId = r.get("customer_id") == null ? null : ((Number) r.get("customer_id")).longValue();
+        Long customerId = r.get(LIT_CUSTOMER_ID) == null ? null : ((Number) r.get(LIT_CUSTOMER_ID)).longValue();
         if (customerId != null) {
             Integer active = jdbc.queryForObject(
                     "SELECT COUNT(*) FROM biz_customer WHERE id=? AND deleted=0", Integer.class, customerId);
@@ -1024,7 +1037,7 @@ public class RecycleService {
         }
         int n = jdbc.update("UPDATE biz_reminder SET deleted=0, deleted_at=NULL, deleted_by=NULL, "
                 + "deleted_reason=NULL WHERE id=? AND deleted=1", id);
-        if (n != 1) throw new BusinessException("恢复失败（状态已变化），请刷新后重试");
+        if (n != 1) throw new BusinessException(LIT_X);
         writeAuditLog("恢复提醒", "biz_reminder", id, "客户ID=" + customerId);
         if (recycleBinService != null) recycleBinService.markRestored("reminder", id);
         return "提醒已恢复";
@@ -1033,7 +1046,7 @@ public class RecycleService {
     @Transactional
     public String hardDeleteReminder(Long id) {
         int n = jdbc.update("DELETE FROM biz_reminder WHERE id=? AND deleted=1", id);
-        if (n != 1) throw new BusinessException("彻底删除失败（状态已变化），请刷新后重试");
+        if (n != 1) throw new BusinessException(LIT_X_2);
         writeAuditLog("彻底删除提醒", "biz_reminder", id, null);
         if (recycleBinService != null) recycleBinService.markPurged("reminder", id);
         return "提醒已彻底删除";

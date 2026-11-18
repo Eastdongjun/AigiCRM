@@ -38,6 +38,19 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class CustomerService {
+    // P0-5 batch A: duplicated string literals (Sonar java:S1192)
+    private static final String LIT_CUSTOMER = "customer";
+    private static final String LIT_ARCHIVED = "archived";
+    private static final String LIT_NORMAL = "normal";
+    private static final String LIT_ACTIVE = "active";
+    private static final String LIT_PENDING = "pending";
+    private static final String LIT_X = "客户不存在";
+    private static final String LIT_SHARE_TO = "share_to";
+    private static final String LIT_VOIDED = "voided";
+    private static final String LIT_X_2 = "发票不存在或不属于该客户";
+    private static final String LIT_X_3 = "回款不存在或不属于该客户";
+    private static final String LIT_LIMIT_1 = "LIMIT 1";
+
 
     /** 「所属集团」下拉候选返回上限（防大数据量下拉过长，超出的集团名仍可手工输入新建） */
     private static final int GROUP_NAME_LIMIT = 200;
@@ -180,11 +193,11 @@ public class CustomerService {
                 // 与统计页/工作台同判据(数字-钻取-统计卡三处一致)。status 列等值匹配 'expired' 只命中
                 // "无公海池配置"办事处的到期客户(到期入池即转 sea), 会漏掉绝大多数超期客户
                 wrapper.lt(BizCustomer::getExpireDate, java.time.LocalDate.now())
-                        .notIn(BizCustomer::getStatus, "sea", "archived");
+                        .notIn(BizCustomer::getStatus, "sea", LIT_ARCHIVED);
             }
             else wrapper.eq(BizCustomer::getStatus, status);
         } else {
-            wrapper.notIn(BizCustomer::getStatus, "sea", "archived");
+            wrapper.notIn(BizCustomer::getStatus, "sea", LIT_ARCHIVED);
         }
         if (StringUtils.hasText(f.keyword())) {
             // 【议题五.1 裁决 2026-09-19】搜索增强:别名同权重 OR + 空格多词 AND
@@ -310,14 +323,14 @@ public class CustomerService {
 
         // 全部(受数据范围控制)
         LambdaQueryWrapper<BizCustomer> allW = new LambdaQueryWrapper<>();
-        allW.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", "archived"); // B5 统一口径: 排sea+archived
+        allW.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", LIT_ARCHIVED); // B5 统一口径: 排sea+archived
         applyDataScope(allW);
         counts.put("all", customerMapper.selectCount(allW));
 
         // 我的客户
         counts.put("mine", customerMapper.selectCount(
                 new LambdaQueryWrapper<BizCustomer>()
-                        .eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", "archived") // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
+                        .eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", LIT_ARCHIVED) // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
                         .eq(BizCustomer::getOwnerId, userId)));
 
         // 我分享的
@@ -428,8 +441,8 @@ public class CustomerService {
         // 【2026-11-02 裁决B】捞取日期=审批域派生字段(仅 applyClaimReset 写入), 创建时一律清空
         customer.setClaimDate(null);
         calculateExpireDates(customer);
-        customer.setStatus("normal");
-        customer.setProtectionStatus("active");
+        customer.setStatus(LIT_NORMAL);
+        customer.setProtectionStatus(LIT_ACTIVE);
         // 【M1 2026-08-10】代建规则: 仅 admin 可指定负责人(代建/挂单); 其他用户 ownerId 强制=当前用户——
         // 原代码非空即采用请求体 ownerId, 任何持 customer:add 者都可把客户挂到任意销售/办事处名下
         if (customer.getOwnerId() == null || !SecurityUtils.isAdmin()) {
@@ -660,7 +673,7 @@ public class CustomerService {
         // update 全程复制库内 approved_extend_days, 若无行锁, "读到旧值→并发审批累加提交→
         // 本单 updateById 写回旧值"会丢一次累加; 锁内读改写保证与审批路径串行。
         BizCustomer existing = customerMapper.selectByIdForUpdate(customer.getId());
-        if (existing == null) throw new BusinessException("客户不存在");
+        if (existing == null) throw new BusinessException(LIT_X);
         // 【2026-08-10 池级权限】编辑校验: 客户在公海池内用池编辑权限, 否则负责人/管理员(checkOwnerOrAdmin 语义由 canEdit 覆盖)
         if (!customerAccessService.canEdit(customer.getId())) {
             throw new org.springframework.security.access.AccessDeniedException("只能编辑自己的客户");
@@ -828,7 +841,7 @@ public class CustomerService {
             snap.put("deptId", existing.getDeptId());
             snap.put("officeId", existing.getOfficeId());
             snap.put("status", existing.getStatus());
-            recycleBinService.record("customer", id, snap, "用户删除", "user");
+            recycleBinService.record(LIT_CUSTOMER, id, snap, "用户删除", "user");
         }
         removeAllShares(id);
         // 【体检 P1 2026-10-12】INV-05 全量口径: 删除是终态, 该客户全部类型的 pending 提醒
@@ -836,7 +849,7 @@ public class CustomerService {
         cleanPendingReminders(id);
         // 【裁决 2026-09-24】客户删除留痕(三态不变量: 名下/公海/已删除, 删除是终态必须可追溯):
         // 完整快照落 sys_log, 管理员经 系统管理-系统日志 查看; 行本身 @TableLogic 逻辑删保留
-        logRecordDeletion("客户", "删除客户", "customer", id,
+        logRecordDeletion("客户", "删除客户", LIT_CUSTOMER, id,
                 "客户名=" + existing.getCustomerName() + ", 编码=" + existing.getCustomerCode()
                         + ", 负责人ID=" + existing.getOwnerId() + ", status=" + existing.getStatus()
                         + "/" + existing.getProtectionStatus() + ", deptId=" + existing.getDeptId());
@@ -875,7 +888,7 @@ public class CustomerService {
         long activeApprovals = approvalMapper.selectCount(
                 new LambdaQueryWrapper<com.aigicrm.module.approval.entity.BizApproval>()
                         .eq(com.aigicrm.module.approval.entity.BizApproval::getCustomerId, id)
-                        .in(com.aigicrm.module.approval.entity.BizApproval::getStatus, "reviewing", "pending"));
+                        .in(com.aigicrm.module.approval.entity.BizApproval::getStatus, "reviewing", LIT_PENDING));
         if (activeApprovals > 0) {
             throw new BusinessException(String.format(
                     "该客户有 %d 条在途审批,不允许删除;请先完成或驳回审批", activeApprovals));
@@ -891,7 +904,7 @@ public class CustomerService {
         long activeApprovals = approvalMapper.selectCount(
                 new LambdaQueryWrapper<com.aigicrm.module.approval.entity.BizApproval>()
                         .eq(com.aigicrm.module.approval.entity.BizApproval::getCustomerId, id)
-                        .in(com.aigicrm.module.approval.entity.BizApproval::getStatus, "reviewing", "pending"));
+                        .in(com.aigicrm.module.approval.entity.BizApproval::getStatus, "reviewing", LIT_PENDING));
         if (activeApprovals > 0) {
             throw new BusinessException(String.format(
                     "该客户有 %d 条在途审批,不允许释放进公海;请先完成或驳回审批", activeApprovals));
@@ -901,11 +914,11 @@ public class CustomerService {
     /** 【议题五.4 裁决】归档:默认隐藏,可筛"含归档";归档客户不参与统计与到期提醒 */
     public void archive(Long id) {
         BizCustomer existing = customerMapper.selectById(id);
-        if (existing == null) throw new BusinessException("客户不存在");
+        if (existing == null) throw new BusinessException(LIT_X);
         if (!customerAccessService.canEdit(id)) {
             throw new org.springframework.security.access.AccessDeniedException("只能归档自己范围内的客户");
         }
-        existing.setStatus("archived");
+        existing.setStatus(LIT_ARCHIVED);
         customerMapper.updateById(existing);
         // 【体检 P1 2026-10-12】归档客户不参与提醒(议题五.4 裁决口径), 且 INV-05 全量口径:
         // 全部类型 pending 一并清(死 pending 判据同 V2026.09.23.8); 分享行保留备 restore,
@@ -916,14 +929,14 @@ public class CustomerService {
     /** 【议题五.4】恢复(从归档恢复正常) */
     public void restore(Long id) {
         BizCustomer existing = customerMapper.selectById(id);
-        if (existing == null) throw new BusinessException("客户不存在");
-        if (!"archived".equals(existing.getStatus())) {
+        if (existing == null) throw new BusinessException(LIT_X);
+        if (!LIT_ARCHIVED.equals(existing.getStatus())) {
             throw new BusinessException("该客户不在归档状态");
         }
         if (!customerAccessService.canEdit(id)) {
             throw new org.springframework.security.access.AccessDeniedException("只能恢复自己范围内的客户");
         }
-        existing.setStatus("normal");
+        existing.setStatus(LIT_NORMAL);
         customerMapper.updateById(existing);
     }
 
@@ -1030,7 +1043,7 @@ public class CustomerService {
     /** B1-A 2026-11-18：auto_share 只扩不缩——office 档（全办事处）不再被 superior/roles 收窄。 */
     private boolean isOfficeScopeFor(com.aigicrm.security.SecurityUser scopeUser) {
         return scopeUser != null
-                && "office".equals(rolePermScopeService.effectiveScopeCode(scopeUser, "customer", "view"));
+                && "office".equals(rolePermScopeService.effectiveScopeCode(scopeUser, LIT_CUSTOMER, "view"));
     }
 
     /** B1-A 2026-11-18：数据范围 + auto_share 合并为一组 (base OR share)，auto_share 只扩不缩。 */
@@ -1119,9 +1132,9 @@ public class CustomerService {
         if (scopeUser == null) return null;
         return com.aigicrm.common.scope.ScopeRequest.builder()
                 .user(scopeUser)
-                .module("customer")
+                .module(LIT_CUSTOMER)
                 .action("view")
-                .anchor(rolePermScopeService.anchorOf(scopeUser, "customer", "view"))
+                .anchor(rolePermScopeService.anchorOf(scopeUser, LIT_CUSTOMER, "view"))
                 .build();
     }
 
@@ -1146,7 +1159,7 @@ public class CustomerService {
     // 统计数据 for 工作台（受数据范围控制）
     public long countByScope() {
         LambdaQueryWrapper<BizCustomer> w = new LambdaQueryWrapper<>();
-        w.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", "archived"); // B5 统一口径: 排sea+archived
+        w.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", LIT_ARCHIVED); // B5 统一口径: 排sea+archived
         applyDataScope(w);
         return customerMapper.selectCount(w);
     }
@@ -1162,7 +1175,7 @@ public class CustomerService {
         // 是两套口径：TY005(data_scope_override=office) 预览 121 vs 列表 17。现改为复用执行侧同一方法，
         // 预览数字=列表真实可见数（执行侧为准）。
         LambdaQueryWrapper<BizCustomer> w = new LambdaQueryWrapper<>();
-        w.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", "archived");
+        w.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", LIT_ARCHIVED);
         applyDataScopeAndAutoShareFor(w, target);
         return customerMapper.selectCount(w);
     }
@@ -1171,8 +1184,8 @@ public class CustomerService {
         LambdaQueryWrapper<BizCustomer> w = new LambdaQueryWrapper<>();
         // 【2026-11-01 审计修复】排公海/归档——归档只改 status 不重置 protectionStatus, 不排则
         // 工作台"在保护期/即将到期"与统计页同指标(已排)数字错位; 口径与同文件已超期统计对齐
-        w.eq(BizCustomer::getDeleted, 0).eq(BizCustomer::getProtectionStatus, "active")
-                .notIn(BizCustomer::getStatus, "sea", "archived");
+        w.eq(BizCustomer::getDeleted, 0).eq(BizCustomer::getProtectionStatus, LIT_ACTIVE)
+                .notIn(BizCustomer::getStatus, "sea", LIT_ARCHIVED);
         applyDataScope(w);
         return customerMapper.selectCount(w);
     }
@@ -1180,7 +1193,7 @@ public class CustomerService {
     public long countExpiringByScope() {
         LambdaQueryWrapper<BizCustomer> w = new LambdaQueryWrapper<>();
         w.eq(BizCustomer::getDeleted, 0).eq(BizCustomer::getProtectionStatus, "expiring")
-                .notIn(BizCustomer::getStatus, "sea", "archived");
+                .notIn(BizCustomer::getStatus, "sea", LIT_ARCHIVED);
         applyDataScope(w);
         return customerMapper.selectCount(w);
     }
@@ -1189,7 +1202,7 @@ public class CustomerService {
     public long countExpiringTodayByScope() {
         LambdaQueryWrapper<BizCustomer> w = new LambdaQueryWrapper<>();
         w.eq(BizCustomer::getDeleted, 0)
-                .notIn(BizCustomer::getStatus, "sea", "archived") // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
+                .notIn(BizCustomer::getStatus, "sea", LIT_ARCHIVED) // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
                 .eq(BizCustomer::getExpireDate, java.time.LocalDate.now());
         applyDataScope(w);
         return customerMapper.selectCount(w);
@@ -1201,7 +1214,7 @@ public class CustomerService {
         // 与统计页 StatisticsQueryService 同判据(此前 protection_status='expired' 不排公海,
         // 工作台29 vs 统计页2 两页数字不一致; 且到期客户实际已被凌晨任务转 sea+expired,
         // 排除公海后 protection_status 等值与日期判据唯一差异是"任务跑过没有", 日期版确定性更高)
-        w.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", "archived")
+        w.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", LIT_ARCHIVED)
                 .lt(BizCustomer::getExpireDate, java.time.LocalDate.now());
         applyDataScope(w);
         return customerMapper.selectCount(w);
@@ -1211,7 +1224,7 @@ public class CustomerService {
     public long countNewThisMonth() {
         java.time.LocalDateTime monthStart = java.time.LocalDate.now().withDayOfMonth(1).atStartOfDay();
         LambdaQueryWrapper<BizCustomer> w = new LambdaQueryWrapper<>();
-        w.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", "archived") // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
+        w.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", LIT_ARCHIVED) // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
                 .ge(BizCustomer::getCreatedAt, monthStart);
         applyDataScope(w);
         return customerMapper.selectCount(w);
@@ -1228,7 +1241,7 @@ public class CustomerService {
             boolean isCurrent = !end.isBefore(today);
             if (end.isAfter(today)) end = today;
             LambdaQueryWrapper<BizCustomer> w = new LambdaQueryWrapper<>();
-            w.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", "archived") // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
+            w.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", LIT_ARCHIVED) // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
                     .ge(BizCustomer::getCreatedAt, start.atStartOfDay())
                     .lt(BizCustomer::getCreatedAt, end.plusDays(1).atStartOfDay());
             applyDataScope(w);
@@ -1251,7 +1264,7 @@ public class CustomerService {
         java.time.LocalDate cursor = start;
         while (!cursor.isAfter(today)) {
             LambdaQueryWrapper<BizCustomer> w = new LambdaQueryWrapper<>();
-            w.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", "archived") // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
+            w.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", LIT_ARCHIVED) // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
                     .ge(BizCustomer::getCreatedAt, cursor.atStartOfDay())
                     .lt(BizCustomer::getCreatedAt, cursor.plusDays(1).atStartOfDay());
             applyDataScope(w);
@@ -1286,7 +1299,7 @@ public class CustomerService {
      */
     public List<BizCustomer> getScopedActiveCustomers() {
         LambdaQueryWrapper<BizCustomer> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", "archived"); // B5 统一口径: 排sea+archived
+        wrapper.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", LIT_ARCHIVED); // B5 统一口径: 排sea+archived
         applyDataScope(wrapper);
         return customerMapper.selectList(wrapper);
     }
@@ -1294,13 +1307,13 @@ public class CustomerService {
     /** 【2026-08-08 全员可见】全部启用客户（核心客户六项指标等公司级展示用，不做数据范围过滤） */
     public List<BizCustomer> getAllActiveCustomers() {
         LambdaQueryWrapper<BizCustomer> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", "archived"); // B5 统一口径: 排sea+archived
+        wrapper.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", LIT_ARCHIVED); // B5 统一口径: 排sea+archived
         return customerMapper.selectList(wrapper);
     }
 
     public Map<String, Object> getStatistics() {
         LambdaQueryWrapper<BizCustomer> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", "archived"); // B5 统一口径: 排sea+archived
+        wrapper.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", LIT_ARCHIVED); // B5 统一口径: 排sea+archived
 
         // 数据范围过滤（统计也受范围控制）
         applyDataScope(wrapper);
@@ -1356,9 +1369,9 @@ public class CustomerService {
         }
         com.aigicrm.common.scope.ScopeRequest req = com.aigicrm.common.scope.ScopeRequest.builder()
                 .user(scopeUser)
-                .module("customer")
+                .module(LIT_CUSTOMER)
                 .action("view")
-                .anchor(rolePermScopeService.anchorOf(scopeUser, "customer", "view"))
+                .anchor(rolePermScopeService.anchorOf(scopeUser, LIT_CUSTOMER, "view"))
                 .build();
         com.aigicrm.common.scope.ScopeDecision d = scopeResolver.resolveScope(req);
         if (d.isAll()) {
@@ -1385,7 +1398,7 @@ public class CustomerService {
     private void applyRuleEngineFilter(LambdaQueryWrapper<BizCustomer> wrapper, com.aigicrm.security.SecurityUser user) {
         if (user == null || user.getPermissionRules() == null || user.getPermissionRules().isEmpty()) return;
         // 按 target_entity 过滤，只取 customer 的 column_filter/org_filter/time_range 规则
-        String ruleWhere = PermissionRuleEngine.evaluateForEntity(user.getPermissionRules(), user, "customer");
+        String ruleWhere = PermissionRuleEngine.evaluateForEntity(user.getPermissionRules(), user, LIT_CUSTOMER);
         if (ruleWhere != null && !ruleWhere.isEmpty()) {
             wrapper.apply(ruleWhere);
         }
@@ -1499,8 +1512,8 @@ public class CustomerService {
         if (customer.getExpireDate() == null) {
             customer.setExpireDate(LocalDate.now().plusDays(customer.getApprovedExtendDays()));
         }
-        customer.setProtectionStatus("active");
-        customer.setStatus("normal");
+        customer.setProtectionStatus(LIT_ACTIVE);
+        customer.setStatus(LIT_NORMAL);
         customerMapper.updateById(customer);
     }
 
@@ -1573,9 +1586,9 @@ public class CustomerService {
         List<BizInvoice> latest = invoiceMapper.selectList(
                 new LambdaQueryWrapper<BizInvoice>()
                         .eq(BizInvoice::getCustomerId, customerId)
-                        .ne(BizInvoice::getStatus, "voided")
+                        .ne(BizInvoice::getStatus, LIT_VOIDED)
                         .orderByDesc(BizInvoice::getInvoiceDate)
-                        .last("LIMIT 1"));
+                        .last(LIT_LIMIT_1));
         summary.put("latestDate", latest.isEmpty() ? null : latest.get(0).getInvoiceDate());
         return summary;
     }
@@ -1604,9 +1617,9 @@ public class CustomerService {
     public void confirmInvoice(Long customerId, Long invoiceId) {
         BizInvoice invoice = invoiceMapper.selectById(invoiceId);
         if (invoice == null || !customerId.equals(invoice.getCustomerId())) {
-            throw new BusinessException("发票不存在或不属于该客户");
+            throw new BusinessException(LIT_X_2);
         }
-        if (!"pending".equals(invoice.getStatus())) {
+        if (!LIT_PENDING.equals(invoice.getStatus())) {
             throw new BusinessException("仅待核对状态可确认");
         }
         invoice.setStatus("confirmed");
@@ -1624,12 +1637,12 @@ public class CustomerService {
         }
         BizInvoice invoice = invoiceMapper.selectById(invoiceId);
         if (invoice == null || !customerId.equals(invoice.getCustomerId())) {
-            throw new BusinessException("发票不存在或不属于该客户");
+            throw new BusinessException(LIT_X_2);
         }
-        if ("voided".equals(invoice.getStatus())) {
+        if (LIT_VOIDED.equals(invoice.getStatus())) {
             throw new BusinessException("该发票已作废");
         }
-        invoice.setStatus("voided");
+        invoice.setStatus(LIT_VOIDED);
         invoice.setVoidedReason(reason.trim());
         invoiceMapper.updateById(invoice);
         refreshLastInvoiceDate(customerId);
@@ -1641,9 +1654,9 @@ public class CustomerService {
     public void confirmPayment(Long customerId, Long paymentId) {
         BizPayment payment = paymentMapper.selectById(paymentId);
         if (payment == null || !customerId.equals(payment.getCustomerId())) {
-            throw new BusinessException("回款不存在或不属于该客户");
+            throw new BusinessException(LIT_X_3);
         }
-        if (!"pending".equals(payment.getStatus())) {
+        if (!LIT_PENDING.equals(payment.getStatus())) {
             throw new BusinessException("仅待核对状态可确认");
         }
         payment.setStatus("confirmed");
@@ -1661,12 +1674,12 @@ public class CustomerService {
         }
         BizPayment payment = paymentMapper.selectById(paymentId);
         if (payment == null || !customerId.equals(payment.getCustomerId())) {
-            throw new BusinessException("回款不存在或不属于该客户");
+            throw new BusinessException(LIT_X_3);
         }
-        if ("voided".equals(payment.getStatus())) {
+        if (LIT_VOIDED.equals(payment.getStatus())) {
             throw new BusinessException("该回款已作废");
         }
-        payment.setStatus("voided");
+        payment.setStatus(LIT_VOIDED);
         payment.setVoidedReason(reason.trim());
         paymentMapper.updateById(payment);
         recalculateCoreStatus(customerId);
@@ -1677,7 +1690,7 @@ public class CustomerService {
         BizInvoice invoice = invoiceMapper.selectById(invoiceId);
         // 归属校验：记录必须属于请求路径中的客户，防止跨客户删除（IDOR）
         if (invoice == null || !customerId.equals(invoice.getCustomerId())) {
-            throw new BusinessException("发票不存在或不属于该客户");
+            throw new BusinessException(LIT_X_2);
         }
         // 【裁决 2026-09-24 更新】"发票可以删除,但要有删除记录"——任何状态可删(替换 PR-18 仅待核对可删):
         // 必填删除原因 + sys_log 审计快照(票号/日期/金额/状态/原因/操作人) + @TableLogic 逻辑删(行保留可回查);
@@ -1734,9 +1747,9 @@ public class CustomerService {
         List<BizInvoice> latest = invoiceMapper.selectList(
                 new LambdaQueryWrapper<BizInvoice>()
                         .eq(BizInvoice::getCustomerId, customerId)
-                        .ne(BizInvoice::getStatus, "voided")
+                        .ne(BizInvoice::getStatus, LIT_VOIDED)
                         .orderByDesc(BizInvoice::getInvoiceDate)
-                        .last("LIMIT 1"));
+                        .last(LIT_LIMIT_1));
         return latest.isEmpty() ? null : latest.get(0).getInvoiceDate();
     }
 
@@ -2105,7 +2118,7 @@ public class CustomerService {
     @Transactional
     public void saveStageAmount(Long customerId, com.aigicrm.module.customer.dto.StageAmountRequest req) {
         BizCustomer customer = customerMapper.selectById(customerId);
-        if (customer == null) throw new BusinessException("客户不存在");
+        if (customer == null) throw new BusinessException(LIT_X);
         String type = req.periodType() == null ? "" : req.periodType().trim();
         if (!PERIOD_TYPES.contains(type)) throw new BusinessException("周期类型无效(须为 上半年/下半年/全年)");
         int year = req.periodYear() == null ? 0 : req.periodYear();
@@ -2177,7 +2190,7 @@ public class CustomerService {
     public void addShares(Long customerId, List<Long> userIds) {
         Long currentUserId = SecurityUtils.getCurrentUserId();
         BizCustomer customer = customerMapper.selectById(customerId);
-        if (customer == null) throw new BusinessException("客户不存在");
+        if (customer == null) throw new BusinessException(LIT_X);
         // 【PR-22 批次四 2026-09-19 活体发现】共享不得绕过集团边界(总册 F01):
         // 此前跨集团共享静默成功——写入乙集团用户永远无法使用的共享行,还向其发送
         // 提醒通知(脏数据+误导)。租户拦截器虽挡住了读取,写入本身也应拒绝。
@@ -2210,9 +2223,9 @@ public class CustomerService {
                 // 1. 通知被分享人
                 BizReminder r = new BizReminder();
                 r.setCustomerId(customerId);
-                r.setReminderType("share_to");
+                r.setReminderType(LIT_SHARE_TO);
                 r.setOwnerId(uid);
-                r.setStatus("pending");
+                r.setStatus(LIT_PENDING);
                 r.setCreatedAt(LocalDateTime.now());
                 reminderMapper.insert(r);
 
@@ -2221,7 +2234,7 @@ public class CustomerService {
                 r2.setCustomerId(customerId);
                 r2.setReminderType("share_by");
                 r2.setOwnerId(currentUserId);
-                r2.setStatus("pending");
+                r2.setStatus(LIT_PENDING);
                 r2.setCreatedAt(LocalDateTime.now());
                 reminderMapper.insert(r2);
             }
@@ -2233,7 +2246,7 @@ public class CustomerService {
             r3.setCustomerId(customerId);
             r3.setReminderType("share_owner");
             r3.setOwnerId(customer.getOwnerId());
-            r3.setStatus("pending");
+            r3.setStatus(LIT_PENDING);
             r3.setCreatedAt(LocalDateTime.now());
             reminderMapper.insert(r3);
         }
@@ -2249,8 +2262,8 @@ public class CustomerService {
         reminderMapper.delete(new LambdaQueryWrapper<BizReminder>()
                 .eq(BizReminder::getCustomerId, customerId)
                 .eq(BizReminder::getOwnerId, userId)
-                .eq(BizReminder::getReminderType, "share_to")
-                .eq(BizReminder::getStatus, "pending"));
+                .eq(BizReminder::getReminderType, LIT_SHARE_TO)
+                .eq(BizReminder::getStatus, LIT_PENDING));
     }
 
     public void removeAllShares(Long customerId) {
@@ -2271,7 +2284,7 @@ public class CustomerService {
     public void cleanPendingReminders(Long customerId) {
         reminderMapper.delete(new LambdaQueryWrapper<BizReminder>()
                 .eq(BizReminder::getCustomerId, customerId)
-                .eq(BizReminder::getStatus, "pending"));
+                .eq(BizReminder::getStatus, LIT_PENDING));
     }
 
     /**
@@ -2283,7 +2296,7 @@ public class CustomerService {
         reminderMapper.delete(new LambdaQueryWrapper<BizReminder>()
                 .eq(BizReminder::getCustomerId, customerId)
                 .in(BizReminder::getReminderType, java.util.List.of("invoice_never", "invoice_overdue"))
-                .eq(BizReminder::getStatus, "pending"));
+                .eq(BizReminder::getStatus, LIT_PENDING));
     }
 
     /**
@@ -2295,8 +2308,8 @@ public class CustomerService {
     private void cleanPendingShareReminders(Long customerId) {
         reminderMapper.delete(new LambdaQueryWrapper<BizReminder>()
                 .eq(BizReminder::getCustomerId, customerId)
-                .in(BizReminder::getReminderType, java.util.List.of("share_to", "share_by", "share_owner"))
-                .eq(BizReminder::getStatus, "pending"));
+                .in(BizReminder::getReminderType, java.util.List.of(LIT_SHARE_TO, "share_by", "share_owner"))
+                .eq(BizReminder::getStatus, LIT_PENDING));
     }
 
     // ====== 联系人 ======
@@ -2358,7 +2371,7 @@ public class CustomerService {
                 new LambdaQueryWrapper<BizPayment>()
                         .eq(BizPayment::getCustomerId, customerId)
                         .orderByDesc(BizPayment::getPaymentDate)
-                        .last("LIMIT 1"));
+                        .last(LIT_LIMIT_1));
         summary.put("latestDate", latest.isEmpty() ? null : latest.get(0).getPaymentDate());
         return summary;
     }
@@ -2378,7 +2391,7 @@ public class CustomerService {
         BizPayment payment = paymentMapper.selectById(paymentId);
         // 归属校验：记录必须属于请求路径中的客户，防止跨客户删除（IDOR）
         if (payment == null || !customerId.equals(payment.getCustomerId())) {
-            throw new BusinessException("回款不存在或不属于该客户");
+            throw new BusinessException(LIT_X_3);
         }
         // 【裁决 2026-09-24 更新】与发票同口径: 任何状态可删+必填原因+审计快照+逻辑删
         if (reason == null || reason.isBlank()) {

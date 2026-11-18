@@ -24,6 +24,9 @@ import java.util.Map;
 @RequestMapping("/api/system/recycle")
 @RequiredArgsConstructor
 public class RecycleController {
+    // P0-5 batch A: duplicated string literals (Sonar java:S1192)
+    private static final String LIT_MESSAGE = "message";
+
 
     private final RecycleService recycleService;
 
@@ -53,14 +56,14 @@ public class RecycleController {
     @PostMapping("/customers/{id}/restore")
     public Result<Map<String, String>> restoreCustomer(@PathVariable Long id) {
         requireAdmin();
-        return Result.ok(Map.of("message", recycleService.restoreCustomer(id)));
+        return Result.ok(Map.of(LIT_MESSAGE, recycleService.restoreCustomer(id)));
     }
 
     @PreAuthorize("hasAuthority('system:recycle:purge')")
     @PostMapping("/customers/{id}/purge")
     public Result<Map<String, String>> hardDeleteCustomer(@PathVariable Long id) {
         requireAdmin();
-        return Result.ok(Map.of("message", recycleService.hardDeleteCustomer(id)));
+        return Result.ok(Map.of(LIT_MESSAGE, recycleService.hardDeleteCustomer(id)));
     }
 
     @PreAuthorize("hasAuthority('system:recycle:view')")
@@ -82,14 +85,14 @@ public class RecycleController {
     @PostMapping("/users/{id}/restore")
     public Result<Map<String, String>> restoreUser(@PathVariable Long id) {
         requireAdmin();
-        return Result.ok(Map.of("message", recycleService.restoreUser(id)));
+        return Result.ok(Map.of(LIT_MESSAGE, recycleService.restoreUser(id)));
     }
 
     @PreAuthorize("hasAuthority('system:recycle:purge')")
     @PostMapping("/users/{id}/purge")
     public Result<Map<String, String>> hardDeleteUser(@PathVariable Long id) {
         requireAdmin();
-        return Result.ok(Map.of("message", recycleService.hardDeleteUser(id)));
+        return Result.ok(Map.of(LIT_MESSAGE, recycleService.hardDeleteUser(id)));
     }
 
     // ==================== 【2026-11-17 阶段三】任务/激励 ====================
@@ -107,14 +110,14 @@ public class RecycleController {
     @PostMapping("/tasks/{id}/restore")
     public Result<Map<String, String>> restoreTask(@PathVariable Long id) {
         requireAdmin();
-        return Result.ok(Map.of("message", recycleService.restoreTask(id)));
+        return Result.ok(Map.of(LIT_MESSAGE, recycleService.restoreTask(id)));
     }
 
     @PreAuthorize("hasAuthority('system:recycle:purge')")
     @PostMapping("/tasks/{id}/purge")
     public Result<Map<String, String>> hardDeleteTask(@PathVariable Long id) {
         requireAdmin();
-        return Result.ok(Map.of("message", recycleService.hardDeleteTask(id)));
+        return Result.ok(Map.of(LIT_MESSAGE, recycleService.hardDeleteTask(id)));
     }
 
     @PreAuthorize("hasAuthority('system:recycle:view')")
@@ -130,14 +133,14 @@ public class RecycleController {
     @PostMapping("/reminders/{id}/restore")
     public Result<Map<String, String>> restoreReminder(@PathVariable Long id) {
         requireAdmin();
-        return Result.ok(Map.of("message", recycleService.restoreReminder(id)));
+        return Result.ok(Map.of(LIT_MESSAGE, recycleService.restoreReminder(id)));
     }
 
     @PreAuthorize("hasAuthority('system:recycle:purge')")
     @PostMapping("/reminders/{id}/purge")
     public Result<Map<String, String>> hardDeleteReminder(@PathVariable Long id) {
         requireAdmin();
-        return Result.ok(Map.of("message", recycleService.hardDeleteReminder(id)));
+        return Result.ok(Map.of(LIT_MESSAGE, recycleService.hardDeleteReminder(id)));
     }
 
     @PreAuthorize("hasAuthority('system:recycle:view')")
@@ -153,14 +156,14 @@ public class RecycleController {
     @PostMapping("/incentives/{id}/restore")
     public Result<Map<String, String>> restoreIncentive(@PathVariable Long id) {
         requireAdmin();
-        return Result.ok(Map.of("message", recycleService.restoreIncentive(id)));
+        return Result.ok(Map.of(LIT_MESSAGE, recycleService.restoreIncentive(id)));
     }
 
     @PreAuthorize("hasAuthority('system:recycle:purge')")
     @PostMapping("/incentives/{id}/purge")
     public Result<Map<String, String>> hardDeleteIncentive(@PathVariable Long id) {
         requireAdmin();
-        return Result.ok(Map.of("message", recycleService.hardDeleteIncentive(id)));
+        return Result.ok(Map.of(LIT_MESSAGE, recycleService.hardDeleteIncentive(id)));
     }
 
     @PreAuthorize("hasAuthority('system:recycle:view')")
@@ -189,14 +192,14 @@ public class RecycleController {
     @PostMapping("/files/{id}/restore")
     public Result<Map<String, String>> restoreFile(@PathVariable Long id) {
         requireAdmin();
-        return Result.ok(Map.of("message", recycleService.restoreFile(id)));
+        return Result.ok(Map.of(LIT_MESSAGE, recycleService.restoreFile(id)));
     }
 
     @PreAuthorize("hasAuthority('system:recycle:purge')")
     @PostMapping("/files/{id}/purge")
     public Result<Map<String, String>> hardDeleteFile(@PathVariable Long id) {
         requireAdmin();
-        return Result.ok(Map.of("message", recycleService.hardDeleteFile(id)));
+        return Result.ok(Map.of(LIT_MESSAGE, recycleService.hardDeleteFile(id)));
     }
 
     /** 【文件回收站 2026-10-18】管理员手动清空: 物理删除全部已删文件的存储内容与台账行 */
@@ -215,14 +218,14 @@ public class RecycleController {
     @PostMapping("/folders/{id}/restore")
     public Result<Map<String, String>> restoreFolder(@PathVariable Long id) {
         requireAdmin();
-        return Result.ok(Map.of("message", recycleService.restoreFolder(id)));
+        return Result.ok(Map.of(LIT_MESSAGE, recycleService.restoreFolder(id)));
     }
 
     @PreAuthorize("hasAuthority('system:recycle:purge')")
     @PostMapping("/folders/{id}/purge")
     public Result<Map<String, String>> hardDeleteFolder(@PathVariable Long id) {
         requireAdmin();
-        return Result.ok(Map.of("message", recycleService.hardDeleteFolder(id)));
+        return Result.ok(Map.of(LIT_MESSAGE, recycleService.hardDeleteFolder(id)));
     }
 
     @PreAuthorize("hasAuthority('system:recycle:purge')")
@@ -231,7 +234,7 @@ public class RecycleController {
         requireAdmin();
         RecycleService.PurgeFilesResult result = recycleService.purgeAllDeletedFiles();
         Map<String, Object> body = new LinkedHashMap<>();
-        body.put("message", "已清空文件回收站：清理 " + result.purged() + " 个，跳过 "
+        body.put(LIT_MESSAGE, "已清空文件回收站：清理 " + result.purged() + " 个，跳过 "
                 + result.skipped() + " 个，失败 " + result.failed() + " 个");
         body.put("purged", result.purged());
         body.put("skipped", result.skipped());

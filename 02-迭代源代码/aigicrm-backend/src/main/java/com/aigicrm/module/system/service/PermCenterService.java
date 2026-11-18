@@ -32,6 +32,9 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class PermCenterService {
+    // P0-5 batch A: duplicated string literals (Sonar java:S1192)
+    private static final String LIT_CUSTOMER = "customer";
+
 
     private final UserDetailsServiceImpl userDetailsService;
     private final OrgScopeResolver scopeResolver;
@@ -47,10 +50,10 @@ public class PermCenterService {
 
     /** 预览的范围解析目标(与前端权限矩阵 PERMISSION_SCOPE_TARGETS 映射同源; 2026-11-03 对账=摘死配置+补漏配) */
     private static final String[][] SCOPE_TARGETS = {
-            {"customer", "view", "客户·查看"},
-            {"customer", "edit", "客户·编辑"},
-            {"customer", "delete", "客户·删除"},
-            {"customer", "finance_edit", "开票回款·编辑"},
+            {LIT_CUSTOMER, "view", "客户·查看"},
+            {LIT_CUSTOMER, "edit", "客户·编辑"},
+            {LIT_CUSTOMER, "delete", "客户·删除"},
+            {LIT_CUSTOMER, "finance_edit", "开票回款·编辑"},
             {"reminder", "view", "提醒·查看"},
             {"approval", "view", "审批·查看"},
             {"task", "view", "任务·查看"},
@@ -106,7 +109,7 @@ public class PermCenterService {
                 List<Long> deptIds = d.getVisibleDeptIds();
                 row.put("visibleDeptCount", deptIds == null ? 0 : deptIds.size());
             }
-            if ("customer".equals(module) && "view".equals(action)) {
+            if (LIT_CUSTOMER.equals(module) && "view".equals(action)) {
                 row.put("visibleCustomerCount", customerService.countByScopeFor(target));
             }
             scopes.add(row);
@@ -188,7 +191,7 @@ public class PermCenterService {
         Map<String, Object> ruleEngine = new LinkedHashMap<>();
         ruleEngine.put("boundRules", rules == null ? 0 : rules.size());
         ruleEngine.put("fingerprint", com.aigicrm.common.engine.PermissionRuleEngine
-                .evaluateForEntity(rules == null ? List.of() : rules, target, "customer"));
+                .evaluateForEntity(rules == null ? List.of() : rules, target, LIT_CUSTOMER));
         ruleEngine.put("note", "规则条件不参与上方范围数字；当前规则绑定数为 0 时指纹恒空属正常(生产实况)");
         data.put("ruleEngine", ruleEngine);
 

@@ -35,10 +35,16 @@ import org.springframework.util.StringUtils;
 @Service
 @RequiredArgsConstructor
 public class SysUserService {
+    // P0-5 batch A: duplicated string literals (Sonar java:S1192)
+    private static final String LIT_SYSTEM_ROLE_GRANT = "system:role:grant";
+    private static final String LIT_X = "无权操作该用户";
+    private static final String LIT_X_2 = "用户不存在";
+    private static final String LIT_CUSTOM = "custom";
+
 
     /** 用户级数据范围合法取值（DataScopeType 七大主码；不含 @Deprecated 的 org/org_and_children） */
     private static final java.util.Set<String> VALID_DATA_SCOPES = java.util.Set.of(
-            "self", "team", "dept", "office", "region", "all", "custom");
+            "self", "team", "dept", "office", "region", "all", LIT_CUSTOM);
 
     // ===== 【D1=A 2026-10-18 存储空间申请】配置键与配额边界 =====
 
@@ -233,7 +239,7 @@ public class SysUserService {
         if (!id.equals(SecurityUtils.getCurrentUserId()) && !isUserVisible(u)) {
             throw new BusinessException(403, "无权查看该用户");
         }
-        if ("custom".equals(u.getDataScopeOverride())) {
+        if (LIT_CUSTOM.equals(u.getDataScopeOverride())) {
             // 【2026-08-08 用户级 custom 授权】回填个人授权组织，供编辑表单回显
             u.setOrgIds(userOrgMapper.selectByUserId(id).stream()
                     .map(com.aigicrm.module.system.entity.SysUserOrg::getOrgId).toList());
@@ -251,12 +257,12 @@ public class SysUserService {
      * （visibleDeptIds）或组织管理员管辖组织子树内；admin 放行；本人恒可操作。
      */
     public void assertCanManageUser(Long userId) {
-        if (userId == null) throw new BusinessException("用户不存在");
+        if (userId == null) throw new BusinessException(LIT_X_2);
         SysUser target = userMapper.selectById(userId);
-        if (target == null) throw new BusinessException("用户不存在");
+        if (target == null) throw new BusinessException(LIT_X_2);
         if (userId.equals(SecurityUtils.getCurrentUserId())) return;
         if (!isUserVisible(target)) {
-            throw new BusinessException(403, "无权操作该用户");
+            throw new BusinessException(403, LIT_X);
         }
     }
 
@@ -435,7 +441,7 @@ public class SysUserService {
             userRoleMapper.insert(ur);
         }
         // 【2026-08-08 用户级 custom 授权】custom 时保存个人授权组织
-        if ("custom".equals(user.getDataScopeOverride())) {
+        if (LIT_CUSTOM.equals(user.getDataScopeOverride())) {
             saveUserOrgs(user.getId(), user.getOrgIds());
         }
         // 【P1-1 三轮修复 2026-11-13】新建用户触发失效+任职同步(evict 汇聚: sys_employment 落行
@@ -462,7 +468,7 @@ public class SysUserService {
         SysUser existing = userMapper.selectById(user.getId());
         securityAudit.userAdminEvent("user_update", user.getId(),
                 existing != null ? existing.getUsername() : null);
-        if (existing == null) throw new BusinessException("用户不存在");
+        if (existing == null) throw new BusinessException(LIT_X_2);
         // 【WP1.1 2026-11-13】"数据范围不能为空"强制校验退役(与 create 同口径: 空覆盖=跟随角色并集)
         validateDataScopeOverride(user.getDataScopeOverride());
         java.util.List<Long> targetRoleIds = effectiveRoleIds(user);
@@ -538,9 +544,9 @@ public class SysUserService {
         // 【2026-08-08 用户级 custom 授权】custom 时保存个人授权组织（未传 orgIds 不清空，仅当显式传了才更新）。
         // 【修复 2026-08-08】必须用"新值"user.getDataScopeOverride() 判断——若旧值非 custom、本次改 custom，
         // 用 existing 旧值会跳过保存导致授权组织为空（历史工单案例）。
-        if ("custom".equals(user.getDataScopeOverride()) && user.getOrgIds() != null) {
+        if (LIT_CUSTOM.equals(user.getDataScopeOverride()) && user.getOrgIds() != null) {
             saveUserOrgs(existing.getId(), user.getOrgIds());
-        } else if (!"custom".equals(user.getDataScopeOverride())) {
+        } else if (!LIT_CUSTOM.equals(user.getDataScopeOverride())) {
             // 不再是 custom：清空个人授权组织，避免残留
             userOrgMapper.deleteByUserId(existing.getId());
         }
@@ -554,11 +560,11 @@ public class SysUserService {
         SysUser user = userMapper.selectById(userId);
         securityAudit.userAdminEvent("user_reset_password", userId,
                 user != null ? user.getUsername() : null);
-        if (user == null) throw new BusinessException("用户不存在");
+        if (user == null) throw new BusinessException(LIT_X_2);
         // 【2026-08-15 安全审计 H1 纵深防御】非 admin 操作者禁止重置 admin 角色账号口令——
         // 临时口令明文随响应返回, 得手即接管全系统(不依赖 controller 的 canManageUser 守卫, 服务层独立兜底)
-        if (!SecurityUtils.hasAuthority("system:role:grant") && hasAdminRole(userId)) {
-            throw new BusinessException(403, "无权操作该用户");
+        if (!SecurityUtils.hasAuthority(LIT_SYSTEM_ROLE_GRANT) && hasAdminRole(userId)) {
+            throw new BusinessException(403, LIT_X);
         }
         // 【2026-08-14 安全 P0】随机临时口令 + 首登强制改密 + DB 级改密时刻(旧 token 立即失效)。
         // 截断到秒：避免 MySQL DATETIME(0) 四舍五入进位导致同秒 token 误判（与 changePassword 同因）
@@ -575,7 +581,7 @@ public class SysUserService {
 
     public void changePassword(Long userId, String oldPassword, String newPassword) {
         SysUser user = userMapper.selectById(userId);
-        if (user == null) throw new BusinessException("用户不存在");
+        if (user == null) throw new BusinessException(LIT_X_2);
         if (!passwordEncoder.matches(oldPassword, user.getPassword())) {
             throw new BusinessException("原密码错误");
         }
@@ -595,7 +601,7 @@ public class SysUserService {
 
     public void updateStorageQuota(Long userId, Long quota) {
         SysUser user = userMapper.selectById(userId);
-        if (user == null) throw new BusinessException("用户不存在");
+        if (user == null) throw new BusinessException(LIT_X_2);
         user.setStorageQuota(quota);
         userMapper.updateById(user);
     }
@@ -611,7 +617,7 @@ public class SysUserService {
      */
     public Map<String, Object> storageApplyInfo(Long userId) {
         SysUser user = userId == null ? null : userMapper.selectById(userId);
-        if (user == null) throw new BusinessException("用户不存在");
+        if (user == null) throw new BusinessException(LIT_X_2);
 
         boolean enabled = isStorageApplyEnabled();
         boolean canApply = canApplyStorageQuota(userId, enabled);
@@ -647,7 +653,7 @@ public class SysUserService {
     public SysUser validateStorageQuotaRequest(Long userId, Long newQuota) {
         SysUser user = userId == null ? null : userMapper.selectById(userId);
         if (user == null || (user.getDeleted() != null && user.getDeleted() == 1)) {
-            throw new BusinessException("用户不存在");
+            throw new BusinessException(LIT_X_2);
         }
         if (user.getStatus() == null || user.getStatus() != 1) {
             throw new BusinessException("账号已停用，无法申请存储空间");
@@ -777,10 +783,10 @@ public class SysUserService {
         // 【P2-2 2026-10-18】校验前置: 审计/草稿清理原在校验之前——被拒的删除也会落"已删除"审计
         // 并清空草稿(事务兜底只回滚 DB 写, audit 的 event() 非事务)。拒绝路径必须零副作用。
         SysUser user = userMapper.selectById(userId);
-        if (user == null) throw new BusinessException("用户不存在");
+        if (user == null) throw new BusinessException(LIT_X_2);
         // 【2026-08-15 安全审计 H1 纵深防御】非 admin 操作者禁止删除 admin 角色账号(服务层兜底, 不依赖 controller 守卫)
-        if (!SecurityUtils.hasAuthority("system:role:grant") && hasAdminRole(userId)) {
-            throw new BusinessException(403, "无权操作该用户");
+        if (!SecurityUtils.hasAuthority(LIT_SYSTEM_ROLE_GRANT) && hasAdminRole(userId)) {
+            throw new BusinessException(403, LIT_X);
         }
         securityAudit.userAdminEvent("user_delete", userId, null);
         formDraftService.purgeByUser(userId);

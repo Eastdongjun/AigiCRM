@@ -31,6 +31,14 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class ScoreService {
+    // P0-5 batch A: duplicated string literals (Sonar java:S1192)
+    private static final String LIT_USERID = "userId";
+    private static final String LIT_REALNAME = "realName";
+    private static final String LIT_OFFICENAME = "officeName";
+    private static final String LIT_TOTALSCORE = "totalScore";
+    private static final String LIT_ITEMCOUNT = "itemCount";
+    private static final String LIT_PARTICIPANTCOUNT = "participantCount";
+
 
     private final BizScoreItemMapper itemMapper;
     private final BizScoreEntryMapper entryMapper;
@@ -169,7 +177,7 @@ public class ScoreService {
         Map<String, Integer> submitted = new LinkedHashMap<>();
         for (Map<String, Object> e : entries) {
             Long itemId = toLong(e.get("itemId"));
-            Long userId = toLong(e.get("userId"));
+            Long userId = toLong(e.get(LIT_USERID));
             Integer score = toInt(e.get("score"));
             if (itemId == null || userId == null) continue;
             submitted.put(itemId + "_" + userId, score != null ? score : 0);
@@ -263,7 +271,7 @@ public class ScoreService {
     private Map<String, Object> toUserMap(SysUser u) {
         Map<String, Object> m = new HashMap<>();
         m.put("id", u.getId());
-        m.put("realName", u.getRealName());
+        m.put(LIT_REALNAME, u.getRealName());
         return m;
     }
 
@@ -338,11 +346,11 @@ public class ScoreService {
 
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("rank", rank);
-            row.put("userId", uid);
-            row.put("realName", user.getRealName());
-            row.put("officeName", officeName);
-            row.put("totalScore", entry.getValue());
-            row.put("itemCount", itemCounts.getOrDefault(uid, 0));
+            row.put(LIT_USERID, uid);
+            row.put(LIT_REALNAME, user.getRealName());
+            row.put(LIT_OFFICENAME, officeName);
+            row.put(LIT_TOTALSCORE, entry.getValue());
+            row.put(LIT_ITEMCOUNT, itemCounts.getOrDefault(uid, 0));
             row.put("trend", trend);
             result.add(row);
         }
@@ -358,22 +366,22 @@ public class ScoreService {
         List<Map<String, Object>> members = new ArrayList<>();
         int total = 0;
         for (Map<String, Object> p : personal) {
-            if (!deptName.equals(p.getOrDefault("officeName", "未知"))) continue;
+            if (!deptName.equals(p.getOrDefault(LIT_OFFICENAME, "未知"))) continue;
             Map<String, Object> m = new LinkedHashMap<>();
-            m.put("userId", p.get("userId"));
-            m.put("realName", p.get("realName"));
-            m.put("totalScore", p.get("totalScore"));
-            m.put("itemCount", p.get("itemCount"));
+            m.put(LIT_USERID, p.get(LIT_USERID));
+            m.put(LIT_REALNAME, p.get(LIT_REALNAME));
+            m.put(LIT_TOTALSCORE, p.get(LIT_TOTALSCORE));
+            m.put(LIT_ITEMCOUNT, p.get(LIT_ITEMCOUNT));
             m.put("companyRank", p.get("rank"));
             members.add(m);
-            total += (int) p.getOrDefault("totalScore", 0);
+            total += (int) p.getOrDefault(LIT_TOTALSCORE, 0);
         }
-        members.sort((a, b) -> (int) b.get("totalScore") - (int) a.get("totalScore"));
+        members.sort((a, b) -> (int) b.get(LIT_TOTALSCORE) - (int) a.get(LIT_TOTALSCORE));
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("deptName", deptName);
         result.put("period", period);
-        result.put("participantCount", members.size());
-        result.put("totalScore", total);
+        result.put(LIT_PARTICIPANTCOUNT, members.size());
+        result.put(LIT_TOTALSCORE, total);
         result.put("avgScore", members.isEmpty() ? 0 : Math.round((double) total / members.size() * 10) / 10.0);
         result.put("members", members);
         return result;
@@ -384,9 +392,9 @@ public class ScoreService {
         // 按部门汇总
         Map<String, int[]> deptAgg = new LinkedHashMap<>(); // deptName -> [totalScore, participants]
         for (Map<String, Object> p : personal) {
-            String dept = (String) p.getOrDefault("officeName", "未知");
+            String dept = (String) p.getOrDefault(LIT_OFFICENAME, "未知");
             int[] agg = deptAgg.computeIfAbsent(dept, k -> new int[]{0, 0});
-            agg[0] += (int) p.getOrDefault("totalScore", 0);
+            agg[0] += (int) p.getOrDefault(LIT_TOTALSCORE, 0);
             agg[1] += 1;
         }
 
@@ -400,8 +408,8 @@ public class ScoreService {
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("rank", rank);
             row.put("deptName", e.getKey());
-            row.put("totalScore", e.getValue()[0]);
-            row.put("participantCount", e.getValue()[1]);
+            row.put(LIT_TOTALSCORE, e.getValue()[0]);
+            row.put(LIT_PARTICIPANTCOUNT, e.getValue()[1]);
             row.put("avgScore", e.getValue()[1] > 0 ? Math.round((double) e.getValue()[0] / e.getValue()[1] * 10) / 10.0 : 0);
             result.add(row);
         }
@@ -411,20 +419,20 @@ public class ScoreService {
     public Map<String, Object> rankingStats(String period) {
         List<Map<String, Object>> personal = ranking(period);
         Map<String, Object> stats = new HashMap<>();
-        stats.put("participantCount", personal.size());
+        stats.put(LIT_PARTICIPANTCOUNT, personal.size());
 
         Set<String> depts = new HashSet<>();
         int topScore = 0;
         String topName = "";
         int totalItems = 0;
         for (Map<String, Object> p : personal) {
-            depts.add((String) p.getOrDefault("officeName", ""));
-            int score = (int) p.getOrDefault("totalScore", 0);
+            depts.add((String) p.getOrDefault(LIT_OFFICENAME, ""));
+            int score = (int) p.getOrDefault(LIT_TOTALSCORE, 0);
             if (score > topScore) {
                 topScore = score;
-                topName = (String) p.getOrDefault("realName", "");
+                topName = (String) p.getOrDefault(LIT_REALNAME, "");
             }
-            totalItems += (int) p.getOrDefault("itemCount", 0);
+            totalItems += (int) p.getOrDefault(LIT_ITEMCOUNT, 0);
         }
         stats.put("deptCount", depts.size());
         stats.put("topScore", topScore);
@@ -433,7 +441,7 @@ public class ScoreService {
         // 最高学分者的项数
         if (!personal.isEmpty()) {
             // 【2026-11-01 学分改名】导出文件名与"最高学分者"注释同步更名
-        stats.put("topItemCount", personal.get(0).getOrDefault("itemCount", 0));
+        stats.put("topItemCount", personal.get(0).getOrDefault(LIT_ITEMCOUNT, 0));
         }
         return stats;
     }

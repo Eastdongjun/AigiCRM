@@ -25,6 +25,9 @@ import java.util.Map;
 @RequestMapping("/api/file")
 @RequiredArgsConstructor
 public class FileController {
+    // P0-5 batch A: duplicated string literals (Sonar java:S1192)
+    private static final String LIT_FILENAME = "fileName";
+
 
     private final FileService fileService;
     private final com.aigicrm.security.JwtTokenProvider jwtTokenProvider;
@@ -169,7 +172,7 @@ public class FileController {
     @PreAuthorize("hasAuthority('file:edit')")
     @PutMapping("/{id}/rename")
     public Result<Void> renameFile(@PathVariable Long id, @RequestBody Map<String, String> body) {
-        fileService.renameFile(id, body == null ? null : body.get("fileName"));
+        fileService.renameFile(id, body == null ? null : body.get(LIT_FILENAME));
         return Result.ok(null);
     }
 
@@ -207,7 +210,7 @@ public class FileController {
         Long folderId = body.get("folderId") instanceof Number n ? n.longValue() : null;
         long size = body.get("fileSize") instanceof Number n ? n.longValue() : 0L;
         return Result.ok(fileChunkUploadService.init(
-                body.get("fileName") == null ? null : body.get("fileName").toString(),
+                body.get(LIT_FILENAME) == null ? null : body.get(LIT_FILENAME).toString(),
                 size,
                 body.get("md5") == null ? null : body.get("md5").toString(),
                 body.get("scope") == null ? null : body.get("scope").toString(),

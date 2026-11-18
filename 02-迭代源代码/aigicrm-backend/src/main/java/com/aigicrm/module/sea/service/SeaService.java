@@ -39,6 +39,11 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class SeaService {
+    // P0-5 batch A: duplicated string literals (Sonar java:S1192)
+    private static final String LIT_AVAILABLE = "available";
+    private static final String LIT_X = "资源不存在或无权访问";
+    private static final String LIT_CLAIMED = "claimed";
+
 
     private final BizSeaPoolMapper seaPoolMapper;
     private final BizSeaConfigMapper seaConfigMapper;
@@ -73,7 +78,7 @@ public class SeaService {
         if (StringUtils.hasText(status)) {
             wrapper.eq(BizSeaPool::getStatus, status);
         } else {
-            wrapper.ne(BizSeaPool::getStatus, "claimed");
+            wrapper.ne(BizSeaPool::getStatus, LIT_CLAIMED);
         }
         wrapper.orderByDesc(BizSeaPool::getEnterDate);
         // enterReason 是 biz_sea_pool 自身字段，直接在 DB 层过滤（保证分页与总数正确）
@@ -144,11 +149,11 @@ public class SeaService {
         }
 
         LocalDateTime monthStart = LocalDate.now().withDayOfMonth(1).atStartOfDay();
-        stats.put("total", seaPoolMapper.selectCount(scoped(visiblePoolIds).eq(BizSeaPool::getStatus, "available")));
+        stats.put("total", seaPoolMapper.selectCount(scoped(visiblePoolIds).eq(BizSeaPool::getStatus, LIT_AVAILABLE)));
         stats.put("newThisMonth", seaPoolMapper.selectCount(scoped(visiblePoolIds).ge(BizSeaPool::getEnterDate, monthStart)));
         stats.put("pendingApproval", seaPoolMapper.selectCount(scoped(visiblePoolIds).eq(BizSeaPool::getStatus, "pending_approval")));
         stats.put("claimedThisMonth", seaPoolMapper.selectCount(scoped(visiblePoolIds)
-                .eq(BizSeaPool::getStatus, "claimed").ge(BizSeaPool::getClaimDate, monthStart)));
+                .eq(BizSeaPool::getStatus, LIT_CLAIMED).ge(BizSeaPool::getClaimDate, monthStart)));
         return stats;
     }
 
@@ -169,7 +174,7 @@ public class SeaService {
         Long existingActive = seaPoolMapper.selectCount(
                 new LambdaQueryWrapper<BizSeaPool>()
                         .eq(BizSeaPool::getCustomerId, customerId)
-                        .ne(BizSeaPool::getStatus, "claimed"));
+                        .ne(BizSeaPool::getStatus, LIT_CLAIMED));
         if (existingActive != null && existingActive > 0) {
             if (!"sea".equals(customer.getStatus())) {
                 customer.setStatus("sea");
@@ -193,7 +198,7 @@ public class SeaService {
         pool.setOriginalOwnerId(customer.getOwnerId());
         pool.setEnterReason(reason);
         pool.setEnterDate(LocalDateTime.now());
-        pool.setStatus("available");
+        pool.setStatus(LIT_AVAILABLE);
         seaPoolMapper.insert(pool);
 
         // 更新客户状态
@@ -266,7 +271,7 @@ public class SeaService {
 
         pool.setClaimUserId(claimUserId);
         pool.setClaimDate(LocalDateTime.now());
-        pool.setStatus("claimed");
+        pool.setStatus(LIT_CLAIMED);
         seaPoolMapper.updateById(pool);
 
         // 更新客户归属
@@ -305,18 +310,18 @@ public class SeaService {
         BizSeaPool pool = seaPoolMapper.selectById(seaPoolId);
         if (pool == null) {
             // 【2026-08-14 404 防探测】单条语义接口统一文案, 不区分"不存在/状态不符/无权限", 消除存在性 oracle
-            throw new BusinessException("资源不存在或无权访问");
+            throw new BusinessException(LIT_X);
         }
-        if (!"available".equals(pool.getStatus())) {
-            throw new BusinessException("资源不存在或无权访问");
+        if (!LIT_AVAILABLE.equals(pool.getStatus())) {
+            throw new BusinessException(LIT_X);
         }
         // 【2026-08-10 池级权限】删除权限按池判定(admin 恒有)；同时保留可见性校验防横向越权
         if (!seaConfigService.hasPoolPerm(pool.getPoolId(), SeaConfigService.PERM_DELETE, SecurityUtils.getCurrentUser())) {
-            throw new BusinessException(403, "资源不存在或无权访问");
+            throw new BusinessException(403, LIT_X);
         }
         List<Long> visiblePoolIds = visiblePoolIds();
         if (!visiblePoolIds.contains(pool.getPoolId())) {
-            throw new BusinessException(403, "资源不存在或无权访问");
+            throw new BusinessException(403, LIT_X);
         }
         // 【审查 biz-3 2026-10-18】不能直接 customerMapper.deleteById 绕过客户删除统一流程
         // (分享/提醒清理由 CustomerService.delete 承担, 且它会拒绝活跃公海池行)。
@@ -329,9 +334,9 @@ public class SeaService {
         }
         int ended = seaPoolMapper.delete(new LambdaQueryWrapper<BizSeaPool>()
                 .eq(BizSeaPool::getId, seaPoolId)
-                .eq(BizSeaPool::getStatus, "available"));
+                .eq(BizSeaPool::getStatus, LIT_AVAILABLE));
         if (ended != 1) {
-            throw new BusinessException("资源不存在或无权访问");
+            throw new BusinessException(LIT_X);
         }
         if (pool.getCustomerId() != null) {
             customerService.deleteFromSeaPool(pool.getCustomerId());

@@ -16,6 +16,9 @@ import java.util.Map;
 @RequestMapping("/api/approval")
 @RequiredArgsConstructor
 public class ApprovalController {
+    // P0-5 batch A: duplicated string literals (Sonar java:S1192)
+    private static final String LIT_EXTENDDAYS = "extendDays";
+
 
     private final ApprovalService approvalService;
 
@@ -78,9 +81,9 @@ public class ApprovalController {
     public Result<Void> approve(@PathVariable Long id, @RequestBody(required = false) Map<String, String> params) {
         // 【延期B 2026-10-17】审批人可调延期天数:extendDays 可选,仅 extend 单生效(服务端校验类型+范围)
         Integer extendDays = null;
-        if (params != null && params.get("extendDays") != null && !params.get("extendDays").isBlank()) {
+        if (params != null && params.get(LIT_EXTENDDAYS) != null && !params.get(LIT_EXTENDDAYS).isBlank()) {
             try {
-                extendDays = Integer.valueOf(params.get("extendDays").trim());
+                extendDays = Integer.valueOf(params.get(LIT_EXTENDDAYS).trim());
             } catch (NumberFormatException e) {
                 throw new com.aigicrm.common.BusinessException("延期天数必须是整数");
             }

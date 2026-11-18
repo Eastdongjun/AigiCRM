@@ -20,6 +20,13 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class FabushiActivityService {
+    // P0-5 batch A: duplicated string literals (Sonar java:S1192)
+    private static final String LIT_BOOKID = "bookId";
+    private static final String LIT_TITLE = "title";
+    private static final String LIT_DESCRIPTION = "description";
+    private static final String LIT_STARTDATE = "startDate";
+    private static final String LIT_ENDDATE = "endDate";
+
     private final BizFabushiActivityMapper activityMapper;
     private final BizFabushiActivityJoinMapper joinMapper;
     private final BizFabushiBookMapper bookMapper;
@@ -37,9 +44,9 @@ public class FabushiActivityService {
                 .collect(Collectors.toMap(b -> b.getId(), b -> b.getTitle()));
         List<Map<String, Object>> records = rows.stream().map(a -> {
             Map<String, Object> m = new LinkedHashMap<>();
-            m.put("id", a.getId()); m.put("title", a.getTitle()); m.put("bookId", a.getBookId());
-            m.put("bookTitle", titles.get(a.getBookId())); m.put("description", a.getDescription());
-            m.put("startDate", a.getStartDate()); m.put("endDate", a.getEndDate()); m.put("status", a.getStatus());
+            m.put("id", a.getId()); m.put(LIT_TITLE, a.getTitle()); m.put(LIT_BOOKID, a.getBookId());
+            m.put("bookTitle", titles.get(a.getBookId())); m.put(LIT_DESCRIPTION, a.getDescription());
+            m.put(LIT_STARTDATE, a.getStartDate()); m.put(LIT_ENDDATE, a.getEndDate()); m.put("status", a.getStatus());
             m.put("joined", joined.contains(a.getId()));
             m.put("joinCount", joinMapper.selectCount(new LambdaQueryWrapper<BizFabushiActivityJoin>().eq(BizFabushiActivityJoin::getActivityId, a.getId())));
             return m;
@@ -62,15 +69,15 @@ public class FabushiActivityService {
 
     @Transactional
     public Map<String, Object> create(Map<String, Object> body) {
-        String title = body == null || body.get("title") == null ? null : String.valueOf(body.get("title")).trim();
-        Long bookId = body == null || body.get("bookId") == null ? null : Long.valueOf(String.valueOf(body.get("bookId")));
+        String title = body == null || body.get(LIT_TITLE) == null ? null : String.valueOf(body.get(LIT_TITLE)).trim();
+        Long bookId = body == null || body.get(LIT_BOOKID) == null ? null : Long.valueOf(String.valueOf(body.get(LIT_BOOKID)));
         if (title == null || title.isEmpty() || bookId == null) throw new BusinessException(400, "活动标题和书目不能为空");
         if (bookMapper.selectById(bookId) == null) throw new BusinessException(404, "书目不存在");
         BizFabushiActivity a = new BizFabushiActivity();
         a.setTitle(title); a.setBookId(bookId);
-        a.setDescription(body.get("description") == null ? null : String.valueOf(body.get("description")));
-        a.setStartDate(body.get("startDate") == null ? LocalDate.now() : LocalDate.parse(String.valueOf(body.get("startDate"))));
-        a.setEndDate(body.get("endDate") == null ? LocalDate.now().plusDays(30) : LocalDate.parse(String.valueOf(body.get("endDate"))));
+        a.setDescription(body.get(LIT_DESCRIPTION) == null ? null : String.valueOf(body.get(LIT_DESCRIPTION)));
+        a.setStartDate(body.get(LIT_STARTDATE) == null ? LocalDate.now() : LocalDate.parse(String.valueOf(body.get(LIT_STARTDATE))));
+        a.setEndDate(body.get(LIT_ENDDATE) == null ? LocalDate.now().plusDays(30) : LocalDate.parse(String.valueOf(body.get(LIT_ENDDATE))));
         if (a.getEndDate().isBefore(a.getStartDate())) throw new BusinessException(400, "结束日期不能早于开始日期");
         a.setStatus("active"); a.setCreatedBy(SecurityUtils.getCurrentUserId());
         activityMapper.insert(a);

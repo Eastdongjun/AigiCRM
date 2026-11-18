@@ -19,6 +19,10 @@ import java.time.Duration;
 @Component
 @RequiredArgsConstructor
 public class JwtTokenProvider {
+    // P0-5 batch A: duplicated string literals (Sonar java:S1192)
+    private static final String LIT_USERNAME = "username";
+    private static final String LIT_CURRENTGROUPID = "currentGroupId";
+
 
     @Value("${jwt.secret}")
     private String secret;
@@ -71,11 +75,11 @@ public class JwtTokenProvider {
         var builder = Jwts.builder()
                 .id(UUID.randomUUID().toString()) // jti: 会话撤销/黑名单用
                 .subject(String.valueOf(userId))
-                .claim("username", username)
+                .claim(LIT_USERNAME, username)
                 .issuedAt(now)
                 .expiration(expiryDate);
         if (currentGroupId != null) {
-            builder.claim("currentGroupId", currentGroupId);
+            builder.claim(LIT_CURRENTGROUPID, currentGroupId);
         }
         // 【2026-11-05 用户选 C"保持登录"】记住续期策略: 滑动续期(JwtAuthFilter 半寿命重签)需知道
         // 原 token 是 24h 还是 7d 档, 签发时写入 rm 声明(旧 token 无此声明=非保持登录档)
@@ -109,14 +113,14 @@ public class JwtTokenProvider {
     public String renewToken(String token) {
         Claims claims = getClaims(token);
         boolean rm = Boolean.TRUE.equals(claims.get("rm", Boolean.class));
-        Long groupId = claims.get("currentGroupId", Long.class);
-        return generateToken(Long.parseLong(claims.getSubject()), claims.get("username", String.class), rm, groupId);
+        Long groupId = claims.get(LIT_CURRENTGROUPID, Long.class);
+        return generateToken(Long.parseLong(claims.getSubject()), claims.get(LIT_USERNAME, String.class), rm, groupId);
     }
 
     public Long getCurrentGroupIdFromToken(String token) {
         try {
             Claims claims = getClaims(token);
-            Object v = claims.get("currentGroupId");
+            Object v = claims.get(LIT_CURRENTGROUPID);
             return v == null ? null : Long.parseLong(String.valueOf(v));
         } catch (Exception e) {
             return null;
@@ -135,7 +139,7 @@ public class JwtTokenProvider {
     /** token 内 username 声明(滑动续期/审计用) */
     public String getUsernameFromToken(String token) {
         Claims claims = getClaims(token);
-        return claims != null ? claims.get("username", String.class) : null;
+        return claims != null ? claims.get(LIT_USERNAME, String.class) : null;
     }
 
     // ==================== 会话撤销/黑名单 (M2 2026-08-10) ====================

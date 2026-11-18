@@ -16,6 +16,12 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class FabushiSectionService {
+    // P0-5 batch A: duplicated string literals (Sonar java:S1192)
+    private static final String LIT_PARENTID = "parentId";
+    private static final String LIT_SORTORDER = "sortOrder";
+    private static final String LIT_LEVELCODE = "levelCode";
+    private static final String LIT_TITLE = "title";
+
     private final BizFabushiSectionMapper sectionMapper;
     private final BizFabushiBookMapper bookMapper;
 
@@ -32,8 +38,8 @@ public class FabushiSectionService {
     private List<Map<String, Object>> build(Map<Long, List<BizFabushiSection>> children, Long parent) {
         return children.getOrDefault(parent, List.of()).stream().map(s -> {
             Map<String, Object> m = new LinkedHashMap<>();
-            m.put("id", s.getId()); m.put("bookId", s.getBookId()); m.put("parentId", s.getParentId());
-            m.put("levelCode", s.getLevelCode()); m.put("title", s.getTitle()); m.put("sortOrder", s.getSortOrder());
+            m.put("id", s.getId()); m.put("bookId", s.getBookId()); m.put(LIT_PARENTID, s.getParentId());
+            m.put(LIT_LEVELCODE, s.getLevelCode()); m.put(LIT_TITLE, s.getTitle()); m.put(LIT_SORTORDER, s.getSortOrder());
             m.put("children", build(children, s.getId()));
             return m;
         }).collect(Collectors.toList());
@@ -42,14 +48,14 @@ public class FabushiSectionService {
     @Transactional
     public Map<String, Object> create(Long bookId, Map<String, Object> body) {
         if (bookMapper.selectById(bookId) == null) throw new BusinessException(404, "书目不存在");
-        String title = body == null || body.get("title") == null ? null : String.valueOf(body.get("title")).trim();
+        String title = body == null || body.get(LIT_TITLE) == null ? null : String.valueOf(body.get(LIT_TITLE)).trim();
         if (title == null || title.isEmpty()) throw new BusinessException(400, "章节标题不能为空");
         BizFabushiSection row = new BizFabushiSection();
         row.setBookId(bookId);
-        row.setParentId(body.get("parentId") == null ? 0L : Long.valueOf(String.valueOf(body.get("parentId"))));
-        row.setLevelCode(body.get("levelCode") == null ? "section" : String.valueOf(body.get("levelCode")));
+        row.setParentId(body.get(LIT_PARENTID) == null ? 0L : Long.valueOf(String.valueOf(body.get(LIT_PARENTID))));
+        row.setLevelCode(body.get(LIT_LEVELCODE) == null ? "section" : String.valueOf(body.get(LIT_LEVELCODE)));
         row.setTitle(title);
-        row.setSortOrder(body.get("sortOrder") == null ? 0 : Integer.parseInt(String.valueOf(body.get("sortOrder"))));
+        row.setSortOrder(body.get(LIT_SORTORDER) == null ? 0 : Integer.parseInt(String.valueOf(body.get(LIT_SORTORDER))));
         sectionMapper.insert(row);
         return Map.of("id", row.getId());
     }
@@ -58,13 +64,13 @@ public class FabushiSectionService {
     public void update(Long bookId, Long id, Map<String, Object> body) {
         BizFabushiSection row = sectionMapper.selectById(id);
         if (row == null || !bookId.equals(row.getBookId())) throw new BusinessException(404, "章节不存在");
-        if (body != null && body.get("title") != null) {
-            String title = String.valueOf(body.get("title")).trim();
+        if (body != null && body.get(LIT_TITLE) != null) {
+            String title = String.valueOf(body.get(LIT_TITLE)).trim();
             if (title.isEmpty()) throw new BusinessException(400, "章节标题不能为空");
             row.setTitle(title);
         }
-        if (body != null && body.get("sortOrder") != null) row.setSortOrder(Integer.parseInt(String.valueOf(body.get("sortOrder"))));
-        if (body != null && body.get("levelCode") != null) row.setLevelCode(String.valueOf(body.get("levelCode")));
+        if (body != null && body.get(LIT_SORTORDER) != null) row.setSortOrder(Integer.parseInt(String.valueOf(body.get(LIT_SORTORDER))));
+        if (body != null && body.get(LIT_LEVELCODE) != null) row.setLevelCode(String.valueOf(body.get(LIT_LEVELCODE)));
         sectionMapper.updateById(row);
     }
 

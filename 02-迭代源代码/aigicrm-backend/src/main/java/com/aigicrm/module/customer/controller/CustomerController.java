@@ -27,6 +27,10 @@ import org.springframework.security.access.prepost.PreAuthorize;
 @RequestMapping("/api/customer")
 @RequiredArgsConstructor
 public class CustomerController {
+    // P0-5 batch A: duplicated string literals (Sonar java:S1192)
+    private static final String LIT_FINANCE_VIEW = "finance:view";
+    private static final String LIT_CREATEDAT = "createdAt";
+
 
     private final CustomerService customerService;
     private final SeaService seaService;
@@ -327,7 +331,7 @@ public class CustomerController {
     @GetMapping("/{id}/invoices/summary")
     public Result<Map<String, Object>> getInvoiceSummary(@PathVariable Long id) {
         accessService.assertCanView(id);
-        if (!SecurityUtils.hasAuthority("finance:view")) return Result.ok(Map.of("totalCount", 0, "totalAmount", 0));
+        if (!SecurityUtils.hasAuthority(LIT_FINANCE_VIEW)) return Result.ok(Map.of("totalCount", 0, "totalAmount", 0));
         return Result.ok(customerService.getInvoiceSummary(id));
     }
 
@@ -345,7 +349,7 @@ public class CustomerController {
     @GetMapping("/{id}/stage-amounts")
     public Result<Map<String, Object>> getStageAmounts(@PathVariable Long id) {
         accessService.assertCanView(id);
-        if (!SecurityUtils.hasAuthority("finance:view")) {
+        if (!SecurityUtils.hasAuthority(LIT_FINANCE_VIEW)) {
             return Result.ok(Map.of("rows", List.of(), "coreType", "", "baseYear", 0,
                     "annualInvoiceAmount", 0, "annualPaymentAmount", 0));
         }
@@ -501,7 +505,7 @@ public class CustomerController {
     @GetMapping("/{id}/payments")
     public Result<List<BizPayment>> getPayments(@PathVariable Long id) {
         accessService.assertCanView(id);
-        if (!SecurityUtils.hasAuthority("finance:view")) return Result.ok(List.of());
+        if (!SecurityUtils.hasAuthority(LIT_FINANCE_VIEW)) return Result.ok(List.of());
         return Result.ok(customerService.getPayments(id));
     }
 
@@ -509,7 +513,7 @@ public class CustomerController {
     @GetMapping("/{id}/payments/summary")
     public Result<Map<String, Object>> getPaymentSummary(@PathVariable Long id) {
         accessService.assertCanView(id);
-        if (!SecurityUtils.hasAuthority("finance:view")) return Result.ok(Map.of("totalCount", 0, "totalAmount", 0));
+        if (!SecurityUtils.hasAuthority(LIT_FINANCE_VIEW)) return Result.ok(Map.of("totalCount", 0, "totalAmount", 0));
         return Result.ok(customerService.getPaymentSummary(id));
     }
 
@@ -622,7 +626,7 @@ public class CustomerController {
                 regionId, status, null, scope, devType, null, deptId, protectionStatus, province, city,
                 regDateStart, regDateEnd, expDateStart, expDateEnd, userIds, officeIds, ownerName));
         EasyExcel.write(response.getOutputStream(), BizCustomer.class)
-                .excludeColumnFieldNames(List.of("deleted", "createdAt", "updatedAt", "id"))
+                .excludeColumnFieldNames(List.of("deleted", LIT_CREATEDAT, "updatedAt", "id"))
                 .sheet("客户列表")
                 .doWrite(rows);
     }
@@ -640,7 +644,7 @@ public class CustomerController {
             var info = customerService.getDuplicateInfo(name);
             if (info != null) {
                 result.put("createdBy", info.getOrDefault("createdBy", ""));
-                result.put("createdAt", info.getOrDefault("createdAt", ""));
+                result.put(LIT_CREATEDAT, info.getOrDefault(LIT_CREATEDAT, ""));
             }
         }
         return Result.ok(result);

@@ -43,6 +43,17 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class ReminderService {
+    // P0-5 batch A: duplicated string literals (Sonar java:S1192)
+    private static final String LIT_REMINDER = "reminder";
+    private static final String LIT_CUSTOMERID = "customerId";
+    private static final String LIT_OWNERID = "ownerId";
+    private static final String LIT_STATUS = "status";
+    private static final String LIT_PENDING = "pending";
+    private static final String LIT_EXPIRING = "expiring";
+    private static final String LIT_PROCESSED = "processed";
+    private static final String LIT_CUSTOMER_WARNING_DAYS = "customer.warning.days";
+    private static final String LIT_ARCHIVED = "archived";
+
     /** 提醒提前默认天数:配置 customer.warning.days 缺失/脏值时回退该默认 */
     private static final int DEFAULT_WARNING_DAYS = 30;
 
@@ -209,7 +220,7 @@ public class ReminderService {
     private static final Map<String, String> REMINDER_TYPE_LABELS;
     static {
         Map<String, String> m = new LinkedHashMap<>();
-        m.put("expiring", "到期提醒");
+        m.put(LIT_EXPIRING, "到期提醒");
         m.put("expire", "到期提醒");
         m.put("protect_expiring", "到期提醒");
         m.put("invoice", "开票提醒");
@@ -278,7 +289,7 @@ public class ReminderService {
                 (Supplier<Object>) () -> resolveWarningDays(),
                 (Supplier<Object>) () -> deptId != null
                         ? com.aigicrm.common.util.DeptTreeUtils.expandSubtree(deptMapper, deptId) : null,
-                (Supplier<Object>) () -> scopeResolver.resolveModuleUsers(SecurityUtils.getCurrentUser(), "reminder")
+                (Supplier<Object>) () -> scopeResolver.resolveModuleUsers(SecurityUtils.getCurrentUser(), LIT_REMINDER)
         ));
         int warningDays = (Integer) pre.get(0);
 
@@ -286,7 +297,7 @@ public class ReminderService {
         LocalDate deadline = LocalDate.now().plusDays(warningDays);
         wrapper.isNotNull(BizCustomer::getExpireDate)
                 .le(BizCustomer::getExpireDate, deadline)
-                .notIn(BizCustomer::getStatus, "sea", "archived") // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
+                .notIn(BizCustomer::getStatus, "sea", LIT_ARCHIVED) // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
                 .orderByAsc(BizCustomer::getExpireDate);
         if (StringUtils.hasText(keyword)) {
             wrapper.like(BizCustomer::getCustomerName, keyword);
@@ -339,13 +350,13 @@ public class ReminderService {
         Supplier<Object> pendingFill = () -> customerIds.isEmpty() ? Map.<Long, BizReminder>of()
                 : latestReminderPerCustomer(reminderMapper.selectList(new LambdaQueryWrapper<BizReminder>()
                         .in(BizReminder::getCustomerId, customerIds)
-                        .eq(BizReminder::getReminderType, "expiring")
-                        .eq(BizReminder::getStatus, "pending")));
+                        .eq(BizReminder::getReminderType, LIT_EXPIRING)
+                        .eq(BizReminder::getStatus, LIT_PENDING)));
         Supplier<Object> processedFill = () -> customerIds.isEmpty() ? Map.<Long, BizReminder>of()
                 : latestReminderPerCustomer(reminderMapper.selectList(new LambdaQueryWrapper<BizReminder>()
                         .in(BizReminder::getCustomerId, customerIds)
-                        .eq(BizReminder::getReminderType, "expiring")
-                        .eq(BizReminder::getStatus, "processed")
+                        .eq(BizReminder::getReminderType, LIT_EXPIRING)
+                        .eq(BizReminder::getStatus, LIT_PROCESSED)
                         .ge(BizReminder::getProcessedAt, todayStart)));
         List<Object> fills = supplyConcurrently(List.of(deptFill, userFill, pendingFill, processedFill));
         @SuppressWarnings("unchecked") Map<Long, SysDept> deptMap = (Map<Long, SysDept>) fills.get(0);
@@ -355,7 +366,7 @@ public class ReminderService {
 
         List<Map<String, Object>> records = customers.stream().map(c -> {
             Map<String, Object> row = new HashMap<>();
-            row.put("customerId", c.getId());
+            row.put(LIT_CUSTOMERID, c.getId());
             row.put("customerName", c.getCustomerName());
             row.put("expireDate", c.getExpireDate());
             row.put("remainingDays", ChronoUnit.DAYS.between(today, c.getExpireDate()));
@@ -393,7 +404,7 @@ public class ReminderService {
     @org.springframework.transaction.annotation.Transactional
     public void ensureExpiring() {
         int warningDays = DEFAULT_WARNING_DAYS;
-        String val = configService.getValue("customer.warning.days");
+        String val = configService.getValue(LIT_CUSTOMER_WARNING_DAYS);
         if (val != null) { try { warningDays = Integer.parseInt(val.trim()); } catch (NumberFormatException ignored) {
                         // 配置脏值回退默认天数(同上)
                     } }
@@ -404,8 +415,8 @@ public class ReminderService {
         LambdaQueryWrapper<BizCustomer> wrapper = new LambdaQueryWrapper<>();
         wrapper.isNotNull(BizCustomer::getExpireDate)
                 .le(BizCustomer::getExpireDate, deadline)
-                .notIn(BizCustomer::getStatus, "sea", "archived"); // B5 统一口径: 排sea+archived
-        List<Long> visibleOwners = scopeResolver.resolveModuleUsers(SecurityUtils.getCurrentUser(), "reminder");
+                .notIn(BizCustomer::getStatus, "sea", LIT_ARCHIVED); // B5 统一口径: 排sea+archived
+        List<Long> visibleOwners = scopeResolver.resolveModuleUsers(SecurityUtils.getCurrentUser(), LIT_REMINDER);
         if (visibleOwners != null) {
             wrapper.in(BizCustomer::getOwnerId, visibleOwners.isEmpty() ? List.of(-1L) : visibleOwners);
         }
@@ -417,22 +428,22 @@ public class ReminderService {
             // (处理完当天不重复建,次日由本方法或凌晨任务再物化一条新的跟进待办)。
             Long pending = reminderMapper.selectCount(new LambdaQueryWrapper<BizReminder>()
                     .eq(BizReminder::getCustomerId, c.getId())
-                    .eq(BizReminder::getReminderType, "expiring")
-                    .eq(BizReminder::getStatus, "pending"));
+                    .eq(BizReminder::getReminderType, LIT_EXPIRING)
+                    .eq(BizReminder::getStatus, LIT_PENDING));
             Long processedToday = pending != null && pending > 0 ? 1L : reminderMapper.selectCount(
                     new LambdaQueryWrapper<BizReminder>()
                             .eq(BizReminder::getCustomerId, c.getId())
-                            .eq(BizReminder::getReminderType, "expiring")
-                            .eq(BizReminder::getStatus, "processed")
+                            .eq(BizReminder::getReminderType, LIT_EXPIRING)
+                            .eq(BizReminder::getStatus, LIT_PROCESSED)
                             .ge(BizReminder::getProcessedAt, todayStart));
             if ((pending == null || pending == 0) && (processedToday == null || processedToday == 0)) {
                 BizReminder r = new BizReminder();
                 r.setCustomerId(c.getId());
-                r.setReminderType("expiring");
+                r.setReminderType(LIT_EXPIRING);
                 r.setOwnerId(c.getOwnerId());
                 r.setOfficeId(c.getOfficeId());
                 r.setOverdueDays((int) ChronoUnit.DAYS.between(today, c.getExpireDate()));
-                r.setStatus("pending");
+                r.setStatus(LIT_PENDING);
                 reminderMapper.insert(r);
             }
         }
@@ -443,7 +454,7 @@ public class ReminderService {
      */
     public long pendingCount() {
         int warningDays = DEFAULT_WARNING_DAYS;
-        String val = configService.getValue("customer.warning.days");
+        String val = configService.getValue(LIT_CUSTOMER_WARNING_DAYS);
         if (val != null) {
             try {
                 warningDays = Integer.parseInt(val.trim());
@@ -455,12 +466,12 @@ public class ReminderService {
         LocalDate deadline = today.plusDays(warningDays);
 
         // 按数据范围统计（同 page()/expiringPage() 修复；null=all 不过滤）
-        List<Long> visibleOwners = scopeResolver.resolveModuleUsers(SecurityUtils.getCurrentUser(), "reminder");
+        List<Long> visibleOwners = scopeResolver.resolveModuleUsers(SecurityUtils.getCurrentUser(), LIT_REMINDER);
 
         LambdaQueryWrapper<BizCustomer> custWrapper = new LambdaQueryWrapper<BizCustomer>()
                 .isNotNull(BizCustomer::getExpireDate)
                 .le(BizCustomer::getExpireDate, deadline)
-                .notIn(BizCustomer::getStatus, "sea", "archived"); // B5 统一口径: 排sea+archived
+                .notIn(BizCustomer::getStatus, "sea", LIT_ARCHIVED); // B5 统一口径: 排sea+archived
         if (visibleOwners != null) {
             custWrapper.in(BizCustomer::getOwnerId, visibleOwners.isEmpty() ? List.of(-1L) : visibleOwners);
         }
@@ -469,8 +480,8 @@ public class ReminderService {
         // 查今日已跟进的客户数(【2026-09-23】口径随去重统一改 processedAt:今日处理过=今日跟进)
         LocalDateTime todayStart = today.atStartOfDay();
         LambdaQueryWrapper<BizReminder> remWrapper = new LambdaQueryWrapper<BizReminder>()
-                .eq(BizReminder::getReminderType, "expiring")
-                .eq(BizReminder::getStatus, "processed")
+                .eq(BizReminder::getReminderType, LIT_EXPIRING)
+                .eq(BizReminder::getStatus, LIT_PROCESSED)
                 .ge(BizReminder::getProcessedAt, todayStart);
         if (visibleOwners != null) {
             remWrapper.in(BizReminder::getOwnerId, visibleOwners.isEmpty() ? List.of(-1L) : visibleOwners);
@@ -479,7 +490,7 @@ public class ReminderService {
 
         LambdaQueryWrapper<BizReminder> shareWrapper = new LambdaQueryWrapper<BizReminder>()
                 .in(BizReminder::getReminderType, List.of("share_to", "share_by", "share_owner"))
-                .eq(BizReminder::getStatus, "pending");
+                .eq(BizReminder::getStatus, LIT_PENDING);
         if (visibleOwners != null) {
             shareWrapper.in(BizReminder::getOwnerId, visibleOwners.isEmpty() ? List.of(-1L) : visibleOwners);
         }
@@ -493,8 +504,8 @@ public class ReminderService {
         if (reminder == null) return;
         assertVisible(reminder, "无权处理该提醒");
         // 【P2 修复 2026-11-02】已处理提醒幂等跳过: 原无状态守卫, 重复点"处理"会反复覆盖 processedAt
-        if (!"pending".equals(reminder.getStatus())) return;
-        reminder.setStatus("processed");
+        if (!LIT_PENDING.equals(reminder.getStatus())) return;
+        reminder.setStatus(LIT_PROCESSED);
         reminder.setProcessedAt(LocalDateTime.now());
         reminderMapper.updateById(reminder);
     }
@@ -513,11 +524,11 @@ public class ReminderService {
         if (recycleBinService != null) {
             java.util.Map<String, Object> snap = new java.util.LinkedHashMap<>();
             snap.put("id", id);
-            snap.put("customerId", reminder.getCustomerId());
-            snap.put("ownerId", reminder.getOwnerId());
+            snap.put(LIT_CUSTOMERID, reminder.getCustomerId());
+            snap.put(LIT_OWNERID, reminder.getOwnerId());
             snap.put("reminderType", reminder.getReminderType());
-            snap.put("status", reminder.getStatus());
-            recycleBinService.record("reminder", id, snap, reminder.getDeletedReason(), "user");
+            snap.put(LIT_STATUS, reminder.getStatus());
+            recycleBinService.record(LIT_REMINDER, id, snap, reminder.getDeletedReason(), "user");
         }
     }
 
@@ -536,13 +547,13 @@ public class ReminderService {
         Map<String, Object> detail = new LinkedHashMap<>();
         detail.put("id", reminder.getId());
         detail.put("reminderType", reminder.getReminderType());
-        detail.put("status", reminder.getStatus());
+        detail.put(LIT_STATUS, reminder.getStatus());
         detail.put("overdueDays", reminder.getOverdueDays());
         detail.put("createdAt", reminder.getCreatedAt());
         detail.put("updatedAt", reminder.getUpdatedAt());
         detail.put("processedAt", reminder.getProcessedAt());
-        detail.put("customerId", reminder.getCustomerId());
-        detail.put("ownerId", reminder.getOwnerId());
+        detail.put(LIT_CUSTOMERID, reminder.getCustomerId());
+        detail.put(LIT_OWNERID, reminder.getOwnerId());
         detail.put("officeId", reminder.getOfficeId());
 
         BizCustomer customer = reminder.getCustomerId() == null ? null
@@ -572,12 +583,12 @@ public class ReminderService {
         brief.put("id", c.getId());
         brief.put("customerCode", c.getCustomerCode());
         brief.put("customerName", c.getCustomerName());
-        brief.put("status", c.getStatus());
+        brief.put(LIT_STATUS, c.getStatus());
         brief.put("industry", c.getIndustry());
         brief.put("region", regionOf(c));
         brief.put("expireDate", c.getExpireDate());
         brief.put("lastInvoiceDate", c.getLastInvoiceDate());
-        brief.put("ownerId", c.getOwnerId());
+        brief.put(LIT_OWNERID, c.getOwnerId());
         return brief;
     }
 
@@ -591,7 +602,7 @@ public class ReminderService {
 
     /** 提醒可见性校验（读/写共用）：非 admin 时负责人必须落在数据范围内，防按 ID 越权 */
     private void assertVisible(BizReminder reminder, String message) {
-        List<Long> visible = scopeResolver.resolveModuleUsers(SecurityUtils.getCurrentUser(), "reminder");
+        List<Long> visible = scopeResolver.resolveModuleUsers(SecurityUtils.getCurrentUser(), LIT_REMINDER);
         if (visible != null && (reminder.getOwnerId() == null || !visible.contains(reminder.getOwnerId()))) {
             throw new BusinessException(message);
         }
@@ -683,7 +694,7 @@ public class ReminderService {
      * 自 expiringPage 内联逻辑原样抽出,以便作为独立并发段执行,解析语义不变。
      */
     private int resolveWarningDays() {
-        String val = configService.getValue("customer.warning.days");
+        String val = configService.getValue(LIT_CUSTOMER_WARNING_DAYS);
         if (val != null) {
             try {
                 return Integer.parseInt(val.trim());

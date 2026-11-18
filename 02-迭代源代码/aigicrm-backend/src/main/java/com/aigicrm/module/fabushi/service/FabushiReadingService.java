@@ -19,6 +19,16 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class FabushiReadingService {
+    // P0-5 batch A: duplicated string literals (Sonar java:S1192)
+    private static final String LIT_LASTSECTIONID = "lastSectionId";
+    private static final String LIT_LASTPAGE = "lastPage";
+    private static final String LIT_TOTALPAGES = "totalPages";
+    private static final String LIT_REMINDERENABLED = "reminderEnabled";
+    private static final String LIT_DAILY = "daily";
+    private static final String LIT_FREQCODE = "freqCode";
+    private static final String LIT_REMINDTIME = "remindTime";
+    private static final String LIT_SOUNDENABLED = "soundEnabled";
+
     private final BizFabushiShelfMapper shelfMapper;
     private final BizFabushiReadingProgressMapper progressMapper;
     private final BizFabushiReadStatusMapper readStatusMapper;
@@ -54,9 +64,9 @@ public class FabushiReadingService {
             m.put("pages", b == null ? null : b.getPages());
             m.put("pdfFileId", b == null ? null : b.getPdfFileId());
             m.put("status", row.getStatus());
-            m.put("lastSectionId", row.getLastSectionId());
-            m.put("lastPage", p == null ? 1 : p.getLastPage());
-            m.put("totalPages", p == null ? null : p.getTotalPages());
+            m.put(LIT_LASTSECTIONID, row.getLastSectionId());
+            m.put(LIT_LASTPAGE, p == null ? 1 : p.getLastPage());
+            m.put(LIT_TOTALPAGES, p == null ? null : p.getTotalPages());
             return m;
         }).collect(Collectors.toList());
         return Map.of("records", records);
@@ -83,7 +93,7 @@ public class FabushiReadingService {
         String status = body == null ? null : String.valueOf(body.getOrDefault("status", ""));
         if (!Set.of("reading", "finished", "favorite").contains(status)) throw new BusinessException(400, "书架状态不合法");
         row.setStatus(status);
-        if (body.get("lastSectionId") != null) row.setLastSectionId(Long.valueOf(String.valueOf(body.get("lastSectionId"))));
+        if (body.get(LIT_LASTSECTIONID) != null) row.setLastSectionId(Long.valueOf(String.valueOf(body.get(LIT_LASTSECTIONID))));
         shelfMapper.updateById(row);
     }
 
@@ -100,17 +110,17 @@ public class FabushiReadingService {
                 .eq(BizFabushiReadingProgress::getUserId, uid).eq(BizFabushiReadingProgress::getBookId, bookId));
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("bookId", bookId);
-        m.put("lastPage", row == null || row.getLastPage() == null ? 1 : row.getLastPage());
-        m.put("totalPages", row == null ? null : row.getTotalPages());
+        m.put(LIT_LASTPAGE, row == null || row.getLastPage() == null ? 1 : row.getLastPage());
+        m.put(LIT_TOTALPAGES, row == null ? null : row.getTotalPages());
         return m;
     }
 
     @Transactional
     public void saveProgress(Long bookId, Map<String, Object> body) {
         Long uid = uid();
-        int lastPage = body != null && body.get("lastPage") != null ? Integer.parseInt(String.valueOf(body.get("lastPage"))) : 1;
+        int lastPage = body != null && body.get(LIT_LASTPAGE) != null ? Integer.parseInt(String.valueOf(body.get(LIT_LASTPAGE))) : 1;
         if (lastPage < 1) throw new BusinessException(400, "页码不合法");
-        Integer totalPages = body != null && body.get("totalPages") != null ? Integer.parseInt(String.valueOf(body.get("totalPages"))) : null;
+        Integer totalPages = body != null && body.get(LIT_TOTALPAGES) != null ? Integer.parseInt(String.valueOf(body.get(LIT_TOTALPAGES))) : null;
         BizFabushiReadingProgress row = progressMapper.selectOne(new LambdaQueryWrapper<BizFabushiReadingProgress>()
                 .eq(BizFabushiReadingProgress::getUserId, uid).eq(BizFabushiReadingProgress::getBookId, bookId));
         if (row == null) {
@@ -152,22 +162,22 @@ public class FabushiReadingService {
         BizFabushiUserSetting row = settingMapper.selectOne(new LambdaQueryWrapper<BizFabushiUserSetting>()
                 .eq(BizFabushiUserSetting::getUserId, uid));
         Map<String, Object> m = new LinkedHashMap<>();
-        m.put("reminderEnabled", row == null ? 0 : row.getReminderEnabled());
-        m.put("freqCode", row == null ? "daily" : row.getFreqCode());
-        m.put("remindTime", row == null ? "20:00" : row.getRemindTime());
-        m.put("soundEnabled", row == null ? 1 : row.getSoundEnabled());
+        m.put(LIT_REMINDERENABLED, row == null ? 0 : row.getReminderEnabled());
+        m.put(LIT_FREQCODE, row == null ? LIT_DAILY : row.getFreqCode());
+        m.put(LIT_REMINDTIME, row == null ? "20:00" : row.getRemindTime());
+        m.put(LIT_SOUNDENABLED, row == null ? 1 : row.getSoundEnabled());
         return m;
     }
 
     @Transactional
     public void saveSettings(Map<String, Object> body) {
         Long uid = uid();
-        String freq = body != null && body.get("freqCode") != null ? String.valueOf(body.get("freqCode")) : "daily";
-        if (!Set.of("daily", "weekday", "weekend").contains(freq)) throw new BusinessException(400, "提醒频率不合法");
-        String time = body != null && body.get("remindTime") != null ? String.valueOf(body.get("remindTime")) : "20:00";
+        String freq = body != null && body.get(LIT_FREQCODE) != null ? String.valueOf(body.get(LIT_FREQCODE)) : LIT_DAILY;
+        if (!Set.of(LIT_DAILY, "weekday", "weekend").contains(freq)) throw new BusinessException(400, "提醒频率不合法");
+        String time = body != null && body.get(LIT_REMINDTIME) != null ? String.valueOf(body.get(LIT_REMINDTIME)) : "20:00";
         if (!time.matches("^([01]\\d|2[0-3]):[0-5]\\d$")) throw new BusinessException(400, "提醒时间不合法");
-        int enabled = body != null && body.get("reminderEnabled") != null ? Integer.parseInt(String.valueOf(body.get("reminderEnabled"))) : 0;
-        int sound = body != null && body.get("soundEnabled") != null ? Integer.parseInt(String.valueOf(body.get("soundEnabled"))) : 1;
+        int enabled = body != null && body.get(LIT_REMINDERENABLED) != null ? Integer.parseInt(String.valueOf(body.get(LIT_REMINDERENABLED))) : 0;
+        int sound = body != null && body.get(LIT_SOUNDENABLED) != null ? Integer.parseInt(String.valueOf(body.get(LIT_SOUNDENABLED))) : 1;
         BizFabushiUserSetting row = settingMapper.selectOne(new LambdaQueryWrapper<BizFabushiUserSetting>()
                 .eq(BizFabushiUserSetting::getUserId, uid));
         if (row == null) {

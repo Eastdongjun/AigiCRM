@@ -42,9 +42,9 @@ public class FolderTypeDefaultService {
             FolderPermissionService.P_RENAME, FolderPermissionService.P_REPLACE,
             FolderPermissionService.P_DELETE, FolderPermissionService.P_SHARE,
             FolderPermissionService.P_DOWNLOAD);
-    private static final Set<String> TYPES = Set.of("public", "private", "incentive");
-    private static final Set<String> SCOPES = Set.of("self", "dept", "office", "region", "all");
     private static final String TYPE_INCENTIVE = "incentive";
+    private static final Set<String> TYPES = Set.of("public", "private", TYPE_INCENTIVE);
+    private static final Set<String> SCOPES = Set.of("self", "dept", "office", "region", "all");
 
     private final BizFolderTypeDefaultMapper grantMapper;
     private final BizFileFolderMapper folderMapper;

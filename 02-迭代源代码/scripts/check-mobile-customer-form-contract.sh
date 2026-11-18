@@ -357,9 +357,17 @@ if rg -n "\\{\\{content\\.length\\}\\}|\\{\\{content\\}\\}|\\{\\{saving\\}\\}|ma
   exit 1
 fi
 
-for pattern in "function addCustomer(data)" "function updateCustomer(id, data)" "function deleteCustomer(id)" "function checkCustomerName(name)" "function saveCustomerRelationship(id, score)" "function addCustomerContact(id, data)" "function updateCustomerContact(id, contactId, data)" "function deleteCustomerContact(id, contactId)" "function addInvoice(id, data)" "function deleteInvoice(id, invoiceId, reason)" "function addPayment(id, data)" "function deletePayment(id, paymentId, reason)"; do
+for pattern in "function addCustomer(data)" "function updateCustomer(id, data)" "function deleteCustomer(id)" "function checkCustomerName(name)" "function saveCustomerRelationship(id, score)" "function addCustomerContact(id, data)" "function updateCustomerContact(id, contactId, data)" "function deleteCustomerContact(id, contactId)"; do
   if ! rg -Fq "$pattern" "$API"; then
     echo "FAIL: customer API missing $pattern"
+    exit 1
+  fi
+done
+
+# 【MP-DEADAPI-001 2026-11-18】发票/回款写端点已下线: 包装不得复活
+for pattern in "function addInvoice(" "function deleteInvoice(" "function addPayment(" "function deletePayment("; do
+  if rg -Fq "$pattern" "$API"; then
+    echo "FAIL: customer API must not restore dead endpoint wrapper: $pattern"
     exit 1
   fi
 done

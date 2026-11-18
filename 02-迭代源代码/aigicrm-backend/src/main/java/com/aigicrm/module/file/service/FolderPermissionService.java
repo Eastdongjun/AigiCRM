@@ -36,6 +36,15 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class FolderPermissionService {
+    // P0-5 batch A: duplicated string literals (Sonar java:S1192)
+    private static final String LIT_FABUSHI_VIEW = "fabushi:view";
+    private static final String LIT_FABUSHI = "fabushi";
+    private static final String LIT_FILE_VIEW = "file:view";
+    private static final String LIT_FILE_EDIT = "file:edit";
+    private static final String LIT_FILE_SHARE = "file:share";
+    private static final String LIT_FILE_DELETE = "file:delete";
+    private static final String LIT_PRIVATE = "private";
+
 
     public static final String P_VIEW = "view";
     public static final String P_UPLOAD = "upload";
@@ -76,11 +85,11 @@ public class FolderPermissionService {
      */
     private boolean adminActionAllowed(String action) {
         return switch (action == null ? "" : action) {
-            case P_VIEW, P_DOWNLOAD -> SecurityUtils.hasAuthority("file:view");
+            case P_VIEW, P_DOWNLOAD -> SecurityUtils.hasAuthority(LIT_FILE_VIEW);
             case P_UPLOAD -> SecurityUtils.hasAuthority("file:upload");
-            case P_RENAME, P_REPLACE, P_EDIT -> SecurityUtils.hasAuthority("file:edit");
-            case P_SHARE -> SecurityUtils.hasAuthority("file:share");
-            case P_DELETE -> SecurityUtils.hasAuthority("file:delete");
+            case P_RENAME, P_REPLACE, P_EDIT -> SecurityUtils.hasAuthority(LIT_FILE_EDIT);
+            case P_SHARE -> SecurityUtils.hasAuthority(LIT_FILE_SHARE);
+            case P_DELETE -> SecurityUtils.hasAuthority(LIT_FILE_DELETE);
             case P_CREATE -> SecurityUtils.hasAuthority("file:folder:manage");
             default -> false;
         };
@@ -89,28 +98,28 @@ public class FolderPermissionService {
     /** admin 的夹按钮视图：只输出实际持有的 file:* 码，避免"按钮可见、点后 403"。 */
     private List<String> adminFolderPerms() {
         List<String> p = new ArrayList<>();
-        if (SecurityUtils.hasAuthority("file:view")) { p.add(P_VIEW); p.add(P_DOWNLOAD); }
+        if (SecurityUtils.hasAuthority(LIT_FILE_VIEW)) { p.add(P_VIEW); p.add(P_DOWNLOAD); }
         if (SecurityUtils.hasAuthority("file:upload")) p.add(P_UPLOAD);
-        if (SecurityUtils.hasAuthority("file:edit")) { p.add(P_EDIT); p.add(P_RENAME); p.add(P_REPLACE); }
-        if (SecurityUtils.hasAuthority("file:share")) p.add(P_SHARE);
-        if (SecurityUtils.hasAuthority("file:delete")) p.add(P_DELETE);
+        if (SecurityUtils.hasAuthority(LIT_FILE_EDIT)) { p.add(P_EDIT); p.add(P_RENAME); p.add(P_REPLACE); }
+        if (SecurityUtils.hasAuthority(LIT_FILE_SHARE)) p.add(P_SHARE);
+        if (SecurityUtils.hasAuthority(LIT_FILE_DELETE)) p.add(P_DELETE);
         return p;
     }
 
     /** admin 的文件行按钮视图：与 FILE_ROW_ACTIONS 同词表，但按实际码过滤。 */
     private List<String> adminFileRowPerms() {
         List<String> p = new ArrayList<>();
-        if (SecurityUtils.hasAuthority("file:view")) { p.add(P_VIEW); p.add(P_DOWNLOAD); }
-        if (SecurityUtils.hasAuthority("file:edit")) { p.add(P_RENAME); p.add(P_REPLACE); }
-        if (SecurityUtils.hasAuthority("file:share")) p.add(P_SHARE);
-        if (SecurityUtils.hasAuthority("file:delete")) p.add(P_DELETE);
+        if (SecurityUtils.hasAuthority(LIT_FILE_VIEW)) { p.add(P_VIEW); p.add(P_DOWNLOAD); }
+        if (SecurityUtils.hasAuthority(LIT_FILE_EDIT)) { p.add(P_RENAME); p.add(P_REPLACE); }
+        if (SecurityUtils.hasAuthority(LIT_FILE_SHARE)) p.add(P_SHARE);
+        if (SecurityUtils.hasAuthority(LIT_FILE_DELETE)) p.add(P_DELETE);
         return p;
     }
 
     /** 法布施空间行级按钮：只读 + 独立删除码，不继承 public/private/incentive 的编辑/分享动作。 */
     private List<String> fabushiRowPerms(BizFile file) {
         List<String> p = new ArrayList<>();
-        if (SecurityUtils.hasAuthority("fabushi:view")) { p.add(P_VIEW); p.add(P_DOWNLOAD); }
+        if (SecurityUtils.hasAuthority(LIT_FABUSHI_VIEW)) { p.add(P_VIEW); p.add(P_DOWNLOAD); }
         if (canDeleteFabushiFile(file, SecurityUtils.getCurrentUserId())) p.add(P_DELETE);
         return p;
     }
@@ -144,7 +153,7 @@ public class FolderPermissionService {
         // 【拍板 A 2026-11-14 私人空间收口】私人夹不走组织矩阵——仅本人/上级链/例外授权
         // (ACL+类型授权, 均在其前 return true)。同部门普通同事不得因 dept 档看到他人私人夹
         // (FILE-08 P1 用户拍板: "普通同事不应该看到别人私人夹的文件")。
-        if ("private".equals(folder.getFolderType())) return false;
+        if (LIT_PRIVATE.equals(folder.getFolderType())) return false;
         // 【拍板②】矩阵通道锚定夹归属组织(夹.org ∈ 我的可见部门集), 不再按创建人
         return deptVisible(folder.getOrgId(), userId, matrixActionOf(action));
     }
@@ -184,9 +193,9 @@ public class FolderPermissionService {
         // 【拍板 A 2026-11-14 私人空间收口】私人文件不走组织矩阵——仅本人/上级链/例外授权(已在前)。
         // 有夹跟夹(夹=private); 无夹跟空间锚(fileScope=private)。同部门普通同事不得因 dept 档
         // 看到他人私人夹内文件/他人无夹私人文件。
-        if (ref != null && "private".equals(ref.getFolderType())) return false;
+        if (ref != null && LIT_PRIVATE.equals(ref.getFolderType())) return false;
         // 【2026-11-10 三层定型】无夹文件按 fileScope 定型(激励附件只吃 incentive 类型授权, 公共/私人授权不再误盖)
-        if (ref == null && "private".equals(file.getFileScope())) return false;
+        if (ref == null && LIT_PRIVATE.equals(file.getFileScope())) return false;
         // 【拍板②】夹内文件跟夹走(夹.org ∈ 可见部门集); 无夹文件(激励附件/公共无夹)跟上传人(OWNER 锚)
         if (ref != null) return deptVisible(ref.getOrgId(), userId, matrixActionOf(action));
         Long uploader = file.getUploaderId();
@@ -199,7 +208,7 @@ public class FolderPermissionService {
      */
     public boolean canCreateFolder(String folderType, Long userId) {
         if (SecurityUtils.isAdmin()) return adminActionAllowed(P_CREATE);
-        if ("private".equals(folderType)) return true;
+        if (LIT_PRIVATE.equals(folderType)) return true;
         if (grantGranted(OBJ_FOLDER, folderType, null, null, null, P_CREATE, userId)) return true;
         return userId != null && leaderOrgId(userId) != null;
     }
@@ -251,7 +260,7 @@ public class FolderPermissionService {
         return switch (action == null ? "" : action) {
             case P_VIEW, P_DOWNLOAD -> "view";
             case P_UPLOAD, P_RENAME, P_REPLACE, P_SHARE, P_EDIT -> "manage";
-            case P_DELETE -> "delete";
+            case P_DELETE -> P_DELETE;
             default -> "view";
         };
     }
@@ -306,7 +315,7 @@ public class FolderPermissionService {
      * 管理员可在权限中心按角色/人员配置大区/办事处/部门/self。null=全部。
      */
     public Set<Long> fabushiVisibleUploaderIds(Long userId) {
-        if (!SecurityUtils.hasAuthority("fabushi:view")) return Set.of();
+        if (!SecurityUtils.hasAuthority(LIT_FABUSHI_VIEW)) return Set.of();
         if (SecurityUtils.isAdmin()) return null;
         com.aigicrm.security.SecurityUser user = SecurityUtils.getCurrentUser();
         if (user == null) return Set.of();
@@ -316,14 +325,14 @@ public class FolderPermissionService {
 
     /** 法布施单文件可见：功能码 fabushi:view + 上传人 ∈ fabushi|file_view 范围。 */
     public boolean canViewFabushiFile(BizFile file, Long userId) {
-        if (file == null || !SecurityUtils.hasAuthority("fabushi:view")) return false;
+        if (file == null || !SecurityUtils.hasAuthority(LIT_FABUSHI_VIEW)) return false;
         if (SecurityUtils.isAdmin()) return true;
         if (fileGrantService != null) {
             FileGrantService.Decision d = fileGrantService.decideFile(file, P_VIEW, userId);
             if (d == FileGrantService.Decision.DENY) return false;
             if (d == FileGrantService.Decision.ALLOW) return true;
         }
-        return moduleOwnerVisible(file.getUploaderId(), "fabushi", "file_view");
+        return moduleOwnerVisible(file.getUploaderId(), LIT_FABUSHI, "file_view");
     }
 
     /**
@@ -338,7 +347,7 @@ public class FolderPermissionService {
             if (d == FileGrantService.Decision.DENY) return false;
             if (d == FileGrantService.Decision.ALLOW) return true;
         }
-        return moduleOwnerVisible(file.getUploaderId(), "fabushi", "file_delete");
+        return moduleOwnerVisible(file.getUploaderId(), LIT_FABUSHI, "file_delete");
     }
 
     /** 文件版本回滚：独立码 + file|version_rollback 范围；未持新码时保留旧 file:edit(replace) 兼容。 */
@@ -482,7 +491,7 @@ public class FolderPermissionService {
         if (SecurityUtils.isAdmin()) {
             List<String> adminPerms = adminFileRowPerms();
             for (BizFile f : files) {
-                result.put(f.getId(), "fabushi".equals(f.getFileScope()) ? fabushiRowPerms(f) : adminPerms);
+                result.put(f.getId(), LIT_FABUSHI.equals(f.getFileScope()) ? fabushiRowPerms(f) : adminPerms);
             }
             return result;
         }
@@ -512,7 +521,7 @@ public class FolderPermissionService {
                 continue;
             }
             // 【2026-11-17 阶段二】法布施空间独立收口：只读 + fabushi:file:delete，不继承“本人恒管全动作”。
-            if ("fabushi".equals(anchorType)) {
+            if (LIT_FABUSHI.equals(anchorType)) {
                 result.put(file.getId(), fabushiRowPerms(file));
                 continue;
             }
@@ -522,7 +531,7 @@ public class FolderPermissionService {
                 result.put(file.getId(), FILE_ROW_ACTIONS); // 本人恒管/上级链=全动作
                 continue;
             }
-            boolean privateScope = "private".equals(anchorType); // 【拍板 A】私人空间不进矩阵(仅授权行)
+            boolean privateScope = LIT_PRIVATE.equals(anchorType); // 【拍板 A】私人空间不进矩阵(仅授权行)
             List<String> perms = new ArrayList<>();
             Map<String, FileGrantService.Decision> enginePerFile = enginePerms.getOrDefault(file.getId(), Map.of());
             for (String p : FILE_ROW_ACTIONS) {
@@ -595,7 +604,7 @@ public class FolderPermissionService {
                 FileGrantService.Decision ed = enginePerFolder.get(p);
                 if (ed == FileGrantService.Decision.DENY) continue; // per-action DENY 压按钮(与判定链同序)
                 if (ed == FileGrantService.Decision.ALLOW) { mergePerms(perms, p); continue; } // 引擎命中直接亮
-                Set<Long> depts = "private".equals(folder.getFolderType())
+                Set<Long> depts = LIT_PRIVATE.equals(folder.getFolderType())
                         ? Set.of() : matrixCache.computeIfAbsent(matrixActionOf(p), ma -> matrixDeptSet(userId, ma));
                 // 【2026-11-10 C区验收修复】null=全部(all档)放行, 对齐 FileService#255; 原写法致全员可看档在批量夹判定恒失效
                 if ((depts == null || (folder.getOrgId() != null && depts.contains(folder.getOrgId())))

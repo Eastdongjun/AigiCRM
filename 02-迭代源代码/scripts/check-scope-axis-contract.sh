@@ -25,7 +25,7 @@ customer|delete|canAccessCustomer\(SecurityUtils\.getCurrentUser\(\), "delete"|�
 customer|finance_edit|canAccessCustomer\(SecurityUtils\.getCurrentUser\(\), "finance_edit"|开票回款编辑范围(2026-11-03 拆码)
 file|view|matrixActionOf\(action\)|文件组织矩阵 view 档(view/download 归此档)
 file|manage|case P_UPLOAD, P_RENAME, P_REPLACE, P_SHARE, P_EDIT -> "manage"|文件矩阵 manage 档(upload/rename/replace/share/edit)
-file|delete|case P_DELETE -> "delete"|文件矩阵 delete 档(拍板③独立)
+file|delete|case P_DELETE -> P_DELETE|文件矩阵 delete 档(拍板③独立)
 approval|view|resolveModuleUsers\(SecurityUtils\.getCurrentUser\(\), "approval"\)|审批待办可见集(仅 view 档)
 reminder|view|resolveModuleUsers\(SecurityUtils\.getCurrentUser\(\), "reminder"\)|提醒可见集(仅 view 档)
 sea|view|resolveModuleUsers\(SecurityUtils\.getCurrentUser\(\), "sea"\)|公海列表可见集(池级编辑走池名单, 不入此表)

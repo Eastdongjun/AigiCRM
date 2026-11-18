@@ -26,6 +26,11 @@ import java.util.Set;
 @Service
 @RequiredArgsConstructor
 public class SysRoleService {
+    // P0-5 batch A: duplicated string literals (Sonar java:S1192)
+    private static final String LIT_SYSTEM_ROLE_GRANT = "system:role:grant";
+    private static final String LIT_ADMIN = "admin";
+    private static final String LIT_X = "角色不存在";
+
 
     private final SysRoleMapper roleMapper;
     private final SysRoleMenuMapper roleMenuMapper;
@@ -80,8 +85,8 @@ public class SysRoleService {
      */
     private void validateGrantableRole(SysRole role, SysRole existing) {
         if (SecurityUtils.hasAuthority("system:role:grant")) return;
-        if ("admin".equals(role.getRoleCode())
-                || (existing != null && "admin".equals(existing.getRoleCode()))) {
+        if (LIT_ADMIN.equals(role.getRoleCode())
+                || (existing != null && LIT_ADMIN.equals(existing.getRoleCode()))) {
             throw new BusinessException(403, "无权操作系统管理员角色");
         }
         if (role.getDataScope() != null) {
@@ -151,7 +156,7 @@ public class SysRoleService {
         jdbc.queryForList("SELECT id FROM sys_role WHERE id = ? FOR UPDATE", Long.class, role.getId());
         SysRole existing = roleMapper.selectById(role.getId());
         if (existing == null) {
-            throw new BusinessException("角色不存在");
+            throw new BusinessException(LIT_X);
         }
         // 【修复 角色更新集团边界】目标角色越权不可操作；新 groupId 越权不可归属
         if (!GroupScopeUtil.canAccessGroup(existing.getGroupId())) {
@@ -208,7 +213,7 @@ public class SysRoleService {
         SysRole existing = roleMapper.selectById(roleId);
         // 【收口 2026-08-12】未知 roleId 直接拒绝——此前 existing==null 跳过校验仍写孤儿 role_org
         if (existing == null) {
-            throw new BusinessException("角色不存在");
+            throw new BusinessException(LIT_X);
         }
         if (!GroupScopeUtil.canAccessGroup(existing.getGroupId())) {
             throw new BusinessException(403, "无权操作其他集团的角色");
@@ -234,7 +239,7 @@ public class SysRoleService {
                 com.aigicrm.security.SecurityUtils.getCurrentUserId());
         if (existing == null) {
             // 【2026-08-13 收口】删除不存在的角色不再静默成功（与 update/updateOrgs 存在性校验对齐）
-            throw new BusinessException("角色不存在");
+            throw new BusinessException(LIT_X);
         }
         if (!GroupScopeUtil.canAccessGroup(existing.getGroupId())) {
             throw new BusinessException(403, "无权删除其他集团的角色");
@@ -315,7 +320,7 @@ public class SysRoleService {
         // 【安全 2026-08-11】闭包后的集合也要过权限子集校验(非超管)——纵深防御:
         // 现闭包仅注入 permission 空的目录行(type=1), 本循环主要兜底提交集本身,
         // 防止任何未来变更重新引入带权限码的静默注入。
-        if (!SecurityUtils.hasAuthority("system:role:grant")) {
+        if (!SecurityUtils.hasAuthority(LIT_SYSTEM_ROLE_GRANT)) {
             Set<String> callerPerms = SecurityUtils.getCurrentUser() != null
                     ? SecurityUtils.getCurrentUser().getPermissions() : Set.of();
             for (Long menuId : expanded) {
@@ -341,7 +346,7 @@ public class SysRoleService {
         // 【P1-3 2026-11-15】adminOnly 码不得授予非 admin 角色(授了也是运行期 403, 属死配置)
         if (!includedCodes.isEmpty()) {
             SysRole target = roleMapper.selectById(roleId);
-            boolean targetAdmin = target != null && "admin".equals(target.getRoleCode());
+            boolean targetAdmin = target != null && LIT_ADMIN.equals(target.getRoleCode());
             if (!targetAdmin) {
                 for (String code : includedCodes) {
                     if (PermissionMetadataService.ADMIN_ONLY.contains(code)) {
@@ -452,7 +457,7 @@ public class SysRoleService {
 
     /** org→集团归属校验: admin 全集团放行; 非 admin 要求每个 org 有效集团==角色集团且子树不跨集团(fail-closed) */
     private void validateRoleOrgsGroup(List<Long> orgIds, Long roleGroup) {
-        if (SecurityUtils.hasAuthority("system:role:grant")) {
+        if (SecurityUtils.hasAuthority(LIT_SYSTEM_ROLE_GRANT)) {
             return;
         }
         for (Long orgId : orgIds) {

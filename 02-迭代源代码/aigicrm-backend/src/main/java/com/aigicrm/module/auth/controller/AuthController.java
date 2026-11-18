@@ -16,6 +16,10 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
 public class AuthController {
+    // P0-5 batch A: duplicated string literals (Sonar java:S1192)
+    private static final String LIT_UNKNOWN = "Unknown";
+    private static final String LIT_CHROME = "Chrome";
+
 
     private final AuthService authService;
     private final SysLogMapper logMapper;
@@ -43,13 +47,13 @@ public class AuthController {
     }
 
     private String parseUserAgent(String ua) {
-        if (ua == null) return "Unknown";
-        String browser = "Unknown";
-        String os = "Unknown";
-        if (ua.contains("Chrome") && !ua.contains("Edg")) browser = "Chrome";
+        if (ua == null) return LIT_UNKNOWN;
+        String browser = LIT_UNKNOWN;
+        String os = LIT_UNKNOWN;
+        if (ua.contains(LIT_CHROME) && !ua.contains("Edg")) browser = LIT_CHROME;
         else if (ua.contains("Edg")) browser = "Edge";
         else if (ua.contains("Firefox")) browser = "Firefox";
-        else if (ua.contains("Safari") && !ua.contains("Chrome")) browser = "Safari";
+        else if (ua.contains("Safari") && !ua.contains(LIT_CHROME)) browser = "Safari";
         if (ua.contains("Windows")) os = "Windows";
         else if (ua.contains("Mac OS")) os = "macOS";
         else if (ua.contains("Linux")) os = "Linux";

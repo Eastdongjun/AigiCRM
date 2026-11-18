@@ -20,6 +20,9 @@ import java.util.Map;
 @RequestMapping("/api/draft")
 @RequiredArgsConstructor
 public class FormDraftController {
+    // P0-5 batch A: duplicated string literals (Sonar java:S1192)
+    private static final String LIT_DRAFTDATA = "draftData";
+
 
     private final FormDraftService draftService;
 
@@ -36,7 +39,7 @@ public class FormDraftController {
     public Result<Object> save(@PathVariable String draftType, @RequestBody Map<String, Object> body) {
         Long groupId = GroupScopeUtil.currentGroupOrNull();
         if (groupId == null) throw new BusinessException(403, "无有效集团归属");
-        String data = body == null || body.get("draftData") == null ? null : body.get("draftData").toString();
+        String data = body == null || body.get(LIT_DRAFTDATA) == null ? null : body.get(LIT_DRAFTDATA).toString();
         if (data == null) throw new BusinessException(400, "草稿内容不能为空");
         Integer version = body.get("version") instanceof Number n ? n.intValue() : null;
         try {
@@ -53,7 +56,7 @@ public class FormDraftController {
     public Result<java.util.Map<String, Object>> forceSave(@PathVariable String draftType, @RequestBody Map<String, Object> body) {
         Long groupId = GroupScopeUtil.currentGroupOrNull();
         if (groupId == null) throw new BusinessException(403, "无有效集团归属");
-        String data = body == null || body.get("draftData") == null ? null : body.get("draftData").toString();
+        String data = body == null || body.get(LIT_DRAFTDATA) == null ? null : body.get(LIT_DRAFTDATA).toString();
         if (data == null) throw new BusinessException(400, "草稿内容不能为空");
         return Result.ok(FormDraftService.toRow(draftService.forceSaveDraft(draftType, SecurityUtils.getCurrentUserId(), groupId, data)));
     }

@@ -32,6 +32,14 @@ import java.time.Duration;
 @Service
 @RequiredArgsConstructor
 public class SecurityAuditService {
+    // P0-5 batch A: duplicated string literals (Sonar java:S1192)
+    private static final String LIT_PERMISSION_CHANGE = "PERMISSION_CHANGE";
+    private static final String LIT_ACTORID = "actorId";
+    private static final String LIT_ACTION = "action";
+    private static final String LIT_ACTION_2 = "action=";
+    private static final String LIT_USERID = "userId";
+    private static final String LIT_USERNAME = "username";
+
 
     private final StringRedisTemplate redis;
     private final SysAuditLogMapper auditLogMapper;
@@ -47,7 +55,7 @@ public class SecurityAuditService {
     /** 登录失败(含账号不存在/停用/密码错误,对外统一中性文案;内部如实区分) */
     public void loginFailed(String username, String clientIp, boolean userExists, boolean enabled,
                             int failCount, int ipFailCount) {
-        event("LOGIN_FAILED", "username", username, "ip", clientIp,
+        event("LOGIN_FAILED", LIT_USERNAME, username, "ip", clientIp,
                 "userExists", userExists, "enabled", enabled,
                 "failCount", failCount, "ipFailCount", ipFailCount);
         persist("LOGIN_FAILED", null, username, clientIp,
@@ -57,7 +65,7 @@ public class SecurityAuditService {
 
     /** 登录成功(审计基线:爆破检测需要"失败而无成功"与"正常用户偶发失败"可区分) */
     public void loginSuccess(Long userId, String username, String clientIp) {
-        event("LOGIN_SUCCESS", "userId", userId, "username", username, "ip", clientIp);
+        event("LOGIN_SUCCESS", LIT_USERID, userId, LIT_USERNAME, username, "ip", clientIp);
         persist("LOGIN_SUCCESS", userId, username, clientIp, null);
     }
 
@@ -66,7 +74,7 @@ public class SecurityAuditService {
      * 达到 ANON_PROBE_IP_ALERT 时告警:中性化后枚举攻击唯一可见的痕迹就在这里。
      */
     public void anonymousProbe(String kind, String username, String clientIp) {
-        event("ANON_PROBE", "kind", kind, "username", username, "ip", clientIp);
+        event("ANON_PROBE", "kind", kind, LIT_USERNAME, username, "ip", clientIp);
         persist("ANON_PROBE", null, username, clientIp, "kind=" + kind);
         thresholdAlert("ANON_PROBE_IP_BURST", "anon:" + clientIp, ANON_PROBE_IP_ALERT,
                 "kind", kind, "ip", clientIp);
@@ -74,7 +82,7 @@ public class SecurityAuditService {
 
     /** 越权拒绝(403):Spring Security @PreAuthorize 拒绝统一经 AccessDeniedHandler 汇入 */
     public void accessDenied(String uri, Long userId, String clientIp) {
-        event("ACCESS_DENIED", "uri", uri, "userId", userId, "ip", clientIp);
+        event("ACCESS_DENIED", "uri", uri, LIT_USERID, userId, "ip", clientIp);
         persist("ACCESS_DENIED", userId, null, clientIp, "uri=" + uri);
         thresholdAlert("ACCESS_DENIED_IP_BURST", "denied:" + clientIp, ACCESS_DENIED_IP_ALERT,
                 "uri", uri, "ip", clientIp);
@@ -82,9 +90,9 @@ public class SecurityAuditService {
 
     /** 权限变更(角色增删改,含菜单/权限码绑定调整) */
     public void permissionChange(String action, Long targetRoleId, String roleName, Long actorId) {
-        event("PERMISSION_CHANGE", "action", action, "roleId", targetRoleId, "roleName", roleName, "actorId", actorId);
-        persist("PERMISSION_CHANGE", actorId, null, null,
-                "action=" + action + " roleId=" + targetRoleId + " roleName=" + roleName);
+        event(LIT_PERMISSION_CHANGE, LIT_ACTION, action, "roleId", targetRoleId, "roleName", roleName, LIT_ACTORID, actorId);
+        persist(LIT_PERMISSION_CHANGE, actorId, null, null,
+                LIT_ACTION_2 + action + " roleId=" + targetRoleId + " roleName=" + roleName);
     }
 
     /**
@@ -99,13 +107,13 @@ public class SecurityAuditService {
         } catch (Exception ignore) {
             // 无会话上下文(内部调用)时 actor 为空
         }
-        event("PERMISSION_CHANGE", "action", action, "target", targetDesc, "actorId", actorId);
-        persist("PERMISSION_CHANGE", actorId, null, null, "action=" + action + " " + targetDesc);
+        event(LIT_PERMISSION_CHANGE, LIT_ACTION, action, "target", targetDesc, LIT_ACTORID, actorId);
+        persist(LIT_PERMISSION_CHANGE, actorId, null, null, LIT_ACTION_2 + action + " " + targetDesc);
     }
 
     /** 集团/租户变更:会话切换 */
     public void groupSwitch(Long userId, String username, Long fromGroupId, Long toGroupId) {
-        event("GROUP_SWITCH", "userId", userId, "username", username,
+        event("GROUP_SWITCH", LIT_USERID, userId, LIT_USERNAME, username,
                 "from", fromGroupId, "to", toGroupId);
         persist("GROUP_SWITCH", userId, username, null,
                 "from=" + fromGroupId + " to=" + toGroupId);
@@ -119,15 +127,15 @@ public class SecurityAuditService {
         } catch (Exception ignore) {
             // 无会话上下文(如内部调用)时 actor 为空
         }
-        event("USER_ADMIN", "action", action, "targetUserId", targetUserId,
-                "targetUsername", targetUsername, "actorId", actorId);
+        event("USER_ADMIN", LIT_ACTION, action, "targetUserId", targetUserId,
+                "targetUsername", targetUsername, LIT_ACTORID, actorId);
         persist("USER_ADMIN", actorId, targetUsername, null,
-                "action=" + action + " targetUserId=" + targetUserId);
+                LIT_ACTION_2 + action + " targetUserId=" + targetUserId);
     }
 
     /** 集团/租户变更:用户归属组织调整(影响租户边界推导) */
     public void userOrgChanged(Long userId, Long oldOrgId, Long newOrgId, Long actorId) {
-        event("USER_ORG_CHANGED", "userId", userId, "from", oldOrgId, "to", newOrgId, "actorId", actorId);
+        event("USER_ORG_CHANGED", LIT_USERID, userId, "from", oldOrgId, "to", newOrgId, LIT_ACTORID, actorId);
     }
 
     /**
@@ -145,7 +153,7 @@ public class SecurityAuditService {
         }
         event("INCENTIVE_GRANT_SAVE", "targetUserId", targetUserId,
                 "canViewShared", canViewShared, "canViewAll", canViewAll,
-                "canEdit", canEdit, "canDelete", canDelete, "actorId", actorId);
+                "canEdit", canEdit, "canDelete", canDelete, LIT_ACTORID, actorId);
         persist("INCENTIVE_GRANT_SAVE", actorId, null, null,
                 "targetUserId=" + targetUserId
                         + " flags={\"canViewShared\":" + canViewShared
@@ -167,9 +175,9 @@ public class SecurityAuditService {
         } catch (Exception ignore) {
             // 无会话上下文(如内部调用)时 actor 为空
         }
-        event("STORAGE_QUOTA_CHANGED", "userId", applicantId, "applicantId", applicantId,
+        event("STORAGE_QUOTA_CHANGED", LIT_USERID, applicantId, "applicantId", applicantId,
                 "oldQuota", oldQuota, "newQuota", newQuota, "approvalId", approvalId,
-                "operator", actorId, "actorId", actorId);
+                "operator", actorId, LIT_ACTORID, actorId);
         persist("STORAGE_QUOTA_CHANGED", actorId, null, null,
                 "userId=" + applicantId + " applicantId=" + applicantId + " oldQuota=" + oldQuota
                         + " newQuota=" + newQuota + " approvalId=" + approvalId
@@ -178,7 +186,7 @@ public class SecurityAuditService {
 
     /** 登录失败计数已达告警线(计数由 AuthService 限流逻辑持有,此处只负责告警) */
     public void loginFailBurst(String username, String clientIp) {
-        alert("LOGIN_FAIL_BURST", "username", username, "ip", clientIp, "threshold", LOGIN_FAIL_ALERT);
+        alert("LOGIN_FAIL_BURST", LIT_USERNAME, username, "ip", clientIp, "threshold", LOGIN_FAIL_ALERT);
     }
 
     public void loginFailIpBurst(String clientIp) {

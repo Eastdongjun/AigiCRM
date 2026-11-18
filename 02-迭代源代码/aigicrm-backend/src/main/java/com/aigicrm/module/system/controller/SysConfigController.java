@@ -26,6 +26,10 @@ import java.util.Map;
 @RequestMapping("/api/system/configs")
 @RequiredArgsConstructor
 public class SysConfigController {
+    // P0-5 batch A: duplicated string literals (Sonar java:S1192)
+    private static final String LIT_SYSTEM_LOGO = "system.logo";
+    private static final String LIT_API_FILE_DOWNLOAD = "/api/file/download/";
+
 
     private final SysConfigService configService;
     private final FileService fileService;
@@ -124,9 +128,9 @@ public class SysConfigController {
     private void validateLogoConfigs(List<SysConfig> configs) {
         // 前端"保存全部配置"会把未修改的 system.logo 一并回传：只对真实变更做校验/鉴权，
         // 否则非 admin 保存其他设置也会被误拒。
-        String currentLogo = configService.getValue("system.logo");
+        String currentLogo = configService.getValue(LIT_SYSTEM_LOGO);
         List<String> changedLogoValues = configs.stream()
-                .filter(c -> c != null && "system.logo".equals(c.getConfigKey()))
+                .filter(c -> c != null && LIT_SYSTEM_LOGO.equals(c.getConfigKey()))
                 .map(SysConfig::getConfigValue)
                 .filter(value -> !java.util.Objects.equals(currentLogo, value))
                 .toList();
@@ -145,7 +149,7 @@ public class SysConfigController {
             throw new BusinessException(400, "Logo 仅支持 /api/file/download/public/ 开头的公共文件地址");
         }
         Path uploadRoot = Paths.get(uploadDir).toAbsolutePath().normalize();
-        Path resolved = uploadRoot.resolve(value.substring("/api/file/download/".length())).normalize();
+        Path resolved = uploadRoot.resolve(value.substring(LIT_API_FILE_DOWNLOAD.length())).normalize();
         if (!resolved.startsWith(uploadRoot)) {
             throw new BusinessException(400, "Logo 地址必须指向 public 目录下的文件");
         }
@@ -163,7 +167,7 @@ public class SysConfigController {
         result.put("system.subtitle", "市场资源管理系统");
         // 匿名可读的公开配置:登录页品牌 + 客户保护/提醒/调整/开票超期(前端列表展示与状态判断依赖)
         java.util.Set<String> publicKeys = java.util.Set.of(
-                "system.name", "system.logo", "system.subtitle",
+                "system.name", LIT_SYSTEM_LOGO, "system.subtitle",
                 "customer.protection.days", "customer.warning.days", "customer.adjust.days",
                 "invoice.overdue.days");
         for (SysConfig c : all) {
@@ -177,12 +181,12 @@ public class SysConfigController {
     @GetMapping("/logo")
     public ResponseEntity<?> logo() {
         try {
-            String logoUrl = configService.getValue("system.logo");
+            String logoUrl = configService.getValue(LIT_SYSTEM_LOGO);
             if (logoUrl == null || logoUrl.isBlank()) {
                 return transparentSvg();
             }
-            if (logoUrl.startsWith("/api/file/download/")) {
-                String fileKey = logoUrl.substring("/api/file/download/".length());
+            if (logoUrl.startsWith(LIT_API_FILE_DOWNLOAD)) {
+                String fileKey = logoUrl.substring(LIT_API_FILE_DOWNLOAD.length());
                 // 安全(REV-20260802-01): 只允许 public/ 前缀 + 路径包含校验, 防止路径穿越与私密文件匿名泄露
                 if (!fileKey.startsWith("public/")) {
                     return transparentSvg();

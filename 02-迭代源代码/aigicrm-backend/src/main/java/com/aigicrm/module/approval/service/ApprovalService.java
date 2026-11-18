@@ -247,7 +247,7 @@ public class ApprovalService {
                 .eq(BizApprovalNode::getApprovalId, approval.getId())
                 .eq(BizApprovalNode::getApproverId, userId)) > 0) return true;
         // 【2026-09-19 接入权限矩阵】(approval,view) 显式配置优先，未配置回退角色数据范围
-        List<Long> visible = scopeResolver.resolveModuleUsers(SecurityUtils.getCurrentUser(), LIT_APPROVAL);
+        List<Long> visible = scopeResolver.resolveModuleUsers(SecurityUtils.getCurrentUser(), "approval");
         return visible == null || visible.contains(approval.getApplicantId());
     }
 

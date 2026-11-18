@@ -22,10 +22,21 @@ import java.util.concurrent.ConcurrentHashMap;
 @Service
 @RequiredArgsConstructor
 public class RolePermScopeService {
+    // P0-5 batch A: duplicated string literals (Sonar java:S1192)
+    private static final String LIT_REGION = "region";
+    private static final String LIT_OFFICE = "office";
+    private static final String LIT_CUSTOM = "custom";
+    private static final String LIT_SCOPE_LEVEL = "scope_level";
+    private static final String LIT_ANCHOR = "anchor";
+    private static final String LIT_OWNER = "OWNER";
+    private static final String LIT_MODULE = "module";
+    private static final String LIT_ACTION = "action";
+    private static final String LIT_X = "权限范围配置读取失败，暂不可用";
+
 
     /** 合法范围级别(与 DataScopeType 主码一致; dept_and_children 为 V7 注释遗留值, 解析器按 dept 语义降级) */
     private static final java.util.Set<String> VALID_SCOPES = java.util.Set.of(
-            "all", "custom", "region", "office", "dept", "dept_and_children", "org", "org_and_children", "team", "self");
+            "all", LIT_CUSTOM, LIT_REGION, LIT_OFFICE, "dept", "dept_and_children", "org", "org_and_children", "team", "self");
 
     /** 短 TTL 本地缓存(30s): effectiveScopes 在 canView/canEdit/canDelete 热路径上, 避免每判定 1 条 JDBC */
     private static final long CACHE_TTL_MS = 30_000L;
@@ -116,7 +127,7 @@ public class RolePermScopeService {
             // 【PR-01 P1-08 2026-09-18 fail-closed】配置表缺失/查询失败不再降级为空
             // （此前返回已加载/空配置，后续回退角色旧 dataScope，可能放宽到更宽范围）。
             // 授权元数据不可用即明确 503，调用方不得用未经证实的默认范围继续放行。
-            throw new BusinessException(503, "权限范围配置读取失败，暂不可用");
+            throw new BusinessException(503, LIT_X);
         }
         return all;
     }
@@ -128,10 +139,10 @@ public class RolePermScopeService {
                     ScopeConfig c = new ScopeConfig();
                     c.setAssigneeType(rs.getString("assignee_type"));
                     c.setAssigneeKey(rs.getString("assignee_key"));
-                    c.setModule(rs.getString("module"));
-                    c.setAction(rs.getString("action"));
-                    c.setScopeLevel(rs.getString("scope_level"));
-                    c.setAnchor(rs.getString("anchor"));
+                    c.setModule(rs.getString(LIT_MODULE));
+                    c.setAction(rs.getString(LIT_ACTION));
+                    c.setScopeLevel(rs.getString(LIT_SCOPE_LEVEL));
+                    c.setAnchor(rs.getString(LIT_ANCHOR));
                     return c;
                 }, key);
     }
@@ -194,7 +205,7 @@ public class RolePermScopeService {
         } catch (Exception e) {
             // 【PR-01 N-04 2026-09-18 fail-closed】DB 异常不再返 null 伪装"未配置"
             // （调用方会回退默认 dataScope，可能比显式配置更宽）。未知即 503。
-            throw new BusinessException(503, "权限范围配置读取失败，暂不可用");
+            throw new BusinessException(503, LIT_X);
         }
     }
 
@@ -325,8 +336,8 @@ public class RolePermScopeService {
             for (var row : jdbc.queryForList(
                     "SELECT module, action, scope_level, anchor FROM role_perm_scope WHERE assignee_type=? AND assignee_key=?",
                     assigneeType, assigneeKey)) {
-                recordScopeVersion(assigneeType, assigneeKey, String.valueOf(row.get("module")), String.valueOf(row.get("action")),
-                        row.get("scope_level") + "/" + row.get("anchor"), "默认(未配置)");
+                recordScopeVersion(assigneeType, assigneeKey, String.valueOf(row.get(LIT_MODULE)), String.valueOf(row.get(LIT_ACTION)),
+                        row.get(LIT_SCOPE_LEVEL) + "/" + row.get(LIT_ANCHOR), "默认(未配置)");
             }
             jdbc.update("DELETE FROM role_perm_scope WHERE assignee_type=? AND assignee_key=?", assigneeType, assigneeKey);
             // 【P1-2 三轮修复 2026-11-13】清空范围的授予表语义按主体分型:
@@ -344,8 +355,8 @@ public class RolePermScopeService {
             return;
         }
         for (Map<String, Object> cfg : configs) {
-            Object module = cfg.get("module");
-            Object action = cfg.get("action");
+            Object module = cfg.get(LIT_MODULE);
+            Object action = cfg.get(LIT_ACTION);
             Object scopeLevel = cfg.get("scopeLevel");
             if (module == null || action == null || scopeLevel == null) continue;
             String scope = scopeLevel.toString();
@@ -364,16 +375,16 @@ public class RolePermScopeService {
             // 目标用户任职组织无对应 dept_type 祖先(大区=2/办事处=3)时拒绝配置(400)——
             // 否则运行时解析 fail-closed 返回空集, 勾了等于没勾("配置成功但不生效"体验)
             if (ScopeConfig.ASSIGNEE_USER.equals(assigneeType)
-                    && ("region".equals(scope) || "office".equals(scope))) {
-                int wantType = "region".equals(scope) ? 2 : 3;
+                    && (LIT_REGION.equals(scope) || LIT_OFFICE.equals(scope))) {
+                int wantType = LIT_REGION.equals(scope) ? 2 : 3;
                 if (!userHasAncestorOfType(assigneeKey, wantType)) {
                     throw new com.aigicrm.common.BusinessException(400, wantType == 2
                             ? "该用户不在任何大区下，无法配置“本大区”范围"
                             : "该用户不在任何办事处下，无法配置“本办事处”范围");
                 }
             }
-            String anchor = cfg.get("anchor") != null ? cfg.get("anchor").toString() : "OWNER";
-            if (!"OWNER".equalsIgnoreCase(anchor) && !"ORG".equalsIgnoreCase(anchor)) {
+            String anchor = cfg.get(LIT_ANCHOR) != null ? cfg.get(LIT_ANCHOR).toString() : LIT_OWNER;
+            if (!LIT_OWNER.equalsIgnoreCase(anchor) && !"ORG".equalsIgnoreCase(anchor)) {
                 throw new com.aigicrm.common.BusinessException("非法的范围锚点取值: " + anchor);
             }
             // role_code 列同步写(兼容 V7 查询/回滚窗口)
@@ -387,7 +398,7 @@ public class RolePermScopeService {
             for (var row : jdbc.queryForList(
                     "SELECT scope_level, anchor FROM role_perm_scope WHERE assignee_type=? AND assignee_key=? AND module=? AND action=?",
                     assigneeType, assigneeKey, module.toString(), action.toString())) {
-                oldScope = row.get("scope_level") + "/" + row.get("anchor");
+                oldScope = row.get(LIT_SCOPE_LEVEL) + "/" + row.get(LIT_ANCHOR);
             }
             jdbc.update("DELETE FROM role_perm_scope WHERE assignee_type=? AND assignee_key=? "
                             + "AND module=? AND action=? AND anchor<>?",
@@ -416,9 +427,9 @@ public class RolePermScopeService {
         if (legacyScope == null) return "SELF";
         switch (legacyScope) {
             case "all": return "ALL";
-            case "custom": return "CUSTOM";
-            case "region": return "MY_REGION_SUB";
-            case "office": return "MY_OFFICE_SUB";
+            case LIT_CUSTOM: return "CUSTOM";
+            case LIT_REGION: return "MY_REGION_SUB";
+            case LIT_OFFICE: return "MY_OFFICE_SUB";
             case "dept":
             case "dept_and_children":
             case "org_and_children": return "MY_DEPT_SUB";
@@ -507,12 +518,12 @@ public class RolePermScopeService {
                 String[] slot = permActionRegistry.slotOf(code);
                 if (slot == null) continue; // 非槽码(入口/路由)无范围语义, 无需授权行
                 String scopeLevel = null;
-                String anchor = "OWNER";
+                String anchor = LIT_OWNER;
                 for (var row : jdbc.queryForList(
                         "SELECT scope_level, anchor FROM role_perm_scope WHERE assignee_type='ROLE' AND assignee_key=? AND module=? AND action=?",
                         roleCode, slot[0], slot[1])) {
-                    scopeLevel = String.valueOf(row.get("scope_level"));
-                    anchor = String.valueOf(row.get("anchor"));
+                    scopeLevel = String.valueOf(row.get(LIT_SCOPE_LEVEL));
+                    anchor = String.valueOf(row.get(LIT_ANCHOR));
                 }
                 String mapped = scopeLevel != null ? scopeTypeOfLegacy(scopeLevel)
                         : scopeTypeOfLegacy(dataScope != null ? dataScope : "self");
@@ -552,7 +563,7 @@ public class RolePermScopeService {
      */
     private void validateRoleScopeForSave(String assigneeType, String assigneeKey, String scope) {
         if (!ScopeConfig.ASSIGNEE_ROLE.equals(assigneeType)) return;
-        if ("custom".equals(scope)) {
+        if (LIT_CUSTOM.equals(scope)) {
             Integer bound = jdbc.queryForObject(
                     "SELECT COUNT(*) FROM sys_role_org ro JOIN sys_role r ON r.id = ro.role_id WHERE r.role_code = ?",
                     Integer.class, assigneeKey);
@@ -560,11 +571,11 @@ public class RolePermScopeService {
                 throw new BusinessException(400, "DATA_SCOPE_INVALID", "自定义范围需先在角色管理中选择组织");
             }
         }
-        if ("region".equals(scope) || "office".equals(scope)) {
-            int wantType = "region".equals(scope) ? 2 : 3;
+        if (LIT_REGION.equals(scope) || LIT_OFFICE.equals(scope)) {
+            int wantType = LIT_REGION.equals(scope) ? 2 : 3;
             if (!roleHasMemberWithAncestor(assigneeKey, wantType)) {
                 throw new BusinessException(400, "DATA_SCOPE_INVALID",
-                        "该角色成员均无" + ("region".equals(scope) ? "大区" : "办事处")
+                        "该角色成员均无" + (LIT_REGION.equals(scope) ? "大区" : "办事处")
                                 + "归属，无法配置该范围（请改用自定义/全部或先调整组织）");
             }
         }
@@ -635,7 +646,7 @@ public class RolePermScopeService {
             Integer n = jdbc.queryForObject("SELECT COUNT(*) FROM role_perm_scope", Integer.class);
             return n != null && n > 0;
         } catch (Exception e) {
-            throw new BusinessException(503, "权限范围配置读取失败，暂不可用");
+            throw new BusinessException(503, LIT_X);
         }
     }
 

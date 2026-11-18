@@ -17,6 +17,16 @@ import java.util.Map;
 @RequestMapping("/api/fabushi/stats")
 @RequiredArgsConstructor
 public class FabushiStatsController {
+    // P0-5 batch A: duplicated string literals (Sonar java:S1192)
+    private static final String LIT_COVERAGEPCT = "coveragePct";
+    private static final String LIT_DEPTNAME = "deptName";
+    private static final String LIT_READDAYS = "readDays";
+    private static final String LIT_MONTH = "month";
+    private static final String LIT_POSTS = "posts";
+    private static final String LIT_LIKES = "likes";
+    private static final String LIT_COMMENTS = "comments";
+    private static final String LIT_READUSERS = "readUsers";
+
 
     private final FabushiStatsService statsService;
     private final FabushiDashboardService dashboardService;
@@ -44,15 +54,15 @@ public class FabushiStatsController {
         StringBuilder sb = new StringBuilder("\uFEFF指标,值\n");
         sb.append("周期,").append(d.get("period")).append("\n");
         sb.append("今日已读人数,").append(d.get("todayReadUsers")).append("\n");
-        sb.append("覆盖率,").append(d.get("coveragePct") == null ? "" : d.get("coveragePct")).append("\n");
+        sb.append("覆盖率,").append(d.get(LIT_COVERAGEPCT) == null ? "" : d.get(LIT_COVERAGEPCT)).append("\n");
         sb.append("新增内容,").append(d.get("periodPosts")).append("\n");
         sb.append("木鱼,").append(d.get("periodLikes")).append("\n");
         sb.append("评论,").append(d.get("periodComments")).append("\n\n成员榜\n成员,部门,发布,获木鱼,已读天数\n");
         for (Object o : (Iterable<?>) d.getOrDefault("ranking", java.util.List.of())) {
             Map<?, ?> r = (Map<?, ?>) o;
-            sb.append(r.get("userName")).append(',').append(r.get("deptName")).append(',')
+            sb.append(r.get("userName")).append(',').append(r.get(LIT_DEPTNAME)).append(',')
               .append(r.get("postCount")).append(',').append(r.get("likesReceived")).append(',')
-              .append(r.get("readDays")).append('\n');
+              .append(r.get(LIT_READDAYS)).append('\n');
         }
         byte[] bytes = sb.toString().getBytes(StandardCharsets.UTF_8);
         return ResponseEntity.ok().header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=fabushi-stats.csv")
@@ -76,40 +86,40 @@ public class FabushiStatsController {
     public ResponseEntity<byte[]> monthlyExport(@RequestParam(required = false) String month) {
         Map<String, Object> d = dashboardService.monthly(month);
         StringBuilder sb = new StringBuilder("\uFEFF月度报告,值\n");
-        sb.append(csv("月份")).append(',').append(csv(d.get("month"))).append('\n');
+        sb.append(csv("月份")).append(',').append(csv(d.get(LIT_MONTH))).append('\n');
         sb.append(csv("周期")).append(',').append(d.get("periodStart")).append(" ~ ").append(d.get("periodEnd")).append('\n');
-        sb.append(csv("新增内容")).append(',').append(d.get("posts")).append('\n');
-        sb.append(csv("木鱼")).append(',').append(d.get("likes")).append('\n');
-        sb.append(csv("评论")).append(',').append(d.get("comments")).append('\n');
+        sb.append(csv("新增内容")).append(',').append(d.get(LIT_POSTS)).append('\n');
+        sb.append(csv("木鱼")).append(',').append(d.get(LIT_LIKES)).append('\n');
+        sb.append(csv("评论")).append(',').append(d.get(LIT_COMMENTS)).append('\n');
         sb.append(csv("已读人次")).append(',').append(d.get("readCount")).append('\n');
-        sb.append(csv("已读人数")).append(',').append(d.get("readUsers")).append('\n');
+        sb.append(csv("已读人数")).append(',').append(d.get(LIT_READUSERS)).append('\n');
         sb.append(csv("活跃人数")).append(',').append(d.get("activeUsers")).append('\n');
-        sb.append(csv("覆盖率%")).append(',').append(csv(d.get("coveragePct"))).append('\n');
+        sb.append(csv("覆盖率%")).append(',').append(csv(d.get(LIT_COVERAGEPCT))).append('\n');
         Map<?, ?> prev = (Map<?, ?>) d.getOrDefault("prev", Map.of());
-        sb.append('\n').append(csv("环比上月")).append(',').append(csv(prev.get("month"))).append('\n');
+        sb.append('\n').append(csv("环比上月")).append(',').append(csv(prev.get(LIT_MONTH))).append('\n');
         sb.append(csv("指标")).append(",上月,环比%\n");
-        sb.append(csv("新增内容")).append(',').append(prev.get("posts")).append(',').append(csv(prev.get("postsPct"))).append('\n');
-        sb.append(csv("木鱼")).append(',').append(prev.get("likes")).append(',').append(csv(prev.get("likesPct"))).append('\n');
-        sb.append(csv("评论")).append(',').append(prev.get("comments")).append(',').append(csv(prev.get("commentsPct"))).append('\n');
-        sb.append(csv("已读人数")).append(',').append(prev.get("readUsers")).append(',').append(csv(prev.get("readUsersPct"))).append('\n');
+        sb.append(csv("新增内容")).append(',').append(prev.get(LIT_POSTS)).append(',').append(csv(prev.get("postsPct"))).append('\n');
+        sb.append(csv("木鱼")).append(',').append(prev.get(LIT_LIKES)).append(',').append(csv(prev.get("likesPct"))).append('\n');
+        sb.append(csv("评论")).append(',').append(prev.get(LIT_COMMENTS)).append(',').append(csv(prev.get("commentsPct"))).append('\n');
+        sb.append(csv("已读人数")).append(',').append(prev.get(LIT_READUSERS)).append(',').append(csv(prev.get("readUsersPct"))).append('\n');
         sb.append('\n').append(csv("部门进度")).append('\n');
         sb.append("部门,成员数,已读人数,覆盖率%,新增内容,木鱼,评论,已读天数\n");
         for (Object o : (Iterable<?>) d.getOrDefault("deptProgress", java.util.List.of())) {
             Map<?, ?> r = (Map<?, ?>) o;
-            sb.append(csv(r.get("deptName"))).append(',').append(r.get("memberCount")).append(',')
-              .append(r.get("readUsers")).append(',').append(r.get("coveragePct")).append(',')
-              .append(r.get("posts")).append(',').append(r.get("likes")).append(',')
-              .append(r.get("comments")).append(',').append(r.get("readDays")).append('\n');
+            sb.append(csv(r.get(LIT_DEPTNAME))).append(',').append(r.get("memberCount")).append(',')
+              .append(r.get(LIT_READUSERS)).append(',').append(r.get(LIT_COVERAGEPCT)).append(',')
+              .append(r.get(LIT_POSTS)).append(',').append(r.get(LIT_LIKES)).append(',')
+              .append(r.get(LIT_COMMENTS)).append(',').append(r.get(LIT_READDAYS)).append('\n');
         }
         sb.append('\n').append(csv("活跃榜")).append('\n');
         sb.append("成员,部门,发布,获木鱼,已读天数\n");
         for (Object o : (Iterable<?>) d.getOrDefault("ranking", java.util.List.of())) {
             Map<?, ?> r = (Map<?, ?>) o;
-            sb.append(csv(r.get("userName"))).append(',').append(csv(r.get("deptName"))).append(',')
+            sb.append(csv(r.get("userName"))).append(',').append(csv(r.get(LIT_DEPTNAME))).append(',')
               .append(r.get("postCount")).append(',').append(r.get("likesReceived")).append(',')
-              .append(r.get("readDays")).append('\n');
+              .append(r.get(LIT_READDAYS)).append('\n');
         }
-        String filename = "fabushi-monthly-" + d.get("month") + ".csv";
+        String filename = "fabushi-monthly-" + d.get(LIT_MONTH) + ".csv";
         byte[] bytes = sb.toString().getBytes(StandardCharsets.UTF_8);
         return ResponseEntity.ok().header(HttpHeaders.CONTENT_DISPOSITION,
                         "attachment; filename=" + filename)
