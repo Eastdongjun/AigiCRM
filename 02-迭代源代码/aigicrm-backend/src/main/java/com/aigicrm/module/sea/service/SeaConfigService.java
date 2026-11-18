@@ -182,24 +182,31 @@ public class SeaConfigService {
         if (allowDataScopeAll && "all".equals(user.getDataScope())) return true;
         if (csvContains(userIdsCsv, user.getUserId())) return true;
         if (user.getDeptId() != null && csvContains(deptIdsCsv, user.getDeptId())) return true;
-        // 角色引用: 用户当前角色(启用)与授权角色交集命中即通过
-        if (StringUtils.hasText(roleIdsCsv) && user.getUserId() != null) {
-            Set<Long> authorizedRoles = parseIds(roleIdsCsv).stream().collect(Collectors.toSet());
-            for (SysRole role : roleMapper.selectRolesByUserId(user.getUserId())) {
-                if (role != null && role.getId() != null && authorizedRoles.contains(role.getId())) return true;
-            }
+        if (roleScopeHit(roleIdsCsv, user)) return true;
+        return deptChainHit(deptIdsCsv, user);
+    }
+
+    /** 角色引用命中: 用户当前角色(启用)与授权角色交集（S3776 拆分）。 */
+    private boolean roleScopeHit(String roleIdsCsv, SecurityUser user) {
+        if (!StringUtils.hasText(roleIdsCsv) || user.getUserId() == null) return false;
+        Set<Long> authorizedRoles = parseIds(roleIdsCsv).stream().collect(Collectors.toSet());
+        for (SysRole role : roleMapper.selectRolesByUserId(user.getUserId())) {
+            if (role != null && role.getId() != null && authorizedRoles.contains(role.getId())) return true;
         }
-        // 上级链递归: 用户部门向上追溯, 命中授权组织(如大区 id)即可
-        if (user.getDeptId() != null && StringUtils.hasText(deptIdsCsv)) {
-            Set<Long> authorized = parseIds(deptIdsCsv).stream().collect(Collectors.toSet());
-            Map<Long, SysDept> deptMap = deptMapper.selectList(null).stream()
-                    .collect(Collectors.toMap(SysDept::getId, d -> d, (a, b) -> a));
-            SysDept cur = deptMap.get(user.getDeptId());
-            int guard = 0;
-            while (cur != null && guard++ < 20) {
-                if (authorized.contains(cur.getId())) return true;
-                cur = cur.getParentId() != null ? deptMap.get(cur.getParentId()) : null;
-            }
+        return false;
+    }
+
+    /** 上级链递归: 用户部门向上追溯, 命中授权组织(如大区 id)即可（S3776 拆分）。 */
+    private boolean deptChainHit(String deptIdsCsv, SecurityUser user) {
+        if (user.getDeptId() == null || !StringUtils.hasText(deptIdsCsv)) return false;
+        Set<Long> authorized = parseIds(deptIdsCsv).stream().collect(Collectors.toSet());
+        Map<Long, SysDept> deptMap = deptMapper.selectList(null).stream()
+                .collect(Collectors.toMap(SysDept::getId, d -> d, (a, b) -> a));
+        SysDept cur = deptMap.get(user.getDeptId());
+        int guard = 0;
+        while (cur != null && guard++ < 20) {
+            if (authorized.contains(cur.getId())) return true;
+            cur = cur.getParentId() != null ? deptMap.get(cur.getParentId()) : null;
         }
         return false;
     }
@@ -221,14 +228,7 @@ public class SeaConfigService {
                 collectOfficesUnder(dept.getId(), childrenMap, offices);
                 continue;
             }
-            SysDept cur = dept;
-            int guard = 0;
-            while (cur != null && (cur.getDeptType() == null || cur.getDeptType() != 3) && guard++ < 20) {
-                cur = cur.getParentId() != null ? deptMap.get(cur.getParentId()) : null;
-            }
-            if (cur != null && cur.getDeptType() != null && cur.getDeptType() == 3) {
-                offices.add(cur.getId());
-            }
+            addNearestOffice(dept, deptMap, offices);
         }
         // 人员 → office_id
         for (Long userId : parseIds(userIdsCsv)) {
@@ -236,6 +236,18 @@ public class SeaConfigService {
             if (u != null && u.getOfficeId() != null) offices.add(u.getOfficeId());
         }
         return offices.stream().map(String::valueOf).collect(Collectors.joining(","));
+    }
+
+    /** 非大区部门向上找最近 type=3 办事处（S3776 拆分）。 */
+    private void addNearestOffice(SysDept dept, Map<Long, SysDept> deptMap, Set<Long> offices) {
+        SysDept cur = dept;
+        int guard = 0;
+        while (cur != null && (cur.getDeptType() == null || cur.getDeptType() != 3) && guard++ < 20) {
+            cur = cur.getParentId() != null ? deptMap.get(cur.getParentId()) : null;
+        }
+        if (cur != null && cur.getDeptType() != null && cur.getDeptType() == 3) {
+            offices.add(cur.getId());
+        }
     }
 
     /** 收集某部门(如大区)子树中所有办事处(dept_type=3) */

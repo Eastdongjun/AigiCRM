@@ -131,26 +131,9 @@ public class FileChunkUploadService {
         Path dir = chunkDir(uploadId);
         try {
             if (countParts(dir) != total) throw new BusinessException("分片不完整，请继续上传");
-            Path merged = Files.createTempFile(dir, "merged-", ".tmp");
-            try (OutputStream out = Files.newOutputStream(merged)) {
-                for (int i = 0; i < total; i++) {
-                    Path part = dir.resolve(i + LIT_PART);
-                    if (!Files.isRegularFile(part)) throw new BusinessException("缺少分片 " + i);
-                    Files.copy(part, out);
-                }
-            }
-            if (Files.size(merged) != size) {
-                Files.deleteIfExists(merged);
-                throw new BusinessException("合并后大小不一致，请重新上传");
-            }
             String md5 = (String) s.get("md5");
-            if (md5 != null && !md5.isBlank()) {
-                String actual = md5(merged);
-                if (!md5.equalsIgnoreCase(actual)) {
-                    Files.deleteIfExists(merged);
-                    throw new BusinessException("文件校验失败（md5 不一致），请重新上传");
-                }
-            }
+            Path merged = mergeParts(dir, total);
+            verifyMerged(merged, size, md5);
             String scope = (String) s.get("file_scope");
             Long folderId = s.get("folder_id") == null ? null : ((Number) s.get("folder_id")).longValue();
             PathMultipartFile mp = new PathMultipartFile(merged, (String) s.get("file_name"), Files.size(merged));
@@ -167,6 +150,34 @@ public class FileChunkUploadService {
             throw e;
         } catch (Exception e) {
             throw new BusinessException("合并上传失败: " + e.getMessage());
+        }
+    }
+
+    /** 按序号合并分片（S3776 拆分，语义与原内联逻辑一致）。 */
+    private Path mergeParts(Path dir, int total) throws java.io.IOException {
+        Path merged = Files.createTempFile(dir, "merged-", ".tmp");
+        try (OutputStream out = Files.newOutputStream(merged)) {
+            for (int i = 0; i < total; i++) {
+                Path part = dir.resolve(i + LIT_PART);
+                if (!Files.isRegularFile(part)) throw new BusinessException("缺少分片 " + i);
+                Files.copy(part, out);
+            }
+        }
+        return merged;
+    }
+
+    /** 合并后大小/MD5 校验；失败删除临时文件并由调用方转业务异常（S3776 拆分）。 */
+    private void verifyMerged(Path merged, long size, String md5) throws java.io.IOException, java.security.NoSuchAlgorithmException {
+        if (Files.size(merged) != size) {
+            Files.deleteIfExists(merged);
+            throw new BusinessException("合并后大小不一致，请重新上传");
+        }
+        if (md5 != null && !md5.isBlank()) {
+            String actual = md5(merged);
+            if (!md5.equalsIgnoreCase(actual)) {
+                Files.deleteIfExists(merged);
+                throw new BusinessException("文件校验失败（md5 不一致），请重新上传");
+            }
         }
     }
 
@@ -212,7 +223,7 @@ public class FileChunkUploadService {
         }
     }
 
-    private String md5(Path file) throws Exception {
+    private String md5(Path file) throws java.io.IOException, java.security.NoSuchAlgorithmException {
         MessageDigest md = MessageDigest.getInstance("MD5");
         try (InputStream in = Files.newInputStream(file)) {
             byte[] buf = new byte[8192];

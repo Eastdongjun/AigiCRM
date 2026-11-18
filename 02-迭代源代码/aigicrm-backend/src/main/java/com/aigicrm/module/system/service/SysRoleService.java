@@ -471,31 +471,39 @@ public class SysRoleService {
             return;
         }
         for (Long orgId : orgIds) {
-            // P2(c)-r3: null orgId 直接拒收, 避免写 role_org(org_id=NULL) 脏行
-            if (orgId == null) {
-                throw new BusinessException("数据范围包含空组织(orgId=null)");
-            }
-            // 存在性: 查不到(已删除/伪造) → 拒绝
-            if (deptMapper.selectById(orgId) == null) {
-                throw new BusinessException(403, "无权将不存在的组织纳入数据范围(orgId=" + orgId + ")");
-            }
-            // 有效集团 = 自身或最近祖先的 group_id(历史未回填多为 NULL); 全空退主集团 1(GroupScopeUtil 同口径)
-            Long effective = deptMapper.selectEffectiveGroupId(orgId);
-            if (effective == null) effective = GroupScopeUtil.DEFAULT_GROUP_ID;
-            // P2(c)-r1: org 有效集团必须与目标角色集团一致(纵深防御)——可访问多集团的高权用户
-            // 不得把其他集团 org 挂到本集团角色; 角色集团未知(roleGroup=null)时退回调用者可访问集团校验
-            if (roleGroup != null && !effective.equals(roleGroup)) {
-                throw new BusinessException(403, "无权将其他集团的组织纳入数据范围(orgId=" + orgId + ")");
-            }
-            if (!GroupScopeUtil.canAccessGroup(effective)) {
-                throw new BusinessException(403, "无权将其他集团的组织纳入数据范围(orgId=" + orgId + ")");
-            }
-            // include_children=1 固定展开整棵子树: 子树内任何显式归属其他集团的组织 → 拒绝
-            // (P2(c) 子树旁路: 锚点 org 同集团但子树含跨集团节点仍会扩大数据范围)
-            for (Long g : deptMapper.selectDescendantGroupIds(orgId)) {
-                if (g != null && !g.equals(effective)) {
-                    throw new BusinessException(403, "无权将包含其他集团组织的子树纳入数据范围(orgId=" + orgId + ")");
-                }
+            validateRoleOrg(orgId, roleGroup);
+        }
+    }
+
+    private void validateRoleOrg(Long orgId, Long roleGroup) {
+        // P2(c)-r3: null orgId 直接拒收, 避免写 role_org(org_id=NULL) 脏行
+        if (orgId == null) {
+            throw new BusinessException("数据范围包含空组织(orgId=null)");
+        }
+        // 存在性: 查不到(已删除/伪造) → 拒绝
+        if (deptMapper.selectById(orgId) == null) {
+            throw new BusinessException(403, "无权将不存在的组织纳入数据范围(orgId=" + orgId + ")");
+        }
+        // 有效集团 = 自身或最近祖先的 group_id(历史未回填多为 NULL); 全空退主集团 1(GroupScopeUtil 同口径)
+        Long effective = deptMapper.selectEffectiveGroupId(orgId);
+        if (effective == null) effective = GroupScopeUtil.DEFAULT_GROUP_ID;
+        // P2(c)-r1: org 有效集团必须与目标角色集团一致(纵深防御)——可访问多集团的高权用户
+        // 不得把其他集团 org 挂到本集团角色; 角色集团未知(roleGroup=null)时退回调用者可访问集团校验
+        if (roleGroup != null && !effective.equals(roleGroup)) {
+            throw new BusinessException(403, "无权将其他集团的组织纳入数据范围(orgId=" + orgId + ")");
+        }
+        if (!GroupScopeUtil.canAccessGroup(effective)) {
+            throw new BusinessException(403, "无权将其他集团的组织纳入数据范围(orgId=" + orgId + ")");
+        }
+        validateRoleOrgSubtree(orgId, effective);
+    }
+
+    private void validateRoleOrgSubtree(Long orgId, Long effective) {
+        // include_children=1 固定展开整棵子树: 子树内任何显式归属其他集团的组织 → 拒绝
+        // (P2(c) 子树旁路: 锚点 org 同集团但子树含跨集团节点仍会扩大数据范围)
+        for (Long g : deptMapper.selectDescendantGroupIds(orgId)) {
+            if (g != null && !g.equals(effective)) {
+                throw new BusinessException(403, "无权将包含其他集团组织的子树纳入数据范围(orgId=" + orgId + ")");
             }
         }
     }
