@@ -182,38 +182,63 @@ public class ScoreService {
     public void batchSave(String period, List<Map<String, Object>> entries, List<Long> participantIds) {
         Long scorerId = SecurityUtils.getCurrentUserId();
 
-        // 【修复 FEAT-20260804-SCORE-DATA-LOSS】此前会整体物理删除该周期所有分数记录、再按前端
-        // 当前可见的同事名单重新插入。一旦管理员把某同事临时移出可见列表后保存，该同事本期已录入的
-        // 历史分数会被永久删除且不可恢复；两个管理员并发编辑不同子集时也会互相覆盖对方的保存。
-        // 改为增量 upsert：只处理"当前参与名单"范围内的记录，名单外（被移出可见列表）的同事历史
-        // 数据保持不动；名单内但本次提交未包含分数的单元格（被显式清空）才删除对应记录。
+        // 【修复 FEAT-20260804-SCORE-DATA-LOSS】改为增量 upsert：只处理"当前参与名单"范围内的记录，
+        // 名单外(被移出可见列表)的同事历史数据保持不动；名单内但本次提交未包含分数的单元格才删除。
+        Set<Long> participantSet = collectParticipantIds(participantIds);
+        Map<String, Integer> submitted = collectSubmittedScores(entries);
+
+        // 【GPT复审 P1-03 修复 2026-09-21】服务端强制校验: 目标人员在可管理范围、学分项存在、
+        // 分数落在学分项 min~max —— 此前信任客户端, 直接 API 调用可写范围外人员与异常分值
+        List<Long> saveVisible = visibleUserIds();
+        // 【GPT三轮 SCORE-P1-002 2026-09-22】participantIds 独立于 entries 构造并直接落库，必须同口径校验
+        validateParticipants(participantSet, saveVisible);
+        Map<Long, BizScoreItem> itemMap = loadItemMap();
+        validateSubmittedScores(submitted, saveVisible, itemMap);
+
+        List<BizScoreEntry> existingEntries = loadExistingEntries(period);
+        Map<String, BizScoreEntry> existingMap = indexEntries(existingEntries);
+        upsertSubmitted(period, scorerId, submitted, existingMap);
+        deleteClearedEntries(existingEntries, participantSet, submitted);
+        replaceParticipants(period, participantSet);
+    }
+
+    private Set<Long> collectParticipantIds(List<Long> participantIds) {
         Set<Long> participantSet = new HashSet<>();
         if (participantIds != null) {
             for (Long uid : participantIds) if (uid != null) participantSet.add(uid);
         }
+        return participantSet;
+    }
 
+    private Map<String, Integer> collectSubmittedScores(List<Map<String, Object>> entries) {
         Map<String, Integer> submitted = new LinkedHashMap<>();
         for (Map<String, Object> e : entries) {
             Long itemId = toLong(e.get("itemId"));
             Long userId = toLong(e.get(LIT_USERID));
             Integer score = toInt(e.get("score"));
-            if (itemId == null || userId == null) continue;
-            submitted.put(itemId + "_" + userId, score != null ? score : 0);
+            if (itemId != null && userId != null) {
+                submitted.put(itemId + "_" + userId, score != null ? score : 0);
+            }
         }
+        return submitted;
+    }
 
-        // 【GPT复审 P1-03 修复 2026-09-21】服务端强制校验: 目标人员在可管理范围、学分项存在、
-        // 分数落在学分项 min~max —— 此前信任客户端, 直接 API 调用可写范围外人员与异常分值
-        List<Long> saveVisible = visibleUserIds();
-        // 【GPT三轮 SCORE-P1-002 2026-09-22】participantIds 独立于 entries 构造并直接落库,
-        // 必须与 submitted 同口径逐一校验: 旧代码只校验 submitted, 范围外 userId 不提交 entry
-        // 即可混入参与名单(名单污染显示顺序与后续口径)。saveVisible 经 WithinGroup 收口, 非 admin 恒非 null
+    private void validateParticipants(Set<Long> participantSet, List<Long> saveVisible) {
         for (Long uid : participantSet) {
             if (saveVisible != null && !saveVisible.contains(uid)) {
                 throw new BusinessException("参与人员不在可管理范围: " + uid);
             }
         }
+    }
+
+    private Map<Long, BizScoreItem> loadItemMap() {
         Map<Long, BizScoreItem> itemMap = new HashMap<>();
         for (BizScoreItem it : listItems()) itemMap.put(it.getId(), it);
+        return itemMap;
+    }
+
+    private void validateSubmittedScores(Map<String, Integer> submitted, List<Long> saveVisible,
+                                         Map<Long, BizScoreItem> itemMap) {
         for (Map.Entry<String, Integer> chk : submitted.entrySet()) {
             String[] cp = chk.getKey().split("_");
             Long chkItemId = Long.parseLong(cp[0]);
@@ -231,49 +256,63 @@ public class ScoreService {
                         + " 允许 " + chkItem.getScoreMin() + "~" + chkItem.getScoreMax() + ", 实得 " + v);
             }
         }
+    }
 
-        List<BizScoreEntry> existingEntries = entryMapper.selectList(
+    private List<BizScoreEntry> loadExistingEntries(String period) {
+        return entryMapper.selectList(
                 new LambdaQueryWrapper<BizScoreEntry>().eq(BizScoreEntry::getPeriod, period));
+    }
+
+    private Map<String, BizScoreEntry> indexEntries(List<BizScoreEntry> existingEntries) {
         Map<String, BizScoreEntry> existingMap = new HashMap<>();
         for (BizScoreEntry ex : existingEntries) {
             existingMap.put(ex.getItemId() + "_" + ex.getUserId(), ex);
         }
+        return existingMap;
+    }
 
-        // 1) upsert 本次提交的分数
+    /** 1) upsert 本次提交的分数 */
+    private void upsertSubmitted(String period, Long scorerId, Map<String, Integer> submitted,
+                                 Map<String, BizScoreEntry> existingMap) {
         for (Map.Entry<String, Integer> se : submitted.entrySet()) {
             String[] parts = se.getKey().split("_");
-            Long itemId = Long.parseLong(parts[0]);
-            Long userId = Long.parseLong(parts[1]);
             BizScoreEntry existing = existingMap.get(se.getKey());
             if (existing != null) {
                 existing.setScore(se.getValue());
                 existing.setScorerId(scorerId);
                 entryMapper.updateById(existing);
             } else {
-                BizScoreEntry entry = new BizScoreEntry();
-                entry.setPeriod(period);
-                entry.setItemId(itemId);
-                entry.setUserId(userId);
-                entry.setScore(se.getValue());
-                entry.setScorerId(scorerId);
-                entry.setDeleted(0);
-                entryMapper.insert(entry);
+                insertEntry(period, Long.parseLong(parts[0]), Long.parseLong(parts[1]), se.getValue(), scorerId);
             }
         }
+    }
 
-        // 2) 参与名单内、本次提交未包含（即被显式清空）的记录 → 删除该条；
-        //    不在参与名单内（被移出可见列表）的同事历史记录保持不动
+    private void insertEntry(String period, Long itemId, Long userId, Integer score, Long scorerId) {
+        BizScoreEntry entry = new BizScoreEntry();
+        entry.setPeriod(period);
+        entry.setItemId(itemId);
+        entry.setUserId(userId);
+        entry.setScore(score);
+        entry.setScorerId(scorerId);
+        entry.setDeleted(0);
+        entryMapper.insert(entry);
+    }
+
+    /** 2) 参与名单内、本次提交未包含（即被显式清空）的记录 → 删除该条 */
+    private void deleteClearedEntries(List<BizScoreEntry> existingEntries, Set<Long> participantSet,
+                                      Map<String, Integer> submitted) {
         for (BizScoreEntry ex : existingEntries) {
             String key = ex.getItemId() + "_" + ex.getUserId();
             if (participantSet.contains(ex.getUserId()) && !submitted.containsKey(key)) {
                 entryMapper.deleteById(ex.getId());
             }
         }
+    }
 
-        // 持久化该周期参与同事名单（仅用于列显示顺序，不再联动删除分数记录）
-        // 【G2 2026-09-21】物理删按当前集团收口, 不再跨租户清参与名单(仅 participant, 分数记录本就不删)
-        // 【2026-11-09 用户令"学分录入人名重复"修复】改用去重后的 participantSet 插入——
-        // 原代码遍历原始 participantIds List(可含重复 id), 同一人同期插多条→网格人名重复
+    /** 持久化该周期参与同事名单（仅用于列显示顺序，不再联动删除分数记录）。 */
+    private void replaceParticipants(String period, Set<Long> participantSet) {
+        // 【G2 2026-09-21】物理删按当前集团收口, 不再跨租户清参与名单
+        // 【2026-11-09 用户令"学分录入人名重复"修复】改用去重后的 participantSet 插入
         Long groupForDelete = com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull();
         participantMapper.physicalDeleteByPeriod(period, groupForDelete);
         int sort = 0;

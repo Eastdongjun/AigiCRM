@@ -178,43 +178,68 @@ public class CustomerService {
     /** 全量筛选条件(基础+高级,原先散在 page() 与 applyCommonFilters 两处,现统一) */
     private void applyFilterConditions(LambdaQueryWrapper<BizCustomer> wrapper, ListFilter f, String devType, String statusOverride) {
         wrapper.eq(BizCustomer::getDeleted, 0);
+        applyStatusFilter(wrapper, f, statusOverride);
+        applyKeywordFilter(wrapper, f.keyword());
+        applyIndustryFilter(wrapper, f.industry());
+        applyOrgFilters(wrapper, f);
+        applyOwnerFilters(wrapper, f);
+        applyProtectionFilter(wrapper, f.protectionStatus());
+        // 【L2 2026-10-08】province/city LIKE 值经 escapeLike 转义 % _ 通配符
+        if (StringUtils.hasText(f.province())) wrapper.like(BizCustomer::getProvince, escapeLike(f.province().trim()));
+        if (StringUtils.hasText(f.city())) wrapper.like(BizCustomer::getCity, escapeLike(f.city().trim()));
+        if (StringUtils.hasText(devType)) wrapper.eq(BizCustomer::getDevType, devType);
+        if (StringUtils.hasText(f.groupName())) wrapper.eq(BizCustomer::getGroupName, f.groupName());
+        applyDateRangeFilters(wrapper, f);
+        applyOfficeIdsFilter(wrapper, f.officeIds());
+    }
+
+    private void applyStatusFilter(LambdaQueryWrapper<BizCustomer> wrapper, ListFilter f, String statusOverride) {
         String status = statusOverride != null ? statusOverride : f.status();
         // 【议题五.4 裁决】归档客户默认隐藏;status=include_archived 时包含(显式传 'archived' 即只看归档)
         if ("include_archived".equals(status)) {
-            // 【回归修复 2026-10-09 一线反馈】此处必须是 ne(sea) 而非 B5 统一口径的
-            // notIn(sea,archived): "显示已归档"=包含归档仅排公海。B5 批量替换(2026-09-22 31处)误伤本特例,
-            // 勾选后归档客户仍被过滤=勾了没用,用户归档后自己看不到。测试已补 assertFalse(archived) 钉住。
+            // 【回归修复 2026-10-09】此处必须是 ne(sea) 而非 notIn(sea,archived): "显示已归档"=包含归档仅排公海
             wrapper.ne(BizCustomer::getStatus, "sea");
         } else if (StringUtils.hasText(status)) {
-            String[] arr = status.split(",");
-            if (arr.length > 1) wrapper.in(BizCustomer::getStatus, (Object[]) arr);
-            else if ("expired".equals(status)) {
-                // 【口径统一 2026-10-09 用户裁决】列表/统计卡「已超期」= expireDate<今日 且排除公海/归档,
-                // 与统计页/工作台同判据(数字-钻取-统计卡三处一致)。status 列等值匹配 'expired' 只命中
-                // "无公海池配置"办事处的到期客户(到期入池即转 sea), 会漏掉绝大多数超期客户
-                wrapper.lt(BizCustomer::getExpireDate, java.time.LocalDate.now())
-                        .notIn(BizCustomer::getStatus, "sea", LIT_ARCHIVED);
-            }
-            else wrapper.eq(BizCustomer::getStatus, status);
+            applyStatusValue(wrapper, status);
         } else {
             wrapper.notIn(BizCustomer::getStatus, "sea", LIT_ARCHIVED);
         }
-        if (StringUtils.hasText(f.keyword())) {
-            // 【议题五.1 裁决 2026-09-19】搜索增强:别名同权重 OR + 空格多词 AND
-            String[] words = f.keyword().trim().split("\\s+");
-            wrapper.and(w -> {
-                for (String word : words) {
-                    w.and(inner -> inner.like(BizCustomer::getCustomerName, word)
-                            .or().like(BizCustomer::getAlias, word)
-                            .or().like(BizCustomer::getCustomerCode, word));
-                }
-            });
+    }
+
+    private void applyStatusValue(LambdaQueryWrapper<BizCustomer> wrapper, String status) {
+        String[] arr = status.split(",");
+        if (arr.length > 1) {
+            wrapper.in(BizCustomer::getStatus, (Object[]) arr);
+        } else if ("expired".equals(status)) {
+            // 【口径统一 2026-10-09】「已超期」= expireDate<今日 且排除公海/归档(与统计页/工作台同判据)
+            wrapper.lt(BizCustomer::getExpireDate, java.time.LocalDate.now())
+                    .notIn(BizCustomer::getStatus, "sea", LIT_ARCHIVED);
+        } else {
+            wrapper.eq(BizCustomer::getStatus, status);
         }
-        if (StringUtils.hasText(f.industry())) {
-            String[] arr = f.industry().split(",");
-            if (arr.length > 1) wrapper.in(BizCustomer::getIndustry, (Object[]) arr);
-            else wrapper.eq(BizCustomer::getIndustry, f.industry());
-        }
+    }
+
+    private void applyKeywordFilter(LambdaQueryWrapper<BizCustomer> wrapper, String keyword) {
+        if (!StringUtils.hasText(keyword)) return;
+        // 【议题五.1 裁决 2026-09-19】搜索增强:别名同权重 OR + 空格多词 AND
+        String[] words = keyword.trim().split("\\s+");
+        wrapper.and(w -> {
+            for (String word : words) {
+                w.and(inner -> inner.like(BizCustomer::getCustomerName, word)
+                        .or().like(BizCustomer::getAlias, word)
+                        .or().like(BizCustomer::getCustomerCode, word));
+            }
+        });
+    }
+
+    private void applyIndustryFilter(LambdaQueryWrapper<BizCustomer> wrapper, String industry) {
+        if (!StringUtils.hasText(industry)) return;
+        String[] arr = industry.split(",");
+        if (arr.length > 1) wrapper.in(BizCustomer::getIndustry, (Object[]) arr);
+        else wrapper.eq(BizCustomer::getIndustry, industry);
+    }
+
+    private void applyOrgFilters(LambdaQueryWrapper<BizCustomer> wrapper, ListFilter f) {
         if (f.officeId() != null) wrapper.eq(BizCustomer::getOfficeId, f.officeId());
         if (f.regionId() != null) wrapper.eq(BizCustomer::getRegionId, f.regionId());
         if (f.deptId() != null) {
@@ -223,48 +248,57 @@ public class CustomerService {
             deptIds.add(f.deptId());
             wrapper.in(BizCustomer::getDeptId, deptIds);
         }
+    }
+
+    private void applyOwnerFilters(LambdaQueryWrapper<BizCustomer> wrapper, ListFilter f) {
         if (f.ownerId() != null) wrapper.eq(BizCustomer::getOwnerId, f.ownerId());
-        // 【对齐 PC 高级筛选 2026-09-21】protectionStatus 精确(逗号多值), province/city LIKE 包含
-        if (StringUtils.hasText(f.protectionStatus())) {
-            String[] arr = f.protectionStatus().split(",");
-            if (arr.length > 1) wrapper.in(BizCustomer::getProtectionStatus, (Object[]) arr);
-            else wrapper.eq(BizCustomer::getProtectionStatus, f.protectionStatus());
+        applyUserIdsFilter(wrapper, f.userIds());
+        applyOwnerNameFilter(wrapper, f.ownerName());
+    }
+
+    private void applyUserIdsFilter(LambdaQueryWrapper<BizCustomer> wrapper, List<Long> userIds) {
+        if (userIds == null || userIds.isEmpty()) return;
+        List<Long> ids = userIds.stream().distinct().toList();
+        if (ids.size() == 1) wrapper.eq(BizCustomer::getOwnerId, ids.get(0));
+        else wrapper.in(BizCustomer::getOwnerId, ids);
+    }
+
+    private void applyOwnerNameFilter(LambdaQueryWrapper<BizCustomer> wrapper, String ownerName) {
+        if (!StringUtils.hasText(ownerName)) return;
+        // 负责人按姓名模糊:名字无任何匹配用户时恒空集；LIKE 值经 escapeLike 转义
+        List<Long> matched = userMapper.selectList(new LambdaQueryWrapper<com.aigicrm.module.system.entity.SysUser>()
+                        .like(com.aigicrm.module.system.entity.SysUser::getRealName, escapeLike(ownerName.trim())))
+                .stream().map(com.aigicrm.module.system.entity.SysUser::getId).distinct().toList();
+        if (matched.isEmpty()) {
+            wrapper.eq(BizCustomer::getOwnerId, -1L);
+        } else if (matched.size() == 1) {
+            wrapper.eq(BizCustomer::getOwnerId, matched.get(0));
+        } else {
+            wrapper.in(BizCustomer::getOwnerId, matched);
         }
-        // 【L2 2026-10-08】province/city LIKE 值经 escapeLike 转义 % _ 通配符,防用户输入通配符放宽匹配面
-        if (StringUtils.hasText(f.province())) wrapper.like(BizCustomer::getProvince, escapeLike(f.province().trim()));
-        if (StringUtils.hasText(f.city())) wrapper.like(BizCustomer::getCity, escapeLike(f.city().trim()));
-        if (StringUtils.hasText(devType)) wrapper.eq(BizCustomer::getDevType, devType);
-        if (StringUtils.hasText(f.groupName())) wrapper.eq(BizCustomer::getGroupName, f.groupName());
-        // ---- 【容量加固 2026-10-05】高级筛选服务端化新增四组条件 ----
+    }
+
+    private void applyProtectionFilter(LambdaQueryWrapper<BizCustomer> wrapper, String protectionStatus) {
+        // 【对齐 PC 高级筛选 2026-09-21】protectionStatus 精确(逗号多值)
+        if (!StringUtils.hasText(protectionStatus)) return;
+        String[] arr = protectionStatus.split(",");
+        if (arr.length > 1) wrapper.in(BizCustomer::getProtectionStatus, (Object[]) arr);
+        else wrapper.eq(BizCustomer::getProtectionStatus, protectionStatus);
+    }
+
+    /** ---- 【容量加固 2026-10-05】高级筛选服务端化日期区间 ---- */
+    private void applyDateRangeFilters(LambdaQueryWrapper<BizCustomer> wrapper, ListFilter f) {
         if (f.regDateStart() != null) wrapper.ge(BizCustomer::getRegisterDate, f.regDateStart());
         if (f.regDateEnd() != null) wrapper.le(BizCustomer::getRegisterDate, f.regDateEnd());
         if (f.expDateStart() != null) wrapper.ge(BizCustomer::getExpireDate, f.expDateStart());
         if (f.expDateEnd() != null) wrapper.le(BizCustomer::getExpireDate, f.expDateEnd());
-        if (f.userIds() != null && !f.userIds().isEmpty()) {
-            List<Long> ids = f.userIds().stream().distinct().toList();
-            if (ids.size() == 1) wrapper.eq(BizCustomer::getOwnerId, ids.get(0));
-            else wrapper.in(BizCustomer::getOwnerId, ids);
-        }
-        if (f.officeIds() != null && !f.officeIds().isEmpty()) {
-            // 对齐本地 orgIds 语义(所选组织单元下的客户): office 或 dept 命中即算;
-            // 本地旧实现基于已拉取数据的 owner 间接推导,服务端直接按字段匹配(语义更准且无数据依赖)
-            wrapper.and(w -> w.in(BizCustomer::getOfficeId, f.officeIds())
-                    .or().in(BizCustomer::getDeptId, f.officeIds()));
-        }
-        if (StringUtils.hasText(f.ownerName())) {
-            // 负责人按姓名模糊:与本地 includes 语义一致;名字无任何匹配用户时恒空集
-            // 【L2 2026-10-08】LIKE 值经 escapeLike 转义 % _ 通配符,防用户输入通配符放宽匹配面
-            List<Long> matched = userMapper.selectList(new LambdaQueryWrapper<com.aigicrm.module.system.entity.SysUser>()
-                            .like(com.aigicrm.module.system.entity.SysUser::getRealName, escapeLike(f.ownerName().trim())))
-                    .stream().map(com.aigicrm.module.system.entity.SysUser::getId).distinct().toList();
-            if (matched.isEmpty()) {
-                wrapper.eq(BizCustomer::getOwnerId, -1L);
-            } else if (matched.size() == 1) {
-                wrapper.eq(BizCustomer::getOwnerId, matched.get(0));
-            } else {
-                wrapper.in(BizCustomer::getOwnerId, matched);
-            }
-        }
+    }
+
+    private void applyOfficeIdsFilter(LambdaQueryWrapper<BizCustomer> wrapper, List<Long> officeIds) {
+        if (officeIds == null || officeIds.isEmpty()) return;
+        // 对齐本地 orgIds 语义(所选组织单元下的客户): office 或 dept 命中即算
+        wrapper.and(w -> w.in(BizCustomer::getOfficeId, officeIds)
+                .or().in(BizCustomer::getDeptId, officeIds));
     }
 
     /**

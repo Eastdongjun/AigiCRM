@@ -74,8 +74,27 @@ public class PermCenterService {
 
     public Map<String, Object> preview(Long userId) {
         SecurityUser target = (SecurityUser) userDetailsService.loadUserByUsername(String.valueOf(userId));
-
         Map<String, Object> data = new LinkedHashMap<>();
+        data.put("user", buildUserInfo(target));
+        data.put("permissions", new ArrayList<>(target.getPermissions()));
+        // 范围解析表: 每个真实消费范围的权限码 → 生效范围/锚点/可见人数(可见客户数仅客户查看行)
+        data.put("scopes", buildScopeRows(target));
+        // 公海各池判定(引擎方法本就接受任意 SecurityUser)
+        data.put("seaPools", buildPoolRows(target));
+        // 激励专项授权四开关(无行=默认: 分享可见开, 其余关)
+        data.put("incentive", buildIncentiveGrant(target));
+        // 【T8 2026-11-12】文件授权清单: 该用户命中的类型/夹例外授权行
+        data.put("fileGrants", buildFileGrants(target, userId));
+        data.put("menuVisibility", buildMenuVisibility(userId));
+        data.put("ruleEngine", buildRuleEngine(target));
+        // 【T8】诚实标注: 对象级(本人恒管/上级链)不在本预览计算——实际以文件页行级判定为准
+        data.put("notCovered", List.of(
+                "对象级授权(上传者本人恒管/上级链可管)：未在预览计算，实际以文件页行级判定(row.perms)为准",
+                "逐夹 ACL 历史转换行：已由类型默认授权体系取代，存量行只读展示于文件权限页"));
+        return data;
+    }
+
+    private Map<String, Object> buildUserInfo(SecurityUser target) {
         Map<String, Object> userInfo = new LinkedHashMap<>();
         userInfo.put("userId", target.getUserId());
         userInfo.put("username", target.getUsername());
@@ -83,40 +102,48 @@ public class PermCenterService {
         userInfo.put("roleCodes", target.getRoleCodes());
         userInfo.put("dataScope", target.getDataScope());
         userInfo.put("admin", target.hasRole("admin"));
-        data.put("user", userInfo);
-        data.put("permissions", new ArrayList<>(target.getPermissions()));
+        return userInfo;
+    }
 
-        // 范围解析表: 每个真实消费范围的权限码 → 生效范围/锚点/可见人数(可见客户数仅客户查看行)
+    private List<Map<String, Object>> buildScopeRows(SecurityUser target) {
         List<Map<String, Object>> scopes = new ArrayList<>();
         for (String[] t : SCOPE_TARGETS) {
-            String module = t[0];
-            String action = t[1];
-            Map<String, Object> row = new LinkedHashMap<>();
-            row.put("module", module);
-            row.put("action", action);
-            row.put("label", t[2]);
-            List<String> effective = rolePermScopeService.effectiveScopes(target, module, action);
-            row.put("scope", effective == null || effective.isEmpty() ? "默认" : String.join(",", effective));
-            ScopeRequest.AnchorType anchor = rolePermScopeService.anchorOf(target, module, action);
-            row.put("anchor", anchor.name());
-            ScopeRequest req = ScopeRequest.builder().user(target).module(module).action(action).anchor(anchor).build();
-            ScopeDecision d = scopeResolver.resolveScope(req);
-            if (d.isAll()) {
-                row.put("visibleUserCount", -1); // -1 = 全部(前端显示"全部")
-            } else {
-                List<Long> uids = d.getVisibleUserIds();
-                row.put("visibleUserCount", uids == null ? 0 : uids.size());
-                List<Long> deptIds = d.getVisibleDeptIds();
-                row.put("visibleDeptCount", deptIds == null ? 0 : deptIds.size());
-            }
-            if (LIT_CUSTOMER.equals(module) && "view".equals(action)) {
-                row.put("visibleCustomerCount", customerService.countByScopeFor(target));
-            }
-            scopes.add(row);
+            scopes.add(buildScopeRow(target, t));
         }
-        data.put("scopes", scopes);
+        return scopes;
+    }
 
-        // 公海各池判定(引擎方法本就接受任意 SecurityUser)
+    private Map<String, Object> buildScopeRow(SecurityUser target, String[] t) {
+        String module = t[0];
+        String action = t[1];
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("module", module);
+        row.put("action", action);
+        row.put("label", t[2]);
+        List<String> effective = rolePermScopeService.effectiveScopes(target, module, action);
+        row.put("scope", effective == null || effective.isEmpty() ? "默认" : String.join(",", effective));
+        ScopeRequest.AnchorType anchor = rolePermScopeService.anchorOf(target, module, action);
+        row.put("anchor", anchor.name());
+        ScopeRequest req = ScopeRequest.builder().user(target).module(module).action(action).anchor(anchor).build();
+        applyVisibleCounts(row, scopeResolver.resolveScope(req));
+        if (LIT_CUSTOMER.equals(module) && "view".equals(action)) {
+            row.put("visibleCustomerCount", customerService.countByScopeFor(target));
+        }
+        return row;
+    }
+
+    private void applyVisibleCounts(Map<String, Object> row, ScopeDecision d) {
+        if (d.isAll()) {
+            row.put("visibleUserCount", -1); // -1 = 全部(前端显示"全部")
+            return;
+        }
+        List<Long> uids = d.getVisibleUserIds();
+        row.put("visibleUserCount", uids == null ? 0 : uids.size());
+        List<Long> deptIds = d.getVisibleDeptIds();
+        row.put("visibleDeptCount", deptIds == null ? 0 : deptIds.size());
+    }
+
+    private List<Map<String, Object>> buildPoolRows(SecurityUser target) {
         List<Map<String, Object>> pools = new ArrayList<>();
         for (BizSeaConfig pool : seaConfigService.list()) {
             Map<String, Object> p = new LinkedHashMap<>();
@@ -129,19 +156,21 @@ public class PermCenterService {
             p.put("claim", seaConfigService.hasPoolPerm(pool.getId(), SeaConfigService.PERM_CLAIM, target));
             pools.add(p);
         }
-        data.put("seaPools", pools);
+        return pools;
+    }
 
-        // 激励专项授权四开关(无行=默认: 分享可见开, 其余关)
+    private Map<String, Object> buildIncentiveGrant(SecurityUser target) {
         Map<String, Object> grant = new LinkedHashMap<>();
         Map<String, Object> row = incentiveService.grantRow(target.getUserId());
         grant.put("canViewShared", row == null ? Boolean.TRUE : flag(row, "can_view_shared", true));
         grant.put("canViewAll", row == null ? Boolean.FALSE : flag(row, "can_view_all", false));
         grant.put("canEdit", row == null ? Boolean.FALSE : flag(row, "can_edit", false));
         grant.put("canDelete", row == null ? Boolean.FALSE : flag(row, "can_delete", false));
-        data.put("incentive", grant);
+        return grant;
+    }
 
-        // 【T8 2026-11-12】文件授权清单: 该用户命中的类型/夹例外授权行(ROLE 按角色码匹配/USER 按 id,
-        // 含已过期行如实展示 expired=true——与文件权限页红标同口径)
+    /** 【T8 2026-11-12】文件授权清单: ROLE 按角色码匹配 / USER 按 id，含已过期行如实展示 expired=true。 */
+    private List<Map<String, Object>> buildFileGrants(SecurityUser target, Long userId) {
         java.time.LocalDateTime now = java.time.LocalDateTime.now();
         java.util.Set<Long> roleIds = new java.util.HashSet<>();
         java.util.Map<Long, String> roleNames = new java.util.HashMap<>();
@@ -151,28 +180,39 @@ public class PermCenterService {
         }
         List<Map<String, Object>> fileGrants = new ArrayList<>();
         for (com.aigicrm.module.file.entity.BizFolderTypeDefault g : folderTypeDefaultMapper.selectList(null)) {
-            boolean hit = "USER".equals(g.getSubjectType())
-                    ? userId.equals(g.getSubjectId())
-                    : ("ROLE".equals(g.getSubjectType()) && roleIds.contains(g.getSubjectId()));
-            if (!hit) continue;
-            Map<String, Object> fg = new LinkedHashMap<>();
-            fg.put("objectType", g.getObjectType());
-            fg.put("folderType", g.getFolderType());
-            fg.put("folderId", g.getFolderId());
-            fg.put("scopeLevel", g.getScopeLevel());
-            fg.put("perms", g.getPerms());
-            fg.put("subjectType", g.getSubjectType());
-            fg.put("subjectName", "USER".equals(g.getSubjectType()) ? target.getRealName() : roleNames.get(g.getSubjectId()));
-            fg.put("expiresAt", g.getExpiresAt());
-            fg.put("expired", g.getExpiresAt() != null && g.getExpiresAt().isBefore(now));
-            fileGrants.add(fg);
+            if (matchesGrantSubject(g, roleIds, userId)) {
+                fileGrants.add(buildFileGrantRow(g, target, roleNames, now));
+            }
         }
-        data.put("fileGrants", fileGrants);
+        return fileGrants;
+    }
 
-        // 【T8】菜单可见性: 该用户 role_menu 可见菜单行(名称/路径/类型), 与侧栏渲染同源(status=1)
+    private boolean matchesGrantSubject(com.aigicrm.module.file.entity.BizFolderTypeDefault g,
+                                        java.util.Set<Long> roleIds, Long userId) {
+        if ("USER".equals(g.getSubjectType())) return userId.equals(g.getSubjectId());
+        return "ROLE".equals(g.getSubjectType()) && roleIds.contains(g.getSubjectId());
+    }
+
+    private Map<String, Object> buildFileGrantRow(com.aigicrm.module.file.entity.BizFolderTypeDefault g,
+                                                  SecurityUser target, java.util.Map<Long, String> roleNames,
+                                                  java.time.LocalDateTime now) {
+        Map<String, Object> fg = new LinkedHashMap<>();
+        fg.put("objectType", g.getObjectType());
+        fg.put("folderType", g.getFolderType());
+        fg.put("folderId", g.getFolderId());
+        fg.put("scopeLevel", g.getScopeLevel());
+        fg.put("perms", g.getPerms());
+        fg.put("subjectType", g.getSubjectType());
+        fg.put("subjectName", "USER".equals(g.getSubjectType()) ? target.getRealName() : roleNames.get(g.getSubjectId()));
+        fg.put("expiresAt", g.getExpiresAt());
+        fg.put("expired", g.getExpiresAt() != null && g.getExpiresAt().isBefore(now));
+        return fg;
+    }
+
+    /** 【T8】菜单可见性: 该用户 role_menu 可见菜单行(名称/路径/类型), 与侧栏渲染同源(status=1)。 */
+    private Map<String, Object> buildMenuVisibility(Long userId) {
         // 【D1 修复 2026-11-16】ORDER BY 的 sort_order/id 不在 SELECT 列表 → MySQL 3065
-        // (DISTINCT 与排序列必须同列表)。包一层派生表：内层去重并携带排序列，外层只回传
-        // menu_name/path/menu_type 保持响应结构不变。
+        // (DISTINCT 与排序列必须同列表)。包一层派生表：内层去重并携带排序列，外层只回传三列。
         List<Map<String, Object>> menus = jdbc.queryForList(
                 "SELECT t.menu_name, t.path, t.menu_type FROM (" +
                 "SELECT DISTINCT m.menu_name, m.path, m.menu_type, m.sort_order, m.id FROM sys_menu m " +
@@ -183,23 +223,18 @@ public class PermCenterService {
         Map<String, Object> menuVisibility = new LinkedHashMap<>();
         menuVisibility.put("menuCount", menus.size());
         menuVisibility.put("menus", menus);
-        data.put("menuVisibility", menuVisibility);
+        return menuVisibility;
+    }
 
-        // 【T8】规则引擎指纹: 生产实况=零绑定(权限维度全面核查 2026-11-09 实证), 指纹恒空属正常;
-        // 明示"规则条件不参与上方范围数字"(此前注释宣称与真实判定零漂移, 未覆盖文件/菜单/规则三面)
+    /** 【T8】规则引擎指纹: 生产实况=零绑定(权限维度全面核查 2026-11-09 实证), 指纹恒空属正常。 */
+    private Map<String, Object> buildRuleEngine(SecurityUser target) {
         List<com.aigicrm.module.system.entity.SysPermissionRule> rules = permissionRuleMapper.selectList(null);
         Map<String, Object> ruleEngine = new LinkedHashMap<>();
         ruleEngine.put("boundRules", rules == null ? 0 : rules.size());
         ruleEngine.put("fingerprint", com.aigicrm.common.engine.PermissionRuleEngine
                 .evaluateForEntity(rules == null ? List.of() : rules, target, LIT_CUSTOMER));
         ruleEngine.put("note", "规则条件不参与上方范围数字；当前规则绑定数为 0 时指纹恒空属正常(生产实况)");
-        data.put("ruleEngine", ruleEngine);
-
-        // 【T8】诚实标注: 对象级(本人恒管/上级链)不在本预览计算——实际以文件页行级判定为准
-        data.put("notCovered", List.of(
-                "对象级授权(上传者本人恒管/上级链可管)：未在预览计算，实际以文件页行级判定(row.perms)为准",
-                "逐夹 ACL 历史转换行：已由类型默认授权体系取代，存量行只读展示于文件权限页"));
-        return data;
+        return ruleEngine;
     }
 
     private boolean flag(Map<String, Object> row, String column, boolean defaultValue) {

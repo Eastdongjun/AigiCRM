@@ -466,163 +466,239 @@ public class StatisticsQueryService {
 
     public Map<String, Object> indicatorStats() {
         Map<String, Object> data = new HashMap<>();
+        IndicatorContext ctx = loadIndicatorContext();
+        IndicatorCards cards = computeIndicatorCards(ctx);
 
+        data.put("coveredCount", cards.coveredCount());
+        data.put(LIT_CORECOUNT, cards.coreCount());
+        data.put("quasiCount", cards.quasiCount());
+        data.put(LIT_COREMINORWAN, ctx.coreThresholds()[0]);
+        data.put(LIT_COREMAJORWAN, ctx.coreThresholds()[1]);
+        data.put(LIT_AVGSCORE, cards.avgScore());
+        data.put("qualifyRate", cards.qualifyRate());
+
+        data.put("customerRanking", buildCustomerRanking(ctx));
+
+        List<Map<String, Object>> personalRanking = buildPersonalRanking(ctx);
+        data.put("personalRanking", personalRanking);
+        data.put("deptRanking", buildDeptRanking(personalRanking));
+        data.put("regionRanking", buildRegionRanking(ctx));
+        return data;
+    }
+
+    /** 本次请求共享的指标上下文：可见客户/指标、年度金额、核心门槛。 */
+    private record IndicatorContext(List<BizCustomerIndicator> indicators, List<BizCustomer> allCustomers,
+                                    Map<Long, BizCustomer> customerMap,
+                                    Map<Long, java.math.BigDecimal[]> annualAmounts,
+                                    java.math.BigDecimal[] coreThresholds) {}
+
+    /** 顶部四张卡片口径（覆盖数/真核心/争核心/平均分/达标率）。 */
+    private record IndicatorCards(int coveredCount, int coreCount, int quasiCount,
+                                  double avgScore, double qualifyRate) {}
+
+    private IndicatorContext loadIndicatorContext() {
         List<BizCustomerIndicator> indicators = indicatorMapper.selectList(null);
-        // 【注释修正 2026-11-08】原注释"全员可见不过滤"与代码矛盾, 已按 G2 实际口径改写:
-        // 指标随客户可见范围过滤(visibleCustomers: admin 全量; 其余按 statistics 模块数据范围
-        // 解析可见人员并按 ownerId 过滤, 未分配负责人的客户保持可见)——统计范围必须 ≤ 明细可见范围。
+        // 【注释修正 2026-11-08】指标随客户可见范围过滤(visibleCustomers: admin 全量; 其余按 statistics 模块
+        // 数据范围解析可见人员并按 ownerId 过滤, 未分配负责人的客户保持可见)——统计范围必须 ≤ 明细可见范围。
         List<BizCustomer> allCustomers = visibleCustomers(customerService.getAllActiveCustomers());
         Map<Long, BizCustomer> customerMap = new HashMap<>();
         for (BizCustomer c : allCustomers) customerMap.put(c.getId(), c);
-        // 【排行负责人修复 2026-11-17】ownerName 是 exist=false 字段，必须批量回填；
-        // 此前仅四项服务聚合路径回填，客情/六项指标排行（均取自本方法 customerRanking）负责人恒空。
+        // 【排行负责人修复 2026-11-17】ownerName 是 exist=false 字段，必须批量回填
         if (!customerMap.isEmpty()) fillCustomerOwnerNames(customerMap.values());
-        // 【G2 2026-09-21】指标随客户可见性同步收口——coveredCount/avgScore/排行均以指标为口径,
-        // 只滤客户不滤指标时 coveredCount 仍为全量(实测暴露), 越权指标行必须在此剔除
+        // 【G2 2026-09-21】指标随客户可见性同步收口——coveredCount/avgScore/排行均以指标为口径
         indicators = indicators.stream()
                 .filter(ind -> ind.getCustomerId() != null && customerMap.containsKey(ind.getCustomerId()))
                 .collect(java.util.stream.Collectors.toList());
 
-        // 【裁决 2026-10-10】核心判定金额源换阶段总额年度口径(纯金额三态, 五项评分不再参与);
-        // 逐笔发票/回款录入入口已下线改只读历史, 不再作为判定数据源
+        // 【裁决 2026-10-10】核心判定金额源换阶段总额年度口径(纯金额三态, 五项评分不再参与)
         Map<Long, java.math.BigDecimal[]> annualAmounts = annualAmountsByCustomer(
                 stageAmountMapper.selectList(null));
-        // 【2026-11-03 门槛配置化】双门槛读一次配置贯穿本请求; 一并回传给前端做门槛文案(不落死值)
+        // 【2026-11-03 门槛配置化】双门槛读一次配置贯穿本请求
         java.math.BigDecimal[] coreThresholds = coreThresholds();
+        return new IndicatorContext(indicators, allCustomers, customerMap, annualAmounts, coreThresholds);
+    }
 
-        // 【2026-09-13 修复"卡片全 0 而表格有数据"的口径不一致】
-        // 此前四张卡片只统计"当前登录用户自己负责的客户"（myCustomers/myIndicators），而下方「客户排行」是
-        // 全公司口径 —— 同一页面两套范围：登录人（如 admin）名下客户恰好没有指标记录时，卡片 4 个 0 而表格有数据。
-        // 现卡片与排行统一为同一"统计可见范围"口径(G2: admin=全公司, 其余按 statistics 数据范围过滤,
-        // 见上方 visibleCustomers 注释), 以及卡片文案(覆盖客户数/真核心数/争核心数/指标平均分)保持一致。
-        int coveredCount = indicators.size();
+    private IndicatorCards computeIndicatorCards(IndicatorContext ctx) {
+        // 【2026-09-13 修复"卡片全 0 而表格有数据"的口径不一致】卡片与排行统一为同一"统计可见范围"口径
+        int coveredCount = ctx.indicators().size();
         int coreCount = 0;
         int quasiCount = 0;
         double scoreSum = 0;
-        for (BizCustomerIndicator ind : indicators) {
-            int s = indicatorScore(ind);
-            scoreSum += s;
-            java.math.BigDecimal[] ann = annualAmounts.get(ind.getCustomerId());
+        for (BizCustomerIndicator ind : ctx.indicators()) {
+            scoreSum += indicatorScore(ind);
+            java.math.BigDecimal[] ann = ctx.annualAmounts().get(ind.getCustomerId());
             if (ann != null) {
-                String ct = coreTypeOf(ann[0], ann[1], coreThresholds[0], coreThresholds[1]);
+                String ct = coreTypeOf(ann[0], ann[1], ctx.coreThresholds()[0], ctx.coreThresholds()[1]);
                 if ("core".equals(ct)) coreCount++;
                 else if (LIT_QUASI.equals(ct)) quasiCount++;
             }
         }
+        int qualifyCount = countQualified(ctx);
+        double avgScore = coveredCount > 0 ? Math.round(scoreSum / coveredCount * 10) / 10.0 : 0;
+        double qualifyRate = !ctx.allCustomers().isEmpty()
+                ? Math.round(qualifyCount * 1000.0 / ctx.allCustomers().size()) / 10.0 : 0;
+        return new IndicatorCards(coveredCount, coreCount, quasiCount, avgScore, qualifyRate);
+    }
+
+    private int countQualified(IndicatorContext ctx) {
         int qualifyCount = 0;
-        for (BizCustomer c : allCustomers) {
-            java.math.BigDecimal[] ann = annualAmounts.get(c.getId());
-            if (ann != null && ann[0].compareTo(coreThresholds[1]) >= 0 && ann[1].compareTo(coreThresholds[1]) >= 0) qualifyCount++;
+        for (BizCustomer c : ctx.allCustomers()) {
+            if (isQualified(c, ctx.annualAmounts(), ctx.coreThresholds()[1])) qualifyCount++;
         }
+        return qualifyCount;
+    }
 
-        data.put("coveredCount", coveredCount);
-        data.put(LIT_CORECOUNT, coreCount);
-        data.put("quasiCount", quasiCount);
-        data.put(LIT_COREMINORWAN, coreThresholds[0]);
-        data.put(LIT_COREMAJORWAN, coreThresholds[1]);
-        data.put(LIT_AVGSCORE, coveredCount > 0 ? Math.round(scoreSum / coveredCount * 10) / 10.0 : 0);
-        data.put("qualifyRate", allCustomers.size() > 0 ? Math.round(qualifyCount * 1000.0 / allCustomers.size()) / 10.0 : 0);
+    private boolean isQualified(BizCustomer c, Map<Long, java.math.BigDecimal[]> annualAmounts,
+                                java.math.BigDecimal majorThreshold) {
+        java.math.BigDecimal[] ann = annualAmounts.get(c.getId());
+        return ann != null && ann[0].compareTo(majorThreshold) >= 0 && ann[1].compareTo(majorThreshold) >= 0;
+    }
 
+    private List<Map<String, Object>> buildCustomerRanking(IndicatorContext ctx) {
         List<Map<String, Object>> customerRanking = new ArrayList<>();
-        for (BizCustomerIndicator ind : indicators) {
-            BizCustomer c = customerMap.get(ind.getCustomerId());
-            if (c == null) continue;
+        for (BizCustomerIndicator ind : ctx.indicators()) {
+            BizCustomer c = ctx.customerMap().get(ind.getCustomerId());
             int s = indicatorScore(ind);
-            if (s <= 0) continue;
-            java.math.BigDecimal[] ann = annualAmounts.get(ind.getCustomerId());
-            java.math.BigDecimal invTotal = ann != null ? ann[0] : java.math.BigDecimal.ZERO;
-            java.math.BigDecimal paymentTotal = ann != null ? ann[1] : java.math.BigDecimal.ZERO;
-            String coreType = ann != null ? coreTypeOf(invTotal, paymentTotal, coreThresholds[0], coreThresholds[1]) : "";
-            Map<String, Object> row = new LinkedHashMap<>();
-            row.put("customerId", ind.getCustomerId());
-            row.put(LIT_CUSTOMERNAME, c.getCustomerName());
-            row.put("ownerName", c.getOwnerName());
-            row.put("industry", c.getIndustry());
-            row.put("devType", c.getDevType());
-            row.put("invoiceTotal", invTotal);
-            row.put("paymentTotal", paymentTotal);
-            row.put(LIT_RELATIONSHIPSCORE, ind.getRelationshipScore() != null ? ind.getRelationshipScore() : 0);
-            row.put("indicator02", ind.getIndicator02() != null ? ind.getIndicator02() : 0);
-            row.put("indicator03", ind.getIndicator03() != null ? ind.getIndicator03() : 0);
-            row.put("indicator04", ind.getIndicator04() != null ? ind.getIndicator04() : 0);
-            row.put("indicator05", ind.getIndicator05() != null ? ind.getIndicator05() : 0);
-            row.put(LIT_TOTALSCORE, s);
-            row.put("core", "core".equals(coreType));
-            row.put(LIT_CORETYPE, coreType);
-            customerRanking.add(row);
+            if (c != null && s > 0) {
+                customerRanking.add(buildCustomerRankingRow(ind, c, s, ctx.annualAmounts(), ctx.coreThresholds()));
+            }
         }
         customerRanking.sort((a, b) -> {
             int cmp = Integer.compare(((Number) b.get(LIT_TOTALSCORE)).intValue(), ((Number) a.get(LIT_TOTALSCORE)).intValue());
             if (cmp != 0) return cmp;
             return String.valueOf(a.getOrDefault(LIT_CUSTOMERNAME, "")).compareTo(String.valueOf(b.getOrDefault(LIT_CUSTOMERNAME, "")));
         });
-        data.put("customerRanking", customerRanking);
+        return customerRanking;
+    }
 
-        Map<Long, Long> ownerCustomerCounts = new HashMap<>();
-        for (BizCustomer c : allCustomers) {
-            if (c.getOwnerId() != null) {
-                ownerCustomerCounts.merge(c.getOwnerId(), 1L, Long::sum);
-            }
-        }
+    private Map<String, Object> buildCustomerRankingRow(BizCustomerIndicator ind, BizCustomer c, int s,
+                                                        Map<Long, java.math.BigDecimal[]> annualAmounts,
+                                                        java.math.BigDecimal[] coreThresholds) {
+        java.math.BigDecimal[] ann = annualAmounts.get(ind.getCustomerId());
+        java.math.BigDecimal invTotal = ann != null ? ann[0] : java.math.BigDecimal.ZERO;
+        java.math.BigDecimal paymentTotal = ann != null ? ann[1] : java.math.BigDecimal.ZERO;
+        String coreType = ann != null ? coreTypeOf(invTotal, paymentTotal, coreThresholds[0], coreThresholds[1]) : "";
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("customerId", ind.getCustomerId());
+        row.put(LIT_CUSTOMERNAME, c.getCustomerName());
+        row.put("ownerName", c.getOwnerName());
+        row.put("industry", c.getIndustry());
+        row.put("devType", c.getDevType());
+        row.put("invoiceTotal", invTotal);
+        row.put("paymentTotal", paymentTotal);
+        row.put(LIT_RELATIONSHIPSCORE, ind.getRelationshipScore() != null ? ind.getRelationshipScore() : 0);
+        row.put("indicator02", ind.getIndicator02() != null ? ind.getIndicator02() : 0);
+        row.put("indicator03", ind.getIndicator03() != null ? ind.getIndicator03() : 0);
+        row.put("indicator04", ind.getIndicator04() != null ? ind.getIndicator04() : 0);
+        row.put("indicator05", ind.getIndicator05() != null ? ind.getIndicator05() : 0);
+        row.put(LIT_TOTALSCORE, s);
+        row.put("core", "core".equals(coreType));
+        row.put(LIT_CORETYPE, coreType);
+        return row;
+    }
 
-        Map<Long, List<int[]>> ownerScores = new HashMap<>();
-        for (BizCustomerIndicator ind : indicators) {
-            BizCustomer c = customerMap.get(ind.getCustomerId());
-            if (c == null || c.getOwnerId() == null) continue;
-            int s = indicatorScore(ind);
-            java.math.BigDecimal[] ann = annualAmounts.get(ind.getCustomerId());
-            int core = (ann != null && "core".equals(coreTypeOf(ann[0], ann[1], coreThresholds[0], coreThresholds[1]))) ? 1 : 0;
-            ownerScores.computeIfAbsent(c.getOwnerId(), k -> new ArrayList<>()).add(new int[]{s, core});
-        }
-
+    private List<Map<String, Object>> buildPersonalRanking(IndicatorContext ctx) {
+        Map<Long, Long> ownerCustomerCounts = countOwnerCustomers(ctx.allCustomers());
+        Map<Long, List<int[]>> ownerScores = scoreByOwner(ctx);
         Set<Long> allOwnerIds = new HashSet<>(ownerCustomerCounts.keySet());
         allOwnerIds.addAll(ownerScores.keySet());
 
         // 【修复 FEAT-20260804-INDICATOR-N1】批量预取用户和部门，避免循环内逐条 selectById
-        Map<Long, SysUser> userById = allOwnerIds.isEmpty() ? Map.of()
-                : userMapper.selectByIds(allOwnerIds).stream()
-                        .collect(java.util.stream.Collectors.toMap(SysUser::getId, u -> u));
-        Set<Long> deptIdsNeeded = new HashSet<>();
-        for (SysUser u : userById.values()) if (u.getDeptId() != null) deptIdsNeeded.add(u.getDeptId());
-        Map<Long, SysDept> deptById = deptIdsNeeded.isEmpty() ? Map.of()
-                : deptMapper.selectByIds(deptIdsNeeded).stream()
-                        .collect(java.util.stream.Collectors.toMap(SysDept::getId, d -> d));
+        Map<Long, SysUser> userById = loadUsers(allOwnerIds);
+        Map<Long, SysDept> deptById = loadUserDepts(userById.values());
 
         List<Map<String, Object>> personalRanking = new ArrayList<>();
         for (Long uid : allOwnerIds) {
             SysUser user = userById.get(uid);
-            if (user == null) continue;
-            String deptName = "";
-            if (user.getDeptId() != null) {
-                var dept = deptById.get(user.getDeptId());
-                if (dept != null) deptName = dept.getDeptName();
+            if (user != null) {
+                personalRanking.add(buildPersonalRow(uid, user, deptById, ownerScores, ownerCustomerCounts));
             }
-            List<int[]> scores = ownerScores.getOrDefault(uid, List.of());
-            long custCount = ownerCustomerCounts.getOrDefault(uid, 0L);
-            int cores = scores.stream().mapToInt(s -> s[1]).sum();
-            int totalScore = scores.stream().mapToInt(s -> s[0]).sum();
-            int maxScore = scores.stream().mapToInt(s -> s[0]).max().orElse(0);
-            double avgScoreP = !scores.isEmpty() ? Math.round(totalScore * 10.0 / scores.size()) / 10.0 : 0;
-
-            Map<String, Object> row = new LinkedHashMap<>();
-            row.put("userId", uid);
-            row.put("realName", user.getRealName());
-            row.put(LIT_DEPTNAME, deptName);
-            row.put(LIT_CUSTOMERCOUNT, custCount);
-            row.put(LIT_CORECOUNT, cores);
-            row.put(LIT_AVGSCORE, avgScoreP);
-            row.put("maxScore", maxScore);
-            row.put(LIT_TOTALSCORE, totalScore);
-            row.put("level", cores > 0 ? "优秀" : "一般");
-            personalRanking.add(row);
         }
         personalRanking.sort((a, b) -> {
             int cmp = Integer.compare(((Number) b.get(LIT_TOTALSCORE)).intValue(), ((Number) a.get(LIT_TOTALSCORE)).intValue());
             if (cmp != 0) return cmp;
             return Long.compare(((Number) b.get(LIT_CUSTOMERCOUNT)).longValue(), ((Number) a.get(LIT_CUSTOMERCOUNT)).longValue());
         });
-        data.put("personalRanking", personalRanking);
+        return personalRanking;
+    }
 
+    private Map<Long, Long> countOwnerCustomers(List<BizCustomer> allCustomers) {
+        Map<Long, Long> ownerCustomerCounts = new HashMap<>();
+        for (BizCustomer c : allCustomers) {
+            if (c.getOwnerId() != null) {
+                ownerCustomerCounts.merge(c.getOwnerId(), 1L, Long::sum);
+            }
+        }
+        return ownerCustomerCounts;
+    }
+
+    private Map<Long, List<int[]>> scoreByOwner(IndicatorContext ctx) {
+        Map<Long, List<int[]>> ownerScores = new HashMap<>();
+        for (BizCustomerIndicator ind : ctx.indicators()) {
+            BizCustomer c = ctx.customerMap().get(ind.getCustomerId());
+            if (c != null && c.getOwnerId() != null) {
+                int s = indicatorScore(ind);
+                java.math.BigDecimal[] ann = ctx.annualAmounts().get(ind.getCustomerId());
+                int core = isCoreAmount(ann, ctx.coreThresholds()) ? 1 : 0;
+                ownerScores.computeIfAbsent(c.getOwnerId(), k -> new ArrayList<>()).add(new int[]{s, core});
+            }
+        }
+        return ownerScores;
+    }
+
+    private boolean isCoreAmount(java.math.BigDecimal[] ann, java.math.BigDecimal[] coreThresholds) {
+        return ann != null && "core".equals(coreTypeOf(ann[0], ann[1], coreThresholds[0], coreThresholds[1]));
+    }
+
+    private Map<Long, SysUser> loadUsers(Set<Long> allOwnerIds) {
+        return allOwnerIds.isEmpty() ? Map.of()
+                : userMapper.selectByIds(allOwnerIds).stream()
+                        .collect(java.util.stream.Collectors.toMap(SysUser::getId, u -> u));
+    }
+
+    private Map<Long, SysDept> loadUserDepts(java.util.Collection<SysUser> users) {
+        Set<Long> deptIdsNeeded = new HashSet<>();
+        for (SysUser u : users) {
+            if (u.getDeptId() != null) deptIdsNeeded.add(u.getDeptId());
+        }
+        return loadDepts(deptIdsNeeded);
+    }
+
+    private Map<Long, SysDept> loadDepts(Set<Long> deptIdsNeeded) {
+        return deptIdsNeeded.isEmpty() ? Map.of()
+                : deptMapper.selectByIds(deptIdsNeeded).stream()
+                        .collect(java.util.stream.Collectors.toMap(SysDept::getId, d -> d));
+    }
+
+    private Map<String, Object> buildPersonalRow(Long uid, SysUser user, Map<Long, SysDept> deptById,
+                                                 Map<Long, List<int[]>> ownerScores,
+                                                 Map<Long, Long> ownerCustomerCounts) {
+        String deptName = "";
+        if (user.getDeptId() != null) {
+            var dept = deptById.get(user.getDeptId());
+            if (dept != null) deptName = dept.getDeptName();
+        }
+        List<int[]> scores = ownerScores.getOrDefault(uid, List.of());
+        long custCount = ownerCustomerCounts.getOrDefault(uid, 0L);
+        int cores = scores.stream().mapToInt(s -> s[1]).sum();
+        int totalScore = scores.stream().mapToInt(s -> s[0]).sum();
+        int maxScore = scores.stream().mapToInt(s -> s[0]).max().orElse(0);
+        double avgScoreP = !scores.isEmpty() ? Math.round(totalScore * 10.0 / scores.size()) / 10.0 : 0;
+
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("userId", uid);
+        row.put("realName", user.getRealName());
+        row.put(LIT_DEPTNAME, deptName);
+        row.put(LIT_CUSTOMERCOUNT, custCount);
+        row.put(LIT_CORECOUNT, cores);
+        row.put(LIT_AVGSCORE, avgScoreP);
+        row.put("maxScore", maxScore);
+        row.put(LIT_TOTALSCORE, totalScore);
+        row.put("level", cores > 0 ? "优秀" : "一般");
+        return row;
+    }
+
+    private List<Map<String, Object>> buildDeptRanking(List<Map<String, Object>> personalRanking) {
         Map<String, int[]> deptAgg = new LinkedHashMap<>();
         for (var p : personalRanking) {
             String dn = (String) p.getOrDefault(LIT_DEPTNAME, "未知");
@@ -634,56 +710,67 @@ public class StatisticsQueryService {
         }
         List<Map<String, Object>> deptRanking = new ArrayList<>();
         for (var e : deptAgg.entrySet()) {
-            Map<String, Object> row = new LinkedHashMap<>();
-            row.put(LIT_DEPTNAME, e.getKey());
-            row.put(LIT_TOTALSCORE, e.getValue()[0]);
-            row.put(LIT_CUSTOMERCOUNT, e.getValue()[1]);
-            row.put(LIT_CORECOUNT, e.getValue()[2]);
-            row.put("memberCount", e.getValue()[3]);
-            row.put(LIT_AVGSCORE, e.getValue()[1] > 0 ? Math.round(e.getValue()[0] * 10.0 / e.getValue()[1]) / 10.0 : 0);
-            deptRanking.add(row);
+            deptRanking.add(buildDeptRow(e.getKey(), e.getValue()));
         }
         deptRanking.sort((a, b) -> Integer.compare(((Number) b.get(LIT_TOTALSCORE)).intValue(), ((Number) a.get(LIT_TOTALSCORE)).intValue()));
-        data.put("deptRanking", deptRanking);
+        return deptRanking;
+    }
 
+    private Map<String, Object> buildDeptRow(String deptName, int[] agg) {
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put(LIT_DEPTNAME, deptName);
+        row.put(LIT_TOTALSCORE, agg[0]);
+        row.put(LIT_CUSTOMERCOUNT, agg[1]);
+        row.put(LIT_CORECOUNT, agg[2]);
+        row.put("memberCount", agg[3]);
+        row.put(LIT_AVGSCORE, agg[1] > 0 ? Math.round(agg[0] * 10.0 / agg[1]) / 10.0 : 0);
+        return row;
+    }
+
+    private List<Map<String, Object>> buildRegionRanking(IndicatorContext ctx) {
         // 批量预取办事处，避免循环内逐条 selectById
         Set<Long> officeIdsNeeded = new HashSet<>();
-        for (BizCustomer c : allCustomers) if (c.getOfficeId() != null) officeIdsNeeded.add(c.getOfficeId());
-        Map<Long, SysDept> officeById = officeIdsNeeded.isEmpty() ? Map.of()
-                : deptMapper.selectByIds(officeIdsNeeded).stream()
-                        .collect(java.util.stream.Collectors.toMap(SysDept::getId, d -> d));
+        for (BizCustomer c : ctx.allCustomers()) {
+            if (c.getOfficeId() != null) officeIdsNeeded.add(c.getOfficeId());
+        }
+        Map<Long, SysDept> officeById = loadDepts(officeIdsNeeded);
 
         Map<String, int[]> officeAgg = new LinkedHashMap<>();
-        for (BizCustomerIndicator ind : indicators) {
-            BizCustomer c = customerMap.get(ind.getCustomerId());
-            if (c == null) continue;
-            String officeName = "";
-            if (c.getOfficeId() != null) {
-                var dept = officeById.get(c.getOfficeId());
-                if (dept != null) officeName = dept.getDeptName();
+        for (BizCustomerIndicator ind : ctx.indicators()) {
+            BizCustomer c = ctx.customerMap().get(ind.getCustomerId());
+            if (c != null) {
+                String officeName = officeNameOf(c, officeById);
+                int s = indicatorScore(ind);
+                java.math.BigDecimal[] annT = ctx.annualAmounts().get(ind.getCustomerId());
+                int core = isCoreAmount(annT, ctx.coreThresholds()) ? 1 : 0;
+                int[] agg = officeAgg.computeIfAbsent(officeName.isEmpty() ? "未知" : officeName, k -> new int[3]);
+                agg[0] += s;
+                agg[1] += 1;
+                agg[2] += core;
             }
-            int s = indicatorScore(ind);
-            java.math.BigDecimal[] annT = annualAmounts.get(ind.getCustomerId());
-            int core = (annT != null && "core".equals(coreTypeOf(annT[0], annT[1], coreThresholds[0], coreThresholds[1]))) ? 1 : 0;
-            int[] agg = officeAgg.computeIfAbsent(officeName.isEmpty() ? "未知" : officeName, k -> new int[3]);
-            agg[0] += s;
-            agg[1] += 1;
-            agg[2] += core;
         }
         List<Map<String, Object>> regionRanking = new ArrayList<>();
         for (var e : officeAgg.entrySet()) {
-            Map<String, Object> row = new LinkedHashMap<>();
-            row.put("regionName", e.getKey());
-            row.put(LIT_TOTALSCORE, e.getValue()[0]);
-            row.put(LIT_CUSTOMERCOUNT, e.getValue()[1]);
-            row.put(LIT_CORECOUNT, e.getValue()[2]);
-            row.put(LIT_AVGSCORE, e.getValue()[1] > 0 ? Math.round(e.getValue()[0] * 10.0 / e.getValue()[1]) / 10.0 : 0);
-            regionRanking.add(row);
+            regionRanking.add(buildRegionRow(e.getKey(), e.getValue()));
         }
         regionRanking.sort((a, b) -> Integer.compare(((Number) b.get(LIT_TOTALSCORE)).intValue(), ((Number) a.get(LIT_TOTALSCORE)).intValue()));
-        data.put("regionRanking", regionRanking);
+        return regionRanking;
+    }
 
-        return data;
+    private String officeNameOf(BizCustomer c, Map<Long, SysDept> officeById) {
+        if (c.getOfficeId() == null) return "";
+        var dept = officeById.get(c.getOfficeId());
+        return dept != null ? dept.getDeptName() : "";
+    }
+
+    private Map<String, Object> buildRegionRow(String regionName, int[] agg) {
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("regionName", regionName);
+        row.put(LIT_TOTALSCORE, agg[0]);
+        row.put(LIT_CUSTOMERCOUNT, agg[1]);
+        row.put(LIT_CORECOUNT, agg[2]);
+        row.put(LIT_AVGSCORE, agg[1] > 0 ? Math.round(agg[0] * 10.0 / agg[1]) / 10.0 : 0);
+        return row;
     }
 
     /**

@@ -375,68 +375,73 @@ public class IncentiveService {
     /** 按客户查询激励记录（客户详情 Tab 用，customerId 可选过滤） */
     public List<BizIncentiveRecord> getRecords(Long userId, String period, Long parentCategoryId, Long customerId) {
         LambdaQueryWrapper<BizIncentiveRecord> wrapper = new LambdaQueryWrapper<>();
-        if (userId != null) {
-            // 【2026-08-08 分享制】显式指定查看某人：admin/专项授权→全部；本人→自己全部；他人→仅其已分享记录。
-            if (!canViewIncentiveUser(userId)) return List.of();
-            wrapper.eq(BizIncentiveRecord::getUserId, userId);
-            Long self = SecurityUtils.getCurrentUserId();
-            if (!canSeeAllIncentive() && (self == null || !self.equals(userId))) {
-                wrapper.eq(BizIncentiveRecord::getShared, 1);
-            }
-        } else {
-            // 【2026-08-08 分享制】未指定人时按分享制过滤：本人 + shared=1（数据范围/上级可见不再作用）。
-            applyShareVisibility(wrapper);
-        }
-        // 【2026-09-12】空周期不放行等值过滤：与 categoryStats/scoreboard 的守卫口径一致。
-        // 原来 `if (period != null)` 会把前端传来的空串当成 period='' 精确匹配 ⇒ 一律 0 条
-        // （曾导致激励页打开即"没数据"：默认周期与库内 '2026全年' 口径不一致 + 空值仍过滤）。
+        if (!applyUserRecordFilter(wrapper, userId)) return List.of();
+        // 【2026-09-12】空周期不放行等值过滤：与 categoryStats/scoreboard 的守卫口径一致
         if (period != null && !period.isBlank()) wrapper.eq(BizIncentiveRecord::getPeriod, period);
         if (customerId != null) wrapper.eq(BizIncentiveRecord::getCustomerId, customerId);
-        if (parentCategoryId != null) {
-            List<BizIncentiveCategory> children = categoryMapper.selectList(
-                    new LambdaQueryWrapper<BizIncentiveCategory>().eq(BizIncentiveCategory::getParentId, parentCategoryId)
-            );
-            // 【2026-11-01 审计修复】IN 含父 id 本身(直接挂大类的记录原查不出); 大类无子类时
-            // 原来不加任何条件=显式传父类却返回全部, 退化为父 id 等值
-            List<Long> ids = new java.util.ArrayList<>();
-            ids.add(parentCategoryId);
-            ids.addAll(children.stream().map(BizIncentiveCategory::getId).toList());
-            wrapper.in(BizIncentiveRecord::getCategoryId, ids);
-        }
+        applyParentCategoryFilter(wrapper, parentCategoryId);
         wrapper.orderByDesc(BizIncentiveRecord::getCreatedAt);
         List<BizIncentiveRecord> records = recordMapper.selectList(wrapper);
 
         // 批量填充关联名称(替代逐条 selectById 的 N+1,一次 IN 查询按 id 建 Map)
-        java.util.Set<Long> catIds = records.stream().map(BizIncentiveRecord::getCategoryId).filter(java.util.Objects::nonNull).collect(java.util.stream.Collectors.toSet());
-        java.util.Set<Long> uidSet = records.stream().map(BizIncentiveRecord::getUserId).filter(java.util.Objects::nonNull).collect(java.util.stream.Collectors.toSet());
-        uidSet.addAll(records.stream().map(BizIncentiveRecord::getUpdatedBy).filter(java.util.Objects::nonNull).collect(java.util.stream.Collectors.toSet()));
-        java.util.Set<Long> custIdSet = records.stream().map(BizIncentiveRecord::getCustomerId).filter(java.util.Objects::nonNull).collect(java.util.stream.Collectors.toSet());
-        java.util.Map<Long, BizIncentiveCategory> catMap = catIds.isEmpty() ? java.util.Map.of()
-                : categoryMapper.selectByIds(catIds).stream().collect(java.util.stream.Collectors.toMap(BizIncentiveCategory::getId, c -> c));
-        java.util.Map<Long, SysUser> userMap = uidSet.isEmpty() ? java.util.Map.of()
-                : userMapper.selectByIds(uidSet).stream().collect(java.util.stream.Collectors.toMap(SysUser::getId, u -> u));
-        java.util.Map<Long, BizCustomer> custMap = custIdSet.isEmpty() ? java.util.Map.of()
-                : customerMapper.selectByIds(custIdSet).stream().collect(java.util.stream.Collectors.toMap(BizCustomer::getId, c -> c));
-        for (BizIncentiveRecord r : records) {
-            if (r.getCategoryId() != null) {
-                BizIncentiveCategory cat = catMap.get(r.getCategoryId());
-                if (cat != null) r.setCategoryName(cat.getCategoryName());
-            }
-            if (r.getUserId() != null) {
-                SysUser user = userMap.get(r.getUserId());
-                if (user != null) r.setUserName(user.getRealName());
-            }
-            if (r.getUpdatedBy() != null) {
-                SysUser updater = userMap.get(r.getUpdatedBy());
-                if (updater != null) r.setUpdatedByName(updater.getRealName());
-            }
-            if (r.getCustomerId() != null) {
-                BizCustomer cust = custMap.get(r.getCustomerId());
-                if (cust != null) r.setCustomerName(cust.getCustomerName());
-            }
-        }
+        fillRecordAssociations(records);
         fillFileNames(records);
         return records;
+    }
+
+    /** 【2026-08-08 分享制】指定人/未指定人的可见性过滤；返回 false 表示该人完全不可见（空结果）。 */
+    private boolean applyUserRecordFilter(LambdaQueryWrapper<BizIncentiveRecord> wrapper, Long userId) {
+        if (userId == null) {
+            // 未指定人时按分享制过滤：本人 + shared=1（数据范围/上级可见不再作用）。
+            applyShareVisibility(wrapper);
+            return true;
+        }
+        // 显式指定查看某人：admin/专项授权→全部；本人→自己全部；他人→仅其已分享记录。
+        if (!canViewIncentiveUser(userId)) return false;
+        wrapper.eq(BizIncentiveRecord::getUserId, userId);
+        Long self = SecurityUtils.getCurrentUserId();
+        if (!canSeeAllIncentive() && (self == null || !self.equals(userId))) {
+            wrapper.eq(BizIncentiveRecord::getShared, 1);
+        }
+        return true;
+    }
+
+    private void applyParentCategoryFilter(LambdaQueryWrapper<BizIncentiveRecord> wrapper, Long parentCategoryId) {
+        if (parentCategoryId == null) return;
+        List<BizIncentiveCategory> children = categoryMapper.selectList(
+                new LambdaQueryWrapper<BizIncentiveCategory>().eq(BizIncentiveCategory::getParentId, parentCategoryId)
+        );
+        // 【2026-11-01 审计修复】IN 含父 id 本身(直接挂大类的记录原查不出)
+        List<Long> ids = new java.util.ArrayList<>();
+        ids.add(parentCategoryId);
+        ids.addAll(children.stream().map(BizIncentiveCategory::getId).toList());
+        wrapper.in(BizIncentiveRecord::getCategoryId, ids);
+    }
+
+    private record AssociationMaps(Map<Long, BizIncentiveCategory> categories, Map<Long, SysUser> users,
+                                   Map<Long, BizCustomer> customers) {}
+
+    private void fillRecordAssociations(List<BizIncentiveRecord> records) {
+        AssociationMaps maps = loadAssociationMaps(records);
+        for (BizIncentiveRecord r : records) {
+            applyCategoryName(r, maps.categories());
+            applyUserNames(r, maps.users());
+            applyCustomerName(r, maps.customers());
+        }
+    }
+
+    private AssociationMaps loadAssociationMaps(List<BizIncentiveRecord> records) {
+        Set<Long> catIds = records.stream().map(BizIncentiveRecord::getCategoryId).filter(Objects::nonNull).collect(Collectors.toSet());
+        Set<Long> uidSet = records.stream().map(BizIncentiveRecord::getUserId).filter(Objects::nonNull).collect(Collectors.toSet());
+        uidSet.addAll(records.stream().map(BizIncentiveRecord::getUpdatedBy).filter(Objects::nonNull).collect(Collectors.toSet()));
+        Set<Long> custIdSet = records.stream().map(BizIncentiveRecord::getCustomerId).filter(Objects::nonNull).collect(Collectors.toSet());
+        Map<Long, BizIncentiveCategory> catMap = catIds.isEmpty() ? Map.of()
+                : categoryMapper.selectByIds(catIds).stream().collect(Collectors.toMap(BizIncentiveCategory::getId, c -> c));
+        Map<Long, SysUser> userMap = uidSet.isEmpty() ? Map.of()
+                : userMapper.selectByIds(uidSet).stream().collect(Collectors.toMap(SysUser::getId, u -> u));
+        Map<Long, BizCustomer> custMap = custIdSet.isEmpty() ? Map.of()
+                : customerMapper.selectByIds(custIdSet).stream().collect(Collectors.toMap(BizCustomer::getId, c -> c));
+        return new AssociationMaps(catMap, userMap, custMap);
     }
 
     public BizIncentiveRecord getRecordById(Long id) {
@@ -752,7 +757,16 @@ public class IncentiveService {
     @Transactional
     public void detachFileFromRecords(Long fileId) {
         if (fileId == null) return;
-        List<Long> recordIds = jdbc.queryForList(
+        List<Long> recordIds = findRecordsContainingFile(fileId);
+        if (recordIds == null || recordIds.isEmpty()) return;
+        for (Long recordId : recordIds) {
+            detachFromRecord(recordId, fileId);
+        }
+        evictScoreboardCache();
+    }
+
+    private List<Long> findRecordsContainingFile(Long fileId) {
+        return jdbc.queryForList(
                 "SELECT id FROM biz_incentive_record WHERE " +
                         "(JSON_VALID(file_id) AND JSON_CONTAINS(file_id, CAST(? AS CHAR))) OR " +
                         "(JSON_VALID(file_pre_id) AND JSON_CONTAINS(file_pre_id, CAST(? AS CHAR))) OR " +
@@ -760,52 +774,71 @@ public class IncentiveService {
                         "(JSON_VALID(file_post_id) AND JSON_CONTAINS(file_post_id, CAST(? AS CHAR))) OR " +
                         "(JSON_VALID(file_track_id) AND JSON_CONTAINS(file_track_id, CAST(? AS CHAR)))",
                 Long.class, fileId, fileId, fileId, fileId, fileId);
-        if (recordIds == null || recordIds.isEmpty()) return;
+    }
 
-        for (Long recordId : recordIds) {
-            BizIncentiveRecord r = recordMapper.selectByIdForUpdate(recordId);
-            if (r == null) continue;
-            Map<String, List<Long>> slots = new LinkedHashMap<>();
-            slots.put("file", r.getFileIds() == null ? new ArrayList<>() : new ArrayList<>(r.getFileIds()));
-            slots.put("pre", r.getFilePreIds() == null ? new ArrayList<>() : new ArrayList<>(r.getFilePreIds()));
-            slots.put("mid", r.getFileMidIds() == null ? new ArrayList<>() : new ArrayList<>(r.getFileMidIds()));
-            slots.put("post", r.getFilePostIds() == null ? new ArrayList<>() : new ArrayList<>(r.getFilePostIds()));
-            slots.put(LIT_TRACK, r.getFileTrackIds() == null ? new ArrayList<>() : new ArrayList<>(r.getFileTrackIds()));
-            boolean touched = false;
-            int totalAfter = 0;
-            for (List<Long> list : slots.values()) {
-                if (list.removeIf(id -> id.equals(fileId))) touched = true;
-                totalAfter += list.size();
-            }
-            if (!touched) continue; // JSON_CONTAINS 命中但解析后无此 id(脏格式兜底)
-
-            if (totalAfter < 1) {
-                throw new BusinessException(400, "该文件是激励记录 " + recordId
-                        + " 的唯一佐证，无法删除；请先在激励记录中更换佐证或删除该记录");
-            }
-            // 应用到内存实体供 calcScore 按移除后口径评分
-            r.setFileIds(slots.get("file"));
-            r.setFilePreIds(slots.get("pre"));
-            r.setFileMidIds(slots.get("mid"));
-            r.setFilePostIds(slots.get("post"));
-            r.setFileTrackIds(slots.get(LIT_TRACK));
-            BizIncentiveCategory category = categoryMapper.selectById(r.getCategoryId());
-            int base = (category != null && category.getScore() != null) ? category.getScore() : 0;
-            r.setScore(calcScore(r, category, base));
-
-            com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<BizIncentiveRecord> uw =
-                    new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<BizIncentiveRecord>()
-                            .eq(BizIncentiveRecord::getId, recordId)
-                            .set(BizIncentiveRecord::getScore, r.getScore())
-                            .set(BizIncentiveRecord::getUpdatedBy, SecurityUtils.getCurrentUserId())
-                            .set(BizIncentiveRecord::getFileId, slots.get("file").isEmpty() ? null : toJsonArray(slots.get("file")))
-                            .set(BizIncentiveRecord::getFilePreId, slots.get("pre").isEmpty() ? null : toJsonArray(slots.get("pre")))
-                            .set(BizIncentiveRecord::getFileMidId, slots.get("mid").isEmpty() ? null : toJsonArray(slots.get("mid")))
-                            .set(BizIncentiveRecord::getFilePostId, slots.get("post").isEmpty() ? null : toJsonArray(slots.get("post")))
-                            .set(BizIncentiveRecord::getFileTrackId, slots.get(LIT_TRACK).isEmpty() ? null : toJsonArray(slots.get(LIT_TRACK)));
-            recordMapper.update(null, uw);
+    private void detachFromRecord(Long recordId, Long fileId) {
+        BizIncentiveRecord r = recordMapper.selectByIdForUpdate(recordId);
+        if (r == null) return;
+        Map<String, List<Long>> slots = loadRecordSlots(r);
+        if (!removeFileFromSlots(slots, fileId)) return; // JSON_CONTAINS 命中但解析后无此 id(脏格式兜底)
+        int totalAfter = slots.values().stream().mapToInt(List::size).sum();
+        if (totalAfter < 1) {
+            throw new BusinessException(400, "该文件是激励记录 " + recordId
+                    + " 的唯一佐证，无法删除；请先在激励记录中更换佐证或删除该记录");
         }
-        evictScoreboardCache();
+        applySlotsToEntity(r, slots);
+        recalcAfterDetach(r, recordId, slots);
+    }
+
+    private Map<String, List<Long>> loadRecordSlots(BizIncentiveRecord r) {
+        Map<String, List<Long>> slots = new LinkedHashMap<>();
+        slots.put("file", copyIds(r.getFileIds()));
+        slots.put("pre", copyIds(r.getFilePreIds()));
+        slots.put("mid", copyIds(r.getFileMidIds()));
+        slots.put("post", copyIds(r.getFilePostIds()));
+        slots.put(LIT_TRACK, copyIds(r.getFileTrackIds()));
+        return slots;
+    }
+
+    private List<Long> copyIds(List<Long> ids) {
+        return ids == null ? new ArrayList<>() : new ArrayList<>(ids);
+    }
+
+    private boolean removeFileFromSlots(Map<String, List<Long>> slots, Long fileId) {
+        boolean touched = false;
+        for (List<Long> list : slots.values()) {
+            if (list.removeIf(id -> id.equals(fileId))) touched = true;
+        }
+        return touched;
+    }
+
+    private void applySlotsToEntity(BizIncentiveRecord r, Map<String, List<Long>> slots) {
+        r.setFileIds(slots.get("file"));
+        r.setFilePreIds(slots.get("pre"));
+        r.setFileMidIds(slots.get("mid"));
+        r.setFilePostIds(slots.get("post"));
+        r.setFileTrackIds(slots.get(LIT_TRACK));
+    }
+
+    /** 应用到内存实体供 calcScore 按移除后口径评分，再落库。 */
+    private void recalcAfterDetach(BizIncentiveRecord r, Long recordId, Map<String, List<Long>> slots) {
+        BizIncentiveCategory category = categoryMapper.selectById(r.getCategoryId());
+        int base = (category != null && category.getScore() != null) ? category.getScore() : 0;
+        r.setScore(calcScore(r, category, base));
+        recordMapper.update(null, buildDetachUpdate(recordId, slots, r.getScore()));
+    }
+
+    private com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<BizIncentiveRecord> buildDetachUpdate(
+            Long recordId, Map<String, List<Long>> slots, Integer score) {
+        return new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<BizIncentiveRecord>()
+                .eq(BizIncentiveRecord::getId, recordId)
+                .set(BizIncentiveRecord::getScore, score)
+                .set(BizIncentiveRecord::getUpdatedBy, SecurityUtils.getCurrentUserId())
+                .set(BizIncentiveRecord::getFileId, slots.get("file").isEmpty() ? null : toJsonArray(slots.get("file")))
+                .set(BizIncentiveRecord::getFilePreId, slots.get("pre").isEmpty() ? null : toJsonArray(slots.get("pre")))
+                .set(BizIncentiveRecord::getFileMidId, slots.get("mid").isEmpty() ? null : toJsonArray(slots.get("mid")))
+                .set(BizIncentiveRecord::getFilePostId, slots.get("post").isEmpty() ? null : toJsonArray(slots.get("post")))
+                .set(BizIncentiveRecord::getFileTrackId, slots.get(LIT_TRACK).isEmpty() ? null : toJsonArray(slots.get(LIT_TRACK)));
     }
 
     private String toJsonArray(List<Long> ids) {
