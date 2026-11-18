@@ -168,23 +168,23 @@ export function useCustomerList() {
     tabLabel: TAB_DEV_TYPE[activeTab.value],
   }))
 
+  function countDeptFilter(filter) {
+    return filter.deptId ? 1 : 0
+  }
+
+  function countAdvValue(k, v) {
+    if (!v) return 0
+    if (k === 'orgIds' || k === 'userIds') return v.length ? 1 : 0
+    return typeof v === 'string' && v.trim() ? 1 : 0
+  }
+
   function countAdvFilter(filter) {
     let n = 0
     for (const k in filter) {
       // 【M4 2026-10-04】角标补统计部门条件：deptIds 由 deptId 派生（onDeptFilterChange
       // 收集子部门），只按 deptId 计 1 个条件，避免同一条件双计
       if (k === 'deptIds') continue
-      if (k === 'deptId') {
-        if (filter.deptId) n++
-        continue
-      }
-      const v = filter[k]
-      if (!v) continue
-      if (k === 'orgIds' || k === 'userIds') {
-        if (v.length) n++
-      } else if (typeof v === 'string' && v.trim()) {
-        n++
-      }
+      n += k === 'deptId' ? countDeptFilter(filter) : countAdvValue(k, filter[k])
     }
     return n
   }
