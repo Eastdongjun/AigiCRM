@@ -587,44 +587,70 @@ def render(args, routes, pc_apis, mobile_pages, mobile_apis, endpoints, perm_dic
     else:
         lines.append("| None |  |")
 
-    lines += ["", "## Permission Drift Candidates", ""]
+    lines += _render_permission_drift({
+        'missing_in_dict': missing_in_dict,
+        'frontend_missing_in_sources': frontend_missing_in_sources,
+        'dict_not_in_backend': dict_not_in_backend,
+        'dict_with_code_refs': dict_with_code_refs,
+        'dict_not_seen_anywhere': dict_not_seen_anywhere,
+        'compatibility_dict_perms': compatibility_dict_perms,
+        'ui_missing_in_sources': ui_missing_in_sources,
+    }, perm_dict, code_permission_refs)
+    lines += _render_api_drift(unmatched_pc_apis, unmatched_mobile_apis)
+    lines += _render_notes()
+    return "\n".join(lines) + "\n"
+
+
+def _render_permission_drift(drift, perm_dict, code_permission_refs):
+    lines = ["", "## Permission Drift Candidates", ""]
     lines += ["### Backend Permissions Missing In Dictionary Or Local Migrations", ""]
-    if missing_in_dict:
-        lines.extend(f"- `{p}`" for p in missing_in_dict)
+    if drift['missing_in_dict']:
+        lines.extend(f"- `{p}`" for p in drift['missing_in_dict'])
     else:
         lines.append(NONE_ROW)
 
     lines += ["", "### Frontend Code Permission Tokens Missing In Known Sources", ""]
-    if frontend_missing_in_sources:
-        lines.extend(f"- `{permission}`" for permission in frontend_missing_in_sources)
+    if drift['frontend_missing_in_sources']:
+        lines.extend(f"- `{permission}`" for permission in drift['frontend_missing_in_sources'])
     else:
         lines.append(NONE_ROW)
 
     lines += ["", "### Runtime Dictionary Permissions Not Directly Seen In Backend Annotations", ""]
-    if dict_not_in_backend:
-        lines.extend(permission_bullet(p, perm_dict) for p in dict_not_in_backend)
+    if drift['dict_not_in_backend']:
+        lines.extend(permission_bullet(p, perm_dict) for p in drift['dict_not_in_backend'])
     else:
         lines.append(NONE_ROW)
 
     lines += ["", "### Runtime Dictionary Permissions Referenced Outside Backend Annotations", ""]
-    if dict_with_code_refs:
-        lines.extend(permission_bullet(p, perm_dict) for p in dict_with_code_refs)
+    if drift['dict_with_code_refs']:
+        lines.extend(permission_bullet(p, perm_dict) for p in drift['dict_with_code_refs'])
     else:
         lines.append(NONE_ROW)
 
     lines += ["", "### Runtime Dictionary Permissions Not Seen In Backend Annotations Or Code References", ""]
-    if dict_not_seen_anywhere:
-        lines.extend(permission_bullet(p, perm_dict) for p in dict_not_seen_anywhere)
+    if drift['dict_not_seen_anywhere']:
+        lines.extend(permission_bullet(p, perm_dict) for p in drift['dict_not_seen_anywhere'])
     else:
         lines.append(NONE_ROW)
 
     lines += ["", "### Compatibility Or Deprecated Dictionary Permissions Excluded From Runtime Drift", ""]
-    if compatibility_dict_perms:
-        lines.extend(permission_bullet(p, perm_dict) for p in compatibility_dict_perms)
+    if drift['compatibility_dict_perms']:
+        lines.extend(permission_bullet(p, perm_dict) for p in drift['compatibility_dict_perms'])
     else:
         lines.append(NONE_ROW)
 
-    lines += [
+    lines += _render_code_refs(drift['dict_not_in_backend'], code_permission_refs)
+
+    lines += ["", "### UI Permission Tokens Missing In Known Sources", ""]
+    if drift['ui_missing_in_sources']:
+        lines.extend(f"- `{permission}`" for permission in drift['ui_missing_in_sources'])
+    else:
+        lines.append(NONE_ROW)
+    return lines
+
+
+def _render_code_refs(dict_not_in_backend, code_permission_refs):
+    lines = [
         "",
         "### Backend Code References For Dictionary-Only Permissions",
         "",
@@ -638,14 +664,11 @@ def render(args, routes, pc_apis, mobile_pages, mobile_apis, endpoints, perm_dic
             lines.append(f"| `{permission}` | `{ref.source}` | `{ref.context}` |")
     if rows == 0:
         lines.append("| None |  |  |")
+    return lines
 
-    lines += ["", "### UI Permission Tokens Missing In Known Sources", ""]
-    if ui_missing_in_sources:
-        lines.extend(f"- `{permission}`" for permission in ui_missing_in_sources)
-    else:
-        lines.append(NONE_ROW)
 
-    lines += ["", "## API Drift Candidates", ""]
+def _render_api_drift(unmatched_pc_apis, unmatched_mobile_apis):
+    lines = ["", "## API Drift Candidates", ""]
     lines += ["### PC API Wrappers Without Backend Endpoint Match", ""]
     if unmatched_pc_apis:
         lines.extend(f"- `{api.method} {normalize_api_path(api.path, '/api')}` from `{api.source}` (`{api.name}`)" for api in unmatched_pc_apis)
@@ -657,8 +680,11 @@ def render(args, routes, pc_apis, mobile_pages, mobile_apis, endpoints, perm_dic
         lines.extend(f"- `{api.method} {normalize_api_path(api.path, '')}` from `{api.source}` (`{api.name}`)" for api in unmatched_mobile_apis)
     else:
         lines.append(NONE_ROW)
+    return lines
 
-    lines += [
+
+def _render_notes():
+    return [
         "",
         "## Notes",
         "",
@@ -667,7 +693,6 @@ def render(args, routes, pc_apis, mobile_pages, mobile_apis, endpoints, perm_dic
         "- A backend permission missing in both the generated dictionary and local Flyway sys_menu migrations is high-risk because users may not be able to receive that authority through normal role-menu binding.",
         "- This report is local-source based. For production sign-off, regenerate from live database configuration.",
     ]
-    return "\n".join(lines) + "\n"
 
 
 def main() -> int:

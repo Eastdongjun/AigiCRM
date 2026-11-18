@@ -204,6 +204,23 @@ def _apply_delete(present, path, registered, evidence):
         evidence[code] = f'{path.name} 删除'
 
 
+def _apply_statement(statement, codes, path, registered, status, evidence):
+    present = [code for code in codes if f"'{code}'" in statement]
+    if not present:
+        return
+    op, value = sys_menu_operation(statement)
+    if op == 'insert':
+        _apply_insert(present, path, registered, status, evidence)
+    elif op == 'insert-dependent':
+        _apply_insert_dependent(present, statement, path, registered, status, evidence)
+    elif op == 'status' and value is not None:
+        _apply_status(present, value, path, registered, status, evidence)
+    elif op == 'status-unknown':
+        _apply_status_unknown(present, registered, status)
+    elif op == 'delete':
+        _apply_delete(present, path, registered, evidence)
+
+
 def simulate(codes, files):
     """按链序模拟"哪些码真的被登记了、末态 status 是多少"。"""
     registered = set()
@@ -212,22 +229,7 @@ def simulate(codes, files):
 
     for path in files:
         for statement in statements(path):
-            present = [code for code in codes if f"'{code}'" in statement]
-            if not present:
-                continue
-            op, value = sys_menu_operation(statement)
-            if op is None:
-                continue
-            if op == 'insert':
-                _apply_insert(present, path, registered, status, evidence)
-            elif op == 'insert-dependent':
-                _apply_insert_dependent(present, statement, path, registered, status, evidence)
-            elif op == 'status' and value is not None:
-                _apply_status(present, value, path, registered, status, evidence)
-            elif op == 'status-unknown':
-                _apply_status_unknown(present, registered, status)
-            elif op == 'delete':
-                _apply_delete(present, path, registered, evidence)
+            _apply_statement(statement, codes, path, registered, status, evidence)
     return registered, status, evidence
 
 
