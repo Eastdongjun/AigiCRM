@@ -333,39 +333,55 @@ const loadScopesFor = async (assigneeType, assigneeKey) => {
   } catch { /* 读失败保持空(按默认语义展示) */ }
 }
 
-const saveScope = async (item, scopeLevel, anchor) => {
-  if (!canEditScope.value) { ElMessage.warning('无权限修改权限范围（需 system:scope:grant）'); return }
+const resolveScopeContext = (item, anchor) => {
+  if (!canEditScope.value) { ElMessage.warning('无权限修改权限范围（需 system:scope:grant）'); return null }
   const target = scopeTargetOf(item.permission)
-  if (!target) { ElMessage.warning('该权限项未接入数据范围配置'); return }
-  const finalAnchor = anchor || scopeMap.value[assigneeScopeKey.value]?.[scopeKeyOf(item.permission)]?.anchor || recommendedAnchorOf(item)
+  if (!target) { ElMessage.warning('该权限项未接入数据范围配置'); return null }
   const key = assigneeScopeKey.value
-  if (!key) { ElMessage.warning('请先选择要配置的角色 / 岗位 / 用户'); return }
+  if (!key) { ElMessage.warning('请先选择要配置的角色 / 岗位 / 用户'); return null }
   const entryKey = scopeKeyOf(item.permission)
+  const finalAnchor = anchor || scopeMap.value[key]?.[entryKey]?.anchor || recommendedAnchorOf(item)
   const [type, assigneeKey] = key.split(':')
   const prev = scopeMap.value[key]?.[entryKey] || { scope: 'self', anchor: 'OWNER' }
+  return { target, key, entryKey, finalAnchor, type, assigneeKey, prev }
+}
+
+const confirmHighRisk = async (item, scopeLevel) => {
   // 危险组合二次确认: 删除/财务类 × 全部数据
-  if (scopeLevel === 'all' && /delete|finance/.test(target.action)) {
-    try {
-      await ElMessageBox.confirm(
-        `正在授予「${currentAssigneeLabel.value} · ${item.label} = 全部(总部级)」——全公司范围的高危组合，确认继续？`,
-        '高危授权确认', { type: 'warning', confirmButtonText: '确认授予', cancelButtonText: '取消' }
-      )
-    } catch { return }
-  }
+  try {
+    await ElMessageBox.confirm(
+      `正在授予「${currentAssigneeLabel.value} · ${item.label} = 全部(总部级)」——全公司范围的高危组合，确认继续？`,
+      '高危授权确认', { type: 'warning', confirmButtonText: '确认授予', cancelButtonText: '取消' }
+    )
+    return true
+  } catch { return false }
+}
+
+const confirmImpact = async (type, assigneeKey, scopeLevel, prev, item) => {
   // 【WP6 影响分析 2026-11-13】保存前计算受影响用户(规格 WP6); 收窄(原=all/区域 → 更窄)且人数超阈值须确认
   try {
     const res = await request.get(`/system/perm-scopes/impact/${type}/${assigneeKey}`)
     const { affectedUsers, confirmThreshold } = res.data || {}
     const narrowing = ['all', 'region', 'office'].includes(prev.scope) && !['all', 'region', 'office'].includes(scopeLevel)
-    if (narrowing && affectedUsers >= (confirmThreshold || 20)) {
-      try {
-        await ElMessageBox.confirm(
-          `本次范围调整影响 ${affectedUsers} 人（${currentAssigneeLabel.value} · ${item.label}）——超 ${confirmThreshold} 人确认线，确定继续？`,
-          '影响分析确认', { type: 'warning', confirmButtonText: '确认调整', cancelButtonText: '取消' }
-        )
-      } catch { return }
-    }
-  } catch { /* 影响分析端点不可用不阻断保存(既有高危确认仍在) */ }
+    if (!(narrowing && affectedUsers >= (confirmThreshold || 20))) return true
+    try {
+      await ElMessageBox.confirm(
+        `本次范围调整影响 ${affectedUsers} 人（${currentAssigneeLabel.value} · ${item.label}）——超 ${confirmThreshold} 人确认线，确定继续？`,
+        '影响分析确认', { type: 'warning', confirmButtonText: '确认调整', cancelButtonText: '取消' }
+      )
+      return true
+    } catch { return false }
+  } catch { return true } // 影响分析端点不可用不阻断保存(既有高危确认仍在)
+}
+
+const saveScope = async (item, scopeLevel, anchor) => {
+  const ctx = resolveScopeContext(item, anchor)
+  if (!ctx) return
+  const { target, key, entryKey, finalAnchor, type, assigneeKey, prev } = ctx
+  if (scopeLevel === 'all' && /delete|finance/.test(target.action)) {
+    if (!(await confirmHighRisk(item, scopeLevel))) return
+  }
+  if (!(await confirmImpact(type, assigneeKey, scopeLevel, prev, item))) return
   scopeMap.value[key] = { ...(scopeMap.value[key] || {}), [entryKey]: { scope: scopeLevel, anchor: finalAnchor } }
   try {
     const cfg = [{ module: target.module, action: target.action, scopeLevel, anchor: finalAnchor }]

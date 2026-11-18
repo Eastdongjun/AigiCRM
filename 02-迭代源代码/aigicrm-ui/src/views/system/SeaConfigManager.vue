@@ -367,45 +367,59 @@ const handleDeletePool = async (row) => {
   }
 }
 
+const splitTreeKeys = (keys) => ({
+  dept: keys.filter(k => k.startsWith('d_')).map(k => k.slice(2)).join(','),
+  user: keys.filter(k => k.startsWith('u_')).map(k => k.slice(2)).join(',')
+})
+
+const permSectionChanged = (secKey) =>
+  JSON.stringify(poolForm[secKey + 'Keys'] || []) !== JSON.stringify(permInitKeys.value[secKey] || [])
+
+const roleSectionChanged = (secKey) =>
+  JSON.stringify([...(poolForm[secKey + 'RoleKeys'] || [])].sort()) !== JSON.stringify([...(permInitRoleKeys.value[secKey] || [])].sort())
+
+const buildPermSections = () => {
+  const out = {}
+  const edit = splitTreeKeys(poolForm.editKeys)
+  const del = splitTreeKeys(poolForm.deleteKeys)
+  const imp = splitTreeKeys(poolForm.importKeys)
+  const claim = splitTreeKeys(poolForm.claimKeys)
+  // 仅提交被修改的权限区块(未改动不传字段→后端保留旧值, 防误清空); 显式清空(clearSecSelection)会提交空串实现清空
+  if (permSectionChanged('edit')) { out.editDeptIds = edit.dept || ''; out.editUserIds = edit.user || '' }
+  if (permSectionChanged('delete')) { out.deleteDeptIds = del.dept || ''; out.deleteUserIds = del.user || '' }
+  if (permSectionChanged('import')) { out.importDeptIds = imp.dept || ''; out.importUserIds = imp.user || '' }
+  if (permSectionChanged('claim')) { out.claimDeptIds = claim.dept || ''; out.claimUserIds = claim.user || '' }
+  return out
+}
+
+const buildRoleSections = () => {
+  const out = {}
+  // 【2026-11-03 P3】角色引用同款防误清空: 未改动不传, 改动(含清空)提交 CSV
+  if (roleSectionChanged('edit')) out.editRoleIds = (poolForm.editRoleKeys || []).join(',')
+  if (roleSectionChanged('delete')) out.deleteRoleIds = (poolForm.deleteRoleKeys || []).join(',')
+  if (roleSectionChanged('import')) out.importRoleIds = (poolForm.importRoleKeys || []).join(',')
+  if (roleSectionChanged('claim')) out.claimRoleIds = (poolForm.claimRoleKeys || []).join(',')
+  return out
+}
+
+const buildPoolPayload = () => {
+  const visible = splitTreeKeys(poolForm.visibleKeys)
+  return {
+    poolName: poolForm.poolName,
+    visibleDeptIds: visible.dept,
+    visibleUserIds: visible.user,
+    ...buildPermSections(),
+    ...buildRoleSections(),
+    sortOrder: poolForm.sortOrder,
+    status: poolForm.status
+  }
+}
+
 const submitPool = async () => {
   if (!poolForm.poolName) { ElMessage.warning('请输入公海池名称'); return }
   if (!poolForm.visibleKeys.length) { ElMessage.warning('请选择可见部门/人员'); return }
   try {
-    // 拆分树节点 key 为部门ID/人员ID
-    const splitKeys = (keys) => ({
-      dept: keys.filter(k => k.startsWith('d_')).map(k => k.slice(2)).join(','),
-      user: keys.filter(k => k.startsWith('u_')).map(k => k.slice(2)).join(',')
-    })
-    const visible = splitKeys(poolForm.visibleKeys)
-    const edit = splitKeys(poolForm.editKeys)
-    const del = splitKeys(poolForm.deleteKeys)
-    const imp = splitKeys(poolForm.importKeys)
-    const claim = splitKeys(poolForm.claimKeys)
-    // 仅提交被修改的权限区块(未改动不传字段→后端保留旧值, 防误清空); 显式清空(clearSecSelection)会提交空串实现清空
-    const permVal = (secKey, split) => {
-      const changed = JSON.stringify(poolForm[secKey + 'Keys'] || []) !== JSON.stringify(permInitKeys.value[secKey] || [])
-      return changed ? split : undefined
-    }
-    // 【2026-11-03 P3】角色引用同款防误清空: 未改动不传, 改动(含清空)提交 CSV
-    const roleVal = (secKey) => {
-      const changed = JSON.stringify([...(poolForm[secKey + 'RoleKeys'] || [])].sort()) !== JSON.stringify([...(permInitRoleKeys.value[secKey] || [])].sort())
-      return changed ? (poolForm[secKey + 'RoleKeys'] || []).join(',') : undefined
-    }
-    const payload = {
-      poolName: poolForm.poolName,
-      visibleDeptIds: visible.dept,
-      visibleUserIds: visible.user,
-      ...(permVal('edit', edit) !== undefined ? { editDeptIds: edit.dept || '', editUserIds: edit.user || '' } : {}),
-      ...(permVal('delete', del) !== undefined ? { deleteDeptIds: del.dept || '', deleteUserIds: del.user || '' } : {}),
-      ...(permVal('import', imp) !== undefined ? { importDeptIds: imp.dept || '', importUserIds: imp.user || '' } : {}),
-      ...(permVal('claim', claim) !== undefined ? { claimDeptIds: claim.dept || '', claimUserIds: claim.user || '' } : {}),
-      ...(roleVal('edit') !== undefined ? { editRoleIds: roleVal('edit') } : {}),
-      ...(roleVal('delete') !== undefined ? { deleteRoleIds: roleVal('delete') } : {}),
-      ...(roleVal('import') !== undefined ? { importRoleIds: roleVal('import') } : {}),
-      ...(roleVal('claim') !== undefined ? { claimRoleIds: roleVal('claim') } : {}),
-      sortOrder: poolForm.sortOrder,
-      status: poolForm.status
-    }
+    const payload = buildPoolPayload()
     if (poolForm.id) {
       await updateSeaConfig(poolForm.id, payload)
     } else {

@@ -326,24 +326,45 @@ const footSummary = computed(() => {
 })
 const shortDate = (v) => String(v || '').replace('T', ' ').slice(5, 16)
 
-const save = async () => {
-  saving.value = true
-  const ids = form.subjectType === 'USER' ? selectedUserIds() : [...form.subjectIds]
-  const folderType = form.scopeType === 'folder' ? targetFolder.value?.folderType : form.scopeType
-  const folderId = form.scopeType === 'folder' ? form.folderId : undefined
+const buildPayload = (id, folderType, folderId, objectType, perms, scopeLevel) => ({
+  folderType,
+  objectType,
+  folderId,
+  subjectType: form.subjectType,
+  subjectId: id,
+  perms,
+  scopeLevel,
+  expiresAt: form.expiresAt || undefined,
+})
+
+const buildPayloads = (ids, folderType, folderId) => {
   const payloads = []
+  const scopeLevel = form.scopeLevel === 'all' ? null : form.scopeLevel
   for (const id of ids) {
-    if (form.permsFile.length) payloads.push({ folderType, objectType: 'FILE', folderId, subjectType: form.subjectType, subjectId: id, perms: form.permsFile, scopeLevel: form.scopeLevel === 'all' ? null : form.scopeLevel, expiresAt: form.expiresAt || undefined })
-    if (form.permsFolder.length) payloads.push({ folderType, objectType: 'FOLDER', folderId, subjectType: form.subjectType, subjectId: id, perms: form.permsFolder, scopeLevel: form.scopeLevel === 'all' ? null : form.scopeLevel, expiresAt: form.expiresAt || undefined })
+    if (form.permsFile.length) payloads.push(buildPayload(id, folderType, folderId, 'FILE', form.permsFile, scopeLevel))
+    if (form.permsFolder.length) payloads.push(buildPayload(id, folderType, folderId, 'FOLDER', form.permsFolder, scopeLevel))
   }
-  const results = await Promise.allSettled(payloads.map(p => saveFolderTypeDefault(p)))
-  const ok = results.filter(r => r.status === 'fulfilled').length
+  return payloads
+}
+
+const notifySaveResult = (ids, payloads, ok) => {
   if (ok === payloads.length) {
     ElMessage.success(`已授权 ${ids.length} 个主体，立即生效${form.expiresAt ? '（' + shortDate(form.expiresAt) + ' 到期自动收回）' : '（永久，删除即收回）'}；目标用户还需具备文件全局功能码按钮才会出现`)
     addVisible.value = false
   } else {
     ElMessage.warning(`授权：成功 ${ok} / 失败 ${payloads.length - ok}（请检查后重试）`)
   }
+}
+
+const save = async () => {
+  saving.value = true
+  const ids = form.subjectType === 'USER' ? selectedUserIds() : [...form.subjectIds]
+  const folderType = form.scopeType === 'folder' ? targetFolder.value?.folderType : form.scopeType
+  const folderId = form.scopeType === 'folder' ? form.folderId : undefined
+  const payloads = buildPayloads(ids, folderType, folderId)
+  const results = await Promise.allSettled(payloads.map(p => saveFolderTypeDefault(p)))
+  const ok = results.filter(r => r.status === 'fulfilled').length
+  notifySaveResult(ids, payloads, ok)
   await load()
   saving.value = false
 }
