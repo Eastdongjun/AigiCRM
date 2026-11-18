@@ -154,59 +154,73 @@ MP_ALLOW = {
 }
 
 # ---- 扫描(与 2026-11-05 审计同逻辑) ----
+_UI_GATED_RE = re.compile(r'hasPermission\(|v-if="[^"]*(permission|Perm|can[A-Z])')
+_MP_GATED_RE = re.compile(r'wx:if="[^"]*(permission|Perm|can[A-Z])')
+_CLICK_RE = re.compile(r'@click="[a-zA-Z]')
+
+def _sensitive_line(line):
+    return bool(VERBS.search(line) and (BTN.search(line) or _CLICK_RE.search(line)))
+
+def _mark_stale(name, line, allowed_keys, stale):
+    for frag in allowed_keys.get(name, ()):
+        if frag in line:
+            stale.append((name, frag))
+
+def _scan_ui_file(f, allowed_keys, stale):
+    name = str(f.relative_to(UI))
+    text = f.read_text(encoding='utf-8', errors='ignore')
+    lines = text.splitlines()
+    for i, l in enumerate(lines):
+        if '<script' in l:
+            break
+        if l.strip().startswith('<!--'):
+            continue
+        if not _sensitive_line(l):
+            continue
+        total[0] += 1
+        window = '\n'.join(lines[max(0, i - 7):i + 7])
+        if _UI_GATED_RE.search(window):
+            # 已挂码; 顺带校验白名单条目是否已陈旧
+            _mark_stale(name, l, allowed_keys, stale)
+            continue
+        # 未挂码 → 必须命中白名单
+        if any(frag in l for frag in allowed_keys.get(name, ())):
+            continue
+        unexplained.append((name, i + 1, l.strip()[:70]))
+
 def scan_ui():
-    hits, stale = [], []
+    stale = []
     allowed_keys = {f: {frag for frag, _ in items} for f, (items, _reason) in ALLOW.items()}
     for f in sorted(UI.rglob('*.vue')):
-        name = str(f.relative_to(UI))
-        text = f.read_text(encoding='utf-8', errors='ignore')
-        lines = text.splitlines()
-        for i, l in enumerate(lines):
-            if '<script' in l:
-                break
-            if l.strip().startswith('<!--'):
-                continue
-            if not (VERBS.search(l) and (BTN.search(l) or re.search(r'@click="[a-zA-Z]', l))):
-                continue
-            total[0] += 1
-            window = '\n'.join(lines[max(0, i - 7):i + 7])
-            if re.search(r'hasPermission\(|v-if="[^"]*(permission|Perm|can[A-Z])', window):
-                # 已挂码; 顺带校验白名单条目是否已陈旧
-                for frag in allowed_keys.get(name, ()):
-                    if frag in l:
-                        stale.append((name, frag))
-                continue
-            # 未挂码 → 必须命中白名单
-            if any(frag in l for frag in allowed_keys.get(name, ())):
-                continue
-            unexplained.append((name, i + 1, l.strip()[:70]))
+        _scan_ui_file(f, allowed_keys, stale)
     return stale
 
 total = [0, 0]
 unexplained = []
 stale = []
 
+def _scan_mp_file(f, allowed_keys):
+    name = str(f.relative_to(MP))
+    text = f.read_text(encoding='utf-8', errors='ignore')
+    lines = text.splitlines()
+    for i, l in enumerate(lines):
+        if not _sensitive_line(l):
+            continue
+        if l.strip().startswith('<!--'):
+            continue
+        total[1] += 1
+        window = '\n'.join(lines[max(0, i - 3):i + 3])
+        if _MP_GATED_RE.search(window):
+            _mark_stale(name, l, allowed_keys, stale)
+            continue
+        if any(frag in l for frag in allowed_keys.get(name, ())):
+            continue
+        unexplained.append((name, i + 1, l.strip()[:70]))
+
 def scan_mp():
     mp_allowed_keys = {f: {frag for frag, _ in items} for f, (items, _reason) in MP_ALLOW.items()}
     for f in sorted(MP.rglob('*.wxml')):
-        name = str(f.relative_to(MP))
-        text = f.read_text(encoding='utf-8', errors='ignore')
-        lines = text.splitlines()
-        for i, l in enumerate(lines):
-            if not (VERBS.search(l) and (BTN.search(l) or re.search(r'@click="[a-zA-Z]', l))):
-                continue
-            if l.strip().startswith('<!--'):
-                continue
-            total[1] += 1
-            window = '\n'.join(lines[max(0, i - 3):i + 3])
-            if re.search(r'wx:if="[^"]*(permission|Perm|can[A-Z])', window):
-                for frag in mp_allowed_keys.get(name, ()):
-                    if frag in l:
-                        stale.append((name, frag))
-                continue
-            if any(frag in l for frag in mp_allowed_keys.get(name, ())):
-                continue
-            unexplained.append((name, i + 1, l.strip()[:70]))
+        _scan_mp_file(f, mp_allowed_keys)
 
 scan_ui()
 scan_mp()

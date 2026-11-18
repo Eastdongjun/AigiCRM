@@ -112,33 +112,40 @@ def extract_mobile_apis(api_dir: Path, root: Path) -> list[ApiFunction]:
     return items
 
 
+CONTROLLER_CLASS_MAPPING_RE = re.compile(r"@RequestMapping\(\"([^\"]+)\"\)")
+CONTROLLER_METHOD_MAPPING_RE = re.compile(r"@(Get|Post|Put|Delete|Patch)Mapping(?:\((?:value\s*=\s*)?\"([^\"]*)\"\))?")
+CONTROLLER_AUTH_RE = re.compile(r"@PreAuthorize\(\"([^\"]+)\"\)")
+
+
+def _controller_endpoints(path: Path, root: Path) -> list[Endpoint]:
+    endpoints: list[Endpoint] = []
+    text = read(path)
+    class_mapping = first(CONTROLLER_CLASS_MAPPING_RE.findall(text), "")
+    annotation_lines: list[str] = []
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("@"):
+            annotation_lines.append(stripped)
+            continue
+        if re.match(r"public\s+.+\s+\w+\s*\(", stripped):
+            annotations = "\n".join(annotation_lines)
+            mapping = CONTROLLER_METHOD_MAPPING_RE.search(annotations)
+            if mapping:
+                auth = CONTROLLER_AUTH_RE.search(annotations)
+                method = mapping.group(1).upper()
+                suffix = mapping.group(2) or ""
+                endpoints.append(Endpoint(method, join_paths(class_mapping, suffix), auth.group(1) if auth else "", rel(path, root)))
+            annotation_lines = []
+            continue
+        if stripped and not stripped.startswith("//") and not stripped.startswith("*") and not stripped.startswith("/*"):
+            annotation_lines = []
+    return endpoints
+
+
 def extract_backend_endpoints(java_root: Path, root: Path) -> list[Endpoint]:
     endpoints: list[Endpoint] = []
-    class_mapping_re = re.compile(r"@RequestMapping\(\"([^\"]+)\"\)")
-    method_mapping_re = re.compile(r"@(Get|Post|Put|Delete|Patch)Mapping(?:\((?:value\s*=\s*)?\"([^\"]*)\"\))?")
-    auth_re = re.compile(r"@PreAuthorize\(\"([^\"]+)\"\)")
-
     for path in sorted(java_root.rglob("*Controller.java")):
-        text = read(path)
-        class_mapping = first(class_mapping_re.findall(text), "")
-        annotation_lines: list[str] = []
-        for line in text.splitlines():
-            stripped = line.strip()
-            if stripped.startswith("@"):
-                annotation_lines.append(stripped)
-                continue
-            if re.match(r"public\s+.+\s+\w+\s*\(", stripped):
-                annotations = "\n".join(annotation_lines)
-                mapping = method_mapping_re.search(annotations)
-                if mapping:
-                    auth = auth_re.search(annotations)
-                    method = mapping.group(1).upper()
-                    suffix = mapping.group(2) or ""
-                    endpoints.append(Endpoint(method, join_paths(class_mapping, suffix), auth.group(1) if auth else "", rel(path, root)))
-                annotation_lines = []
-                continue
-            if stripped and not stripped.startswith("//") and not stripped.startswith("*") and not stripped.startswith("/*"):
-                annotation_lines = []
+        endpoints.extend(_controller_endpoints(path, root))
     return endpoints
 
 
@@ -233,6 +240,25 @@ def extract_permission_dict(path: Path) -> dict[str, str]:
     return out
 
 
+def _permission_from_row(row: dict[str, str], path_name: str, permission_re: re.Pattern[str]):
+    permission = row.get("permission", "")
+    if not permission_re.match(permission):
+        return None
+    name = row.get("menu_name", "") or permission
+    return permission, f"{name} ({path_name})"
+
+
+def _permissions_from_quotes(statement: str, path_name: str, permission_re: re.Pattern[str], quoted_re: re.Pattern[str]):
+    found = []
+    name = ""
+    for value in quoted_re.findall(statement):
+        if not permission_re.match(value):
+            name = value or name
+            continue
+        found.append((value, f"{name or value} ({path_name})"))
+    return found
+
+
 def extract_migration_permissions(migration_dir: Path) -> dict[str, str]:
     if not migration_dir.exists():
         return {}
@@ -251,24 +277,13 @@ def extract_migration_permissions(migration_dir: Path) -> dict[str, str]:
         text = read(path)
         for match in insert_re.finditer(text):
             columns = [normalize_sql_identifier(col) for col in split_top_level_commas(match.group("columns"))]
-            body = match.group("body")
-            row = extract_sys_menu_insert_row(columns, body)
-            if row:
-                permission = row.get("permission", "")
-                if permission_re.match(permission):
-                    name = row.get("menu_name", "") or permission
-                    out.setdefault(permission, f"{name} ({path.name})")
-                    continue
-            statement = match.group(0)
-            values = quoted_re.findall(statement)
-            name = ""
-            for value in values:
-                if not permission_re.match(value):
-                    name = value or name
-                    continue
-                permission = value
-                if permission_re.match(permission):
-                    out.setdefault(permission, f"{name or permission} ({path.name})")
+            row = extract_sys_menu_insert_row(columns, match.group("body"))
+            found = _permission_from_row(row, path.name, permission_re) if row else None
+            if found is not None:
+                out.setdefault(found[0], found[1])
+                continue
+            for perm, label in _permissions_from_quotes(match.group(0), path.name, permission_re, quoted_re):
+                out.setdefault(perm, label)
     return out
 
 

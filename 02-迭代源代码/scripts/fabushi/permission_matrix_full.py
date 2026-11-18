@@ -67,6 +67,55 @@ def target_of_endpoint(meta, e, code):
     return module, e['method'].lower()
 
 
+def _classify_valid(txt, expected, status, in_white, has_id):
+    if expected == 'authorized':
+        if 200 <= status < 300:
+            return txt, '匹配', ''
+        if status == 400 and in_white:
+            return txt, '匹配', '鉴权前参数校验（已登记，权限门未缺失）'
+        if status == 401:
+            return txt, '不匹配', '有效 token 却 401（疑似鉴权链异常）'
+        if status in (403, 404) and has_id:
+            return txt, '匹配', '资源守卫：探针 id=999999 不存在/不可见'
+        if status >= 500:
+            return txt, '不匹配', f'服务端 {status}'
+        return txt, '需复核', f'持有权限码但返回 {status}'
+    if expected == 'denied':
+        if status in (401, 403):
+            return txt, '匹配', ''
+        if status == 400 and in_white:
+            return txt, '匹配', '鉴权前参数校验（已登记）'
+        if status == 404 and has_id:
+            return txt, '匹配', '资源不存在（未泄露数据）'
+        if 200 <= status < 300:
+            return txt, '不匹配', '无权限码却 2xx（越权）'
+        if status >= 500:
+            return txt, '不匹配', f'服务端 {status}'
+        return txt, '需复核', f'无权限码返回 {status}'
+    # 无法解析的表达式：只对 5xx 报警
+    if status >= 500:
+        return txt, '不匹配', f'服务端 {status}'
+    return txt, '匹配', '表达式无法解析，仅 5xx 报警'
+
+
+def _classify_no_token(txt, status, rule):
+    if rule[0] == 'anon':
+        return txt, ('匹配' if not (401 <= status < 500) else '需复核'), ''
+    if status in (401, 403):
+        return txt, '匹配', ''
+    if status >= 500:
+        return txt, '不匹配', f'服务端 {status}'
+    return txt, '不匹配', '无 token 未拒绝'
+
+
+def _classify_invalid(txt, status):
+    if status >= 500:
+        return txt, '不匹配', f'服务端 {status}'
+    if status >= 400:
+        return txt, '匹配', ''
+    return txt, '不匹配', '伪造 token 未被拒绝'
+
+
 def classify(mode, expected, status, method, path, rule):
     """四值判定 + 匹配结论。返回 (结果, 匹配, 错误内容)。"""
     if not isinstance(status, int):
@@ -76,50 +125,10 @@ def classify(mode, expected, status, method, path, rule):
     has_id = '{' in path
 
     if mode == 'valid':
-        if expected == 'authorized':
-            if 200 <= status < 300:
-                return txt, '匹配', ''
-            if status == 400 and in_white:
-                return txt, '匹配', '鉴权前参数校验（已登记，权限门未缺失）'
-            if status == 401:
-                return txt, '不匹配', '有效 token 却 401（疑似鉴权链异常）'
-            if status in (403, 404) and has_id:
-                return txt, '匹配', '资源守卫：探针 id=999999 不存在/不可见'
-            if status >= 500:
-                return txt, '不匹配', f'服务端 {status}'
-            return txt, '需复核', f'持有权限码但返回 {status}'
-        if expected == 'denied':
-            if status in (401, 403):
-                return txt, '匹配', ''
-            if status == 400 and in_white:
-                return txt, '匹配', '鉴权前参数校验（已登记）'
-            if status == 404 and has_id:
-                return txt, '匹配', '资源不存在（未泄露数据）'
-            if 200 <= status < 300:
-                return txt, '不匹配', '无权限码却 2xx（越权）'
-            if status >= 500:
-                return txt, '不匹配', f'服务端 {status}'
-            return txt, '需复核', f'无权限码返回 {status}'
-        # 无法解析的表达式：只对 5xx 报警
-        if status >= 500:
-            return txt, '不匹配', f'服务端 {status}'
-        return txt, '匹配', '表达式无法解析，仅 5xx 报警'
-
+        return _classify_valid(txt, expected, status, in_white, has_id)
     if mode == 'no_token':
-        if rule[0] == 'anon':
-            return txt, ('匹配' if not (401 <= status < 500) else '需复核'), ''
-        if status in (401, 403):
-            return txt, '匹配', ''
-        if status >= 500:
-            return txt, '不匹配', f'服务端 {status}'
-        return txt, '不匹配', '无 token 未拒绝'
-
-    # invalid_token
-    if status >= 500:
-        return txt, '不匹配', f'服务端 {status}'
-    if status >= 400:
-        return txt, '匹配', ''
-    return txt, '不匹配', '伪造 token 未被拒绝'
+        return _classify_no_token(txt, status, rule)
+    return _classify_invalid(txt, status)
 
 
 def main():

@@ -91,10 +91,7 @@ def scroll_preservation_violations():
     return page_scroll_hits, stack_breakers
 
 
-def main() -> int:
-    app = json.loads(APP_JSON.read_text())
-    registered = set(app['pages'])
-    tab_pages = {item['pagePath'] for item in app.get('tabBar', {}).get('list', [])}
+def _scan_pages(registered, tab_pages):
     missing = []
     invalid_tab_targets = []
     missing_onload_options = []
@@ -118,6 +115,10 @@ def main() -> int:
             target = match.group(1).lstrip('/')
             if target not in tab_pages:
                 invalid_tab_targets.append(f"{source.relative_to(ROOT)} -> /{target}")
+    return targets, missing, invalid_tab_targets, missing_onload_options
+
+
+def _check_navigation_presence(missing, invalid_tab_targets, missing_onload_options):
     if missing:
         print("FAIL: unregistered Mini Program navigation targets:")
         print("\n".join(f"  {item}" for item in sorted(set(missing))))
@@ -130,15 +131,13 @@ def main() -> int:
         print("FAIL: pages read options but declare onLoad without options:")
         print("\n".join(f"  {item}" for item in sorted(set(missing_onload_options))))
         return 1
-    tab_hits = tab_target_violations(tab_pages)
-    if tab_hits:
-        print("FAIL: navigateTo/redirectTo to a tabBar page is rejected by WeChat (dead button); use switchTab:")
-        print("\n".join(f"  {item}" for item in tab_hits))
-        return 1
+    return 0
+
+
+def _check_tab_consistency(app_center, tab_pages):
     # 【F22 2026-10-13】openApp 的 switchTab 分流清单(pages/app/index.js tabPages 数组)必须与
     # app.json tabBar.list 保持一致: 增删 tab 漏改数组会退回"tabBar 页 navigateTo 静默失败"死按钮,
     # 且本检查的字面量 URL 正则抓不到映射表简写形态, 单独钉一致性。
-    app_center = PAGES_DIR / "app" / "index.js"
     tab_pages_decl = re.search(r"const tabPages = \[([^\]]*)\]", app_center.read_text(encoding="utf-8"))
     if not tab_pages_decl:
         print("FAIL: pages/app/index.js no longer declares the tabPages switchTab list (#11 fix guard)")
@@ -158,6 +157,10 @@ def main() -> int:
     if "wx.switchTab({ url })" not in open_app_src or "tabPages.indexOf(url)" not in open_app_src:
         print("FAIL: openApp must consume the tabPages list via tabPages.indexOf(url) and route with wx.switchTab({ url })")
         return 1
+    return 0
+
+
+def _check_scroll_preservation():
     page_scroll_hits, stack_breakers = scroll_preservation_violations()
     if page_scroll_hits:
         print("FAIL: wx.pageScrollTo breaks native scroll preservation on back navigation:")
@@ -168,6 +171,28 @@ def main() -> int:
         print("      only login-session flows and legacy alias shells may redirect:")
         print("\n".join(f"  {item}" for item in stack_breakers))
         return 1
+    return 0
+
+
+def main() -> int:
+    app = json.loads(APP_JSON.read_text())
+    registered = set(app['pages'])
+    tab_pages = {item['pagePath'] for item in app.get('tabBar', {}).get('list', [])}
+    targets, missing, invalid_tab_targets, missing_onload_options = _scan_pages(registered, tab_pages)
+    rc = _check_navigation_presence(missing, invalid_tab_targets, missing_onload_options)
+    if rc:
+        return rc
+    tab_hits = tab_target_violations(tab_pages)
+    if tab_hits:
+        print("FAIL: navigateTo/redirectTo to a tabBar page is rejected by WeChat (dead button); use switchTab:")
+        print("\n".join(f"  {item}" for item in tab_hits))
+        return 1
+    rc = _check_tab_consistency(PAGES_DIR / "app" / "index.js", tab_pages)
+    if rc:
+        return rc
+    rc = _check_scroll_preservation()
+    if rc:
+        return rc
     source_targets = targets - tab_pages
     print(
         "PASS: checked "

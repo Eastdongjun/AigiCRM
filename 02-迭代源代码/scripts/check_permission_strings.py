@@ -33,38 +33,49 @@ def extract_required(java_dir: Path):
     return required
 
 
+def _parse_values_block(block):
+    available = set()
+    row_re = re.compile(r"\(([^)]*)\)")
+    for rm in row_re.finditer(block):
+        fields = split_top_level(rm.group(1))
+        if len(fields) >= 7:
+            perm = fields[6].strip().strip("'").strip('"')
+            if perm:
+                available.add(perm)
+    return available
+
+
+def _parse_select_block(columns_text, select_text):
+    columns = [c.strip().strip("`").lower() for c in split_top_level(columns_text)]
+    if "permission" not in columns:
+        return set()
+    permission_index = columns.index("permission")
+    select_fields = split_top_level(select_text)
+    if len(select_fields) <= permission_index:
+        return set()
+    perm = select_fields[permission_index].strip().strip("'").strip('"')
+    if perm and re.fullmatch(r"[A-Za-z][A-Za-z0-9_-]*(?::[A-Za-z0-9_-]+)+", perm):
+        return {perm}
+    return set()
+
+
 def extract_menu_permissions(sql_files):
     """Parse sys_menu permission definitions from INSERT VALUES and INSERT SELECT seeds."""
     available = set()
-    row_re = re.compile(r"\(([^)]*)\)")
     for sf in sql_files:
         text = sf.read_text(errors="ignore")
         # capture the INSERT INTO `sys_menu` ... VALUES ( ... ); block
         for im in re.finditer(
             r"INSERT\s+INTO\s+`sys_menu`\s+[^;]*?VALUES\s*(.*?);", text, re.S | re.I
         ):
-            for rm in row_re.finditer(im.group(1)):
-                fields = split_top_level(rm.group(1))
-                if len(fields) >= 7:
-                    perm = fields[6].strip().strip("'").strip('"')
-                    if perm:
-                        available.add(perm)
+            available.update(_parse_values_block(im.group(1)))
         # capture INSERT INTO sys_menu (..., permission, ...) SELECT ..., 'perm', ...;
         for im in re.finditer(
             r"INSERT\s+INTO\s+`?sys_menu`?\s*\((.*?)\)\s*SELECT\s+(.*?);",
             text,
             re.S | re.I,
         ):
-            columns = [c.strip().strip("`").lower() for c in split_top_level(im.group(1))]
-            if "permission" not in columns:
-                continue
-            permission_index = columns.index("permission")
-            select_fields = split_top_level(im.group(2))
-            if len(select_fields) <= permission_index:
-                continue
-            perm = select_fields[permission_index].strip().strip("'").strip('"')
-            if perm and re.fullmatch(r"[A-Za-z][A-Za-z0-9_-]*(?::[A-Za-z0-9_-]+)+", perm):
-                available.add(perm)
+            available.update(_parse_select_block(im.group(1), im.group(2)))
     return available
 
 

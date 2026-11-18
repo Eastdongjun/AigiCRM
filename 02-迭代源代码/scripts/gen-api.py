@@ -8,54 +8,69 @@ METHOD_MAP = {
     'DeleteMapping': 'DELETE', 'PatchMapping': 'PATCH', 'RequestMapping': 'ANY',
 }
 
+METHOD_MAPPING_RE = re.compile(r'@(Get|Post|Put|Delete|Patch)Mapping(?:\((?:value\s*=\s*)?"([^"]*)"\))?')
+AUTH_RE = re.compile(r'@PreAuthorize\("([^"]+)"\)')
+ANON_PATHS = ('/auth/login', '/auth/captcha', '/auth/forgot-password',
+              '/configs/public', '/configs/logo', '/file/download/public')
+
+
+def _class_path(src):
+    class_match = re.search(r'@RequestMapping\("([^"]+)"\)', src)
+    return class_match.group(1) if class_match else ''
+
+
+def _full_path(cls_path, sub):
+    # 绝对路径(以 /api 开头)不拼类级路径
+    if sub.startswith('/api'):
+        return sub
+    return (cls_path + sub).replace('//', '/')
+
+
+def _perm_of(full, perm):
+    # 权限标注: 无方法级权限码的, 区分"匿名"与"登录即可"
+    if perm:
+        return perm
+    if any(k in full for k in ANON_PATHS):
+        return '匿名'
+    return '登录即可'
+
+
+def _extract_file(path, f, apis):
+    src = open(path, encoding='utf-8').read()
+    cls_path = _class_path(src)
+    annotation_lines = []
+    for line in src.splitlines():
+        stripped = line.strip()
+        if stripped.startswith('@'):
+            annotation_lines.append(stripped)
+            continue
+        sig = re.match(r'public\s+.+\s+(\w+)\s*\(', stripped)
+        if not sig:
+            if stripped and not stripped.startswith('//') and not stripped.startswith('*') and not stripped.startswith('/*'):
+                annotation_lines = []
+            continue
+        annotations = '\n'.join(annotation_lines)
+        mm = METHOD_MAPPING_RE.search(annotations)
+        if not mm:
+            annotation_lines = []
+            continue
+        method = mm.group(1).upper()
+        sub = mm.group(2) or ''
+        auth = AUTH_RE.search(annotations)
+        perm = auth.group(1) if auth else ''
+        full = _full_path(cls_path, sub)
+        apis.append({'method': method, 'path': full, 'perm': _perm_of(full, perm),
+                     'func': sig.group(1), 'file': f})
+        annotation_lines = []
+
+
 def extract_apis(controller_dir):
     apis = []
-    method_mapping_re = re.compile(r'@(Get|Post|Put|Delete|Patch)Mapping(?:\((?:value\s*=\s*)?"([^"]*)"\))?')
-    auth_re = re.compile(r'@PreAuthorize\("([^"]+)"\)')
     for root, dirs, files in os.walk(controller_dir):
         for f in sorted(files):
             if not f.endswith('Controller.java'):
                 continue
-            path = os.path.join(root, f)
-            src = open(path, encoding='utf-8').read()
-            class_match = re.search(r'@RequestMapping\("([^"]+)"\)', src)
-            cls_path = class_match.group(1) if class_match else ''
-            annotation_lines = []
-            for line in src.splitlines():
-                stripped = line.strip()
-                if stripped.startswith('@'):
-                    annotation_lines.append(stripped)
-                    continue
-                sig = re.match(r'public\s+.+\s+(\w+)\s*\(', stripped)
-                if sig:
-                    annotations = '\n'.join(annotation_lines)
-                    mm = method_mapping_re.search(annotations)
-                    if not mm:
-                        annotation_lines = []
-                        continue
-                    method = mm.group(1).upper()
-                    sub = mm.group(2) or ''
-                    auth = auth_re.search(annotations)
-                    perm = auth.group(1) if auth else ''
-                    func = sig.group(1)
-                else:
-                    if stripped and not stripped.startswith('//') and not stripped.startswith('*') and not stripped.startswith('/*'):
-                        annotation_lines = []
-                    continue
-                # 绝对路径(以 /api 开头)不拼类级路径
-                if sub.startswith('/api'):
-                    full = sub
-                else:
-                    full = (cls_path + sub).replace('//', '/')
-                # 权限标注: 无方法级权限码的, 区分"匿名"与"登录即可"
-                if not perm:
-                    if any(k in full for k in ('/auth/login', '/auth/captcha', '/auth/forgot-password',
-                                               '/configs/public', '/configs/logo', '/file/download/public')):
-                        perm = '匿名'
-                    else:
-                        perm = '登录即可'
-                apis.append({'method': method, 'path': full, 'perm': perm, 'func': func, 'file': f})
-                annotation_lines = []
+            _extract_file(os.path.join(root, f), f, apis)
     return apis
 
 def _allowed_roots(allow_tempdir=False):

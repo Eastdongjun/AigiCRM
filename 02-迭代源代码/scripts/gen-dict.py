@@ -63,14 +63,15 @@ def write_text(path, text, what='输出文件'):
     with open(p, 'w', encoding='utf-8') as f:
         f.write(text)
 
-def main(out_path, host_label):
-    out_path = guard_repo_path(out_path, '输出文件', allow_tempdir=True)
+def _load_tables():
     tables = {}
     for line in open('/tmp/dict-tables.txt', encoding='utf-8'):
         p = line.rstrip('\n').split('\t')
         if len(p) >= 2:
             tables[p[0]] = p[1]
+    return tables
 
+def _load_cols():
     cols = {}
     for line in open('/tmp/dict-cols.txt', encoding='utf-8'):
         p = line.rstrip('\n').split('\t')
@@ -79,29 +80,36 @@ def main(out_path, host_label):
                 'name': p[1], 'type': p[2], 'null': p[3],
                 'default': (p[4] or ''), 'key': p[5], 'comment': (p[6] or '')
             })
+    return cols
 
-    L = []
-    L.append("# AIGICRM 数据字典(自动生成)")
-    L.append("")
-    L.append("> 生成时间: %s | 来源: %s MySQL information_schema" % (datetime.date.today(), host_label))
-    L.append("> 共 %d 张表。本文件由 scripts/gen-data-dictionary.sh 自动生成,**禁止手改**;库结构变更后重新运行脚本。" % len(tables))
-    L.append("")
-    for t in sorted(tables):
-        st, comment = fix_mojibake(tables[t] or '')
+def _render_table(t, table_comment, columns):
+    st, comment = fix_mojibake(table_comment or '')
+    if st == 2:
+        comment = comment + " ⚠️[注释已损坏]"
+    lines = ["## %s %s" % (t, comment), "",
+             "| 字段 | 类型 | 可空 | 默认 | 键 | 说明 |",
+             "|---|---|---|---|---|---|"]
+    for c in columns:
+        default = c['default'] if c['default'] != '' else ''
+        st, cmt = fix_mojibake(c['comment'])
         if st == 2:
-            comment = comment + " ⚠️[注释已损坏]"
-        L.append("## %s %s" % (t, comment))
-        L.append("")
-        L.append("| 字段 | 类型 | 可空 | 默认 | 键 | 说明 |")
-        L.append("|---|---|---|---|---|---|")
-        for c in cols.get(t, []):
-            default = c['default'] if c['default'] != '' else ''
-            st, cmt = fix_mojibake(c['comment'])
-            if st == 2:
-                cmt = cmt + " ⚠️[注释已损坏]"
-            L.append("| `%s` | %s | %s | %s | %s | %s |" % (
-                c['name'], c['type'], c['null'], default, c['key'], cmt))
-        L.append("")
+            cmt = cmt + " ⚠️[注释已损坏]"
+        lines.append("| `%s` | %s | %s | %s | %s | %s |" % (
+            c['name'], c['type'], c['null'], default, c['key'], cmt))
+    lines.append("")
+    return lines
+
+def main(out_path, host_label):
+    out_path = guard_repo_path(out_path, '输出文件', allow_tempdir=True)
+    tables = _load_tables()
+    cols = _load_cols()
+
+    L = ["# AIGICRM 数据字典(自动生成)", "",
+         "> 生成时间: %s | 来源: %s MySQL information_schema" % (datetime.date.today(), host_label),
+         "> 共 %d 张表。本文件由 scripts/gen-data-dictionary.sh 自动生成,**禁止手改**;库结构变更后重新运行脚本。" % len(tables),
+         ""]
+    for t in sorted(tables):
+        L.extend(_render_table(t, tables[t], cols.get(t, [])))
 
     write_text(out_path, "\n".join(L) + "\n")
     print("生成完成: %s (%d 张表)" % (out_path, len(tables)))

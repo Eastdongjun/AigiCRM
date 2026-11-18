@@ -115,73 +115,86 @@ def fill_ids(path, uid, pools, want_own, all_scope=False):
     return out.replace('{id}', str(rid)), ent, True
 
 
-def judge(group, status, expected, method, path, scope_level):
-    all_scope = (scope_level == 'all')
-    if not isinstance(status, int):
-        return '网络错误', '需复核', f'请求失败：{status}'
-    txt = STATUS_TEXT.get(status, '服务端异常' if status >= 500 else f'HTTP {status}')
-    in_white = (method, path) in PARAM_SHAPE_OK
+def _judge_a_anon(txt, status):
+    # 匿名端点：无效/过期 token 被 401/403 拒绝属可接受（鉴权链先于 permitAll 亦可）
+    return txt, '匹配', '匿名端点（无效 token 被拒绝亦可接受）' if status in (401, 403) else ''
 
-    if group == 'A':
-        if expected in ('rejected', 'anon'):
-            if expected == 'anon':
-                # 匿名端点：无效/过期 token 被 401/403 拒绝属可接受（鉴权链先于 permitAll 亦可）
-                return txt, '匹配', '匿名端点（无效 token 被拒绝亦可接受）' if status in (401, 403) else ''
-            if status in (401, 403):
-                return txt, '匹配', ''
-            if status >= 500:
-                return txt, '不匹配', f'服务端 {status}'
-            return txt, '不匹配', '无效/过期 token 未被拒绝'
-        if expected == 'authorized':
-            if 200 <= status < 300:
-                return txt, '匹配', ''
-            if status == 400 and in_white:
-                return txt, '匹配', '鉴权前参数校验（已登记）'
-            if status == 401:
-                return txt, '不匹配', '有效 token 却 401'
-            if status in (403, 404) and '{' in path:
-                return txt, '匹配', '资源守卫：探针 999999 不存在'
-            if status >= 500:
-                return txt, '不匹配', f'服务端 {status}'
-            return txt, '需复核', f'持有权限码返回 {status}'
-        if expected == 'denied':
-            if status in (401, 403):
-                return txt, '匹配', ''
-            if status == 400 and in_white:
-                return txt, '匹配', '鉴权前参数校验'
-            if status == 404 and '{' in path:
-                return txt, '匹配', '资源不存在'
-            if 200 <= status < 300:
-                return txt, '不匹配', '无权限码却 2xx（越权）'
-            if status >= 500:
-                return txt, '不匹配', f'服务端 {status}'
-            return txt, '需复核', f'无权限码返回 {status}'
 
-    if group == 'B':
-        if status >= 500:
-            return txt, '不匹配', f'服务端 {status}'
-        if 200 <= status < 300:
-            if all_scope:
-                return txt, '匹配', '全量范围，读取他人资源属预期'
-            return txt, '需复核', '受限范围读取他人资源 2xx（可能越权/共享授权）'
-        if status in (403, 404):
-            return txt, '匹配', '拒绝访问他人资源'
-        if status == 400:
-            return txt, '匹配', '参数/业务校验'
-        return txt, '需复核', f'返回 {status}'
+def _judge_a_rejected(txt, status):
+    if status in (401, 403):
+        return txt, '匹配', ''
+    if status >= 500:
+        return txt, '不匹配', f'服务端 {status}'
+    return txt, '不匹配', '无效/过期 token 未被拒绝'
 
-    if group == 'C':
-        if status >= 500:
-            return txt, '不匹配', f'服务端 {status}'
-        if 200 <= status < 300:
-            return txt, '通过', ''
-        if status in (403, 404):
-            return txt, '未通过', f'自身资源仍被拒绝（{status}），可能权限/资源守卫'
-        if status == 400:
-            return txt, '需复核', '参数/业务校验未通过，需有效 payload'
-        return txt, '需复核', f'返回 {status}'
 
-    # D
+def _judge_a_authorized(txt, status, in_white, path):
+    if 200 <= status < 300:
+        return txt, '匹配', ''
+    if status == 400 and in_white:
+        return txt, '匹配', '鉴权前参数校验（已登记）'
+    if status == 401:
+        return txt, '不匹配', '有效 token 却 401'
+    if status in (403, 404) and '{' in path:
+        return txt, '匹配', '资源守卫：探针 999999 不存在'
+    if status >= 500:
+        return txt, '不匹配', f'服务端 {status}'
+    return txt, '需复核', f'持有权限码返回 {status}'
+
+
+def _judge_a_denied(txt, status, in_white, path):
+    if status in (401, 403):
+        return txt, '匹配', ''
+    if status == 400 and in_white:
+        return txt, '匹配', '鉴权前参数校验'
+    if status == 404 and '{' in path:
+        return txt, '匹配', '资源不存在'
+    if 200 <= status < 300:
+        return txt, '不匹配', '无权限码却 2xx（越权）'
+    if status >= 500:
+        return txt, '不匹配', f'服务端 {status}'
+    return txt, '需复核', f'无权限码返回 {status}'
+
+
+def _judge_a(txt, status, expected, in_white, path):
+    if expected in ('rejected', 'anon'):
+        if expected == 'anon':
+            return _judge_a_anon(txt, status)
+        return _judge_a_rejected(txt, status)
+    if expected == 'authorized':
+        return _judge_a_authorized(txt, status, in_white, path)
+    if expected == 'denied':
+        return _judge_a_denied(txt, status, in_white, path)
+    return None
+
+
+def _judge_b(txt, status, all_scope):
+    if status >= 500:
+        return txt, '不匹配', f'服务端 {status}'
+    if 200 <= status < 300:
+        if all_scope:
+            return txt, '匹配', '全量范围，读取他人资源属预期'
+        return txt, '需复核', '受限范围读取他人资源 2xx（可能越权/共享授权）'
+    if status in (403, 404):
+        return txt, '匹配', '拒绝访问他人资源'
+    if status == 400:
+        return txt, '匹配', '参数/业务校验'
+    return txt, '需复核', f'返回 {status}'
+
+
+def _judge_c(txt, status):
+    if status >= 500:
+        return txt, '不匹配', f'服务端 {status}'
+    if 200 <= status < 300:
+        return txt, '通过', ''
+    if status in (403, 404):
+        return txt, '未通过', f'自身资源仍被拒绝（{status}），可能权限/资源守卫'
+    if status == 400:
+        return txt, '需复核', '参数/业务校验未通过，需有效 payload'
+    return txt, '需复核', f'返回 {status}'
+
+
+def _judge_d(txt, status, in_white, path):
     if status >= 500:
         return txt, '不匹配', f'服务端 {status}'
     if 200 <= status < 300:
@@ -193,6 +206,24 @@ def judge(group, status, expected, method, path, scope_level):
     if status in (400, 403, 404):
         return txt, '需复核', f'全权限角色返回 {status}'
     return txt, '需复核', f'返回 {status}'
+
+
+def judge(group, status, expected, method, path, scope_level):
+    all_scope = (scope_level == 'all')
+    if not isinstance(status, int):
+        return '网络错误', '需复核', f'请求失败：{status}'
+    txt = STATUS_TEXT.get(status, '服务端异常' if status >= 500 else f'HTTP {status}')
+    in_white = (method, path) in PARAM_SHAPE_OK
+
+    if group == 'A':
+        result = _judge_a(txt, status, expected, in_white, path)
+        if result is not None:
+            return result
+    if group == 'B':
+        return _judge_b(txt, status, all_scope)
+    if group == 'C':
+        return _judge_c(txt, status)
+    return _judge_d(txt, status, in_white, path)
 
 
 def main():

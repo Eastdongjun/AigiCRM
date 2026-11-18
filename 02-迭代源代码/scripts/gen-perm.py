@@ -57,8 +57,7 @@ def write_text(path, text, what='输出文件'):
     with open(p, 'w', encoding='utf-8') as f:
         f.write(text)
 
-def main(out_path, label):
-    out_path = guard_repo_path(out_path, '输出文件', allow_tempdir=True)
+def _load_menus():
     menus = []
     for line in open('/tmp/perm-menus.txt', encoding='utf-8'):
         p = line.rstrip('\n').split('\t')
@@ -67,15 +66,18 @@ def main(out_path, label):
             status = p[5] if len(p) >= 6 else None
             menus.append({'id': p[0], 'name': p[1], 'perm': p[2], 'type': p[3],
                           'path': p[4], 'status': status})
+    return menus
 
+def _load_roles():
     roles = {}
     for line in open('/tmp/perm-roles.txt', encoding='utf-8'):
         p = line.rstrip('\n').split('\t')
         if len(p) >= 2:
             roles.setdefault(p[1], set()).add(p[0])
+    return roles
 
-    # 按权限码分组: 合并同名菜单, 角色去重
-    # 同时收集 status: 一个码可能对应多行菜单，只要任一行 status=1 即视为"可授予"。
+def _group_menus(menus):
+    """按权限码分组: 合并同名菜单, 角色去重; 同时收集 status(任一行=1 即可授予)。"""
     grouped = {}
     for m in menus:
         g = grouped.setdefault(m['perm'], {'names': set(), 'types': set(), 'paths': set(),
@@ -87,16 +89,53 @@ def main(out_path, label):
             g['has_status'] = True
             if m['status'].strip() == '1':
                 g['enabled'] = True
-
-    enabled_cnt = sum(1 for g in grouped.values() if g['enabled'])
-    disabled_cnt = sum(1 for g in grouped.values() if g['has_status'] and not g['enabled'])
-    db_cnt = len(grouped)
     db_perms = set(grouped)  # 角色矩阵只覆盖库内真实存在的码(兼容码无绑定, 列矩阵无意义)
     # 已从 sys_menu 消失的兼容码补成表行(状态 '—'), 与库内码同表呈现, 供架构测试与角色配置追溯
     for code, note in LEGACY_PERMISSION_CODES:
         if code not in grouped:
             grouped[code] = {'names': {note}, 'types': {'—'}, 'paths': {'—'},
                              'enabled': False, 'has_status': False}
+    return grouped, db_perms
+
+def _permission_row(perm, g, roles):
+    r = ','.join(sorted(roles.get(perm, []))) or '—'
+    if not g['has_status']:
+        st = '—'
+    else:
+        st = '启用' if g['enabled'] else '**停用**'
+    # 库内仍存在的停用/兼容码: 在菜单名后追注口径, 满足架构测试"非运行时说明"要求
+    name_text = ' / '.join(sorted(g['names']))
+    if perm in LEGACY_NOTES and '停用兼容码' not in name_text and g['has_status']:
+        name_text = name_text + '（' + LEGACY_NOTES[perm] + '）'
+    return '| `%s` | %s | %s | `%s` | %s | %s |' % (
+        perm,
+        name_text,
+        ' / '.join(sorted(g['types'])),
+        ' / '.join(sorted(g['paths'])),
+        st,
+        r)
+
+def _render_matrix(roles, db_perms):
+    role_set = sorted(set(r for rs in roles.values() for r in rs))
+    L = ['| 权限码 | ' + ' | '.join(role_set) + ' |',
+         '|---|' + '---|' * len(role_set)]
+    for perm in sorted(db_perms):
+        cells = []
+        for r in role_set:
+            cells.append('✅' if r in roles.get(perm, []) else ' ')
+        L.append('| `%s` | %s |' % (perm, ' | '.join(cells)))
+    L.append('')
+    return L
+
+def main(out_path, label):
+    out_path = guard_repo_path(out_path, '输出文件', allow_tempdir=True)
+    menus = _load_menus()
+    roles = _load_roles()
+    grouped, db_perms = _group_menus(menus)
+
+    enabled_cnt = sum(1 for g in grouped.values() if g['enabled'])
+    disabled_cnt = sum(1 for g in grouped.values() if g['has_status'] and not g['enabled'])
+    db_cnt = len(db_perms)
     legacy_cnt = len(grouped) - db_cnt
 
     L = []
@@ -116,23 +155,7 @@ def main(out_path, label):
     L.append('| 权限码 | 菜单名 | 类型 | 路径 | 状态 | 绑定的角色 |')
     L.append('|---|---|---|---|---|---|')
     for perm in sorted(grouped):
-        g = grouped[perm]
-        r = ','.join(sorted(roles.get(perm, []))) or '—'
-        if not g['has_status']:
-            st = '—'
-        else:
-            st = '启用' if g['enabled'] else '**停用**'
-        # 库内仍存在的停用/兼容码: 在菜单名后追注口径, 满足架构测试"非运行时说明"要求
-        name_text = ' / '.join(sorted(g['names']))
-        if perm in LEGACY_NOTES and '停用兼容码' not in name_text and g['has_status']:
-            name_text = name_text + '（' + LEGACY_NOTES[perm] + '）'
-        L.append('| `%s` | %s | %s | `%s` | %s | %s |' % (
-            perm,
-            name_text,
-            ' / '.join(sorted(g['types'])),
-            ' / '.join(sorted(g['paths'])),
-            st,
-            r))
+        L.append(_permission_row(perm, grouped[perm], roles))
     L.append('')
     L.append('> ⚠️ 表中「绑定的角色」取自 `sys_role_menu`，**不代表该码当前可授予**：'
              '`停用` 的码即使有绑定行，也不会进入任何用户的 permissions[]'
@@ -140,19 +163,11 @@ def main(out_path, label):
     L.append('')
     L.append('## 二、角色权限矩阵')
     L.append('')
-    role_set = sorted(set(r for rs in roles.values() for r in rs))
-    L.append('| 权限码 | ' + ' | '.join(role_set) + ' |')
-    L.append('|---|' + '---|' * len(role_set))
-    for perm in sorted(db_perms):
-        cells = []
-        for r in role_set:
-            cells.append('✅' if r in roles.get(perm, []) else ' ')
-        L.append('| `%s` | %s |' % (perm, ' | '.join(cells)))
-    L.append('')
+    L.extend(_render_matrix(roles, db_perms))
 
     write_text(out_path, '\n'.join(L) + '\n')
     print('生成完成: %s (%d 条权限码, 启用 %d / 停用 %d, %d 个角色)' % (
-        out_path, len(grouped), enabled_cnt, disabled_cnt, len(role_set)))
+        out_path, len(grouped), enabled_cnt, disabled_cnt, len(set(r for rs in roles.values() for r in rs))))
 
 if __name__ == '__main__':
     if len(sys.argv) != 3:

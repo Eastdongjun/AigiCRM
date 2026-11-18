@@ -69,26 +69,18 @@ def pick_item(pools, ent, uid, want_own):
     return None
 
 
-def fill_ids(path, uid, pools, want_own):
-    """返回 (实际路径, 主实体, 是否注入, 注入项dict)。"""
-    out = path
-    if BOOK_ID_PLACEHOLDER in out:
-        if '/sections' in path:
-            it = pick_item(pools, 'section', uid, False)
-            out = out.replace(BOOK_ID_PLACEHOLDER, str(it['owner'] if it else 1))
-        else:
-            it = pick_item(pools, 'book', uid, want_own) or pick_item(pools, 'book', uid, False)
-            out = out.replace(BOOK_ID_PLACEHOLDER, str(it['id'] if it else 1))
-    if '{postId}' in out:
-        it = pick_item(pools, 'post', uid, False)
-        out = out.replace('{postId}', str(it['id'] if it else 1))
-    if '{contactId}' in out:
-        it = pick_item(pools, 'contact', uid, False)
-        out = out.replace('{contactId}', str(it['id'] if it else 1))
-    out = out.replace('{userId}', '11').replace('{nodeId}', '1').replace('{versionNo}', '1')
-    out = out.replace('{draftType}', 'customer').replace('{roleCode}', '06')
-    out = out.replace('{type}', 'ROLE').replace('{key}', '06').replace('{deptId}', '4')
-    ent = entity_of(path)
+def _fill_book(out, path, uid, pools, want_own):
+    if BOOK_ID_PLACEHOLDER not in out:
+        return out
+    if '/sections' in path:
+        it = pick_item(pools, 'section', uid, False)
+        return out.replace(BOOK_ID_PLACEHOLDER, str(it['owner'] if it else 1))
+    it = pick_item(pools, 'book', uid, want_own) or pick_item(pools, 'book', uid, False)
+    return out.replace(BOOK_ID_PLACEHOLDER, str(it['id'] if it else 1))
+
+
+def _fill_id(original_path, out, uid, pools, want_own):
+    ent = entity_of(original_path)
     if '{id}' not in out:
         return out, ent, True, None
     if not ent:
@@ -101,71 +93,110 @@ def fill_ids(path, uid, pools, want_own):
     return out.replace('{id}', str(it['id'])), ent, True, dict(it, entity=ent)
 
 
+def fill_ids(path, uid, pools, want_own):
+    """返回 (实际路径, 主实体, 是否注入, 注入项dict)。"""
+    out = _fill_book(path, path, uid, pools, want_own)
+    if '{postId}' in out:
+        it = pick_item(pools, 'post', uid, False)
+        out = out.replace('{postId}', str(it['id'] if it else 1))
+    if '{contactId}' in out:
+        it = pick_item(pools, 'contact', uid, False)
+        out = out.replace('{contactId}', str(it['id'] if it else 1))
+    out = out.replace('{userId}', '11').replace('{nodeId}', '1').replace('{versionNo}', '1')
+    out = out.replace('{draftType}', 'customer').replace('{roleCode}', '06')
+    out = out.replace('{type}', 'ROLE').replace('{key}', '06').replace('{deptId}', '4')
+    return _fill_id(path, out, uid, pools, want_own)
+
+
+def _judge_b(txt, status):
+    if status >= 500:
+        return txt, '不匹配', f'服务端 {status}'
+    if 200 <= status < 300:
+        return txt, '需复核', '受限用户读取他人资源 2xx（可能共享/越权）'
+    if status in (403, 404):
+        return txt, '匹配', '拒绝访问他人资源'
+    if status == 400:
+        return txt, '匹配', '参数/业务校验'
+    return txt, '需复核', f'返回 {status}'
+
+
+def _judge_c(txt, status):
+    if status >= 500:
+        return txt, '不匹配', f'服务端 {status}'
+    if 200 <= status < 300:
+        return txt, '通过', ''
+    if status in (403, 404):
+        return txt, '未通过', f'自身资源仍被拒绝（{status}）'
+    if status == 400:
+        return txt, '需复核', '参数/业务校验'
+    return txt, '需复核', f'返回 {status}'
+
+
+def _judge_anon(txt, status):
+    if status == 404:
+        return txt, '匹配', '匿名端点资源不存在'
+    return txt, '匹配', '' if status in (200, 201, 204, 401, 403) else '匿名端点非预期状态'
+
+
+def _judge_rejected(txt, status):
+    if status in (401, 403):
+        return txt, '匹配', ''
+    if status >= 500:
+        return txt, '不匹配', f'服务端 {status}'
+    return txt, '不匹配', '无效/过期 token 未被拒绝'
+
+
+def _judge_authorized(txt, status, white, has_id):
+    if 200 <= status < 300:
+        return txt, '匹配', ''
+    if status == 400 and white:
+        return txt, '匹配', '鉴权前参数校验（已登记）'
+    if status == 401:
+        return txt, '不匹配', '有效 token 却 401'
+    if status in (403, 404) and has_id:
+        return txt, '匹配', '资源守卫：999999/无资源'
+    if status >= 500:
+        return txt, '不匹配', f'服务端 {status}'
+    return txt, '需复核', f'持有权限码返回 {status}'
+
+
+def _judge_denied(txt, status, white, has_id):
+    if status in (401, 403):
+        return txt, '匹配', ''
+    if status == 400 and white:
+        return txt, '匹配', '鉴权前参数校验'
+    if status == 404 and has_id:
+        return txt, '匹配', '资源不存在'
+    if 200 <= status < 300:
+        return txt, '不匹配', '无权限码却 2xx（越权）'
+    if status >= 500:
+        return txt, '不匹配', f'服务端 {status}'
+    return txt, '需复核', f'无权限码返回 {status}'
+
+
+def _judge_a(txt, status, expected, white, has_id):
+    if expected == 'anon':
+        return _judge_anon(txt, status)
+    if expected == 'rejected':
+        return _judge_rejected(txt, status)
+    if expected == 'authorized':
+        return _judge_authorized(txt, status, white, has_id)
+    if expected == 'denied':
+        return _judge_denied(txt, status, white, has_id)
+    return txt, ('匹配' if status < 500 else '不匹配'), ''
+
+
 def judge(group, status, expected, method, path, mode):
     if not isinstance(status, int):
         return '网络错误', '需复核', f'请求失败：{status}（重试后仍失败）'
     txt = STATUS_TEXT.get(status, '服务端异常' if status >= 500 else f'HTTP {status}')
     white = (method, path) in PARAM_SHAPE_OK
     has_id = '{' in path
-
     if group == 'B':
-        if status >= 500:
-            return txt, '不匹配', f'服务端 {status}'
-        if 200 <= status < 300:
-            return txt, '需复核', '受限用户读取他人资源 2xx（可能共享/越权）'
-        if status in (403, 404):
-            return txt, '匹配', '拒绝访问他人资源'
-        if status == 400:
-            return txt, '匹配', '参数/业务校验'
-        return txt, '需复核', f'返回 {status}'
-
+        return _judge_b(txt, status)
     if group == 'C':
-        if status >= 500:
-            return txt, '不匹配', f'服务端 {status}'
-        if 200 <= status < 300:
-            return txt, '通过', ''
-        if status in (403, 404):
-            return txt, '未通过', f'自身资源仍被拒绝（{status}）'
-        if status == 400:
-            return txt, '需复核', '参数/业务校验'
-        return txt, '需复核', f'返回 {status}'
-
-    # A 组
-    if expected == 'anon':
-        if status == 404:
-            return txt, '匹配', '匿名端点资源不存在'
-        return txt, '匹配', '' if status in (200, 201, 204, 401, 403) else '匿名端点非预期状态'
-    if expected == 'rejected':
-        if status in (401, 403):
-            return txt, '匹配', ''
-        if status >= 500:
-            return txt, '不匹配', f'服务端 {status}'
-        return txt, '不匹配', '无效/过期 token 未被拒绝'
-    if expected == 'authorized':
-        if 200 <= status < 300:
-            return txt, '匹配', ''
-        if status == 400 and white:
-            return txt, '匹配', '鉴权前参数校验（已登记）'
-        if status == 401:
-            return txt, '不匹配', '有效 token 却 401'
-        if status in (403, 404) and has_id:
-            return txt, '匹配', '资源守卫：999999/无资源'
-        if status >= 500:
-            return txt, '不匹配', f'服务端 {status}'
-        return txt, '需复核', f'持有权限码返回 {status}'
-    if expected == 'denied':
-        if status in (401, 403):
-            return txt, '匹配', ''
-        if status == 400 and white:
-            return txt, '匹配', '鉴权前参数校验'
-        if status == 404 and has_id:
-            return txt, '匹配', '资源不存在'
-        if 200 <= status < 300:
-            return txt, '不匹配', '无权限码却 2xx（越权）'
-        if status >= 500:
-            return txt, '不匹配', f'服务端 {status}'
-        return txt, '需复核', f'无权限码返回 {status}'
-    return txt, ('匹配' if status < 500 else '不匹配'), ''
+        return _judge_c(txt, status)
+    return _judge_a(txt, status, expected, white, has_id)
 
 
 def main():
