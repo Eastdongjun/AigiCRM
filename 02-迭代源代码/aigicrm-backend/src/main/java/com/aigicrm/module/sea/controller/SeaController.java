@@ -155,6 +155,35 @@ public class SeaController {
                 .eq(BizApproval::getApplicantId, SecurityUtils.getCurrentUserId())
                 .orderByDesc(BizApproval::getCreatedAt);
 
+        applyClaimFilters(wrapper, status, dateFrom, dateTo);
+
+        IPage<BizApproval> page = approvalMapper.selectPage(new Page<>(current, size), wrapper);
+        // S7: keyword 涉及申请人/客户/审批人名(关联字段+嵌套审批节点),无法下推 SQL;本接口仅"我的捞取申请"(数据量小),
+        //      keyword 场景改为全量构建→内存过滤→手工分页,保证 total 与记录一致
+        List<BizApproval> source = StringUtils.hasText(keyword) ? approvalMapper.selectList(wrapper) : page.getRecords();
+
+        List<Map<String, Object>> records = new ArrayList<>();
+        for (BizApproval a : source) {
+            records.add(toClaimRecord(a));
+        }
+
+        ClaimPage claimPage = filterAndPage(records, keyword, current, size, page.getTotal());
+        records = claimPage.records();
+
+        // 统计（【修复 2026-08-08 统计泄漏】按数据范围过滤申请人，上级/负责人可见下级捞取统计；
+        // 2026-09-19 接入权限矩阵：(sea,view) 显式配置优先，未配置回退角色数据范围）
+        Map<String, Object> stats = claimStats();
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("records", records);
+        result.put("total", claimPage.total());
+        result.put("stats", stats);
+
+        return Result.ok(result);
+    }
+
+    private void applyClaimFilters(LambdaQueryWrapper<BizApproval> wrapper, String status,
+                                   String dateFrom, String dateTo) {
         if (StringUtils.hasText(status)) {
             wrapper.eq(BizApproval::getStatus, status);
         }
@@ -164,69 +193,68 @@ public class SeaController {
         if (StringUtils.hasText(dateTo)) {
             wrapper.le(BizApproval::getCreatedAt, dateTo + " 23:59:59");
         }
+    }
 
-        IPage<BizApproval> page = approvalMapper.selectPage(new Page<>(current, size), wrapper);
-        // S7: keyword 涉及申请人/客户/审批人名(关联字段+嵌套审批节点),无法下推 SQL;本接口仅"我的捞取申请"(数据量小),
-        //      keyword 场景改为全量构建→内存过滤→手工分页,保证 total 与记录一致
-        List<BizApproval> source = StringUtils.hasText(keyword) ? approvalMapper.selectList(wrapper) : page.getRecords();
+    private Map<String, Object> toClaimRecord(BizApproval a) {
+        Map<String, Object> row = new HashMap<>();
+        row.put("id", a.getId());
+        row.put("applyDate", a.getCreatedAt());
+        row.put("status", a.getStatus());
 
-        List<Map<String, Object>> records = new ArrayList<>();
-        for (BizApproval a : source) {
-            Map<String, Object> row = new HashMap<>();
-            row.put("id", a.getId());
-            row.put("applyDate", a.getCreatedAt());
-            row.put("status", a.getStatus());
-
-            // 客户信息
-            if (a.getCustomerId() != null) {
-                BizCustomer c = customerMapper.selectById(a.getCustomerId());
-                if (c != null) {
-                    row.put("customerName", c.getCustomerName());
-                    row.put("industry", c.getIndustry());
-                }
+        // 客户信息
+        if (a.getCustomerId() != null) {
+            BizCustomer c = customerMapper.selectById(a.getCustomerId());
+            if (c != null) {
+                row.put("customerName", c.getCustomerName());
+                row.put("industry", c.getIndustry());
             }
-
-            // 申请人
-            if (a.getApplicantId() != null) {
-                SysUser applicant = userMapper.selectById(a.getApplicantId());
-                if (applicant != null) row.put("applicantName", applicant.getRealName());
-            }
-
-            // 审批人（取第一个审批节点）
-            List<BizApprovalNode> nodes = approvalNodeMapper.selectList(
-                    new LambdaQueryWrapper<BizApprovalNode>()
-                            .eq(BizApprovalNode::getApprovalId, a.getId())
-                            .orderByAsc(BizApprovalNode::getNodeOrder));
-            if (!nodes.isEmpty()) {
-                BizApprovalNode node = nodes.get(0);
-                if (node.getApproverId() != null) {
-                    SysUser approver = userMapper.selectById(node.getApproverId());
-                    if (approver != null) row.put("approverName", approver.getRealName());
-                }
-                row.put("approveTime", node.getOperatedAt());
-            }
-
-            records.add(row);
         }
 
+        // 申请人
+        if (a.getApplicantId() != null) {
+            SysUser applicant = userMapper.selectById(a.getApplicantId());
+            if (applicant != null) row.put("applicantName", applicant.getRealName());
+        }
+
+        // 审批人（取第一个审批节点）
+        List<BizApprovalNode> nodes = approvalNodeMapper.selectList(
+                new LambdaQueryWrapper<BizApprovalNode>()
+                        .eq(BizApprovalNode::getApprovalId, a.getId())
+                        .orderByAsc(BizApprovalNode::getNodeOrder));
+        if (!nodes.isEmpty()) {
+            BizApprovalNode node = nodes.get(0);
+            if (node.getApproverId() != null) {
+                SysUser approver = userMapper.selectById(node.getApproverId());
+                if (approver != null) row.put("approverName", approver.getRealName());
+            }
+            row.put("approveTime", node.getOperatedAt());
+        }
+        return row;
+    }
+
+    private record ClaimPage(List<Map<String, Object>> records, long total) {}
+
+    private ClaimPage filterAndPage(List<Map<String, Object>> records, String keyword,
+                                    int current, int size, long defaultTotal) {
+        if (!StringUtils.hasText(keyword)) return new ClaimPage(records, defaultTotal);
         // 关键字过滤
-        if (StringUtils.hasText(keyword)) {
-            records.removeIf(r -> {
-                String cn = (String) r.get("customerName");
-                String an = (String) r.get("applicantName");
-                String avn = (String) r.get("approverName");
-                return (cn == null || !cn.contains(keyword))
-                        && (an == null || !an.contains(keyword))
-                        && (avn == null || !avn.contains(keyword));
-            });
-            // 手工分页（全量过滤后）：total = 匹配数
-            int from = (current - 1) * size;
-            int total = records.size();
-            records = from >= total ? new ArrayList<>()
-                    : new ArrayList<>(records.subList(from, Math.min(from + size, total)));
-            page = new Page<>(current, size, total);
-        }
+        records.removeIf(r -> {
+            String cn = (String) r.get("customerName");
+            String an = (String) r.get("applicantName");
+            String avn = (String) r.get("approverName");
+            return (cn == null || !cn.contains(keyword))
+                    && (an == null || !an.contains(keyword))
+                    && (avn == null || !avn.contains(keyword));
+        });
+        // 手工分页（全量过滤后）：total = 匹配数
+        int from = (current - 1) * size;
+        int total = records.size();
+        List<Map<String, Object>> pageRows = from >= total ? new ArrayList<>()
+                : new ArrayList<>(records.subList(from, Math.min(from + size, total)));
+        return new ClaimPage(pageRows, total);
+    }
 
+    private Map<String, Object> claimStats() {
         // 统计（【修复 2026-08-08 统计泄漏】按数据范围过滤申请人，上级/负责人可见下级捞取统计；
         // 2026-09-19 接入权限矩阵：(sea,view) 显式配置优先，未配置回退角色数据范围）
         LambdaQueryWrapper<BizApproval> claimBase = new LambdaQueryWrapper<BizApproval>()
@@ -234,21 +262,15 @@ public class SeaController {
         List<Long> visibleApplicants = scopeResolver.resolveModuleUsers(SecurityUtils.getCurrentUser(), "sea");
         if (visibleApplicants != null) claimBase.in(BizApproval::getApplicantId, visibleApplicants);
         long totalAll = approvalMapper.selectCount(claimBase);
-        long approved = approvalMapper.selectCount(new LambdaQueryWrapper<BizApproval>()
-                .eq(BizApproval::getApprovalType, LIT_CLAIM).eq(BizApproval::getStatus, "approved")
-                .in(visibleApplicants != null, BizApproval::getApplicantId, visibleApplicants));
-        long rejected = approvalMapper.selectCount(new LambdaQueryWrapper<BizApproval>()
-                .eq(BizApproval::getApprovalType, LIT_CLAIM).eq(BizApproval::getStatus, "rejected")
-                .in(visibleApplicants != null, BizApproval::getApplicantId, visibleApplicants));
-        long pending = approvalMapper.selectCount(new LambdaQueryWrapper<BizApproval>()
-                .eq(BizApproval::getApprovalType, LIT_CLAIM).eq(BizApproval::getStatus, "reviewing")
-                .in(visibleApplicants != null, BizApproval::getApplicantId, visibleApplicants));
+        long approved = countClaim("approved", visibleApplicants);
+        long rejected = countClaim("rejected", visibleApplicants);
+        long pending = countClaim("reviewing", visibleApplicants);
+        return Map.of("total", totalAll, "approved", approved, "rejected", rejected, "pending", pending);
+    }
 
-        Map<String, Object> result = new HashMap<>();
-        result.put("records", records);
-        result.put("total", page.getTotal());
-        result.put("stats", Map.of("total", totalAll, "approved", approved, "rejected", rejected, "pending", pending));
-
-        return Result.ok(result);
+    private long countClaim(String status, List<Long> visibleApplicants) {
+        return approvalMapper.selectCount(new LambdaQueryWrapper<BizApproval>()
+                .eq(BizApproval::getApprovalType, LIT_CLAIM).eq(BizApproval::getStatus, status)
+                .in(visibleApplicants != null, BizApproval::getApplicantId, visibleApplicants));
     }
 }

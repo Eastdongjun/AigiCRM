@@ -167,73 +167,15 @@ public class CustomerExpireTask {
         int enteredSea = 0, warned = 0, failed = 0;
         java.util.List<Long> failedIds = new java.util.ArrayList<>();
         for (BizCustomer customer : customers) {
-          try {
-            LocalDate expireDate = customer.getExpireDate();
-
-            if (expireDate.isBefore(today) || expireDate.isEqual(today)) {
-                // 已到期 -> 更新状态 + 进入公海
-                if (!LIT_EXPIRED.equals(customer.getProtectionStatus())) {
-                    customer.setProtectionStatus(LIT_EXPIRED);
-                    customer.setStatus(LIT_EXPIRED);
-                    customerMapper.updateById(customer);
-                }
-                // 确保进了公海（防止状态已更新但未入池的情况）
-                if (!"sea".equals(customer.getStatus())) {
-                    // 【安全修复 2026-08-09】无公海池配置的办事处不自动入池（与手动释放一致），
-                    // 避免产生 pool_id=NULL 的孤儿公海记录（普通用户不可见、也捞不了，变死数据）
-                    if (seaService.matchSeaConfig(customer.getOfficeId()) != null) {
-                        seaService.addToSea(customer.getId(), "保护期满");
-                        // 【A8 2026-10-26】成功入池才计数——汇总"入海%d"与指标 entered_sea_total
-                        // 此前恒 0(addToSea 抛错走 catch 不计, 语义正确)
-                        enteredSea++;
-                        log.info("客户 {} 保护期已到，进入公海", customer.getCustomerName());
-                    } else {
-                        log.info("客户 {} 所在办事处未配置公海池，保持过期状态", customer.getCustomerName());
-                    }
-                }
-            } else if (!expireDate.isAfter(warningDate)) {
-                // 即将到期（30天内,含第30天——【修复 2026-10-08 需求对齐】与 ReminderService 的
-                // le(expireDate, today+warningDays) 口径对齐,原 isBefore 使剩余恰好30天的客户
-                // 页面可见/计角标/补生成会物化,凌晨任务却不物化,同窗两口径差1天）
-                if (!LIT_EXPIRING.equals(customer.getProtectionStatus())) {
-                    customer.setProtectionStatus(LIT_EXPIRING);
-                    customer.setStatus("warning");
-                    customerMapper.updateById(customer);
-                }
-                // 创建即将到期提醒（去重:pending 存在或今日已处理均不建——与 ReminderService.ensureExpiring
-                // 同一判据,双口径曾是 401 条 pending 积压的根因;凌晨2点跑,processedToday 只拦 0-2 点处理过的情形）
-                long existExpiring = reminderMapper.selectCount(
-                        new LambdaQueryWrapper<BizReminder>()
-                                .eq(BizReminder::getCustomerId, customer.getId())
-                                .eq(BizReminder::getReminderType, LIT_EXPIRING)
-                                .eq(BizReminder::getStatus, LIT_PENDING)
-                );
-                long processedToday = existExpiring > 0 ? 1 : reminderMapper.selectCount(
-                        new LambdaQueryWrapper<BizReminder>()
-                                .eq(BizReminder::getCustomerId, customer.getId())
-                                .eq(BizReminder::getReminderType, LIT_EXPIRING)
-                                .eq(BizReminder::getStatus, "processed")
-                                .ge(BizReminder::getProcessedAt, today.atStartOfDay())
-                );
-                if (existExpiring == 0 && processedToday == 0) {
-                    long daysLeft = ChronoUnit.DAYS.between(today, expireDate);
-                    BizReminder reminder = new BizReminder();
-                    reminder.setCustomerId(customer.getId());
-                    reminder.setReminderType(LIT_EXPIRING);
-                    reminder.setOwnerId(customer.getOwnerId());
-                    reminder.setOfficeId(customer.getOfficeId());
-                    reminder.setOverdueDays((int) daysLeft);
-                    reminder.setStatus(LIT_PENDING);
-                    reminderMapper.insert(reminder);
-                    warned++;
-                    log.info("客户 {} 还有{}天到期，已创建提醒", customer.getCustomerName(), daysLeft);
-                }
+            try {
+                CustomerCheck result = processCustomer(customer, today, warningDate);
+                if (result == CustomerCheck.ENTERED_SEA) enteredSea++;
+                if (result == CustomerCheck.WARNED) warned++;
+            } catch (Exception e) {
+                failed++;
+                failedIds.add(customer.getId());
+                log.error("客户 {}({}) 保护期处理失败, 已跳过继续: {}", customer.getCustomerName(), customer.getId(), e.getMessage());
             }
-          } catch (Exception e) {
-            failed++;
-            failedIds.add(customer.getId());
-            log.error("客户 {}({}) 保护期处理失败, 已跳过继续: {}", customer.getCustomerName(), customer.getId(), e.getMessage());
-          }
         }
         String summary = String.format("客户保护期检查汇总: 共%d条, 入海%d, 新增预警%d, 失败%d %s",
                 customers.size(), enteredSea, warned, failed, failedIds);
@@ -259,6 +201,78 @@ public class CustomerExpireTask {
         // 【裁决 2026-09-24】公海捞取审批锁超时释放(sea.claim.lock.days, 默认3天/0=不启用)
         releaseStaleClaimLocks();
         log.info("客户保护期检查完成");
+    }
+
+    private enum CustomerCheck { NONE, ENTERED_SEA, WARNED }
+
+    private CustomerCheck processCustomer(BizCustomer customer, LocalDate today, LocalDate warningDate) {
+        LocalDate expireDate = customer.getExpireDate();
+        if (!expireDate.isAfter(today)) return handleExpiredCustomer(customer);
+        if (!expireDate.isAfter(warningDate)) return handleExpiringCustomer(customer, today, expireDate);
+        return CustomerCheck.NONE;
+    }
+
+    private CustomerCheck handleExpiredCustomer(BizCustomer customer) {
+        // 已到期 -> 更新状态 + 进入公海
+        if (!LIT_EXPIRED.equals(customer.getProtectionStatus())) {
+            customer.setProtectionStatus(LIT_EXPIRED);
+            customer.setStatus(LIT_EXPIRED);
+            customerMapper.updateById(customer);
+        }
+        // 确保进了公海（防止状态已更新但未入池的情况）
+        if (!"sea".equals(customer.getStatus())) {
+            // 【安全修复 2026-08-09】无公海池配置的办事处不自动入池（与手动释放一致），
+            // 避免产生 pool_id=NULL 的孤儿公海记录（普通用户不可见、也捞不了，变死数据）
+            if (seaService.matchSeaConfig(customer.getOfficeId()) != null) {
+                seaService.addToSea(customer.getId(), "保护期满");
+                // 【A8 2026-10-26】成功入池才计数——汇总"入海%d"与指标 entered_sea_total
+                // 此前恒 0(addToSea 抛错走 catch 不计, 语义正确)
+                log.info("客户 {} 保护期已到，进入公海", customer.getCustomerName());
+                return CustomerCheck.ENTERED_SEA;
+            }
+            log.info("客户 {} 所在办事处未配置公海池，保持过期状态", customer.getCustomerName());
+        }
+        return CustomerCheck.NONE;
+    }
+
+    private CustomerCheck handleExpiringCustomer(BizCustomer customer, LocalDate today, LocalDate expireDate) {
+        // 即将到期（30天内,含第30天——【修复 2026-10-08 需求对齐】与 ReminderService 的
+        // le(expireDate, today+warningDays) 口径对齐,原 isBefore 使剩余恰好30天的客户
+        // 页面可见/计角标/补生成会物化,凌晨任务却不物化,同窗两口径差1天）
+        if (!LIT_EXPIRING.equals(customer.getProtectionStatus())) {
+            customer.setProtectionStatus(LIT_EXPIRING);
+            customer.setStatus("warning");
+            customerMapper.updateById(customer);
+        }
+        // 创建即将到期提醒（去重:pending 存在或今日已处理均不建——与 ReminderService.ensureExpiring
+        // 同一判据,双口径曾是 401 条 pending 积压的根因;凌晨2点跑,processedToday 只拦 0-2 点处理过的情形）
+        long existExpiring = reminderMapper.selectCount(
+                new LambdaQueryWrapper<BizReminder>()
+                        .eq(BizReminder::getCustomerId, customer.getId())
+                        .eq(BizReminder::getReminderType, LIT_EXPIRING)
+                        .eq(BizReminder::getStatus, LIT_PENDING)
+        );
+        long processedToday = existExpiring > 0 ? 1 : reminderMapper.selectCount(
+                new LambdaQueryWrapper<BizReminder>()
+                        .eq(BizReminder::getCustomerId, customer.getId())
+                        .eq(BizReminder::getReminderType, LIT_EXPIRING)
+                        .eq(BizReminder::getStatus, "processed")
+                        .ge(BizReminder::getProcessedAt, today.atStartOfDay())
+        );
+        if (existExpiring == 0 && processedToday == 0) {
+            long daysLeft = ChronoUnit.DAYS.between(today, expireDate);
+            BizReminder reminder = new BizReminder();
+            reminder.setCustomerId(customer.getId());
+            reminder.setReminderType(LIT_EXPIRING);
+            reminder.setOwnerId(customer.getOwnerId());
+            reminder.setOfficeId(customer.getOfficeId());
+            reminder.setOverdueDays((int) daysLeft);
+            reminder.setStatus(LIT_PENDING);
+            reminderMapper.insert(reminder);
+            log.info("客户 {} 还有{}天到期，已创建提醒", customer.getCustomerName(), daysLeft);
+            return CustomerCheck.WARNED;
+        }
+        return CustomerCheck.NONE;
     }
 
     private int getConfigInt(String key, int defaultValue) {
