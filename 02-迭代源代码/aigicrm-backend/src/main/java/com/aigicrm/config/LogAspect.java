@@ -141,18 +141,25 @@ public class LogAspect {
     /** 从方法参数中提取可读的操作详情 */
     private String resolveDetail(JoinPoint jp, String uri) {
         for (Object arg : jp.getArgs()) {
-            // 跳过 request/response 对象
-            if (arg != null && !(arg instanceof HttpServletRequest)
-                    && !(arg instanceof jakarta.servlet.http.HttpServletResponse)) {
-                if (arg instanceof org.springframework.web.multipart.MultipartFile mf) {
-                    return mf.getOriginalFilename();
-                }
-                String detail = arg instanceof Map<?, ?> map ? detailFromMap(map) : null;
-                if (detail == null) detail = detailFromGetters(arg);
-                if (detail != null) return detail;
-            }
+            String detail = detailFromArg(arg);
+            if (detail != null) return detail;
         }
         return detailFromUri(uri);
+    }
+
+    /** 单参数详情提取：跳过 request/response；文件取原始名；Map/Bean 依次尝试。 */
+    private String detailFromArg(Object arg) {
+        // 跳过 request/response 对象
+        if (arg == null || arg instanceof HttpServletRequest
+                || arg instanceof jakarta.servlet.http.HttpServletResponse) {
+            return null;
+        }
+        if (arg instanceof org.springframework.web.multipart.MultipartFile mf) {
+            return mf.getOriginalFilename();
+        }
+        String detail = arg instanceof Map<?, ?> map ? detailFromMap(map) : detailFromGetters(arg);
+        // Map 命中不到时原实现会再试 getter(必然返回 null), 等价于直接返回 detail
+        return detail;
     }
 
     private String detailFromMap(Map<?, ?> map) {

@@ -365,70 +365,75 @@ public class OrgScopeResolver {
      */
     public List<Long> resolveDeptScope(SecurityUser user, String scope) {
         if (user == null || scope == null) return List.of();
+        return switch (scope) {
+            case "all" -> null;
+            case "custom" -> resolveCustomScope(user);
+            case "region" -> resolveAncestorScope(user, TYPE_REGION);
+            case "office" -> resolveAncestorScope(user, TYPE_OFFICE);
+            case "dept", "dept_and_children", LIT_ORG_AND_CHILDREN -> resolveDeptTreeScope(user, scope);
+            case "org" -> resolveOwnDept(user);
+            case "team" -> resolveTeamScope(user);
+            case "self" -> resolveOwnDept(user);
+            default -> resolveOwnDept(user);
+        };
+    }
+
+    private List<Long> resolveOwnDept(SecurityUser user) {
         Long deptId = user.getDeptId();
-        switch (scope) {
-            case "all": return null;
-            case "custom": {
-                // 【WP1.2 2026-11-13】严格按原始行 includeChildren: true 才展开子树, false 仅本组织。
-                // 旧实现消费预展开的 managedOrgIds 平铺表并对每个 id 无条件再展开 ⇒ 0 标志行越权放宽到子树。
-                java.util.List<com.aigicrm.security.ManagedOrgRef> refs = user.getManagedOrgRefs();
-                if (refs == null || refs.isEmpty()) {
-                    refs = loadRoleOrgRefs(user); // P1-06 回退(与 OWNER 口径一致)
-                }
-                if (refs == null || refs.isEmpty()) return List.of();
-                Set<Long> deptIds = new LinkedHashSet<>();
-                for (com.aigicrm.security.ManagedOrgRef ref : refs) {
-                    if (ref == null || ref.getOrgId() == null) continue;
-                    if (ref.expandChildren()) collectSubtree(ref.getOrgId(), deptIds);
-                    else deptIds.add(ref.getOrgId());
-                }
-                return new ArrayList<>(deptIds);
-            }
-            case "region": {
-                // 【WP1.3 2026-11-13 fail-closed】无 dept_type=region 祖先 → 不可见(空集),
-                // 不再回退 findRoot(把总部用户放大到全集团)。写入面已拦截无锚配置(400)。
-                Long anchor = deptId == null ? null : findAncestorOfType(deptId, TYPE_REGION);
-                if (anchor == null) return List.of();
-                return collectSubtreeList(anchor);
-            }
-            case "office": {
-                // 【WP1.3 fail-closed】同 region: 无办事处祖先 → 不可见, 不再退化本部门子树
-                Long anchor = deptId == null ? null : findAncestorOfType(deptId, TYPE_OFFICE);
-                if (anchor == null) return List.of();
-                return collectSubtreeList(anchor);
-            }
-            case "dept":
-            case "dept_and_children":
-            case LIT_ORG_AND_CHILDREN: {
-                if (deptId == null) return List.of();
-                Set<Long> deptIds = new LinkedHashSet<>();
-                collectSubtree(deptId, deptIds);
-                if (LIT_ORG_AND_CHILDREN.equals(scope) && user.getManagedOrgIds() != null) {
-                    for (Long orgId : user.getManagedOrgIds()) {
-                        if (orgId != null) collectSubtree(orgId, deptIds);
-                    }
-                }
-                return new ArrayList<>(deptIds);
-            }
-            case "org": {
-                return deptId == null ? List.of() : List.of(deptId);
-            }
-            case "team": {
-                if (deptId == null) return List.of();
-                List<Long> teamUsers = resolveTeam(user.getUserId());
-                Set<Long> deptIds = new LinkedHashSet<>();
-                if (!teamUsers.isEmpty()) {
-                    List<SysUser> users = userMapper.selectByIds(teamUsers);
-                    for (SysUser u : users) {
-                        if (u.getDeptId() != null) deptIds.add(u.getDeptId());
-                    }
-                }
-                if (!deptIds.contains(deptId)) deptIds.add(deptId); // 恒含本人部门
-                return new ArrayList<>(deptIds);
-            }
-            case "self":
-            default: return deptId == null ? List.of() : List.of(deptId);
+        return deptId == null ? List.of() : List.of(deptId);
+    }
+
+    private List<Long> resolveCustomScope(SecurityUser user) {
+        // 【WP1.2 2026-11-13】严格按原始行 includeChildren: true 才展开子树, false 仅本组织。
+        // 旧实现消费预展开的 managedOrgIds 平铺表并对每个 id 无条件再展开 ⇒ 0 标志行越权放宽到子树。
+        java.util.List<com.aigicrm.security.ManagedOrgRef> refs = user.getManagedOrgRefs();
+        if (refs == null || refs.isEmpty()) {
+            refs = loadRoleOrgRefs(user); // P1-06 回退(与 OWNER 口径一致)
         }
+        if (refs == null || refs.isEmpty()) return List.of();
+        Set<Long> deptIds = new LinkedHashSet<>();
+        for (com.aigicrm.security.ManagedOrgRef ref : refs) {
+            if (ref == null || ref.getOrgId() == null) continue;
+            if (ref.expandChildren()) collectSubtree(ref.getOrgId(), deptIds);
+            else deptIds.add(ref.getOrgId());
+        }
+        return new ArrayList<>(deptIds);
+    }
+
+    /** 【WP1.3 2026-11-13 fail-closed】无指定类型祖先 → 不可见(空集), 不再回退 findRoot。 */
+    private List<Long> resolveAncestorScope(SecurityUser user, int type) {
+        Long deptId = user.getDeptId();
+        Long anchor = deptId == null ? null : findAncestorOfType(deptId, type);
+        if (anchor == null) return List.of();
+        return collectSubtreeList(anchor);
+    }
+
+    private List<Long> resolveDeptTreeScope(SecurityUser user, String scope) {
+        Long deptId = user.getDeptId();
+        if (deptId == null) return List.of();
+        Set<Long> deptIds = new LinkedHashSet<>();
+        collectSubtree(deptId, deptIds);
+        if (LIT_ORG_AND_CHILDREN.equals(scope) && user.getManagedOrgIds() != null) {
+            for (Long orgId : user.getManagedOrgIds()) {
+                if (orgId != null) collectSubtree(orgId, deptIds);
+            }
+        }
+        return new ArrayList<>(deptIds);
+    }
+
+    private List<Long> resolveTeamScope(SecurityUser user) {
+        Long deptId = user.getDeptId();
+        if (deptId == null) return List.of();
+        List<Long> teamUsers = resolveTeam(user.getUserId());
+        Set<Long> deptIds = new LinkedHashSet<>();
+        if (!teamUsers.isEmpty()) {
+            List<SysUser> users = userMapper.selectByIds(teamUsers);
+            for (SysUser u : users) {
+                if (u.getDeptId() != null) deptIds.add(u.getDeptId());
+            }
+        }
+        if (!deptIds.contains(deptId)) deptIds.add(deptId); // 恒含本人部门
+        return new ArrayList<>(deptIds);
     }
 
     private List<Long> collectSubtreeList(Long rootId) {

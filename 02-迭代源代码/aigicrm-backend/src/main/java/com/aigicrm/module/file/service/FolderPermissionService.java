@@ -514,76 +514,93 @@ public class FolderPermissionService {
             }
             return result;
         }
-        List<BizFolderTypeDefault> grants = legacyGrants();
-        Map<Long, BizFileFolder> refCache = new HashMap<>();
-        java.util.Set<Long> folderIds = new java.util.HashSet<>();
-        for (BizFile f : files) if (f.getFolderId() != null) folderIds.add(f.getFolderId());
-        if (!folderIds.isEmpty()) {
-            for (BizFileFolder ref : folderMapper.selectBatchIds(folderIds)) refCache.put(ref.getId(), ref);
-        }
-        Map<String, Set<Long>> matrixCache = new HashMap<>();
-        Map<Long, Boolean> chainCache = new HashMap<>();
-        // 【A1 批量预载】一次查 grants + org/folder 缓存，避免逐文件 N×查询。
-        Map<Long, FileGrantService.Decision> grantDecisions = fileGrantService == null
-                ? Map.of() : fileGrantService.decideFiles(files, P_VIEW, userId);
-        // 【Batch-4 #1 按钮视图收口】引擎多动作批量并入：任一模式（legacy 除外）下,
-        // 引擎 ALLOW 的动作亮按钮、引擎 DENY 的动作压按钮——与 checkFile 判定 parity。
-        Map<Long, Map<String, FileGrantService.Decision>> enginePerms =
-                fileGrantService == null ? Map.of()
-                        : fileGrantService.decideFilesMulti(files, FILE_ROW_ACTIONS, userId);
+        PermsContext ctx = loadFilePermContext(files, userId);
         for (BizFile file : files) {
-            BizFileFolder ref = file.getFolderId() != null ? refCache.get(file.getFolderId()) : null;
-            String anchorType = ref != null ? ref.getFolderType() : file.getFileScope(); // 无夹=空间锚(修4 同口径)
-            // 【2026-11-17 阶段二】统一授权 DENY 隐藏行按钮（后端 checkFile 已同步拒绝）。
-            if (grantDecisions.get(file.getId()) == FileGrantService.Decision.DENY) {
-                result.put(file.getId(), List.of());
-                continue;
-            }
-            // 【2026-11-17 阶段二】法布施空间独立收口：只读 + fabushi:file:delete，不继承“本人恒管全动作”。
-            if (LIT_FABUSHI.equals(anchorType)) {
-                result.put(file.getId(), fabushiRowPerms(file));
-                continue;
-            }
-            Long uploader = file.getUploaderId();
-            if (uploader != null && (uploader.equals(userId)
-                    || chainCache.computeIfAbsent(uploader, uid -> isManagerChain(userId, uid)))) {
-                result.put(file.getId(), FILE_ROW_ACTIONS); // 本人恒管/上级链=全动作
-                continue;
-            }
-            boolean privateScope = LIT_PRIVATE.equals(anchorType); // 【拍板 A】私人空间不进矩阵(仅授权行)
-            List<String> perms = new ArrayList<>();
-            Map<String, FileGrantService.Decision> enginePerFile = enginePerms.getOrDefault(file.getId(), Map.of());
-            for (String p : FILE_ROW_ACTIONS) {
-                // 【Batch-4 #1】引擎 per-action 判定先行：DENY 压按钮（矩阵/旧表命中也不亮——与判定链同序）
-                FileGrantService.Decision ed = enginePerFile.get(p);
-                if (ed == FileGrantService.Decision.DENY) continue;
-                // 矩阵档位集按动作缓存一次(部门集=有夹 org 锚 / 人员集=无夹 uploader 锚, 分键)
-                boolean hit = ed == FileGrantService.Decision.ALLOW; // 引擎 ALLOW 直接亮
-                if (privateScope) {
-                    // 【拍板 A 2026-11-14】私人文件按钮=仅本人/上级链(上方已全动作)+例外授权行, 部门/用户矩阵不参与
-                    hit = hit || grantHitIn(grants, OBJ_FILE, anchorType, ref != null ? ref.getId() : null,
-                            ref != null ? ref.getOrgId() : file.getOrgId(), uploader, p, userId);
-                } else if (ref != null) {
-                    Set<Long> depts = matrixCache.computeIfAbsent("org:" + matrixActionOf(p), k -> matrixDeptSet(userId, matrixActionOf(p)));
-                    hit = hit || grantHitIn(grants, OBJ_FILE, anchorType, ref.getId(), ref.getOrgId(), ref.getOwnerId(), p, userId)
-                            || depts == null || (ref.getOrgId() != null && depts.contains(ref.getOrgId()));
-                } else {
-                    Set<Long> users = matrixCache.computeIfAbsent("user:" + matrixActionOf(p), k -> matrixSet(userId, matrixActionOf(p)));
-                    hit = hit || grantHitIn(grants, OBJ_FILE, anchorType, null, file.getOrgId(), uploader, p, userId)
-                            || users == null || (uploader != null && users.contains(uploader));
-                }
-                if (hit) mergePerms(perms, p);
-            }
-            // 【2026-11-17 阶段二】版本回滚独立码+数据范围：行级 replace 仅作“可回滚”视图信号；
-            // 替换按钮仍由 file:edit 控制，回滚按钮由前端 file:version:rollback 控制。
-            if (!perms.contains(P_REPLACE) && SecurityUtils.hasAuthority("file:version:rollback")
-                    && canRollbackVersion(file, userId)) {
-                mergePerms(perms, P_REPLACE);
-            }
-            result.put(file.getId(), perms);
+            result.put(file.getId(), fileRowPerms(file, userId, ctx));
         }
         return result;
     }
+
+    /** 单文件行级按钮：DENY 空集 / 法布施只读 / 本人·上级链全动作 / 其余 per-action 并入。 */
+    private List<String> fileRowPerms(BizFile file, Long userId, PermsContext ctx) {
+        BizFileFolder ref = file.getFolderId() != null ? ctx.refCache().get(file.getFolderId()) : null;
+        String anchorType = ref != null ? ref.getFolderType() : file.getFileScope(); // 无夹=空间锚(修4 同口径)
+        // 【2026-11-17 阶段二】统一授权 DENY 隐藏行按钮（后端 checkFile 已同步拒绝）。
+        if (ctx.grantDecisions().get(file.getId()) == FileGrantService.Decision.DENY) {
+            return List.of();
+        }
+        // 【2026-11-17 阶段二】法布施空间独立收口：只读 + fabushi:file:delete，不继承“本人恒管全动作”。
+        if (LIT_FABUSHI.equals(anchorType)) {
+            return fabushiRowPerms(file);
+        }
+        Long uploader = file.getUploaderId();
+        if (uploader != null && (uploader.equals(userId)
+                || ctx.chainCache().computeIfAbsent(uploader, uid -> isManagerChain(userId, uid)))) {
+            return FILE_ROW_ACTIONS; // 本人恒管/上级链=全动作
+        }
+        List<String> perms = new ArrayList<>();
+        Map<String, FileGrantService.Decision> enginePerFile =
+                ctx.enginePerms().getOrDefault(file.getId(), Map.of());
+        for (String p : FILE_ROW_ACTIONS) {
+            if (actionPermitted(file, ref, anchorType, p, userId, ctx, enginePerFile)) mergePerms(perms, p);
+        }
+        // 【2026-11-17 阶段二】版本回滚独立码+数据范围：行级 replace 仅作“可回滚”视图信号；
+        // 替换按钮仍由 file:edit 控制，回滚按钮由前端 file:version:rollback 控制。
+        if (!perms.contains(P_REPLACE) && SecurityUtils.hasAuthority("file:version:rollback")
+                && canRollbackVersion(file, userId)) {
+            mergePerms(perms, P_REPLACE);
+        }
+        return perms;
+    }
+
+    private boolean actionPermitted(BizFile file, BizFileFolder ref, String anchorType, String p, Long userId,
+                                    PermsContext ctx, Map<String, FileGrantService.Decision> enginePerFile) {
+        // 【Batch-4 #1】引擎 per-action 判定先行：DENY 压按钮（矩阵/旧表命中也不亮——与判定链同序）
+        FileGrantService.Decision ed = enginePerFile.get(p);
+        if (ed == FileGrantService.Decision.DENY) return false;
+        // 矩阵档位集按动作缓存一次(部门集=有夹 org 锚 / 人员集=无夹 uploader 锚, 分键)
+        boolean hit = ed == FileGrantService.Decision.ALLOW; // 引擎 ALLOW 直接亮
+        if (LIT_PRIVATE.equals(anchorType)) {
+            // 【拍板 A 2026-11-14】私人文件按钮=仅本人/上级链(上方已全动作)+例外授权行, 部门/用户矩阵不参与
+            return hit || grantHitIn(ctx.grants(), OBJ_FILE, anchorType, ref != null ? ref.getId() : null,
+                    ref != null ? ref.getOrgId() : file.getOrgId(), file.getUploaderId(), p, userId);
+        }
+        if (ref != null) {
+            Set<Long> depts = ctx.matrixCache().computeIfAbsent("org:" + matrixActionOf(p),
+                    k -> matrixDeptSet(userId, matrixActionOf(p)));
+            return hit || grantHitIn(ctx.grants(), OBJ_FILE, anchorType, ref.getId(), ref.getOrgId(), ref.getOwnerId(), p, userId)
+                    || depts == null || (ref.getOrgId() != null && depts.contains(ref.getOrgId()));
+        }
+        Set<Long> users = ctx.matrixCache().computeIfAbsent("user:" + matrixActionOf(p),
+                k -> matrixSet(userId, matrixActionOf(p)));
+        return hit || grantHitIn(ctx.grants(), OBJ_FILE, anchorType, null, file.getOrgId(), file.getUploaderId(), p, userId)
+                || users == null || (file.getUploaderId() != null && users.contains(file.getUploaderId()));
+    }
+
+    /** 【A1 批量预载】一次查 grants + org/folder 缓存，避免逐文件 N×查询。 */
+    private PermsContext loadFilePermContext(Collection<BizFile> files, Long userId) {
+        List<BizFolderTypeDefault> grants = legacyGrants();
+        Map<Long, BizFileFolder> refCache = new HashMap<>();
+        Set<Long> folderIds = new HashSet<>();
+        for (BizFile f : files) {
+            if (f.getFolderId() != null) folderIds.add(f.getFolderId());
+        }
+        if (!folderIds.isEmpty()) {
+            for (BizFileFolder ref : folderMapper.selectBatchIds(folderIds)) refCache.put(ref.getId(), ref);
+        }
+        // 【Batch-4 #1 按钮视图收口】引擎多动作批量并入：任一模式（legacy 除外）下,
+        // 引擎 ALLOW 的动作亮按钮、引擎 DENY 的动作压按钮——与 checkFile 判定 parity。
+        Map<Long, FileGrantService.Decision> grantDecisions = fileGrantService == null
+                ? Map.of() : fileGrantService.decideFiles(files, P_VIEW, userId);
+        Map<Long, Map<String, FileGrantService.Decision>> enginePerms = fileGrantService == null
+                ? Map.of() : fileGrantService.decideFilesMulti(files, FILE_ROW_ACTIONS, userId);
+        return new PermsContext(grants, refCache, new HashMap<>(), new HashMap<>(), grantDecisions, enginePerms);
+    }
+
+    private record PermsContext(List<BizFolderTypeDefault> grants, Map<Long, BizFileFolder> refCache,
+                                Map<String, Set<Long>> matrixCache, Map<Long, Boolean> chainCache,
+                                Map<Long, FileGrantService.Decision> grantDecisions,
+                                Map<Long, Map<String, FileGrantService.Decision>> enginePerms) {}
 
     /** 批量: 组织集按矩阵动作缓存一次, 授权全表缓存一次, 防逐夹 N+1 */
     public Map<Long, List<String>> permsForBatch(Collection<BizFileFolder> folders, Long userId) {
@@ -605,35 +622,47 @@ public class FolderPermissionService {
         for (BizFileFolder folder : folders) {
             Map<String, FileGrantService.Decision> enginePerFolder =
                     engineFolders.getOrDefault(folder.getId(), Map.of());
-            if (enginePerFolder.get(P_VIEW) == FileGrantService.Decision.DENY) {
-                result.put(folder.getId(), List.of());
-                continue;
-            }
-            boolean privileged = chainCache.computeIfAbsent(folder.getOwnerId() == null ? -1L : folder.getOwnerId(),
-                    oid -> oid.equals(userId) || (oid > 0 && isManagerChain(userId, oid)));
-            if (privileged) { result.put(folder.getId(), ALL_PERMS); continue; }
-            List<String> perms = new ArrayList<>();
-            // 【修复 2026-11-11 USER级授权验收发现】此视图循环的 7 个动作全部是"文件动作"(矩阵文件列
-            // 勾选存 FILE 行), 但 ctxObjectTypeOf 把 delete/rename 归到 OBJ_FOLDER → 按钮视图查 FOLDER 行
-            // 永不命中: 矩阵勾了"删除/改名"、checkFile 实际放行, 双端按钮却不出现(视图与判定脱节)。
-            // 该循环对授权行一律按 OBJ_FILE 匹配; ctxObjectTypeOf 保留给夹自身动作入口(check 的夹上下文)。
-            for (String p : List.of(P_VIEW, P_UPLOAD, P_DOWNLOAD, P_RENAME, P_REPLACE, P_SHARE, P_DELETE)) {
-                // 【拍板 A 2026-11-14】私人夹按钮视图跳过部门矩阵(仅授权行)——同部门同事不得亮他人私人夹按钮;
-                // 树可见性(visibleFolderIds 经 permsFor)随之收口, 树/列表/按钮三方同口径。
-                FileGrantService.Decision ed = enginePerFolder.get(p);
-                if (ed == FileGrantService.Decision.DENY) continue; // per-action DENY 压按钮(与判定链同序)
-                if (ed == FileGrantService.Decision.ALLOW) { mergePerms(perms, p); continue; } // 引擎命中直接亮
-                Set<Long> depts = LIT_PRIVATE.equals(folder.getFolderType())
-                        ? Set.of() : matrixCache.computeIfAbsent(matrixActionOf(p), ma -> matrixDeptSet(userId, ma));
-                // 【2026-11-10 C区验收修复】null=全部(all档)放行, 对齐 FileService#255; 原写法致全员可看档在批量夹判定恒失效
-                if ((depts == null || (folder.getOrgId() != null && depts.contains(folder.getOrgId())))
-                        || grantHitIn(grants, OBJ_FILE, folder.getFolderType(), folder.getId(), folder.getOrgId(), folder.getOwnerId(), p, userId)) {
-                    mergePerms(perms, p);
-                }
-            }
-            result.put(folder.getId(), perms);
+            result.put(folder.getId(), folderRowPerms(folder, userId, grants, matrixCache, chainCache, enginePerFolder));
         }
         return result;
+    }
+
+    private List<String> folderRowPerms(BizFileFolder folder, Long userId, List<BizFolderTypeDefault> grants,
+                                        Map<String, Set<Long>> matrixCache, Map<Long, Boolean> chainCache,
+                                        Map<String, FileGrantService.Decision> enginePerFolder) {
+        if (enginePerFolder.get(P_VIEW) == FileGrantService.Decision.DENY) {
+            return List.of();
+        }
+        boolean privileged = chainCache.computeIfAbsent(folder.getOwnerId() == null ? -1L : folder.getOwnerId(),
+                oid -> oid.equals(userId) || (oid > 0 && isManagerChain(userId, oid)));
+        if (privileged) return ALL_PERMS;
+        List<String> perms = new ArrayList<>();
+        // 【修复 2026-11-11 USER级授权验收发现】此视图循环的 7 个动作全部是"文件动作"(矩阵文件列
+        // 勾选存 FILE 行), 但 ctxObjectTypeOf 把 delete/rename 归到 OBJ_FOLDER → 按钮视图查 FOLDER 行
+        // 永不命中: 矩阵勾了"删除/改名"、checkFile 实际放行, 双端按钮却不出现(视图与判定脱节)。
+        // 该循环对授权行一律按 OBJ_FILE 匹配; ctxObjectTypeOf 保留给夹自身动作入口(check 的夹上下文)。
+        for (String p : List.of(P_VIEW, P_UPLOAD, P_DOWNLOAD, P_RENAME, P_REPLACE, P_SHARE, P_DELETE)) {
+            if (folderActionPermitted(folder, p, userId, grants, matrixCache, enginePerFolder)) {
+                mergePerms(perms, p);
+            }
+        }
+        return perms;
+    }
+
+    private boolean folderActionPermitted(BizFileFolder folder, String p, Long userId,
+                                          List<BizFolderTypeDefault> grants, Map<String, Set<Long>> matrixCache,
+                                          Map<String, FileGrantService.Decision> enginePerFolder) {
+        FileGrantService.Decision ed = enginePerFolder.get(p);
+        if (ed == FileGrantService.Decision.DENY) return false; // per-action DENY 压按钮(与判定链同序)
+        if (ed == FileGrantService.Decision.ALLOW) return true; // 引擎命中直接亮
+        // 【拍板 A 2026-11-14】私人夹按钮视图跳过部门矩阵(仅授权行)——同部门同事不得亮他人私人夹按钮;
+        // 树可见性(visibleFolderIds 经 permsFor)随之收口, 树/列表/按钮三方同口径。
+        Set<Long> depts = LIT_PRIVATE.equals(folder.getFolderType())
+                ? Set.of() : matrixCache.computeIfAbsent(matrixActionOf(p), ma -> matrixDeptSet(userId, ma));
+        // 【2026-11-10 C区验收修复】null=全部(all档)放行, 对齐 FileService#255; 原写法致全员可看档在批量夹判定恒失效
+        return depts == null || (folder.getOrgId() != null && depts.contains(folder.getOrgId()))
+                || grantHitIn(grants, OBJ_FILE, folder.getFolderType(), folder.getId(), folder.getOrgId(),
+                        folder.getOwnerId(), p, userId);
     }
 
     private boolean grantHitIn(List<BizFolderTypeDefault> grants, String objectType, String folderType, Long targetFolderId, Long targetOrgId, Long targetOwnerId, String action, Long userId) {

@@ -250,33 +250,52 @@ public class RolePermScopeService {
     public String effectiveScopeCode(SecurityUser user, String module, String action) {
         if (user == null) return null;
         if (user.getScopeConfigs() != null && !user.getScopeConfigs().isEmpty()) {
-            String seenType = null;
-            java.util.List<String> exact = new ArrayList<>();
-            java.util.List<String> wildcard = new ArrayList<>();
-            for (ScopeConfig c : user.getScopeConfigs()) {
-                String cMod = c.getModule() != null ? c.getModule() : "";
-                String cAct = c.getAction() != null ? c.getAction() : "";
-                boolean moduleMatch = cMod.equals(module) || "*".equals(cMod);
-                boolean actionMatch = cAct.equals(action) || "*".equals(cAct);
-                if (!moduleMatch || !actionMatch) continue;
-                if (c.getScopeLevel() == null || c.getScopeLevel().isBlank()) continue;
-                String type = c.getAssigneeType() != null ? c.getAssigneeType() : "ROLE";
-                if (seenType == null) seenType = type;
-                else if (!seenType.equals(type)) continue;
-                if (cMod.equals(module) && cAct.equals(action)) exact.add(c.getScopeLevel());
-                else wildcard.add(c.getScopeLevel());
-            }
-            java.util.List<String> codes = !exact.isEmpty() ? exact : wildcard;
+            List<String> codes = collectScopedCodes(user, module, action);
             if (!codes.isEmpty()) {
-                com.aigicrm.common.enums.DataScopeType widest = com.aigicrm.common.enums.DataScopeType.fromCode(codes.get(0));
-                for (String code : codes) {
-                    com.aigicrm.common.enums.DataScopeType t = com.aigicrm.common.enums.DataScopeType.fromCode(code);
-                    if (t.rank() < widest.rank()) widest = t;
-                }
-                return widest.getCode();
+                return widestScopeCode(codes);
             }
         }
         return user.getWidestDataScope();
+    }
+
+    /** 同类型主体下，(module,action) 精确优先、通配兜底的范围码集合。 */
+    private List<String> collectScopedCodes(SecurityUser user, String module, String action) {
+        String seenType = null;
+        List<String> exact = new ArrayList<>();
+        List<String> wildcard = new ArrayList<>();
+        for (ScopeConfig c : user.getScopeConfigs()) {
+            if (scopeConfigMatches(c, module, action) && hasScopeLevel(c)) {
+                String type = c.getAssigneeType() != null ? c.getAssigneeType() : "ROLE";
+                if (seenType == null) seenType = type;
+                if (seenType.equals(type)) {
+                    (isExactScopeConfig(c, module, action) ? exact : wildcard).add(c.getScopeLevel());
+                }
+            }
+        }
+        return !exact.isEmpty() ? exact : wildcard;
+    }
+
+    private boolean scopeConfigMatches(ScopeConfig c, String module, String action) {
+        String cMod = c.getModule() != null ? c.getModule() : "";
+        String cAct = c.getAction() != null ? c.getAction() : "";
+        return (cMod.equals(module) || "*".equals(cMod)) && (cAct.equals(action) || "*".equals(cAct));
+    }
+
+    private boolean hasScopeLevel(ScopeConfig c) {
+        return c.getScopeLevel() != null && !c.getScopeLevel().isBlank();
+    }
+
+    private boolean isExactScopeConfig(ScopeConfig c, String module, String action) {
+        return c.getModule().equals(module) && c.getAction().equals(action);
+    }
+
+    private String widestScopeCode(List<String> codes) {
+        com.aigicrm.common.enums.DataScopeType widest = com.aigicrm.common.enums.DataScopeType.fromCode(codes.get(0));
+        for (String code : codes) {
+            com.aigicrm.common.enums.DataScopeType t = com.aigicrm.common.enums.DataScopeType.fromCode(code);
+            if (t.rank() < widest.rank()) widest = t;
+        }
+        return widest.getCode();
     }
 
     /** 模块级锚点: 配置行 anchor 列(OWNER/ORG), 未配置默认 OWNER(批②: 客户模块可配 ORG) */
@@ -355,89 +374,113 @@ public class RolePermScopeService {
             jdbc.queryForList("SELECT id FROM sys_role WHERE role_code = ? FOR UPDATE", Long.class, assigneeKey);
         }
         if (configs.isEmpty()) {
-            // 【B2 审计】清空=恢复默认, 逐 (module,action) 记旧值→默认
-            for (var row : jdbc.queryForList(
-                    "SELECT module, action, scope_level, anchor FROM role_perm_scope WHERE assignee_type=? AND assignee_key=?",
-                    assigneeType, assigneeKey)) {
-                recordScopeVersion(assigneeType, assigneeKey, String.valueOf(row.get(LIT_MODULE)), String.valueOf(row.get(LIT_ACTION)),
-                        row.get(LIT_SCOPE_LEVEL) + "/" + row.get(LIT_ANCHOR), "默认(未配置)");
-            }
-            jdbc.update("DELETE FROM role_perm_scope WHERE assignee_type=? AND assignee_key=?", assigneeType, assigneeKey);
-            // 【P1-2 三轮修复 2026-11-13】清空范围的授予表语义按主体分型:
-            // ROLE = "恢复默认" → 重置为 data_scope 档(菜单仍绑码, 全删会让新轨范围恒空);
-            // USER/POSITION = 显式附加行 → 清除即移除
-            if (ScopeConfig.ASSIGNEE_ROLE.equals(assigneeType)) {
-                resetRoleGrantsToDefault(assigneeKey);
-            } else {
-                dualDeleteGrants(assigneeType, assigneeKey);
-            }
-            invalidate(assigneeKey);
-            com.aigicrm.common.tx.AfterCommit.run(permissionCacheService::evictAll);
-            // 【2026-08-14 缓存自愈】版本递增兜底：evict 漏网/Redis 写失败时缓存与 DB 版本比对自愈
-            bumpAllPermVersions();
+            clearScopes(assigneeType, assigneeKey);
             return;
         }
         for (Map<String, Object> cfg : configs) {
-            Object module = cfg.get(LIT_MODULE);
-            Object action = cfg.get(LIT_ACTION);
-            Object scopeLevel = cfg.get("scopeLevel");
-            if (module == null || action == null || scopeLevel == null) continue;
-            String scope = scopeLevel.toString();
-            if (!VALID_SCOPES.contains(scope)) {
-                throw new com.aigicrm.common.BusinessException("非法的数据范围取值: " + scope);
-            }
-            // 【P1-4 2026-11-15】保存期校验: 避免“配置成功但运行期恒空”的死范围
-            validateRoleScopeForSave(assigneeType, assigneeKey, scope);
-            // 【T7 2026-11-12】写入面档位校验: 后端未消费的 (module,action) 拒绝配置(防新增死配置)
-            String axisKey = module + "|" + action;
-            if (!CONSUMED_AXIS.contains(axisKey)) {
-                throw new com.aigicrm.common.BusinessException(400,
-                        "该档位(" + axisKey + ")后端未消费，禁止配置——请选择有效的功能×范围档");
-            }
-            // 【WP1.3 2026-11-13 fail-closed】USER 级 region/office 档写入面拦截:
-            // 目标用户任职组织无对应 dept_type 祖先(大区=2/办事处=3)时拒绝配置(400)——
-            // 否则运行时解析 fail-closed 返回空集, 勾了等于没勾("配置成功但不生效"体验)
-            if (ScopeConfig.ASSIGNEE_USER.equals(assigneeType)
-                    && (LIT_REGION.equals(scope) || LIT_OFFICE.equals(scope))) {
-                int wantType = LIT_REGION.equals(scope) ? 2 : 3;
-                if (!userHasAncestorOfType(assigneeKey, wantType)) {
-                    throw new com.aigicrm.common.BusinessException(400, wantType == 2
-                            ? "该用户不在任何大区下，无法配置“本大区”范围"
-                            : "该用户不在任何办事处下，无法配置“本办事处”范围");
-                }
-            }
-            String anchor = cfg.get(LIT_ANCHOR) != null ? cfg.get(LIT_ANCHOR).toString() : LIT_OWNER;
-            if (!LIT_OWNER.equalsIgnoreCase(anchor) && !"ORG".equalsIgnoreCase(anchor)) {
-                throw new com.aigicrm.common.BusinessException("非法的范围锚点取值: " + anchor);
-            }
-            // role_code 列同步写(兼容 V7 查询/回滚窗口)
-            String roleCode = ScopeConfig.ASSIGNEE_ROLE.equals(assigneeType) ? assigneeKey : "";
-            // 【审查 perm-5 2026-10-18】同一 (assignee,module,action) 只允许一个锚点:
-            // 旧唯一键含 anchor, 切换 OWNER/ORG 时旧行不会被 upsert 命中, 会遗留两条锚点
-            // (anchorOf 取第一条无排序 → 口径漂移)。写入前先清掉同键其它锚点, 保留本锚点行
-            // 走下方 upsert(保留 id/created_at); 迁移 V2026.10.18.4 同键去重并加四列唯一索引。
-            // 【B2 审计】旧值在清锚点/upsert 前读出
-            String oldScope = null;
-            for (var row : jdbc.queryForList(
-                    "SELECT scope_level, anchor FROM role_perm_scope WHERE assignee_type=? AND assignee_key=? AND module=? AND action=?",
-                    assigneeType, assigneeKey, module.toString(), action.toString())) {
-                oldScope = row.get(LIT_SCOPE_LEVEL) + "/" + row.get(LIT_ANCHOR);
-            }
-            jdbc.update("DELETE FROM role_perm_scope WHERE assignee_type=? AND assignee_key=? "
-                            + "AND module=? AND action=? AND anchor<>?",
-                    assigneeType, assigneeKey, module.toString(), action.toString(), anchor.toUpperCase());
-            jdbc.update(
-                    "INSERT INTO role_perm_scope (role_code, assignee_type, assignee_key, module, action, scope_level, anchor) VALUES (?,?,?,?,?,?,?) " +
-                    "ON DUPLICATE KEY UPDATE scope_level=VALUES(scope_level), anchor=VALUES(anchor), role_code=VALUES(role_code)",
-                    roleCode, assigneeType, assigneeKey, module.toString(), action.toString(), scope, anchor.toUpperCase());
-            recordScopeVersion(assigneeType, assigneeKey, module.toString(), action.toString(), oldScope, scope + "/" + anchor.toUpperCase());
-            dualUpsertGrants(assigneeType, assigneeKey, module.toString(), action.toString(), scope, anchor.toUpperCase()); // 【WP8 双写】
-            invalidate(assigneeKey);
+            saveScopeConfig(assigneeType, assigneeKey, cfg);
         }
         // 【2026-08-14 评审 P2】evictAll/bump 提升到循环外：批量 N 条配置只做一次全量失效+全表版本递增
         // （循环内会 N 次 UPDATE sys_user 全表行锁）
         permissionCacheService.evictAll();
         bumpAllPermVersions();
+    }
+
+    /** 空列表=删除该主体全部配置（恢复"未配置"默认语义）并清理授予表。 */
+    private void clearScopes(String assigneeType, String assigneeKey) {
+        // 【B2 审计】清空=恢复默认, 逐 (module,action) 记旧值→默认
+        for (var row : jdbc.queryForList(
+                "SELECT module, action, scope_level, anchor FROM role_perm_scope WHERE assignee_type=? AND assignee_key=?",
+                assigneeType, assigneeKey)) {
+            recordScopeVersion(assigneeType, assigneeKey, String.valueOf(row.get(LIT_MODULE)), String.valueOf(row.get(LIT_ACTION)),
+                    row.get(LIT_SCOPE_LEVEL) + "/" + row.get(LIT_ANCHOR), "默认(未配置)");
+        }
+        jdbc.update("DELETE FROM role_perm_scope WHERE assignee_type=? AND assignee_key=?", assigneeType, assigneeKey);
+        // 【P1-2 三轮修复 2026-11-13】清空范围的授予表语义按主体分型:
+        // ROLE = "恢复默认" → 重置为 data_scope 档(菜单仍绑码, 全删会让新轨范围恒空);
+        // USER/POSITION = 显式附加行 → 清除即移除
+        if (ScopeConfig.ASSIGNEE_ROLE.equals(assigneeType)) {
+            resetRoleGrantsToDefault(assigneeKey);
+        } else {
+            dualDeleteGrants(assigneeType, assigneeKey);
+        }
+        invalidate(assigneeKey);
+        com.aigicrm.common.tx.AfterCommit.run(permissionCacheService::evictAll);
+        // 【2026-08-14 缓存自愈】版本递增兜底：evict 漏网/Redis 写失败时缓存与 DB 版本比对自愈
+        bumpAllPermVersions();
+    }
+
+    /** 单条 (module,action) 配置：校验→清旧锚点→upsert→版本/授予双写。 */
+    private void saveScopeConfig(String assigneeType, String assigneeKey, Map<String, Object> cfg) {
+        Object module = cfg.get(LIT_MODULE);
+        Object action = cfg.get(LIT_ACTION);
+        Object scopeLevel = cfg.get("scopeLevel");
+        if (module == null || action == null || scopeLevel == null) return;
+        String scope = scopeLevel.toString();
+        validateScopeValue(assigneeType, assigneeKey, scope);
+        // 【T7 2026-11-12】写入面档位校验: 后端未消费的 (module,action) 拒绝配置(防新增死配置)
+        String axisKey = module + "|" + action;
+        if (!CONSUMED_AXIS.contains(axisKey)) {
+            throw new com.aigicrm.common.BusinessException(400,
+                    "该档位(" + axisKey + ")后端未消费，禁止配置——请选择有效的功能×范围档");
+        }
+        // 【WP1.3 2026-11-13 fail-closed】USER 级 region/office 档写入面拦截
+        if (ScopeConfig.ASSIGNEE_USER.equals(assigneeType)
+                && (LIT_REGION.equals(scope) || LIT_OFFICE.equals(scope))) {
+            validateUserAncestorScope(assigneeKey, scope);
+        }
+        String anchor = cfg.get(LIT_ANCHOR) != null ? cfg.get(LIT_ANCHOR).toString() : LIT_OWNER;
+        if (!LIT_OWNER.equalsIgnoreCase(anchor) && !"ORG".equalsIgnoreCase(anchor)) {
+            throw new com.aigicrm.common.BusinessException("非法的范围锚点取值: " + anchor);
+        }
+        // role_code 列同步写(兼容 V7 查询/回滚窗口)
+        String roleCode = ScopeConfig.ASSIGNEE_ROLE.equals(assigneeType) ? assigneeKey : "";
+        // 【审查 perm-5 2026-10-18】同一 (assignee,module,action) 只允许一个锚点:
+        // 旧唯一键含 anchor, 切换 OWNER/ORG 时旧行不会被 upsert 命中, 会遗留两条锚点
+        // (anchorOf 取第一条无排序 → 口径漂移)。写入前先清掉同键其它锚点, 保留本锚点行
+        // 走下方 upsert(保留 id/created_at); 迁移 V2026.10.18.4 同键去重并加四列唯一索引。
+        // 【B2 审计】旧值在清锚点/upsert 前读出
+        String oldScope = readOldScope(assigneeType, assigneeKey, module, action);
+        jdbc.update("DELETE FROM role_perm_scope WHERE assignee_type=? AND assignee_key=? "
+                        + "AND module=? AND action=? AND anchor<>?",
+                assigneeType, assigneeKey, module.toString(), action.toString(), anchor.toUpperCase());
+        jdbc.update(
+                "INSERT INTO role_perm_scope (role_code, assignee_type, assignee_key, module, action, scope_level, anchor) VALUES (?,?,?,?,?,?,?) " +
+                "ON DUPLICATE KEY UPDATE scope_level=VALUES(scope_level), anchor=VALUES(anchor), role_code=VALUES(role_code)",
+                roleCode, assigneeType, assigneeKey, module.toString(), action.toString(), scope, anchor.toUpperCase());
+        recordScopeVersion(assigneeType, assigneeKey, module.toString(), action.toString(), oldScope, scope + "/" + anchor.toUpperCase());
+        dualUpsertGrants(assigneeType, assigneeKey, module.toString(), action.toString(), scope, anchor.toUpperCase()); // 【WP8 双写】
+        invalidate(assigneeKey);
+    }
+
+    private void validateScopeValue(String assigneeType, String assigneeKey, String scope) {
+        if (!VALID_SCOPES.contains(scope)) {
+            throw new com.aigicrm.common.BusinessException("非法的数据范围取值: " + scope);
+        }
+        // 【P1-4 2026-11-15】保存期校验: 避免“配置成功但运行期恒空”的死范围
+        validateRoleScopeForSave(assigneeType, assigneeKey, scope);
+    }
+
+    private void validateUserAncestorScope(String assigneeKey, String scope) {
+        // 【WP1.3 2026-11-13 fail-closed】USER 级 region/office 档写入面拦截:
+        // 目标用户任职组织无对应 dept_type 祖先(大区=2/办事处=3)时拒绝配置(400)——
+        // 否则运行时解析 fail-closed 返回空集, 勾了等于没勾("配置成功但不生效"体验)
+        int wantType = LIT_REGION.equals(scope) ? 2 : 3;
+        if (!userHasAncestorOfType(assigneeKey, wantType)) {
+            throw new com.aigicrm.common.BusinessException(400, wantType == 2
+                    ? "该用户不在任何大区下，无法配置“本大区”范围"
+                    : "该用户不在任何办事处下，无法配置“本办事处”范围");
+        }
+    }
+
+    private String readOldScope(String assigneeType, String assigneeKey, Object module, Object action) {
+        String oldScope = null;
+        for (var row : jdbc.queryForList(
+                "SELECT scope_level, anchor FROM role_perm_scope WHERE assignee_type=? AND assignee_key=? AND module=? AND action=?",
+                assigneeType, assigneeKey, module.toString(), action.toString())) {
+            oldScope = row.get(LIT_SCOPE_LEVEL) + "/" + row.get(LIT_ANCHOR);
+        }
+        return oldScope;
     }
 
     // ==================== 【WP8 双写 2026-11-13】旧表保存同步写 sys_perm_grant ====================
