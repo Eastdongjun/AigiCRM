@@ -840,23 +840,71 @@ public class StatisticsQueryService {
      * 【方法】按年/办事处条件查询并聚合；officeId 筛选时所有统计同步收窄
      */
     public Map<String, Object> analysis(int year, Long officeId, Long deptId) {
-        if (year == 0) year = LocalDate.now().getYear();
+        final int finalYear = (year == 0) ? LocalDate.now().getYear() : year;
         Map<String, Object> data = new HashMap<>();
 
+        data.put("monthlyCustomers", monthlyCustomerCounts(finalYear, officeId, deptId));
+        data.put("monthlyFiles", monthlyFileCounts(finalYear));
+        data.put("officeComparison", buildOfficeComparison(visibleOfficeIdsForCompare()));
+
+        LocalDate today = LocalDate.now();
+        LocalDateTime yearStart = LocalDateTime.of(finalYear, 1, 1, 0, 0);
+        LocalDateTime yearEnd = LocalDateTime.of(finalYear + 1, 1, 1, 0, 0);
+        data.put("totalCustomers", customerMapper.selectCount(scopedCustomerQuery(officeId, deptId)));
+        data.put("inProtection", customerMapper.selectCount(
+                scopedCustomerQuery(officeId, deptId).eq(BizCustomer::getProtectionStatus, "active")));
+        data.put(LIT_EXPIRING, customerMapper.selectCount(
+                scopedCustomerQuery(officeId, deptId).eq(BizCustomer::getProtectionStatus, LIT_EXPIRING)));
+        data.put("expired", customerMapper.selectCount(
+                scopedCustomerQuery(officeId, deptId).lt(BizCustomer::getExpireDate, today)));
+        long todayExpiring = customerMapper.selectCount(
+                scopedCustomerQuery(officeId, deptId).eq(BizCustomer::getExpireDate, today));
+        data.put("todayExpiring", todayExpiring);
+        data.put("yearNew", customerMapper.selectCount(
+                scopedCustomerQuery(officeId, deptId)
+                        .ge(BizCustomer::getCreatedAt, yearStart).lt(BizCustomer::getCreatedAt, yearEnd)));
+        data.put("industryStats", industryStats(officeId, deptId));
+        return data;
+    }
+
+    /** 【B5 2026-09-22】统计统一口径基座：deleted=0 且排除 sea/archived。 */
+    private LambdaQueryWrapper<BizCustomer> baseCustomerQuery() {
+        return new LambdaQueryWrapper<BizCustomer>()
+                .eq(BizCustomer::getDeleted, 0)
+                .notIn(BizCustomer::getStatus, "sea", LIT_ARCHIVED);
+    }
+
+    /** 办事处/部门筛选：deptId 优先展开子树，其次 officeId 等值。 */
+    private void applyOfficeScope(LambdaQueryWrapper<BizCustomer> w, Long officeId, Long deptId) {
+        if (deptId != null) {
+            w.in(BizCustomer::getOfficeId, com.aigicrm.common.util.DeptTreeUtils.expandSubtree(deptMapper, deptId));
+        } else if (officeId != null) {
+            w.eq(BizCustomer::getOfficeId, officeId);
+        }
+    }
+
+    private LambdaQueryWrapper<BizCustomer> scopedCustomerQuery(Long officeId, Long deptId) {
+        LambdaQueryWrapper<BizCustomer> w = baseCustomerQuery();
+        applyOfficeScope(w, officeId, deptId);
+        applyCustomerScope(w);
+        return w;
+    }
+
+    private int[] monthlyCustomerCounts(int year, Long officeId, Long deptId) {
         int[] monthlyCustomers = new int[12];
         for (int m = 1; m <= 12; m++) {
             LocalDateTime from = LocalDateTime.of(year, m, 1, 0, 0);
             LocalDateTime to = (m < 12) ? LocalDateTime.of(year, m + 1, 1, 0, 0) : LocalDateTime.of(year + 1, 1, 1, 0, 0);
-            LambdaQueryWrapper<BizCustomer> cw = new LambdaQueryWrapper<>();
-            cw.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", LIT_ARCHIVED) // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
-              .ge(BizCustomer::getCreatedAt, from).lt(BizCustomer::getCreatedAt, to);
-            if (deptId != null) cw.in(BizCustomer::getOfficeId, com.aigicrm.common.util.DeptTreeUtils.expandSubtree(deptMapper, deptId));
-            else if (officeId != null) cw.eq(BizCustomer::getOfficeId, officeId);
+            LambdaQueryWrapper<BizCustomer> cw = baseCustomerQuery()
+                    .ge(BizCustomer::getCreatedAt, from).lt(BizCustomer::getCreatedAt, to);
+            applyOfficeScope(cw, officeId, deptId);
             applyCustomerScope(cw);
             monthlyCustomers[m - 1] = customerMapper.selectCount(cw).intValue();
         }
-        data.put("monthlyCustomers", monthlyCustomers);
+        return monthlyCustomers;
+    }
 
+    private int[] monthlyFileCounts(int year) {
         int[] monthlyFiles = new int[12];
         for (int m = 1; m <= 12; m++) {
             LocalDateTime from = LocalDateTime.of(year, m, 1, 0, 0);
@@ -866,161 +914,106 @@ public class StatisticsQueryService {
             applyFileScope(fw);
             monthlyFiles[m - 1] = fileMapper.selectCount(fw).intValue();
         }
-        data.put("monthlyFiles", monthlyFiles);
+        return monthlyFiles;
+    }
 
-        List<Map<String, Object>> officeComparison = new ArrayList<>();
+    /** 【WP1.5 2026-11-13】对比列表可见办事处集；null=全量（范围外办事处靠 total==0 跳过）。 */
+    private java.util.Set<Long> visibleOfficeIdsForCompare() {
+        List<Long> visOwners = customerVisibilityService.visibleOwnerIds();
+        if (visOwners == null) return null;
+        java.util.Set<Long> visibleOfficeIds = new java.util.HashSet<>();
+        if (visOwners.isEmpty()) return visibleOfficeIds;
+        LambdaQueryWrapper<BizCustomer> vwc = new LambdaQueryWrapper<>();
+        vwc.eq(BizCustomer::getDeleted, 0)
+           .notIn(BizCustomer::getStatus, "sea", LIT_ARCHIVED)
+           .isNotNull(BizCustomer::getOfficeId)
+           .in(BizCustomer::getOwnerId, visOwners);
+        for (BizCustomer vc : customerMapper.selectList(vwc)) {
+            visibleOfficeIds.add(vc.getOfficeId());
+        }
+        return visibleOfficeIds;
+    }
+
+    private List<Map<String, Object>> buildOfficeComparison(java.util.Set<Long> visibleOfficeIds) {
         var allDepts = deptMapper.selectList(
                 new LambdaQueryWrapper<SysDept>()
                         .eq(SysDept::getDeptType, 3));
         // 【WP1.5 2026-11-13】办事处列表先按可见范围过滤(customer:view): 范围外办事处不再进入对比循环
         // (此前靠 total==0 跳过, 范围外每处白跑 3 条 count; 输出口径不变, 只列有可见客户的办事处)
-        java.util.Set<Long> visibleOfficeIds = null;
-        {
-            List<Long> visOwners = customerVisibilityService.visibleOwnerIds();
-            if (visOwners != null) {
-                visibleOfficeIds = new java.util.HashSet<>();
-                if (!visOwners.isEmpty()) {
-                    LambdaQueryWrapper<BizCustomer> vwc = new LambdaQueryWrapper<>();
-                    vwc.eq(BizCustomer::getDeleted, 0)
-                       .notIn(BizCustomer::getStatus, "sea", LIT_ARCHIVED)
-                       .isNotNull(BizCustomer::getOfficeId)
-                       .in(BizCustomer::getOwnerId, visOwners);
-                    for (BizCustomer vc : customerMapper.selectList(vwc)) {
-                        visibleOfficeIds.add(vc.getOfficeId());
-                    }
-                }
-            }
-        }
-        LocalDateTime monthStart = LocalDate.now().withDayOfMonth(1).atStartOfDay();
+        List<Map<String, Object>> officeComparison = new ArrayList<>();
         for (var dept : allDepts) {
-            if (visibleOfficeIds != null && !visibleOfficeIds.contains(dept.getId())) continue; // 【WP1.5】范围外办事处不入列表
-            LambdaQueryWrapper<BizCustomer> w = new LambdaQueryWrapper<>();
-            w.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", LIT_ARCHIVED) // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
-             .eq(BizCustomer::getOfficeId, dept.getId());
-            applyCustomerScope(w);
-            long total = customerMapper.selectCount(w);
-            if (total == 0) continue;
-
-            LambdaQueryWrapper<BizCustomer> aw = new LambdaQueryWrapper<>();
-            // 【体检 P1 2026-10-12】活跃率分子补 notIn(sea/archived)与分母/同方法 inProtection 对齐:
-            // 归档不清 protectionStatus, 不排时分子可含归档客户(虚高, 极端时 >100%)
-            aw.eq(BizCustomer::getDeleted, 0).eq(BizCustomer::getProtectionStatus, "active")
-              .notIn(BizCustomer::getStatus, "sea", LIT_ARCHIVED)
-              .eq(BizCustomer::getOfficeId, dept.getId());
-            applyCustomerScope(aw);
-            long active = customerMapper.selectCount(aw);
-
-            LambdaQueryWrapper<BizCustomer> nw = new LambdaQueryWrapper<>();
-            nw.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", LIT_ARCHIVED) // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
-              .eq(BizCustomer::getOfficeId, dept.getId())
-              .ge(BizCustomer::getCreatedAt, monthStart);
-            applyCustomerScope(nw);
-            long monthNew = customerMapper.selectCount(nw);
-
-            int[] recent5 = new int[5];
-            for (int i = 4; i >= 0; i--) {
-                LocalDate md = LocalDate.now().minusMonths(i).withDayOfMonth(1);
-                LocalDateTime mf = md.atStartOfDay();
-                LocalDateTime mt = md.plusMonths(1).atStartOfDay();
-                LambdaQueryWrapper<BizCustomer> rw = new LambdaQueryWrapper<>();
-                rw.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", LIT_ARCHIVED) // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
-                  .eq(BizCustomer::getOfficeId, dept.getId())
-                  .ge(BizCustomer::getCreatedAt, mf).lt(BizCustomer::getCreatedAt, mt);
-                applyCustomerScope(rw);
-                recent5[4 - i] = customerMapper.selectCount(rw).intValue();
+            if (visibleOfficeIds == null || visibleOfficeIds.contains(dept.getId())) {
+                Map<String, Object> row = buildOfficeRow(dept.getId(), dept.getDeptName());
+                if (row != null) officeComparison.add(row);
             }
-
-            Map<String, Object> row = new LinkedHashMap<>();
-            row.put("officeName", dept.getDeptName());
-            row.put(LIT_CUSTOMERCOUNT, total);
-            row.put("monthNew", monthNew);
-            row.put("activeRate", total > 0 ? Math.round(active * 1000.0 / total) / 10.0 : 0);
-            row.put("recent5", recent5);
-            officeComparison.add(row);
         }
         officeComparison.sort((a, b) -> Long.compare((long) b.get(LIT_CUSTOMERCOUNT), (long) a.get(LIT_CUSTOMERCOUNT)));
-        data.put("officeComparison", officeComparison);
+        return officeComparison;
+    }
 
-        LocalDate today = LocalDate.now();
-        LambdaQueryWrapper<BizCustomer> baseW = new LambdaQueryWrapper<BizCustomer>()
-                .eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", LIT_ARCHIVED); // B5 统一口径: 排sea+archived
-        if (deptId != null) baseW.in(BizCustomer::getOfficeId, com.aigicrm.common.util.DeptTreeUtils.expandSubtree(deptMapper, deptId));
-        else if (officeId != null) baseW.eq(BizCustomer::getOfficeId, officeId);
-        applyCustomerScope(baseW);
-        long totalCustomers = customerMapper.selectCount(baseW);
+    private Map<String, Object> buildOfficeRow(Long deptId, String deptName) {
+        LambdaQueryWrapper<BizCustomer> w = baseCustomerQuery().eq(BizCustomer::getOfficeId, deptId);
+        applyCustomerScope(w);
+        long total = customerMapper.selectCount(w);
+        if (total == 0) return null;
 
-        LambdaQueryWrapper<BizCustomer> protW = new LambdaQueryWrapper<BizCustomer>()
-                .eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", LIT_ARCHIVED) // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
-                .eq(BizCustomer::getProtectionStatus, "active");
-        if (deptId != null) protW.in(BizCustomer::getOfficeId,
-                com.aigicrm.common.util.DeptTreeUtils.expandSubtree(deptMapper, deptId));
-        else if (officeId != null) protW.eq(BizCustomer::getOfficeId, officeId);
-        applyCustomerScope(protW);
-        long inProtection = customerMapper.selectCount(protW);
+        long active = countActive(deptId);
+        long monthNew = countMonthNew(deptId);
+        int[] recent5 = recent5Counts(deptId);
 
-        LambdaQueryWrapper<BizCustomer> expingW = new LambdaQueryWrapper<BizCustomer>()
-                .eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", LIT_ARCHIVED) // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
-                .eq(BizCustomer::getProtectionStatus, LIT_EXPIRING);
-        if (deptId != null) expingW.in(BizCustomer::getOfficeId,
-                com.aigicrm.common.util.DeptTreeUtils.expandSubtree(deptMapper, deptId));
-        else if (officeId != null) expingW.eq(BizCustomer::getOfficeId, officeId);
-        applyCustomerScope(expingW);
-        long expiring = customerMapper.selectCount(expingW);
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("officeName", deptName);
+        row.put(LIT_CUSTOMERCOUNT, total);
+        row.put("monthNew", monthNew);
+        row.put("activeRate", Math.round(active * 1000.0 / total) / 10.0);
+        row.put("recent5", recent5);
+        return row;
+    }
 
-        LambdaQueryWrapper<BizCustomer> expW = new LambdaQueryWrapper<BizCustomer>()
-                .eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", LIT_ARCHIVED) // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
-                .lt(BizCustomer::getExpireDate, today);
-        if (deptId != null) expW.in(BizCustomer::getOfficeId,
-                com.aigicrm.common.util.DeptTreeUtils.expandSubtree(deptMapper, deptId));
-        else if (officeId != null) expW.eq(BizCustomer::getOfficeId, officeId);
-        applyCustomerScope(expW);
-        long expired = customerMapper.selectCount(expW);
+    private long countActive(Long deptId) {
+        // 【体检 P1 2026-10-12】活跃率分子补 notIn(sea/archived)与分母/同方法 inProtection 对齐:
+        // 归档不清 protectionStatus, 不排时分子可含归档客户(虚高, 极端时 >100%)
+        LambdaQueryWrapper<BizCustomer> aw = baseCustomerQuery()
+                .eq(BizCustomer::getProtectionStatus, "active")
+                .eq(BizCustomer::getOfficeId, deptId);
+        applyCustomerScope(aw);
+        return customerMapper.selectCount(aw);
+    }
 
-        LambdaQueryWrapper<BizCustomer> todayExpiringW = new LambdaQueryWrapper<BizCustomer>()
-                .eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", LIT_ARCHIVED) // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
-                .eq(BizCustomer::getExpireDate, today);
-        if (deptId != null) todayExpiringW.in(BizCustomer::getOfficeId,
-                com.aigicrm.common.util.DeptTreeUtils.expandSubtree(deptMapper, deptId));
-        else if (officeId != null) todayExpiringW.eq(BizCustomer::getOfficeId, officeId);
-        applyCustomerScope(todayExpiringW);
-        long todayExpiring = customerMapper.selectCount(todayExpiringW);
+    private long countMonthNew(Long deptId) {
+        LocalDateTime monthStart = LocalDate.now().withDayOfMonth(1).atStartOfDay();
+        LambdaQueryWrapper<BizCustomer> nw = baseCustomerQuery()
+                .eq(BizCustomer::getOfficeId, deptId)
+                .ge(BizCustomer::getCreatedAt, monthStart);
+        applyCustomerScope(nw);
+        return customerMapper.selectCount(nw);
+    }
 
-        final int finalYear = year;
-        LocalDateTime yearStart = LocalDateTime.of(finalYear, 1, 1, 0, 0);
-        LocalDateTime yearEnd = LocalDateTime.of(finalYear + 1, 1, 1, 0, 0);
-        LambdaQueryWrapper<BizCustomer> newW = new LambdaQueryWrapper<BizCustomer>()
-                .eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", LIT_ARCHIVED) // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
-                .ge(BizCustomer::getCreatedAt, yearStart).lt(BizCustomer::getCreatedAt, yearEnd);
-        if (deptId != null) newW.in(BizCustomer::getOfficeId,
-                com.aigicrm.common.util.DeptTreeUtils.expandSubtree(deptMapper, deptId));
-        else if (officeId != null) newW.eq(BizCustomer::getOfficeId, officeId);
-        applyCustomerScope(newW);
-        long yearNew = customerMapper.selectCount(newW);
-
-        LambdaQueryWrapper<BizCustomer> indW = new LambdaQueryWrapper<BizCustomer>()
-                .eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", LIT_ARCHIVED) // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)
-                .isNotNull(BizCustomer::getIndustry);
-        if (deptId != null) indW.in(BizCustomer::getOfficeId,
-                com.aigicrm.common.util.DeptTreeUtils.expandSubtree(deptMapper, deptId));
-        else if (officeId != null) indW.eq(BizCustomer::getOfficeId, officeId);
-        applyCustomerScope(indW);
-        List<BizCustomer> indCustomers = customerMapper.selectList(indW);
-        Map<String, Long> industryStats = new LinkedHashMap<>();
-        for (BizCustomer c : indCustomers) {
-            // 行业为空不参与分布统计(待用户补全后自动计入), 图表不显示"未填写"
-            if (c.getIndustry() == null || c.getIndustry().isBlank()) continue;
-            industryStats.merge(c.getIndustry().trim(), 1L, Long::sum);
+    private int[] recent5Counts(Long deptId) {
+        int[] recent5 = new int[5];
+        for (int i = 4; i >= 0; i--) {
+            LocalDate md = LocalDate.now().minusMonths(i).withDayOfMonth(1);
+            LambdaQueryWrapper<BizCustomer> rw = baseCustomerQuery()
+                    .eq(BizCustomer::getOfficeId, deptId)
+                    .ge(BizCustomer::getCreatedAt, md.atStartOfDay())
+                    .lt(BizCustomer::getCreatedAt, md.plusMonths(1).atStartOfDay());
+            applyCustomerScope(rw);
+            recent5[4 - i] = customerMapper.selectCount(rw).intValue();
         }
-        data.put("industryStats", industryStats);
+        return recent5;
+    }
 
-        data.put("totalCustomers", totalCustomers);
-        data.put("inProtection", inProtection);
-        data.put(LIT_EXPIRING, expiring);
-        data.put("expired", expired);
-        data.put("todayExpiring", todayExpiring);
-        data.put("yearNew", yearNew);
-
-        return data;
+    private Map<String, Long> industryStats(Long officeId, Long deptId) {
+        LambdaQueryWrapper<BizCustomer> indW = scopedCustomerQuery(officeId, deptId)
+                .isNotNull(BizCustomer::getIndustry);
+        Map<String, Long> industryStats = new LinkedHashMap<>();
+        for (BizCustomer c : customerMapper.selectList(indW)) {
+            // 行业为空不参与分布统计(待用户补全后自动计入), 图表不显示"未填写"
+            if (c.getIndustry() != null && !c.getIndustry().isBlank()) {
+                industryStats.merge(c.getIndustry().trim(), 1L, Long::sum);
+            }
+        }
+        return industryStats;
     }
 
     /**

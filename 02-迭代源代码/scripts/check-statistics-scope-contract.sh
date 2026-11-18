@@ -46,12 +46,20 @@ if not re.search(r"customerService\.countExpiringTodayByScope\(\)", dashboard_im
 print("PASS: dashboard today-expiring count uses scope-aware service")
 
 analysis = method_body("analysis")
-if not re.search(r"todayExpiringW", analysis) or not re.search(r'data\.put\("todayExpiring", todayExpiring\)', analysis):
+# 【P0-5 B-java23 2026-11-18】analysis 拆分后各统计计数统一走 scopedCustomerQuery(officeId, deptId)；
+# 钉随语义不变：今日到期计数必须经该作用域查询构造，不得退化为无条件 count。
+if not re.search(
+        r'long todayExpiring = customerMapper\.selectCount\(\s*scopedCustomerQuery\(officeId, deptId\)',
+        analysis, re.S) or not re.search(r'data\.put\("todayExpiring", todayExpiring\)', analysis):
     raise SystemExit("FAIL: analysis today-expiring count must honor analysis filters")
 print("PASS: analysis today-expiring count honors analysis filters")
-dept_tree_filters = len(re.findall(r"if \(deptId != null\).*?expandSubtree\(deptMapper, deptId\)", analysis, re.S))
-if dept_tree_filters < 5:
-    raise SystemExit("FAIL: analysis customer summaries do not consistently apply department subtree filters")
+# 六个存量计数 + industryStats 共 7 处 scope 查询；下限 6 防退化
+scoped_calls = len(re.findall(r"scopedCustomerQuery\(officeId, deptId\)", analysis))
+if scoped_calls < 6:
+    raise SystemExit("FAIL: analysis customer summaries do not consistently apply office/dept/customer scopes")
+office_scope = method_body("applyOfficeScope")
+if not re.search(r"if \(deptId != null\)", office_scope) or "expandSubtree(deptMapper, deptId)" not in office_scope:
+    raise SystemExit("FAIL: applyOfficeScope must keep department subtree expansion")
 print("PASS: analysis customer summaries apply department subtree filters")
 
 daily = method_body("dailyStats")

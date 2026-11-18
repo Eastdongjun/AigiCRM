@@ -260,148 +260,33 @@ public class ApprovalService {
     @Transactional
     public void submit(String type, Long customerId, String actionAfterApprove, String extraData) {
         Long applicantId = SecurityUtils.getCurrentUserId();
-
         // 【D1=A 2026-10-18】类型白名单: 未知类型 400, 防落"永远无法执行"的脏单
-        type = type == null ? null : type.trim();
-        if (type == null || !SUPPORTED_APPROVAL_TYPES.contains(type)) {
-            throw new BusinessException(400, "不支持的审批类型: " + type);
-        }
+        type = normalizeApprovalType(type);
 
         // 【D1=A 存储空间】申请与客户无关: 忽略客户端 customerId;
         // 忽略客户端 oldQuota, 从库重新取当前配额后规范化 extraData
         // {"quota":new,"oldQuota":old,"reason":...} 落单(审批详情/执行侧单源读取)。
         if (LIT_STORAGE.equals(type)) {
-            StorageQuotaRequest request = parseStorageQuotaRequest(extraData);
-            String reason = userService.validateStorageApplyReason(request.reason());
-            // 串行化同一申请人的并发提交: 在任何普通读(会建立 RR 快照)之前先锁用户行,
-            // 保证等锁返回后重新建立的快照能看到前一笔已提交的在途单, 避免并发落两张。
-            jdbc.queryForList("SELECT id FROM sys_user WHERE id = ? AND deleted = 0 FOR UPDATE",
-                    Long.class, applicantId);
-            SysUser current = userService.validateStorageQuotaRequest(applicantId, request.quota());
-            if (hasPendingStorageApply(applicantId)) {
-                throw new BusinessException("您已有进行中的存储空间申请，请等待审批完成后再提交");
-            }
-            extraData = buildStorageExtraData(request.quota(), current.getStorageQuota(), reason);
+            extraData = prepareStorageSubmit(applicantId, extraData);
             customerId = null;
         }
 
         // 公海捞取：检查是否已被他人申请
         if (LIT_CLAIM.equals(type) && customerId != null) {
-            BizSeaPool pool = seaPoolMapper.selectOne(
-                    new LambdaQueryWrapper<BizSeaPool>()
-                            .eq(BizSeaPool::getCustomerId, customerId)
-                            .in(BizSeaPool::getStatus, List.of(LIT_AVAILABLE, LIT_PENDING_APPROVAL))
-                            .orderByDesc(BizSeaPool::getEnterDate)
-                            .last("LIMIT 1")
-            );
-            if (pool == null) {
-                throw new BusinessException("该客户不在公海中");
-            }
-            // 【2026-08-10 池级权限】捞取权限按池判定(admin 恒有; 兼容存量 sea:claim 角色码)
-            if (!seaConfigService.hasPoolPerm(pool.getPoolId(), SeaConfigService.PERM_CLAIM, SecurityUtils.getCurrentUser())
-                    && !SecurityUtils.hasAuthority("sea:claim")) {
-                throw new BusinessException(403, "没有公海捞取权限");
-            }
-            // 可见范围校验：非 all 数据范围用户，必须可见该客户所在公海池，防止绕过前端捞取不可见池客户
-            if (!"all".equals(SecurityUtils.getCurrentDataScope())
-                    && (pool.getPoolId() == null || seaConfigService.listVisible().stream()
-                            .noneMatch(c -> c.getId().equals(pool.getPoolId())))) {
-                throw new BusinessException("您没有该公海池的可见权限，无法捞取");
-            }
-            if (LIT_PENDING_APPROVAL.equals(pool.getStatus())) {
-                throw new BusinessException("该客户已被他人申请捞取，正在审批中");
-            }
-            // 原子锁定：条件更新防止并发双捞（仅 status=available 可更新，affected==1 才成功）
-            // 【体检 H5 2026-10-12】锁定同时写入 claim_date——超时释放任务(CustomerExpireTask
-            // .releaseStaleClaimLocks)以 lt(claim_date, 截止) 筛超时行, 不写时间戳则 NULL 永不命中,
-            // 无人审批的锁永久 pending_approval 锁死池行(此前生产 0 行受害, 纯代码修复)
-            int locked = seaPoolMapper.update(null, new LambdaUpdateWrapper<BizSeaPool>()
-                    .set(BizSeaPool::getStatus, LIT_PENDING_APPROVAL)
-                    .set(BizSeaPool::getClaimUserId, applicantId)
-                    .set(BizSeaPool::getClaimDate, LocalDateTime.now())
-                    .eq(BizSeaPool::getId, pool.getId())
-                    .eq(BizSeaPool::getStatus, LIT_AVAILABLE));
-            if (locked != 1) {
-                throw new BusinessException("该客户已被他人申请捞取，正在审批中");
-            }
+            validateClaimSubmit(customerId, applicantId);
         }
 
-        // 【体检 P1 2026-10-12】公海守卫(提交侧): 池内客户禁止发起延期/转移——审批通过会把
-        // 客户拉回私海口径(延期直接 setStatus(normal)、转移盲改属主), 而池行仍 available 可被
-        // 他人再捞, 造成双归属。与编辑接口的池内禁改守卫(CustomerService)同防线, 此处补审批入口。
-        if ((LIT_EXTEND.equals(type) || LIT_TRANSFER.equals(type)) && customerId != null) {
-            BizCustomer guard = customerMapper.selectById(customerId);
-            if (guard != null && "sea".equals(guard.getStatus())) {
-                throw new BusinessException("客户已在公海池中，不能发起"
-                        + (LIT_EXTEND.equals(type) ? "保护期延期" : "客户转移") + "；请先捞取回私海再操作");
-            }
-            // 【P0 2026-10-16 体检修复】extend 提交侧归属校验: 发起人必须对该客户有查看权限
-            // (负责人/被分享/数据范围/公海池可见, 与详情页 canView 同链路)。
-            // 旧实现只拦"池内客户", 任何持 incentive:view 者可对无权限客户发起 +360 天延期,
-            // 审批人误批即生效(体检 P0-2 / 测试报告 M1)。
-            if (LIT_EXTEND.equals(type) && customerId != null) {
-                if (guard == null) {
-                    throw new BusinessException("客户不存在, 无法发起保护期延期");
-                }
-                if (!customerAccessService.canView(customerId)) {
-                    throw new BusinessException(403, "您没有该客户的查看权限, 无法发起保护期延期");
-                }
-                // 【审查 backend-3 2026-10-18】同一客户只允许一张在途延期单:
-                // 先对客户行加锁(事务内)串行化并发提交, 再数 reviewing/pending 单据;
-                // 否则双击/并发可落两张单, 审批通过时同一天数会累加两次。
-                jdbc.queryForList("SELECT id FROM biz_customer WHERE id = ? AND deleted = 0 FOR UPDATE",
-                        Long.class, customerId);
-                Long activeExtend = approvalMapper.selectCount(
-                        new LambdaQueryWrapper<BizApproval>()
-                                .eq(BizApproval::getCustomerId, customerId)
-                                .eq(BizApproval::getApprovalType, LIT_EXTEND)
-                                .in(BizApproval::getStatus, LIT_REVIEWING, LIT_PENDING));
-                if (activeExtend != null && activeExtend > 0) {
-                    throw new BusinessException("该客户已有进行中的保护期延期审批，请等待审批完成后再提交");
-                }
-            }
-            // 【P0 2026-10-17 体检修复】transfer 提交侧归属校验见下方接收人校验之后
-            // (先报接收人错误, 再做客户归属校验, 保持既有错误口径)
-        }
+        // 【体检 P1 2026-10-12】公海守卫(提交侧): 池内客户禁止发起延期/转移
+        validateCustomerGuard(type, customerId);
 
-        // 【2026-09-23 转移校验前移】接收人有效性+集团边界原先只在审批通过时校验(applyApprovalAction),
-        // 接收人失效(停用/删除/跨集团)时错误在审批人端爆发、发起人无感知——单据永远无法生效却显示"已提交"。
-        // 前移到提交时 fail-fast,校验口径与审批执行侧逐字一致(消息复用);审批执行侧校验保留作最终防线。
+        // 【2026-09-23 转移校验前移】接收人有效性+集团边界+归属校验前移到提交时 fail-fast
         if (LIT_TRANSFER.equals(type)) {
-            if (customerId == null) throw new BusinessException("转移必须指定客户");
-            Long newOwnerId = parseTransferNewOwner(extraData);
-            SysUser newOwner = userMapper.selectById(newOwnerId);
-            if (newOwner == null || newOwner.getStatus() == null || newOwner.getStatus() != 1
-                    || (newOwner.getDeleted() != null && newOwner.getDeleted() == 1)) {
-                throw new BusinessException("接收人不存在或已停用,转移失败;请转交后重试");
-            }
-            Long sessionGroup = com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull();
-            if (sessionGroup != null) {
-                List<Long> groupMembers = com.aigicrm.common.scope.GroupScopeUtil
-                        .userIdsInGroup(jdbc, sessionGroup);
-                if (!groupMembers.contains(newOwnerId)) {
-                    throw new BusinessException("接收人不在当前集团");
-                }
-            }
-            // 【P0 2026-10-17 体检修复】transfer 提交侧归属校验(与 extend 同口径):
-            // 发起人必须能查看该客户; 客户不存在直接拒绝。放在接收人校验之后, 保持既有错误优先级。
-            BizCustomer transferGuard = customerMapper.selectById(customerId);
-            if (transferGuard == null) {
-                throw new BusinessException("客户不存在, 无法发起客户转移");
-            }
-            if (!customerAccessService.canView(customerId)) {
-                throw new BusinessException(403, "您没有该客户的查看权限, 无法发起客户转移");
-            }
+            validateTransferSubmit(customerId, extraData);
         }
 
-        // 【延期B 2026-10-17 用户裁决】天数进审批单:提交时把申请天数快照进 extraData(审批人可见、
-        // 审批通过前可调整,approve 侧 extendDays 参数覆盖此值)。默认取 sys_config
-        // customer.extend.days;申请人显式传 extendDays 时校验 1~3650 后采用。存量/未带天数的
-        // 在途单由执行侧回退 sys_config,兼容 2026-10-17 前发起的单据。
+        // 【延期B 2026-10-17 用户裁决】天数进审批单:提交时把申请天数快照进 extraData
         if (LIT_EXTEND.equals(type)) {
-            Integer requestedDays = extractExtendDaysOrNull(extraData);
-            int days = requestedDays != null ? requestedDays : getConfigInt("customer.extend.days", 360);
-            extraData = mergeExtraDataField(extraData, LIT_EXTENDDAYS, days);
+            extraData = snapshotExtendDays(extraData);
         }
 
         String prefix = "P" + Year.now().getValue() + "-";
@@ -419,74 +304,166 @@ public class ApprovalService {
         // (死锁刻意不捕获: InnoDB 死锁回滚整个事务, 事务内重试会造成部分提交)。
         insertWithCodeGenerationRetry(approval, prefix);
 
+        instantiateApprovalNodes(approval, type);
+        approvalMapper.updateById(approval);
+    }
+
+    private static String normalizeApprovalType(String type) {
+        String normalized = type == null ? null : type.trim();
+        if (normalized == null || !SUPPORTED_APPROVAL_TYPES.contains(normalized)) {
+            throw new BusinessException(400, "不支持的审批类型: " + normalized);
+        }
+        return normalized;
+    }
+
+    /** 存储空间申请提交：锁申请人行→校验配额/在途单→规范化 extraData（客户置空由调用方处理）。 */
+    private String prepareStorageSubmit(Long applicantId, String extraData) {
+        StorageQuotaRequest request = parseStorageQuotaRequest(extraData);
+        String reason = userService.validateStorageApplyReason(request.reason());
+        // 串行化同一申请人的并发提交: 在任何普通读(会建立 RR 快照)之前先锁用户行,
+        // 保证等锁返回后重新建立的快照能看到前一笔已提交的在途单, 避免并发落两张。
+        jdbc.queryForList("SELECT id FROM sys_user WHERE id = ? AND deleted = 0 FOR UPDATE",
+                Long.class, applicantId);
+        SysUser current = userService.validateStorageQuotaRequest(applicantId, request.quota());
+        if (hasPendingStorageApply(applicantId)) {
+            throw new BusinessException("您已有进行中的存储空间申请，请等待审批完成后再提交");
+        }
+        return buildStorageExtraData(request.quota(), current.getStorageQuota(), reason);
+    }
+
+    /** 公海捞取提交校验：池行、池级权限、可见范围、在途单，最后原子条件更新锁池。 */
+    private void validateClaimSubmit(Long customerId, Long applicantId) {
+        BizSeaPool pool = seaPoolMapper.selectOne(
+                new LambdaQueryWrapper<BizSeaPool>()
+                        .eq(BizSeaPool::getCustomerId, customerId)
+                        .in(BizSeaPool::getStatus, List.of(LIT_AVAILABLE, LIT_PENDING_APPROVAL))
+                        .orderByDesc(BizSeaPool::getEnterDate)
+                        .last("LIMIT 1")
+        );
+        if (pool == null) {
+            throw new BusinessException("该客户不在公海中");
+        }
+        // 【2026-08-10 池级权限】捞取权限按池判定(admin 恒有; 兼容存量 sea:claim 角色码)
+        if (!seaConfigService.hasPoolPerm(pool.getPoolId(), SeaConfigService.PERM_CLAIM, SecurityUtils.getCurrentUser())
+                && !SecurityUtils.hasAuthority("sea:claim")) {
+            throw new BusinessException(403, "没有公海捞取权限");
+        }
+        // 可见范围校验：非 all 数据范围用户，必须可见该客户所在公海池，防止绕过前端捞取不可见池客户
+        if (!"all".equals(SecurityUtils.getCurrentDataScope())
+                && (pool.getPoolId() == null || seaConfigService.listVisible().stream()
+                        .noneMatch(c -> c.getId().equals(pool.getPoolId())))) {
+            throw new BusinessException("您没有该公海池的可见权限，无法捞取");
+        }
+        if (LIT_PENDING_APPROVAL.equals(pool.getStatus())) {
+            throw new BusinessException("该客户已被他人申请捞取，正在审批中");
+        }
+        // 原子锁定：条件更新防止并发双捞（仅 status=available 可更新，affected==1 才成功）
+        // 【体检 H5 2026-10-12】锁定同时写入 claim_date——超时释放任务(CustomerExpireTask
+        // .releaseStaleClaimLocks)以 lt(claim_date, 截止) 筛超时行, 不写时间戳则 NULL 永不命中,
+        // 无人审批的锁永久 pending_approval 锁死池行(此前生产 0 行受害, 纯代码修复)
+        int locked = seaPoolMapper.update(null, new LambdaUpdateWrapper<BizSeaPool>()
+                .set(BizSeaPool::getStatus, LIT_PENDING_APPROVAL)
+                .set(BizSeaPool::getClaimUserId, applicantId)
+                .set(BizSeaPool::getClaimDate, LocalDateTime.now())
+                .eq(BizSeaPool::getId, pool.getId())
+                .eq(BizSeaPool::getStatus, LIT_AVAILABLE));
+        if (locked != 1) {
+            throw new BusinessException("该客户已被他人申请捞取，正在审批中");
+        }
+    }
+
+    /** 延期/转移的池内客户守卫；延期再校验可见性与在途单（客户行锁串行化并发）。 */
+    private void validateCustomerGuard(String type, Long customerId) {
+        if (!(LIT_EXTEND.equals(type) || LIT_TRANSFER.equals(type)) || customerId == null) return;
+        // 【体检 P1 2026-10-12】池内客户禁止发起延期/转移——审批通过会把客户拉回私海口径
+        // (延期直接 setStatus(normal)、转移盲改属主), 而池行仍 available 可被他人再捞, 造成双归属。
+        BizCustomer guard = customerMapper.selectById(customerId);
+        if (guard != null && "sea".equals(guard.getStatus())) {
+            throw new BusinessException("客户已在公海池中，不能发起"
+                    + (LIT_EXTEND.equals(type) ? "保护期延期" : "客户转移") + "；请先捞取回私海再操作");
+        }
+        if (LIT_EXTEND.equals(type)) {
+            validateExtendSubmit(customerId, guard);
+        }
+    }
+
+    private void validateExtendSubmit(Long customerId, BizCustomer guard) {
+        // 【P0 2026-10-16 体检修复】extend 提交侧归属校验: 发起人必须对该客户有查看权限
+        // (负责人/被分享/数据范围/公海池可见, 与详情页 canView 同链路)。
+        // 旧实现只拦"池内客户", 任何持 incentive:view 者可对无权限客户发起 +360 天延期,
+        // 审批人误批即生效(体检 P0-2 / 测试报告 M1)。
+        if (guard == null) {
+            throw new BusinessException("客户不存在, 无法发起保护期延期");
+        }
+        if (!customerAccessService.canView(customerId)) {
+            throw new BusinessException(403, "您没有该客户的查看权限, 无法发起保护期延期");
+        }
+        // 【审查 backend-3 2026-10-18】同一客户只允许一张在途延期单:
+        // 先对客户行加锁(事务内)串行化并发提交, 再数 reviewing/pending 单据;
+        // 否则双击/并发可落两张单, 审批通过时同一天数会累加两次。
+        jdbc.queryForList("SELECT id FROM biz_customer WHERE id = ? AND deleted = 0 FOR UPDATE",
+                Long.class, customerId);
+        Long activeExtend = approvalMapper.selectCount(
+                new LambdaQueryWrapper<BizApproval>()
+                        .eq(BizApproval::getCustomerId, customerId)
+                        .eq(BizApproval::getApprovalType, LIT_EXTEND)
+                        .in(BizApproval::getStatus, LIT_REVIEWING, LIT_PENDING));
+        if (activeExtend != null && activeExtend > 0) {
+            throw new BusinessException("该客户已有进行中的保护期延期审批，请等待审批完成后再提交");
+        }
+    }
+
+    /** 【2026-09-23 转移校验前移】接收人有效性+集团边界+发起人归属校验，错误口径与审批执行侧一致。 */
+    private void validateTransferSubmit(Long customerId, String extraData) {
+        if (customerId == null) throw new BusinessException("转移必须指定客户");
+        Long newOwnerId = parseTransferNewOwner(extraData);
+        SysUser newOwner = userMapper.selectById(newOwnerId);
+        if (newOwner == null || newOwner.getStatus() == null || newOwner.getStatus() != 1
+                || (newOwner.getDeleted() != null && newOwner.getDeleted() == 1)) {
+            throw new BusinessException("接收人不存在或已停用,转移失败;请转交后重试");
+        }
+        Long sessionGroup = com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull();
+        if (sessionGroup != null) {
+            List<Long> groupMembers = com.aigicrm.common.scope.GroupScopeUtil
+                    .userIdsInGroup(jdbc, sessionGroup);
+            if (!groupMembers.contains(newOwnerId)) {
+                throw new BusinessException("接收人不在当前集团");
+            }
+        }
+        // 【P0 2026-10-17 体检修复】transfer 提交侧归属校验(与 extend 同口径):
+        // 发起人必须能查看该客户; 客户不存在直接拒绝。放在接收人校验之后, 保持既有错误优先级。
+        BizCustomer transferGuard = customerMapper.selectById(customerId);
+        if (transferGuard == null) {
+            throw new BusinessException("客户不存在, 无法发起客户转移");
+        }
+        if (!customerAccessService.canView(customerId)) {
+            throw new BusinessException(403, "您没有该客户的查看权限, 无法发起客户转移");
+        }
+    }
+
+    private String snapshotExtendDays(String extraData) {
+        // 【延期B 2026-10-17 用户裁决】天数进审批单:提交时把申请天数快照进 extraData(审批人可见、
+        // 审批通过前可调整,approve 侧 extendDays 参数覆盖此值)。默认取 sys_config
+        // customer.extend.days;申请人显式传 extendDays 时校验 1~3650 后采用。存量/未带天数的
+        // 在途单由执行侧回退 sys_config,兼容 2026-10-17 前发起的单据。
+        Integer requestedDays = extractExtendDaysOrNull(extraData);
+        int days = requestedDays != null ? requestedDays : getConfigInt("customer.extend.days", 360);
+        return mergeExtraDataField(extraData, LIT_EXTENDDAYS, days);
+    }
+
+    /** 节点实例化：优先管理员配置流程（BizApprovalConfig），否则旧版按角色+直属领导。 */
+    private void instantiateApprovalNodes(BizApproval approval, String type) {
         // 1. 优先查找管理员配置的审批流程（BizApprovalConfig，多行=串行阶段）
         Long activeConfigCount = approvalConfigMapper.selectCount(
                 new LambdaQueryWrapper<BizApprovalConfig>()
                         .eq(BizApprovalConfig::getFlowType, type)
                         .eq(BizApprovalConfig::getStatus, 1)
         );
-
         if (activeConfigCount != null && activeConfigCount > 0) {
-            // 【PR-02 2026-09-19】节点实例化收敛到 ApprovalConfigService.createNodes:
-            // 串行阶段(首阶段 pending、后续 waiting)+ 阶段内或签/会签(signMode 落节点)。
-            List<Long> approverUserIds = approvalConfigService.createNodes(approval.getId(), type);
-            if (approverUserIds.isEmpty()) {
-                // 【PR-02/PR-03 前置】配置了流程但解析不出任何有效审批人:拒绝提交并随事务回滚,
-                // 不产生无人可办的"审批中"假成功单据(完整提交预检属 PR-03,此处只堵串行引擎死锁)
-                throw new BusinessException("审批流程已配置但无有效审批人，请联系管理员检查流程配置");
-            }
-            BizApprovalConfig first = approvalConfigMapper.selectOne(
-                    new LambdaQueryWrapper<BizApprovalConfig>()
-                            .eq(BizApprovalConfig::getFlowType, type)
-                            .eq(BizApprovalConfig::getStatus, 1)
-                            .orderByAsc(BizApprovalConfig::getSortOrder)
-                            .last("LIMIT 1")
-            );
-            approval.setCurrentNode(first != null ? first.getFlowName() : "");
+            instantiateFromConfig(approval, type);
         } else {
             // 2. 兜底：旧版流程配置（BizApprovalFlow），按角色+直属领导
-            List<BizApprovalFlow> flows = approvalFlowMapper.selectList(
-                    new LambdaQueryWrapper<BizApprovalFlow>()
-                            .eq(BizApprovalFlow::getFlowType, type)
-                            .eq(BizApprovalFlow::getStatus, 1)
-                            .orderByAsc(BizApprovalFlow::getSortOrder)
-            );
-
-            SysUser applicant = userMapper.selectById(applicantId);
-            Long leaderId = findDirectLeader(applicant != null ? applicant.getDeptId() : null);
-
-            int createdNodes = 0;
-            for (BizApprovalFlow flow : flows) {
-                if (leaderId != null) {
-                    BizApprovalNode node = new BizApprovalNode();
-                    node.setApprovalId(approval.getId());
-                    node.setApproverId(leaderId);
-                    node.setNodeOrder(flow.getSortOrder());
-                    node.setStatus(LIT_PENDING);
-                    approvalNodeMapper.insert(node);
-                    createdNodes++;
-                } else {
-                    List<SysUserRole> userRoles = userRoleMapper.selectList(
-                            new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getRoleId, flow.getApproverRoleId())
-                    );
-                    for (SysUserRole ur : userRoles) {
-                        BizApprovalNode node = new BizApprovalNode();
-                        node.setApprovalId(approval.getId());
-                        node.setApproverId(ur.getUserId());
-                        node.setNodeOrder(flow.getSortOrder());
-                        node.setStatus(LIT_PENDING);
-                        approvalNodeMapper.insert(node);
-                        createdNodes++;
-                    }
-                }
-            }
-            // 【PR-03 2026-09-19 零审批人封堵】legacy 路径与配置路径同口径:解析不出任何节点
-            // 直接拒绝并随事务回滚(含公海锁定释放)——此前会静默落一张 reviewing 且零节点的
-            // 永久卡死单(诊断 F03"假成功单据")。
-            if (createdNodes == 0) {
-                throw new BusinessException("审批流程未配置或无有效审批人，请联系管理员配置后再提交");
-            }
-            approval.setCurrentNode(flows.isEmpty() ? "" : flows.get(0).getFlowName());
+            instantiateLegacyNodes(approval, type);
         }
         // 【L1 2026-10-12 测试报告】自审自批封堵(提交侧): 节点解析结果全部是申请人本人时,
         // 单据生而无人可审(本人被 approve 侧闸门拦、admin 非节点审批人 400)——直接拒绝提交并
@@ -495,10 +472,75 @@ public class ApprovalService {
         List<BizApprovalNode> created = approvalNodeMapper.selectList(
                 new LambdaQueryWrapper<BizApprovalNode>()
                         .eq(BizApprovalNode::getApprovalId, approval.getId()));
-        if (!created.isEmpty() && created.stream().allMatch(n -> applicantId.equals(n.getApproverId()))) {
+        if (!created.isEmpty() && created.stream().allMatch(n -> approval.getApplicantId().equals(n.getApproverId()))) {
             throw new BusinessException("审批流程解析出的审批人全部是申请人本人(自审自批已被禁止)，请联系管理员配置独立审批人后再提交");
         }
-        approvalMapper.updateById(approval);
+    }
+
+    private void instantiateFromConfig(BizApproval approval, String type) {
+        // 【PR-02 2026-09-19】节点实例化收敛到 ApprovalConfigService.createNodes:
+        // 串行阶段(首阶段 pending、后续 waiting)+ 阶段内或签/会签(signMode 落节点)。
+        List<Long> approverUserIds = approvalConfigService.createNodes(approval.getId(), type);
+        if (approverUserIds.isEmpty()) {
+            // 【PR-02/PR-03 前置】配置了流程但解析不出任何有效审批人:拒绝提交并随事务回滚,
+            // 不产生无人可办的"审批中"假成功单据(完整提交预检属 PR-03,此处只堵串行引擎死锁)
+            throw new BusinessException("审批流程已配置但无有效审批人，请联系管理员检查流程配置");
+        }
+        BizApprovalConfig first = approvalConfigMapper.selectOne(
+                new LambdaQueryWrapper<BizApprovalConfig>()
+                        .eq(BizApprovalConfig::getFlowType, type)
+                        .eq(BizApprovalConfig::getStatus, 1)
+                        .orderByAsc(BizApprovalConfig::getSortOrder)
+                        .last("LIMIT 1")
+        );
+        approval.setCurrentNode(first != null ? first.getFlowName() : "");
+    }
+
+    private void instantiateLegacyNodes(BizApproval approval, String type) {
+        List<BizApprovalFlow> flows = approvalFlowMapper.selectList(
+                new LambdaQueryWrapper<BizApprovalFlow>()
+                        .eq(BizApprovalFlow::getFlowType, type)
+                        .eq(BizApprovalFlow::getStatus, 1)
+                        .orderByAsc(BizApprovalFlow::getSortOrder)
+        );
+        SysUser applicant = userMapper.selectById(approval.getApplicantId());
+        Long leaderId = findDirectLeader(applicant != null ? applicant.getDeptId() : null);
+        int createdNodes = createLegacyNodes(approval.getId(), flows, leaderId);
+        // 【PR-03 2026-09-19 零审批人封堵】legacy 路径与配置路径同口径:解析不出任何节点
+        // 直接拒绝并随事务回滚(含公海锁定释放)——此前会静默落一张 reviewing 且零节点的
+        // 永久卡死单(诊断 F03"假成功单据")。
+        if (createdNodes == 0) {
+            throw new BusinessException("审批流程未配置或无有效审批人，请联系管理员配置后再提交");
+        }
+        approval.setCurrentNode(flows.isEmpty() ? "" : flows.get(0).getFlowName());
+    }
+
+    private int createLegacyNodes(Long approvalId, List<BizApprovalFlow> flows, Long leaderId) {
+        int createdNodes = 0;
+        for (BizApprovalFlow flow : flows) {
+            if (leaderId != null) {
+                insertApprovalNode(approvalId, leaderId, flow.getSortOrder());
+                createdNodes++;
+            } else {
+                List<SysUserRole> userRoles = userRoleMapper.selectList(
+                        new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getRoleId, flow.getApproverRoleId())
+                );
+                for (SysUserRole ur : userRoles) {
+                    insertApprovalNode(approvalId, ur.getUserId(), flow.getSortOrder());
+                    createdNodes++;
+                }
+            }
+        }
+        return createdNodes;
+    }
+
+    private void insertApprovalNode(Long approvalId, Long approverId, Integer sortOrder) {
+        BizApprovalNode node = new BizApprovalNode();
+        node.setApprovalId(approvalId);
+        node.setApproverId(approverId);
+        node.setNodeOrder(sortOrder);
+        node.setStatus(LIT_PENDING);
+        approvalNodeMapper.insert(node);
     }
 
     /** 【A3 2026-10-20】审批编号取号重试上限: 首次 + 2 次退让(并发提交常见为 2~3 方同抢一号) */
@@ -920,114 +962,130 @@ public class ApprovalService {
 
     private void executeApprovalAction(BizApproval approval) {
         switch (approval.getApprovalType()) {
-            case LIT_CLAIM -> {
-                // 公海捞取 - 通过后客户归属变更（completeClaim 内部按 customerId 定位公海行）
+            case LIT_CLAIM -> // 公海捞取 - 通过后客户归属变更（completeClaim 内部按 customerId 定位公海行）
                 seaService.completeClaim(approval.getCustomerId(), approval.getApplicantId());
-            }
-            case LIT_EXTEND -> {
-                // 【议题一裁决 2026-09-19 保护期决策表】延期天数走 sys_config(customer.extend.days,
-                // 管理员可改,与保护期同口径);approved_extend_days 累加后由统一公式重算到期日
-                // (=开票推导+累计已批延期)——删票回算开票部分不收回已批延期。
-                // 【延期B 2026-10-17】天数改从审批单 extraData.extendDays 读取(提交快照+审批人
-                // 可调整的最终值);2026-10-17 前的存量在途单无此键,回退 sys_config 保持旧行为。
-                // 【审查 backend-3 2026-10-18】客户行悲观锁后再读改写 approved_extend_days:
-                // 两张在途延期单并发通过时, 旧 selectById→内存加→updateById 会互相覆盖(少加天数);
-                // 锁内累加保证串行、每单只加一次。approve 为 @Transactional, 锁持有到提交。
-                BizCustomer customer = customerMapper.selectByIdForUpdate(approval.getCustomerId());
-                if (customer != null) {
-                    // 【体检 P1 2026-10-12】公海守卫(执行侧): 在途期间客户被释放进公海时,
-                    // 延期执行无条件 setStatus(normal) 会把客户拉回私海而池行残留——双归属。
-                    // 拒绝执行并随事务回滚(approve 是 @Transactional), 审批人应改走驳回。
-                    if ("sea".equals(customer.getStatus())) {
-                        throw new BusinessException("客户已进入公海，该延期审批不再适用；请驳回此单（捞取回私海后再发起）");
-                    }
-                    int extendDays = resolveExtendDays(approval);
-                    // 【2026-11-02 副本收敛】延期累加+到期日重算统一走 CustomerService.applyExtendApproval:
-                    // 原此处内联公式与 CustomerService.calculateExpireDates 为双副本(2026-10-09 公海死循环
-                    // 修复时两处同改的教训), 三线口径批(365/捞取180)收敛为单一来源。
-                    // 悲观锁语义不变: selectByIdForUpdate 的行锁在本 approve 事务内持有到提交,
-                    // applyExtendApproval 的读改写全部发生在锁内。
-                    java.time.LocalDate expireBefore = customer.getExpireDate();
-                    customerService.applyExtendApproval(customer, extendDays);
-                    // 【生命线 2026-11-02 裁决D】延期事件(操作人=批准人)
-                    customerEventService.record(customer.getId(),
-                            com.aigicrm.module.customer.service.CustomerEventService.TYPE_EXTEND,
-                            LocalDate.now(), "延期审批通过(+" + extendDays + " 天)",
-                            expireBefore != null ? expireBefore.toString() : null,
-                            customer.getExpireDate() != null ? customer.getExpireDate().toString() : null,
-                            SecurityUtils.getCurrentUserId());
-                }
-            }
-            case LIT_TRANSFER -> {
-                // 转移 - 负责人变更（解析失败必须显式报错，随事务回滚，不得静默成功）
-                // 【PR-09 2026-09-19 议题二/五裁决衔接】接收人有效性+集团边界+部门同步
-                if (approval.getExtraData() != null) {
-                    try {
-                        com.fasterxml.jackson.databind.ObjectMapper om = new com.fasterxml.jackson.databind.ObjectMapper();
-                        @SuppressWarnings("unchecked")
-                        Map<String, Object> data = om.readValue(approval.getExtraData(), Map.class);
-                        Long newOwnerId = Long.valueOf(data.get("newOwnerId").toString());
-                        BizCustomer customer = customerMapper.selectById(approval.getCustomerId());
-                        if (customer != null) {
-                            // 【体检 P1 2026-10-12】公海守卫(执行侧): 在途期间客户入海后, 转移执行
-                            // 直接改属主绕过"池内禁改属主"防线(编辑接口同款守卫见 CustomerService),
-                            // 且新负责人列表看不到 sea 客户、池行仍可被他人捞走属主被静默覆盖。
-                            if ("sea".equals(customer.getStatus())) {
-                                throw new BusinessException("客户已进入公海，该转移审批不再适用；请驳回此单（捞取回私海后再发起）");
-                            }
-                            // 【PR-09】接收人有效性:必须存在、启用、未删除
-                            SysUser newOwner = userMapper.selectById(newOwnerId);
-                            if (newOwner == null || newOwner.getStatus() == null || newOwner.getStatus() != 1
-                                    || (newOwner.getDeleted() != null && newOwner.getDeleted() == 1)) {
-                                throw new BusinessException("接收人不存在或已停用,转移失败;请转交后重试");
-                            }
-                            // 【PR-09】集团边界:接收人须与当前会话同集团
-                            Long sessionGroup = com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull();
-                            if (sessionGroup != null) {
-                                List<Long> groupMembers = com.aigicrm.common.scope.GroupScopeUtil
-                                        .userIdsInGroup(jdbc, sessionGroup);
-                                if (!groupMembers.contains(newOwnerId)) {
-                                    throw new BusinessException("接收人不在当前集团");
-                                }
-                            }
-                            customer.setOwnerId(newOwnerId);
-                            customer.setTransferDate(LocalDate.now());
-                            // 部门同步:客户归属部门=新负责人部门(与创建/编辑 persistCustomerDeptId 同口径)。
-                            // 【修复 2026-10-08 需求对齐】接收人无部门时必须显式清空——updateById 的
-                            // NOT_NULL 策略不写 null 字段,仅条件 set 会残留旧负责人部门,ORG 锚点
-                            // (biz_customer.dept_id)据此错误关联;2026-08-12 A3 已在创建/编辑路径补齐
-                            // 同款问题,本处为转移分支补齐。
-                            customerMapper.update(null, new LambdaUpdateWrapper<BizCustomer>()
-                                    .eq(BizCustomer::getId, customer.getId())
-                                    .set(BizCustomer::getOwnerId, newOwnerId)
-                                    .set(BizCustomer::getTransferDate, LocalDate.now())
-                                    .set(BizCustomer::getDeptId, newOwner.getDeptId()));
-                            // 【生命线 2026-11-02 裁决D】转移事件(变更前后=新旧负责人名)
-                            String oldOwnerName = null;
-                            SysUser oldOwner = customer.getOwnerId() != null
-                                    ? userMapper.selectById(customer.getOwnerId()) : null;
-                            if (oldOwner != null) oldOwnerName = oldOwner.getRealName();
-                            customerEventService.record(customer.getId(),
-                                    com.aigicrm.module.customer.service.CustomerEventService.TYPE_TRANSFERRED,
-                                    LocalDate.now(), "转移审批通过, 负责人变更",
-                                    oldOwnerName, newOwner.getRealName(),
-                                    SecurityUtils.getCurrentUserId());
-                        }
-                    } catch (BusinessException be) {
-                        throw be; // 业务校验失败直接透传(不走通用 catch 拼接)
-                    } catch (Exception e) {
-                        throw new BusinessException("审批通过后客户转移处理失败: " + e.getMessage());
-                    }
-                }
-            }
-            case LIT_STORAGE -> {
-                // 【D1=A 2026-10-18】存储空间配额调整: 执行侧从库锁行取当前值并做"只升不降"复核,
-                // 并发导致 newQuota<=current 时抛明确业务异常, approve 事务整体回滚(不得静默成功)。
-                StorageQuotaRequest request = parseStorageQuotaRequest(approval.getExtraData());
-                userService.applyStorageQuota(approval.getApplicantId(), request.quota(), approval.getId());
-            }
+            case LIT_EXTEND -> executeExtendAction(approval);
+            case LIT_TRANSFER -> executeTransferAction(approval);
+            case LIT_STORAGE -> executeStorageAction(approval);
             default -> { /* 未知审批类型：无动作 */ }
         }
+    }
+
+    /** 延期执行：客户行悲观锁内累加已批天数并重算到期日。 */
+    private void executeExtendAction(BizApproval approval) {
+        // 【议题一裁决 2026-09-19 保护期决策表】延期天数走 sys_config(customer.extend.days,
+        // 管理员可改,与保护期同口径);approved_extend_days 累加后由统一公式重算到期日
+        // (=开票推导+累计已批延期)——删票回算开票部分不收回已批延期。
+        // 【延期B 2026-10-17】天数改从审批单 extraData.extendDays 读取(提交快照+审批人
+        // 可调整的最终值);2026-10-17 前的存量在途单无此键,回退 sys_config 保持旧行为。
+        // 【审查 backend-3 2026-10-18】客户行悲观锁后再读改写 approved_extend_days:
+        // 两张在途延期单并发通过时, 旧 selectById→内存加→updateById 会互相覆盖(少加天数);
+        // 锁内累加保证串行、每单只加一次。approve 为 @Transactional, 锁持有到提交。
+        BizCustomer customer = customerMapper.selectByIdForUpdate(approval.getCustomerId());
+        if (customer == null) return;
+        // 【体检 P1 2026-10-12】公海守卫(执行侧): 在途期间客户被释放进公海时,
+        // 延期执行无条件 setStatus(normal) 会把客户拉回私海而池行残留——双归属。
+        // 拒绝执行并随事务回滚(approve 是 @Transactional), 审批人应改走驳回。
+        if ("sea".equals(customer.getStatus())) {
+            throw new BusinessException("客户已进入公海，该延期审批不再适用；请驳回此单（捞取回私海后再发起）");
+        }
+        int extendDays = resolveExtendDays(approval);
+        // 【2026-11-02 副本收敛】延期累加+到期日重算统一走 CustomerService.applyExtendApproval:
+        // 原此处内联公式与 CustomerService.calculateExpireDates 为双副本(2026-10-09 公海死循环
+        // 修复时两处同改的教训), 三线口径批(365/捞取180)收敛为单一来源。
+        // 悲观锁语义不变: selectByIdForUpdate 的行锁在本 approve 事务内持有到提交,
+        // applyExtendApproval 的读改写全部发生在锁内。
+        java.time.LocalDate expireBefore = customer.getExpireDate();
+        customerService.applyExtendApproval(customer, extendDays);
+        // 【生命线 2026-11-02 裁决D】延期事件(操作人=批准人)
+        customerEventService.record(customer.getId(),
+                com.aigicrm.module.customer.service.CustomerEventService.TYPE_EXTEND,
+                LocalDate.now(), "延期审批通过(+" + extendDays + " 天)",
+                expireBefore != null ? expireBefore.toString() : null,
+                customer.getExpireDate() != null ? customer.getExpireDate().toString() : null,
+                SecurityUtils.getCurrentUserId());
+    }
+
+    /** 转移执行：解析接收人→有效性/集团边界校验→改属主与部门→记录转移事件。 */
+    private void executeTransferAction(BizApproval approval) {
+        // 转移 - 负责人变更（解析失败必须显式报错，随事务回滚，不得静默成功）
+        if (approval.getExtraData() == null) return;
+        try {
+            Long newOwnerId = parseExecuteTransferOwner(approval.getExtraData());
+            BizCustomer customer = customerMapper.selectById(approval.getCustomerId());
+            if (customer != null) {
+                applyTransferChange(approval, customer, newOwnerId);
+            }
+        } catch (BusinessException be) {
+            throw be; // 业务校验失败直接透传(不走通用 catch 拼接)
+        } catch (Exception e) {
+            throw new BusinessException("审批通过后客户转移处理失败: " + e.getMessage());
+        }
+    }
+
+    private Long parseExecuteTransferOwner(String extraData) throws Exception {
+        com.fasterxml.jackson.databind.ObjectMapper om = new com.fasterxml.jackson.databind.ObjectMapper();
+        @SuppressWarnings("unchecked")
+        Map<String, Object> data = om.readValue(extraData, Map.class);
+        return Long.valueOf(data.get("newOwnerId").toString());
+    }
+
+    private void applyTransferChange(BizApproval approval, BizCustomer customer, Long newOwnerId) {
+        // 【体检 P1 2026-10-12】公海守卫(执行侧): 在途期间客户入海后, 转移执行
+        // 直接改属主绕过"池内禁改属主"防线(编辑接口同款守卫见 CustomerService),
+        // 且新负责人列表看不到 sea 客户、池行仍可被他人捞走属主被静默覆盖。
+        if ("sea".equals(customer.getStatus())) {
+            throw new BusinessException("客户已进入公海，该转移审批不再适用；请驳回此单（捞取回私海后再发起）");
+        }
+        // 【PR-09】接收人有效性:必须存在、启用、未删除
+        SysUser newOwner = userMapper.selectById(newOwnerId);
+        if (newOwner == null || newOwner.getStatus() == null || newOwner.getStatus() != 1
+                || (newOwner.getDeleted() != null && newOwner.getDeleted() == 1)) {
+            throw new BusinessException("接收人不存在或已停用,转移失败;请转交后重试");
+        }
+        // 【PR-09】集团边界:接收人须与当前会话同集团
+        Long sessionGroup = com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull();
+        if (sessionGroup != null) {
+            List<Long> groupMembers = com.aigicrm.common.scope.GroupScopeUtil
+                    .userIdsInGroup(jdbc, sessionGroup);
+            if (!groupMembers.contains(newOwnerId)) {
+                throw new BusinessException("接收人不在当前集团");
+            }
+        }
+        customer.setOwnerId(newOwnerId);
+        customer.setTransferDate(LocalDate.now());
+        // 部门同步:客户归属部门=新负责人部门(与创建/编辑 persistCustomerDeptId 同口径)。
+        // 【修复 2026-10-08 需求对齐】接收人无部门时必须显式清空——updateById 的
+        // NOT_NULL 策略不写 null 字段,仅条件 set 会残留旧负责人部门,ORG 锚点
+        // (biz_customer.dept_id)据此错误关联;2026-08-12 A3 已在创建/编辑路径补齐
+        // 同款问题,本处为转移分支补齐。
+        customerMapper.update(null, new LambdaUpdateWrapper<BizCustomer>()
+                .eq(BizCustomer::getId, customer.getId())
+                .set(BizCustomer::getOwnerId, newOwnerId)
+                .set(BizCustomer::getTransferDate, LocalDate.now())
+                .set(BizCustomer::getDeptId, newOwner.getDeptId()));
+        // 【生命线 2026-11-02 裁决D】转移事件(变更前后=新旧负责人名)
+        String oldOwnerName = resolveRecordedOldOwnerName(customer);
+        customerEventService.record(customer.getId(),
+                com.aigicrm.module.customer.service.CustomerEventService.TYPE_TRANSFERRED,
+                LocalDate.now(), "转移审批通过, 负责人变更",
+                oldOwnerName, newOwner.getRealName(),
+                SecurityUtils.getCurrentUserId());
+    }
+
+    /** 事件里的"变更前负责人名"（保持原实现取值时机：此时 customer.ownerId 已置为新负责人）。 */
+    private String resolveRecordedOldOwnerName(BizCustomer customer) {
+        SysUser oldOwner = customer.getOwnerId() != null
+                ? userMapper.selectById(customer.getOwnerId()) : null;
+        return oldOwner != null ? oldOwner.getRealName() : null;
+    }
+
+    /** 存储空间执行：从库锁行取当前值并"只升不降"复核（applyStorageQuota 内校验）。 */
+    private void executeStorageAction(BizApproval approval) {
+        // 【D1=A 2026-10-18】存储空间配额调整: 执行侧从库锁行取当前值并做"只升不降"复核,
+        // 并发导致 newQuota<=current 时抛明确业务异常, approve 事务整体回滚(不得静默成功)。
+        StorageQuotaRequest request = parseStorageQuotaRequest(approval.getExtraData());
+        userService.applyStorageQuota(approval.getApplicantId(), request.quota(), approval.getId());
     }
 
     private int getConfigInt(String key, int defaultValue) {
