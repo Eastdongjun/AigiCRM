@@ -140,35 +140,45 @@ public class LogAspect {
 
     /** 从方法参数中提取可读的操作详情 */
     private String resolveDetail(JoinPoint jp, String uri) {
-        Object[] args = jp.getArgs();
-        for (Object arg : args) {
-            if (arg == null) continue;
+        for (Object arg : jp.getArgs()) {
             // 跳过 request/response 对象
-            if (arg instanceof HttpServletRequest || arg instanceof jakarta.servlet.http.HttpServletResponse) continue;
-            if (arg instanceof org.springframework.web.multipart.MultipartFile mf) {
-                return mf.getOriginalFilename();
-            }
-            // Map 类型：尝试提取常见字段
-            if (arg instanceof Map<?, ?> map) {
-                for (String key : new String[]{"customerName", "name", "realName", "roleName",
-                        "deptName", "dictName", "reason", "type", "comment"}) {
-                    Object v = map.get(key);
-                    if (v != null && !v.toString().isEmpty()) return v.toString();
+            if (arg != null && !(arg instanceof HttpServletRequest)
+                    && !(arg instanceof jakarta.servlet.http.HttpServletResponse)) {
+                if (arg instanceof org.springframework.web.multipart.MultipartFile mf) {
+                    return mf.getOriginalFilename();
                 }
-            }
-            // Entity 类型：反射获取 name 类字段
-            try {
-                for (String getter : new String[]{"getCustomerName", "getRealName", "getRoleName",
-                        "getDeptName", "getFileName", "getDictName", "getCategoryName", "getProduct"}) {
-                    var m = arg.getClass().getMethod(getter);
-                    Object v = m.invoke(arg);
-                    if (v != null && !v.toString().isEmpty()) return v.toString();
-                }
-            } catch (Exception ignored) {
-            // 尽力而为:URL 参数提取失败不影响主日志流程(SonarLint S1166 注明吞因)
+                String detail = arg instanceof Map<?, ?> map ? detailFromMap(map) : null;
+                if (detail == null) detail = detailFromGetters(arg);
+                if (detail != null) return detail;
             }
         }
-        // 从 URL 提取 path variable ID
+        return detailFromUri(uri);
+    }
+
+    private String detailFromMap(Map<?, ?> map) {
+        for (String key : new String[]{"customerName", "name", "realName", "roleName",
+                "deptName", "dictName", "reason", "type", "comment"}) {
+            Object v = map.get(key);
+            if (v != null && !v.toString().isEmpty()) return v.toString();
+        }
+        return null;
+    }
+
+    private String detailFromGetters(Object arg) {
+        try {
+            for (String getter : new String[]{"getCustomerName", "getRealName", "getRoleName",
+                    "getDeptName", "getFileName", "getDictName", "getCategoryName", "getProduct"}) {
+                var m = arg.getClass().getMethod(getter);
+                Object v = m.invoke(arg);
+                if (v != null && !v.toString().isEmpty()) return v.toString();
+            }
+        } catch (Exception ignored) {
+        // 尽力而为:URL 参数提取失败不影响主日志流程(SonarLint S1166 注明吞因)
+        }
+        return null;
+    }
+
+    private String detailFromUri(String uri) {
         String[] parts = uri.split("/");
         for (int i = parts.length - 1; i >= 0; i--) {
             if (parts[i].matches("\\d+")) return "ID:" + parts[i];

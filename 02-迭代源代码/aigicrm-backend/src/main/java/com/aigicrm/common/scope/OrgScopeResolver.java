@@ -228,26 +228,30 @@ public class OrgScopeResolver {
      */
     public ScopeDecision resolveScopeLegacy(ScopeRequest req) {
         if (req == null || req.getUser() == null) return ScopeDecision.none();
-        SecurityUser user = req.getUser();
         ScopeRequest.AnchorType anchor = req.getAnchor() != null ? req.getAnchor() : ScopeRequest.AnchorType.OWNER;
-        if (anchor == ScopeRequest.AnchorType.ORG) {
-            List<Long> deptIds = null;
-            List<String> scopes = scopeCodes(req);
-            for (String scope : scopes) {
-                List<Long> part = resolveDeptScope(user, scope);
-                if (part == null) { deptIds = null; break; } // all
-                if (deptIds == null) deptIds = new ArrayList<>(part);
-                else deptIds.addAll(part);
-            }
-            ScopeDecision d = new ScopeDecision();
-            d.setVisibleDeptIds(deptIds);
-            d.setVisibleUserIds(deptIds == null ? null : usersInDepts(new LinkedHashSet<>(deptIds)));
-            return d;
+        if (anchor == ScopeRequest.AnchorType.ORG) return resolveLegacyOrg(req);
+        return resolveLegacyOwner(req);
+    }
+
+    private ScopeDecision resolveLegacyOrg(ScopeRequest req) {
+        SecurityUser user = req.getUser();
+        List<Long> deptIds = null;
+        for (String scope : scopeCodes(req)) {
+            List<Long> part = resolveDeptScope(user, scope);
+            if (part == null) { deptIds = null; break; } // all
+            if (deptIds == null) deptIds = new ArrayList<>(part);
+            else deptIds.addAll(part);
         }
-        // OWNER 锚点
+        ScopeDecision d = new ScopeDecision();
+        d.setVisibleDeptIds(deptIds);
+        d.setVisibleUserIds(deptIds == null ? null : usersInDepts(new LinkedHashSet<>(deptIds)));
+        return d;
+    }
+
+    private ScopeDecision resolveLegacyOwner(ScopeRequest req) {
+        SecurityUser user = req.getUser();
         List<Long> visible = null;
-        List<String> scopes = scopeCodes(req);
-        for (String scope : scopes) {
+        for (String scope : scopeCodes(req)) {
             // 【WP1.4】动作贯通: 写动作不追加上级/负责人开关
             List<Long> part = resolveScope(user, scope, req.getAction());
             if (part == null) { visible = null; break; }
@@ -310,32 +314,38 @@ public class OrgScopeResolver {
         }
         String module = req.getModule() != null ? req.getModule() : "";
         String action = req.getAction() != null ? req.getAction() : "";
+        ScopeCodes codes = collectScopeCodes(user.getScopeConfigs(), module, action);
+        if (codes.seenType() == null) return List.of();
+        // 该主体内 精确匹配优先(如 dashboard view 覆盖 * *); 否则通配
+        if (!codes.exact().isEmpty()) return codes.exact();
+        return codes.wildcard();
+    }
+
+    private record ScopeCodes(String seenType, List<String> exact, List<String> wildcard) {}
+
+    private ScopeCodes collectScopeCodes(List<com.aigicrm.common.scope.ScopeConfig> configs,
+                                         String module, String action) {
         String seenType = null;
         List<String> exact = new ArrayList<>();
         List<String> wildcard = new ArrayList<>();
-        for (com.aigicrm.common.scope.ScopeConfig c : user.getScopeConfigs()) {
+        for (com.aigicrm.common.scope.ScopeConfig c : configs) {
             String cMod = c.getModule() != null ? c.getModule() : "";
             String cAct = c.getAction() != null ? c.getAction() : "";
-            boolean moduleMatch = cMod.equals(module) || "*".equals(cMod);
-            boolean actionMatch = cAct.equals(action) || "*".equals(cAct);
-            if (!moduleMatch || !actionMatch) continue;
-            if (c.getScopeLevel() == null || c.getScopeLevel().isBlank()) continue;
-            String type = c.getAssigneeType() != null ? c.getAssigneeType() : "ROLE";
-            if (seenType == null) {
-                seenType = type; // 首个有匹配的主体(USER>POSITION>ROLE 装载序)
-            } else if (!seenType.equals(type)) {
-                continue; // 更优先主体已有匹配, 忽略低优先主体的配置
-            }
-            if (cMod.equals(module) && cAct.equals(action)) {
-                exact.add(c.getScopeLevel());
-            } else {
-                wildcard.add(c.getScopeLevel());
+            boolean matched = (cMod.equals(module) || "*".equals(cMod))
+                    && (cAct.equals(action) || "*".equals(cAct))
+                    && c.getScopeLevel() != null && !c.getScopeLevel().isBlank();
+            if (matched) {
+                String type = c.getAssigneeType() != null ? c.getAssigneeType() : "ROLE";
+                if (seenType == null) {
+                    seenType = type; // 首个有匹配的主体(USER>POSITION>ROLE 装载序)
+                }
+                if (seenType.equals(type)) {
+                    if (cMod.equals(module) && cAct.equals(action)) exact.add(c.getScopeLevel());
+                    else wildcard.add(c.getScopeLevel());
+                }
             }
         }
-        if (seenType == null) return List.of();
-        // 该主体内 精确匹配优先(如 dashboard view 覆盖 * *); 否则通配
-        if (!exact.isEmpty()) return exact;
-        return wildcard;
+        return new ScopeCodes(seenType, exact, wildcard);
     }
 
     /**
