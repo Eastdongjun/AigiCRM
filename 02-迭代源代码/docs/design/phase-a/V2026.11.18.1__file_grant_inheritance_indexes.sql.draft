@@ -39,3 +39,4 @@ UPDATE `biz_file_grant`
  WHERE `object_type` IN ('FILE', 'FOLDER');
 
 -- 说明：MySQL 唯一索引允许多个 NULL；scope_key 用 COALESCE 避免 NULL 使唯一键失效。
+-- space_type NULL 的 SPACE 行按“任意空间”解释（兼容旧 blank）；新 UI 保存时必填。

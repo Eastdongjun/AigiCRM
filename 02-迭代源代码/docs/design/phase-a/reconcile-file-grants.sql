@@ -1,5 +1,5 @@
 -- DRAFT ONLY — 只读对账，不修改数据。
--- 用途：A2 迁移后比较旧表 biz_folder_type_default 与新表 biz_file_grant(source='legacy')。
+-- 用途：A2 迁移后比较旧表 biz_folder_type_default 与新表 biz_file_grant(source IN ('legacy','dual_write'))。
 -- 行对账之外还必须跑“行为对账”（见设计文档 §2.7），行 0 差异不等于语义不变。
 
 WITH old_expanded AS (
@@ -53,7 +53,7 @@ new_legacy AS (
   SELECT tenant_id, subject_type, subject_id, object_type, object_id, space_type,
          action, scope_mode, scope_level, scope_org_id, expire_at
     FROM biz_file_grant
-   WHERE source = 'legacy'
+   WHERE source IN ('legacy', 'dual_write')
 )
 SELECT 'missing_in_new' AS diff, COUNT(*) AS cnt
   FROM old_expanded o
