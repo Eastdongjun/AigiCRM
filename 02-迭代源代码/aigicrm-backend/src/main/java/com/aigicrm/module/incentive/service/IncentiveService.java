@@ -1315,160 +1315,192 @@ public class IncentiveService {
         // 【2026-11-05 用户拍板 B"激励查询改走组织范围档位"】激励查询/案例库/MP 查询三面统一
         // 改走组织范围: 客户属 (customer,view) 档位 ∨ 本人上传恒可见(原"全员可见"无过滤退役)
         applyOrgQueryVisibility(wrapper);
+        if (!applyRecordSeedFilter(wrapper, recordId)) return List.of();
+        applyPeriodIndustry(wrapper, period, industry);
+        if (!applyCustomerNameFilter(wrapper, customerName, keyword)) return List.of();
+        applyProductFilter(wrapper, product);
+        applyKeywordFilter(wrapper, keyword);
+        if (!applySalespersonFilter(wrapper, salesperson)) return List.of();
+        applyCategoryFilter(wrapper, mainCategoryId);
+        if (!applyOrgFilter(wrapper, orgIds)) return List.of();
+        if (!applyDevTypeFilter(wrapper, devType)) return List.of();
+        applyDateFilters(wrapper, startDate, endDate);
+        wrapper.orderByDesc(BizIncentiveRecord::getCreatedAt);
+        return assembleCustomerRecords(recordMapper.selectList(wrapper));
+    }
+
+    /** recordId 定位：先按可见性取种子记录，命中即收窄到该记录所属客户；不可见→false（空结果）。 */
+    private boolean applyRecordSeedFilter(LambdaQueryWrapper<BizIncentiveRecord> wrapper, Long recordId) {
         // 【性能 2026-10-27】recordId 定位: 先按可见性取种子记录, 命中即把查询收窄到
         // 该记录所属客户(与全量接口的可见性口径一致); 种子不可见/不存在 → 空结果。
-        if (recordId != null) {
-            LambdaQueryWrapper<BizIncentiveRecord> seed = new LambdaQueryWrapper<>();
-            seed.eq(BizIncentiveRecord::getId, recordId).isNotNull(BizIncentiveRecord::getCustomerId);
-            applyOrgQueryVisibility(seed);
-            List<BizIncentiveRecord> seedRows = recordMapper.selectList(seed);
-            if (seedRows.isEmpty()) return List.of();
-            wrapper.eq(BizIncentiveRecord::getCustomerId, seedRows.get(0).getCustomerId());
-        }
+        if (recordId == null) return true;
+        LambdaQueryWrapper<BizIncentiveRecord> seed = new LambdaQueryWrapper<>();
+        seed.eq(BizIncentiveRecord::getId, recordId).isNotNull(BizIncentiveRecord::getCustomerId);
+        applyOrgQueryVisibility(seed);
+        List<BizIncentiveRecord> seedRows = recordMapper.selectList(seed);
+        if (seedRows.isEmpty()) return false;
+        wrapper.eq(BizIncentiveRecord::getCustomerId, seedRows.get(0).getCustomerId());
+        return true;
+    }
+
+    private void applyPeriodIndustry(LambdaQueryWrapper<BizIncentiveRecord> wrapper, String period, String industry) {
         // 【P1-1/M2 2026-10-17】period 过滤补齐：前端统计页一直传 period，此前后端不收导致筛选静默失效；
         // 空白不放行等值（与 getRecords/categoryStats/scoreboard 同守卫——空串当 period='' 匹配必然 0 条）
         if (period != null && !period.isBlank()) wrapper.eq(BizIncentiveRecord::getPeriod, period);
         if (industry != null && !industry.isBlank()) wrapper.eq(BizIncentiveRecord::getIndustry, industry);
-        // 客户名 OR 关键字（相关产品）匹配：搜客户=该客户共享内容；搜关键字=相关案例全出
-        if (customerName != null && !customerName.isBlank()
-                && (keyword == null || keyword.isBlank())) {
-            // 仅客户名匹配：保持原行为
-            List<BizCustomer> matched = customerMapper.selectList(
-                new LambdaQueryWrapper<BizCustomer>().like(BizCustomer::getCustomerName, customerName)
-            );
-            if (!matched.isEmpty()) {
-                wrapper.in(BizIncentiveRecord::getCustomerId, matched.stream().map(BizCustomer::getId).toList());
-            } else { return List.of(); }
-        }
+    }
+
+    /** 客户名 OR 关键字（相关产品）匹配：搜客户=该客户共享内容；搜关键字=相关案例全出。 */
+    private boolean applyCustomerNameFilter(LambdaQueryWrapper<BizIncentiveRecord> wrapper,
+                                            String customerName, String keyword) {
+        if (customerName == null || customerName.isBlank() || (keyword != null && !keyword.isBlank())) return true;
+        // 仅客户名匹配：保持原行为
+        List<BizCustomer> matched = customerMapper.selectList(
+            new LambdaQueryWrapper<BizCustomer>().like(BizCustomer::getCustomerName, customerName)
+        );
+        if (matched.isEmpty()) return false;
+        wrapper.in(BizIncentiveRecord::getCustomerId, matched.stream().map(BizCustomer::getId).toList());
+        return true;
+    }
+
+    private void applyProductFilter(LambdaQueryWrapper<BizIncentiveRecord> wrapper, String product) {
         if (product != null && !product.isBlank()) {
             wrapper.like(BizIncentiveRecord::getRelatedProducts, product);
         }
+    }
+
+    /** 全局关键词六路宽匹配（相关产品/具体产品/客户名/分类名/上传人/文件名）。 */
+    private void applyKeywordFilter(LambdaQueryWrapper<BizIncentiveRecord> wrapper, String keyword) {
         // 【2026-11-09 用户令"全局检索应能检索客户/分类/单一记录/关联记录"】关键词=六路宽匹配:
         // ①关联产品 ②具体产品 ③客户名(customer表LIKE→customerId IN) ④分类名(category表LIKE→categoryId IN)
         // ⑤上传人姓名(user表LIKE→userId IN) ⑥文件名(三槽位文件名LIKE)。
         // 展示层(PC/MP)有关键字时打散为纯记录列表(不按客户分组卡片)——
         // 客户名命中会带出该客户全部记录, 但每条独立成行, 用户逐行看(非旧卡片汇总)。
         // 可见性过滤(applyOrgQueryVisibility)在 wrapper 最前, 深度检索只在有权看的记录内。
-        if (keyword != null && !keyword.isBlank()) {
-            wrapper.and(w -> {
-                w.like(BizIncentiveRecord::getRelatedProducts, keyword)
-                 .or().like(BizIncentiveRecord::getSpecificProduct, keyword);
-                // ③ 客户名
-                List<BizCustomer> matchedCustomers = customerMapper.selectList(
-                    new LambdaQueryWrapper<BizCustomer>().like(BizCustomer::getCustomerName, keyword));
-                if (!matchedCustomers.isEmpty()) {
-                    w.or().in(BizIncentiveRecord::getCustomerId,
-                        matchedCustomers.stream().map(BizCustomer::getId).toList());
-                }
-                // ④ 分类名
-                List<BizIncentiveCategory> matchedCats = categoryMapper.selectList(
-                    new LambdaQueryWrapper<BizIncentiveCategory>().like(BizIncentiveCategory::getCategoryName, keyword));
-                if (!matchedCats.isEmpty()) {
-                    w.or().in(BizIncentiveRecord::getCategoryId,
-                        matchedCats.stream().map(BizIncentiveCategory::getId).toList());
-                }
-                // ⑤ 上传人姓名
-                List<SysUser> matchedUsers = userMapper.selectList(
-                    new LambdaQueryWrapper<SysUser>().like(SysUser::getRealName, keyword));
-                if (!matchedUsers.isEmpty()) {
-                    w.or().in(BizIncentiveRecord::getUserId,
-                        matchedUsers.stream().map(SysUser::getId).toList());
-                }
-                // ⑥ 文件名: 从 biz_file 反查文件名含关键字的文件 ID → JSON_OVERLAPS 精确元素匹配
-                // (filePreName 等是 @TableField(exist=false) 非表列, 须走 ID 间接匹配; 限 50 防宽词慢查)
-                // 【修复 2026-11-09】四槽位列存 JSON 数组(如 [178,179]), 旧 REGEXP 子串匹配把
-                // [193]/[1119]/[1903] 误当 19 命中——生产实证: 文件ID=19 误报 35 条真命中 0 条。
-                // JSON_OVERLAPS 按数组元素精确比对(需 MySQL>=8.0.17, 生产 8.0.28; 四列已验全合法 JSON),
-                // {0} 绑定 '[19,23]' 字符串经 CAST 成 JSON 数组, 保持参数绑定防注入。
-                // 【性能 2026-11-11 检索优化】JSON_OVERLAPS 拆出六路 OR 为独立预查询取命中记录 id,
-                // 主查询改 IN(ids)——JSON 函数混在 OR 里阻断 MySQL 优化器短路, 是 DB 侧 ~1s 主因
-                // (496 行全表×4 列逐行 JSON 解析)。集合恒等: 外条件 AND (五路 OR 全表JSON命中id集)
-                // ≡ 原 外条件 AND 六路OR(JSON_OVERLAPS 本身与外条件无关, 全表命中即该路完整结果)。
-                List<com.aigicrm.module.file.entity.BizFile> matchedFiles = fileMapper.selectList(
-                    new LambdaQueryWrapper<com.aigicrm.module.file.entity.BizFile>()
-                        .like(com.aigicrm.module.file.entity.BizFile::getFileName, keyword)
-                        .last("LIMIT 50"));
-                if (!matchedFiles.isEmpty()) {
-                    String idJsonArray = matchedFiles.stream()
-                        .map(f -> String.valueOf(f.getId()))
-                        .collect(java.util.stream.Collectors.joining(",", "[", "]"));
-                    List<BizIncentiveRecord> jsonHits = recordMapper.selectList(
-                        new LambdaQueryWrapper<BizIncentiveRecord>()
-                            .select(BizIncentiveRecord::getId)
-                            .apply("(JSON_OVERLAPS(file_pre_id, CAST({0} AS JSON)) OR JSON_OVERLAPS(file_mid_id, CAST({0} AS JSON)) OR JSON_OVERLAPS(file_post_id, CAST({0} AS JSON)) OR JSON_OVERLAPS(file_track_id, CAST({0} AS JSON)))",
-                                idJsonArray));
-                    if (!jsonHits.isEmpty()) {
-                        w.or().in(BizIncentiveRecord::getId,
-                            jsonHits.stream().map(BizIncentiveRecord::getId).collect(java.util.stream.Collectors.toSet()));
-                    }
-                }
-            });
+        if (keyword == null || keyword.isBlank()) return;
+        wrapper.and(w -> applyKeywordBranches(w, keyword));
+    }
+
+    private void applyKeywordBranches(LambdaQueryWrapper<BizIncentiveRecord> w, String keyword) {
+        w.like(BizIncentiveRecord::getRelatedProducts, keyword)
+         .or().like(BizIncentiveRecord::getSpecificProduct, keyword);
+        // ③ 客户名
+        List<BizCustomer> matchedCustomers = customerMapper.selectList(
+            new LambdaQueryWrapper<BizCustomer>().like(BizCustomer::getCustomerName, keyword));
+        if (!matchedCustomers.isEmpty()) {
+            w.or().in(BizIncentiveRecord::getCustomerId,
+                matchedCustomers.stream().map(BizCustomer::getId).toList());
         }
-        if (salesperson != null && !salesperson.isBlank()) {
-            List<SysUser> users = userMapper.selectList(
-                new LambdaQueryWrapper<SysUser>().like(SysUser::getRealName, salesperson)
-            );
-            if (!users.isEmpty()) {
-                wrapper.in(BizIncentiveRecord::getUserId, users.stream().map(SysUser::getId).toList());
-            } else { return List.of(); }
+        // ④ 分类名
+        List<BizIncentiveCategory> matchedCats = categoryMapper.selectList(
+            new LambdaQueryWrapper<BizIncentiveCategory>().like(BizIncentiveCategory::getCategoryName, keyword));
+        if (!matchedCats.isEmpty()) {
+            w.or().in(BizIncentiveRecord::getCategoryId,
+                matchedCats.stream().map(BizIncentiveCategory::getId).toList());
         }
-        if (mainCategoryId != null) {
-            Set<Long> catIds = new HashSet<>();
-            catIds.add(mainCategoryId);
-            List<BizIncentiveCategory> children = categoryMapper.selectList(
-                new LambdaQueryWrapper<BizIncentiveCategory>().eq(BizIncentiveCategory::getParentId, mainCategoryId));
-            for (BizIncentiveCategory child : children) {
-                catIds.add(child.getId());
-                List<BizIncentiveCategory> grands = categoryMapper.selectList(
-                    new LambdaQueryWrapper<BizIncentiveCategory>().eq(BizIncentiveCategory::getParentId, child.getId()));
-                for (BizIncentiveCategory g : grands) catIds.add(g.getId());
-            }
-            wrapper.in(BizIncentiveRecord::getCategoryId, catIds);
+        // ⑤ 上传人姓名
+        List<SysUser> matchedUsers = userMapper.selectList(
+            new LambdaQueryWrapper<SysUser>().like(SysUser::getRealName, keyword));
+        if (!matchedUsers.isEmpty()) {
+            w.or().in(BizIncentiveRecord::getUserId,
+                matchedUsers.stream().map(SysUser::getId).toList());
         }
-        if (orgIds != null && !orgIds.isBlank()) {
-            List<Long> oids = java.util.Arrays.stream(orgIds.split(",")).map(String::trim).filter(s -> !s.isEmpty()).map(Long::parseLong).toList();
-            if (!oids.isEmpty()) {
-                // 组织筛选含全部子部门（部门可无限嵌套）：展开所选组织为子树集合
-                java.util.Set<Long> orgSet = new java.util.LinkedHashSet<>();
-                for (Long oid : oids) {
-                    orgSet.add(oid);
-                    orgSet.addAll(getDescendantDeptIds(oid));
-                }
-                List<SysUser> orgUsers = userMapper.selectList(
-                    new LambdaQueryWrapper<SysUser>().in(SysUser::getOfficeId, orgSet)
-                );
-                List<Long> uids = orgUsers.stream().map(SysUser::getId).distinct().toList();
-                if (!uids.isEmpty()) wrapper.in(BizIncentiveRecord::getUserId, uids);
-                else return List.of();
+        // ⑥ 文件名: 从 biz_file 反查文件名含关键字的文件 ID → JSON_OVERLAPS 精确元素匹配
+        // (filePreName 等是 @TableField(exist=false) 非表列, 须走 ID 间接匹配; 限 50 防宽词慢查)
+        // 【修复 2026-11-09】四槽位列存 JSON 数组(如 [178,179]), 旧 REGEXP 子串匹配把
+        // [193]/[1119]/[1903] 误当 19 命中——生产实证: 文件ID=19 误报 35 条真命中 0 条。
+        // JSON_OVERLAPS 按数组元素精确比对(需 MySQL>=8.0.17, 生产 8.0.28; 四列已验全合法 JSON),
+        // {0} 绑定 '[19,23]' 字符串经 CAST 成 JSON 数组, 保持参数绑定防注入。
+        // 【性能 2026-11-11 检索优化】JSON_OVERLAPS 拆出六路 OR 为独立预查询取命中记录 id,
+        // 主查询改 IN(ids)——JSON 函数混在 OR 里阻断 MySQL 优化器短路, 是 DB 侧 ~1s 主因
+        // (496 行全表×4 列逐行 JSON 解析)。集合恒等: 外条件 AND (五路 OR 全表JSON命中id集)
+        // ≡ 原 外条件 AND 六路OR(JSON_OVERLAPS 本身与外条件无关, 全表命中即该路完整结果)。
+        List<com.aigicrm.module.file.entity.BizFile> matchedFiles = fileMapper.selectList(
+            new LambdaQueryWrapper<com.aigicrm.module.file.entity.BizFile>()
+                .like(com.aigicrm.module.file.entity.BizFile::getFileName, keyword)
+                .last("LIMIT 50"));
+        if (!matchedFiles.isEmpty()) {
+            String idJsonArray = matchedFiles.stream()
+                .map(f -> String.valueOf(f.getId()))
+                .collect(java.util.stream.Collectors.joining(",", "[", "]"));
+            List<BizIncentiveRecord> jsonHits = recordMapper.selectList(
+                new LambdaQueryWrapper<BizIncentiveRecord>()
+                    .select(BizIncentiveRecord::getId)
+                    .apply("(JSON_OVERLAPS(file_pre_id, CAST({0} AS JSON)) OR JSON_OVERLAPS(file_mid_id, CAST({0} AS JSON)) OR JSON_OVERLAPS(file_post_id, CAST({0} AS JSON)) OR JSON_OVERLAPS(file_track_id, CAST({0} AS JSON)))",
+                        idJsonArray));
+            if (!jsonHits.isEmpty()) {
+                w.or().in(BizIncentiveRecord::getId,
+                    jsonHits.stream().map(BizIncentiveRecord::getId).collect(java.util.stream.Collectors.toSet()));
             }
         }
-        if (devType != null && !devType.isBlank()) {
-            List<BizCustomer> devCustomers = customerMapper.selectList(
-                new LambdaQueryWrapper<BizCustomer>().eq(BizCustomer::getDevType, devType)
-            );
-            if (!devCustomers.isEmpty()) {
-                wrapper.in(BizIncentiveRecord::getCustomerId, devCustomers.stream().map(BizCustomer::getId).toList());
-            } else { return List.of(); }
+    }
+
+    private boolean applySalespersonFilter(LambdaQueryWrapper<BizIncentiveRecord> wrapper, String salesperson) {
+        if (salesperson == null || salesperson.isBlank()) return true;
+        List<SysUser> users = userMapper.selectList(
+            new LambdaQueryWrapper<SysUser>().like(SysUser::getRealName, salesperson)
+        );
+        if (users.isEmpty()) return false;
+        wrapper.in(BizIncentiveRecord::getUserId, users.stream().map(SysUser::getId).toList());
+        return true;
+    }
+
+    private void applyCategoryFilter(LambdaQueryWrapper<BizIncentiveRecord> wrapper, Long mainCategoryId) {
+        if (mainCategoryId == null) return;
+        Set<Long> catIds = new HashSet<>();
+        catIds.add(mainCategoryId);
+        List<BizIncentiveCategory> children = categoryMapper.selectList(
+            new LambdaQueryWrapper<BizIncentiveCategory>().eq(BizIncentiveCategory::getParentId, mainCategoryId));
+        for (BizIncentiveCategory child : children) {
+            catIds.add(child.getId());
+            List<BizIncentiveCategory> grands = categoryMapper.selectList(
+                new LambdaQueryWrapper<BizIncentiveCategory>().eq(BizIncentiveCategory::getParentId, child.getId()));
+            for (BizIncentiveCategory g : grands) catIds.add(g.getId());
         }
+        wrapper.in(BizIncentiveRecord::getCategoryId, catIds);
+    }
+
+    private boolean applyOrgFilter(LambdaQueryWrapper<BizIncentiveRecord> wrapper, String orgIds) {
+        if (orgIds == null || orgIds.isBlank()) return true;
+        List<Long> oids = java.util.Arrays.stream(orgIds.split(",")).map(String::trim).filter(s -> !s.isEmpty()).map(Long::parseLong).toList();
+        if (oids.isEmpty()) return true;
+        // 组织筛选含全部子部门（部门可无限嵌套）：展开所选组织为子树集合
+        java.util.Set<Long> orgSet = new java.util.LinkedHashSet<>();
+        for (Long oid : oids) {
+            orgSet.add(oid);
+            orgSet.addAll(getDescendantDeptIds(oid));
+        }
+        List<SysUser> orgUsers = userMapper.selectList(
+            new LambdaQueryWrapper<SysUser>().in(SysUser::getOfficeId, orgSet)
+        );
+        List<Long> uids = orgUsers.stream().map(SysUser::getId).distinct().toList();
+        if (uids.isEmpty()) return false;
+        wrapper.in(BizIncentiveRecord::getUserId, uids);
+        return true;
+    }
+
+    private boolean applyDevTypeFilter(LambdaQueryWrapper<BizIncentiveRecord> wrapper, String devType) {
+        if (devType == null || devType.isBlank()) return true;
+        List<BizCustomer> devCustomers = customerMapper.selectList(
+            new LambdaQueryWrapper<BizCustomer>().eq(BizCustomer::getDevType, devType)
+        );
+        if (devCustomers.isEmpty()) return false;
+        wrapper.in(BizIncentiveRecord::getCustomerId, devCustomers.stream().map(BizCustomer::getId).toList());
+        return true;
+    }
+
+    private void applyDateFilters(LambdaQueryWrapper<BizIncentiveRecord> wrapper, String startDate, String endDate) {
         if (startDate != null && !startDate.isBlank()) wrapper.ge(BizIncentiveRecord::getCreatedAt, startDate + " 00:00:00");
         if (endDate != null && !endDate.isBlank()) wrapper.le(BizIncentiveRecord::getCreatedAt, endDate + " 23:59:59");
-        wrapper.orderByDesc(BizIncentiveRecord::getCreatedAt);
-        List<BizIncentiveRecord> records = recordMapper.selectList(wrapper);
+    }
 
+    private List<Map<String, Object>> assembleCustomerRecords(List<BizIncentiveRecord> records) {
         // 批量查客户
         Set<Long> cids = records.stream().map(BizIncentiveRecord::getCustomerId).filter(Objects::nonNull).collect(Collectors.toSet());
-        Map<Long, BizCustomer> custMap = new HashMap<>();
-        if (!cids.isEmpty()) {
-            List<BizCustomer> custs = customerMapper.selectByIds(cids);
-            for (BizCustomer c : custs) custMap.put(c.getId(), c);
-        }
+        Map<Long, BizCustomer> custMap = loadCustomers(cids);
         // 批量查分类
         Set<Long> catIds = records.stream().map(BizIncentiveRecord::getCategoryId).filter(Objects::nonNull).collect(Collectors.toSet());
-        Map<Long, BizIncentiveCategory> catMap2 = new HashMap<>();
-        if (!catIds.isEmpty()) {
-            List<BizIncentiveCategory> cats = categoryMapper.selectByIds(catIds);
-            for (BizIncentiveCategory c : cats) catMap2.put(c.getId(), c);
-        }
+        Map<Long, BizIncentiveCategory> catMap2 = loadCategories(catIds);
 
         // 批量查文件 & 填充文件名
         fillFileNames(records);
@@ -1479,7 +1511,31 @@ public class IncentiveService {
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet()));
 
-        // 填充关联信息
+        decorateRecordNames(records, custMap, catMap2, readRecordIds);
+        Map<Long, List<BizIncentiveRecord>> grouped = groupByCustomer(records);
+        sortGroupsByCategory(grouped);
+        return buildFlatList(grouped, custMap);
+    }
+
+    private Map<Long, BizCustomer> loadCustomers(Set<Long> cids) {
+        Map<Long, BizCustomer> custMap = new HashMap<>();
+        if (cids.isEmpty()) return custMap;
+        List<BizCustomer> custs = customerMapper.selectByIds(cids);
+        for (BizCustomer c : custs) custMap.put(c.getId(), c);
+        return custMap;
+    }
+
+    private Map<Long, BizIncentiveCategory> loadCategories(Set<Long> catIds) {
+        Map<Long, BizIncentiveCategory> catMap = new HashMap<>();
+        if (catIds.isEmpty()) return catMap;
+        List<BizIncentiveCategory> cats = categoryMapper.selectByIds(catIds);
+        for (BizIncentiveCategory c : cats) catMap.put(c.getId(), c);
+        return catMap;
+    }
+
+    /** 填充关联信息（分类名/上传人/更新人/客户名/未读）。 */
+    private void decorateRecordNames(List<BizIncentiveRecord> records, Map<Long, BizCustomer> custMap,
+                                     Map<Long, BizIncentiveCategory> catMap2, Set<Long> readRecordIds) {
         // 【性能 2026-11-11 检索优化】用户名批量化: 原循环内逐条 userMapper.selectById,
         // 300+ 记录=600+ 次 DB 往返(实测组装层 ~2s 主因); 与客户/分类同款批量建 map, 数据源不变
         Set<Long> uidsAll = new LinkedHashSet<>();
@@ -1502,14 +1558,18 @@ public class IncentiveService {
                 if (c != null) r.setCustomerName(c.getCustomerName());
             }
         }
+    }
 
+    private Map<Long, List<BizIncentiveRecord>> groupByCustomer(List<BizIncentiveRecord> records) {
         Map<Long, List<BizIncentiveRecord>> grouped = new LinkedHashMap<>();
         for (BizIncentiveRecord r : records) {
             Long cid = r.getCustomerId();
-            if (cid == null) continue;
-            grouped.computeIfAbsent(cid, k -> new ArrayList<>()).add(r);
+            if (cid != null) grouped.computeIfAbsent(cid, k -> new ArrayList<>()).add(r);
         }
+        return grouped;
+    }
 
+    private void sortGroupsByCategory(Map<Long, List<BizIncentiveRecord>> grouped) {
         // 组内四区排序：试点→两谈两做→交流拜访→外出参观，同品类按时间倒序
         // 注意：需全量分类映射（含父级），catMap2 只含记录引用的子类
         Map<Long, BizIncentiveCategory> allCatMap = new HashMap<>();
@@ -1520,35 +1580,41 @@ public class IncentiveService {
                 .thenComparing(Comparator.comparing(BizIncentiveRecord::getCreatedAt,
                     Comparator.nullsLast(Comparator.reverseOrder()))));
         }
+    }
 
+    private List<Map<String, Object>> buildFlatList(Map<Long, List<BizIncentiveRecord>> grouped,
+                                                    Map<Long, BizCustomer> custMap) {
         List<String> industryOrder = List.of("冶金","煤矿","化工","电力","有色金属","机械","工程公司","维修厂","其他终端客户");
         Map<String, Integer> orderMap = new HashMap<>();
         for (int i = 0; i < industryOrder.size(); i++) orderMap.put(industryOrder.get(i), i);
-
-        // 每个客户一个条目
         List<Map<String, Object>> flatList = new ArrayList<>();
         for (Map.Entry<Long, List<BizIncentiveRecord>> e : grouped.entrySet()) {
-            Map<String, Object> item = new LinkedHashMap<>();
-            item.put("customerId", e.getKey());
-            BizCustomer cust = custMap.get(e.getKey());
-            String ind = cust != null ? cust.getIndustry() : "其他";
-            item.put("customerName", cust != null ? cust.getCustomerName() : null);
-            item.put("ownerName", cust != null ? cust.getOwnerName() : null);
-            // 【2026-09-29】客户排行销售视图(06只看自己名下客户,rank保留公司级序号)需要按负责人过滤
-            item.put("ownerId", cust != null ? cust.getOwnerId() : null);
-            item.put("industry", ind);
-            item.put("industryOrder", orderMap.getOrDefault(ind, 99));
-            item.put("count", e.getValue().size());
-            int totalScore = e.getValue().stream().mapToInt(r -> r.getScore() != null ? r.getScore() : 0).sum();
-            item.put(LIT_TOTALSCORE, totalScore);
-            item.put("records", e.getValue());
-            flatList.add(item);
+            flatList.add(buildCustomerItem(e, custMap.get(e.getKey()), orderMap));
         }
         flatList.sort(Comparator
                 .comparingInt((Map<String, Object> m) -> -((Number) m.getOrDefault(LIT_TOTALSCORE, 0)).intValue())
                 .thenComparingInt(m -> (int) m.get("industryOrder"))
                 .thenComparing(m -> String.valueOf(m.getOrDefault("customerName", ""))));
         return flatList;
+    }
+
+    private Map<String, Object> buildCustomerItem(Map.Entry<Long, List<BizIncentiveRecord>> e,
+                                                  BizCustomer cust, Map<String, Integer> orderMap) {
+        // 每个客户一个条目
+        Map<String, Object> item = new LinkedHashMap<>();
+        item.put("customerId", e.getKey());
+        String ind = cust != null ? cust.getIndustry() : "其他";
+        item.put("customerName", cust != null ? cust.getCustomerName() : null);
+        item.put("ownerName", cust != null ? cust.getOwnerName() : null);
+        // 【2026-09-29】客户排行销售视图(06只看自己名下客户,rank保留公司级序号)需要按负责人过滤
+        item.put("ownerId", cust != null ? cust.getOwnerId() : null);
+        item.put("industry", ind);
+        item.put("industryOrder", orderMap.getOrDefault(ind, 99));
+        item.put("count", e.getValue().size());
+        int totalScore = e.getValue().stream().mapToInt(r -> r.getScore() != null ? r.getScore() : 0).sum();
+        item.put(LIT_TOTALSCORE, totalScore);
+        item.put("records", e.getValue());
+        return item;
     }
 
     private Set<Long> findReadRecordIds(Long userId, Set<Long> recordIds) {
