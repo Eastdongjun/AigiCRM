@@ -987,55 +987,62 @@ public class CustomerService {
 
         // 规则1: 直接上级 → 看到直属下级的客户
         if (Boolean.TRUE.equals(cfg.get("superior"))) {
-            java.util.List<SysUser> subordinates = userMapper.selectList(
-                new LambdaQueryWrapper<SysUser>()
-                    .eq(SysUser::getManagerId, currentUserId)
-                    .eq(SysUser::getStatus, 1)
-                    .eq(SysUser::getDeleted, 0));
-            for (SysUser sub : subordinates) {
-                ownerIds.add(sub.getId());
-            }
+            addAutoShareSubordinates(ownerIds, currentUserId);
         }
-
         // 规则3: 指定角色 → 看到同组织内所有用户
+        addAutoShareRoleOrgUsers(ownerIds, cfg, currentRoles, orgId);
+        // 规则4: 指定人员 → 不加过滤
+        if (isAutoShareExempt(cfg, currentUserId)) return java.util.Collections.emptyList();
+        return new java.util.ArrayList<>(ownerIds);
+    }
+
+    private void addAutoShareSubordinates(java.util.Set<Long> ownerIds, Long currentUserId) {
+        java.util.List<SysUser> subordinates = userMapper.selectList(
+            new LambdaQueryWrapper<SysUser>()
+                .eq(SysUser::getManagerId, currentUserId)
+                .eq(SysUser::getStatus, 1)
+                .eq(SysUser::getDeleted, 0));
+        for (SysUser sub : subordinates) {
+            ownerIds.add(sub.getId());
+        }
+    }
+
+    private void addAutoShareRoleOrgUsers(java.util.Set<Long> ownerIds, Map<String, Object> cfg,
+                                          java.util.List<String> currentRoles, Long orgId) {
         Object rolesObj = cfg.get("roles");
-        if (rolesObj instanceof java.util.List && !((java.util.List<?>)rolesObj).isEmpty()) {
-            for (Object r : (java.util.List<?>)rolesObj) {
-                String roleId = String.valueOf(r);
-                if (currentRoles != null && currentRoles.contains(roleId)) {
-                    if (orgId != null) {
-                        java.util.List<SysUser> orgUsers = userMapper.selectList(
-                            new LambdaQueryWrapper<SysUser>()
-                                .eq(SysUser::getOrgId, orgId)
-                                .eq(SysUser::getStatus, 1)
-                                .eq(SysUser::getDeleted, 0));
-                        for (SysUser u : orgUsers) ownerIds.add(u.getId());
-                    }
-                    break;
+        if (!(rolesObj instanceof java.util.List<?> roles) || roles.isEmpty()) return;
+        for (Object r : roles) {
+            String roleId = String.valueOf(r);
+            if (currentRoles != null && currentRoles.contains(roleId)) {
+                if (orgId != null) {
+                    java.util.List<SysUser> orgUsers = userMapper.selectList(
+                        new LambdaQueryWrapper<SysUser>()
+                            .eq(SysUser::getOrgId, orgId)
+                            .eq(SysUser::getStatus, 1)
+                            .eq(SysUser::getDeleted, 0));
+                    for (SysUser u : orgUsers) ownerIds.add(u.getId());
                 }
+                return; // 命中一个指定角色即止（与原 break 同义）
             }
         }
+    }
 
-        // 规则4: 指定人员 → 不加过滤
+    private boolean isAutoShareExempt(Map<String, Object> cfg, Long currentUserId) {
         // 【测试H1修复 2026-10-13】users 元素类型归一: 配置可经界面/JSON写入口混入字符串数字("136")或非法值,
         // 旧实现仅容 Integer/Long, 字符串直接 ClassCastException 令全体非admin的列表/页签计数500。
         // 归一为 Long, 非法元素忽略并告警(不阻断列表), 用户命中任一合法豁免id即不加过滤。
         Object usersObj = cfg.get("users");
-        if (usersObj instanceof java.util.List && !((java.util.List<?>)usersObj).isEmpty()) {
-            for (Object uid : (java.util.List<?>)usersObj) {
-                Long exemptId = toLongOrNull(uid);
-                if (exemptId == null) {
-                    org.slf4j.LoggerFactory.getLogger(CustomerService.class)
-                            .warn("customer.auto_share users 含非法元素({}), 已忽略——请到系统设置核对配置", uid);
-                    continue;
-                }
-                if (currentUserId.equals(exemptId)) {
-                    return java.util.Collections.emptyList();
-                }
+        if (!(usersObj instanceof java.util.List<?> users) || users.isEmpty()) return false;
+        for (Object uid : users) {
+            Long exemptId = toLongOrNull(uid);
+            if (exemptId == null) {
+                org.slf4j.LoggerFactory.getLogger(CustomerService.class)
+                        .warn("customer.auto_share users 含非法元素({}), 已忽略——请到系统设置核对配置", uid);
+                continue;
             }
+            if (currentUserId.equals(exemptId)) return true;
         }
-
-        return new java.util.ArrayList<>(ownerIds);
+        return false;
     }
 
     /** auto_share users 元素类型归一: Number→longValue; 纯数字字符串→解析; 其余返回 null(非法) */
