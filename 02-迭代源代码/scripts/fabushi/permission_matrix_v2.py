@@ -293,12 +293,22 @@ def build_probe_tokens_v2(secret):
 
 def build_cases_v2(users, temp_users, eps, tokens, forged, expired, no2xx):
     cases = []
+    build_a_cases_v2(cases, users, eps, tokens, forged, expired)
+    build_bc_cases_v2(cases, users, eps, tokens, no2xx)
+    build_d_cases_v2(cases, temp_users, eps, tokens)
+    return cases
+
+
+def build_a_cases_v2(cases, users, eps, tokens, forged, expired):
     for u in users:
         for e in eps:
             add_case(cases, u, e, 'A', 'valid', tokens[u['id']])
             add_case(cases, u, e, 'A', 'no_token', None)
             add_case(cases, u, e, 'A', 'forged', forged)
             add_case(cases, u, e, 'A', 'expired', expired)
+
+
+def build_bc_cases_v2(cases, users, eps, tokens, no2xx):
     for u in users:
         for e in eps:
             if '{' in e['path']:
@@ -307,10 +317,12 @@ def build_cases_v2(users, temp_users, eps, tokens, forged, expired, no2xx):
         for e in eps:
             if (e['method'], e['path']) in no2xx:
                 add_case(cases, u, e, 'C', 'own', tokens[u['id']])
+
+
+def build_d_cases_v2(cases, temp_users, eps, tokens):
     for u in temp_users:
         for e in eps:
             add_case(cases, u, e, 'D', 'valid', tokens[u['id']])
-    return cases
 
 
 def add_case(cases, u, e, group, mode, token):
@@ -384,20 +396,30 @@ def scope_level_of(uroles, u):
     return 'all' if ('admin' in roles or '0' in roles or 'perm_tmp_all' in roles) else 'limited'
 
 
+def classify_expected(ok):
+    if ok is True:
+        return 'authorized'
+    if ok is False:
+        return 'denied'
+    return 'unknown'
+
+
 def expected_for_v2(c, mode, u, perms):
     if c['group'] == 'A':
-        if mode == 'valid':
-            ok = expected_ok(c['rule'], perms.get(u['id'], set()))
-            return 'authorized' if ok is True else ('denied' if ok is False else 'unknown')
-        if c['rule'][0] == 'anon':
-            return 'anon'
-        if mode == 'no_token':
-            return 'denied'
-        return 'rejected'  # forged / expired
+        return expected_for_a(mode, c['rule'], u, perms)
     if c['group'] == 'D':
-        ok = expected_ok(c['rule'], perms.get(u['id'], set()))
-        return 'authorized' if ok is True else ('denied' if ok is False else 'unknown')
+        return classify_expected(expected_ok(c['rule'], perms.get(u['id'], set())))
     return 'authorized'
+
+
+def expected_for_a(mode, rule, u, perms):
+    if mode == 'valid':
+        return classify_expected(expected_ok(rule, perms.get(u['id'], set())))
+    if rule[0] == 'anon':
+        return 'anon'
+    if mode == 'no_token':
+        return 'denied'
+    return 'rejected'  # forged / expired
 
 
 def refine_match_v2(group, status, path, c, u, perms, meta, match, err):

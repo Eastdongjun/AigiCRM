@@ -265,22 +265,34 @@ def build_probe_tokens(secret):
 
 def build_cases(users, temp_users, eps, tokens, forged, expired, no2xx):
     cases = []
-    for u in users + temp_users:
+    build_group_a_cases(cases, users + temp_users, eps, tokens, forged, expired)
+    build_group_b_cases(cases, users, eps, tokens)
+    build_group_c_cases(cases, users, eps, tokens, no2xx)
+    return cases
+
+
+def build_group_a_cases(cases, all_users, eps, tokens, forged, expired):
+    for u in all_users:
         for e in eps:
             rule = permission_rule(e.get('permission') or '')
             for mode, tok in (('valid', tokens[u['id']]), ('no_token', None), ('forged', forged), ('expired', expired)):
                 cases.append({'u': u, 'e': e, 'group': 'A', 'mode': mode, 'token': tok, 'rule': rule})
+
+
+def build_group_b_cases(cases, users, eps, tokens):
     for u in users:
         for e in eps:
             if '{' in e['path']:
                 cases.append({'u': u, 'e': e, 'group': 'B', 'mode': 'other', 'token': tokens[u['id']],
                               'rule': permission_rule(e.get('permission') or '')})
+
+
+def build_group_c_cases(cases, users, eps, tokens, no2xx):
     for u in users:
         for e in eps:
             if (e['method'], e['path']) in no2xx:
                 cases.append({'u': u, 'e': e, 'group': 'C', 'mode': 'own', 'token': tokens[u['id']],
                               'rule': permission_rule(e.get('permission') or '')})
-    return cases
 
 
 def execute_cases(cases, args, pools, perms, uroles):
@@ -350,12 +362,19 @@ def call_with_retry(base_url, method, path, token, timeout):
     return status
 
 
+def classify_expected(ok):
+    if ok is True:
+        return 'authorized'
+    if ok is False:
+        return 'denied'
+    return 'unknown'
+
+
 def expected_for(c, mode, u, perms):
     if c['group'] != 'A':
         return 'authorized'
     if mode == 'valid':
-        ok = expected_ok(c['rule'], perms.get(u['id'], set()))
-        return 'authorized' if ok is True else ('denied' if ok is False else 'unknown')
+        return classify_expected(expected_ok(c['rule'], perms.get(u['id'], set())))
     if c['rule'][0] == 'anon':
         return 'anon'
     if mode == 'no_token':

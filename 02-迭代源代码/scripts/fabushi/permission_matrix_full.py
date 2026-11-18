@@ -245,10 +245,17 @@ def run_case(c, args, perms, roles, meta):
     }
 
 
+def classify_expected(ok):
+    if ok is True:
+        return 'authorized'
+    if ok is False:
+        return 'denied'
+    return 'unknown'
+
+
 def expected_for(mode, u, perms, rule):
     if mode == 'valid':
-        ok = expected_ok(rule, perms.get(u['id'], set()))
-        return 'authorized' if ok is True else ('denied' if ok is False else 'unknown')
+        return classify_expected(expected_ok(rule, perms.get(u['id'], set())))
     if mode == 'no_token':
         return 'anon' if rule[0] == 'anon' else 'denied'
     return 'rejected'
