@@ -375,38 +375,50 @@ const router = createRouter({
 // 品牌名唯一来源：登录前用默认品牌；登录后跟随 userStore.systemName（由后端配置下发，见 store/user.js loadSystemConfig）
 // 【2026-10-13】品牌回归 'AIGICRM'（A4 三轮曾统一为运筹马年·市场资源管理系统，已按用户指令撤销）
 const BRAND_NAME = 'AIGICRM'
+const isPublicPath = (to) =>
+  to.path === '/login' || to.path === '/mp-file-picker' || to.path === '/mp-fabushi-reader'
+
+const ensureUserLoaded = async (userStore, next) => {
+  if (userStore.userId && userStore.permissions.size > 0) return true
+  try {
+    await userStore.fetchUserInfo(true)
+    return true
+  } catch (e) {
+    clearToken()
+    next('/login')
+    return false
+  }
+}
+
+const checkRoutePermission = (to, userStore, next) => {
+  if (!to.meta.permission || userStore.hasPermission(to.meta.permission)) return true
+  const fallback = firstAccessiblePath(routes, userStore)
+  next(to.path === fallback ? '/403' : fallback)
+  return false
+}
+
 router.beforeEach(async (to, from, next) => {
   document.title = (to.meta.title ? to.meta.title + ' - ' : '') + BRAND_NAME
   // /mp-file-picker、/mp-fabushi-reader 为小程序 web-view 容器页(鉴权自治: URL 带 token 直连后端), 不走 PC 登录态
-  if (to.path === '/login' || to.path === '/mp-file-picker' || to.path === '/mp-fabushi-reader') {
+  if (isPublicPath(to)) {
     next()
-  } else if (!isTokenValid()) {
+    return
+  }
+  if (!isTokenValid()) {
     // token 缺失或已过期：提前清掉，避免带坏 token 进入页面触发一堆 403
     clearToken()
     next('/login')
-  } else {
-    // 【修复 2026-08-10 P1-09】页面级权限在守卫层检查(此前在 layout onMounted 才检查,
-    // 页面已渲染后才踢回; 且多数模块路由无 meta.permission 完全无前端门控)。
-    // 动态 import 避免 router ↔ store 循环依赖。
-    const { useUserStore } = await import('@/store/user')
-    const userStore = useUserStore()
-    if (userStore.systemName) document.title = (to.meta.title ? to.meta.title + ' - ' : '') + userStore.systemName
-    if (!userStore.userId || userStore.permissions.size === 0) {
-      try {
-        await userStore.fetchUserInfo(true)
-      } catch (e) {
-        clearToken()
-        next('/login')
-        return
-      }
-    }
-    if (to.meta.permission && !userStore.hasPermission(to.meta.permission)) {
-      const fallback = firstAccessiblePath(routes, userStore)
-      next(to.path === fallback ? '/403' : fallback)
-      return
-    }
-    next()
+    return
   }
+  // 【修复 2026-08-10 P1-09】页面级权限在守卫层检查(此前在 layout onMounted 才检查,
+  // 页面已渲染后才踢回; 且多数模块路由无 meta.permission 完全无前端门控)。
+  // 动态 import 避免 router ↔ store 循环依赖。
+  const { useUserStore } = await import('@/store/user')
+  const userStore = useUserStore()
+  if (userStore.systemName) document.title = (to.meta.title ? to.meta.title + ' - ' : '') + userStore.systemName
+  if (!(await ensureUserLoaded(userStore, next))) return
+  if (!checkRoutePermission(to, userStore, next)) return
+  next()
 })
 
 // 【需求】旧版页面自愈(FEAT 0804):浏览器停留在旧版时,点击菜单动态加载已删除的 chunk 会失败

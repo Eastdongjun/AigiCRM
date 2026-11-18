@@ -720,6 +720,90 @@ export function useIncentiveUpload() {
     return res.code === 200 ? (res.data?.id ?? null) : null
   }
 
+  const uploadSlot = async (files, state) => {
+    const newFiles = files.filter(f => !f._existing)
+    if (!newFiles.length) return []
+    const ids = []
+    for (const f of newFiles) {
+      const id = await uploadOne(f, state.uploaded, state.total)
+      if (id === null) throw new Error('文件上传失败')
+      ids.push(id)
+      state.uploaded++
+    }
+    return ids
+  }
+
+  const uploadAllSlots = async () => {
+    // 批量上传所有新文件，收集每个槽位的文件ID列表
+    const state = { uploaded: 0, total: totalNewFiles.value }
+    const preIds = await uploadSlot(installFiles.pre, state)
+    const midIds = await uploadSlot(installFiles.mid, state)
+    const postIds = await uploadSlot(installFiles.post, state)
+    const trackIds = await uploadSlot(trackFile.value, state)
+    return { preIds, midIds, postIds, trackIds }
+  }
+
+  // 序列化为JSON数组
+  const toJson = (ids) => ids.length ? `[${ids.join(',')}]` : null
+
+  const getKeptIds = (slotFiles) => slotFiles.filter(f => f._existing && f.id).map(f => f.id)
+
+  const mergedFileIds = (slotFiles, newIds) => {
+    const all = [...getKeptIds(slotFiles), ...newIds]
+    return all.length ? `[${all.join(',')}]` : null
+  }
+
+  const buildEditPayload = (newIds) => {
+    // 追加模式：只保留 UI 中未被删除的已有文件 + 新上传文件
+    const old = pendingReplace.value
+    let finalMidId = mergedFileIds(installFiles.mid, newIds.midIds)
+    let finalPostId = mergedFileIds(installFiles.post, newIds.postIds)
+    let finalTrackId = mergedFileIds(trackFile.value, newIds.trackIds)
+
+    // 单槽品类：保留旧记录的中/后/跟踪槽文件（不提供编辑入口，避免历史数据丢失）
+    if (isSingleSlot.value) {
+      finalMidId = old.fileMidId || null
+      finalPostId = old.filePostId || null
+      finalTrackId = old.fileTrackId || null
+    }
+
+    // 【2026-08-12 审计】编辑改走 updateRecord(PUT)：保留原记录 id/userId/createdAt，
+    // 初始上传人不变、上传时间不被重置；categoryId/period 保留原记录值(不随编辑覆盖)。
+    const editPayload = {
+      customerId: selectedCustomerId.value,
+      industry: selectedIndustry.value ?? null,
+      relatedProducts: relatedProducts.value ?? null,
+      specificProduct: specificProduct.value ?? null,
+      preInstallQuestion: preInstallQuestion.value ?? null,
+      filePreId: mergedFileIds(installFiles.pre, newIds.preIds),
+      fileMidId: finalMidId,
+      filePostId: finalPostId,
+      fileTrackId: finalTrackId,
+      remark: remarkText.value ?? null,
+    }
+    // 【2026-08-12】分享仅本人可改：编辑他人记录时不携带 shared（后端也会忽略），保持原值
+    if (canToggleShare.value) editPayload.shared = shareToTeam.value ? 1 : 0
+    return editPayload
+  }
+
+  const buildAddPayload = (newIds) => ({
+    categoryId: pendingChild.value.id,
+    customerId: selectedCustomerId.value,
+    // 筛选选「全部」时按当年「全年」落库，避免写入空周期（历史数据同为"全年"口径）
+    period: selectedPeriod.value || defaultRecordPeriod(),
+    industry: selectedIndustry.value ?? null,
+    relatedProducts: relatedProducts.value ?? null,
+    specificProduct: specificProduct.value ?? null,
+    preInstallQuestion: preInstallQuestion.value ?? null,
+    filePreId: toJson(newIds.preIds),
+    // 单槽品类（visit/exchange/plan）：不提交中/后/跟踪槽
+    fileMidId: isSingleSlot.value ? null : toJson(newIds.midIds),
+    filePostId: isSingleSlot.value ? null : toJson(newIds.postIds),
+    fileTrackId: isSingleSlot.value ? null : toJson(newIds.trackIds),
+    remark: remarkText.value ?? null,
+    shared: shareToTeam.value ? 1 : 0
+  })
+
   // 提交：每个槽位支持多文件上传（最多5个），ID序列化为JSON数组
   const confirmUpload = async () => {
     // 【四轮复检修复】移除在途禁止提交: 快照会带上正在被移除的文件 id
@@ -728,91 +812,11 @@ export function useIncentiveUpload() {
     uploading.value = true
     uploadProgress.value = 0
     try {
-      // 批量上传所有新文件，收集每个槽位的文件ID列表
-      const allNew = totalNewFiles.value
-      let uploaded = 0
-      const uploadSlot = async (files) => {
-        const newFiles = files.filter(f => !f._existing)
-        if (!newFiles.length) return []
-        const ids = []
-        for (const f of newFiles) {
-          const id = await uploadOne(f, uploaded, allNew)
-          if (id === null) throw new Error('文件上传失败')
-          ids.push(id)
-          uploaded++
-        }
-        return ids
-      }
-      const preIds = await uploadSlot(installFiles.pre)
-      const midIds = await uploadSlot(installFiles.mid)
-      const postIds = await uploadSlot(installFiles.post)
-      const trackIds = await uploadSlot(trackFile.value)
-
-      // 序列化为JSON数组
-      const toJson = (ids) => ids.length ? `[${ids.join(',')}]` : null
-
-      let finalPreId, finalMidId, finalPostId, finalTrackId
-
+      const newIds = await uploadAllSlots()
       if (pendingReplace.value) {
-        // 追加模式：只保留 UI 中未被删除的已有文件 + 新上传文件
-        const old = pendingReplace.value
-        const getKeptIds = (slotFiles) => slotFiles.filter(f => f._existing && f.id).map(f => f.id)
-
-        const preOldIds = getKeptIds(installFiles.pre)
-        finalPreId = [...preOldIds, ...preIds].length ? `[${[...preOldIds, ...preIds].join(',')}]` : null
-
-        const midOldIds = getKeptIds(installFiles.mid)
-        finalMidId = [...midOldIds, ...midIds].length ? `[${[...midOldIds, ...midIds].join(',')}]` : null
-
-        const postOldIds = getKeptIds(installFiles.post)
-        finalPostId = [...postOldIds, ...postIds].length ? `[${[...postOldIds, ...postIds].join(',')}]` : null
-
-        const trackOldIds = getKeptIds(trackFile.value)
-        finalTrackId = [...trackOldIds, ...trackIds].length ? `[${[...trackOldIds, ...trackIds].join(',')}]` : null
-
-        // 单槽品类：保留旧记录的中/后/跟踪槽文件（不提供编辑入口，避免历史数据丢失）
-        if (isSingleSlot.value) {
-          const oldRow = pendingReplace.value
-          finalMidId = oldRow.fileMidId || null
-          finalPostId = oldRow.filePostId || null
-          finalTrackId = oldRow.fileTrackId || null
-        }
-
-        // 【2026-08-12 审计】编辑改走 updateRecord(PUT)：保留原记录 id/userId/createdAt，
-        // 初始上传人不变、上传时间不被重置；categoryId/period 保留原记录值(不随编辑覆盖)。
-        const editPayload = {
-          customerId: selectedCustomerId.value,
-          industry: selectedIndustry.value ?? null,
-          relatedProducts: relatedProducts.value ?? null,
-          specificProduct: specificProduct.value ?? null,
-          preInstallQuestion: preInstallQuestion.value ?? null,
-          filePreId: finalPreId,
-          fileMidId: finalMidId,
-          filePostId: finalPostId,
-          fileTrackId: finalTrackId,
-          remark: remarkText.value ?? null,
-        }
-        // 【2026-08-12】分享仅本人可改：编辑他人记录时不携带 shared（后端也会忽略），保持原值
-        if (canToggleShare.value) editPayload.shared = shareToTeam.value ? 1 : 0
-        await updateRecord(pendingReplace.value.id, editPayload)
+        await updateRecord(pendingReplace.value.id, buildEditPayload(newIds))
       } else {
-        await addRecord({
-          categoryId: pendingChild.value.id,
-          customerId: selectedCustomerId.value,
-          // 筛选选「全部」时按当年「全年」落库，避免写入空周期（历史数据同为"全年"口径）
-          period: selectedPeriod.value || defaultRecordPeriod(),
-          industry: selectedIndustry.value ?? null,
-          relatedProducts: relatedProducts.value ?? null,
-          specificProduct: specificProduct.value ?? null,
-          preInstallQuestion: preInstallQuestion.value ?? null,
-          filePreId: toJson(preIds),
-          // 单槽品类（visit/exchange/plan）：不提交中/后/跟踪槽
-          fileMidId: isSingleSlot.value ? null : toJson(midIds),
-          filePostId: isSingleSlot.value ? null : toJson(postIds),
-          fileTrackId: isSingleSlot.value ? null : toJson(trackIds),
-          remark: remarkText.value ?? null,
-          shared: shareToTeam.value ? 1 : 0
-        })
+        await addRecord(buildAddPayload(newIds))
       }
       ElMessage.success(pendingReplace.value ? '追加成功' : '提交成功')
       showCustomerDialog.value = false
