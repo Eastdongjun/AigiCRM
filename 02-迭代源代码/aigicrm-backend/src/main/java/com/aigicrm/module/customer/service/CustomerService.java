@@ -1060,27 +1060,41 @@ public class CustomerService {
         java.util.List<Long> extra = applicableAutoShareOwnerIds(scopeUser, d, shareOwnerIds);
         if (!d.isAll()) {
             if (req.getAnchor() == com.aigicrm.common.scope.ScopeRequest.AnchorType.ORG) {
-                java.util.List<Long> deptIds = d.getVisibleDeptIds();
-                boolean hasBase = deptIds != null && !deptIds.isEmpty();
-                if (hasBase && !extra.isEmpty()) {
-                    wrapper.and(w -> w.in(BizCustomer::getDeptId, deptIds).or().in(BizCustomer::getOwnerId, extra));
-                } else if (hasBase) {
-                    wrapper.in(BizCustomer::getDeptId, deptIds);
-                } else if (!extra.isEmpty()) {
-                    wrapper.in(BizCustomer::getOwnerId, extra);
-                } else {
-                    wrapper.eq(BizCustomer::getDeptId, -1L); // 空集合: 不可见
-                }
+                applyOrgScopeWithShare(wrapper, d, extra);
             } else {
-                java.util.LinkedHashSet<Long> union = new java.util.LinkedHashSet<>();
-                if (d.getVisibleUserIds() != null) union.addAll(d.getVisibleUserIds());
-                union.addAll(extra);
-                if (!union.isEmpty()) wrapper.in(BizCustomer::getOwnerId, union);
-                else wrapper.eq(BizCustomer::getOwnerId, -1L); // 空集合: 不可见
+                applyOwnerScopeWithShare(wrapper, d, extra);
             }
         }
         // 规则引擎：追加运行时 WHERE 条件（与统一层 AND 合并，追加条件层）
         applyRuleEngineFilter(wrapper, scopeUser);
+    }
+
+    /** ORG 锚点：部门基础范围 OR auto_share 扩展 owner（只扩不缩）。 */
+    private void applyOrgScopeWithShare(LambdaQueryWrapper<BizCustomer> wrapper,
+                                        com.aigicrm.common.scope.ScopeDecision d,
+                                        java.util.List<Long> extra) {
+        java.util.List<Long> deptIds = d.getVisibleDeptIds();
+        boolean hasBase = deptIds != null && !deptIds.isEmpty();
+        if (hasBase && !extra.isEmpty()) {
+            wrapper.and(w -> w.in(BizCustomer::getDeptId, deptIds).or().in(BizCustomer::getOwnerId, extra));
+        } else if (hasBase) {
+            wrapper.in(BizCustomer::getDeptId, deptIds);
+        } else if (!extra.isEmpty()) {
+            wrapper.in(BizCustomer::getOwnerId, extra);
+        } else {
+            wrapper.eq(BizCustomer::getDeptId, -1L); // 空集合: 不可见
+        }
+    }
+
+    /** OWNER 锚点：base∪share 合并为单个 IN（只扩不缩）。 */
+    private void applyOwnerScopeWithShare(LambdaQueryWrapper<BizCustomer> wrapper,
+                                          com.aigicrm.common.scope.ScopeDecision d,
+                                          java.util.List<Long> extra) {
+        java.util.LinkedHashSet<Long> union = new java.util.LinkedHashSet<>();
+        if (d.getVisibleUserIds() != null) union.addAll(d.getVisibleUserIds());
+        union.addAll(extra);
+        if (!union.isEmpty()) wrapper.in(BizCustomer::getOwnerId, union);
+        else wrapper.eq(BizCustomer::getOwnerId, -1L); // 空集合: 不可见
     }
 
     /** auto_share 的"扩展部分"：已在基础范围内的 owner 不重复加入；office 档不扩不缩。 */

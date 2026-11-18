@@ -576,19 +576,30 @@ public class IncentiveService {
         if (body.isEmpty()) return false;
         int i = 0;
         while (true) {
-            int start = i;
-            while (i < body.length()) {
-                char c = body.charAt(i);
-                if (c < '0' || c > '9') break;
-                i++;
-            }
-            int len = i - start;
-            if (len < 1 || len > 18) return false;
-            if (i == body.length()) return true;
-            if (body.charAt(i) != ',') return false;
-            i++;
+            int next = nextCommaOrEnd(body, i);
+            if (!isValidIdToken(body, i, next)) return false;
+            if (next == body.length()) return true;
+            i = next + 1;
             if (i == body.length()) return false;
         }
+    }
+
+    /** 下一个逗号或串尾（线性扫描，不回溯）。 */
+    private static int nextCommaOrEnd(String body, int from) {
+        int i = from;
+        while (i < body.length() && body.charAt(i) != ',') i++;
+        return i;
+    }
+
+    /** ID token：1-18 位 ASCII 数字。 */
+    private static boolean isValidIdToken(String body, int start, int end) {
+        int len = end - start;
+        if (len < 1 || len > 18) return false;
+        for (int i = start; i < end; i++) {
+            char c = body.charAt(i);
+            if (c < '0' || c > '9') return false;
+        }
+        return true;
     }
 
     /** 槽位值是否为"本次实际提供"(非 null 且非空白)——与 mergeSlotJson 的空串=未提供语义一致 */

@@ -134,6 +134,33 @@ class CustomerServiceTest {
                 mock(com.aigicrm.module.customer.service.CustomerEventService.class));
     }
 
+    /** P0-5：数据范围+auto_share 合并路径测试用（可注入 RolePermScopeService/用户映射）。 */
+    private CustomerService newScopeService(SysConfigService configService, OrgScopeResolver resolver,
+                                            com.aigicrm.module.system.service.RolePermScopeService rolePerm,
+                                            SysUserMapper userMapper) {
+        return new CustomerService(
+                mock(BizCustomerMapper.class),
+                null,
+                mock(BizCustomerLogMapper.class),
+                mock(BizInvoiceMapper.class),
+                mock(BizCustomerShareMapper.class),
+                mock(BizCustomerIndicatorMapper.class),
+                mock(BizContactMapper.class),
+                mock(BizPaymentMapper.class),
+                mock(com.aigicrm.module.customer.mapper.BizCustomerStageAmountMapper.class), mock(com.aigicrm.module.sea.mapper.BizSeaPoolMapper.class),
+                userMapper,
+                mock(SysDeptMapper.class),
+                mock(BizReminderMapper.class),
+                mock(JdbcTemplate.class),
+                configService,
+                resolver,
+                mock(com.aigicrm.common.engine.CustomerAccessService.class),
+                rolePerm,
+                mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class),
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
+    }
+
     /** 裁决 2026-09-24: 财务删除留痕钉用——可注入 SysLogMapper 以断言审计快照 */
     private CustomerService newServiceWithAudit(BizInvoiceMapper invoiceMapper, BizPaymentMapper paymentMapper,
                                                 BizCustomerMapper customerMapper, OrgScopeResolver resolver,
@@ -2313,6 +2340,97 @@ class CustomerServiceTest {
             Map<String, List<Long>> cols = columnValues(w);
             assertEquals(List.of(11L), cols.get("owner_id"),
                     "office 档应保留基础范围 11，不被 auto_share 扩/缩, 实际: " + cols);
+        }
+    }
+
+    @Test
+    void autoShare_orgScope_extraUsesOrUnion() {
+        SysConfigService configService = mock(SysConfigService.class);
+        when(configService.getValue("customer.auto_share")).thenReturn(
+                "{\"superior\":true,\"admin\":false,\"roles\":[],\"users\":[]}");
+        SysUserMapper userMapper = mock(SysUserMapper.class);
+        com.aigicrm.module.system.entity.SysUser sub = new com.aigicrm.module.system.entity.SysUser();
+        sub.setId(1L);
+        when(userMapper.selectList(any())).thenReturn(List.of(sub));
+        OrgScopeResolver resolver = mock(OrgScopeResolver.class);
+        com.aigicrm.common.scope.ScopeDecision d = new com.aigicrm.common.scope.ScopeDecision();
+        d.setVisibleDeptIds(List.of(10L));
+        d.setVisibleUserIds(List.of(11L));
+        when(resolver.resolveScope(any())).thenReturn(d);
+        com.aigicrm.module.system.service.RolePermScopeService rolePerm =
+                mock(com.aigicrm.module.system.service.RolePermScopeService.class);
+        when(rolePerm.anchorOf(any(), any(), any())).thenReturn(com.aigicrm.common.scope.ScopeRequest.AnchorType.ORG);
+        when(rolePerm.effectiveScopeCode(any(), any(), any())).thenReturn("dept");
+        CustomerService service = newScopeService(configService, resolver, rolePerm, userMapper);
+        try (MockedStatic<SecurityUtils> sec = mockStatic(SecurityUtils.class)) {
+            sec.when(SecurityUtils::isAdmin).thenReturn(false);
+            sec.when(SecurityUtils::getCurrentUserId).thenReturn(11L);
+            sec.when(SecurityUtils::getCurrentUser).thenReturn(mock(SecurityUser.class));
+            sec.when(SecurityUtils::getCurrentRoleCodes).thenReturn(List.of());
+            sec.when(SecurityUtils::getCurrentOrgId).thenReturn(1L);
+            com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<BizCustomer> w =
+                    new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
+            ReflectionTestUtils.invokeMethod(service, "applyDataScopeAndAutoShare", w);
+            Map<String, List<Long>> cols = columnValues(w);
+            assertEquals(List.of(10L), cols.get("dept_id"), "ORG 基础范围应保留, 实际: " + cols);
+            assertEquals(List.of(1L), cols.get("owner_id"), "auto_share 扩展 owner 应以 OR 追加, 实际: " + cols);
+        }
+    }
+
+    @Test
+    void autoShare_orgScope_noExtra_usesDeptOnly() {
+        SysConfigService configService = mock(SysConfigService.class);
+        when(configService.getValue("customer.auto_share")).thenReturn(
+                "{\"superior\":false,\"admin\":false,\"roles\":[],\"users\":[]}");
+        OrgScopeResolver resolver = mock(OrgScopeResolver.class);
+        com.aigicrm.common.scope.ScopeDecision d = new com.aigicrm.common.scope.ScopeDecision();
+        d.setVisibleDeptIds(List.of(10L));
+        d.setVisibleUserIds(List.of(11L));
+        when(resolver.resolveScope(any())).thenReturn(d);
+        com.aigicrm.module.system.service.RolePermScopeService rolePerm =
+                mock(com.aigicrm.module.system.service.RolePermScopeService.class);
+        when(rolePerm.anchorOf(any(), any(), any())).thenReturn(com.aigicrm.common.scope.ScopeRequest.AnchorType.ORG);
+        when(rolePerm.effectiveScopeCode(any(), any(), any())).thenReturn("dept");
+        CustomerService service = newScopeService(configService, resolver, rolePerm, mock(SysUserMapper.class));
+        try (MockedStatic<SecurityUtils> sec = mockStatic(SecurityUtils.class)) {
+            sec.when(SecurityUtils::isAdmin).thenReturn(false);
+            sec.when(SecurityUtils::getCurrentUserId).thenReturn(11L);
+            sec.when(SecurityUtils::getCurrentUser).thenReturn(mock(SecurityUser.class));
+            sec.when(SecurityUtils::getCurrentRoleCodes).thenReturn(List.of());
+            sec.when(SecurityUtils::getCurrentOrgId).thenReturn(1L);
+            com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<BizCustomer> w =
+                    new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
+            ReflectionTestUtils.invokeMethod(service, "applyDataScopeAndAutoShare", w);
+            Map<String, List<Long>> cols = columnValues(w);
+            assertEquals(List.of(10L), cols.get("dept_id"), "ORG 基础范围应保留, 实际: " + cols);
+            assertFalse(cols.containsKey("owner_id"), "无扩展时不得追加 owner 条件, 实际: " + cols);
+        }
+    }
+
+    @Test
+    void autoShare_emptyBaseFailsClosed() {
+        SysConfigService configService = mock(SysConfigService.class);
+        when(configService.getValue("customer.auto_share")).thenReturn("{}");
+        OrgScopeResolver resolver = mock(OrgScopeResolver.class);
+        com.aigicrm.common.scope.ScopeDecision d = new com.aigicrm.common.scope.ScopeDecision();
+        d.setVisibleDeptIds(List.of());
+        d.setVisibleUserIds(List.of());
+        when(resolver.resolveScope(any())).thenReturn(d);
+        com.aigicrm.module.system.service.RolePermScopeService rolePerm =
+                mock(com.aigicrm.module.system.service.RolePermScopeService.class);
+        when(rolePerm.effectiveScopeCode(any(), any(), any())).thenReturn("self");
+        CustomerService service = newScopeService(configService, resolver, rolePerm, mock(SysUserMapper.class));
+        try (MockedStatic<SecurityUtils> sec = mockStatic(SecurityUtils.class)) {
+            sec.when(SecurityUtils::isAdmin).thenReturn(false);
+            sec.when(SecurityUtils::getCurrentUserId).thenReturn(11L);
+            sec.when(SecurityUtils::getCurrentUser).thenReturn(mock(SecurityUser.class));
+            sec.when(SecurityUtils::getCurrentRoleCodes).thenReturn(List.of());
+            sec.when(SecurityUtils::getCurrentOrgId).thenReturn(1L);
+            com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<BizCustomer> w =
+                    new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
+            ReflectionTestUtils.invokeMethod(service, "applyDataScopeAndAutoShare", w);
+            Map<String, List<Long>> cols = columnValues(w);
+            assertEquals(List.of(-1L), cols.get("owner_id"), "空基础范围应 fail-closed, 实际: " + cols);
         }
     }
 
