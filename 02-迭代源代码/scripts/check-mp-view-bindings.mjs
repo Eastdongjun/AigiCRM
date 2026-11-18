@@ -69,7 +69,8 @@ function parseArgs(argv) {
     failOnStale: false,
   }
 
-  for (let i = 0; i < argv.length; i += 1) {
+  let i = 0
+  while (i < argv.length) {
     const arg = argv[i]
     if (arg === '-h' || arg === '--help') {
       process.stdout.write(usage())
@@ -77,16 +78,18 @@ function parseArgs(argv) {
     }
     if (arg === '--json') {
       options.json = true
+      i += 1
       continue
     }
     if (arg === '--fail-on-stale') {
       options.failOnStale = true
+      i += 1
       continue
     }
     if (arg === '--root' || arg === '--baseline') {
       const value = argv[i + 1]
       if (!value || value.startsWith('--')) fail(`missing value for ${arg}`)
-      i += 1
+      i += 2
       if (arg === '--root') options.root = path.resolve(value)
       else {
         options.baseline = path.resolve(value)
@@ -124,23 +127,27 @@ function stripWxmlComments(source) {
 function stripJsComments(source) {
   const chars = source.split('')
   let state = 'code'
-  for (let i = 0; i < source.length; i += 1) {
+  let i = 0
+  while (i < source.length) {
     const current = source[i]
     const next = source[i + 1]
 
     if (state === 'code') {
       if (current === '"' || current === "'" || current === '`') {
         state = current
+        i += 1
       } else if (current === '/' && next === '/') {
         chars[i] = ' '
         chars[i + 1] = ' '
-        i += 1
+        i += 2
         state = 'line-comment'
       } else if (current === '/' && next === '*') {
         chars[i] = ' '
         chars[i + 1] = ' '
-        i += 1
+        i += 2
         state = 'block-comment'
+      } else {
+        i += 1
       }
       continue
     }
@@ -148,6 +155,7 @@ function stripJsComments(source) {
     if (state === 'line-comment') {
       if (current === '\n') state = 'code'
       else chars[i] = ' '
+      i += 1
       continue
     }
 
@@ -155,19 +163,21 @@ function stripJsComments(source) {
       if (current === '*' && next === '/') {
         chars[i] = ' '
         chars[i + 1] = ' '
-        i += 1
+        i += 2
         state = 'code'
-      } else if (current !== '\n') {
-        chars[i] = ' '
+      } else {
+        if (current !== '\n') chars[i] = ' '
+        i += 1
       }
       continue
     }
 
     // 字符串 / 模板字符串：跳过转义，遇到同种引号退出。
     if (current === '\\') {
+      i += 2
+    } else {
+      if (current === state) state = 'code'
       i += 1
-    } else if (current === state) {
-      state = 'code'
     }
   }
   return chars.join('')
