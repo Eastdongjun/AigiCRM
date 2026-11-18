@@ -119,7 +119,13 @@ export function useIncentiveStats() {
     // 不再用 i+1 按导出视图重编——06销售过滤后 i+1 会显示 1..N 假名次，违背 2026-09-29 裁决；
     // 表格展示(RankTableView)与个人排行导出(PersonRankTableView)均已直取 r.rank，此处对齐
     const categoryScore = (r, c) => r.byCategory?.[c.id]?.[0] || 0
-    const categoryScores = (r) => rankParents.value.flatMap((g) => g.children.map((c) => categoryScore(r, c)))
+    const categoryScores = (r) => {
+      const scores = []
+      for (const group of rankParents.value) {
+        for (const child of group.children) scores.push(categoryScore(r, child))
+      }
+      return scores
+    }
     const rows = scoreboard.value.map((r) => [r.rank, r.customerName, r.totalScore, ...categoryScores(r), r.recordCount || r.count || 0])
     exportCsv([header, ...rows], `激励客户排行_${periodLabel}.csv`)
   }

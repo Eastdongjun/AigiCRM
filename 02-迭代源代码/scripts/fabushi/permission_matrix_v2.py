@@ -41,39 +41,30 @@ def load_pools(path):
     return pools
 
 
+ENTITY_PREFIXES = [
+    ('/api/customer/{id}/contacts/{contactId}', 'contact'),
+    ('/api/customer/{id}/shares/{userId}', 'customer'),
+    ('/api/customer/', 'customer'),
+    ('/api/file/folders', 'folder'),
+    ('/api/file/recycle/folders', 'folder'),
+    ('/api/file/', 'file'),
+    ('/api/incentive/records', 'incentive'),
+    ('/api/approval/', 'approval'),
+    ('/api/fabushi/books/{bookId}/sections', 'section'),
+    ('/api/fabushi/books', 'book'),
+    ('/api/fabushi/posts/{postId}', 'post'),
+    ('/api/fabushi/posts', 'post'),
+    ('/api/fabushi/activities', 'activity'),
+    ('/api/task/', 'task'),
+    ('/api/reminder/', 'reminder'),
+    ('/api/sea/pool/', 'seapool'),
+]
+
+
 def entity_of(path):
-    if path.startswith('/api/customer/{id}/contacts/{contactId}'):
-        return 'contact'
-    if path.startswith('/api/customer/{id}/shares/{userId}'):
-        return 'customer'
-    if path.startswith('/api/customer/'):
-        return 'customer'
-    if path.startswith('/api/file/folders'):
-        return 'folder'
-    if path.startswith('/api/file/recycle/folders'):
-        return 'folder'
-    if path.startswith('/api/file/'):
-        return 'file'
-    if path.startswith('/api/incentive/records'):
-        return 'incentive'
-    if path.startswith('/api/approval/'):
-        return 'approval'
-    if path.startswith('/api/fabushi/books/{bookId}/sections'):
-        return 'section'
-    if path.startswith('/api/fabushi/books'):
-        return 'book'
-    if path.startswith('/api/fabushi/posts/{postId}'):
-        return 'post'
-    if path.startswith('/api/fabushi/posts'):
-        return 'post'
-    if path.startswith('/api/fabushi/activities'):
-        return 'activity'
-    if path.startswith('/api/task/'):
-        return 'task'
-    if path.startswith('/api/reminder/'):
-        return 'reminder'
-    if path.startswith('/api/sea/pool/'):
-        return 'seapool'
+    for prefix, entity in ENTITY_PREFIXES:
+        if path.startswith(prefix):
+            return entity
     return None
 
 

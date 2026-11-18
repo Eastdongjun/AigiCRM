@@ -53,7 +53,7 @@ public class PermissionRuleEngine {
                 case "time_range"    -> evaluateTimeRange(rule, ctx, whereClauses);
                 case "field_visible" -> evaluateFieldVisible(rule, hiddenFields, visibleFields);
                 case "action_control" -> evaluateActionControl(rule, actionsByEntity);
-                default -> { }
+                default -> { /* 未知规则类型：忽略（保持旧行为） */ }
             }
         }
 
@@ -88,7 +88,7 @@ public class PermissionRuleEngine {
                 case "org_filter"    -> evaluateOrgFilter(rule, ctx, whereClauses);
                 case "time_range"    -> evaluateTimeRange(rule, ctx, whereClauses);
                 // field_visible 和 action_control 不生成 WHERE，跳过
-                default -> { }
+                default -> { /* 不生成 WHERE 的规则类型 */ }
             }
         }
 
@@ -112,7 +112,7 @@ public class PermissionRuleEngine {
             case "in"  -> clauses.add(col + " IN (" + quoteInList(value) + ")");
             case "like" -> clauses.add(col + " LIKE " + quoteValue("%" + value + "%"));
             case "is_null" -> clauses.add(col + " IS NULL");
-            default -> { }
+            default -> { /* 未知操作符：忽略 */ }
         }
     }
 

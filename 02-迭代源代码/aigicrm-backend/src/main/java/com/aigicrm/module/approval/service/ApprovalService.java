@@ -1001,7 +1001,7 @@ public class ApprovalService {
                 StorageQuotaRequest request = parseStorageQuotaRequest(approval.getExtraData());
                 userService.applyStorageQuota(approval.getApplicantId(), request.quota(), approval.getId());
             }
-            default -> { }
+            default -> { /* 未知审批类型：无动作 */ }
         }
     }
 

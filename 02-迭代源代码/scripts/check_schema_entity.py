@@ -28,34 +28,44 @@ def camel_to_snake(name: str) -> str:
     return re.sub(r'(?<!^)(?=[A-Z])', '_', name).lower()
 
 
+def parse_fields(lines):
+    fields = []
+    pending_exist_false = False
+    explicit_column = None
+    for line in lines:
+        if re.search(r'@TableField\s*\(', line):
+            pending_exist_false = bool(TABLE_FIELD_EXIST_FALSE.search(line))
+            em = TABLE_FIELD_ANNOTATION.search(line)
+            explicit_column = em.group(1) if em else None
+        fm = FIELD_RE.match(line)
+        if fm:
+            ftype, fname = fm.group(1), fm.group(2)
+            fields.append({
+                "name": fname,
+                "type": ftype,
+                "column": explicit_column or camel_to_snake(fname),
+                "exist_false": pending_exist_false,
+            })
+            pending_exist_false = False
+            explicit_column = None
+    return fields
+
+
+def parse_entity_file(path: Path):
+    text = path.read_text(errors="ignore")
+    m = TABLE_NAME_RE.search(text)
+    if not m:
+        return None
+    return m.group(1), parse_fields(text.splitlines())
+
+
 def parse_entities(java_dir: Path):
     entities = {}
     for path in java_dir.rglob("*.java"):
-        text = path.read_text(errors="ignore")
-        m = TABLE_NAME_RE.search(text)
-        if not m:
+        parsed = parse_entity_file(path)
+        if not parsed:
             continue
-        table = m.group(1)
-        fields = []
-        lines = text.splitlines()
-        pending_exist_false = False
-        explicit_column = None
-        for i, line in enumerate(lines):
-            if re.search(r'@TableField\s*\(', line):
-                pending_exist_false = bool(TABLE_FIELD_EXIST_FALSE.search(line))
-                em = TABLE_FIELD_ANNOTATION.search(line)
-                explicit_column = em.group(1) if em else None
-            fm = FIELD_RE.match(line)
-            if fm:
-                ftype, fname = fm.group(1), fm.group(2)
-                fields.append({
-                    "name": fname,
-                    "type": ftype,
-                    "column": explicit_column or camel_to_snake(fname),
-                    "exist_false": pending_exist_false,
-                })
-                pending_exist_false = False
-                explicit_column = None
+        table, fields = parsed
         entities[table] = {"file": path, "fields": fields}
     return entities
 
@@ -94,29 +104,31 @@ def parse_sql_columns(sql_files):
 NUMERIC_TYPES = {"bigint", "int", "tinyint", "smallint", "mediumint", "decimal", "float", "double", "numeric"}
 
 
+def check_entity(table, ent, t, errors, warnings):
+    if not t:
+        errors.append(f"[{table}] 表在 SQL 中不存在 (entity: {ent['file'].name})")
+        return
+    for f in ent["fields"]:
+        if f["exist_false"]:
+            continue
+        col = f["column"]
+        if col not in t["cols"]:
+            errors.append(f"[{table}] 实体字段 {f['name']} ({f['type']}) -> 列 {col} 在表中不存在")
+            continue
+        col_type = t["types"].get(col, "")
+        base = re.sub(r'\(.*', '', col_type)
+        if f["type"] == "String" and base in NUMERIC_TYPES:
+            warnings.append(f"[{table}] 实体 String 字段 {f['name']} -> 列 {col} 是 {col_type}(JSON数组/多值存储与数值列冲突)")
+        elif f["type"] != "String" and "varchar" in col_type:
+            warnings.append(f"[{table}] 实体 {f['type']} 字段 {f['name']} -> 列 {col} 是 {col_type}")
+
+
 def check(entities, tables):
     errors, warnings, infos = [], [], []
     for table, ent in sorted(entities.items()):
-        t = tables.get(table)
-        if not t:
-            errors.append(f"[{table}] 表在 SQL 中不存在 (entity: {ent['file'].name})")
-            continue
-        for f in ent["fields"]:
-            if f["exist_false"]:
-                continue
-            col = f["column"]
-            if col not in t["cols"]:
-                errors.append(f"[{table}] 实体字段 {f['name']} ({f['type']}) -> 列 {col} 在表中不存在")
-                continue
-            col_type = t["types"].get(col, "")
-            base = re.sub(r'\(.*', '', col_type)
-            if f["type"] == "String" and base in NUMERIC_TYPES:
-                warnings.append(f"[{table}] 实体 String 字段 {f['name']} -> 列 {col} 是 {col_type}(JSON数组/多值存储与数值列冲突)")
-            elif f["type"] != "String" and "varchar" in col_type:
-                warnings.append(f"[{table}] 实体 {f['type']} 字段 {f['name']} -> 列 {col} 是 {col_type}")
-    for table, t in sorted(tables.items()):
-        ent = entities.get(table)
-        if not ent:
+        check_entity(table, ent, tables.get(table), errors, warnings)
+    for table in sorted(tables):
+        if table not in entities:
             infos.append(f"[{table}] SQL 中有表但无实体(未检查)")
     return errors, warnings, infos
 
