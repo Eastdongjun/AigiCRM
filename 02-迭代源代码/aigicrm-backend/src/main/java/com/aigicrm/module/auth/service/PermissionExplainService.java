@@ -58,15 +58,7 @@ public class PermissionExplainService {
         result.put("dataScope", user.getDataScope());
         result.put("dataScopes", user.getDataScopes());
 
-        List<String> scopeExplanations = new ArrayList<>();
-        if (roleCodes.size() <= 1) {
-            scopeExplanations.add(String.format("单一角色 %s,数据范围=%s",
-                    roleCodes.isEmpty() ? "(无角色)" : roleCodes.get(0), user.getDataScope()));
-        } else {
-            scopeExplanations.add(String.format("多角色并集:有效数据范围取最宽(%s);各角色范围=%s",
-                    user.getDataScope(), user.getDataScopes()));
-        }
-        result.put("dataScopeExplanation", scopeExplanations);
+        result.put("dataScopeExplanation", dataScopeExplanations(roleCodes, user));
 
         // 权限码清单
         Set<String> permissions = user.getPermissions() != null ? user.getPermissions() : Set.of();
@@ -74,29 +66,10 @@ public class PermissionExplainService {
         result.put("permissions", new TreeSet<>(permissions));
 
         // 权限规则命中
-        List<Map<String, Object>> rules = new ArrayList<>();
-        if (user.getPermissionRules() != null) {
-            for (var rule : user.getPermissionRules()) {
-                Map<String, Object> r = new LinkedHashMap<>();
-                r.put("ruleName", String.valueOf(rule.getName()));
-                r.put("ruleCode", String.valueOf(rule.getCode()));
-                r.put("targetEntity", String.valueOf(rule.getTargetEntity()));
-                r.put("description", String.valueOf(rule.getDescription()));
-                rules.add(r);
-            }
-        }
-        result.put("permissionRules", rules);
+        result.put("permissionRules", ruleSummaries(user));
 
         // 字段级权限
-        var rr = user.getRuleResult();
-        if (rr != null) {
-            Map<String, Object> field = new LinkedHashMap<>();
-            field.put("hiddenFields", rr.getHiddenFields());
-            field.put("visibleFields", rr.getVisibleFields());
-            result.put("fieldLevelPermissions", field);
-        } else {
-            result.put("fieldLevelPermissions", Map.of("note", "无权限规则生效"));
-        }
+        result.put("fieldLevelPermissions", fieldPermissions(user));
 
         // 管理范围
         if (user.getManagedOrgIds() != null && !user.getManagedOrgIds().isEmpty()) {
@@ -104,22 +77,65 @@ public class PermissionExplainService {
         }
 
         // 常见阻断原因
+        result.put("commonBlockers", commonBlockers(permissions, user));
+
+        // 【WP6 2026-11-13】可见人数(各域来源动作, 规格 WP6 生效预览"可见人数")
+        result.put("visibleUserCounts", visibleUserCounts(user));
+        result.put("permEpoch", epochNow());
+
+        return result;
+    }
+
+    private List<String> dataScopeExplanations(List<String> roleCodes, SecurityUser user) {
+        List<String> out = new ArrayList<>();
+        if (roleCodes.size() <= 1) {
+            out.add(String.format("单一角色 %s,数据范围=%s",
+                    roleCodes.isEmpty() ? "(无角色)" : roleCodes.get(0), user.getDataScope()));
+        } else {
+            out.add(String.format("多角色并集:有效数据范围取最宽(%s);各角色范围=%s",
+                    user.getDataScope(), user.getDataScopes()));
+        }
+        return out;
+    }
+
+    private List<Map<String, Object>> ruleSummaries(SecurityUser user) {
+        List<Map<String, Object>> rules = new ArrayList<>();
+        if (user.getPermissionRules() == null) return rules;
+        for (var rule : user.getPermissionRules()) {
+            Map<String, Object> r = new LinkedHashMap<>();
+            r.put("ruleName", String.valueOf(rule.getName()));
+            r.put("ruleCode", String.valueOf(rule.getCode()));
+            r.put("targetEntity", String.valueOf(rule.getTargetEntity()));
+            r.put("description", String.valueOf(rule.getDescription()));
+            rules.add(r);
+        }
+        return rules;
+    }
+
+    private Map<String, Object> fieldPermissions(SecurityUser user) {
+        var rr = user.getRuleResult();
+        if (rr == null) return Map.of("note", "无权限规则生效");
+        Map<String, Object> field = new LinkedHashMap<>();
+        field.put("hiddenFields", rr.getHiddenFields());
+        field.put("visibleFields", rr.getVisibleFields());
+        return field;
+    }
+
+    private List<String> commonBlockers(Set<String> permissions, SecurityUser user) {
         List<String> blockers = new ArrayList<>();
         if (permissions.isEmpty()) blockers.add("无任何权限码——检查角色是否绑定菜单");
         if ("self".equals(user.getDataScope())) blockers.add("数据范围=self:仅能看自己负责的数据");
         if (user.getCurrentGroupId() == null) blockers.add("无有效集团归属:业务接口将 fail-closed 拒绝");
-        result.put("commonBlockers", blockers);
+        return blockers;
+    }
 
-        // 【WP6 2026-11-13】可见人数(各域来源动作, 规格 WP6 生效预览"可见人数")
-        java.util.Map<String, Object> visibility = new LinkedHashMap<>();
+    private Map<String, Object> visibleUserCounts(SecurityUser user) {
+        Map<String, Object> visibility = new LinkedHashMap<>();
         visibility.put("customer", domainVisibleCount(user, "customer", "view"));
         visibility.put("task", domainVisibleCount(user, "task", "view"));
         visibility.put("score", domainVisibleCount(user, "score", "view"));
         visibility.put("approval", domainVisibleCount(user, "approval", "view"));
-        result.put("visibleUserCounts", visibility);
-        result.put("permEpoch", epochNow());
-
-        return result;
+        return visibility;
     }
 
     /** 域可见人数(null=全量→-1 标记; 经双轨入口, 读开关生效) */

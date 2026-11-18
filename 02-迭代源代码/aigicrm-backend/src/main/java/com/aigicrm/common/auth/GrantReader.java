@@ -83,42 +83,50 @@ public class GrantReader {
         }
     }
 
-    private Map<String, List<GrantRow>> load(SecurityUser user) {
-        Map<String, List<GrantRow>> out = new HashMap<>();
-        try {
-            List<String> subjects = new ArrayList<>();
-            subjects.add("USER:" + user.getUserId());
-            if (user.getPositions() != null) {
-                for (var p : user.getPositions()) {
-                    if (p != null && p.getId() != null) subjects.add("POSITION:" + p.getId());
-                }
+    private List<String> subjectsOf(SecurityUser user) {
+        List<String> subjects = new ArrayList<>();
+        subjects.add("USER:" + user.getUserId());
+        if (user.getPositions() != null) {
+            for (var p : user.getPositions()) {
+                if (p != null && p.getId() != null) subjects.add("POSITION:" + p.getId());
             }
-            if (user.getRoleCodes() != null) {
-                for (String rc : user.getRoleCodes()) {
-                    if (rc != null && !rc.isBlank()) subjects.add("ROLE:" + rc);
-                }
+        }
+        if (user.getRoleCodes() != null) {
+            for (String rc : user.getRoleCodes()) {
+                if (rc != null && !rc.isBlank()) subjects.add("ROLE:" + rc);
             }
-            if (subjects.isEmpty()) return out;
+        }
+        return subjects;
+    }
 
-            // 动态 IN 由主体数(≤几十)拼接占位符, 值经参数绑定(Mimosa: 禁拼接 SQL 值)
-            String placeholders = String.join(",", subjects.stream().map(s -> "?").toList());
-            Timestamp now = Timestamp.valueOf(LocalDateTime.now());
-            jdbc.query(
-                    "SELECT subject_type, subject_id, action_code, scope_type, anchor, scope_config FROM sys_perm_grant " +
-                    "WHERE tenant_id = 1 AND effect = 'ALLOW' " +
-                    "AND (expire_at IS NULL OR expire_at > ?) " +
-                    "AND CONCAT(subject_type, ':', subject_id) IN (" + placeholders + ")",
-                    rs -> {
-                        GrantRow row = new GrantRow(
-                                rs.getString("scope_type"),
-                                rs.getString("anchor"),
-                                rs.getString("subject_type"),
-                                rs.getString("subject_id"),
-                                rs.getString("action_code"),
-                                rs.getString("scope_config"));
-                        out.computeIfAbsent(rs.getString("action_code"), k -> new ArrayList<>()).add(row);
-                    }, prepend(now, subjects.toArray()));
-            return out;
+    private Map<String, List<GrantRow>> queryGrants(List<String> subjects) {
+        Map<String, List<GrantRow>> out = new HashMap<>();
+        // 动态 IN 由主体数(≤几十)拼接占位符, 值经参数绑定(Mimosa: 禁拼接 SQL 值)
+        String placeholders = String.join(",", subjects.stream().map(s -> "?").toList());
+        Timestamp now = Timestamp.valueOf(LocalDateTime.now());
+        jdbc.query(
+                "SELECT subject_type, subject_id, action_code, scope_type, anchor, scope_config FROM sys_perm_grant " +
+                "WHERE tenant_id = 1 AND effect = 'ALLOW' " +
+                "AND (expire_at IS NULL OR expire_at > ?) " +
+                "AND CONCAT(subject_type, ':', subject_id) IN (" + placeholders + ")",
+                rs -> {
+                    GrantRow row = new GrantRow(
+                            rs.getString("scope_type"),
+                            rs.getString("anchor"),
+                            rs.getString("subject_type"),
+                            rs.getString("subject_id"),
+                            rs.getString("action_code"),
+                            rs.getString("scope_config"));
+                    out.computeIfAbsent(rs.getString("action_code"), k -> new ArrayList<>()).add(row);
+                }, prepend(now, subjects.toArray()));
+        return out;
+    }
+
+    private Map<String, List<GrantRow>> load(SecurityUser user) {
+        try {
+            List<String> subjects = subjectsOf(user);
+            if (subjects.isEmpty()) return new HashMap<>();
+            return queryGrants(subjects);
         } catch (Exception ex) {
             // 内核授权表未就绪/查询失败 → 空授权(fail-closed; 读开关默认 old 时新内核不被消费)
             log.warn("sys_perm_grant 装载失败(内核未就绪?): {}", ex.getMessage());
