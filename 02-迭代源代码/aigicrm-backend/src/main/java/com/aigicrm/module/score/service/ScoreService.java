@@ -92,6 +92,24 @@ public class ScoreService {
 
         // 所有学分项
         List<BizScoreItem> items = listItems();
+        applyCategoryNames(items, categoryNames());
+        result.put("items", items);
+
+        // 全部启用用户（用于"添加同事"下拉的候选池）【2026-08-08 按账号数据范围过滤】
+        List<Long> visible = visibleUserIds();
+        List<SysUser> activeUsers = activeUsers(visible);
+        result.put("pool", activeUsers.stream().map(this::toUserMap).collect(Collectors.toList()));
+
+        // 该周期已保存的参与同事名单
+        List<BizScoreParticipant> participants = participants(period, visible);
+        result.put("users", usersForGrid(participants, activeUsers));
+
+        Map<String, Integer> scores = scoresForGrid(period, visible);
+        result.put("scores", scores);
+        return result;
+    }
+
+    private Map<String, String> categoryNames() {
         // 【2026-11-07 用户令 A=理顺码系】大类中文名入 grid: category 存 score_category 字典的
         // dict_value(拼音码), 中文名回填 categoryName——PC 录入页本就从字典取名, MP 明细页
         // 行名/分组同源; 此前 categoryName 恒空, MP 只能拿 product 当名字
@@ -99,65 +117,65 @@ public class ScoreService {
         for (SysDictData d : dictService.listDataByCode("score_category")) {
             catNameMap.put(d.getDictValue(), d.getDictLabel());
         }
+        return catNameMap;
+    }
+
+    private void applyCategoryNames(List<BizScoreItem> items, Map<String, String> catNameMap) {
         for (BizScoreItem it : items) {
             if (it.getCategory() != null && catNameMap.containsKey(it.getCategory())) {
                 it.setCategoryName(catNameMap.get(it.getCategory()));
             }
         }
-        result.put("items", items);
+    }
 
-        // 全部启用用户（用于"添加同事"下拉的候选池）【2026-08-08 按账号数据范围过滤】
+    private List<SysUser> activeUsers(List<Long> visible) {
         LambdaQueryWrapper<SysUser> userWrapper = new LambdaQueryWrapper<SysUser>().eq(SysUser::getStatus, 1);
-        List<Long> visible = visibleUserIds();
         if (visible != null) userWrapper.in(SysUser::getId, visible);
-        List<SysUser> activeUsers = userMapper.selectList(userWrapper);
-        result.put("pool", activeUsers.stream().map(this::toUserMap).collect(Collectors.toList()));
+        return userMapper.selectList(userWrapper);
+    }
 
-        // 该周期已保存的参与同事名单
-        List<BizScoreParticipant> participants = Collections.emptyList();
-        if (period != null && !period.isEmpty()) {
-            participants = participantMapper.selectList(
-                    new LambdaQueryWrapper<BizScoreParticipant>()
-                            .eq(BizScoreParticipant::getPeriod, period)
-                            .orderByAsc(BizScoreParticipant::getSortOrder));
-            // 【GPT复审 P1-02 修复 2026-09-21】名单随数据范围收口: 窄范围用户不得借历史名单看到
-            // 范围外人员姓名(null=全量不过滤); 范围外名单行连同其分数一并不可见
-            if (visible != null) {
-                participants = participants.stream()
-                        .filter(p -> visible.contains(p.getUserId()))
-                        .collect(Collectors.toList());
-            }
+    private List<BizScoreParticipant> participants(String period, List<Long> visible) {
+        if (period == null || period.isEmpty()) return Collections.emptyList();
+        List<BizScoreParticipant> participants = participantMapper.selectList(
+                new LambdaQueryWrapper<BizScoreParticipant>()
+                        .eq(BizScoreParticipant::getPeriod, period)
+                        .orderByAsc(BizScoreParticipant::getSortOrder));
+        // 【GPT复审 P1-02 修复 2026-09-21】名单随数据范围收口: 窄范围用户不得借历史名单看到
+        // 范围外人员姓名(null=全量不过滤); 范围外名单行连同其分数一并不可见
+        if (visible != null) {
+            participants = participants.stream()
+                    .filter(p -> visible.contains(p.getUserId()))
+                    .collect(Collectors.toList());
         }
+        return participants;
+    }
 
-        List<Map<String, Object>> users;
-        if (!participants.isEmpty()) {
-            // 已保存过名单：严格按名单顺序还原这些列（即使同事后来被停用也保留，保证数量一致）
-            users = new ArrayList<>();
-            for (BizScoreParticipant p : participants) {
-                SysUser u = userMapper.selectById(p.getUserId());
-                if (u != null) users.add(toUserMap(u));
-            }
-        } else {
+    private List<Map<String, Object>> usersForGrid(List<BizScoreParticipant> participants, List<SysUser> activeUsers) {
+        if (participants.isEmpty()) {
             // 首次打开（无名单）：默认全体启用用户
-            users = activeUsers.stream().map(this::toUserMap).collect(Collectors.toList());
+            return activeUsers.stream().map(this::toUserMap).collect(Collectors.toList());
         }
-        result.put("users", users);
+        // 已保存过名单：严格按名单顺序还原这些列（即使同事后来被停用也保留，保证数量一致）
+        List<Map<String, Object>> users = new ArrayList<>();
+        for (BizScoreParticipant p : participants) {
+            SysUser u = userMapper.selectById(p.getUserId());
+            if (u != null) users.add(toUserMap(u));
+        }
+        return users;
+    }
 
-        // 该周期的所有打分
+    private Map<String, Integer> scoresForGrid(String period, List<Long> visible) {
         Map<String, Integer> scores = new HashMap<>(); // "itemId_userId" -> score
-        if (period != null && !period.isEmpty()) {
-            LambdaQueryWrapper<BizScoreEntry> ew = new LambdaQueryWrapper<>();
-            ew.eq(BizScoreEntry::getPeriod, period);
-            List<BizScoreEntry> entries = entryMapper.selectList(ew);
-            for (BizScoreEntry e : entries) {
-                // 【GPT复审 P1-02】分数矩阵随同一可见集合收口, 范围外人员分数不可见
-                if (visible != null && !visible.contains(e.getUserId())) continue;
-                scores.put(e.getItemId() + "_" + e.getUserId(), e.getScore());
-            }
+        if (period == null || period.isEmpty()) return scores;
+        LambdaQueryWrapper<BizScoreEntry> ew = new LambdaQueryWrapper<>();
+        ew.eq(BizScoreEntry::getPeriod, period);
+        List<BizScoreEntry> entries = entryMapper.selectList(ew);
+        for (BizScoreEntry e : entries) {
+            // 【GPT复审 P1-02】分数矩阵随同一可见集合收口, 范围外人员分数不可见
+            if (visible != null && !visible.contains(e.getUserId())) continue;
+            scores.put(e.getItemId() + "_" + e.getUserId(), e.getScore());
         }
-        result.put("scores", scores);
-
-        return result;
+        return scores;
     }
 
     @Transactional

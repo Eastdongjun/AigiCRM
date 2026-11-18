@@ -193,40 +193,43 @@ public class FabushiDashboardService {
      * + 部门进度 + 活跃榜。可见集与 dashboard 同一 fail-closed 口径
      * (fabushi, stats_view); month 参数为 YYYY-MM, 缺省/非法回落当月。
      */
-    public Map<String, Object> monthly(String month) {
-        LocalDate today = LocalDate.now();
-        YearMonth ym;
-        try {
-            ym = (month == null || month.isBlank()) ? YearMonth.from(today) : YearMonth.parse(month.trim());
-        } catch (DateTimeParseException e) {
-            ym = YearMonth.from(today);
-        }
-        LocalDate start = ym.atDay(1);
-        LocalDate nextMonthStart = ym.plusMonths(1).atDay(1);
-        LocalDateTime startAt = start.atStartOfDay();
-        LocalDateTime endAt = nextMonthStart.atStartOfDay();
-        Set<Long> visible = statsService.visibleUserIdsOrNull(com.aigicrm.security.SecurityUtils.getCurrentUser());
+    private record MonthlyRecords(List<BizFabushiPost> posts, List<BizFabushiLike> likes,
+                                  List<BizFabushiComment> comments, List<BizFabushiReadStatus> reads) {}
 
+    private YearMonth parseMonth(String month) {
+        LocalDate today = LocalDate.now();
+        try {
+            return (month == null || month.isBlank()) ? YearMonth.from(today) : YearMonth.parse(month.trim());
+        } catch (DateTimeParseException e) {
+            return YearMonth.from(today);
+        }
+    }
+
+    private Map<String, Object> baseMonthlyData(YearMonth ym, LocalDate start, LocalDate nextMonthStart, Set<Long> visible) {
         Map<String, Object> data = new LinkedHashMap<>();
         data.put(LIT_MONTH, ym.toString());
         data.put("periodStart", start.toString());
         data.put("periodEnd", nextMonthStart.minusDays(1).toString());
         data.put(LIT_MEMBERCOUNT, visible == null ? -1 : visible.size());
-        if (visible != null && visible.isEmpty()) {
-            data.put(LIT_POSTS, 0L);
-            data.put(LIT_LIKES, 0L);
-            data.put(LIT_COMMENTS, 0L);
-            data.put("readCount", 0L);
-            data.put(LIT_READUSERS, 0);
-            data.put("activeUsers", 0);
-            data.put(LIT_COVERAGEPCT, null);
-            data.put("prev", Map.of());
-            data.put(LIT_DEPTPROGRESS, List.of());
-            data.put(LIT_RANKING, List.of());
-            data.put(LIT_TREND, List.of());
-            return data;
-        }
+        return data;
+    }
 
+    private Map<String, Object> emptyMonthlyData(Map<String, Object> data) {
+        data.put(LIT_POSTS, 0L);
+        data.put(LIT_LIKES, 0L);
+        data.put(LIT_COMMENTS, 0L);
+        data.put("readCount", 0L);
+        data.put(LIT_READUSERS, 0);
+        data.put("activeUsers", 0);
+        data.put(LIT_COVERAGEPCT, null);
+        data.put("prev", Map.of());
+        data.put(LIT_DEPTPROGRESS, List.of());
+        data.put(LIT_RANKING, List.of());
+        data.put(LIT_TREND, List.of());
+        return data;
+    }
+
+    private MonthlyRecords loadMonthlyRecords(LocalDateTime startAt, LocalDateTime endAt, Set<Long> visible) {
         List<BizFabushiPost> posts = postMapper.selectList(new LambdaQueryWrapper<BizFabushiPost>()
                 .eq(BizFabushiPost::getStatus, LIT_PUBLISHED)
                 .ge(BizFabushiPost::getCreatedAt, startAt).lt(BizFabushiPost::getCreatedAt, endAt));
@@ -241,6 +244,26 @@ public class FabushiDashboardService {
         List<BizFabushiReadStatus> reads = readStatusMapper.selectList(new LambdaQueryWrapper<BizFabushiReadStatus>()
                 .ge(BizFabushiReadStatus::getReadAt, startAt).lt(BizFabushiReadStatus::getReadAt, endAt));
         if (visible != null) reads = reads.stream().filter(r -> visible.contains(r.getUserId())).collect(Collectors.toList());
+        return new MonthlyRecords(posts, likes, comments, reads);
+    }
+
+    public Map<String, Object> monthly(String month) {
+        YearMonth ym = parseMonth(month);
+        LocalDate start = ym.atDay(1);
+        LocalDate nextMonthStart = ym.plusMonths(1).atDay(1);
+        LocalDateTime startAt = start.atStartOfDay();
+        LocalDateTime endAt = nextMonthStart.atStartOfDay();
+        Set<Long> visible = statsService.visibleUserIdsOrNull(com.aigicrm.security.SecurityUtils.getCurrentUser());
+
+        Map<String, Object> data = baseMonthlyData(ym, start, nextMonthStart, visible);
+        if (visible != null && visible.isEmpty()) {
+            return emptyMonthlyData(data);
+        }
+        MonthlyRecords records = loadMonthlyRecords(startAt, endAt, visible);
+        List<BizFabushiPost> posts = records.posts();
+        List<BizFabushiLike> likes = records.likes();
+        List<BizFabushiComment> comments = records.comments();
+        List<BizFabushiReadStatus> reads = records.reads();
 
         Set<Long> readUsers = reads.stream().map(BizFabushiReadStatus::getUserId).collect(Collectors.toSet());
         Set<Long> activeUsers = new HashSet<>(readUsers);

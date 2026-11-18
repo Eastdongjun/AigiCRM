@@ -144,36 +144,44 @@ public class PermissionMetadataService {
         }
         List<Map<String, Object>> out = new ArrayList<>();
         for (SysMenu m : all) {
-            String code = m.getPermission();
-            if (code == null || code.isBlank()) continue;
-            String prefix = code.contains(":") ? code.substring(0, code.indexOf(':')) : code;
-            String parentCode = null;
-            if (m.getParentId() != null && byId.get(m.getParentId()) != null) {
-                String p = byId.get(m.getParentId()).getPermission();
-                if (p != null && !p.isBlank()) parentCode = p;
-            }
-            String type = resolveType(m, code);
-            String[] axis = SCOPE_AXIS.get(code);
-            String dependsOn = PermissionDependencyRules.REQUIRES.get(code);
-            String scopeMode = axis != null ? "DIRECT" : (dependsOn != null ? "INHERIT" : "NONE");
-
-            Map<String, Object> meta = new LinkedHashMap<>();
-            meta.put("code", code);
-            meta.put("name", m.getMenuName());
-            meta.put("type", type);
-            meta.put(LIT_MODULE, prefix);
-            meta.put("group", GROUP_OF_PREFIX.getOrDefault(prefix, null));
-            meta.put("parentCode", parentCode);
-            meta.put(LIT_SCOPE_AXIS, axis == null ? null : Map.of(LIT_MODULE, axis[0], "action", axis[1]));
-            meta.put("scopeMode", scopeMode);
-            meta.put("adminOnly", ADMIN_ONLY.contains(code));
-            meta.put("requiresOrgAdmin", REQUIRES_ORG_ADMIN.contains(code));
-            meta.put(LIT_DEPRECATED, m.getStatus() != null && m.getStatus() == 0);
-            meta.put("noEndpoint", NO_ENDPOINT.contains(code));
-            meta.put("dependsOn", dependsOn);
-            out.add(meta);
+            Map<String, Object> meta = menuMeta(m, byId);
+            if (meta != null) out.add(meta);
         }
         return out;
+    }
+
+    /** 单条菜单 → 权限元数据；无权限码返回 null（S3776 拆分，语义原样）。 */
+    private Map<String, Object> menuMeta(SysMenu m, Map<Long, SysMenu> byId) {
+        String code = m.getPermission();
+        if (code == null || code.isBlank()) return null;
+        String prefix = code.contains(":") ? code.substring(0, code.indexOf(':')) : code;
+        String parentCode = parentPermission(m, byId);
+        String type = resolveType(m, code);
+        String[] axis = SCOPE_AXIS.get(code);
+        String dependsOn = PermissionDependencyRules.REQUIRES.get(code);
+        String scopeMode = axis != null ? "DIRECT" : (dependsOn != null ? "INHERIT" : "NONE");
+
+        Map<String, Object> meta = new LinkedHashMap<>();
+        meta.put("code", code);
+        meta.put("name", m.getMenuName());
+        meta.put("type", type);
+        meta.put(LIT_MODULE, prefix);
+        meta.put("group", GROUP_OF_PREFIX.getOrDefault(prefix, null));
+        meta.put("parentCode", parentCode);
+        meta.put(LIT_SCOPE_AXIS, axis == null ? null : Map.of(LIT_MODULE, axis[0], "action", axis[1]));
+        meta.put("scopeMode", scopeMode);
+        meta.put("adminOnly", ADMIN_ONLY.contains(code));
+        meta.put("requiresOrgAdmin", REQUIRES_ORG_ADMIN.contains(code));
+        meta.put(LIT_DEPRECATED, m.getStatus() != null && m.getStatus() == 0);
+        meta.put("noEndpoint", NO_ENDPOINT.contains(code));
+        meta.put("dependsOn", dependsOn);
+        return meta;
+    }
+
+    private String parentPermission(SysMenu m, Map<Long, SysMenu> byId) {
+        if (m.getParentId() == null || byId.get(m.getParentId()) == null) return null;
+        String p = byId.get(m.getParentId()).getPermission();
+        return (p != null && !p.isBlank()) ? p : null;
     }
 
     private String resolveType(SysMenu m, String code) {
