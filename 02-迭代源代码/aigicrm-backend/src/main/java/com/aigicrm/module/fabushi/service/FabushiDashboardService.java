@@ -443,39 +443,14 @@ public class FabushiDashboardService {
                     if (d != null) deptReaders.computeIfAbsent(d, k -> new HashSet<>()).add(r.getUserId());
                 });
 
+        DeptCounts counts = new DeptCounts(postCnt, likeCnt, commentCnt, userReadDays);
         List<Map<String, Object>> rows = new ArrayList<>();
         for (Map.Entry<Long, Set<Long>> e : deptMembers.entrySet()) {
-            Set<Long> uids = e.getValue();
-            long readUsers = deptReaders.getOrDefault(e.getKey(), Set.of()).size();
-            long readDaysSum = uids.stream().mapToLong(uid -> userReadDays.getOrDefault(uid, Set.of()).size()).sum();
-            Map<String, Object> row = new LinkedHashMap<>();
-            row.put("deptId", e.getKey());
-            row.put(LIT_DEPTNAME, depts.getOrDefault(e.getKey(), "—"));
-            row.put(LIT_MEMBERCOUNT, uids.size());
-            row.put(LIT_READUSERS, readUsers);
-            row.put(LIT_COVERAGEPCT, Math.round(readUsers * 1000.0 / uids.size()) / 10.0);
-            row.put(LIT_POSTS, uids.stream().mapToLong(uid -> postCnt.getOrDefault(uid, 0L)).sum());
-            row.put(LIT_LIKES, uids.stream().mapToLong(uid -> likeCnt.getOrDefault(uid, 0L)).sum());
-            row.put(LIT_COMMENTS, uids.stream().mapToLong(uid -> commentCnt.getOrDefault(uid, 0L)).sum());
-            row.put(LIT_READDAYS, readDaysSum);
-            rows.add(row);
+            rows.add(deptRow(e.getKey(), e.getValue(), depts, deptReaders, counts));
         }
         if (noDeptCount > 0) {
             // 无部门成员单独一行, 不并入任何部门(口径与成员榜 deptName="—" 一致)
-            Set<Long> noDeptIds = members.stream().filter(u -> u.getDeptId() == null).map(SysUser::getId).collect(Collectors.toSet());
-            long readUsers = reads.stream().map(BizFabushiReadStatus::getUserId)
-                    .filter(noDeptIds::contains).distinct().count();
-            Map<String, Object> row = new LinkedHashMap<>();
-            row.put("deptId", null);
-            row.put(LIT_DEPTNAME, "未分配");
-            row.put(LIT_MEMBERCOUNT, noDeptCount);
-            row.put(LIT_READUSERS, readUsers);
-            row.put(LIT_COVERAGEPCT, Math.round(readUsers * 1000.0 / noDeptCount) / 10.0);
-            row.put(LIT_POSTS, noDeptIds.stream().mapToLong(uid -> postCnt.getOrDefault(uid, 0L)).sum());
-            row.put(LIT_LIKES, noDeptIds.stream().mapToLong(uid -> likeCnt.getOrDefault(uid, 0L)).sum());
-            row.put(LIT_COMMENTS, noDeptIds.stream().mapToLong(uid -> commentCnt.getOrDefault(uid, 0L)).sum());
-            row.put(LIT_READDAYS, noDeptIds.stream().mapToLong(uid -> userReadDays.getOrDefault(uid, Set.of()).size()).sum());
-            rows.add(row);
+            rows.add(noDeptRow(members, noDeptCount, reads, counts));
         }
         // 排序: 覆盖率降序 → 已读人数降序 → 成员数降序
         // (memberCount 来自 Set.size() 是 Integer、readUsers 是 long——统一经 Number 取值,
@@ -488,5 +463,43 @@ public class FabushiDashboardService {
             return Long.compare(((Number) b.get(LIT_MEMBERCOUNT)).longValue(), ((Number) a.get(LIT_MEMBERCOUNT)).longValue());
         });
         return rows;
+    }
+
+    private record DeptCounts(Map<Long, Long> postCnt, Map<Long, Long> likeCnt,
+                              Map<Long, Long> commentCnt, Map<Long, Set<LocalDate>> userReadDays) {}
+
+    private Map<String, Object> deptRow(Long deptId, Set<Long> uids, Map<Long, String> depts,
+                                        Map<Long, Set<Long>> deptReaders, DeptCounts c) {
+        long readUsers = deptReaders.getOrDefault(deptId, Set.of()).size();
+        long readDaysSum = uids.stream().mapToLong(uid -> c.userReadDays().getOrDefault(uid, Set.of()).size()).sum();
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("deptId", deptId);
+        row.put(LIT_DEPTNAME, depts.getOrDefault(deptId, "—"));
+        row.put(LIT_MEMBERCOUNT, uids.size());
+        row.put(LIT_READUSERS, readUsers);
+        row.put(LIT_COVERAGEPCT, Math.round(readUsers * 1000.0 / uids.size()) / 10.0);
+        row.put(LIT_POSTS, uids.stream().mapToLong(uid -> c.postCnt().getOrDefault(uid, 0L)).sum());
+        row.put(LIT_LIKES, uids.stream().mapToLong(uid -> c.likeCnt().getOrDefault(uid, 0L)).sum());
+        row.put(LIT_COMMENTS, uids.stream().mapToLong(uid -> c.commentCnt().getOrDefault(uid, 0L)).sum());
+        row.put(LIT_READDAYS, readDaysSum);
+        return row;
+    }
+
+    private Map<String, Object> noDeptRow(List<SysUser> members, long noDeptCount,
+                                          List<BizFabushiReadStatus> reads, DeptCounts c) {
+        Set<Long> noDeptIds = members.stream().filter(u -> u.getDeptId() == null).map(SysUser::getId).collect(Collectors.toSet());
+        long readUsers = reads.stream().map(BizFabushiReadStatus::getUserId)
+                .filter(noDeptIds::contains).distinct().count();
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("deptId", null);
+        row.put(LIT_DEPTNAME, "未分配");
+        row.put(LIT_MEMBERCOUNT, noDeptCount);
+        row.put(LIT_READUSERS, readUsers);
+        row.put(LIT_COVERAGEPCT, Math.round(readUsers * 1000.0 / noDeptCount) / 10.0);
+        row.put(LIT_POSTS, noDeptIds.stream().mapToLong(uid -> c.postCnt().getOrDefault(uid, 0L)).sum());
+        row.put(LIT_LIKES, noDeptIds.stream().mapToLong(uid -> c.likeCnt().getOrDefault(uid, 0L)).sum());
+        row.put(LIT_COMMENTS, noDeptIds.stream().mapToLong(uid -> c.commentCnt().getOrDefault(uid, 0L)).sum());
+        row.put(LIT_READDAYS, noDeptIds.stream().mapToLong(uid -> c.userReadDays().getOrDefault(uid, Set.of()).size()).sum());
+        return row;
     }
 }
