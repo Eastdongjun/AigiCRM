@@ -1,6 +1,6 @@
 -- DRAFT ONLY — 只读对账，不修改数据。
 -- 用途：A2 迁移后比较旧表 biz_folder_type_default 与新表 biz_file_grant(source='legacy')。
--- 要求：任何 missing/extra/diff 非 0 时禁止切 file.grant.mode=new。
+-- 行对账之外还必须跑“行为对账”（见设计文档 §2.7），行 0 差异不等于语义不变。
 
 WITH old_expanded AS (
   SELECT
@@ -11,8 +11,17 @@ WITH old_expanded AS (
       ELSE 'FOLDER'
     END AS object_type,
     CASE WHEN d.folder_id IS NULL THEN NULL ELSE d.folder_id END AS object_id,
+    CASE WHEN d.folder_id IS NULL THEN d.folder_type ELSE NULL END AS space_type,
     CASE WHEN a.action IN ('rename', 'replace') THEN 'edit' ELSE a.action END AS action,
-    d.scope_org_id, d.scope_level,
+    CASE
+      WHEN d.scope_level IS NULL OR TRIM(d.scope_level) = '' OR d.scope_level = 'all' THEN 'ANY'
+      ELSE 'RELATIVE'
+    END AS scope_mode,
+    CASE
+      WHEN d.scope_level IS NULL OR TRIM(d.scope_level) = '' OR d.scope_level = 'all' THEN NULL
+      ELSE d.scope_level
+    END AS scope_level,
+    NULL AS scope_org_id,
     CASE WHEN COUNT(*) > COUNT(d.expires_at) THEN NULL ELSE MAX(d.expires_at) END AS expire_at
   FROM biz_folder_type_default d
   JOIN (
@@ -29,12 +38,20 @@ WITH old_expanded AS (
       ELSE 'FOLDER'
     END,
     CASE WHEN d.folder_id IS NULL THEN NULL ELSE d.folder_id END,
+    CASE WHEN d.folder_id IS NULL THEN d.folder_type ELSE NULL END,
     CASE WHEN a.action IN ('rename', 'replace') THEN 'edit' ELSE a.action END,
-    d.scope_org_id, d.scope_level
+    CASE
+      WHEN d.scope_level IS NULL OR TRIM(d.scope_level) = '' OR d.scope_level = 'all' THEN 'ANY'
+      ELSE 'RELATIVE'
+    END,
+    CASE
+      WHEN d.scope_level IS NULL OR TRIM(d.scope_level) = '' OR d.scope_level = 'all' THEN NULL
+      ELSE d.scope_level
+    END
 ),
 new_legacy AS (
-  SELECT tenant_id, subject_type, subject_id, object_type, object_id, action,
-         scope_org_id, scope_level, expire_at
+  SELECT tenant_id, subject_type, subject_id, object_type, object_id, space_type,
+         action, scope_mode, scope_level, scope_org_id, expire_at
     FROM biz_file_grant
    WHERE source = 'legacy'
 )
@@ -43,8 +60,10 @@ SELECT 'missing_in_new' AS diff, COUNT(*) AS cnt
  WHERE NOT EXISTS (
    SELECT 1 FROM new_legacy n
     WHERE n.tenant_id=o.tenant_id AND n.subject_type=o.subject_type AND n.subject_id=o.subject_id
-      AND n.object_type=o.object_type AND n.object_id <=> o.object_id AND n.action=o.action
-      AND n.scope_org_id <=> o.scope_org_id AND n.scope_level <=> o.scope_level
+      AND n.object_type=o.object_type AND n.object_id <=> o.object_id
+      AND n.space_type <=> o.space_type AND n.action=o.action
+      AND n.scope_mode=o.scope_mode AND n.scope_level <=> o.scope_level
+      AND n.scope_org_id <=> o.scope_org_id
  )
 UNION ALL
 SELECT 'extra_in_new', COUNT(*)
@@ -52,16 +71,20 @@ SELECT 'extra_in_new', COUNT(*)
  WHERE NOT EXISTS (
    SELECT 1 FROM old_expanded o
     WHERE n.tenant_id=o.tenant_id AND n.subject_type=o.subject_type AND n.subject_id=o.subject_id
-      AND n.object_type=o.object_type AND n.object_id <=> o.object_id AND n.action=o.action
-      AND n.scope_org_id <=> o.scope_org_id AND n.scope_level <=> o.scope_level
+      AND n.object_type=o.object_type AND n.object_id <=> o.object_id
+      AND n.space_type <=> o.space_type AND n.action=o.action
+      AND n.scope_mode=o.scope_mode AND n.scope_level <=> o.scope_level
+      AND n.scope_org_id <=> o.scope_org_id
  )
 UNION ALL
 SELECT 'expire_diff', COUNT(*)
   FROM old_expanded o
   JOIN new_legacy n
     ON n.tenant_id=o.tenant_id AND n.subject_type=o.subject_type AND n.subject_id=o.subject_id
-   AND n.object_type=o.object_type AND n.object_id <=> o.object_id AND n.action=o.action
-   AND n.scope_org_id <=> o.scope_org_id AND n.scope_level <=> o.scope_level
+   AND n.object_type=o.object_type AND n.object_id <=> o.object_id
+   AND n.space_type <=> o.space_type AND n.action=o.action
+   AND n.scope_mode=o.scope_mode AND n.scope_level <=> o.scope_level
+   AND n.scope_org_id <=> o.scope_org_id
  WHERE NOT (n.expire_at <=> o.expire_at)
 UNION ALL
 SELECT 'old_expanded_rows', COUNT(*) FROM old_expanded
