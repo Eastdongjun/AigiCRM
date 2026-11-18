@@ -487,6 +487,26 @@ public class SysUserService {
         // 【WP1.1 2026-11-13】"数据范围不能为空"强制校验退役(与 create 同口径: 空覆盖=跟随角色并集)
         validateDataScopeOverride(user.getDataScopeOverride());
         java.util.List<Long> targetRoleIds = effectiveRoleIds(user);
+        validateUpdateRoles(user, targetRoleIds);
+
+        // 【P0 2026-10-17】非 admin 更新目标用户时，目标部门/办事处/组织必须在可见范围内；
+        // orgId 与 create 同口径随部门重算（前端不传 orgId，不能作为唯一校验依据）。
+        SysDept targetDept = user.getDeptId() != null ? deptMapper.selectById(user.getDeptId()) : null;
+        Long effectiveOrgId = computeEffectiveOrgId(user, targetDept);
+        assertTargetOrgVisible(user.getDeptId(), user.getOfficeId(),
+                user.getDeptId() != null ? effectiveOrgId : user.getOrgId());
+
+        applyUserFields(existing, user, effectiveOrgId);
+        userMapper.updateById(existing);
+        replaceUserRoles(existing, user, targetRoleIds);
+        applyUserOrgOverride(existing, user);
+        // 【Redis 权限缓存】用户角色/数据范围/部门变更立即失效
+        permissionCacheService.evict(existing.getId());
+        // 【2026-08-14 缓存自愈】版本递增兜底（evict 漏网时缓存与 DB 版本比对自愈）
+        bumpPermVersion(existing.getId());
+    }
+
+    private void validateUpdateRoles(SysUser user, java.util.List<Long> targetRoleIds) {
         if (targetRoleIds != null) {
             for (Long rid : targetRoleIds) {
                 validateGrantableRoleAndScope(rid, user.getDataScopeOverride());
@@ -494,16 +514,15 @@ public class SysUserService {
         } else {
             validateGrantableRoleAndScope(user.getRoleId(), user.getDataScopeOverride());
         }
+    }
 
-        // 【P0 2026-10-17】非 admin 更新目标用户时，目标部门/办事处/组织必须在可见范围内；
-        // orgId 与 create 同口径随部门重算（前端不传 orgId，不能作为唯一校验依据）。
-        SysDept targetDept = user.getDeptId() != null ? deptMapper.selectById(user.getDeptId()) : null;
-        Long effectiveOrgId = user.getDeptId() != null
+    private Long computeEffectiveOrgId(SysUser user, SysDept targetDept) {
+        return user.getDeptId() != null
                 ? (targetDept != null && targetDept.getGroupId() != null ? user.getDeptId() : DEFAULT_ROOT_ORG_ID)
                 : DEFAULT_ROOT_ORG_ID;
-        assertTargetOrgVisible(user.getDeptId(), user.getOfficeId(),
-                user.getDeptId() != null ? effectiveOrgId : user.getOrgId());
+    }
 
+    private void applyUserFields(SysUser existing, SysUser user, Long effectiveOrgId) {
         existing.setRealName(user.getRealName());
         existing.setPhone(user.getPhone());
         existing.setEmail(user.getEmail());
@@ -519,8 +538,9 @@ public class SysUserService {
         // 【2026-08-14 并发一致性】置 null 让 MyBatis-Plus 跳过 perm_version 列回写，
         // 避免"updateById 回写旧版本值覆盖并发 bump"的 lost-update（版本递增由下方 jdbc 独占）
         existing.setPermVersion(null);
-        userMapper.updateById(existing);
+    }
 
+    private void replaceUserRoles(SysUser existing, SysUser user, java.util.List<Long> targetRoleIds) {
         // 【WP1.1】更新角色(多角色并集): roleIds 优先整表替换; 空时保持旧单值 roleId 兼容路径
         if (targetRoleIds != null && !targetRoleIds.isEmpty()) {
             // 【2026-08-14 RBAC 收敛】替换前保留该用户**当前已绑定**的激励载体角色(分享可见/全量查看)。
@@ -556,6 +576,9 @@ public class SysUserService {
                         existing.getId(), irId);
             }
         }
+    }
+
+    private void applyUserOrgOverride(SysUser existing, SysUser user) {
         // 【2026-08-08 用户级 custom 授权】custom 时保存个人授权组织（未传 orgIds 不清空，仅当显式传了才更新）。
         // 【修复 2026-08-08】必须用"新值"user.getDataScopeOverride() 判断——若旧值非 custom、本次改 custom，
         // 用 existing 旧值会跳过保存导致授权组织为空（历史工单案例）。
@@ -565,10 +588,6 @@ public class SysUserService {
             // 不再是 custom：清空个人授权组织，避免残留
             userOrgMapper.deleteByUserId(existing.getId());
         }
-        // 【Redis 权限缓存】用户角色/数据范围/部门变更立即失效
-        permissionCacheService.evict(existing.getId());
-        // 【2026-08-14 缓存自愈】版本递增兜底（evict 漏网时缓存与 DB 版本比对自愈）
-        bumpPermVersion(existing.getId());
     }
 
     public String resetPassword(Long userId) {
