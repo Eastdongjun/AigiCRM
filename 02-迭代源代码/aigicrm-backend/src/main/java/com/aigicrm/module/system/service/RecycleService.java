@@ -367,13 +367,34 @@ public class RecycleService {
             throw new BusinessException(LIT_X_4);
         }
         // 删除文件时 deleteStorage 已物理清除字节: 内容不在则元数据恢复出来也是坏链接, fail-closed
+        assertContentExists(f);
+        // 【审查 biz-2 2026-10-18】文件夹为硬删除(仅空夹可删), ID 不会重建复用:
+        // 原文件夹已不存在时恢复到根目录(folder_id 置空), 不再要求用户"重建同 ID 文件夹"(不可达指引)。
+        boolean folderMissing = isFolderMissing(f);
+        assertRestoreQuota(f);
+        int restored = folderMissing ? fileMapper.restoreDeletedToRoot(id) : fileMapper.restoreDeleted(id);
+        if (restored != 1) {
+            throw new BusinessException(LIT_X_7);
+        }
+        if (recycleBinService != null) recycleBinService.markRestored("file", id);
+        String message = restoreMessage(f, folderMissing);
+        writeAuditLog("恢复文件", LIT_BIZ_FILE, id,
+                "文件名=" + f.getFileName() + ", scope=" + f.getFileScope() + ", 大小=" + f.getFileSize()
+                        + (folderMissing ? ", 原文件夹已删除→根目录" : ""));
+        return message;
+    }
+
+    private void assertContentExists(BizFile f) {
         if (!fileService.contentExists(f.getOssKey())) {
             throw new BusinessException("文件内容已在删除时物理清除，无法恢复（仅保留删除记录，如需找回请联系管理员从备份还原）");
         }
-        // 【审查 biz-2 2026-10-18】文件夹为硬删除(仅空夹可删), ID 不会重建复用:
-        // 原文件夹已不存在时恢复到根目录(folder_id 置空), 不再要求用户"重建同 ID 文件夹"(不可达指引)。
-        boolean folderMissing = f.getFolderId() != null
-                && fileFolderMapper.selectById(f.getFolderId()) == null;
+    }
+
+    private boolean isFolderMissing(BizFile f) {
+        return f.getFolderId() != null && fileFolderMapper.selectById(f.getFolderId()) == null;
+    }
+
+    private void assertRestoreQuota(BizFile f) {
         if ("private".equals(f.getFileScope())) {
             if (f.getUploaderId() == null) {
                 throw new BusinessException("私有文件缺少上传人，无法恢复");
@@ -382,33 +403,28 @@ public class RecycleService {
             if (uploader == null || Objects.equals(uploader.getDeleted(), 1)) {
                 throw new BusinessException("上传人已被删除，请先在回收站恢复该人员，再恢复其私有文件");
             }
-            long size = f.getFileSize() != null ? f.getFileSize() : 0L;
-            if (size > 0 && userMapper.tryConsumeQuota(f.getUploaderId(), size) == 0) {
-                throw new BusinessException("上传者存储配额不足，无法恢复该文件");
-            }
+            consumeRestoreQuota(f);
         } else if (com.aigicrm.module.file.service.FileService.quotaBearing(f.getFileScope())
                 && f.getUploaderId() != null) {
             // 【T2 2026-11-11 审计整改】配额覆盖全 scope: public/incentive 文件恢复同样重新
             // 占用(上传者存在性校验是私有文件专属语义——非私有文件不随上传人账号状态判生死;
             // 历史孤儿行 uploader 缺失时无从归属配额, 免检恢复)。
-            long size = f.getFileSize() != null ? f.getFileSize() : 0L;
-            if (size > 0 && userMapper.tryConsumeQuota(f.getUploaderId(), size) == 0) {
-                throw new BusinessException("上传者存储配额不足，无法恢复该文件");
-            }
+            consumeRestoreQuota(f);
         }
-        int restored = folderMissing ? fileMapper.restoreDeletedToRoot(id) : fileMapper.restoreDeleted(id);
-        if (restored != 1) {
-            throw new BusinessException(LIT_X_7);
+    }
+
+    private void consumeRestoreQuota(BizFile f) {
+        long size = f.getFileSize() != null ? f.getFileSize() : 0L;
+        if (size > 0 && userMapper.tryConsumeQuota(f.getUploaderId(), size) == 0) {
+            throw new BusinessException("上传者存储配额不足，无法恢复该文件");
         }
-        if (recycleBinService != null) recycleBinService.markRestored("file", id);
-        String message = folderMissing
+    }
+
+    private String restoreMessage(BizFile f, boolean folderMissing) {
+        return folderMissing
                 ? "文件已恢复到“" + ("private".equals(f.getFileScope()) ? "我的文件" : "公共文件")
                         + "”根目录（原文件夹已删除）"
                 : "文件已恢复";
-        writeAuditLog("恢复文件", LIT_BIZ_FILE, id,
-                "文件名=" + f.getFileName() + ", scope=" + f.getFileScope() + ", 大小=" + f.getFileSize()
-                        + (folderMissing ? ", 原文件夹已删除→根目录" : ""));
-        return message;
     }
 
     // ==================== 文件回收站清理 ====================
