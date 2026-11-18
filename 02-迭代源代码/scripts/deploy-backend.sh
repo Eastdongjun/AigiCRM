@@ -157,6 +157,7 @@ start_backend() {
     -e DB_HOST=ycmn-mysql -e DB_PORT=3306 -e DB_NAME="$DB_NAME" -e DB_USER="$APP_DB_USER" \
     -e REDIS_HOST=ycmn-redis -e REDIS_PORT=6379 \
     -e SPRING_PROFILES_ACTIVE=prod \
+    -e FILE_GRANT_MODE="${FILE_GRANT_MODE:-legacy}" \
     -e TENANT_ENABLE=true \
     -e UPLOAD_DIR=/app/uploads -e STORAGE_TYPE=local -e TZ=Asia/Shanghai \
     -e OSS_ENDPOINT=oss-cn-beijing.aliyuncs.com -e OSS_BUCKET_NAME="$OSS_BUCKET_NAME" \
