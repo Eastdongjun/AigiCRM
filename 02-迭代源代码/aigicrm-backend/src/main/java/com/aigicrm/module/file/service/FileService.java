@@ -1356,71 +1356,95 @@ public class FileService {
             Path filePath = Paths.get(uploadDir, file.getOssKey());
             // 【缩略图 2026-08-09】列表预览场景：图片返回 ≤300px 缩略图，避免激励查询等页首屏全尺寸下载
             // 【性能 file-3 2026-10-18】授权（上方 canDownloadFile）每次请求都先执行；命中字节缓存后不再读原图
-            if (thumbnail) {
-                if (writeThumbnail(file, filePath, response)) return;
-                // 非图片/读取失败 → 回退完整下载
-            }
-            Resource resource = new UrlResource(filePath.toUri());
-            if (resource.exists()) {
-                String filename = file.getFileName();
-                String encoded = java.net.URLEncoder.encode(filename, java.nio.charset.StandardCharsets.UTF_8).replace("+", "%20");
-                MediaType mt = MediaTypeFactory.getMediaType(filename).orElse(MediaType.APPLICATION_OCTET_STREAM);
-                String disp = dispositionFor(filename);
-
-                long fileSize = resource.contentLength();
-                long start = 0, end = fileSize - 1;
-                boolean ranged = range != null && range.startsWith("bytes=");
-                if (ranged) {
-                    java.util.regex.Matcher m = java.util.regex.Pattern
-                            .compile("bytes=(\\d*)-(\\d*)").matcher(range);
-                    if (m.find()) {
-                        if (!m.group(1).isEmpty()) start = Long.parseLong(m.group(1));
-                        if (!m.group(2).isEmpty()) end = Math.min(Long.parseLong(m.group(2)), fileSize - 1);
-                    }
-                    if (start > end || start >= fileSize) {
-                        response.setStatus(416);
-                        response.setHeader("Content-Range", "bytes */" + fileSize);
-                        return;
-                    }
-                }
-                long length = end - start + 1;
-
-                response.setStatus(ranged ? 206 : 200);
-                response.setHeader("Accept-Ranges", "bytes");
-                if (ranged) {
-                    response.setHeader("Content-Range", "bytes " + start + "-" + end + "/" + fileSize);
-                }
-                response.setContentType(mt.toString());
-                response.setContentLengthLong(length);
-                response.setHeader(HttpHeaders.CONTENT_DISPOSITION, disp + "; filename*=UTF-8''" + encoded);
-
-                try (java.io.InputStream is = resource.getInputStream()) {
-                    is.skipNBytes(start);
-                    java.io.OutputStream out = response.getOutputStream();
-                    byte[] buf = new byte[8192];
-                    long remaining = length;
-                    int n;
-                    while (remaining > 0 && (n = is.read(buf, 0, (int) Math.min(buf.length, remaining))) != -1) {
-                        out.write(buf, 0, n);
-                        remaining -= n;
-                    }
-                    out.flush();
-                }
-                return;
-            }
-            // 【2026-10-27 深度检查修复】OSS 302 与 FileController 路由白名单同口径:
-            // startsWith("http") 可被 httpx:// 绕过, 收紧为 https:// (OSS 地址均 https)
-            if (file.getOssUrl() != null && file.getOssUrl().startsWith(LIT_HTTPS)) {
-                response.setStatus(302);
-                response.setHeader(HttpHeaders.LOCATION, file.getOssUrl());
-                return;
-            }
+            // 非图片/读取失败 → 回退完整下载
+            if (thumbnail && writeThumbnail(file, filePath, response)) return;
+            if (serveLocalFile(file, filePath, range, response)) return;
+            if (redirectToOss(file, response)) return;
         } catch (Exception e) {
             // S4: 下载写响应异常不得静默吞成 404——记录日志便于排查
             log.error("文件下载失败 fileId={}", fileId, e);
         }
         response.setStatus(404);
     }
+
+    /** 本地文件存在则写完整响应并返回 true；不存在返回 false（调用方回退 OSS 302）。 */
+    private boolean serveLocalFile(BizFile file, Path filePath, String range,
+                                   jakarta.servlet.http.HttpServletResponse response) throws java.io.IOException {
+        Resource resource = new UrlResource(filePath.toUri());
+        if (!resource.exists()) return false;
+        String filename = file.getFileName();
+        String encoded = java.net.URLEncoder.encode(filename, java.nio.charset.StandardCharsets.UTF_8).replace("+", "%20");
+        MediaType mt = MediaTypeFactory.getMediaType(filename).orElse(MediaType.APPLICATION_OCTET_STREAM);
+        String disp = dispositionFor(filename);
+
+        long fileSize = resource.contentLength();
+        RangeSpan span = parseRange(range, fileSize);
+        if (span.invalid()) {
+            response.setStatus(416);
+            response.setHeader("Content-Range", "bytes */" + fileSize);
+            return true;
+        }
+        long length = span.end() - span.start() + 1;
+
+        response.setStatus(span.ranged() ? 206 : 200);
+        response.setHeader("Accept-Ranges", "bytes");
+        if (span.ranged()) {
+            response.setHeader("Content-Range", "bytes " + span.start() + "-" + span.end() + "/" + fileSize);
+        }
+        response.setContentType(mt.toString());
+        response.setContentLengthLong(length);
+        response.setHeader(HttpHeaders.CONTENT_DISPOSITION, disp + "; filename*=UTF-8''" + encoded);
+
+        streamResource(resource, span.start(), length, response);
+        return true;
+    }
+
+    /** 解析 Range 头；非 bytes= 视为整段。invalid=true 表示越界（应回 416）。 */
+    private static RangeSpan parseRange(String range, long fileSize) {
+        long start = 0;
+        long end = fileSize - 1;
+        boolean ranged = range != null && range.startsWith("bytes=");
+        if (!ranged) return new RangeSpan(false, start, end, false);
+        java.util.regex.Matcher m = java.util.regex.Pattern
+                .compile("bytes=(\\d*)-(\\d*)").matcher(range);
+        if (m.find()) {
+            if (!m.group(1).isEmpty()) start = Long.parseLong(m.group(1));
+            if (!m.group(2).isEmpty()) end = Math.min(Long.parseLong(m.group(2)), fileSize - 1);
+        }
+        boolean invalid = start > end || start >= fileSize;
+        return new RangeSpan(true, start, end, invalid);
+    }
+
+    private static void streamResource(Resource resource, long start, long length,
+                                       jakarta.servlet.http.HttpServletResponse response) throws java.io.IOException {
+        try (java.io.InputStream is = resource.getInputStream()) {
+            is.skipNBytes(start);
+            java.io.OutputStream out = response.getOutputStream();
+            byte[] buf = new byte[8192];
+            long remaining = length;
+            int n;
+            while (remaining > 0 && (n = is.read(buf, 0, (int) Math.min(buf.length, remaining))) != -1) {
+                out.write(buf, 0, n);
+                remaining -= n;
+            }
+            out.flush();
+        }
+    }
+
+    /** OSS 直链可 302 时写响应并返回 true；否则 false 由调用方落 404。 */
+    private static boolean redirectToOss(BizFile file, jakarta.servlet.http.HttpServletResponse response) {
+        // 【2026-10-27 深度检查修复】OSS 302 与 FileController 路由白名单同口径:
+        // startsWith("http") 可被 httpx:// 绕过, 收紧为 https:// (OSS 地址均 https)
+        if (file.getOssUrl() != null && file.getOssUrl().startsWith(LIT_HTTPS)) {
+            response.setStatus(302);
+            response.setHeader(HttpHeaders.LOCATION, file.getOssUrl());
+            return true;
+        }
+        return false;
+    }
+
+    /** Range 解析结果：ranged=客户端传了 bytes=；invalid=越界需 416。 */
+    private record RangeSpan(boolean ranged, long start, long end, boolean invalid) {}
 
     /**
      * 生成缩略图并写入响应；仅图片返回 true。非图片或读取失败返回 false（调用方回退完整下载）。
