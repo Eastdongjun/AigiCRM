@@ -94,12 +94,15 @@ ssh_prod "
     -ignoreMigrationPatterns='*:missing' \
     validate 2>&1) || VALIDATE_RC=\$?
   echo \"\$VALIDATE_OUT\" | tail -3
-  if [ \"\$VALIDATE_RC\" -ne 0 ] && ! echo \"\$VALIDATE_OUT\" | grep -q 'checksum mismatch'; then
+  # 【窗口实证补例 2026-11-18】pending 迁移存在时 validate 语义性 rc=1(Detected resolved
+  # migration not applied)=待迁移预期状态, 与 checksum mismatch 同待遇放行——其余 rc≠0 才拒。
+  if [ \"\$VALIDATE_RC\" -ne 0 ] && ! echo \"\$VALIDATE_OUT\" | grep -q 'checksum mismatch' \
+      && ! echo \"\$VALIDATE_OUT\" | grep -q 'Detected resolved migration not applied'; then
     echo \"❌ Flyway validate 未执行成功(rc=\${VALIDATE_RC}——通道/镜像/DB 故障, 非 checksum 预期失败)——拒绝继续\"; exit 1
   fi
   if echo \"\$VALIDATE_OUT\" | grep -q 'checksum mismatch'; then
     echo '⚠️  checksum mismatch 检出——执行 repair(有据可查)'
-  elif [ \"\$VALIDATE_RC\" -ne 0 ]; then
+  elif [ \"\$VALIDATE_RC\" -ne 0 ] && ! echo \"\$VALIDATE_OUT\" | grep -q 'Detected resolved migration not applied'; then
     echo '❌ Flyway validate 失败(rc 非零)——不执行 repair, 拒绝继续'; exit 1
   else
     echo '✅ validate 通过——跳过 repair'
