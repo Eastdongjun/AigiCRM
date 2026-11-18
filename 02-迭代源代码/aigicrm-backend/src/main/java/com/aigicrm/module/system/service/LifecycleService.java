@@ -231,17 +231,23 @@ public class LifecycleService {
     }
 
     private HandoverTarget resolveHandoverTarget(Map<String, Object> req) {
-        long id = longVal(req.get("id"));
-        long from = longVal(req.get(LIT_SUBJECT_USER_ID));
-        long to = longVal(req.get("target_user_id"));
+        Long idValue = longVal(req.get("id"));
+        Long fromValue = longVal(req.get(LIT_SUBJECT_USER_ID));
+        Long toValue = longVal(req.get("target_user_id"));
+        if (idValue == null || fromValue == null || toValue == null) {
+            throw new BusinessException("交接请求缺少 id/原用户/继任人");
+        }
+        long id = idValue;
+        long from = fromValue;
+        long to = toValue;
         Map<String, Object> target = user(to);
         if (target == null) throw new BusinessException("继任人不存在");
         Long toDept = longVal(target.get(LIT_DEPT_ID));
         Long toOffice = longVal(target.get("office_id"));
         Long toOrg = longVal(target.get("org_id"));
-        if (toOrg == null) toOrg = toOffice != null ? toOffice : toDept;
-        if (toDept == null || toOrg == null) throw new BusinessException("继任人未配置部门/组织，无法交接组织快照");
+        if (toDept == null) throw new BusinessException("继任人未配置部门/组织，无法交接组织快照");
         if (toOffice == null) throw new BusinessException("继任人未配置办事处，无法交接客户/提醒组织快照");
+        if (toOrg == null) toOrg = toOffice;
         return new HandoverTarget(id, from, to, toDept, toOffice, toOrg);
     }
 
