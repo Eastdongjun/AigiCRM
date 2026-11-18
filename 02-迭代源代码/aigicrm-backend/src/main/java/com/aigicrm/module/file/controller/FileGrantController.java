@@ -46,22 +46,24 @@ public class FileGrantController {
         return Result.ok();
     }
 
-    /** 请求 DTO：controller 不持有 entity。 */
+    /** 请求 DTO：controller 不持有 entity。【A2】+spaceType（SPACE 时必填）/scopeMode（ANY/RELATIVE/EXACT/SUBTREE）。 */
     public static class FileGrantRequest {
         public String subjectType;
         public Long subjectId;
         public String objectType;
         public Long objectId;
+        public String spaceType;
         public String action;
         public String effect;
         public Integer inherit;
         public Long scopeOrgId;
         public String scopeLevel;
+        public String scopeMode;
         public java.time.LocalDateTime expireAt;
 
         public FileGrantService.Command toCommand(Long id) {
             return new FileGrantService.Command(id, subjectType, subjectId, objectType, objectId,
-                    action, effect, inherit, scopeOrgId, scopeLevel, expireAt);
+                    spaceType, action, effect, inherit, scopeOrgId, scopeLevel, scopeMode, expireAt);
         }
     }
 }

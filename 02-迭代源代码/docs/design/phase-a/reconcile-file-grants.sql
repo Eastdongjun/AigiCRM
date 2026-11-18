@@ -1,4 +1,4 @@
--- DRAFT ONLY — 只读对账，不修改数据。
+-- 只读对账，不修改数据（2026-11-18 转正：blank→NULL 归一与迁移两侧同口径；退出码包装见 scripts/reconcile-file-grants.sh）。
 -- 用途：A2 迁移后比较旧表 biz_folder_type_default 与新表 biz_file_grant(source IN ('legacy','dual_write'))。
 -- 行对账之外还必须跑“行为对账”（见设计文档 §2.7），行 0 差异不等于语义不变。
 
@@ -11,7 +11,7 @@ WITH old_expanded AS (
       ELSE 'FOLDER'
     END AS object_type,
     CASE WHEN d.folder_id IS NULL THEN NULL ELSE d.folder_id END AS object_id,
-    CASE WHEN d.folder_id IS NULL THEN d.folder_type ELSE NULL END AS space_type,
+    CASE WHEN d.folder_id IS NULL THEN NULLIF(TRIM(d.folder_type), '') ELSE NULL END AS space_type,
     CASE WHEN a.action IN ('rename', 'replace') THEN 'edit' ELSE a.action END AS action,
     CASE
       WHEN d.scope_level IS NULL OR TRIM(d.scope_level) = '' OR d.scope_level = 'all' THEN 'ANY'
@@ -38,7 +38,7 @@ WITH old_expanded AS (
       ELSE 'FOLDER'
     END,
     CASE WHEN d.folder_id IS NULL THEN NULL ELSE d.folder_id END,
-    CASE WHEN d.folder_id IS NULL THEN d.folder_type ELSE NULL END,
+    CASE WHEN d.folder_id IS NULL THEN NULLIF(TRIM(d.folder_type), '') ELSE NULL END,
     CASE WHEN a.action IN ('rename', 'replace') THEN 'edit' ELSE a.action END,
     CASE
       WHEN d.scope_level IS NULL OR TRIM(d.scope_level) = '' OR d.scope_level = 'all' THEN 'ANY'

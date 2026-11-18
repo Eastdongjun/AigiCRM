@@ -1,0 +1,333 @@
+
+########## STEP0 连通性探测 ##########
+[remote env] container=shared-mysql src=aigicrm_prod_20261016 copy=aigicrm_a2_drill_20261118 scratch=/tmp/aigicrm-a2-drill2-20261118-045934
+shared-mysql
+[ok] 无残留 drill 库
+
+########## STEP1 上传最终形态 M1/M2 与演练 SQL ##########
+grant-create.sql m1-final.sql m2-final.sql reconcile.sql sql-conflict.sql sql-phase1-baseline.sql sql-v2-checks.sql sql-v2-fixture-asserts.sql sql-v2-fixtures.sql 
+
+########## STEP2 源库只读基线 ##########
+[remote env] container=shared-mysql src=aigicrm_prod_20261016 copy=aigicrm_a2_drill_20261118 scratch=/tmp/aigicrm-a2-drill2-20261118-045934
+[src] old_rows=62 conflict_groups=32
+
+########## STEP3 建副本并导入（旧表快照 + V2026.11.17.1 同构空表） ##########
+[remote env] container=shared-mysql src=aigicrm_prod_20261016 copy=aigicrm_a2_drill_20261118 scratch=/tmp/aigicrm-a2-drill2-20261118-045934
+[copy] old_rows=62 file_grant=0
+
+########## STEP4 副本执行 M1 转正稿（V2026.11.18.1__file_grant_scope_columns） ##########
+[remote env] container=shared-mysql src=aigicrm_prod_20261016 copy=aigicrm_a2_drill_20261118 scratch=/tmp/aigicrm-a2-drill2-20261118-045934
+Query OK, 0 rows affected
+Query OK, 0 rows affected
+Rows matched: 0  Changed: 0  Warnings: 0
+Query OK, 0 rows affected
+Rows matched: 0  Changed: 0  Warnings: 0
+[index] PRIMARY col=id
+[index] uk_file_grant_scope col=tenant_id
+[index] uk_file_grant_scope col=subject_type
+[index] uk_file_grant_scope col=subject_id
+[index] uk_file_grant_scope col=object_type
+[index] uk_file_grant_scope col=object_key
+[index] uk_file_grant_scope col=action
+[index] uk_file_grant_scope col=scope_key
+[index] uk_file_grant_legacy col=tenant_id
+[index] uk_file_grant_legacy col=legacy_ref
+[index] idx_file_grant_object col=tenant_id
+[index] idx_file_grant_object col=object_type
+[index] idx_file_grant_object col=object_id
+[index] idx_file_grant_object col=action
+[index] idx_file_grant_subject col=tenant_id
+[index] idx_file_grant_subject col=subject_type
+[index] idx_file_grant_subject col=subject_id
+[index] idx_file_grant_subject col=action
+[index] idx_file_grant_scope_org col=tenant_id
+[index] idx_file_grant_scope_org col=scope_org_id
+
+########## STEP5 副本执行 M2 转正稿（并入 B-1/B-2/B-3）+ C1/C3 检查 ##########
+[remote env] container=shared-mysql src=aigicrm_prod_20261016 copy=aigicrm_a2_drill_20261118 scratch=/tmp/aigicrm-a2-drill2-20261118-045934
+Query OK, 178 rows affected
++-----------------------------------+
+| sec                               |
++-----------------------------------+
+| == C1: migrated rows by source == |
++-----------------------------------+
++--------+-----+
+| source | cnt |
++--------+-----+
+| legacy | 178 |
++--------+-----+
++-------------------------------------------------+
+| sec                                             |
++-------------------------------------------------+
+| == C1: distribution (object_type/space_type) == |
++-------------------------------------------------+
++-------------+------------+-----+
+| object_type | space_type | cnt |
++-------------+------------+-----+
+| FOLDER      | <NULL>     |  33 |
+| SPACE       | incentive  |  24 |
+| SPACE       | private    |  28 |
+| SPACE       | public     |  93 |
++-------------+------------+-----+
++-------------------------------------------------+
+| sec                                             |
++-------------------------------------------------+
+| == C1: distribution (scope_mode/scope_level) == |
++-------------------------------------------------+
++------------+-------------+-----+
+| scope_mode | scope_level | cnt |
++------------+-------------+-----+
+| ANY        | <NULL>      | 152 |
+| RELATIVE   | self        |  13 |
+| RELATIVE   | region      |  13 |
++------------+-------------+-----+
++-----------------------------------------+
+| sec                                     |
++-----------------------------------------+
+| == C1: scope_org_id must all be NULL == |
++-----------------------------------------+
++-------------------+
+| nonnull_scope_org |
++-------------------+
+|                 0 |
++-------------------+
++--------------------------------------------------------------------+
+| sec                                                                |
++--------------------------------------------------------------------+
+| == C3: inherit 取值分布（新 FOLDER 行=1 / SPACE 行=0） ==          |
++--------------------------------------------------------------------+
++-------------+---------+-----+
+| object_type | inherit | cnt |
++-------------+---------+-----+
+| FOLDER      |       1 |  33 |
+| SPACE       |       0 | 145 |
++-------------+---------+-----+
++----------------------------------------------------------------------+
+| sec                                                                  |
++----------------------------------------------------------------------+
+| == C3 断言：SPACE 行 inherit<>0 的行数（预期 0，B-2） ==             |
++----------------------------------------------------------------------+
++-----------------------+
+| space_inherit_nonzero |
++-----------------------+
+|                     0 |
++-----------------------+
++-----------------------------------------------------------------+
+| sec                                                             |
++-----------------------------------------------------------------+
+| == C3 断言：FOLDER 行 inherit<>1 的行数（预期 0） ==            |
++-----------------------------------------------------------------+
++---------------------+
+| folder_inherit_not1 |
++---------------------+
+|                   0 |
++---------------------+
++--------------------------------+
+| sec                            |
++--------------------------------+
+| == C1: legacy_ref integrity == |
++--------------------------------+
++--------------+-----------------+-----------+------------+
+| total_legacy | distinct_legacy | null_refs | bad_format |
++--------------+-----------------+-----------+------------+
+|          178 |             178 |         0 |          0 |
++--------------+-----------------+-----------+------------+
+
+########## STEP6 对账 #1（C1 四数，预期全 0） ##########
+[remote env] container=shared-mysql src=aigicrm_prod_20261016 copy=aigicrm_a2_drill_20261118 scratch=/tmp/aigicrm-a2-drill2-20261118-045934
++-------------------+-----+
+| diff              | cnt |
++-------------------+-----+
+| missing_in_new    |   0 |
+| extra_in_new      |   0 |
+| expire_diff       |   0 |
+| old_expanded_rows | 178 |
+| new_legacy_rows   | 178 |
++-------------------+-----+
+
+########## STEP7 幂等重跑 M2（预期 0 行受影响）+ 对账 #2 ##########
+[remote env] container=shared-mysql src=aigicrm_prod_20261016 copy=aigicrm_a2_drill_20261118 scratch=/tmp/aigicrm-a2-drill2-20261118-045934
+Query OK, 0 rows affected
++-------------------+-----+
+| diff              | cnt |
++-------------------+-----+
+| missing_in_new    |   0 |
+| extra_in_new      |   0 |
+| expire_diff       |   0 |
+| old_expanded_rows | 178 |
+| new_legacy_rows   | 178 |
++-------------------+-----+
+[rows] legacy=178
+
+########## STEP7b C2/C4 合成夹具：blank 归一 + expires 混合组 → 重跑 M2 + 断言 + 对账 #3 ##########
+[remote env] container=shared-mysql src=aigicrm_prod_20261016 copy=aigicrm_a2_drill_20261118 scratch=/tmp/aigicrm-a2-drill2-20261118-045934
++--------------------------------------+
+| sec                                  |
++--------------------------------------+
+| == 插入合成夹具（旧表） ==           |
++--------------------------------------+
++------------------------------------------+
+| sec                                      |
++------------------------------------------+
+| == 夹具后旧表行数（62+5=67） ==          |
++------------------------------------------+
++----------+
+| old_rows |
++----------+
+|       67 |
++----------+
+Query OK, 3 rows affected
++---------------------------------------------------------------------------+
+| sec                                                                       |
++---------------------------------------------------------------------------+
+| == C2 断言：blank folder_type → space_type IS NULL（非空串） ==           |
++---------------------------------------------------------------------------+
++--------------+------------+---------+----------+
+| legacy_ref   | space_type | is_null | is_empty |
++--------------+------------+---------+----------+
+| ftd:186:view | NULL       |       1 |     NULL |
++--------------+------------+---------+----------+
++--------+
+| c2_bad |
++--------+
+|      0 |
++--------+
++-------------------------------------------------------------------------------+
+| sec                                                                           |
++-------------------------------------------------------------------------------+
+| == C4a 断言：任一永久则永久（组内 NULL+2026-12-31 → NULL） ==                 |
++-------------------------------------------------------------------------------+
++--------------+-----------+---------+
+| legacy_ref   | expire_at | is_null |
++--------------+-----------+---------+
+| ftd:187:view | NULL      |       1 |
++--------------+-----------+---------+
++---------+
+| c4a_bad |
++---------+
+|       0 |
++---------+
++--------------------------------------------------+
+| sec                                              |
++--------------------------------------------------+
+| == C4b 断言：两值取 MAX（2027-06-30） ==         |
++--------------------------------------------------+
++--------------+---------------------+
+| legacy_ref   | expire_at           |
++--------------+---------------------+
+| ftd:189:view | 2027-06-30 00:00:00 |
++--------------+---------------------+
++--------+
+| c4b_ok |
++--------+
+|      1 |
++--------+
++-------------------+-----+
+| diff              | cnt |
++-------------------+-----+
+| missing_in_new    |   0 |
+| extra_in_new      |   0 |
+| expire_diff       |   0 |
+| old_expanded_rows | 181 |
+| new_legacy_rows   | 181 |
++-------------------+-----+
+
+########## STEP8 负例（删行/篡改→检出→重跑不愈→还原）× C5 包装脚本退出码三态 ##########
+[remote env] container=shared-mysql src=aigicrm_prod_20261016 copy=aigicrm_a2_drill_20261118 scratch=/tmp/aigicrm-a2-drill2-20261118-045934
+[victim] ref=ftd:180:view orig_expire=NULL
+---- 8a 删除该行 ----
++-------------------+-----+
+| diff              | cnt |
++-------------------+-----+
+| missing_in_new    |   1 |
+| extra_in_new      |   0 |
+| expire_diff       |   0 |
+| old_expanded_rows | 181 |
+| new_legacy_rows   | 180 |
++-------------------+-----+
+---- 8b 重跑 M2 补回 ----
+Query OK, 1 row affected
++-------------------+-----+
+| diff              | cnt |
++-------------------+-----+
+| missing_in_new    |   0 |
+| extra_in_new      |   0 |
+| expire_diff       |   0 |
+| old_expanded_rows | 181 |
+| new_legacy_rows   | 181 |
++-------------------+-----+
+---- 8c 篡改过期 ----
++-------------------+-----+
+| diff              | cnt |
++-------------------+-----+
+| missing_in_new    |   0 |
+| extra_in_new      |   0 |
+| expire_diff       |   1 |
+| old_expanded_rows | 181 |
+| new_legacy_rows   | 181 |
++-------------------+-----+
+---- 8d 重跑 M2 不愈字段漂移 ----
+Query OK, 0 rows affected
++-------------------+-----+
+| diff              | cnt |
++-------------------+-----+
+| missing_in_new    |   0 |
+| extra_in_new      |   0 |
+| expire_diff       |   1 |
+| old_expanded_rows | 181 |
+| new_legacy_rows   | 181 |
++-------------------+-----+
+---- 8e 还原 ----
++-------------------+-----+
+| diff              | cnt |
++-------------------+-----+
+| missing_in_new    |   0 |
+| extra_in_new      |   0 |
+| expire_diff       |   0 |
+| old_expanded_rows | 181 |
+| new_legacy_rows   | 181 |
++-------------------+-----+
+[C5:zero-state] exit=0  ✅ 行对账 0 差异（181=181）
+
+########## STEP8b C5 退出码：造差异(≠0)与复原(=0) ##########
+[remote env] container=shared-mysql src=aigicrm_prod_20261016 copy=aigicrm_a2_drill_20261118 scratch=/tmp/aigicrm-a2-drill2-20261118-045934
+[c5-drift] deleted ftd:180:view
+[C5:drift-state] exit=1  ❌ 行对账有差异（见上）——禁止切换 dual→new
+[remote env] container=shared-mysql src=aigicrm_prod_20261016 copy=aigicrm_a2_drill_20261118 scratch=/tmp/aigicrm-a2-drill2-20261118-045934
+Query OK, 1 row affected
++-------------------+-----+
+| diff              | cnt |
++-------------------+-----+
+| missing_in_new    |   0 |
+| extra_in_new      |   0 |
+| expire_diff       |   0 |
+| old_expanded_rows | 181 |
+| new_legacy_rows   | 181 |
++-------------------+-----+
+[C5:healed-state] exit=0  ✅ 行对账 0 差异（181=181）
+
+########## STEP9 C6 双写闭环：旧表续期 + 新表全动作同值 upsert（模拟 syncUpsert）→ legacy_ref 不换行、对账仍 0 ##########
+[remote env] container=shared-mysql src=aigicrm_prod_20261016 copy=aigicrm_a2_drill_20261118 scratch=/tmp/aigicrm-a2-drill2-20261118-045934
+[c6] old_id=63（单行组）动作行数=4
+[c6] before: ftd:63:download=52,ftd:63:share=142,ftd:63:upload=78,ftd:63:view=26
+[c6] after:  ftd:63:download=52,ftd:63:share=142,ftd:63:upload=78,ftd:63:view=26
+[c6] expire 同步(旧行/新行, 应 1/4): 1/4
++-------------------+-----+
+| diff              | cnt |
++-------------------+-----+
+| missing_in_new    |   0 |
+| extra_in_new      |   0 |
+| expire_diff       |   0 |
+| old_expanded_rows | 181 |
+| new_legacy_rows   | 181 |
++-------------------+-----+
+[C5:c6-final] exit=0  ✅ 行对账 0 差异（181=181）
+
+########## DRILL v2 DONE（cleanup 由 trap 执行） ##########
+
+########## CLEANUP v2 副本清理（无论如何都执行） ##########
+[remote env] container=shared-mysql src=aigicrm_prod_20261016 copy=aigicrm_a2_drill_20261118 scratch=/tmp/aigicrm-a2-drill2-20261118-045934
+[cleanup] DROP DATABASE aigicrm_a2_drill_20261118 ok
+[cleanup] 剩余 drill 库: 0（期望 0）
+[cleanup] 远端暂存 /tmp/aigicrm-a2-drill2-20261118-045934 已删除
+[cleanup] 源库复核: old_rows=62 file_grant=NOT-EXISTS(快照原状)

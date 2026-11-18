@@ -51,6 +51,8 @@ public class FolderTypeDefaultService {
     private final SysRoleMapper roleMapper;
     private final SysUserMapper userMapper;
     private final com.aigicrm.security.SecurityAuditService securityAudit;
+    /** 【A2 §2.5】旧配置入口双写 biz_file_grant（同事务：失败整回滚，不允许旧表成功/新表失败）。 */
+    private final LegacyFileGrantSyncService legacySync;
 
     /** 授权列表(含主体名/定向夹名/过期状态) */
     public List<Map<String, Object>> listGrants() {
@@ -84,7 +86,9 @@ public class FolderTypeDefaultService {
         return rows;
     }
 
-    /** 保存授权: 词表按对象组校验; 'edit' 伞归一 rename+replace; 过期时间必填且须晚于当前 */
+    /** 保存授权: 词表按对象组校验; 'edit' 伞归一 rename+replace; 过期时间必填且须晚于当前
+     *  【A2 §2.5】事务内双写 biz_file_grant（legacy/dual 模式均执行，为切换积累数据）。 */
+    @org.springframework.transaction.annotation.Transactional
     public void saveGrant(String folderType, String objectType, Long folderId, Long scopeOrgId, String scopeLevel,
                           String subjectType, Long subjectId, List<String> perms, LocalDateTime expiresAt) {
         if (!TYPES.contains(folderType)) throw new BusinessException("不支持的文件夹类型");
@@ -139,6 +143,11 @@ public class FolderTypeDefaultService {
                             .set(BizFolderTypeDefault::getExpiresAt, expiresAt)
                             .set(BizFolderTypeDefault::getScopeOrgId, scopeOrgId)
                             .set(BizFolderTypeDefault::getScopeLevel, scopeLevel));
+            existing.setPerms(joined);
+            existing.setExpiresAt(expiresAt);
+            existing.setScopeOrgId(scopeOrgId);
+            existing.setScopeLevel(scopeLevel);
+            legacySync.syncUpsert(existing);
         } else {
             BizFolderTypeDefault g = new BizFolderTypeDefault();
             g.setFolderType(folderType);
@@ -153,6 +162,7 @@ public class FolderTypeDefaultService {
             g.setCreatedBy(SecurityUtils.getCurrentUserId());
             g.setCreatedAt(LocalDateTime.now());
             grantMapper.insert(g);
+            legacySync.syncUpsert(g);
         }
         try { securityAudit.permissionChange("file_grant_save",
                 "fileGrant:" + folderType + "/" + objectType + (folderId != null ? "#" + folderId : "")
@@ -161,24 +171,28 @@ public class FolderTypeDefaultService {
         catch (Exception e) { log.warn("权限审计留痕失败(不阻断业务) file_grant_save folderType={} subject={}:{}", folderType, subjectType, subjectId, e); }
     }
 
-    /** 按 id 删除授权(立即收回) */
+    /** 按 id 删除授权(立即收回)——【A2 §2.5】事务内同步清空新表 ftd:<id>: 双写行 */
+    @org.springframework.transaction.annotation.Transactional
     public void removeGrant(Long id) {
         BizFolderTypeDefault g = grantMapper.selectById(id);
         if (g == null) return;
         grantMapper.deleteById(id);
+        legacySync.syncDelete(id);
         try { securityAudit.permissionChange("file_grant_remove",
                 "fileGrant:" + g.getFolderType() + "/" + g.getObjectType() + "#" + id
                         + " subject:" + g.getSubjectType() + ":" + g.getSubjectId()); }
         catch (Exception e) { log.warn("权限审计留痕失败(不阻断业务) file_grant_remove grantId={}", id, e); }
     }
 
-    /** 续期(顺延至指定时刻; 审计留痕) */
+    /** 续期(顺延至指定时刻; 审计留痕)——【A2 §2.5】事务内 upsert 刷新新表 expire_at */
+    @org.springframework.transaction.annotation.Transactional
     public void renewGrant(Long id, LocalDateTime expiresAt) {
         if (expiresAt == null || !expiresAt.isAfter(LocalDateTime.now())) throw new BusinessException("续期时间必须晚于当前时间");
         BizFolderTypeDefault g = grantMapper.selectById(id);
         if (g == null) throw new BusinessException("授权不存在");
         g.setExpiresAt(expiresAt);
         grantMapper.updateById(g);
+        legacySync.syncUpsert(g);
         try { securityAudit.permissionChange("file_grant_renew", "fileGrant#" + id + " expires:" + expiresAt); }
         catch (Exception e) { log.warn("权限审计留痕失败(不阻断业务) file_grant_renew grantId={}", id, e); }
     }

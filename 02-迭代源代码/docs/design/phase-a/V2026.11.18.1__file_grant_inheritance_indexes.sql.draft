@@ -1,4 +1,5 @@
--- DRAFT ONLY — 不要放进 db/migration，未评审前不得执行。
+-- 【已转正 2026-11-18】最终形态（文件名按 QC 建议去掉 indexes 误导）见
+-- db/migration/V2026.11.18.1__file_grant_scope_columns.sql；本文件保留为设计记录，不得再执行。
 -- A1/A2 共用结构草案：空间类型、相对/绝对范围、旧表迁移来源、多 scope 唯一键。
 --
 -- 评审要点：

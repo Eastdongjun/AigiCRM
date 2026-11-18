@@ -380,7 +380,18 @@ public class FolderPermissionService {
      *  【治本② 2026-11-11】与批量版(grantHitIn)合一为同一实现: 本方法=每次实时查全表(单点判定);
      *  批量视图传入预载 grants 复用同一匹配逻辑(防 N+1), 两路语义永久一致。 */
     private boolean grantGranted(String objectType, String folderType, Long targetFolderId, Long targetOrgId, Long targetOwnerId, String action, Long userId) {
-        return grantHitIn(grantMapper.selectList(new LambdaQueryWrapper<>()), objectType, folderType, targetFolderId, targetOrgId, targetOwnerId, action, userId);
+        return grantHitIn(legacyGrants(), objectType, folderType, targetFolderId, targetOrgId, targetOwnerId, action, userId);
+    }
+
+    /**
+     * 【A2 §2.8 2026-11-18】旧表 biz_folder_type_default 读取统一入口：
+     * mode=new 时不再回落旧表（空集=永不命中）；legacy/dual 照旧全表读。
+     * owner/manager 恒管、公共夹 data_scope、私人空间仅本人/上级链等基础规则**不受影响**——
+     * mode=new 只切断 biz_folder_type_default 这一条例外授权通道（§2.8「不是无 grant 即拒绝」）。
+     */
+    private List<BizFolderTypeDefault> legacyGrants() {
+        if (fileGrantService != null && !fileGrantService.legacyFallback()) return List.of();
+        return grantMapper.selectList(new LambdaQueryWrapper<>());
     }
     // 【T2 2026-11-12】原 grantGrantedPublic(根目录页级判定口)随 type-perms 端点退役删除——行级 permsForFiles 取代
 
@@ -467,7 +478,7 @@ public class FolderPermissionService {
             }
             return result;
         }
-        List<BizFolderTypeDefault> grants = grantMapper.selectList(new LambdaQueryWrapper<>());
+        List<BizFolderTypeDefault> grants = legacyGrants();
         Map<Long, BizFileFolder> refCache = new HashMap<>();
         java.util.Set<Long> folderIds = new java.util.HashSet<>();
         for (BizFile f : files) if (f.getFolderId() != null) folderIds.add(f.getFolderId());
@@ -539,7 +550,7 @@ public class FolderPermissionService {
             return result;
         }
         Map<String, Set<Long>> matrixCache = new HashMap<>();
-        List<BizFolderTypeDefault> grants = grantMapper.selectList(new LambdaQueryWrapper<>());
+        List<BizFolderTypeDefault> grants = legacyGrants();
         Map<Long, Boolean> chainCache = new HashMap<>();
         for (BizFileFolder folder : folders) {
             if (fileGrantService != null

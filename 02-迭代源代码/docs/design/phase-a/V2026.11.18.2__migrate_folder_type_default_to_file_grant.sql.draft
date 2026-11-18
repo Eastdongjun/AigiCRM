@@ -1,6 +1,8 @@
--- DRAFT ONLY — 不要放进 db/migration，未评审/未对账前不得执行。
+-- 【已转正 2026-11-18】QC 复审通过后并入附录 A 三处修订（B-1 两处 MAX 包裹 / B-2 inherit SPACE=0 /
+-- B-3 blank→NULL 归一），最终形态见 db/migration/V2026.11.18.2__migrate_folder_type_default_to_file_grant.sql。
+-- 本文件保留为设计记录，不得再执行。
 -- A2：biz_folder_type_default -> biz_file_grant 存量迁移（幂等、不删旧表）。
--- 前置：V2026.11.18.1 草案已执行（space_type/scope_mode/scope_key/唯一键）。
+-- 前置：V2026.11.18.1 已执行（space_type/scope_mode/scope_key/唯一键）。
 --
 -- 语义（按 2026-11-18 评审修正）：
 --   * 旧 folder_type 是空间类型 -> 新 space_type；旧 scope_level 是相对数据范围；
@@ -30,15 +32,15 @@ SELECT
   END AS new_object_type,
   CASE WHEN d.`folder_id` IS NULL THEN NULL ELSE d.`folder_id` END AS new_object_id,
   CASE
-    WHEN d.`folder_id` IS NULL THEN d.`folder_type`
+    WHEN d.`folder_id` IS NULL THEN NULLIF(TRIM(d.`folder_type`), '')
     ELSE NULL
   END AS new_space_type,
   CASE WHEN a.`action` IN ('rename', 'replace') THEN 'edit' ELSE a.`action` END AS new_action,
   'ALLOW',
-  CASE
-    WHEN (COALESCE(d.`object_type`, 'FILE') = 'FOLDER' OR d.`folder_id` IS NOT NULL) THEN 1
+  MAX(CASE
+    WHEN d.`folder_id` IS NOT NULL THEN 1
     ELSE 0
-  END AS new_inherit,
+  END) AS new_inherit,
   NULL AS new_scope_org_id,
   CASE
     WHEN d.`scope_level` IS NULL OR TRIM(d.`scope_level`) = '' OR d.`scope_level` = 'all' THEN NULL
@@ -54,7 +56,7 @@ SELECT
   END AS new_expire_at,
   MAX(d.`created_by`),
   MIN(d.`created_at`),
-  CONCAT('ftd:', MIN(d.`id`), ':', CASE WHEN a.`action` IN ('rename', 'replace') THEN 'edit' ELSE a.`action` END),
+  CONCAT('ftd:', MIN(d.`id`), ':', MAX(CASE WHEN a.`action` IN ('rename', 'replace') THEN 'edit' ELSE a.`action` END)),
   'legacy'
 FROM `biz_folder_type_default` d
 JOIN (
@@ -83,7 +85,10 @@ WHERE d.`subject_type` IN ('ROLE', 'USER')
              ELSE 'FOLDER'
            END
        AND g.`object_id` <=> CASE WHEN d.`folder_id` IS NULL THEN NULL ELSE d.`folder_id` END
-       AND g.`space_type` <=> CASE WHEN d.`folder_id` IS NULL THEN d.`folder_type` ELSE NULL END
+       AND g.`space_type` <=> CASE
+             WHEN d.`folder_id` IS NULL THEN NULLIF(TRIM(d.`folder_type`), '')
+             ELSE NULL
+           END
        AND g.`action` = CASE WHEN a.`action` IN ('rename', 'replace') THEN 'edit' ELSE a.`action` END
        AND g.`scope_mode` = CASE
              WHEN d.`scope_level` IS NULL OR TRIM(d.`scope_level`) = '' OR d.`scope_level` = 'all' THEN 'ANY'
@@ -103,7 +108,10 @@ GROUP BY
     ELSE 'FOLDER'
   END,
   CASE WHEN d.`folder_id` IS NULL THEN NULL ELSE d.`folder_id` END,
-  CASE WHEN d.`folder_id` IS NULL THEN d.`folder_type` ELSE NULL END,
+  CASE
+    WHEN d.`folder_id` IS NULL THEN NULLIF(TRIM(d.`folder_type`), '')
+    ELSE NULL
+  END,
   CASE WHEN a.`action` IN ('rename', 'replace') THEN 'edit' ELSE a.`action` END,
   CASE
     WHEN d.`scope_level` IS NULL OR TRIM(d.`scope_level`) = '' OR d.`scope_level` = 'all' THEN 'ANY'

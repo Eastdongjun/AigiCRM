@@ -20,7 +20,13 @@
       <el-table-column label="继承" width="60">
         <template #default="{ row }">{{ row.inherit ? '是' : '否' }}</template>
       </el-table-column>
-      <el-table-column prop="scopeLevel" label="空间/范围" width="100" />
+      <!-- 【A2】空间类型/范围模式拆列：spaceType=SPACE 空间类型(NULL=任意,存量迁移行)；scopeMode+scopeLevel=数据范围 -->
+      <el-table-column label="空间类型" width="90">
+        <template #default="{ row }">{{ row.spaceType || (row.objectType === 'SPACE' ? '任意' : '—') }}</template>
+      </el-table-column>
+      <el-table-column label="范围" width="110">
+        <template #default="{ row }">{{ row.scopeMode === 'RELATIVE' ? `相对·${row.scopeLevel}` : (row.scopeMode || (row.scopeLevel || '不限')) }}</template>
+      </el-table-column>
       <el-table-column prop="expireAt" label="到期" width="160" />
       <el-table-column label="操作" width="90">
         <template #default="{ row }">
@@ -57,8 +63,9 @@
         <el-form-item v-if="form.objectType !== 'SPACE'" label="对象 ID" required>
           <el-input v-model.number="form.objectId" placeholder="文件夹/文件 ID" />
         </el-form-item>
-        <el-form-item v-else label="空间">
-          <el-select v-model="form.scopeLevel" clearable placeholder="public/private/incentive/fabushi" style="width:100%">
+        <el-form-item v-else label="空间类型" required>
+          <!-- 【A2 §2.6/§2.7】SPACE 必填 spaceType（新保存禁止空值；NULL=任意空间仅存量迁移行） -->
+          <el-select v-model="form.spaceType" placeholder="public/private/incentive/fabushi" style="width:100%">
             <el-option label="公共 public" value="public" />
             <el-option label="私人 private" value="private" />
             <el-option label="激励 incentive" value="incentive" />
@@ -80,7 +87,8 @@
           <el-switch v-model="form.inherit" :active-value="1" :inactive-value="0" />
         </el-form-item>
         <el-form-item label="组织范围">
-          <el-input v-model.number="form.scopeOrgId" placeholder="组织节点 ID，留空=不限" />
+          <!-- 【A2】scope_mode 默认 SUBTREE：组织节点按子树(含下级组织)匹配；留空=不限组织 -->
+          <el-input v-model.number="form.scopeOrgId" placeholder="组织节点 ID（含下级组织），留空=不限" />
         </el-form-item>
         <el-form-item label="到期">
           <el-date-picker v-model="form.expireAt" type="datetime" value-format="YYYY-MM-DDTHH:mm:ss" placeholder="留空=长期" style="width:100%" />
@@ -108,9 +116,10 @@ const users = ref([])
 const roles = ref([])
 const formVisible = ref(false)
 const saving = ref(false)
-const ACTIONS = ['view', 'download', 'upload', 'edit', 'delete', 'share', 'manage', '*']
-const form = reactive({ subjectType: 'USER', subjectId: null, objectType: 'SPACE', objectId: null,
-  scopeLevel: '', action: 'view', effect: 'ALLOW', inherit: 1, scopeOrgId: null, expireAt: null })
+const ACTIONS = ['view', 'download', 'upload', 'edit', 'delete', 'share', 'manage', 'create', '*']
+const emptyForm = () => ({ subjectType: 'USER', subjectId: null, objectType: 'SPACE', objectId: null,
+  spaceType: '', action: 'view', effect: 'ALLOW', inherit: 1, scopeOrgId: null, scopeMode: '', expireAt: null })
+const form = reactive(emptyForm())
 
 const load = async () => {
   try {
@@ -123,12 +132,13 @@ const loadRefs = async () => {
   try { users.value = (await getUserList({ current: 1, size: 1000 })).data?.records || [] } catch (e) { users.value = [] }
 }
 const openAdd = () => {
-  Object.assign(form, { subjectType: 'USER', subjectId: null, objectType: 'SPACE', objectId: null,
-    scopeLevel: '', action: 'view', effect: 'ALLOW', inherit: 1, scopeOrgId: null, expireAt: null })
+  Object.assign(form, emptyForm())
   formVisible.value = true
 }
 const save = async () => {
   if (!form.subjectId || !form.action) return ElMessage.warning('请选择主体与动作')
+  // 【A2 §2.6】SPACE 必填 spaceType（后端同口径校验，前端先行提示）
+  if (form.objectType === 'SPACE' && !form.spaceType) return ElMessage.warning('空间授权必须选择空间类型')
   saving.value = true
   try {
     await request.post('/file/grants', form)

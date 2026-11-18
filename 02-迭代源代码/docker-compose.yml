@@ -32,6 +32,9 @@ services:
       OSS_ACCESS_KEY_ID: ${OSS_ACCESS_KEY_ID:-your-key}
       OSS_ACCESS_KEY_SECRET: ${OSS_ACCESS_KEY_SECRET:-your-secret}
       OSS_BUCKET_NAME: ${OSS_BUCKET_NAME:-aigicrm-files}
+      # 【A2 2026-11-18】biz_file_grant 主链切换模式（用户拍板 #4：env + 重启生效，默认 legacy）
+      # legacy=完全旧链 / dual=新引擎先判+ABSTAIN 回落旧表 / new=不再回落旧表
+      FILE_GRANT_MODE: ${FILE_GRANT_MODE:-legacy}
     volumes:
       - upload-data:/app/uploads
 

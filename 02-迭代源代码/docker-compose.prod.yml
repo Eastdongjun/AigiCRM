@@ -85,6 +85,8 @@ services:
       OSS_BUCKET_NAME: ${OSS_BUCKET_NAME:-}
       UPLOAD_DIR: /app/uploads
       TZ: Asia/Shanghai
+      # 【A2 2026-11-18】biz_file_grant 主链切换模式（默认 legacy；生产切 dual/new 须用户单独授权）
+      FILE_GRANT_MODE: ${FILE_GRANT_MODE:-legacy}
     volumes:
       # 【GPT复审 P1-01 修复 2026-09-21】对齐部署规范: 上传文件走 NAS /Aigicrm/files/uploads,
       # 废弃历史 upload-data named volume(与 deploy-backend.sh 口径统一)

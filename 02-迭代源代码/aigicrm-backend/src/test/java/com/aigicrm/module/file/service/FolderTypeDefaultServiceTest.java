@@ -31,9 +31,11 @@ class FolderTypeDefaultServiceTest {
     private final BizFileFolderMapper folderMapper = mock(BizFileFolderMapper.class);
     private final SysRoleMapper roleMapper = mock(SysRoleMapper.class);
     private final SysUserMapper userMapper = mock(SysUserMapper.class);
+    /** 【A2 §2.5】双写协作 mock：旧表入口保存/删除/续期必须同步触发新表 upsert/清理 */
+    private final LegacyFileGrantSyncService legacySync = mock(LegacyFileGrantSyncService.class);
     private final FolderTypeDefaultService svc =
             new FolderTypeDefaultService(grantMapper, folderMapper, roleMapper, userMapper,
-                    mock(com.aigicrm.security.SecurityAuditService.class));
+                    mock(com.aigicrm.security.SecurityAuditService.class), legacySync);
 
     private SysRole role(long id, String code, int status) {
         SysRole r = new SysRole(); r.setId(id); r.setRoleCode(code); r.setStatus(status); return r;
@@ -69,6 +71,8 @@ class FolderTypeDefaultServiceTest {
         assertEquals("FILE", cap.getValue().getObjectType());
         assertEquals("view,rename,replace,download", cap.getValue().getPerms(), "edit 伞归一为 rename+replace");
         assertEquals(exp, cap.getValue().getExpiresAt());
+        // 【A2 §2.5】旧表保存必须双写新表
+        verify(legacySync).syncUpsert(any(BizFolderTypeDefault.class));
     }
 
     @Test
@@ -82,15 +86,20 @@ class FolderTypeDefaultServiceTest {
         svc.renewGrant(1L, later);
         assertEquals(later, g.getExpiresAt());
         verify(grantMapper).updateById(g);
+        // 【A2 §2.5】续期必须刷新新表 expire_at（upsert 同 legacy_ref 行）
+        verify(legacySync).syncUpsert(g);
     }
 
     @Test
     void removeGrant_deletesAndKeepsSilentOnMissing() {
         svc.removeGrant(999L); // 不存在=幂等静默
         verify(grantMapper, never()).deleteById(any(Long.class));
+        verify(legacySync, never()).syncDelete(any());
         BizFolderTypeDefault g = new BizFolderTypeDefault(); g.setId(5L);
         when(grantMapper.selectById(5L)).thenReturn(g);
         svc.removeGrant(5L);
         verify(grantMapper).deleteById(5L);
+        // 【A2 §2.5】删除必须清空新表 ftd:<id>: 双写行
+        verify(legacySync).syncDelete(5L);
     }
 }

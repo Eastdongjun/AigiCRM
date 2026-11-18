@@ -34,6 +34,16 @@ import java.util.Set;
  *
  * <p>判定顺序：DENY 优先于 ALLOW，也优先于上传者本人/组织矩阵；仅管理员不受 DENY 影响。
  * 未命中返回 ABSTAIN，调用方继续走旧判定链，保证存量行为不变。</p>
+ *
+ * <p>【A2 2026-11-18】主链切换模式开关（用户拍板 #4：FILE_GRANT_MODE 环境变量+重启，默认 legacy）：
+ * {@code file.grant.mode} = legacy（本引擎整体旁路，decide* 恒 ABSTAIN，完全旧链）/
+ * dual（引擎先判，ABSTAIN 回落旧表）/ new（引擎先判，ABSTAIN 不回落旧表——由
+ * FolderPermissionService 按 {@link #legacyFallback()} 跳过旧表读取；owner/公共/私人基础规则仍在）。
+ * 开关收口在 decide* 入口，FolderPermissionService 全部 8 处调用点自动统一。
+ * Spring 上下文恒注入默认值 legacy；字段 null（仅直构单测）按 dual 处理以保持既有引擎测试语义。</p>
+ *
+ * <p>【A2】SPACE 匹配改读 space_type（旧 scope_level 只是相对数据范围，不得参与空间匹配）；
+ * scope_mode 四态：ANY 不限 / RELATIVE 按查看人（同旧 scopeCovers 口径）/ EXACT 精确 / SUBTREE 闭包子树。</p>
  */
 @Service
 @RequiredArgsConstructor
@@ -45,8 +55,26 @@ public class FileGrantService {
     public static final String OBJ_FOLDER = "FOLDER";
     public static final String OBJ_FILE = "FILE";
 
+    public static final String MODE_LEGACY = "legacy";
+    public static final String MODE_DUAL = "dual";
+    public static final String MODE_NEW = "new";
+    public static final String SCOPE_ANY = "ANY";
+    public static final String SCOPE_RELATIVE = "RELATIVE";
+    public static final String SCOPE_EXACT = "EXACT";
+    public static final String SCOPE_SUBTREE = "SUBTREE";
+    /** SPACE 空间类型词表（§2.7；space_type=NULL=任意空间，仅存量迁移行） */
+    public static final java.util.Set<String> SPACE_TYPES =
+            java.util.Set.of("public", "private", "incentive", "fabushi");
+    /** RELATIVE 档位词表（旧表 scope_level 数据范围） */
+    public static final java.util.Set<String> RELATIVE_LEVELS =
+            java.util.Set.of("self", "dept", "office", "region");
+
     private final BizFileGrantMapper grantMapper;
     private final SysRoleMapper roleMapper;
+
+    /** 【A2 拍板 #4】file.grant.mode=legacy|dual|new（FILE_GRANT_MODE env + 重启生效）。 */
+    @org.springframework.beans.factory.annotation.Value("${file.grant.mode:legacy}")
+    private String grantMode;
 
     /** 目标对象存在性校验（P0 纵深防御）；单测可缺省。 */
     @org.springframework.beans.factory.annotation.Autowired(required = false)
@@ -59,11 +87,29 @@ public class FileGrantService {
     /** 组织闭包（A1 子树）；单测可缺省，缺省退精确匹配。 */
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private org.springframework.jdbc.core.JdbcTemplate jdbc;
+    /** RELATIVE 档位解析（同旧 scopeCovers 口径）；单测可缺省，缺省 fail-closed。 */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.aigicrm.common.scope.OrgScopeResolver scopeResolver;
 
     /** 文件判定。 */
     public Decision decideFile(BizFile file, String action, Long userId) {
         if (file == null) return Decision.ABSTAIN;
         return decideFiles(List.of(file), action, userId).getOrDefault(file.getId(), Decision.ABSTAIN);
+    }
+
+    /** 【A2】当前模式（Spring 恒注入；null 仅直构单测，按 dual=引擎开）。 */
+    public String mode() {
+        return grantMode == null || grantMode.isBlank() ? MODE_DUAL : grantMode.trim().toLowerCase(Locale.ROOT);
+    }
+
+    /** 【A2】mode=legacy：本引擎整体旁路（decide* 恒 ABSTAIN）。 */
+    public boolean engineBypassed() {
+        return MODE_LEGACY.equals(mode());
+    }
+
+    /** 【A2】mode=new：调用方不再回落旧表 biz_folder_type_default（owner/公共/私人基础规则不受影响）。 */
+    public boolean legacyFallback() {
+        return !MODE_NEW.equals(mode());
     }
 
     /** 【A1 批量预载】一次查 grants，按 org/folder 缓存后逐文件判定。 */
@@ -72,7 +118,7 @@ public class FileGrantService {
         if (files == null || files.isEmpty()) return out;
         boolean admin = SecurityUtils.isAdmin();
         SecurityUser user = SecurityUtils.getCurrentUser();
-        if (userId == null || admin || user == null) {
+        if (userId == null || admin || user == null || engineBypassed()) {
             for (BizFile f : files) out.put(f.getId(), Decision.ABSTAIN);
             return out;
         }
@@ -96,7 +142,7 @@ public class FileGrantService {
 
     /** 文件夹判定（建子夹/改名/删除等夹自身动作）。 */
     public Decision decideFolder(BizFileFolder folder, String action, Long userId) {
-        if (folder == null || userId == null || SecurityUtils.isAdmin()) return Decision.ABSTAIN;
+        if (folder == null || userId == null || SecurityUtils.isAdmin() || engineBypassed()) return Decision.ABSTAIN;
         SecurityUser user = SecurityUtils.getCurrentUser();
         if (user == null) return Decision.ABSTAIN;
         List<BizFileGrant> grants = load(user, action);
@@ -127,7 +173,11 @@ public class FileGrantService {
         return out;
     }
 
-    /** 文件夹父链（含自身）；parent_id=0/null/deleted/环即停。 */
+    /**
+     * 文件夹父链（含自身）；parent_id=0/null/环即停。
+     * 【F-1 修复 2026-11-18，QC 拍板 #5】判存后入集：软删/不存在节点（含起点）不入集且停走（fail-closed），
+     * 软删夹不再作为授权锚点覆盖其子树；运行时新预期=软删锚点 → 403/ABSTAIN。
+     */
     private Set<Long> folderAncestors(Long folderId) {
         if (folderId == null) return Set.of();
         Set<Long> out = new LinkedHashSet<>();
@@ -135,10 +185,10 @@ public class FileGrantService {
         Long cur = folderId;
         int depth = 0;
         while (cur != null && cur != 0L && depth++ < 50 && visited.add(cur)) {
-            out.add(cur);
             if (folderMapper == null) break;
             BizFileFolder f = folderMapper.selectById(cur);
-            if (f == null) break;
+            if (f == null) break;      // 已删除/不存在：不入集且停走（fail-closed）
+            out.add(cur);
             cur = f.getParentId();
         }
         return out;
@@ -146,10 +196,11 @@ public class FileGrantService {
 
     // ==================== 管理端 CRUD（file:acl:manage） ====================
 
-    /** 控制器 DTO：避免 controller 依赖 entity（ArchitectureTest 约束）。 */
+    /** 控制器 DTO：避免 controller 依赖 entity（ArchitectureTest 约束）。
+     *  【A2】+spaceType（SPACE 空间类型，SPACE 时必填）+scopeMode（ANY/RELATIVE/EXACT/SUBTREE，缺省按规则推断）。 */
     public record Command(Long id, String subjectType, Long subjectId, String objectType, Long objectId,
-                          String action, String effect, Integer inherit, Long scopeOrgId,
-                          String scopeLevel, LocalDateTime expireAt) { }
+                          String spaceType, String action, String effect, Integer inherit, Long scopeOrgId,
+                          String scopeLevel, String scopeMode, LocalDateTime expireAt) { }
 
     public List<Map<String, Object>> list(String objectType, Long objectId) {
         requireAdmin();
@@ -171,11 +222,13 @@ public class FileGrantService {
         g.setSubjectId(c.subjectId());
         g.setObjectType(c.objectType());
         g.setObjectId(c.objectId());
+        g.setSpaceType(c.spaceType() == null || c.spaceType().isBlank() ? null : c.spaceType().trim().toLowerCase(Locale.ROOT));
         g.setAction(c.action());
         g.setEffect(c.effect());
         g.setInherit(c.inherit());
         g.setScopeOrgId(c.scopeOrgId());
-        g.setScopeLevel(c.scopeLevel());
+        g.setScopeLevel(c.scopeLevel() == null || c.scopeLevel().isBlank() ? null : c.scopeLevel().trim().toLowerCase(Locale.ROOT));
+        g.setScopeMode(c.scopeMode());
         g.setExpireAt(c.expireAt());
         String subjectType = upper(g.getSubjectType());
         if (!Set.of("USER", "ROLE", "POSITION").contains(subjectType)) {
@@ -192,9 +245,19 @@ public class FileGrantService {
         if (OBJ_SPACE.equals(objectType) && g.getObjectId() != null) {
             throw new BusinessException("空间授权的对象 ID 必须为空");
         }
+        // 【A2 §2.6/§2.7】SPACE 空间类型必填且限词表；非 SPACE 行不得携带 spaceType。
+        // space_type=NULL=任意空间仅属存量迁移行（旧 blank 归一），新保存禁止空值。
+        if (OBJ_SPACE.equals(objectType)) {
+            if (g.getSpaceType() == null) throw new BusinessException("空间授权必须指定空间类型");
+            if (!SPACE_TYPES.contains(g.getSpaceType())) {
+                throw new BusinessException("空间类型仅支持 public/private/incentive/fabushi");
+            }
+        } else if (g.getSpaceType() != null) {
+            throw new BusinessException("空间类型仅 SPACE 授权可指定");
+        }
         String action = g.getAction() == null ? "" : g.getAction().trim().toLowerCase(Locale.ROOT);
-        if (!Set.of("view", "download", "upload", "edit", "delete", "share", "manage", "*").contains(action)) {
-            throw new BusinessException("动作仅支持 view/download/upload/edit/delete/share/manage/*");
+        if (!Set.of("view", "download", "upload", "edit", "delete", "share", "manage", "*", "create").contains(action)) {
+            throw new BusinessException("动作仅支持 view/download/upload/edit/delete/share/manage/create/*");
         }
         String effect = upper(g.getEffect());
         if (effect == null || effect.isBlank()) effect = "ALLOW";
@@ -202,6 +265,29 @@ public class FileGrantService {
         if (g.getExpireAt() != null && !g.getExpireAt().isAfter(LocalDateTime.now())) {
             throw new BusinessException("到期时间必须晚于当前时间");
         }
+        // 【A2】scope_mode 归一：缺省时按 RELATIVE 线索推断（scopeLevel 非空→RELATIVE，否则手工默认 SUBTREE）；
+        // RELATIVE 必须带 self/dept/office/region；ANY 清空范围字段；EXACT/SUBTREE 允许 scope_org_id（空=不限组织）。
+        String scopeMode = upper(g.getScopeMode());
+        if (scopeMode == null || scopeMode.isBlank()) {
+            scopeMode = g.getScopeLevel() != null ? SCOPE_RELATIVE : SCOPE_SUBTREE;
+        }
+        if (!Set.of(SCOPE_ANY, SCOPE_RELATIVE, SCOPE_EXACT, SCOPE_SUBTREE).contains(scopeMode)) {
+            throw new BusinessException("范围模式仅支持 ANY/RELATIVE/EXACT/SUBTREE");
+        }
+        if (SCOPE_RELATIVE.equals(scopeMode)) {
+            if (g.getScopeLevel() == null || !RELATIVE_LEVELS.contains(g.getScopeLevel())) {
+                throw new BusinessException("RELATIVE 范围必须指定 self/dept/office/region");
+            }
+            if (g.getScopeOrgId() != null) {
+                throw new BusinessException("RELATIVE 范围是相对当前查看人的档位，不能携带组织节点");
+            }
+        } else {
+            if (g.getScopeLevel() != null) {
+                throw new BusinessException("scopeLevel 仅在 RELATIVE 范围下有效（空间类型请用 spaceType）");
+            }
+            if (SCOPE_ANY.equals(scopeMode)) g.setScopeOrgId(null);
+        }
+        g.setScopeMode(scopeMode);
         g.setSubjectType(subjectType);
         g.setObjectType(objectType);
         g.setAction(action);
@@ -212,12 +298,14 @@ public class FileGrantService {
         validateTarget(g);
         try {
             if (g.getId() == null) {
+                g.setSource("manual");
                 grantMapper.insert(g);
             } else {
                 BizFileGrant old = grantMapper.selectById(g.getId());
                 if (old == null || !Objects.equals(old.getTenantId(), tenantId())) {
                     throw new BusinessException("授权不存在");
                 }
+                // 编辑不动迁移来源：legacy_ref/source 保持原行值（updateById NOT_NULL 策略跳过 null 字段）
                 grantMapper.updateById(g);
             }
         } catch (BusinessException e) {
@@ -236,12 +324,16 @@ public class FileGrantService {
         m.put("subjectId", g.getSubjectId());
         m.put("objectType", g.getObjectType());
         m.put("objectId", g.getObjectId());
+        m.put("spaceType", g.getSpaceType());
         m.put("action", g.getAction());
         m.put("effect", g.getEffect());
         m.put("inherit", g.getInherit());
         m.put("scopeOrgId", g.getScopeOrgId());
         m.put("scopeLevel", g.getScopeLevel());
+        m.put("scopeMode", g.getScopeMode());
         m.put("expireAt", g.getExpireAt());
+        m.put("legacyRef", g.getLegacyRef());
+        m.put("source", g.getSource());
         m.put("createdBy", g.getCreatedBy());
         m.put("createdAt", g.getCreatedAt());
         return m;
@@ -262,7 +354,8 @@ public class FileGrantService {
         if (!SecurityUtils.isAdmin()) throw new BusinessException(403, "文件统一授权仅系统管理员可配置");
     }
 
-    /** 目标对象必须真实存在，避免对任意 ID 建授权（P0 纵深防御）。 */
+    /** 目标对象必须真实存在，避免对任意 ID 建授权（P0 纵深防御）。
+     *  【A2】SPACE 分支的词表校验已前移 save()（spaceType 必填）；scopeLevel 仅 RELATIVE 数据范围，不再当空间类型校验。 */
     private void validateTarget(BizFileGrant g) {
         if (OBJ_FILE.equals(g.getObjectType())) {
             if (fileMapper == null || fileMapper.selectById(g.getObjectId()) == null) {
@@ -272,9 +365,6 @@ public class FileGrantService {
             if (folderMapper == null || folderMapper.selectById(g.getObjectId()) == null) {
                 throw new BusinessException("目标文件夹不存在");
             }
-        } else if (g.getScopeLevel() != null && !g.getScopeLevel().isBlank()
-                && !Set.of("public", "private", "incentive", "fabushi").contains(g.getScopeLevel())) {
-            throw new BusinessException("空间类型非法");
         }
     }
 
@@ -332,23 +422,23 @@ public class FileGrantService {
     }
 
     private boolean coversFile(BizFileGrant g, BizFile file, Set<Long> orgAncestors, Set<Long> folderAncestors) {
-        if (!scopeOrgCovers(g, orgAncestors) || expired(g)) return false;
+        if (!scopeCovers(g, file.getOrgId(), file.getUploaderId(), orgAncestors) || expired(g)) return false;
         String type = g.getObjectType() == null ? "" : g.getObjectType().toUpperCase(Locale.ROOT);
         return switch (type) {
             case OBJ_FILE -> file.getId() != null && file.getId().equals(g.getObjectId());
             // A1: FOLDER 授权递归；inherit=0 只对夹自身，不对文件生效
             case OBJ_FOLDER -> g.getObjectId() != null && !Integer.valueOf(0).equals(g.getInherit())
                     && folderAncestors.contains(g.getObjectId());
+            // A2: SPACE 匹配改读 space_type；NULL=任意空间（旧 blank 迁移行兼容，§2.7）
             case OBJ_SPACE -> g.getObjectId() == null
-                    && (g.getScopeLevel() == null || g.getScopeLevel().isBlank()
-                        || g.getScopeLevel().equalsIgnoreCase(file.getFileScope()));
+                    && spaceTypeMatches(g.getSpaceType(), file.getFileScope());
             default -> false;
         };
     }
 
     private boolean coversFolder(BizFileGrant g, BizFileFolder folder, Set<Long> orgAncestors,
                                  Set<Long> folderAncestors) {
-        if (!scopeOrgCovers(g, orgAncestors) || expired(g)) return false;
+        if (!scopeCovers(g, folder.getOrgId(), folder.getOwnerId(), orgAncestors) || expired(g)) return false;
         String type = g.getObjectType() == null ? "" : g.getObjectType().toUpperCase(Locale.ROOT);
         return switch (type) {
             case OBJ_FOLDER -> {
@@ -357,14 +447,64 @@ public class FileGrantService {
                         && folderAncestors.contains(g.getObjectId());
             }
             case OBJ_SPACE -> g.getObjectId() == null
-                    && (g.getScopeLevel() == null || g.getScopeLevel().isBlank()
-                        || g.getScopeLevel().equalsIgnoreCase(folder.getFolderType()));
+                    && spaceTypeMatches(g.getSpaceType(), folder.getFolderType());
             default -> false;
         };
     }
 
-    private boolean scopeOrgCovers(BizFileGrant g, Set<Long> orgAncestors) {
-        return g.getScopeOrgId() == null || orgAncestors.contains(g.getScopeOrgId());
+    /** SPACE 空间类型匹配：授权 NULL/blank=任意空间；否则忽略大小写精确匹配目标空间。 */
+    private boolean spaceTypeMatches(String spaceType, String targetScope) {
+        return spaceType == null || spaceType.isBlank()
+                || (targetScope != null && spaceType.equalsIgnoreCase(targetScope));
+    }
+
+    /**
+     * 【A2】范围判定四态：
+     * ANY=不限；RELATIVE=按当前查看人档位（同旧 scopeCovers 口径，§1.2/A1-2）；
+     * EXACT=绝对组织精确；SUBTREE=绝对组织闭包子树（缺省推断时兼容 A1 行为）。
+     * scope_mode 为空（直构/DDL 前存量行）时推断：scopeLevel 非空→RELATIVE，scope_org_id 空→ANY，否则 SUBTREE。
+     */
+    private boolean scopeCovers(BizFileGrant g, Long targetOrgId, Long targetUploaderId, Set<Long> orgAncestors) {
+        String mode = g.getScopeMode() == null ? null : g.getScopeMode().toUpperCase(Locale.ROOT);
+        if (mode == null || mode.isBlank()) {
+            mode = g.getScopeLevel() != null ? SCOPE_RELATIVE
+                    : (g.getScopeOrgId() == null ? SCOPE_ANY : SCOPE_SUBTREE);
+        }
+        switch (mode) {
+            case SCOPE_ANY:
+                return true;
+            case SCOPE_RELATIVE:
+                return relativeCovers(g.getScopeLevel(), targetOrgId, targetUploaderId);
+            case SCOPE_EXACT:
+                return g.getScopeOrgId() == null || Objects.equals(g.getScopeOrgId(), targetOrgId);
+            case SCOPE_SUBTREE:
+            default:
+                return g.getScopeOrgId() == null || orgAncestors.contains(g.getScopeOrgId());
+        }
+    }
+
+    /**
+     * RELATIVE 档位判定——与旧 FolderPermissionService.scopeCovers 逐口径一致：
+     * null/blank/all=不限；self=目标上传人/属主是当前用户；
+     * dept/office/region=目标有组织→档位部门集含目标 org；无组织→档位人员集含上传人；解析器缺席 fail-closed。
+     */
+    private boolean relativeCovers(String level, Long targetOrgId, Long targetUploaderId) {
+        if (level == null || level.isBlank() || "all".equals(level)) return true;
+        SecurityUser u = SecurityUtils.getCurrentUser();
+        if (u == null) return false;
+        if ("self".equals(level)) {
+            return targetUploaderId != null && targetUploaderId.equals(SecurityUtils.getCurrentUserId());
+        }
+        if (scopeResolver == null) return false;
+        if (targetOrgId != null) {
+            List<Long> depts = scopeResolver.resolveDeptScope(u, level);
+            return depts == null || depts.contains(targetOrgId);
+        }
+        if (targetUploaderId != null) {
+            List<Long> users = scopeResolver.resolveScope(u, level);
+            return users == null || users.contains(targetUploaderId);
+        }
+        return false;
     }
 
     private boolean expired(BizFileGrant g) {

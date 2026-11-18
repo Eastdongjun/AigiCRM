@@ -144,7 +144,7 @@ class FileGrantServiceTest {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
             m.when(SecurityUtils::getCurrentUser).thenReturn(user(2L));
             assertThrows(BusinessException.class, () -> svc.save(new FileGrantService.Command(
-                    null, "USER", 2L, "FILE", 10L, "download", "ALLOW", 1, null, null, null)));
+                    null, "USER", 2L, "FILE", 10L, null, "download", "ALLOW", 1, null, null, null, null)));
         }
     }
 
@@ -163,6 +163,12 @@ class FileGrantServiceTest {
 
     @Test
     void folderGrantInheritsToFileAndMatchesOrg() {
+        // 【F-1 修复连带】folderAncestors 判存后入集：需注入 folderMapper stub（folder 1 存在、parent=0）
+        BizFileFolder folder1 = new BizFileFolder();
+        folder1.setId(1L);
+        folder1.setParentId(0L);
+        when(folderMapper.selectById(1L)).thenReturn(folder1);
+        setField("folderMapper", folderMapper);
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
             m.when(SecurityUtils::getCurrentUser).thenReturn(user(2L));
@@ -189,14 +195,169 @@ class FileGrantServiceTest {
 
     @Test
     void spaceGrantMatchesFileScope() {
+        // 【A2】SPACE 匹配改读 space_type（原用例绑 scopeLevel='public'，随 spaceType 转正同步改造）
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
             m.when(SecurityUtils::getCurrentUser).thenReturn(user(2L));
             when(roleMapper.selectList(any())).thenReturn(List.of());
             BizFileGrant g = grant("SPACE", null, "delete", "ALLOW", 1, null, null);
-            g.setScopeLevel("public");
+            g.setSpaceType("public");
             when(mapper.selectList(any())).thenReturn(List.of(g));
             assertEquals(FileGrantService.Decision.ALLOW, svc.decideFile(file(10L, 1L, 3L, 5L), "delete", 2L));
+            // 空间类型不匹配 → ABSTAIN
+            BizFileGrant priv = grant("SPACE", null, "delete", "ALLOW", 1, null, null);
+            priv.setSpaceType("private");
+            when(mapper.selectList(any())).thenReturn(List.of(priv));
+            assertEquals(FileGrantService.Decision.ABSTAIN, svc.decideFile(file(10L, 1L, 3L, 5L), "delete", 2L));
+        }
+    }
+
+    @Test
+    void spaceGrantNullTypeMatchesAnySpace() {
+        // §2.7：space_type=NULL（旧 blank 迁移行）=任意空间，public/private 文件均命中
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            m.when(SecurityUtils::getCurrentUser).thenReturn(user(2L));
+            when(roleMapper.selectList(any())).thenReturn(List.of());
+            BizFileGrant g = grant("SPACE", null, "view", "ALLOW", 1, null, null);
+            g.setSpaceType(null);
+            when(mapper.selectList(any())).thenReturn(List.of(g));
+            assertEquals(FileGrantService.Decision.ALLOW, svc.decideFile(file(10L, 1L, 3L, 5L), "view", 2L));
+            BizFile priv = file(10L, 1L, 3L, 5L);
+            priv.setFileScope("private");
+            assertEquals(FileGrantService.Decision.ALLOW, svc.decideFile(priv, "view", 2L));
+        }
+    }
+
+    @Test
+    void saveRejectsSpaceWithoutTypeAndBadVocab() {
+        // §2.6/§2.7：SPACE 必填 spaceType 且限词表；scopeLevel 不再当空间类型
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(true);
+            m.when(SecurityUtils::getCurrentUser).thenReturn(user(1L));
+            m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
+            assertThrows(BusinessException.class, () -> svc.save(new FileGrantService.Command(
+                    null, "USER", 2L, "SPACE", null, null, "view", "ALLOW", 0, null, null, null, null)));
+            assertThrows(BusinessException.class, () -> svc.save(new FileGrantService.Command(
+                    null, "USER", 2L, "SPACE", null, "foo", "view", "ALLOW", 0, null, null, null, null)));
+            assertThrows(BusinessException.class, () -> svc.save(new FileGrantService.Command(
+                    null, "USER", 2L, "FOLDER", 7L, "public", "view", "ALLOW", 1, null, null, null, null)),
+                    "非 SPACE 行不得携带 spaceType");
+        }
+    }
+
+    @Test
+    void scopeModeRelativeCoversByViewerLevel() {
+        // RELATIVE 口径=旧 scopeCovers：self=上传人本人；region=档位部门集含目标 org（resolver null=档位集）
+        com.aigicrm.common.scope.OrgScopeResolver resolver =
+                mock(com.aigicrm.common.scope.OrgScopeResolver.class);
+        setField("scopeResolver", resolver);
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            SecurityUser viewer = user(2L);
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            m.when(SecurityUtils::getCurrentUser).thenReturn(viewer);
+            m.when(SecurityUtils::getCurrentUserId).thenReturn(2L);
+            when(roleMapper.selectList(any())).thenReturn(List.of());
+            // self：目标上传人=当前用户 → ALLOW；他人 → ABSTAIN
+            BizFileGrant self = grant("FILE", 10L, "view", "ALLOW", 1, null, null);
+            self.setScopeMode(FileGrantService.SCOPE_RELATIVE);
+            self.setScopeLevel("self");
+            when(mapper.selectList(any())).thenReturn(List.of(self));
+            assertEquals(FileGrantService.Decision.ALLOW, svc.decideFile(file(10L, 1L, 2L, 5L), "view", 2L));
+            assertEquals(FileGrantService.Decision.ABSTAIN, svc.decideFile(file(10L, 1L, 3L, 5L), "view", 2L));
+            // region：resolveDeptScope(viewer, region) 含 5 → ALLOW；不含 6 → ABSTAIN；null=不限 → ALLOW
+            BizFileGrant region = grant("FILE", 10L, "view", "ALLOW", 1, null, null);
+            region.setScopeMode(FileGrantService.SCOPE_RELATIVE);
+            region.setScopeLevel("region");
+            when(mapper.selectList(any())).thenReturn(List.of(region));
+            when(resolver.resolveDeptScope(viewer, "region")).thenReturn(List.of(5L, 7L));
+            assertEquals(FileGrantService.Decision.ALLOW, svc.decideFile(file(10L, 1L, 3L, 5L), "view", 2L));
+            assertEquals(FileGrantService.Decision.ABSTAIN, svc.decideFile(file(10L, 1L, 3L, 6L), "view", 2L));
+            when(resolver.resolveDeptScope(viewer, "region")).thenReturn(null);
+            assertEquals(FileGrantService.Decision.ALLOW, svc.decideFile(file(10L, 1L, 3L, 6L), "view", 2L));
+        }
+    }
+
+    @Test
+    void scopeModeExactDoesNotCoverSubtree() {
+        // EXACT=绝对组织精确：闭包含 10→11 也不放大（与 SUBTREE 对照）
+        org.springframework.jdbc.core.JdbcTemplate jdbc =
+                mock(org.springframework.jdbc.core.JdbcTemplate.class);
+        when(jdbc.queryForList(any(String.class), eq(Long.class), eq(11L))).thenReturn(List.of(10L, 11L));
+        setField("jdbc", jdbc);
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            m.when(SecurityUtils::getCurrentUser).thenReturn(user(2L));
+            when(roleMapper.selectList(any())).thenReturn(List.of());
+            BizFileGrant exact = grant("FILE", 10L, "view", "ALLOW", 1, 10L, null);
+            exact.setScopeMode(FileGrantService.SCOPE_EXACT);
+            when(mapper.selectList(any())).thenReturn(List.of(exact));
+            assertEquals(FileGrantService.Decision.ABSTAIN, svc.decideFile(file(10L, 1L, 3L, 11L), "view", 2L),
+                    "EXACT 精确匹配：文件 org=11 ≠ scope 10，闭包祖先不放大");
+            exact.setScopeMode(FileGrantService.SCOPE_SUBTREE);
+            assertEquals(FileGrantService.Decision.ALLOW, svc.decideFile(file(10L, 1L, 3L, 11L), "view", 2L),
+                    "SUBTREE 子树匹配：闭包 11→10 命中");
+        }
+    }
+
+    @Test
+    void legacyModeBypassesEngine() {
+        // 【A2 §2.8】mode=legacy：decide* 恒 ABSTAIN（完全旧链），不查授权表
+        setField("grantMode", "legacy");
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            m.when(SecurityUtils::getCurrentUser).thenReturn(user(2L));
+            when(roleMapper.selectList(any())).thenReturn(List.of());
+            when(mapper.selectList(any())).thenReturn(List.of(
+                    grant("FILE", 10L, "view", "ALLOW", 1, null, null)));
+            assertEquals(FileGrantService.Decision.ABSTAIN, svc.decideFile(file(10L, 1L, 3L, 5L), "view", 2L));
+            verify(mapper, never()).selectList(any());
+            assertTrue(svc.engineBypassed());
+            assertTrue(svc.legacyFallback(), "mode=legacy 完全旧链（旧表照读）");
+        }
+    }
+
+    @Test
+    void dualAndNewModesKeepEngineOn() {
+        // dual/new：引擎开启（差异只在调用方是否回落旧表）
+        setField("grantMode", "new");
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            m.when(SecurityUtils::getCurrentUser).thenReturn(user(2L));
+            when(roleMapper.selectList(any())).thenReturn(List.of());
+            when(mapper.selectList(any())).thenReturn(List.of(
+                    grant("FILE", 10L, "view", "ALLOW", 1, null, null)));
+            assertEquals(FileGrantService.Decision.ALLOW, svc.decideFile(file(10L, 1L, 3L, 5L), "view", 2L));
+            assertFalse(svc.engineBypassed());
+            assertFalse(svc.legacyFallback(), "mode=new 不再回落旧表");
+        }
+        setField("grantMode", "dual");
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            m.when(SecurityUtils::getCurrentUser).thenReturn(user(2L));
+            assertFalse(svc.engineBypassed());
+            assertTrue(svc.legacyFallback(), "mode=dual ABSTAIN 回落旧表");
+        }
+    }
+
+    @Test
+    void softDeletedAnchorFolderIsNotAncestor() {
+        // 【F-1 修复，QC 拍板 #5】软删夹不得作为授权锚点：grant 在 A(1) 上，A 已删（selectById=null）
+        // → 祖先集不含 1 → 子夹 B(2) 内文件 ABSTAIN（运行时新预期=403）
+        BizFileFolder childB = new BizFileFolder();
+        childB.setId(2L);
+        childB.setParentId(1L);
+        when(folderMapper.selectById(2L)).thenReturn(childB);
+        when(folderMapper.selectById(1L)).thenReturn(null); // 软删（逻辑删过滤）
+        setField("folderMapper", folderMapper);
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            m.when(SecurityUtils::getCurrentUser).thenReturn(user(2L));
+            when(roleMapper.selectList(any())).thenReturn(List.of());
+            when(mapper.selectList(any())).thenReturn(List.of(
+                    grant("FOLDER", 1L, "view", "ALLOW", 1, null, null)));
+            assertEquals(FileGrantService.Decision.ABSTAIN, svc.decideFile(file(10L, 2L, 3L, 5L), "view", 2L),
+                    "软删锚点夹上的存量授权失效（fail-closed）");
         }
     }
 
