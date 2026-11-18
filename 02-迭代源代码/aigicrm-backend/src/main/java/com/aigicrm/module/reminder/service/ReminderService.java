@@ -396,8 +396,8 @@ public class ReminderService {
                 batchIdMap(officeIds, () -> deptMapper.selectBatchIds(officeIds), SysDept::getId);
         Supplier<Object> userFill = () ->
                 batchIdMap(ownerIds, () -> userMapper.selectBatchIds(ownerIds), SysUser::getId);
-        // 原 selectOne 为 eq(customerId)+orderByDesc(id) LIMIT 1，即"该客户下 id 最大的一条";
-        // 批量版 in(customerIds) 一次取回后内存取每客户 max(id)，结果与逐行版一致。
+        // 原实现逐行取"该客户下 id 最大的一条"(单行查询 + 倒序取首)；
+        // 批量版一次取回后内存取每客户 max(id)，结果与逐行版一致。
         Supplier<Object> pendingFill = () -> customerIds.isEmpty() ? Map.<Long, BizReminder>of()
                 : latestReminderPerCustomer(reminderMapper.selectList(new LambdaQueryWrapper<BizReminder>()
                         .in(BizReminder::getCustomerId, customerIds)
