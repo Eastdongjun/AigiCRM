@@ -476,12 +476,14 @@ public class FolderPermissionService {
         }
         Map<String, Set<Long>> matrixCache = new HashMap<>();
         Map<Long, Boolean> chainCache = new HashMap<>();
+        // 【A1 批量预载】一次查 grants + org/folder 缓存，避免逐文件 N×查询。
+        Map<Long, FileGrantService.Decision> grantDecisions = fileGrantService == null
+                ? Map.of() : fileGrantService.decideFiles(files, P_VIEW, userId);
         for (BizFile file : files) {
             BizFileFolder ref = file.getFolderId() != null ? refCache.get(file.getFolderId()) : null;
             String anchorType = ref != null ? ref.getFolderType() : file.getFileScope(); // 无夹=空间锚(修4 同口径)
             // 【2026-11-17 阶段二】统一授权 DENY 隐藏行按钮（后端 checkFile 已同步拒绝）。
-            if (fileGrantService != null
-                    && fileGrantService.decideFile(file, P_VIEW, userId) == FileGrantService.Decision.DENY) {
+            if (grantDecisions.get(file.getId()) == FileGrantService.Decision.DENY) {
                 result.put(file.getId(), List.of());
                 continue;
             }

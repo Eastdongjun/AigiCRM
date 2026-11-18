@@ -2,7 +2,9 @@ package com.aigicrm.module.file.service;
 
 import com.aigicrm.common.BusinessException;
 import com.aigicrm.module.file.entity.BizFile;
+import com.aigicrm.module.file.entity.BizFileFolder;
 import com.aigicrm.module.file.entity.BizFileGrant;
+import com.aigicrm.module.file.mapper.BizFileFolderMapper;
 import com.aigicrm.module.file.mapper.BizFileGrantMapper;
 import com.aigicrm.module.system.entity.SysRole;
 import com.aigicrm.module.system.mapper.SysRoleMapper;
@@ -15,6 +17,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 
+import java.lang.reflect.Field;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -33,6 +36,7 @@ class FileGrantServiceTest {
     }
 
     private final BizFileGrantMapper mapper = mock(BizFileGrantMapper.class);
+    private final BizFileFolderMapper folderMapper = mock(BizFileFolderMapper.class);
     private final SysRoleMapper roleMapper = mock(SysRoleMapper.class);
     private final FileGrantService svc = new FileGrantService(mapper, roleMapper);
 
@@ -66,6 +70,72 @@ class FileGrantServiceTest {
         g.setScopeOrgId(scopeOrgId);
         g.setExpireAt(expireAt);
         return g;
+    }
+
+    private void setField(String name, Object value) {
+        try {
+            Field f = FileGrantService.class.getDeclaredField(name);
+            f.setAccessible(true);
+            f.set(svc, value);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Test
+    void folderGrantRecursesToChildFolders() {
+        BizFileFolder child = new BizFileFolder();
+        child.setId(2L);
+        child.setParentId(1L);
+        BizFileFolder root = new BizFileFolder();
+        root.setId(1L);
+        root.setParentId(0L);
+        when(folderMapper.selectById(2L)).thenReturn(child);
+        when(folderMapper.selectById(1L)).thenReturn(root);
+        setField("folderMapper", folderMapper);
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            m.when(SecurityUtils::getCurrentUser).thenReturn(user(2L));
+            when(roleMapper.selectList(any())).thenReturn(List.of());
+            when(mapper.selectList(any())).thenReturn(List.of(
+                    grant("FOLDER", 1L, "view", "ALLOW", 1, null, null)));
+            assertEquals(FileGrantService.Decision.ALLOW,
+                    svc.decideFile(file(10L, 2L, 3L, 5L), "view", 2L));
+            when(mapper.selectList(any())).thenReturn(List.of(
+                    grant("FOLDER", 1L, "view", "ALLOW", 0, null, null)));
+            assertEquals(FileGrantService.Decision.ABSTAIN,
+                    svc.decideFile(file(10L, 2L, 3L, 5L), "view", 2L));
+        }
+    }
+
+    @Test
+    void scopeOrgUsesSubtreeAncestors() {
+        org.springframework.jdbc.core.JdbcTemplate jdbc =
+                mock(org.springframework.jdbc.core.JdbcTemplate.class);
+        when(jdbc.queryForList(any(String.class), eq(Long.class), eq(11L)))
+                .thenReturn(List.of(10L, 11L));
+        setField("jdbc", jdbc);
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            m.when(SecurityUtils::getCurrentUser).thenReturn(user(2L));
+            when(roleMapper.selectList(any())).thenReturn(List.of());
+            when(mapper.selectList(any())).thenReturn(List.of(
+                    grant("FILE", 10L, "view", "ALLOW", 1, 10L, null)));
+            assertEquals(FileGrantService.Decision.ALLOW,
+                    svc.decideFile(file(10L, 1L, 3L, 11L), "view", 2L));
+        }
+    }
+
+    @Test
+    void decideFilesLoadsGrantsOnceForPage() {
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(false);
+            m.when(SecurityUtils::getCurrentUser).thenReturn(user(2L));
+            when(roleMapper.selectList(any())).thenReturn(List.of());
+            when(mapper.selectList(any())).thenReturn(List.of());
+            svc.decideFiles(List.of(file(10L, 1L, 3L, 5L), file(11L, 1L, 3L, 5L)), "view", 2L);
+            verify(mapper, times(1)).selectList(any());
+        }
     }
 
     @Test

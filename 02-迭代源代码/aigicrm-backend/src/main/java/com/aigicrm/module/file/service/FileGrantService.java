@@ -17,6 +17,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -54,20 +56,42 @@ public class FileGrantService {
     /** 授权变更审计；单测可缺省。 */
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.aigicrm.security.SecurityAuditService securityAudit;
+    /** 组织闭包（A1 子树）；单测可缺省，缺省退精确匹配。 */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private org.springframework.jdbc.core.JdbcTemplate jdbc;
 
     /** 文件判定。 */
     public Decision decideFile(BizFile file, String action, Long userId) {
-        if (file == null || userId == null || SecurityUtils.isAdmin()) return Decision.ABSTAIN;
+        if (file == null) return Decision.ABSTAIN;
+        return decideFiles(List.of(file), action, userId).getOrDefault(file.getId(), Decision.ABSTAIN);
+    }
+
+    /** 【A1 批量预载】一次查 grants，按 org/folder 缓存后逐文件判定。 */
+    public Map<Long, Decision> decideFiles(Collection<BizFile> files, String action, Long userId) {
+        Map<Long, Decision> out = new HashMap<>();
+        if (files == null || files.isEmpty()) return out;
+        boolean admin = SecurityUtils.isAdmin();
         SecurityUser user = SecurityUtils.getCurrentUser();
-        if (user == null) return Decision.ABSTAIN;
-        List<BizFileGrant> grants = load(user, action);
-        boolean allow = false;
-        for (BizFileGrant g : grants) {
-            if (!coversFile(g, file)) continue;
-            if ("DENY".equalsIgnoreCase(g.getEffect())) return Decision.DENY;
-            if ("ALLOW".equalsIgnoreCase(g.getEffect())) allow = true;
+        if (userId == null || admin || user == null) {
+            for (BizFile f : files) out.put(f.getId(), Decision.ABSTAIN);
+            return out;
         }
-        return allow ? Decision.ALLOW : Decision.ABSTAIN;
+        List<BizFileGrant> grants = load(user, action);
+        Map<Long, Set<Long>> orgCache = new HashMap<>();
+        Map<Long, Set<Long>> folderCache = new HashMap<>();
+        for (BizFile file : files) {
+            Set<Long> orgs = orgCache.computeIfAbsent(file.getOrgId(), this::orgAncestors);
+            Set<Long> folders = file.getFolderId() == null ? Set.of()
+                    : folderCache.computeIfAbsent(file.getFolderId(), this::folderAncestors);
+            Decision decision = Decision.ABSTAIN;
+            for (BizFileGrant g : grants) {
+                if (!coversFile(g, file, orgs, folders)) continue;
+                if ("DENY".equalsIgnoreCase(g.getEffect())) { decision = Decision.DENY; break; }
+                if ("ALLOW".equalsIgnoreCase(g.getEffect())) decision = Decision.ALLOW;
+            }
+            out.put(file.getId(), decision);
+        }
+        return out;
     }
 
     /** 文件夹判定（建子夹/改名/删除等夹自身动作）。 */
@@ -76,13 +100,48 @@ public class FileGrantService {
         SecurityUser user = SecurityUtils.getCurrentUser();
         if (user == null) return Decision.ABSTAIN;
         List<BizFileGrant> grants = load(user, action);
+        Set<Long> orgs = orgAncestors(folder.getOrgId());
+        Set<Long> folders = folderAncestors(folder.getId());
         boolean allow = false;
         for (BizFileGrant g : grants) {
-            if (!coversFolder(g, folder)) continue;
+            if (!coversFolder(g, folder, orgs, folders)) continue;
             if ("DENY".equalsIgnoreCase(g.getEffect())) return Decision.DENY;
             if ("ALLOW".equalsIgnoreCase(g.getEffect())) allow = true;
         }
         return allow ? Decision.ALLOW : Decision.ABSTAIN;
+    }
+
+    /** 组织闭包祖先集（含自身）；闭包不可用/异常退精确匹配，fail-closed 不放大。 */
+    private Set<Long> orgAncestors(Long orgId) {
+        if (orgId == null) return Set.of();
+        Set<Long> out = new LinkedHashSet<>();
+        out.add(orgId);
+        if (jdbc != null) {
+            try {
+                out.addAll(jdbc.queryForList(
+                        "SELECT ancestor_id FROM sys_org_closure WHERE descendant_id=?", Long.class, orgId));
+            } catch (Exception ignored) {
+                // 闭包未就绪：仅自身
+            }
+        }
+        return out;
+    }
+
+    /** 文件夹父链（含自身）；parent_id=0/null/deleted/环即停。 */
+    private Set<Long> folderAncestors(Long folderId) {
+        if (folderId == null) return Set.of();
+        Set<Long> out = new LinkedHashSet<>();
+        Set<Long> visited = new LinkedHashSet<>();
+        Long cur = folderId;
+        int depth = 0;
+        while (cur != null && cur != 0L && depth++ < 50 && visited.add(cur)) {
+            out.add(cur);
+            if (folderMapper == null) break;
+            BizFileFolder f = folderMapper.selectById(cur);
+            if (f == null) break;
+            cur = f.getParentId();
+        }
+        return out;
     }
 
     // ==================== 管理端 CRUD（file:acl:manage） ====================
@@ -272,14 +331,14 @@ public class FileGrantService {
         return grantMapper.selectList(q);
     }
 
-    private boolean coversFile(BizFileGrant g, BizFile file) {
-        if (!scopeOrgCovers(g, file.getOrgId())) return false;
-        if (expired(g)) return false;
+    private boolean coversFile(BizFileGrant g, BizFile file, Set<Long> orgAncestors, Set<Long> folderAncestors) {
+        if (!scopeOrgCovers(g, orgAncestors) || expired(g)) return false;
         String type = g.getObjectType() == null ? "" : g.getObjectType().toUpperCase(Locale.ROOT);
         return switch (type) {
             case OBJ_FILE -> file.getId() != null && file.getId().equals(g.getObjectId());
-            case OBJ_FOLDER -> file.getFolderId() != null && file.getFolderId().equals(g.getObjectId())
-                    && !Integer.valueOf(0).equals(g.getInherit());
+            // A1: FOLDER 授权递归；inherit=0 只对夹自身，不对文件生效
+            case OBJ_FOLDER -> g.getObjectId() != null && !Integer.valueOf(0).equals(g.getInherit())
+                    && folderAncestors.contains(g.getObjectId());
             case OBJ_SPACE -> g.getObjectId() == null
                     && (g.getScopeLevel() == null || g.getScopeLevel().isBlank()
                         || g.getScopeLevel().equalsIgnoreCase(file.getFileScope()));
@@ -287,11 +346,16 @@ public class FileGrantService {
         };
     }
 
-    private boolean coversFolder(BizFileGrant g, BizFileFolder folder) {
-        if (!scopeOrgCovers(g, folder.getOrgId()) || expired(g)) return false;
+    private boolean coversFolder(BizFileGrant g, BizFileFolder folder, Set<Long> orgAncestors,
+                                 Set<Long> folderAncestors) {
+        if (!scopeOrgCovers(g, orgAncestors) || expired(g)) return false;
         String type = g.getObjectType() == null ? "" : g.getObjectType().toUpperCase(Locale.ROOT);
         return switch (type) {
-            case OBJ_FOLDER -> folder.getId() != null && folder.getId().equals(g.getObjectId());
+            case OBJ_FOLDER -> {
+                if (folder.getId() != null && folder.getId().equals(g.getObjectId())) yield true;
+                yield g.getObjectId() != null && !Integer.valueOf(0).equals(g.getInherit())
+                        && folderAncestors.contains(g.getObjectId());
+            }
             case OBJ_SPACE -> g.getObjectId() == null
                     && (g.getScopeLevel() == null || g.getScopeLevel().isBlank()
                         || g.getScopeLevel().equalsIgnoreCase(folder.getFolderType()));
@@ -299,8 +363,8 @@ public class FileGrantService {
         };
     }
 
-    private boolean scopeOrgCovers(BizFileGrant g, Long orgId) {
-        return g.getScopeOrgId() == null || Objects.equals(g.getScopeOrgId(), orgId);
+    private boolean scopeOrgCovers(BizFileGrant g, Set<Long> orgAncestors) {
+        return g.getScopeOrgId() == null || orgAncestors.contains(g.getScopeOrgId());
     }
 
     private boolean expired(BizFileGrant g) {
