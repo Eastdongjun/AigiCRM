@@ -1,0 +1,897 @@
+
+########## STEP0 连通性与容器探测 ##########
+[remote env] container=shared-mysql src=aigicrm_prod_20261016 copy=aigicrm_a2_drill_20261118 scratch=/tmp/aigicrm-a2-drill-20261118-014416
+shared-mysql
+[mysql] version=8.0.46
+[ok] 无残留 drill 库
+[ok] src db exists: 1
+
+########## STEP1 上传演练 SQL 到测试服 ##########
+total 72
+drwxrwxr-x  2 ubuntu ubuntu  4096 Nov 18 09:44 .
+drwxrwxrwt 48 root   root   20480 Nov 18 09:44 ..
+-rw-r--r--  1 ubuntu ubuntu  2474 Nov 18 09:44 ddl.sql
+-rw-r--r--  1 ubuntu ubuntu  1211 Nov 18 09:44 grant-create.sql
+-rw-r--r--  1 ubuntu ubuntu  5317 Nov 18 09:44 migrate-r2.sql
+-rw-r--r--  1 ubuntu ubuntu  5074 Nov 18 09:44 migrate.sql
+-rw-r--r--  1 ubuntu ubuntu  4256 Nov 18 09:44 reconcile.sql
+-rw-r--r--  1 ubuntu ubuntu  1335 Nov 18 09:44 sql-conflict.sql
+-rw-r--r--  1 ubuntu ubuntu  1896 Nov 18 09:44 sql-phase1-baseline.sql
+-rw-r--r--  1 ubuntu ubuntu  1801 Nov 18 09:44 sql-post-migrate-checks.sql
+
+########## STEP2 源库只读基线（aigicrm_prod_20261016，不修改） ##########
+[remote env] container=shared-mysql src=aigicrm_prod_20261016 copy=aigicrm_a2_drill_20261118 scratch=/tmp/aigicrm-a2-drill-20261118-014416
++---------------------+
+| sec                 |
++---------------------+
+| == mysql version == |
++---------------------+
++---------------+
+| mysql_version |
++---------------+
+| 8.0.46        |
++---------------+
++------------------------+
+| sec                    |
++------------------------+
+| == old table schema == |
++------------------------+
++-------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Table                   | Create Table                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
++-------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| biz_folder_type_default | CREATE TABLE `biz_folder_type_default` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `folder_type` varchar(20) NOT NULL COMMENT '空间类型: public|private',
+  `object_type` varchar(10) NOT NULL DEFAULT 'FILE' COMMENT '动作对象: FOLDER|FILE',
+  `folder_id` bigint DEFAULT NULL COMMENT '逐夹定向(NULL=该空间全部)',
+  `scope_org_id` bigint DEFAULT NULL COMMENT '授权组织范围(NULL=不限组织)',
+  `scope_level` varchar(10) DEFAULT NULL COMMENT '数据范围: self|dept|office|region|all (NULL=不限)',
+  `subject_type` varchar(10) NOT NULL DEFAULT 'ROLE' COMMENT '授权主体: ROLE=角色 | USER=人员',
+  `subject_id` bigint NOT NULL COMMENT '主体 id: sys_role.id | sys_user.id',
+  `perms` varchar(500) NOT NULL COMMENT '权限 CSV: view,upload,edit,delete,share,download,create',
+  `expires_at` datetime DEFAULT NULL COMMENT '到期时间(可选; NULL=永久, 到期自动收回)',
+  `created_by` bigint DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `tenant_id` bigint NOT NULL DEFAULT '1',
+  PRIMARY KEY (`id`),
+  KEY `idx_type` (`folder_type`)
+) ENGINE=InnoDB AUTO_INCREMENT=186 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='文件空间类型默认权限(类型级默认+逐夹覆盖)' |
++-------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
++-----------------------+
+| sec                   |
++-----------------------+
+| == old table total == |
++-----------------------+
++----------+
+| old_rows |
++----------+
+|       62 |
++----------+
++--------------------------------+
+| sec                            |
++--------------------------------+
+| == scope_level distribution == |
++--------------------------------+
++-------------+-----+
+| scope_level | cnt |
++-------------+-----+
+| <NULL>      |  56 |
+| region      |   3 |
+| self        |   3 |
++-------------+-----+
++----------------------------------------------+
+| sec                                          |
++----------------------------------------------+
+| == folder_type distribution (blank check) == |
++----------------------------------------------+
++-------------+----------+-----+
+| folder_type | is_blank | cnt |
++-------------+----------+-----+
+| public      |        0 |  50 |
+| private     |        0 |   8 |
+| incentive   |        0 |   4 |
++-------------+----------+-----+
++-----------------------------------+
+| sec                               |
++-----------------------------------+
+| == subject/object distribution == |
++-----------------------------------+
++--------------+-------------+----------------+-----+
+| subject_type | object_type | folder_id_null | cnt |
++--------------+-------------+----------------+-----+
+| USER         | FILE        |              1 |  10 |
+| USER         | FOLDER      |              1 |  28 |
+| ROLE         | FILE        |              0 |   4 |
+| ROLE         | FOLDER      |              1 |   7 |
+| ROLE         | FILE        |              1 |  11 |
+| USER         | FOLDER      |              0 |   1 |
+| USER         | FILE        |              0 |   1 |
++--------------+-------------+----------------+-----+
++------------------------------------------+
+| sec                                      |
++------------------------------------------+
+| == perms vocabulary check (must be 0) == |
++------------------------------------------+
++----------------+
+| bad_perms_rows |
++----------------+
+|              0 |
++----------------+
++---------------------------------------------------------------------+
+| sec                                                                 |
++---------------------------------------------------------------------+
+| == old scope_org_id non-null (design says ignored by old engine) == |
++---------------------------------------------------------------------+
++-------------------+
+| scope_org_nonnull |
++-------------------+
+|                 0 |
++-------------------+
++----------------------------------+
+| sec                              |
++----------------------------------+
+| == tables present in snapshot == |
++----------------------------------+
++-------------------------+
+| TABLE_NAME              |
++-------------------------+
+| biz_folder_type_default |
++-------------------------+
++---------------------+
+| sec                 |
++---------------------+
+| == flyway latest == |
++---------------------+
++--------------+-----------------------------+---------+
+| version      | description                 | success |
++--------------+-----------------------------+---------+
+| 2026.11.16.9 | fabushi shelf menu          |       1 |
+| 2026.11.16.8 | fabushi category taxonomy   |       1 |
+| 2026.11.16.7 | fabushi share square rename |       1 |
++--------------+-----------------------------+---------+
+---- §2.10 冲突组（重复 scope 组） ----
++--------------+------------+-----------------+-----------+----------+----------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| subject_type | subject_id | new_object_type | folder_id | action   | rows_cnt | scopes                                                                                                                                                                                                                                  |
++--------------+------------+-----------------+-----------+----------+----------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| ROLE         |          1 | SPACE           |      NULL | create   |        2 | id:159 NULL/NULL exp:NULL | id:166 NULL/NULL exp:NULL                                                                                                                                                                                   |
+| ROLE         |          1 | SPACE           |      NULL | delete   |        4 | id:161 NULL/NULL exp:NULL | id:166 NULL/NULL exp:NULL | id:170 NULL/NULL exp:NULL | id:174 NULL/NULL exp:NULL                                                                                                                           |
+| ROLE         |          1 | SPACE           |      NULL | download |        3 | id:161 NULL/NULL exp:NULL | id:170 NULL/NULL exp:NULL | id:174 NULL/NULL exp:NULL                                                                                                                                                       |
+| ROLE         |          1 | SPACE           |      NULL | edit     |        8 | id:159 NULL/NULL exp:NULL | id:161 NULL/NULL exp:NULL | id:161 NULL/NULL exp:NULL | id:166 NULL/NULL exp:NULL | id:170 NULL/NULL exp:NULL | id:170 NULL/NULL exp:NULL | id:174 NULL/NULL exp:NULL | id:174 NULL/NULL exp:NULL           |
+| ROLE         |          1 | SPACE           |      NULL | share    |        3 | id:161 NULL/NULL exp:NULL | id:170 NULL/NULL exp:NULL | id:174 NULL/NULL exp:NULL                                                                                                                                                       |
+| ROLE         |          1 | SPACE           |      NULL | upload   |        3 | id:161 NULL/NULL exp:NULL | id:170 NULL/NULL exp:NULL | id:174 NULL/NULL exp:NULL                                                                                                                                                       |
+| ROLE         |          1 | SPACE           |      NULL | view     |        3 | id:161 NULL/NULL exp:NULL | id:170 NULL/NULL exp:NULL | id:174 NULL/NULL exp:NULL                                                                                                                                                       |
+| ROLE         |          9 | FOLDER          |         7 | edit     |        2 | id:153 NULL/NULL exp:NULL | id:153 NULL/NULL exp:NULL                                                                                                                                                                                   |
+| ROLE         |          9 | FOLDER          |        12 | edit     |        2 | id:154 NULL/NULL exp:NULL | id:154 NULL/NULL exp:NULL                                                                                                                                                                                   |
+| ROLE         |          9 | FOLDER          |        13 | edit     |        2 | id:155 NULL/NULL exp:NULL | id:155 NULL/NULL exp:NULL                                                                                                                                                                                   |
+| ROLE         |          9 | SPACE           |      NULL | create   |        2 | id:160 NULL/NULL exp:NULL | id:167 region/NULL exp:NULL                                                                                                                                                                                 |
+| ROLE         |          9 | SPACE           |      NULL | delete   |        4 | id:162 NULL/NULL exp:NULL | id:167 region/NULL exp:NULL | id:171 region/NULL exp:NULL | id:175 region/NULL exp:NULL                                                                                                                     |
+| ROLE         |          9 | SPACE           |      NULL | download |        3 | id:162 NULL/NULL exp:NULL | id:171 region/NULL exp:NULL | id:175 region/NULL exp:NULL                                                                                                                                                   |
+| ROLE         |          9 | SPACE           |      NULL | edit     |        8 | id:160 NULL/NULL exp:NULL | id:162 NULL/NULL exp:NULL | id:162 NULL/NULL exp:NULL | id:167 region/NULL exp:NULL | id:171 region/NULL exp:NULL | id:171 region/NULL exp:NULL | id:175 region/NULL exp:NULL | id:175 region/NULL exp:NULL |
+| ROLE         |          9 | SPACE           |      NULL | share    |        3 | id:162 NULL/NULL exp:NULL | id:171 region/NULL exp:NULL | id:175 region/NULL exp:NULL                                                                                                                                                   |
+| ROLE         |          9 | SPACE           |      NULL | upload   |        3 | id:162 NULL/NULL exp:NULL | id:171 region/NULL exp:NULL | id:175 region/NULL exp:NULL                                                                                                                                                   |
+| ROLE         |          9 | SPACE           |      NULL | view     |        3 | id:162 NULL/NULL exp:NULL | id:171 region/NULL exp:NULL | id:175 region/NULL exp:NULL                                                                                                                                                   |
+| ROLE         |         10 | SPACE           |      NULL | create   |        2 | id:164 NULL/NULL exp:NULL | id:168 NULL/NULL exp:NULL                                                                                                                                                                                   |
+| ROLE         |         10 | SPACE           |      NULL | delete   |        3 | id:168 NULL/NULL exp:NULL | id:172 NULL/NULL exp:NULL | id:176 NULL/NULL exp:NULL                                                                                                                                                       |
+| ROLE         |         10 | SPACE           |      NULL | download |        2 | id:172 NULL/NULL exp:NULL | id:176 NULL/NULL exp:NULL                                                                                                                                                                                   |
+| ROLE         |         10 | SPACE           |      NULL | edit     |        6 | id:164 NULL/NULL exp:NULL | id:168 NULL/NULL exp:NULL | id:172 NULL/NULL exp:NULL | id:172 NULL/NULL exp:NULL | id:176 NULL/NULL exp:NULL | id:176 NULL/NULL exp:NULL                                                                   |
+| ROLE         |         10 | SPACE           |      NULL | share    |        2 | id:172 NULL/NULL exp:NULL | id:176 NULL/NULL exp:NULL                                                                                                                                                                                   |
+| ROLE         |         10 | SPACE           |      NULL | upload   |        2 | id:172 NULL/NULL exp:NULL | id:176 NULL/NULL exp:NULL                                                                                                                                                                                   |
+| ROLE         |         10 | SPACE           |      NULL | view     |        2 | id:172 NULL/NULL exp:NULL | id:176 NULL/NULL exp:NULL                                                                                                                                                                                   |
+| ROLE         |         11 | FOLDER          |         7 | edit     |        2 | id:152 NULL/NULL exp:NULL | id:152 NULL/NULL exp:NULL                                                                                                                                                                                   |
+| ROLE         |         11 | SPACE           |      NULL | delete   |        3 | id:169 self/NULL exp:NULL | id:173 self/NULL exp:NULL | id:177 self/NULL exp:NULL                                                                                                                                                       |
+| ROLE         |         11 | SPACE           |      NULL | download |        3 | id:165 NULL/NULL exp:NULL | id:173 self/NULL exp:NULL | id:177 self/NULL exp:NULL                                                                                                                                                       |
+| ROLE         |         11 | SPACE           |      NULL | edit     |        7 | id:165 NULL/NULL exp:NULL | id:165 NULL/NULL exp:NULL | id:169 self/NULL exp:NULL | id:173 self/NULL exp:NULL | id:173 self/NULL exp:NULL | id:177 self/NULL exp:NULL | id:177 self/NULL exp:NULL                                       |
+| ROLE         |         11 | SPACE           |      NULL | share    |        3 | id:165 NULL/NULL exp:NULL | id:173 self/NULL exp:NULL | id:177 self/NULL exp:NULL                                                                                                                                                       |
+| ROLE         |         11 | SPACE           |      NULL | upload   |        3 | id:165 NULL/NULL exp:NULL | id:173 self/NULL exp:NULL | id:177 self/NULL exp:NULL                                                                                                                                                       |
+| ROLE         |         11 | SPACE           |      NULL | view     |        3 | id:165 NULL/NULL exp:NULL | id:173 self/NULL exp:NULL | id:177 self/NULL exp:NULL                                                                                                                                                       |
+| USER         |          1 | FOLDER          |         7 | edit     |        2 | id:180 NULL/NULL exp:NULL | id:180 NULL/NULL exp:NULL                                                                                                                                                                                   |
++--------------+------------+-----------------+-----------+----------+----------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+---- 冲突组数 ----
+[conflict_groups] 32
+
+########## STEP3 建副本库并导入（源库仅旧表；biz_file_grant 按迁移 DDL 建空表） ##########
+[remote env] container=shared-mysql src=aigicrm_prod_20261016 copy=aigicrm_a2_drill_20261118 scratch=/tmp/aigicrm-a2-drill-20261118-014416
+[dump] create_table=1
+[copy] old_rows=62 src_old_rows=62
+[copy] file_grant_rows=0
+
+########## STEP4 副本执行 DDL 草案（.1） ##########
+[remote env] container=shared-mysql src=aigicrm_prod_20261016 copy=aigicrm_a2_drill_20261118 scratch=/tmp/aigicrm-a2-drill-20261118-014416
+--------------
+ALTER TABLE `biz_file_grant`
+  DROP INDEX `uk_file_grant`,
+  ADD COLUMN `space_type` VARCHAR(20) NULL COMMENT 'SPACE 空间类型 public/private/incentive/fabushi',
+  ADD COLUMN `legacy_ref` VARCHAR(120) NULL COMMENT '旧表迁移来源 ftd:<id>:<action>',
+  ADD COLUMN `source` VARCHAR(20) NOT NULL DEFAULT 'manual' COMMENT 'manual/legacy/dual_write/migration',
+  ADD COLUMN `scope_mode` VARCHAR(10) NOT NULL DEFAULT 'SUBTREE' COMMENT 'ANY/RELATIVE/EXACT/SUBTREE',
+  ADD COLUMN `object_key` BIGINT AS (COALESCE(`object_id`, 0)) STORED,
+  ADD COLUMN `scope_key` VARCHAR(200) AS (
+    CONCAT_WS('|', COALESCE(`space_type`, ''), COALESCE(`scope_mode`, ''),
+              COALESCE(`scope_level`, ''), COALESCE(`scope_org_id`, 0))
+  ) STORED,
+  ADD UNIQUE KEY `uk_file_grant_scope`
+    (`tenant_id`, `subject_type`, `subject_id`, `object_type`, `object_key`, `action`, `scope_key`),
+  ADD UNIQUE KEY `uk_file_grant_legacy` (`tenant_id`, `legacy_ref`),
+  ADD KEY `idx_file_grant_scope_org` (`tenant_id`, `scope_org_id`)
+--------------
+
+Query OK, 0 rows affected
+Records: 0  Duplicates: 0  Warnings: 0
+
+--------------
+UPDATE `biz_file_grant`
+   SET `space_type` = `scope_level`,
+       `scope_level` = NULL,
+       `scope_mode` = 'ANY'
+ WHERE `object_type` = 'SPACE'
+   AND `scope_level` IN ('public', 'private', 'incentive', 'fabushi')
+--------------
+
+Query OK, 0 rows affected
+Rows matched: 0  Changed: 0  Warnings: 0
+
+--------------
+UPDATE `biz_file_grant`
+   SET `scope_mode` = CASE WHEN `scope_org_id` IS NULL THEN 'ANY' ELSE 'EXACT' END
+ WHERE `object_type` IN ('FILE', 'FOLDER')
+--------------
+
+Query OK, 0 rows affected
+Rows matched: 0  Changed: 0  Warnings: 0
+
+Bye
+---- 结构确认 ----
++--------------+--------------+------+-----+-------------------+-------------------+
+| Field        | Type         | Null | Key | Default           | Extra             |
++--------------+--------------+------+-----+-------------------+-------------------+
+| id           | bigint       | NO   | PRI | NULL              | auto_increment    |
+| tenant_id    | bigint       | NO   | MUL | 1                 |                   |
+| subject_type | varchar(10)  | NO   |     | NULL              |                   |
+| subject_id   | bigint       | NO   |     | NULL              |                   |
+| object_type  | varchar(10)  | NO   |     | NULL              |                   |
+| object_id    | bigint       | YES  |     | NULL              |                   |
+| action       | varchar(30)  | NO   |     | NULL              |                   |
+| effect       | varchar(10)  | NO   |     | ALLOW             |                   |
+| inherit      | tinyint      | NO   |     | 1                 |                   |
+| scope_org_id | bigint       | YES  |     | NULL              |                   |
+| scope_level  | varchar(20)  | YES  |     | NULL              |                   |
+| expire_at    | datetime     | YES  |     | NULL              |                   |
+| created_by   | bigint       | YES  |     | NULL              |                   |
+| created_at   | datetime     | NO   |     | CURRENT_TIMESTAMP | DEFAULT_GENERATED |
+| space_type   | varchar(20)  | YES  |     | NULL              |                   |
+| legacy_ref   | varchar(120) | YES  |     | NULL              |                   |
+| source       | varchar(20)  | NO   |     | manual            |                   |
+| scope_mode   | varchar(10)  | NO   |     | SUBTREE           |                   |
+| object_key   | bigint       | YES  |     | NULL              | STORED GENERATED  |
+| scope_key    | varchar(200) | YES  |     | NULL              | STORED GENERATED  |
++--------------+--------------+------+-----+-------------------+-------------------+
+[index] uk_file_grant_scope col=tenant_id seq=1
+[index] uk_file_grant_scope col=subject_type seq=2
+[index] uk_file_grant_scope col=subject_id seq=3
+[index] uk_file_grant_scope col=object_type seq=4
+[index] uk_file_grant_scope col=object_key seq=5
+[index] uk_file_grant_scope col=action seq=6
+[index] uk_file_grant_scope col=scope_key seq=7
+[index] uk_file_grant_legacy col=tenant_id seq=1
+[index] uk_file_grant_legacy col=legacy_ref seq=2
+[index] idx_file_grant_object col=tenant_id seq=1
+[index] idx_file_grant_object col=object_type seq=2
+[index] idx_file_grant_object col=object_id seq=3
+[index] idx_file_grant_object col=action seq=4
+[index] idx_file_grant_subject col=tenant_id seq=1
+[index] idx_file_grant_subject col=subject_type seq=2
+[index] idx_file_grant_subject col=subject_id seq=3
+[index] idx_file_grant_subject col=action seq=4
+[index] idx_file_grant_scope_org col=tenant_id seq=1
+[index] idx_file_grant_scope_org col=scope_org_id seq=2
+[backfill-space] rows updated by space backfill (expect 0, file_grant was empty): 演练不重复执行，以 DDL 输出为准
+
+########## STEP5 副本执行迁移草案（.2）并检查 ##########
+[remote env] container=shared-mysql src=aigicrm_prod_20261016 copy=aigicrm_a2_drill_20261118 scratch=/tmp/aigicrm-a2-drill-20261118-014416
+--------------
+INSERT INTO `biz_file_grant`
+  (`tenant_id`, `subject_type`, `subject_id`,
+   `object_type`, `object_id`, `space_type`, `action`, `effect`, `inherit`,
+   `scope_org_id`, `scope_level`, `scope_mode`, `expire_at`,
+   `created_by`, `created_at`, `legacy_ref`, `source`)
+SELECT
+  d.`tenant_id`,
+  d.`subject_type`,
+  d.`subject_id`,
+  CASE
+    WHEN COALESCE(d.`object_type`, 'FILE') = 'FILE' AND d.`folder_id` IS NULL THEN 'SPACE'
+    WHEN COALESCE(d.`object_type`, 'FILE') = 'FOLDER' AND d.`folder_id` IS NULL THEN 'SPACE'
+    ELSE 'FOLDER'
+  END AS new_object_type,
+  CASE WHEN d.`folder_id` IS NULL THEN NULL ELSE d.`folder_id` END AS new_object_id,
+  CASE
+    WHEN d.`folder_id` IS NULL THEN d.`folder_type`
+    ELSE NULL
+  END AS new_space_type,
+  CASE WHEN a.`action` IN ('rename', 'replace') THEN 'edit' ELSE a.`action` END AS new_action,
+  'ALLOW',
+  MAX(CASE
+    WHEN (COALESCE(d.`object_type`, 'FILE') = 'FOLDER' OR d.`folder_id` IS NOT NULL) THEN 1
+    ELSE 0
+  END) AS new_inherit,
+  NULL AS new_scope_org_id,
+  CASE
+    WHEN d.`scope_level` IS NULL OR TRIM(d.`scope_level`) = '' OR d.`scope_level` = 'all' THEN NULL
+    ELSE d.`scope_level`
+  END AS new_scope_level,
+  CASE
+    WHEN d.`scope_level` IS NULL OR TRIM(d.`scope_level`) = '' OR d.`scope_level` = 'all' THEN 'ANY'
+    ELSE 'RELATIVE'
+  END AS new_scope_mode,
+  CASE
+    WHEN COUNT(*) > COUNT(d.`expires_at`) THEN NULL
+    ELSE MAX(d.`expires_at`)
+  END AS new_expire_at,
+  MAX(d.`created_by`),
+  MIN(d.`created_at`),
+  CONCAT('ftd:', MIN(d.`id`), ':', MAX(CASE WHEN a.`action` IN ('rename', 'replace') THEN 'edit' ELSE a.`action` END)),
+  'legacy'
+FROM `biz_folder_type_default` d
+JOIN (
+  SELECT 'view' AS `action`
+  UNION ALL SELECT 'download'
+  UNION ALL SELECT 'upload'
+  UNION ALL SELECT 'edit'
+  UNION ALL SELECT 'rename'
+  UNION ALL SELECT 'replace'
+  UNION ALL SELECT 'delete'
+  UNION ALL SELECT 'share'
+  UNION ALL SELECT 'manage'
+  UNION ALL SELECT 'create'
+) a
+  ON FIND_IN_SET(a.`action`, REPLACE(COALESCE(d.`perms`, ''), ' ', '')) > 0
+WHERE d.`subject_type` IN ('ROLE', 'USER')
+  AND d.`subject_id` IS NOT NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM `biz_file_grant` g
+     WHERE g.`tenant_id` = d.`tenant_id`
+       AND g.`subject_type` = d.`subject_type`
+       AND g.`subject_id` = d.`subject_id`
+       AND g.`object_type` = CASE
+             WHEN COALESCE(d.`object_type`, 'FILE') = 'FILE' AND d.`folder_id` IS NULL THEN 'SPACE'
+             WHEN COALESCE(d.`object_type`, 'FILE') = 'FOLDER' AND d.`folder_id` IS NULL THEN 'SPACE'
+             ELSE 'FOLDER'
+           END
+       AND g.`object_id` <=> CASE WHEN d.`folder_id` IS NULL THEN NULL ELSE d.`folder_id` END
+       AND g.`space_type` <=> CASE WHEN d.`folder_id` IS NULL THEN d.`folder_type` ELSE NULL END
+       AND g.`action` = CASE WHEN a.`action` IN ('rename', 'replace') THEN 'edit' ELSE a.`action` END
+       AND g.`scope_mode` = CASE
+             WHEN d.`scope_level` IS NULL OR TRIM(d.`scope_level`) = '' OR d.`scope_level` = 'all' THEN 'ANY'
+             ELSE 'RELATIVE'
+           END
+       AND g.`scope_level` <=> CASE
+             WHEN d.`scope_level` IS NULL OR TRIM(d.`scope_level`) = '' OR d.`scope_level` = 'all' THEN NULL
+             ELSE d.`scope_level`
+           END
+       AND g.`scope_org_id` IS NULL
+  )
+GROUP BY
+  d.`tenant_id`, d.`subject_type`, d.`subject_id`,
+  CASE
+    WHEN COALESCE(d.`object_type`, 'FILE') = 'FILE' AND d.`folder_id` IS NULL THEN 'SPACE'
+    WHEN COALESCE(d.`object_type`, 'FILE') = 'FOLDER' AND d.`folder_id` IS NULL THEN 'SPACE'
+    ELSE 'FOLDER'
+  END,
+  CASE WHEN d.`folder_id` IS NULL THEN NULL ELSE d.`folder_id` END,
+  CASE WHEN d.`folder_id` IS NULL THEN d.`folder_type` ELSE NULL END,
+  CASE WHEN a.`action` IN ('rename', 'replace') THEN 'edit' ELSE a.`action` END,
+  CASE
+    WHEN d.`scope_level` IS NULL OR TRIM(d.`scope_level`) = '' OR d.`scope_level` = 'all' THEN 'ANY'
+    ELSE 'RELATIVE'
+  END,
+  CASE
+    WHEN d.`scope_level` IS NULL OR TRIM(d.`scope_level`) = '' OR d.`scope_level` = 'all' THEN NULL
+    ELSE d.`scope_level`
+  END
+--------------
+
+Query OK, 178 rows affected
+Records: 178  Duplicates: 0  Warnings: 0
+
+Bye
++-------------------------------+
+| sec                           |
++-------------------------------+
+| == migrated rows by source == |
++-------------------------------+
++--------+-----+
+| source | cnt |
++--------+-----+
+| legacy | 178 |
++--------+-----+
++--------------------------------------------------------+
+| sec                                                    |
++--------------------------------------------------------+
+| == legacy rows: object_type/space_type distribution == |
++--------------------------------------------------------+
++-------------+------------+-----+
+| object_type | space_type | cnt |
++-------------+------------+-----+
+| FOLDER      | <NULL>     |  33 |
+| SPACE       | incentive  |  24 |
+| SPACE       | private    |  28 |
+| SPACE       | public     |  93 |
++-------------+------------+-----+
++--------------------------------------------------------+
+| sec                                                    |
++--------------------------------------------------------+
+| == legacy rows: scope_mode/scope_level distribution == |
++--------------------------------------------------------+
++------------+-------------+-----+
+| scope_mode | scope_level | cnt |
++------------+-------------+-----+
+| ANY        | <NULL>      | 152 |
+| RELATIVE   | self        |  13 |
+| RELATIVE   | region      |  13 |
++------------+-------------+-----+
++--------------------------------------------------+
+| sec                                              |
++--------------------------------------------------+
+| == legacy rows: scope_org_id must all be NULL == |
++--------------------------------------------------+
++-------------------+
+| nonnull_scope_org |
++-------------------+
+|                 0 |
++-------------------+
++------------------------------------------------+
+| sec                                            |
++------------------------------------------------+
+| == legacy rows: effect/inherit distribution == |
++------------------------------------------------+
++--------+---------+-----+
+| effect | inherit | cnt |
++--------+---------+-----+
+| ALLOW  |       1 |  83 |
+| ALLOW  |       0 |  95 |
++--------+---------+-----+
++----------------------------+
+| sec                        |
++----------------------------+
+| == legacy_ref integrity == |
++----------------------------+
++--------------+-----------------+-----------+------------+
+| total_legacy | distinct_legacy | null_refs | bad_format |
++--------------+-----------------+-----------+------------+
+|          178 |             178 |         0 |          0 |
++--------------+-----------------+-----------+------------+
++----------------------------+
+| sec                        |
++----------------------------+
+| == sample migrated rows == |
++----------------------------+
++----+-----------+--------------+------------+-------------+-----------+------------+--------+--------+---------+------------+-------------+--------------+-----------+--------------+--------+
+| id | tenant_id | subject_type | subject_id | object_type | object_id | space_type | action | effect | inherit | scope_mode | scope_level | scope_org_id | expire_at | legacy_ref   | source |
++----+-----------+--------------+------------+-------------+-----------+------------+--------+--------+---------+------------+-------------+--------------+-----------+--------------+--------+
+|  1 |         1 | USER         |          1 | FOLDER      |         7 | NULL       | view   | ALLOW  |       1 | ANY        | NULL        |         NULL | NULL      | ftd:180:view | legacy |
+|  2 |         1 | ROLE         |         11 | SPACE       |      NULL | incentive  | view   | ALLOW  |       0 | RELATIVE   | self        |         NULL | NULL      | ftd:177:view | legacy |
+|  3 |         1 | ROLE         |         10 | SPACE       |      NULL | incentive  | view   | ALLOW  |       0 | ANY        | NULL        |         NULL | NULL      | ftd:176:view | legacy |
+|  4 |         1 | ROLE         |          9 | SPACE       |      NULL | incentive  | view   | ALLOW  |       0 | RELATIVE   | region      |         NULL | NULL      | ftd:175:view | legacy |
+|  5 |         1 | ROLE         |          1 | SPACE       |      NULL | incentive  | view   | ALLOW  |       0 | ANY        | NULL        |         NULL | NULL      | ftd:174:view | legacy |
+|  6 |         1 | ROLE         |         11 | SPACE       |      NULL | private    | view   | ALLOW  |       0 | RELATIVE   | self        |         NULL | NULL      | ftd:173:view | legacy |
+|  7 |         1 | ROLE         |         10 | SPACE       |      NULL | private    | view   | ALLOW  |       0 | ANY        | NULL        |         NULL | NULL      | ftd:172:view | legacy |
+|  8 |         1 | ROLE         |          9 | SPACE       |      NULL | private    | view   | ALLOW  |       0 | RELATIVE   | region      |         NULL | NULL      | ftd:171:view | legacy |
++----+-----------+--------------+------------+-------------+-----------+------------+--------+--------+---------+------------+-------------+--------------+-----------+--------------+--------+
++----------------------------------------------------------------------------+
+| sec                                                                        |
++----------------------------------------------------------------------------+
+| == dup groups collapse check: expire merge (any permanent -> permanent) == |
++----------------------------------------------------------------------------+
++-------------------------+
+| legacy_rows_with_expire |
++-------------------------+
+|                       0 |
++-------------------------+
+
+########## STEP6 对账 #1（预期 0 差异） ##########
+[remote env] container=shared-mysql src=aigicrm_prod_20261016 copy=aigicrm_a2_drill_20261118 scratch=/tmp/aigicrm-a2-drill-20261118-014416
++-------------------+-----+
+| diff              | cnt |
++-------------------+-----+
+| missing_in_new    |   0 |
+| extra_in_new      |   0 |
+| expire_diff       |   0 |
+| old_expanded_rows | 178 |
+| new_legacy_rows   | 178 |
++-------------------+-----+
+
+########## STEP7 幂等：重跑 .2（预期 0 行受影响）+ 对账 #2 ##########
+[remote env] container=shared-mysql src=aigicrm_prod_20261016 copy=aigicrm_a2_drill_20261118 scratch=/tmp/aigicrm-a2-drill-20261118-014416
+--------------
+INSERT INTO `biz_file_grant`
+  (`tenant_id`, `subject_type`, `subject_id`,
+   `object_type`, `object_id`, `space_type`, `action`, `effect`, `inherit`,
+   `scope_org_id`, `scope_level`, `scope_mode`, `expire_at`,
+   `created_by`, `created_at`, `legacy_ref`, `source`)
+SELECT
+  d.`tenant_id`,
+  d.`subject_type`,
+  d.`subject_id`,
+  CASE
+    WHEN COALESCE(d.`object_type`, 'FILE') = 'FILE' AND d.`folder_id` IS NULL THEN 'SPACE'
+    WHEN COALESCE(d.`object_type`, 'FILE') = 'FOLDER' AND d.`folder_id` IS NULL THEN 'SPACE'
+    ELSE 'FOLDER'
+  END AS new_object_type,
+  CASE WHEN d.`folder_id` IS NULL THEN NULL ELSE d.`folder_id` END AS new_object_id,
+  CASE
+    WHEN d.`folder_id` IS NULL THEN d.`folder_type`
+    ELSE NULL
+  END AS new_space_type,
+  CASE WHEN a.`action` IN ('rename', 'replace') THEN 'edit' ELSE a.`action` END AS new_action,
+  'ALLOW',
+  MAX(CASE
+    WHEN (COALESCE(d.`object_type`, 'FILE') = 'FOLDER' OR d.`folder_id` IS NOT NULL) THEN 1
+    ELSE 0
+  END) AS new_inherit,
+  NULL AS new_scope_org_id,
+  CASE
+    WHEN d.`scope_level` IS NULL OR TRIM(d.`scope_level`) = '' OR d.`scope_level` = 'all' THEN NULL
+    ELSE d.`scope_level`
+  END AS new_scope_level,
+  CASE
+    WHEN d.`scope_level` IS NULL OR TRIM(d.`scope_level`) = '' OR d.`scope_level` = 'all' THEN 'ANY'
+    ELSE 'RELATIVE'
+  END AS new_scope_mode,
+  CASE
+    WHEN COUNT(*) > COUNT(d.`expires_at`) THEN NULL
+    ELSE MAX(d.`expires_at`)
+  END AS new_expire_at,
+  MAX(d.`created_by`),
+  MIN(d.`created_at`),
+  CONCAT('ftd:', MIN(d.`id`), ':', MAX(CASE WHEN a.`action` IN ('rename', 'replace') THEN 'edit' ELSE a.`action` END)),
+  'legacy'
+FROM `biz_folder_type_default` d
+JOIN (
+  SELECT 'view' AS `action`
+  UNION ALL SELECT 'download'
+  UNION ALL SELECT 'upload'
+  UNION ALL SELECT 'edit'
+  UNION ALL SELECT 'rename'
+  UNION ALL SELECT 'replace'
+  UNION ALL SELECT 'delete'
+  UNION ALL SELECT 'share'
+  UNION ALL SELECT 'manage'
+  UNION ALL SELECT 'create'
+) a
+  ON FIND_IN_SET(a.`action`, REPLACE(COALESCE(d.`perms`, ''), ' ', '')) > 0
+WHERE d.`subject_type` IN ('ROLE', 'USER')
+  AND d.`subject_id` IS NOT NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM `biz_file_grant` g
+     WHERE g.`tenant_id` = d.`tenant_id`
+       AND g.`subject_type` = d.`subject_type`
+       AND g.`subject_id` = d.`subject_id`
+       AND g.`object_type` = CASE
+             WHEN COALESCE(d.`object_type`, 'FILE') = 'FILE' AND d.`folder_id` IS NULL THEN 'SPACE'
+             WHEN COALESCE(d.`object_type`, 'FILE') = 'FOLDER' AND d.`folder_id` IS NULL THEN 'SPACE'
+             ELSE 'FOLDER'
+           END
+       AND g.`object_id` <=> CASE WHEN d.`folder_id` IS NULL THEN NULL ELSE d.`folder_id` END
+       AND g.`space_type` <=> CASE WHEN d.`folder_id` IS NULL THEN d.`folder_type` ELSE NULL END
+       AND g.`action` = CASE WHEN a.`action` IN ('rename', 'replace') THEN 'edit' ELSE a.`action` END
+       AND g.`scope_mode` = CASE
+             WHEN d.`scope_level` IS NULL OR TRIM(d.`scope_level`) = '' OR d.`scope_level` = 'all' THEN 'ANY'
+             ELSE 'RELATIVE'
+           END
+       AND g.`scope_level` <=> CASE
+             WHEN d.`scope_level` IS NULL OR TRIM(d.`scope_level`) = '' OR d.`scope_level` = 'all' THEN NULL
+             ELSE d.`scope_level`
+           END
+       AND g.`scope_org_id` IS NULL
+  )
+GROUP BY
+  d.`tenant_id`, d.`subject_type`, d.`subject_id`,
+  CASE
+    WHEN COALESCE(d.`object_type`, 'FILE') = 'FILE' AND d.`folder_id` IS NULL THEN 'SPACE'
+    WHEN COALESCE(d.`object_type`, 'FILE') = 'FOLDER' AND d.`folder_id` IS NULL THEN 'SPACE'
+    ELSE 'FOLDER'
+  END,
+  CASE WHEN d.`folder_id` IS NULL THEN NULL ELSE d.`folder_id` END,
+  CASE WHEN d.`folder_id` IS NULL THEN d.`folder_type` ELSE NULL END,
+  CASE WHEN a.`action` IN ('rename', 'replace') THEN 'edit' ELSE a.`action` END,
+  CASE
+    WHEN d.`scope_level` IS NULL OR TRIM(d.`scope_level`) = '' OR d.`scope_level` = 'all' THEN 'ANY'
+    ELSE 'RELATIVE'
+  END,
+  CASE
+    WHEN d.`scope_level` IS NULL OR TRIM(d.`scope_level`) = '' OR d.`scope_level` = 'all' THEN NULL
+    ELSE d.`scope_level`
+  END
+--------------
+
+Query OK, 0 rows affected
+Records: 0  Duplicates: 0  Warnings: 0
+
+Bye
++-------------------+-----+
+| diff              | cnt |
++-------------------+-----+
+| missing_in_new    |   0 |
+| extra_in_new      |   0 |
+| expire_diff       |   0 |
+| old_expanded_rows | 178 |
+| new_legacy_rows   | 178 |
++-------------------+-----+
+[rows] total=178 legacy=178
+
+########## STEP8 负例（删行→检出；改过期→检出；重跑迁移→只补行不愈字段） ##########
+[remote env] container=shared-mysql src=aigicrm_prod_20261016 copy=aigicrm_a2_drill_20261118 scratch=/tmp/aigicrm-a2-drill-20261118-014416
+[victim] ref=ftd:180:view orig_expire=NULL
+---- 8a 删除该行 ----
++-------------------+-----+
+| diff              | cnt |
++-------------------+-----+
+| missing_in_new    |   1 |
+| extra_in_new      |   0 |
+| expire_diff       |   0 |
+| old_expanded_rows | 178 |
+| new_legacy_rows   | 177 |
++-------------------+-----+
+---- 8b 重跑迁移（应补回 1 行） ----
+--------------
+INSERT INTO `biz_file_grant`
+  (`tenant_id`, `subject_type`, `subject_id`,
+   `object_type`, `object_id`, `space_type`, `action`, `effect`, `inherit`,
+   `scope_org_id`, `scope_level`, `scope_mode`, `expire_at`,
+   `created_by`, `created_at`, `legacy_ref`, `source`)
+SELECT
+  d.`tenant_id`,
+  d.`subject_type`,
+  d.`subject_id`,
+  CASE
+    WHEN COALESCE(d.`object_type`, 'FILE') = 'FILE' AND d.`folder_id` IS NULL THEN 'SPACE'
+    WHEN COALESCE(d.`object_type`, 'FILE') = 'FOLDER' AND d.`folder_id` IS NULL THEN 'SPACE'
+    ELSE 'FOLDER'
+  END AS new_object_type,
+  CASE WHEN d.`folder_id` IS NULL THEN NULL ELSE d.`folder_id` END AS new_object_id,
+  CASE
+    WHEN d.`folder_id` IS NULL THEN d.`folder_type`
+    ELSE NULL
+  END AS new_space_type,
+  CASE WHEN a.`action` IN ('rename', 'replace') THEN 'edit' ELSE a.`action` END AS new_action,
+  'ALLOW',
+  MAX(CASE
+    WHEN (COALESCE(d.`object_type`, 'FILE') = 'FOLDER' OR d.`folder_id` IS NOT NULL) THEN 1
+    ELSE 0
+  END) AS new_inherit,
+  NULL AS new_scope_org_id,
+  CASE
+    WHEN d.`scope_level` IS NULL OR TRIM(d.`scope_level`) = '' OR d.`scope_level` = 'all' THEN NULL
+    ELSE d.`scope_level`
+  END AS new_scope_level,
+  CASE
+    WHEN d.`scope_level` IS NULL OR TRIM(d.`scope_level`) = '' OR d.`scope_level` = 'all' THEN 'ANY'
+    ELSE 'RELATIVE'
+  END AS new_scope_mode,
+  CASE
+    WHEN COUNT(*) > COUNT(d.`expires_at`) THEN NULL
+    ELSE MAX(d.`expires_at`)
+  END AS new_expire_at,
+  MAX(d.`created_by`),
+  MIN(d.`created_at`),
+  CONCAT('ftd:', MIN(d.`id`), ':', MAX(CASE WHEN a.`action` IN ('rename', 'replace') THEN 'edit' ELSE a.`action` END)),
+  'legacy'
+FROM `biz_folder_type_default` d
+JOIN (
+  SELECT 'view' AS `action`
+  UNION ALL SELECT 'download'
+  UNION ALL SELECT 'upload'
+  UNION ALL SELECT 'edit'
+  UNION ALL SELECT 'rename'
+  UNION ALL SELECT 'replace'
+  UNION ALL SELECT 'delete'
+  UNION ALL SELECT 'share'
+  UNION ALL SELECT 'manage'
+  UNION ALL SELECT 'create'
+) a
+  ON FIND_IN_SET(a.`action`, REPLACE(COALESCE(d.`perms`, ''), ' ', '')) > 0
+WHERE d.`subject_type` IN ('ROLE', 'USER')
+  AND d.`subject_id` IS NOT NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM `biz_file_grant` g
+     WHERE g.`tenant_id` = d.`tenant_id`
+       AND g.`subject_type` = d.`subject_type`
+       AND g.`subject_id` = d.`subject_id`
+       AND g.`object_type` = CASE
+             WHEN COALESCE(d.`object_type`, 'FILE') = 'FILE' AND d.`folder_id` IS NULL THEN 'SPACE'
+             WHEN COALESCE(d.`object_type`, 'FILE') = 'FOLDER' AND d.`folder_id` IS NULL THEN 'SPACE'
+             ELSE 'FOLDER'
+           END
+       AND g.`object_id` <=> CASE WHEN d.`folder_id` IS NULL THEN NULL ELSE d.`folder_id` END
+       AND g.`space_type` <=> CASE WHEN d.`folder_id` IS NULL THEN d.`folder_type` ELSE NULL END
+       AND g.`action` = CASE WHEN a.`action` IN ('rename', 'replace') THEN 'edit' ELSE a.`action` END
+       AND g.`scope_mode` = CASE
+             WHEN d.`scope_level` IS NULL OR TRIM(d.`scope_level`) = '' OR d.`scope_level` = 'all' THEN 'ANY'
+             ELSE 'RELATIVE'
+           END
+       AND g.`scope_level` <=> CASE
+             WHEN d.`scope_level` IS NULL OR TRIM(d.`scope_level`) = '' OR d.`scope_level` = 'all' THEN NULL
+             ELSE d.`scope_level`
+           END
+       AND g.`scope_org_id` IS NULL
+  )
+GROUP BY
+  d.`tenant_id`, d.`subject_type`, d.`subject_id`,
+  CASE
+    WHEN COALESCE(d.`object_type`, 'FILE') = 'FILE' AND d.`folder_id` IS NULL THEN 'SPACE'
+    WHEN COALESCE(d.`object_type`, 'FILE') = 'FOLDER' AND d.`folder_id` IS NULL THEN 'SPACE'
+    ELSE 'FOLDER'
+  END,
+  CASE WHEN d.`folder_id` IS NULL THEN NULL ELSE d.`folder_id` END,
+  CASE WHEN d.`folder_id` IS NULL THEN d.`folder_type` ELSE NULL END,
+  CASE WHEN a.`action` IN ('rename', 'replace') THEN 'edit' ELSE a.`action` END,
+  CASE
+    WHEN d.`scope_level` IS NULL OR TRIM(d.`scope_level`) = '' OR d.`scope_level` = 'all' THEN 'ANY'
+    ELSE 'RELATIVE'
+  END,
+  CASE
+    WHEN d.`scope_level` IS NULL OR TRIM(d.`scope_level`) = '' OR d.`scope_level` = 'all' THEN NULL
+    ELSE d.`scope_level`
+  END
+--------------
+
+Query OK, 1 row affected
+Records: 1  Duplicates: 0  Warnings: 0
+
+Bye
++-------------------+-----+
+| diff              | cnt |
++-------------------+-----+
+| missing_in_new    |   0 |
+| extra_in_new      |   0 |
+| expire_diff       |   0 |
+| old_expanded_rows | 178 |
+| new_legacy_rows   | 178 |
++-------------------+-----+
+---- 8c 篡改过期时间 ----
++-------------------+-----+
+| diff              | cnt |
++-------------------+-----+
+| missing_in_new    |   0 |
+| extra_in_new      |   0 |
+| expire_diff       |   1 |
+| old_expanded_rows | 178 |
+| new_legacy_rows   | 178 |
++-------------------+-----+
+---- 8d 再重跑迁移（不愈字段漂移，仍应 expire_diff=1） ----
+--------------
+INSERT INTO `biz_file_grant`
+  (`tenant_id`, `subject_type`, `subject_id`,
+   `object_type`, `object_id`, `space_type`, `action`, `effect`, `inherit`,
+   `scope_org_id`, `scope_level`, `scope_mode`, `expire_at`,
+   `created_by`, `created_at`, `legacy_ref`, `source`)
+SELECT
+  d.`tenant_id`,
+  d.`subject_type`,
+  d.`subject_id`,
+  CASE
+    WHEN COALESCE(d.`object_type`, 'FILE') = 'FILE' AND d.`folder_id` IS NULL THEN 'SPACE'
+    WHEN COALESCE(d.`object_type`, 'FILE') = 'FOLDER' AND d.`folder_id` IS NULL THEN 'SPACE'
+    ELSE 'FOLDER'
+  END AS new_object_type,
+  CASE WHEN d.`folder_id` IS NULL THEN NULL ELSE d.`folder_id` END AS new_object_id,
+  CASE
+    WHEN d.`folder_id` IS NULL THEN d.`folder_type`
+    ELSE NULL
+  END AS new_space_type,
+  CASE WHEN a.`action` IN ('rename', 'replace') THEN 'edit' ELSE a.`action` END AS new_action,
+  'ALLOW',
+  MAX(CASE
+    WHEN (COALESCE(d.`object_type`, 'FILE') = 'FOLDER' OR d.`folder_id` IS NOT NULL) THEN 1
+    ELSE 0
+  END) AS new_inherit,
+  NULL AS new_scope_org_id,
+  CASE
+    WHEN d.`scope_level` IS NULL OR TRIM(d.`scope_level`) = '' OR d.`scope_level` = 'all' THEN NULL
+    ELSE d.`scope_level`
+  END AS new_scope_level,
+  CASE
+    WHEN d.`scope_level` IS NULL OR TRIM(d.`scope_level`) = '' OR d.`scope_level` = 'all' THEN 'ANY'
+    ELSE 'RELATIVE'
+  END AS new_scope_mode,
+  CASE
+    WHEN COUNT(*) > COUNT(d.`expires_at`) THEN NULL
+    ELSE MAX(d.`expires_at`)
+  END AS new_expire_at,
+  MAX(d.`created_by`),
+  MIN(d.`created_at`),
+  CONCAT('ftd:', MIN(d.`id`), ':', MAX(CASE WHEN a.`action` IN ('rename', 'replace') THEN 'edit' ELSE a.`action` END)),
+  'legacy'
+FROM `biz_folder_type_default` d
+JOIN (
+  SELECT 'view' AS `action`
+  UNION ALL SELECT 'download'
+  UNION ALL SELECT 'upload'
+  UNION ALL SELECT 'edit'
+  UNION ALL SELECT 'rename'
+  UNION ALL SELECT 'replace'
+  UNION ALL SELECT 'delete'
+  UNION ALL SELECT 'share'
+  UNION ALL SELECT 'manage'
+  UNION ALL SELECT 'create'
+) a
+  ON FIND_IN_SET(a.`action`, REPLACE(COALESCE(d.`perms`, ''), ' ', '')) > 0
+WHERE d.`subject_type` IN ('ROLE', 'USER')
+  AND d.`subject_id` IS NOT NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM `biz_file_grant` g
+     WHERE g.`tenant_id` = d.`tenant_id`
+       AND g.`subject_type` = d.`subject_type`
+       AND g.`subject_id` = d.`subject_id`
+       AND g.`object_type` = CASE
+             WHEN COALESCE(d.`object_type`, 'FILE') = 'FILE' AND d.`folder_id` IS NULL THEN 'SPACE'
+             WHEN COALESCE(d.`object_type`, 'FILE') = 'FOLDER' AND d.`folder_id` IS NULL THEN 'SPACE'
+             ELSE 'FOLDER'
+           END
+       AND g.`object_id` <=> CASE WHEN d.`folder_id` IS NULL THEN NULL ELSE d.`folder_id` END
+       AND g.`space_type` <=> CASE WHEN d.`folder_id` IS NULL THEN d.`folder_type` ELSE NULL END
+       AND g.`action` = CASE WHEN a.`action` IN ('rename', 'replace') THEN 'edit' ELSE a.`action` END
+       AND g.`scope_mode` = CASE
+             WHEN d.`scope_level` IS NULL OR TRIM(d.`scope_level`) = '' OR d.`scope_level` = 'all' THEN 'ANY'
+             ELSE 'RELATIVE'
+           END
+       AND g.`scope_level` <=> CASE
+             WHEN d.`scope_level` IS NULL OR TRIM(d.`scope_level`) = '' OR d.`scope_level` = 'all' THEN NULL
+             ELSE d.`scope_level`
+           END
+       AND g.`scope_org_id` IS NULL
+  )
+GROUP BY
+  d.`tenant_id`, d.`subject_type`, d.`subject_id`,
+  CASE
+    WHEN COALESCE(d.`object_type`, 'FILE') = 'FILE' AND d.`folder_id` IS NULL THEN 'SPACE'
+    WHEN COALESCE(d.`object_type`, 'FILE') = 'FOLDER' AND d.`folder_id` IS NULL THEN 'SPACE'
+    ELSE 'FOLDER'
+  END,
+  CASE WHEN d.`folder_id` IS NULL THEN NULL ELSE d.`folder_id` END,
+  CASE WHEN d.`folder_id` IS NULL THEN d.`folder_type` ELSE NULL END,
+  CASE WHEN a.`action` IN ('rename', 'replace') THEN 'edit' ELSE a.`action` END,
+  CASE
+    WHEN d.`scope_level` IS NULL OR TRIM(d.`scope_level`) = '' OR d.`scope_level` = 'all' THEN 'ANY'
+    ELSE 'RELATIVE'
+  END,
+  CASE
+    WHEN d.`scope_level` IS NULL OR TRIM(d.`scope_level`) = '' OR d.`scope_level` = 'all' THEN NULL
+    ELSE d.`scope_level`
+  END
+--------------
+
+Query OK, 0 rows affected
+Records: 0  Duplicates: 0  Warnings: 0
+
+Bye
++-------------------+-----+
+| diff              | cnt |
++-------------------+-----+
+| missing_in_new    |   0 |
+| extra_in_new      |   0 |
+| expire_diff       |   1 |
+| old_expanded_rows | 178 |
+| new_legacy_rows   | 178 |
++-------------------+-----+
+---- 8e 还原过期时间（NULL 则置回 NULL） ----
++-------------------+-----+
+| diff              | cnt |
++-------------------+-----+
+| missing_in_new    |   0 |
+| extra_in_new      |   0 |
+| expire_diff       |   0 |
+| old_expanded_rows | 178 |
+| new_legacy_rows   | 178 |
++-------------------+-----+
+[final-rows] legacy=178
+
+########## DRILL DONE（cleanup 由 trap 执行） ##########
+
+########## CLEANUP 副本清理（无论如何都执行） ##########
+[remote env] container=shared-mysql src=aigicrm_prod_20261016 copy=aigicrm_a2_drill_20261118 scratch=/tmp/aigicrm-a2-drill-20261118-014416
+[cleanup] DROP DATABASE aigicrm_a2_drill_20261118 ok
+[cleanup] 剩余 drill 库: 0（期望 0）
+[cleanup] 远端暂存 /tmp/aigicrm-a2-drill-20261118-014416 已删除
+[cleanup] 源库复核: old_rows=62 file_grant=NOT-EXISTS(snapshot 无此表,符合快照现状)
