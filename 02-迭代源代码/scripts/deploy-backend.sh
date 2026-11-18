@@ -159,11 +159,13 @@ start_backend() {
     -e REDIS_HOST=ycmn-redis -e REDIS_PORT=6379 \
     -e SPRING_PROFILES_ACTIVE=prod \
     -e FILE_GRANT_MODE="${FILE_GRANT_MODE:-legacy}" \
+    -e EXPORT_DIR=/app/exports \
     -e TENANT_ENABLE=true \
     -e UPLOAD_DIR=/app/uploads -e STORAGE_TYPE=local -e TZ=Asia/Shanghai \
     -e OSS_ENDPOINT=oss-cn-beijing.aliyuncs.com -e OSS_BUCKET_NAME="$OSS_BUCKET_NAME" \
     -e CORS_ORIGINS=https://www.aigicrm.com \
     -v /Aigicrm/files/uploads:/app/uploads \
+    -v /Aigicrm/files/ycmn-exports:/app/exports \
     -v "${APP_SLUG}-logs:/app/logs" \
     "${APP_SLUG}-backend:${BACKEND_TAG}" >/dev/null; then
     rm -f "$envf"
