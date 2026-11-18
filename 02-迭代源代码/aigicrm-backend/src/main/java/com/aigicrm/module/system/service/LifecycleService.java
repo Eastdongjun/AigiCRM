@@ -209,7 +209,28 @@ public class LifecycleService {
 
     // ==================== 执行：交接 ====================
 
+    private record HandoverTarget(long id, long from, long to, Long deptId, Long officeId, Long orgId) {}
+
     private Map<String, Object> executeHandover(Map<String, Object> req) {
+        HandoverTarget t = resolveHandoverTarget(req);
+        Map<String, Object> counts = new LinkedHashMap<>();
+        reassignOrgSnapshots(t, counts);
+        moveOwnedData(t, counts);
+        reassignApprovals(t, counts);
+
+        int roles = copyRoles(t, req);
+        counts.put("role", roles);
+        // 【2026-11-17 P1-5】可选：激励记录/直属下级随交接迁移（默认关闭）。
+        int incentives = transferIncentives(t, req);
+        counts.put("incentive", incentives);
+        int reports = transferReports(t, req);
+        counts.put("report", reports);
+        if (incentives > 0 && incentiveService != null) incentiveService.evictScoreboardCacheAfterRecycle();
+        if (reports > 0 || roles > 0) permissionCacheService.evictAll();
+        return counts;
+    }
+
+    private HandoverTarget resolveHandoverTarget(Map<String, Object> req) {
         long id = longVal(req.get("id"));
         long from = longVal(req.get(LIT_SUBJECT_USER_ID));
         long to = longVal(req.get("target_user_id"));
@@ -221,83 +242,85 @@ public class LifecycleService {
         if (toOrg == null) toOrg = toOffice != null ? toOffice : toDept;
         if (toDept == null || toOrg == null) throw new BusinessException("继任人未配置部门/组织，无法交接组织快照");
         if (toOffice == null) throw new BusinessException("继任人未配置办事处，无法交接客户/提醒组织快照");
-        Map<String, Object> counts = new LinkedHashMap<>();
+        return new HandoverTarget(id, from, to, toDept, toOffice, toOrg);
+    }
 
+    private void reassignOrgSnapshots(HandoverTarget t, Map<String, Object> counts) {
         // 【2026-11-17 P1-2】交接同时把当前数据的组织快照改派到继任人组织；旧值写明细供回滚。
         jdbc.update("INSERT INTO biz_lifecycle_item(request_id,biz_type,biz_id,old_ref,new_ref,old_ref2,new_ref2) " +
                         "SELECT ?, 'customer_org', id, dept_id, ?, office_id, ? FROM biz_customer " +
                         "WHERE owner_id=? AND deleted=0",
-                id, toDept, toOffice, from);
+                t.id(), t.deptId(), t.officeId(), t.from());
         counts.put("customerOrg", jdbc.update("UPDATE biz_customer SET dept_id=?, office_id=?, updated_at=NOW() WHERE owner_id=? AND deleted=0",
-                toDept, toOffice, from));
+                t.deptId(), t.officeId(), t.from()));
         jdbc.update("INSERT INTO biz_lifecycle_item(request_id,biz_type,biz_id,old_ref,new_ref) " +
                         "SELECT ?, 'file_org', id, org_id, ? FROM biz_file WHERE uploader_id=? AND deleted=0",
-                id, toOrg, from);
-        counts.put("fileOrg", jdbc.update("UPDATE biz_file SET org_id=? WHERE uploader_id=? AND deleted=0", toOrg, from));
+                t.id(), t.orgId(), t.from());
+        counts.put("fileOrg", jdbc.update("UPDATE biz_file SET org_id=? WHERE uploader_id=? AND deleted=0", t.orgId(), t.from()));
         jdbc.update("INSERT INTO biz_lifecycle_item(request_id,biz_type,biz_id,old_ref,new_ref) " +
                         "SELECT ?, 'folder_org', id, org_id, ? FROM biz_file_folder WHERE owner_id=? AND deleted=0",
-                id, toOrg, from);
-        counts.put("folderOrg", jdbc.update("UPDATE biz_file_folder SET org_id=? WHERE owner_id=? AND deleted=0", toOrg, from));
+                t.id(), t.orgId(), t.from());
+        counts.put("folderOrg", jdbc.update("UPDATE biz_file_folder SET org_id=? WHERE owner_id=? AND deleted=0", t.orgId(), t.from()));
         jdbc.update("INSERT INTO biz_lifecycle_item(request_id,biz_type,biz_id,old_ref,new_ref) " +
                         "SELECT ?, 'reminder_office', id, office_id, ? FROM biz_reminder WHERE owner_id=? AND deleted=0",
-                id, toOffice, from);
-        counts.put("reminderOffice", jdbc.update("UPDATE biz_reminder SET office_id=? WHERE owner_id=? AND deleted=0", toOffice, from));
+                t.id(), t.officeId(), t.from());
+        counts.put("reminderOffice", jdbc.update("UPDATE biz_reminder SET office_id=? WHERE owner_id=? AND deleted=0", t.officeId(), t.from()));
+    }
 
-        counts.put(LIT_CUSTOMER, move(LIT_CUSTOMER, "biz_customer", LIT_OWNER_ID, id, from, to));
-        counts.put("task", move("task", "biz_task", "assignee_id", id, from, to));
-        counts.put(LIT_REMINDER, moveNoDeleted(LIT_REMINDER, "biz_reminder", LIT_OWNER_ID, id, from, to));
-        counts.put("file", move("file", "biz_file", "uploader_id", id, from, to));
-        counts.put(LIT_FOLDER, move(LIT_FOLDER, "biz_file_folder", LIT_OWNER_ID, id, from, to));
+    private void moveOwnedData(HandoverTarget t, Map<String, Object> counts) {
+        counts.put(LIT_CUSTOMER, move(LIT_CUSTOMER, "biz_customer", LIT_OWNER_ID, t.id(), t.from(), t.to()));
+        counts.put("task", move("task", "biz_task", "assignee_id", t.id(), t.from(), t.to()));
+        counts.put(LIT_REMINDER, moveNoDeleted(LIT_REMINDER, "biz_reminder", LIT_OWNER_ID, t.id(), t.from(), t.to()));
+        counts.put("file", move("file", "biz_file", "uploader_id", t.id(), t.from(), t.to()));
+        counts.put(LIT_FOLDER, move(LIT_FOLDER, "biz_file_folder", LIT_OWNER_ID, t.id(), t.from(), t.to()));
+    }
 
+    private void reassignApprovals(HandoverTarget t, Map<String, Object> counts) {
         // 审批：在办申请转给继任人；待办审批节点转给继任人（历史已办不动）
         jdbc.update("INSERT INTO biz_lifecycle_item(request_id,biz_type,biz_id,old_ref,new_ref) " +
                         "SELECT ?, 'approval', id, applicant_id, ? FROM biz_approval " +
                         "WHERE applicant_id=? AND status IN ('pending','reviewing')",
-                id, to, from);
-        counts.put("approval", jdbc.update("UPDATE biz_approval SET applicant_id=? WHERE applicant_id=? AND status IN ('pending','reviewing')", to, from));
+                t.id(), t.to(), t.from());
+        counts.put("approval", jdbc.update("UPDATE biz_approval SET applicant_id=? WHERE applicant_id=? AND status IN ('pending','reviewing')", t.to(), t.from()));
 
         jdbc.update("INSERT INTO biz_lifecycle_item(request_id,biz_type,biz_id,old_ref,new_ref) " +
                         "SELECT ?, 'approval_node', id, approver_id, ? FROM biz_approval_node " +
                         "WHERE approver_id=? AND status='pending'",
-                id, to, from);
-        counts.put("approvalNode", jdbc.update("UPDATE biz_approval_node SET approver_id=? WHERE approver_id=? AND status='pending'", to, from));
+                t.id(), t.to(), t.from());
+        counts.put("approvalNode", jdbc.update("UPDATE biz_approval_node SET approver_id=? WHERE approver_id=? AND status='pending'", t.to(), t.from()));
+    }
 
+    private int copyRoles(HandoverTarget t, Map<String, Object> req) {
         int roles = 0;
         if (Integer.valueOf(1).equals(intVal(req.get("copy_roles")))) {
             List<Long> roleIds = jdbc.queryForList(
-                    "SELECT role_id FROM sys_user_role WHERE user_id=?", Long.class, from);
+                    "SELECT role_id FROM sys_user_role WHERE user_id=?", Long.class, t.from());
             for (Long roleId : roleIds) {
-                int inserted = jdbc.update("INSERT IGNORE INTO sys_user_role(user_id, role_id) VALUES(?,?)", to, roleId);
+                int inserted = jdbc.update("INSERT IGNORE INTO sys_user_role(user_id, role_id) VALUES(?,?)", t.to(), roleId);
                 if (inserted == 1) {
                     jdbc.update("INSERT INTO biz_lifecycle_item(request_id,biz_type,biz_id,old_ref,new_ref) VALUES(?, 'user_role', ?, 0, ?)",
-                            id, roleId, to);
+                            t.id(), roleId, t.to());
                     roles++;
                 }
             }
         }
-        counts.put("role", roles);
+        return roles;
+    }
 
-        // 【2026-11-17 P1-5】可选：激励记录/直属下级随交接迁移（默认关闭）。
-        int incentives = 0;
-        if (Integer.valueOf(1).equals(intVal(req.get("transfer_incentives")))) {
-            jdbc.update("INSERT INTO biz_lifecycle_item(request_id,biz_type,biz_id,old_ref,new_ref) " +
-                            "SELECT ?, 'incentive', id, user_id, ? FROM biz_incentive_record WHERE user_id=? AND deleted=0",
-                    id, to, from);
-            incentives = jdbc.update("UPDATE biz_incentive_record SET user_id=? WHERE user_id=? AND deleted=0", to, from);
-        }
-        counts.put("incentive", incentives);
+    private int transferIncentives(HandoverTarget t, Map<String, Object> req) {
+        if (!Integer.valueOf(1).equals(intVal(req.get("transfer_incentives")))) return 0;
+        jdbc.update("INSERT INTO biz_lifecycle_item(request_id,biz_type,biz_id,old_ref,new_ref) " +
+                        "SELECT ?, 'incentive', id, user_id, ? FROM biz_incentive_record WHERE user_id=? AND deleted=0",
+                t.id(), t.to(), t.from());
+        return jdbc.update("UPDATE biz_incentive_record SET user_id=? WHERE user_id=? AND deleted=0", t.to(), t.from());
+    }
 
-        int reports = 0;
-        if (Integer.valueOf(1).equals(intVal(req.get("transfer_reports")))) {
-            jdbc.update("INSERT INTO biz_lifecycle_item(request_id,biz_type,biz_id,old_ref,new_ref) " +
-                            "SELECT ?, 'report_manager', id, manager_id, ? FROM sys_user WHERE manager_id=? AND deleted=0",
-                    id, to, from);
-            reports = jdbc.update("UPDATE sys_user SET manager_id=? WHERE manager_id=? AND deleted=0", to, from);
-        }
-        counts.put("report", reports);
-        if (incentives > 0 && incentiveService != null) incentiveService.evictScoreboardCacheAfterRecycle();
-        if (reports > 0 || roles > 0) permissionCacheService.evictAll();
-        return counts;
+    private int transferReports(HandoverTarget t, Map<String, Object> req) {
+        if (!Integer.valueOf(1).equals(intVal(req.get("transfer_reports")))) return 0;
+        jdbc.update("INSERT INTO biz_lifecycle_item(request_id,biz_type,biz_id,old_ref,new_ref) " +
+                        "SELECT ?, 'report_manager', id, manager_id, ? FROM sys_user WHERE manager_id=? AND deleted=0",
+                t.id(), t.to(), t.from());
+        return jdbc.update("UPDATE sys_user SET manager_id=? WHERE manager_id=? AND deleted=0", t.to(), t.from());
     }
 
     private int move(String bizType, String table, String col, long requestId, long from, long to) {

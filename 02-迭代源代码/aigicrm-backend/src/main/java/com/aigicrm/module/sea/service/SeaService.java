@@ -74,12 +74,7 @@ public class SeaService {
         }
 
         LambdaQueryWrapper<BizSeaPool> wrapper = new LambdaQueryWrapper<>();
-        // 未指定 status 时默认排除已捞取（全部/待捞取/审批中）；指定 status 则精确过滤（保证分页与总数正确）
-        if (StringUtils.hasText(status)) {
-            wrapper.eq(BizSeaPool::getStatus, status);
-        } else {
-            wrapper.ne(BizSeaPool::getStatus, LIT_CLAIMED);
-        }
+        applyStatus(wrapper, status);
         wrapper.orderByDesc(BizSeaPool::getEnterDate);
         // enterReason 是 biz_sea_pool 自身字段，直接在 DB 层过滤（保证分页与总数正确）
         if (StringUtils.hasText(enterReason)) {
@@ -92,27 +87,48 @@ public class SeaService {
             }
             wrapper.eq(BizSeaPool::getPoolId, poolId);
         }
-        if (deptId != null) {
-            // 部门筛选：客户所属组织在子树内（含全部子部门）
-            java.util.List<Long> deptIds = com.aigicrm.common.util.DeptTreeUtils.expandSubtree(deptMapper, deptId);
-            java.util.List<Long> custIds = customerMapper.selectList(
-                    new LambdaQueryWrapper<BizCustomer>().in(BizCustomer::getOfficeId, deptIds))
-                    .stream().map(BizCustomer::getId).toList();
-            if (custIds.isEmpty()) return new Page<>(current, size);
-            wrapper.in(BizSeaPool::getCustomerId, custIds);
-        }
-        // S7: keyword/industry 是客户关联字段，下沉 SQL（客户 id 子查询）保证分页与 total 正确（原内存 removeIf 后 total 失真）
-        if (StringUtils.hasText(keyword) || StringUtils.hasText(industry)) {
-            LambdaQueryWrapper<BizCustomer> cw = new LambdaQueryWrapper<>();
-            if (StringUtils.hasText(keyword)) cw.like(BizCustomer::getCustomerName, keyword);
-            if (StringUtils.hasText(industry)) cw.eq(BizCustomer::getIndustry, industry);
-            List<Long> custIds = customerMapper.selectList(cw).stream().map(BizCustomer::getId).toList();
-            wrapper.in(BizSeaPool::getCustomerId, custIds.isEmpty() ? List.of(-1L) : custIds);
-        }
+        if (!applyDeptFilter(wrapper, deptId)) return new Page<>(current, size);
+        applyCustomerFilter(wrapper, keyword, industry);
 
         IPage<BizSeaPool> page = seaPoolMapper.selectPage(new Page<>(current, size), wrapper);
+        fillPoolRows(page.getRecords());
+        return page;
+    }
 
-        for (BizSeaPool sp : page.getRecords()) {
+    private void applyStatus(LambdaQueryWrapper<BizSeaPool> wrapper, String status) {
+        // 未指定 status 时默认排除已捞取（全部/待捞取/审批中）；指定 status 则精确过滤（保证分页与总数正确）
+        if (StringUtils.hasText(status)) {
+            wrapper.eq(BizSeaPool::getStatus, status);
+        } else {
+            wrapper.ne(BizSeaPool::getStatus, LIT_CLAIMED);
+        }
+    }
+
+    /** 部门筛选；返回 false 表示子树内无客户，调用方应返回空页（S3776 拆分）。 */
+    private boolean applyDeptFilter(LambdaQueryWrapper<BizSeaPool> wrapper, Long deptId) {
+        if (deptId == null) return true;
+        // 部门筛选：客户所属组织在子树内（含全部子部门）
+        java.util.List<Long> deptIds = com.aigicrm.common.util.DeptTreeUtils.expandSubtree(deptMapper, deptId);
+        java.util.List<Long> custIds = customerMapper.selectList(
+                new LambdaQueryWrapper<BizCustomer>().in(BizCustomer::getOfficeId, deptIds))
+                .stream().map(BizCustomer::getId).toList();
+        if (custIds.isEmpty()) return false;
+        wrapper.in(BizSeaPool::getCustomerId, custIds);
+        return true;
+    }
+
+    /** keyword/industry 是客户关联字段，下沉 SQL（客户 id 子查询）保证分页与 total 正确（S3776 拆分）。 */
+    private void applyCustomerFilter(LambdaQueryWrapper<BizSeaPool> wrapper, String keyword, String industry) {
+        if (!StringUtils.hasText(keyword) && !StringUtils.hasText(industry)) return;
+        LambdaQueryWrapper<BizCustomer> cw = new LambdaQueryWrapper<>();
+        if (StringUtils.hasText(keyword)) cw.like(BizCustomer::getCustomerName, keyword);
+        if (StringUtils.hasText(industry)) cw.eq(BizCustomer::getIndustry, industry);
+        List<Long> custIds = customerMapper.selectList(cw).stream().map(BizCustomer::getId).toList();
+        wrapper.in(BizSeaPool::getCustomerId, custIds.isEmpty() ? List.of(-1L) : custIds);
+    }
+
+    private void fillPoolRows(List<BizSeaPool> rows) {
+        for (BizSeaPool sp : rows) {
             BizCustomer customer = customerMapper.selectById(sp.getCustomerId());
             if (customer != null) {
                 sp.setCustomerName(customer.getCustomerName());
@@ -133,8 +149,6 @@ public class SeaService {
             sp.setCanDelete(seaConfigService.hasPoolPerm(sp.getPoolId(), SeaConfigService.PERM_DELETE, currentUser));
             sp.setCanClaim(seaConfigService.hasPoolPerm(sp.getPoolId(), SeaConfigService.PERM_CLAIM, currentUser));
         }
-
-        return page;
     }
 
     public Map<String, Long> statistics() {

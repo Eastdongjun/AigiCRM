@@ -160,32 +160,44 @@ public class RolePermScopeService {
 
     /** 有效范围 code 列表(多主体并集; 空=未配置走默认) */
     public List<String> effectiveScopes(SecurityUser user, String module, String action) {
-        List<String> codes = new ArrayList<>();
         // 【批③ 正交配置层】读内存配置(scopeConfigs 三级并集, 无优先级)——热路径零 DB
-        if (user != null && user.getScopeConfigs() != null) {
-            for (ScopeConfig c : user.getScopeConfigs()) {
-                if (module.equals(c.getModule()) && action.equals(c.getAction())) {
-                    codes.add(c.getScopeLevel());
-                }
-            }
-        }
+        List<String> codes = memoryScopes(user, module, action);
         // 内存未命中(如缓存重组前/规则引擎直调)回退查库(30s JDBC 缓存)
         if (codes.isEmpty() && user != null && user.getRoleCodes() != null) {
-            for (String roleCode : user.getRoleCodes()) {
-                String scope = lookup(roleCode, module, action);
-                if (scope != null) codes.add(scope);
-            }
+            codes = roleScopes(user, module, action);
         }
-        if (codes.isEmpty()) {
-            if ("view".equals(action)) {
-                if (user != null && user.getDataScopes() != null && !user.getDataScopes().isEmpty()) {
-                    return new ArrayList<>(user.getDataScopes());
-                }
-                return List.of(user != null && user.getDataScope() != null ? user.getDataScope() : "self");
+        if (!codes.isEmpty()) return codes;
+        return defaultScopes(user, action);
+    }
+
+    private List<String> memoryScopes(SecurityUser user, String module, String action) {
+        List<String> codes = new ArrayList<>();
+        if (user == null || user.getScopeConfigs() == null) return codes;
+        for (ScopeConfig c : user.getScopeConfigs()) {
+            if (module.equals(c.getModule()) && action.equals(c.getAction())) {
+                codes.add(c.getScopeLevel());
             }
-            return List.of("self"); // 编辑/删除/分享等默认仅本人(兼容现状)
         }
         return codes;
+    }
+
+    private List<String> roleScopes(SecurityUser user, String module, String action) {
+        List<String> codes = new ArrayList<>();
+        for (String roleCode : user.getRoleCodes()) {
+            String scope = lookup(roleCode, module, action);
+            if (scope != null) codes.add(scope);
+        }
+        return codes;
+    }
+
+    private List<String> defaultScopes(SecurityUser user, String action) {
+        if ("view".equals(action)) {
+            if (user != null && user.getDataScopes() != null && !user.getDataScopes().isEmpty()) {
+                return new ArrayList<>(user.getDataScopes());
+            }
+            return List.of(user != null && user.getDataScope() != null ? user.getDataScope() : "self");
+        }
+        return List.of("self"); // 编辑/删除/分享等默认仅本人(兼容现状)
     }
 
     /** 查询单个 (角色,模块,动作) 的范围; 无配置返回 null(30s 本地缓存) */
