@@ -40,10 +40,12 @@ FROM sys_menu p
 WHERE p.permission = 'system:recycle:view' AND p.menu_type = 2
   AND NOT EXISTS (SELECT 1 FROM sys_menu m WHERE m.permission = 'system:recycle:export');
 
--- 3. admin 角色绑定（拍板 #2: ADMIN_ONLY——其他角色不绑, 授权走权限中心亦受 adminOnly 收口）
-INSERT IGNORE INTO sys_role_menu (role_id, menu_id)
+-- 3. admin 角色绑定（拍板 #2: ADMIN_ONLY——其他角色不绑, 授权走权限中心亦受 adminOnly 收口;
+--    (role_code, permission) 双守卫幂等, 与 V2026.10.18.1 同款写法）
+INSERT INTO sys_role_menu (role_id, menu_id)
 SELECT r.id, m.id FROM sys_role r JOIN sys_menu m
-WHERE r.role_code = 'admin' AND m.permission = 'system:recycle:export' AND m.status = 1;
+WHERE r.role_code = 'admin' AND m.permission = 'system:recycle:export' AND m.status = 1
+  AND NOT EXISTS (SELECT 1 FROM sys_role_menu x WHERE x.role_id = r.id AND x.menu_id = m.id);
 
 -- 4. 注册表 admin_only=1（列口径对齐 V2026.11.16.3 模板；ON DUPLICATE 防重复注册）
 INSERT INTO `sys_permission_meta`
