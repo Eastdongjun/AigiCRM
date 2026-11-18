@@ -363,20 +363,37 @@ public class FileGrantService {
     public Map<String, Object> save(Command c) {
         requireAdmin();
         if (c == null) throw new BusinessException("授权内容不能为空");
+        BizFileGrant g = buildGrant(c);
+        applyGrantTypeRules(g);
+        applyActionAndEffectRules(g);
+        applyScopeRules(g);
+        persistGrant(g);
+        audit("file_grant_save", g);
+        return view(g);
+    }
+
+    private BizFileGrant buildGrant(Command c) {
         BizFileGrant g = new BizFileGrant();
         g.setId(c.id());
         g.setSubjectType(c.subjectType());
         g.setSubjectId(c.subjectId());
         g.setObjectType(c.objectType());
         g.setObjectId(c.objectId());
-        g.setSpaceType(c.spaceType() == null || c.spaceType().isBlank() ? null : c.spaceType().trim().toLowerCase(Locale.ROOT));
+        g.setSpaceType(c.spaceType() == null || c.spaceType().isBlank() ? null
+                : c.spaceType().trim().toLowerCase(Locale.ROOT));
         g.setAction(c.action());
         g.setEffect(c.effect());
         g.setInherit(c.inherit());
         g.setScopeOrgId(c.scopeOrgId());
-        g.setScopeLevel(c.scopeLevel() == null || c.scopeLevel().isBlank() ? null : c.scopeLevel().trim().toLowerCase(Locale.ROOT));
+        g.setScopeLevel(c.scopeLevel() == null || c.scopeLevel().isBlank() ? null
+                : c.scopeLevel().trim().toLowerCase(Locale.ROOT));
         g.setScopeMode(c.scopeMode());
         g.setExpireAt(c.expireAt());
+        return g;
+    }
+
+    /** 主体/对象类型及空间类型组合校验（SPACE 必填 spaceType；非 SPACE 不得携带）。 */
+    private void applyGrantTypeRules(BizFileGrant g) {
         String subjectType = upper(g.getSubjectType());
         if (!Set.of("USER", "ROLE", LIT_POSITION).contains(subjectType)) {
             throw new BusinessException("主体类型仅支持 USER/ROLE/POSITION");
@@ -394,6 +411,12 @@ public class FileGrantService {
         }
         // 【A2 §2.6/§2.7】SPACE 空间类型必填且限词表；非 SPACE 行不得携带 spaceType。
         // space_type=NULL=任意空间仅属存量迁移行（旧 blank 归一），新保存禁止空值。
+        applySpaceTypeRules(g, objectType);
+        g.setSubjectType(subjectType);
+        g.setObjectType(objectType);
+    }
+
+    private void applySpaceTypeRules(BizFileGrant g, String objectType) {
         if (OBJ_SPACE.equals(objectType)) {
             if (g.getSpaceType() == null) throw new BusinessException("空间授权必须指定空间类型");
             if (!SPACE_TYPES.contains(g.getSpaceType())) {
@@ -402,6 +425,9 @@ public class FileGrantService {
         } else if (g.getSpaceType() != null) {
             throw new BusinessException("空间类型仅 SPACE 授权可指定");
         }
+    }
+
+    private void applyActionAndEffectRules(BizFileGrant g) {
         String action = g.getAction() == null ? "" : g.getAction().trim().toLowerCase(Locale.ROOT);
         if (!Set.of("view", "download", "upload", "edit", "delete", "share", "manage", "*", "create").contains(action)) {
             throw new BusinessException("动作仅支持 view/download/upload/edit/delete/share/manage/create/*");
@@ -412,8 +438,12 @@ public class FileGrantService {
         if (g.getExpireAt() != null && !g.getExpireAt().isAfter(LocalDateTime.now())) {
             throw new BusinessException("到期时间必须晚于当前时间");
         }
-        // 【A2】scope_mode 归一：缺省时按 RELATIVE 线索推断（scopeLevel 非空→RELATIVE，否则手工默认 SUBTREE）；
-        // RELATIVE 必须带 self/dept/office/region；ANY 清空范围字段；EXACT/SUBTREE 允许 scope_org_id（空=不限组织）。
+        g.setAction(action);
+        g.setEffect(effect);
+    }
+
+    /** 【A2】scope_mode 归一：缺省按 RELATIVE 线索推断；RELATIVE 必须带档位；ANY 清空范围字段。 */
+    private void applyScopeRules(BizFileGrant g) {
         String scopeMode = upper(g.getScopeMode());
         if (scopeMode == null || scopeMode.isBlank()) {
             scopeMode = g.getScopeLevel() != null ? SCOPE_RELATIVE : SCOPE_SUBTREE;
@@ -422,12 +452,7 @@ public class FileGrantService {
             throw new BusinessException("范围模式仅支持 ANY/RELATIVE/EXACT/SUBTREE");
         }
         if (SCOPE_RELATIVE.equals(scopeMode)) {
-            if (g.getScopeLevel() == null || !RELATIVE_LEVELS.contains(g.getScopeLevel())) {
-                throw new BusinessException("RELATIVE 范围必须指定 self/dept/office/region");
-            }
-            if (g.getScopeOrgId() != null) {
-                throw new BusinessException("RELATIVE 范围是相对当前查看人的档位，不能携带组织节点");
-            }
+            validateRelativeScope(g);
         } else {
             if (g.getScopeLevel() != null) {
                 throw new BusinessException("scopeLevel 仅在 RELATIVE 范围下有效（空间类型请用 spaceType）");
@@ -435,10 +460,18 @@ public class FileGrantService {
             if (SCOPE_ANY.equals(scopeMode)) g.setScopeOrgId(null);
         }
         g.setScopeMode(scopeMode);
-        g.setSubjectType(subjectType);
-        g.setObjectType(objectType);
-        g.setAction(action);
-        g.setEffect(effect);
+    }
+
+    private void validateRelativeScope(BizFileGrant g) {
+        if (g.getScopeLevel() == null || !RELATIVE_LEVELS.contains(g.getScopeLevel())) {
+            throw new BusinessException("RELATIVE 范围必须指定 self/dept/office/region");
+        }
+        if (g.getScopeOrgId() != null) {
+            throw new BusinessException("RELATIVE 范围是相对当前查看人的档位，不能携带组织节点");
+        }
+    }
+
+    private void persistGrant(BizFileGrant g) {
         g.setInherit(g.getInherit() == null ? 1 : g.getInherit());
         g.setTenantId(tenantId());
         g.setCreatedBy(SecurityUtils.getCurrentUserId());
@@ -448,10 +481,7 @@ public class FileGrantService {
                 g.setSource("manual");
                 grantMapper.insert(g);
             } else {
-                BizFileGrant old = grantMapper.selectById(g.getId());
-                if (old == null || !Objects.equals(old.getTenantId(), tenantId())) {
-                    throw new BusinessException("授权不存在");
-                }
+                ensureEditable(g);
                 // 编辑不动迁移来源：legacy_ref/source 保持原行值（updateById NOT_NULL 策略跳过 null 字段）
                 grantMapper.updateById(g);
             }
@@ -460,8 +490,13 @@ public class FileGrantService {
         } catch (Exception e) {
             throw new BusinessException("授权保存失败（主体+对象+动作可能已存在）");
         }
-        audit("file_grant_save", g);
-        return view(g);
+    }
+
+    private void ensureEditable(BizFileGrant g) {
+        BizFileGrant old = grantMapper.selectById(g.getId());
+        if (old == null || !Objects.equals(old.getTenantId(), tenantId())) {
+            throw new BusinessException("授权不存在");
+        }
     }
 
     private Map<String, Object> view(BizFileGrant g) {

@@ -102,40 +102,57 @@ public class PermReconcileService {
     public Map<String, Object> reconcileUser(SecurityUser su, Slot slot) {
         // 【FILE-13 P2】对账锚=槽显式锚优先(ORG 行与生产矩阵消费方同源); null=动态
         // (customer 按 anchorOf 配置, 其余 OWNER)——新旧两轨同锚, 防锚点不同出假差异
-        ScopeRequest.AnchorType slotAnchor = slot.anchor() != null
-                ? slot.anchor()
-                : ("customer".equals(slot.module())
-                        ? rolePermScopeService.anchorOf(su, slot.module(), slot.action())
-                        : ScopeRequest.AnchorType.OWNER);
+        ScopeRequest.AnchorType slotAnchor = resolveSlotAnchor(su, slot);
         // 旧轨: customer 域锚点读 role_perm_scope 配置(P2-3 口径), 其余 OWNER; WithinGroup 槽走集团收口
-        ScopeDecision oldD;
+        ScopeDecision oldD = resolveOldDecision(su, slot, slotAnchor);
+        // 新轨(授予表; 绕过读开关显式对比; WithinGroup 槽用收口版)
+        // 【FILE-07/13】对账锚点与旧轨 req 同源(槽显式锚/动态锚), 防双轨假差异。
+        ScopeDecision newD = resolveNewDecision(su, slot, slotAnchor);
+        return buildReconcileRow(su, slot, slotAnchor, oldD, newD);
+    }
+
+    private ScopeRequest.AnchorType resolveSlotAnchor(SecurityUser su, Slot slot) {
+        if (slot.anchor() != null) return slot.anchor();
+        return "customer".equals(slot.module())
+                ? rolePermScopeService.anchorOf(su, slot.module(), slot.action())
+                : ScopeRequest.AnchorType.OWNER;
+    }
+
+    private ScopeDecision resolveOldDecision(SecurityUser su, Slot slot, ScopeRequest.AnchorType slotAnchor) {
         ScopeRequest req = ScopeRequest.builder()
                 .user(su)
                 .module(slot.module())
                 .action(slot.action())
                 .anchor(slotAnchor)
                 .build();
-        oldD = legacyResolver.resolveScopeLegacy(req); // 【P1-6 三轮修复】强制旧轨(切 new 后 resolveScope 已是新轨, 直调会假 0 差异)
+        // 【P1-6 三轮修复】强制旧轨(切 new 后 resolveScope 已是新轨, 直调会假 0 差异)
+        ScopeDecision oldD = legacyResolver.resolveScopeLegacy(req);
         if (slot.withinGroup() && oldD.isAll() && !hasAdminRole(su)) {
-            Long g = com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull();
-            if (g == null) {
-                oldD = ScopeDecision.none();
-            } else {
-                List<Long> members = com.aigicrm.common.scope.GroupScopeUtil.userIdsInGroup(jdbc, g);
-                ScopeDecision clamped = new ScopeDecision();
-                clamped.setVisibleUserIds(members.isEmpty() ? List.of() : members);
-                clamped.setVisibleDeptIds(List.of());
-                oldD = clamped;
-            }
+            return clampToGroup();
         }
-        // 新轨(授予表; 绕过读开关显式对比; WithinGroup 槽用收口版)
-        // 【FILE-07/13】对账锚点与旧轨 req 同源(槽显式锚/动态锚), 防双轨假差异。
-        ScopeDecision newD = slot.withinGroup()
+        return oldD;
+    }
+
+    private ScopeDecision clampToGroup() {
+        Long g = com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull();
+        if (g == null) return ScopeDecision.none();
+        List<Long> members = com.aigicrm.common.scope.GroupScopeUtil.userIdsInGroup(jdbc, g);
+        ScopeDecision clamped = new ScopeDecision();
+        clamped.setVisibleUserIds(members.isEmpty() ? List.of() : members);
+        clamped.setVisibleDeptIds(List.of());
+        return clamped;
+    }
+
+    private ScopeDecision resolveNewDecision(SecurityUser su, Slot slot, ScopeRequest.AnchorType slotAnchor) {
+        return slot.withinGroup()
                 ? authorizationService.scopeWithinGroupForUser(su, codeOf(slot), slotAnchor)
                 : authorizationService.scopeForUser(su, codeOf(slot), slotAnchor);
+    }
 
-        Set<Long> oldOwners = oldD.isAll() || oldD.getVisibleUserIds() == null ? null : new HashSet<>(oldD.getVisibleUserIds());
-        Set<Long> newOwners = newD.isAll() || newD.getVisibleUserIds() == null ? null : new HashSet<>(newD.getVisibleUserIds());
+    private Map<String, Object> buildReconcileRow(SecurityUser su, Slot slot, ScopeRequest.AnchorType slotAnchor,
+                                                  ScopeDecision oldD, ScopeDecision newD) {
+        Set<Long> oldOwners = ownerSetOrNull(oldD);
+        Set<Long> newOwners = ownerSetOrNull(newD);
 
         Map<String, Object> row = new LinkedHashMap<>();
         row.put("userId", su.getUserId());
@@ -146,24 +163,34 @@ public class PermReconcileService {
         row.put("newAll", newOwners == null);
         row.put("oldSize", oldOwners == null ? "全量" : oldOwners.size());
         row.put("newSize", newOwners == null ? "全量" : newOwners.size());
-        boolean match;
-        if (oldOwners == null || newOwners == null) {
-            match = oldOwners == null && newOwners == null;
-        } else {
-            match = oldOwners.equals(newOwners);
-        }
+        boolean match = reconcileMatch(oldOwners, newOwners);
         row.put(LIT_MATCH, match);
         if (!match) {
-            Set<Long> onlyOld = oldOwners == null || newOwners == null ? new HashSet<>() : new HashSet<>(oldOwners);
-            Set<Long> onlyNew = oldOwners == null || newOwners == null ? new HashSet<>() : new HashSet<>(newOwners);
-            if (oldOwners != null && newOwners != null) {
-                onlyOld.removeAll(newOwners);
-                onlyNew.removeAll(oldOwners);
-            }
-            row.put("onlyOld", onlyOld);
-            row.put("onlyNew", onlyNew);
+            fillDiff(row, oldOwners, newOwners);
         }
         return row;
+    }
+
+    private Set<Long> ownerSetOrNull(ScopeDecision d) {
+        return d.isAll() || d.getVisibleUserIds() == null ? null : new HashSet<>(d.getVisibleUserIds());
+    }
+
+    private boolean reconcileMatch(Set<Long> oldOwners, Set<Long> newOwners) {
+        if (oldOwners == null || newOwners == null) {
+            return oldOwners == null && newOwners == null;
+        }
+        return oldOwners.equals(newOwners);
+    }
+
+    private void fillDiff(Map<String, Object> row, Set<Long> oldOwners, Set<Long> newOwners) {
+        Set<Long> onlyOld = oldOwners == null || newOwners == null ? new HashSet<>() : new HashSet<>(oldOwners);
+        Set<Long> onlyNew = oldOwners == null || newOwners == null ? new HashSet<>() : new HashSet<>(newOwners);
+        if (oldOwners != null && newOwners != null) {
+            onlyOld.removeAll(newOwners);
+            onlyNew.removeAll(oldOwners);
+        }
+        row.put("onlyOld", onlyOld);
+        row.put("onlyNew", onlyNew);
     }
 
     private String codeOf(Slot slot) {

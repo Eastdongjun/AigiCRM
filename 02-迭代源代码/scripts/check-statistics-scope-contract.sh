@@ -77,8 +77,16 @@ if "customerVisibilityService.visibleOwnerIds()" not in team:
 if "getCurrentScopeUserIds()" in team:
     raise SystemExit("FAIL: retired statistics-slot call still present in teamActivities (WP1.5)")
 print("PASS: team activities resolve current account scope (customer:view single source)")
-for wrapper in ("logWrapper", "incWrapper", "fileWrapper", "apprWrapper", "custWrapper", "sysWrapper"):
-    if not re.search(rf"{wrapper}\.in\([^\n]*visibleUserIds", team):
+# 【P0-5 B-java28 2026-11-18】teamActivities 拆分后六路来源各自成方法；作用域谓词钉随到对应来源方法
+for wrapper, method in (
+    ("logWrapper", "appendCustomerLogActivities"),
+    ("incWrapper", "appendIncentiveActivities"),
+    ("fileWrapper", "appendFileActivities"),
+    ("apprWrapper", "appendApprovalActivities"),
+    ("custWrapper", "appendNewCustomerActivities"),
+    ("sysWrapper", "appendSysLogActivities"),
+):
+    if not re.search(rf"{wrapper}\.in\([^\n]*visibleUserIds", method_body(method)):
         raise SystemExit(f"FAIL: team activity {wrapper} has scoped predicate")
     print(f"PASS: team activity {wrapper} has scoped predicate")
 

@@ -254,90 +254,109 @@ public class AuthorizationService {
 
     private ScopeDecision newTrackScope(SecurityUser user, PermActionRegistry.ActionDef def,
                                         ScopeRequest.AnchorType anchorOverride) {
-        // 【P1-3 三轮修复 2026-11-13】视图别名无条件生效: 导出跟随列表(锁定决策#9 卡片=列表=导出)。
-        // 旧写法"自身无授权才走别名"被回填/双写的 SELF grant 架空——导出范围=仅本人 ≠ 列表。
-        // 视图别名的码直接按别名码的授权解析(自身行不参与)。
-        String resolveCode = def.getCode();
-        String alias = VIEW_ALIASES.get(resolveCode);
-        if (alias != null) {
-            resolveCode = alias;
-        }
-        // 【文件专项 P0 修复】槽级聚合: (file,manage) 槽五个动作码共享同一槽配置——
-        // 角色只勾其中任一码(如仅 file:upload)也有槽 grant, 不因"单码无 grant"变空集。
+        String resolveCode = resolveGrantCode(def);
+        // 【文件专项 P0 修复】槽级聚合: (file,manage) 槽五个动作码共享同一槽配置
         List<GrantReader.GrantRow> grants = grantsForSlot(user, resolveCode);
         if (grants.isEmpty()) {
             return ScopeDecision.none(); // 无授权=无范围(fail-closed, 规格 §3.2 empty→NONE)
         }
-        // 【P0 三轮二修复 2026-11-13】按 grant **维度来源**分组解析, 废弃"合并后全局两遍补齐"——
-        // 旧两遍会把 SELF/MY_TEAM(OWNER 维授权) 经 deptsOfUsers→usersInDepts 两跳放大成"部门同事"
-        // (越权放宽; SELF 语义=仅本人, 决策#2 只定义 MY_DEPT 与 SELF 无关)。
-        // 分组后维度补齐**单向**:
-        //   DEPT 型授权(组织档) → usersInDepts 展开(OWNER 锚消费, 与旧轨 resolveDeptTree 同口径)
-        //   OWNER 型授权(本人/团队档) → deptsOfUsers 回填(ORG 锚消费, 与旧轨 self/team 的 dept 口径一致)
-        //   两条链**互不回灌**: DEPT 型展开出的用户不再转回部门, OWNER 型派生的部门不再展开用户。
-        List<ScopeSpec> deptBased = new ArrayList<>();  // MY_DEPT*/MY_PRIMARY*/MY_OFFICE*/MY_REGION*/CUSTOM
-        List<ScopeSpec> ownerBased = new ArrayList<>(); // SELF / MY_TEAM / ALL(短路于下方)
-        boolean anyAll = false;
-        for (GrantReader.GrantRow g : grants) {
-            // 【P2 四轮修复 fail-closed】未知 scope_type 直接 none(旧行为=仅本人, 会把脏数据静默放行本人)
-            if (!isKnownScopeType(g.getScopeType())) {
-                log.warn("[PermEpochKernel] 未知 scope_type={} action={} → fail-closed none", g.getScopeType(), g.getActionCode());
-                return ScopeDecision.none();
-            }
-            ScopeSpec s = specResolver.resolve(user, g);
-            if (s.isAll()) { anyAll = true; break; }
-            if (isDeptBasedScope(g.getScopeType())) deptBased.add(s);
-            else ownerBased.add(s);
-        }
-        if (anyAll) return ScopeDecision.all(); // 任一 all → 本集团不过滤(锁定决策#6)
+        GrantGroups groups = groupGrants(user, grants);
+        if (groups == null) return ScopeDecision.none(); // 未知 scope_type fail-closed
+        if (groups.anyAll()) return ScopeDecision.all(); // 任一 all → 本集团不过滤(锁定决策#6)
 
-        // 【P1-1 四轮修复 2026-11-13】deptsOfUsers 只对 **nativeOwners**(OWNER 型授权+本人)反查——
-        // 若对"DEPT 型展开出来的部门用户"再反查部门, 同事的兼职部门会并入 ORG 锚可见集(二次放大:
-        // MY_DEPT+ORG 锚 会看到同事兼职部门的客户)。决策#2 的"全部任职组织"是**查看者**的属性,
-        // 不是"我部门里每个人的全部任职组织"。
-        Set<Long> nativeOwners = new HashSet<>();
-        for (ScopeSpec s : ownerBased) nativeOwners.addAll(s.getOwnerIds());
-        nativeOwners.add(user.getUserId());             // 本人恒含(旧轨 resolveUnion 同款)
-        Set<Long> owners = new HashSet<>(nativeOwners);
-        Set<Long> depts = new HashSet<>();
-        for (ScopeSpec s : deptBased) depts.addAll(s.getDeptIds());
-        // 单向补齐(各一次, 无回灌):
-        // DEPT 型部门 → 在职用户并入 OWNER 集合(OWNER 锚消费, 与旧轨 resolveUnion 同口径);
-        // OWNER 型人员 → 兼职部门反查并入部门集合(ORG 锚消费)。DEPT 型用户的兼职部门**不**回灌。
-        owners.addAll(usersInDepts(depts));
-        depts.addAll(deptsOfUsers(nativeOwners));
-
-        if (owners.isEmpty() && depts.isEmpty()) return ScopeDecision.none();
+        ScopeSets sets = buildScopeSets(user, groups);
+        if (sets.owners().isEmpty() && sets.depts().isEmpty()) return ScopeDecision.none();
 
         // 【FILE-07】调用方显式锚点优先; 无请求锚点(会话入口 scope())按配置锚
         ScopeRequest.AnchorType anchor = anchorOverride != null
                 ? anchorOverride : dominantAnchor(resolveCode, def);
-        ScopeDecision d = new ScopeDecision();
-        if (anchor == ScopeRequest.AnchorType.ORG) {
-            // ORG 锚: 部门维=DEPT 型部门 ∪ OWNER 型人员所属部门; 用户维=部门在职用户(A6 口径);
-            // 上级/负责人开关**不追加**(旧轨 ORG 分支同款)
-            d.setVisibleDeptIds(new ArrayList<>(depts));
-            d.setVisibleUserIds(new ArrayList<>(usersInDepts(depts)));
-        } else {
-            // OWNER 锚: 用户维=OWNER 型人员 ∪ DEPT 型部门用户 ∪ 本人; 上级/负责人开关仅此处追加
-            if (def.isViewLike()) {
-                boolean[] sw = legacyResolver.switchFlags();
-                boolean superiorOn = sw != null && sw.length > 0 && sw[0];
-                boolean leaderOn = sw != null && sw.length > 1 && sw[1];
-                if (superiorOn) owners.addAll(specResolver.teamOf(user.getUserId()));
-                if (leaderOn) {
-                    for (Long uid : ledOrgSpec(user.getUserId()).getOwnerIds()) owners.add(uid);
-                }
+        ScopeDecision d = anchor == ScopeRequest.AnchorType.ORG
+                ? buildOrgDecision(sets)
+                : buildOwnerDecision(user, def, sets.owners());
+        return hasVisibleScope(d) ? d : ScopeDecision.none();
+    }
+
+    /** 视图别名无条件生效: 导出跟随列表(锁定决策#9 卡片=列表=导出)。 */
+    private String resolveGrantCode(PermActionRegistry.ActionDef def) {
+        String resolveCode = def.getCode();
+        String alias = VIEW_ALIASES.get(resolveCode);
+        return alias != null ? alias : resolveCode;
+    }
+
+    private record GrantGroups(List<ScopeSpec> deptBased, List<ScopeSpec> ownerBased, boolean anyAll) {}
+
+    private record ScopeSets(Set<Long> owners, Set<Long> depts) {}
+
+    /**
+     * 【P0 三轮二修复 2026-11-13】按 grant 维度来源分组解析（DEPT 型 vs OWNER 型），
+     * 未知 scope_type 直接返回 null（fail-closed）。任一 all 记录 anyAll。
+     */
+    private GrantGroups groupGrants(SecurityUser user, List<GrantReader.GrantRow> grants) {
+        List<ScopeSpec> deptBased = new ArrayList<>();
+        List<ScopeSpec> ownerBased = new ArrayList<>();
+        boolean anyAll = false;
+        for (GrantReader.GrantRow g : grants) {
+            if (!isKnownScopeType(g.getScopeType())) {
+                log.warn("[PermEpochKernel] 未知 scope_type={} action={} → fail-closed none", g.getScopeType(), g.getActionCode());
+                return null;
             }
-            owners.add(user.getUserId()); // 开关合并后重保本人
-            d.setVisibleUserIds(new ArrayList<>(owners));
-            d.setVisibleDeptIds(List.of()); // 镜像旧轨 OWNER 分支(deptIds 恒空 list)
+            ScopeSpec s = specResolver.resolve(user, g);
+            if (s.isAll()) {
+                anyAll = true;
+                break;
+            }
+            if (isDeptBasedScope(g.getScopeType())) deptBased.add(s);
+            else ownerBased.add(s);
         }
-        if (d.getVisibleUserIds() != null && d.getVisibleUserIds().isEmpty()
-                && (d.getVisibleDeptIds() == null || d.getVisibleDeptIds().isEmpty())) {
-            return ScopeDecision.none();
-        }
+        return new GrantGroups(deptBased, ownerBased, anyAll);
+    }
+
+    /**
+     * 单向补齐（各一次，无回灌）：DEPT 型部门 → 在职用户并入 OWNER 集合；
+     * OWNER 型人员 → 兼职部门反查并入部门集合。nativeOwners 只含 OWNER 型+本人。
+     */
+    private ScopeSets buildScopeSets(SecurityUser user, GrantGroups groups) {
+        Set<Long> nativeOwners = new HashSet<>();
+        for (ScopeSpec s : groups.ownerBased()) nativeOwners.addAll(s.getOwnerIds());
+        nativeOwners.add(user.getUserId());             // 本人恒含(旧轨 resolveUnion 同款)
+        Set<Long> owners = new HashSet<>(nativeOwners);
+        Set<Long> depts = new HashSet<>();
+        for (ScopeSpec s : groups.deptBased()) depts.addAll(s.getDeptIds());
+        owners.addAll(usersInDepts(depts));
+        depts.addAll(deptsOfUsers(nativeOwners));
+        return new ScopeSets(owners, depts);
+    }
+
+    private ScopeDecision buildOrgDecision(ScopeSets sets) {
+        // ORG 锚: 部门维=DEPT 型部门 ∪ OWNER 型人员所属部门; 用户维=部门在职用户(A6 口径)
+        ScopeDecision d = new ScopeDecision();
+        d.setVisibleDeptIds(new ArrayList<>(sets.depts()));
+        d.setVisibleUserIds(new ArrayList<>(usersInDepts(sets.depts())));
         return d;
+    }
+
+    private ScopeDecision buildOwnerDecision(SecurityUser user, PermActionRegistry.ActionDef def, Set<Long> owners) {
+        // OWNER 锚: 用户维=OWNER 型人员 ∪ DEPT 型部门用户 ∪ 本人; 上级/负责人开关仅此处追加
+        ScopeDecision d = new ScopeDecision();
+        if (def.isViewLike()) {
+            boolean[] sw = legacyResolver.switchFlags();
+            boolean superiorOn = sw != null && sw.length > 0 && sw[0];
+            boolean leaderOn = sw != null && sw.length > 1 && sw[1];
+            if (superiorOn) owners.addAll(specResolver.teamOf(user.getUserId()));
+            if (leaderOn) {
+                for (Long uid : ledOrgSpec(user.getUserId()).getOwnerIds()) owners.add(uid);
+            }
+        }
+        owners.add(user.getUserId()); // 开关合并后重保本人
+        d.setVisibleUserIds(new ArrayList<>(owners));
+        d.setVisibleDeptIds(List.of()); // 镜像旧轨 OWNER 分支(deptIds 恒空 list)
+        return d;
+    }
+
+    private boolean hasVisibleScope(ScopeDecision d) {
+        List<Long> users = d.getVisibleUserIds();
+        List<Long> depts = d.getVisibleDeptIds();
+        return users == null || !users.isEmpty() || (depts != null && !depts.isEmpty());
     }
 
     /**

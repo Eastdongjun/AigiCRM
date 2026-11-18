@@ -1134,18 +1134,25 @@ public class StatisticsQueryService {
      */
     public List<Map<String, Object>> teamActivities() {
         List<Map<String, Object>> activities = new ArrayList<>();
-        // 【2026-08-08 设计规则（最终）：统计按账号数据范围】团队动态按当前账号数据范围过滤
-        // （管理员全量 / 负责人本组织 / 销售本人）。visible=null 表示全量不过滤。
+        // 【2026-08-08 设计规则（最终）：统计按账号数据范围】visible=null 表示全量不过滤。
         // 【WP1.5 2026-11-13】口径切换 customer:view(可见人员=客户可见负责人集合)
         List<Long> visibleUserIds = customerVisibilityService.visibleOwnerIds();
-        boolean scopeAll = (visibleUserIds == null);
-        // 【A6 2026-10-20 审计】空集守卫: ORG 锚点已在 OrgScopeResolver 展开为部门在职用户,
-        // 但部门无在职用户/解析兜底返回空集时, in(空集合) 生成 IN () 语法错误(500)——
-        // 六路来源同口径恒空, 直接返回空列表, 不再各发一条恒空查询(语义等同 1=0)。
-        if (!scopeAll && visibleUserIds.isEmpty()) {
+        // 【A6 2026-10-20 审计】空集守卫: in(空集合) 生成 IN () 语法错误(500)——六路恒空, 直接空列表
+        if (visibleUserIds != null && visibleUserIds.isEmpty()) {
             return activities;
         }
+        boolean scopeAll = visibleUserIds == null;
+        appendCustomerLogActivities(activities, visibleUserIds, scopeAll);
+        appendIncentiveActivities(activities, visibleUserIds, scopeAll);
+        appendFileActivities(activities, visibleUserIds, scopeAll);
+        appendApprovalActivities(activities, visibleUserIds, scopeAll);
+        appendNewCustomerActivities(activities, visibleUserIds, scopeAll);
+        appendSysLogActivities(activities, visibleUserIds, scopeAll);
+        return sortAndTrimActivities(activities);
+    }
 
+    private void appendCustomerLogActivities(List<Map<String, Object>> activities, List<Long> visibleUserIds,
+                                             boolean scopeAll) {
         LambdaQueryWrapper<BizCustomerLog> logWrapper = new LambdaQueryWrapper<>();
         if (!scopeAll) logWrapper.in(BizCustomerLog::getUserId, visibleUserIds);
         logWrapper.orderByDesc(BizCustomerLog::getCreatedAt).last("LIMIT 8");
@@ -1157,7 +1164,10 @@ public class StatisticsQueryService {
                             " · " + (customer != null ? customer.getCustomerName() : ""),
                     user, log.getCreatedAt()));
         }
+    }
 
+    private void appendIncentiveActivities(List<Map<String, Object>> activities, List<Long> visibleUserIds,
+                                           boolean scopeAll) {
         LambdaQueryWrapper<BizIncentiveRecord> incWrapper = new LambdaQueryWrapper<>();
         if (!scopeAll) incWrapper.in(BizIncentiveRecord::getUserId, visibleUserIds);
         incWrapper.orderByDesc(BizIncentiveRecord::getCreatedAt).last(LIT_LIMIT_5);
@@ -1169,45 +1179,56 @@ public class StatisticsQueryService {
                     "激励上传 · " + (cat != null ? cat.getCategoryName() : ""),
                     user, incRecord.getCreatedAt()));
         }
+    }
 
+    private void appendFileActivities(List<Map<String, Object>> activities, List<Long> visibleUserIds,
+                                      boolean scopeAll) {
         LambdaQueryWrapper<BizFile> fileWrapper = new LambdaQueryWrapper<>();
         if (!scopeAll) fileWrapper.in(BizFile::getUploaderId, visibleUserIds);
         fileWrapper.orderByDesc(BizFile::getCreatedAt).last(LIT_LIMIT_5);
         for (BizFile file : fileMapper.selectList(fileWrapper)) {
             SysUser user = file.getUploaderId() != null ? userMapper.selectById(file.getUploaderId()) : null;
-            activities.add(buildActivity(
-                    "上传文件 · " + file.getFileName(),
-                    user, file.getCreatedAt()));
+            activities.add(buildActivity("上传文件 · " + file.getFileName(), user, file.getCreatedAt()));
         }
+    }
 
+    private void appendApprovalActivities(List<Map<String, Object>> activities, List<Long> visibleUserIds,
+                                          boolean scopeAll) {
         LambdaQueryWrapper<BizApproval> apprWrapper = new LambdaQueryWrapper<>();
         if (!scopeAll) apprWrapper.in(BizApproval::getApplicantId, visibleUserIds);
         apprWrapper.orderByDesc(BizApproval::getCreatedAt).last(LIT_LIMIT_5);
         for (BizApproval appr : approvalMapper.selectList(apprWrapper)) {
             SysUser user = appr.getApplicantId() != null ? userMapper.selectById(appr.getApplicantId()) : null;
             BizCustomer customer = appr.getCustomerId() != null ? customerMapper.selectById(appr.getCustomerId()) : null;
-            String typeText = switch (appr.getApprovalType()) {
-                case "claim" -> "捞取申请";
-                case "transfer" -> "转让申请";
-                case "extend" -> "延期申请";
-                case "storage" -> "入库申请";
-                default -> "审批";
-            };
             activities.add(buildActivity(
-                    typeText + " · " + (customer != null ? customer.getCustomerName() : ""),
+                    approvalTypeText(appr.getApprovalType()) + " · " + (customer != null ? customer.getCustomerName() : ""),
                     user, appr.getCreatedAt()));
         }
+    }
 
+    private String approvalTypeText(String approvalType) {
+        return switch (approvalType) {
+            case "claim" -> "捞取申请";
+            case "transfer" -> "转让申请";
+            case "extend" -> "延期申请";
+            case "storage" -> "入库申请";
+            default -> "审批";
+        };
+    }
+
+    private void appendNewCustomerActivities(List<Map<String, Object>> activities, List<Long> visibleUserIds,
+                                             boolean scopeAll) {
         LambdaQueryWrapper<BizCustomer> custWrapper = new LambdaQueryWrapper<>();
         if (!scopeAll) custWrapper.in(BizCustomer::getOwnerId, visibleUserIds);
         custWrapper.orderByDesc(BizCustomer::getCreatedAt).last(LIT_LIMIT_5);
         for (BizCustomer cust : customerMapper.selectList(custWrapper)) {
             SysUser user = cust.getOwnerId() != null ? userMapper.selectById(cust.getOwnerId()) : null;
-            activities.add(buildActivity(
-                    "新增客户 · " + cust.getCustomerName(),
-                    user, cust.getCreatedAt()));
+            activities.add(buildActivity("新增客户 · " + cust.getCustomerName(), user, cust.getCreatedAt()));
         }
+    }
 
+    private void appendSysLogActivities(List<Map<String, Object>> activities, List<Long> visibleUserIds,
+                                        boolean scopeAll) {
         LambdaQueryWrapper<SysLog> sysWrapper = new LambdaQueryWrapper<>();
         if (!scopeAll) sysWrapper.in(SysLog::getUserId, visibleUserIds);
         sysWrapper.orderByDesc(SysLog::getCreatedAt).last(LIT_LIMIT_5);
@@ -1217,13 +1238,15 @@ public class StatisticsQueryService {
                 activities.add(buildActivitySimple(
                         log.getModule() + " · " + log.getAction(),
                         log.getUsername(), "", log.getCreatedAt()));
-                continue;
+            } else {
+                activities.add(buildActivity(
+                        log.getModule() + " · " + log.getAction(),
+                        user, log.getCreatedAt()));
             }
-            activities.add(buildActivity(
-                    log.getModule() + " · " + log.getAction(),
-                    user, log.getCreatedAt()));
         }
+    }
 
+    private List<Map<String, Object>> sortAndTrimActivities(List<Map<String, Object>> activities) {
         activities.sort((a, b) -> {
             LocalDateTime ta = (LocalDateTime) a.get("time");
             LocalDateTime tb = (LocalDateTime) b.get("time");
@@ -1232,11 +1255,7 @@ public class StatisticsQueryService {
             if (tb == null) return -1;
             return tb.compareTo(ta);
         });
-        if (activities.size() > 15) {
-            activities = activities.subList(0, 15);
-        }
-
-        return activities;
+        return activities.size() > 15 ? activities.subList(0, 15) : activities;
     }
 
     /**
