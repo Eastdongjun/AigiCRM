@@ -79,8 +79,18 @@ public class IncentivePermissionController {
         int canViewAll = toInt(body.get("canViewAll"), 0);
         int canEdit = toInt(body.get("canEdit"), 0);
         int canDelete = toInt(body.get("canDelete"), 0);
+        java.util.List<Long> userIds = parseTargetUserIds(body);
+        if (userIds.isEmpty()) throw new BusinessException("请选择要授权的人员或角色");
 
-        // 批量授权：userIds 数组优先；兼容单用户 userId（向后兼容）
+        Long operator = SecurityUtils.getCurrentUserId();
+        String newFlags = canViewShared + "," + canViewAll + "," + canEdit + "," + canDelete;
+        for (Long userId : userIds) {
+            upsertGrant(userId, canViewShared, canViewAll, canEdit, canDelete, operator, newFlags);
+        }
+        return Result.ok();
+    }
+
+    private java.util.List<Long> parseTargetUserIds(Map<String, Object> body) {
         java.util.List<Long> userIds = new java.util.ArrayList<>();
         Object uids = body.get("userIds");
         if (uids instanceof java.util.List && !((java.util.List<?>) uids).isEmpty()) {
@@ -90,14 +100,11 @@ public class IncentivePermissionController {
         } else if (body.get("userId") != null) {
             userIds.add(Long.valueOf(body.get("userId").toString()));
         }
-        // 【2026-11-03 权限中心 P3】按角色批量: roleIds 展开为启用角色的启用成员并集(仿审批 ROLE 展开语义),
-        // 与显式勾选的 userIds 合并去重后统一 upsert——"全员看全员的"= 勾 3 个角色替代 30 多人逐个点
         Object rids = body.get("roleIds");
         if (rids instanceof java.util.List) {
             for (Object o : (java.util.List<?>) rids) {
                 if (o == null) continue;
                 Long roleId = Long.valueOf(o.toString());
-                // selectActiveUserIdsByRoleId: 角色 status=1 且成员 status=1/deleted=0(停用角色不展开)
                 userIds.addAll(jdbc.queryForList(
                         "SELECT ur.user_id FROM sys_user_role ur " +
                                 "JOIN sys_role r ON r.id = ur.role_id " +
@@ -107,31 +114,29 @@ public class IncentivePermissionController {
             }
             userIds = new java.util.ArrayList<>(new java.util.LinkedHashSet<>(userIds));
         }
-        if (userIds.isEmpty()) throw new BusinessException("请选择要授权的人员或角色");
+        return userIds;
+    }
 
-        Long operator = SecurityUtils.getCurrentUserId();
-        String newFlags = canViewShared + "," + canViewAll + "," + canEdit + "," + canDelete;
-        for (Long userId : userIds) {
-            // 【B2 审计】旧值须在 upsert 前读(顺序不可颠倒)
-            String oldFlags = null;
-            var oldRows = jdbc.queryForList(
-                    "SELECT can_view_shared, can_view_all, can_edit, can_delete FROM biz_incentive_grant WHERE user_id = ?", userId);
-            if (!oldRows.isEmpty()) {
-                Map<String, Object> o = oldRows.get(0);
-                oldFlags = o.get("can_view_shared") + "," + o.get("can_view_all") + "," + o.get("can_edit") + "," + o.get("can_delete");
-            }
-            jdbc.update("INSERT INTO biz_incentive_grant " +
-                    "(user_id, can_view_shared, can_view_all, can_edit, can_delete, updated_by) " +
-                    "VALUES (?,?,?,?,?,?) " +
-                    "ON DUPLICATE KEY UPDATE can_view_shared=VALUES(can_view_shared), " +
-                    "can_view_all=VALUES(can_view_all), can_edit=VALUES(can_edit), " +
-                    "can_delete=VALUES(can_delete), updated_by=VALUES(updated_by)",
-                    userId, canViewShared, canViewAll, canEdit, canDelete, operator);
-            recordGrantVersion(userId, oldFlags, newFlags);
-            // 【11-08 修复清单5】sys_audit_log 操作人审计留痕(INCENTIVE_GRANT_SAVE, 四 flag 终态 JSON)
-            securityAuditService.incentiveGrantSaved(userId, canViewShared, canViewAll, canEdit, canDelete);
+    private void upsertGrant(Long userId, int canViewShared, int canViewAll, int canEdit, int canDelete,
+                             Long operator, String newFlags) {
+        // 【B2 审计】旧值须在 upsert 前读(顺序不可颠倒)
+        String oldFlags = null;
+        var oldRows = jdbc.queryForList(
+                "SELECT can_view_shared, can_view_all, can_edit, can_delete FROM biz_incentive_grant WHERE user_id = ?", userId);
+        if (!oldRows.isEmpty()) {
+            Map<String, Object> o = oldRows.get(0);
+            oldFlags = o.get("can_view_shared") + "," + o.get("can_view_all") + "," + o.get("can_edit") + "," + o.get("can_delete");
         }
-        return Result.ok();
+        jdbc.update("INSERT INTO biz_incentive_grant " +
+                "(user_id, can_view_shared, can_view_all, can_edit, can_delete, updated_by) " +
+                "VALUES (?,?,?,?,?,?) " +
+                "ON DUPLICATE KEY UPDATE can_view_shared=VALUES(can_view_shared), " +
+                "can_view_all=VALUES(can_view_all), can_edit=VALUES(can_edit), " +
+                "can_delete=VALUES(can_delete), updated_by=VALUES(updated_by)",
+                userId, canViewShared, canViewAll, canEdit, canDelete, operator);
+        recordGrantVersion(userId, oldFlags, newFlags);
+        // 【11-08 修复清单5】sys_audit_log 操作人审计留痕(INCENTIVE_GRANT_SAVE, 四 flag 终态 JSON)
+        securityAuditService.incentiveGrantSaved(userId, canViewShared, canViewAll, canEdit, canDelete);
     }
 
     /**

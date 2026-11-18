@@ -1184,7 +1184,19 @@ public class FileService {
      */
     public void batchDownload(List<Long> fileIds, jakarta.servlet.http.HttpServletResponse response) {
         requireBatchLimit(fileIds);
-        Long userId = SecurityUtils.getCurrentUserId();
+        List<BizFile> allowed = collectDownloadable(fileIds, SecurityUtils.getCurrentUserId());
+        if (allowed.isEmpty()) throw new BusinessException("无可下载文件（不存在或无下载权限）");
+        try {
+            writeZip(allowed, response);
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.warn("批量下载打包失败: {}", e.getMessage());
+            throw new BusinessException("批量下载失败，请重试");
+        }
+    }
+
+    private List<BizFile> collectDownloadable(List<Long> fileIds, Long userId) {
         List<BizFile> allowed = new ArrayList<>();
         for (Long id : fileIds == null ? List.<Long>of() : fileIds) {
             BizFile f = fileMapper.selectById(id);
@@ -1193,35 +1205,35 @@ public class FileService {
             if (!contentExists(f.getOssKey())) continue;
             allowed.add(f);
         }
-        if (allowed.isEmpty()) throw new BusinessException("无可下载文件（不存在或无下载权限）");
-        try {
-            response.setContentType("application/zip");
-            String zipName = "files-" + java.time.LocalDate.now() + ".zip";
-            String encoded = java.net.URLEncoder.encode(zipName, java.nio.charset.StandardCharsets.UTF_8).replace("+", "%20");
-            response.setHeader("Content-Disposition", "attachment; filename*=UTF-8''" + encoded);
-            java.util.Set<String> used = new java.util.HashSet<>();
-            try (java.util.zip.ZipOutputStream zos = new java.util.zip.ZipOutputStream(response.getOutputStream())) {
-                for (BizFile f : allowed) {
-                    // 【V2026.11.14.3 P2】条目名清洗: 路径穿越(..)/分隔符/控制字符 → '_'(zip slip 防线)
-                    String base = sanitizeZipEntryName(f.getFileName(), f.getId());
-                    String unique = base;
-                    int i = 1;
-                    while (!used.add(unique)) {
-                        unique = base.replaceFirst("(\\.[^.]+)?$",
-                                base.matches(".*\\.[^.]+") ? "-" + i + "$1" : "-" + i);
-                        i++;
-                    }
-                    zos.putNextEntry(new java.util.zip.ZipEntry(unique));
-                    writeStoredContentTo(f.getOssKey(), zos);
-                    zos.closeEntry();
-                }
+        return allowed;
+    }
+
+    private void writeZip(List<BizFile> allowed, jakarta.servlet.http.HttpServletResponse response) throws Exception {
+        response.setContentType("application/zip");
+        String zipName = "files-" + java.time.LocalDate.now() + ".zip";
+        String encoded = java.net.URLEncoder.encode(zipName, java.nio.charset.StandardCharsets.UTF_8).replace("+", "%20");
+        response.setHeader("Content-Disposition", "attachment; filename*=UTF-8''" + encoded);
+        java.util.Set<String> used = new java.util.HashSet<>();
+        try (java.util.zip.ZipOutputStream zos = new java.util.zip.ZipOutputStream(response.getOutputStream())) {
+            for (BizFile f : allowed) {
+                // 【V2026.11.14.3 P2】条目名清洗: 路径穿越(..)/分隔符/控制字符 → '_'(zip slip 防线)
+                String unique = uniqueEntryName(sanitizeZipEntryName(f.getFileName(), f.getId()), used);
+                zos.putNextEntry(new java.util.zip.ZipEntry(unique));
+                writeStoredContentTo(f.getOssKey(), zos);
+                zos.closeEntry();
             }
-        } catch (BusinessException e) {
-            throw e;
-        } catch (Exception e) {
-            log.warn("批量下载打包失败: {}", e.getMessage());
-            throw new BusinessException("批量下载失败，请重试");
         }
+    }
+
+    private String uniqueEntryName(String base, java.util.Set<String> used) {
+        String unique = base;
+        int i = 1;
+        while (!used.add(unique)) {
+            unique = base.replaceFirst("(\\.[^.]+)?$",
+                    base.matches(".*\\.[^.]+") ? "-" + i + "$1" : "-" + i);
+            i++;
+        }
+        return unique;
     }
 
     /**

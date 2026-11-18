@@ -75,36 +75,10 @@ public class TaskService {
     /** 创建任务(跟进日志中"下一步"承诺落地) */
     @Transactional
     public BizTask create(BizTask task) {
-        if (task.getTitle() == null || task.getTitle().trim().isEmpty()) {
-            throw new BusinessException("任务标题不能为空");
-        }
-        if (task.getAssigneeId() == null) {
-            throw new BusinessException("责任人不能为空");
-        }
-        SysUser assignee = userMapper.selectById(task.getAssigneeId());
-        if (assignee == null || assignee.getStatus() == null || assignee.getStatus() != 1) {
-            throw new BusinessException("责任人不存在或已停用");
-        }
-        // 【GPT复审 P1-04 修复 2026-09-21】分派目标须在操作者可见范围(与查询侧 assertAssigneeVisible 同口径)
-        assertAssigneeVisible(task.getAssigneeId(), SecurityUtils.getCurrentUserId());
-        // 【GPT复审 P1-05 修复 2026-09-21】关联对象守卫: 客户须存在未删, 跟进日志须归属该客户
-        // 【GPT三轮 TASK-P1-003 2026-09-22】存在性只防跨租户; 同集团横向须再套客户对象 DataScope 守卫
-        if (task.getCustomerId() != null) {
-            var customer = customerMapper.selectById(task.getCustomerId());
-            if (customer == null || (customer.getDeleted() != null && customer.getDeleted() == 1)) {
-                throw new BusinessException("关联客户不存在");
-            }
-            customerAccessService.assertCanView(task.getCustomerId());
-        }
-        if (task.getSourceLogId() != null) {
-            if (task.getCustomerId() == null) {
-                throw new BusinessException("关联跟进日志必须同时指定客户");
-            }
-            var log = customerLogMapper.selectById(task.getSourceLogId());
-            if (log == null || !task.getCustomerId().equals(log.getCustomerId())) {
-                throw new BusinessException("跟进日志不存在或不属于该客户");
-            }
-        }
+        requireTaskTitle(task);
+        requireActiveAssignee(task);
+        validateCustomerLink(task.getCustomerId());
+        validateSourceLogLink(task.getCustomerId(), task.getSourceLogId());
         task.setCreatedBy(SecurityUtils.getCurrentUserId());
         task.setStatus(LIT_PENDING);
         if (task.getDueDate() != null && task.getDueDate().isBefore(LocalDate.now())) {
@@ -112,6 +86,40 @@ public class TaskService {
         }
         taskMapper.insert(task);
         return task;
+    }
+
+    private void requireTaskTitle(BizTask task) {
+        if (task.getTitle() == null || task.getTitle().trim().isEmpty()) {
+            throw new BusinessException("任务标题不能为空");
+        }
+    }
+
+    private void requireActiveAssignee(BizTask task) {
+        if (task.getAssigneeId() == null) throw new BusinessException("责任人不能为空");
+        SysUser assignee = userMapper.selectById(task.getAssigneeId());
+        if (assignee == null || assignee.getStatus() == null || assignee.getStatus() != 1) {
+            throw new BusinessException("责任人不存在或已停用");
+        }
+        // 分派目标须在操作者可见范围(与查询侧 assertAssigneeVisible 同口径)
+        assertAssigneeVisible(task.getAssigneeId(), SecurityUtils.getCurrentUserId());
+    }
+
+    private void validateCustomerLink(Long customerId) {
+        if (customerId == null) return;
+        var customer = customerMapper.selectById(customerId);
+        if (customer == null || (customer.getDeleted() != null && customer.getDeleted() == 1)) {
+            throw new BusinessException("关联客户不存在");
+        }
+        customerAccessService.assertCanView(customerId);
+    }
+
+    private void validateSourceLogLink(Long customerId, Long sourceLogId) {
+        if (sourceLogId == null) return;
+        if (customerId == null) throw new BusinessException("关联跟进日志必须同时指定客户");
+        var log = customerLogMapper.selectById(sourceLogId);
+        if (log == null || !customerId.equals(log.getCustomerId())) {
+            throw new BusinessException("跟进日志不存在或不属于该客户");
+        }
     }
 
     /** 完成任务(必须记录结果——总册:"任务完成必须保留结果") */
