@@ -21,6 +21,25 @@ const STATUS_MSG = {
   500: '服务器繁忙，请稍后再试',
 }
 
+function responseErrorText(status) {
+  return STATUS_MSG[status] || `文件加载失败（${status}）`
+}
+
+async function readPreviewResponse(res, expect, errorRef, tooLargeRef) {
+  if (!res.ok) {
+    errorRef.value = responseErrorText(res.status)
+    return null
+  }
+  const length = Number(res.headers.get('content-length') || 0)
+  if (length > PREVIEW_SIZE_LIMIT) {
+    tooLargeRef.value = true
+    return null
+  }
+  if (expect === 'text') return await res.text()
+  if (expect === 'arrayBuffer') return await res.arrayBuffer()
+  return await res.blob()
+}
+
 export function useFileBlob() {
   const loading = ref(false)
   const error = ref('')
@@ -61,18 +80,7 @@ export function useFileBlob() {
         headers: { Authorization: 'Bearer ' + (getToken() || '') },
         signal: own.signal,
       })
-      if (!res.ok) {
-        error.value = STATUS_MSG[res.status] || `文件加载失败（${res.status}）`
-        return null
-      }
-      const length = Number(res.headers.get('content-length') || 0)
-      if (length > PREVIEW_SIZE_LIMIT) {
-        tooLarge.value = true
-        return null
-      }
-      if (expect === 'text') return await res.text()
-      if (expect === 'arrayBuffer') return await res.arrayBuffer()
-      return await res.blob()
+      return await readPreviewResponse(res, expect, error, tooLarge)
     } catch (e) {
       // 被更新的请求取代（abort）不算错误；超时与网络失败给出可读原因
       if (e && e.name === 'AbortError') {
