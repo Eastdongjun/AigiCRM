@@ -1538,7 +1538,15 @@ public class CustomerService {
      */
     private void fillCustomerNames(List<BizCustomer> customers) {
         if (customers == null || customers.isEmpty()) return;
+        CustomerIdSets ids = collectCustomerIds(customers);
+        Map<Long, String> userNames = loadUserNames(ids.userIds());
+        Map<Long, String> deptNames = loadDeptNames(ids.deptIds());
+        applyCustomerNames(customers, userNames, deptNames);
+    }
 
+    private record CustomerIdSets(Set<Long> userIds, Set<Long> deptIds) {}
+
+    private CustomerIdSets collectCustomerIds(List<BizCustomer> customers) {
         Set<Long> userIds = new HashSet<>();
         Set<Long> deptIds = new HashSet<>();
         for (BizCustomer c : customers) {
@@ -1548,18 +1556,29 @@ public class CustomerService {
             if (c.getRegionId() != null) deptIds.add(c.getRegionId());
             if (c.getDeptId() != null) deptIds.add(c.getDeptId());
         }
+        return new CustomerIdSets(userIds, deptIds);
+    }
 
+    private Map<Long, String> loadUserNames(Set<Long> userIds) {
         Map<Long, String> userNames = new HashMap<>();
         if (!userIds.isEmpty()) {
             userMapper.selectByIds(userIds)
                     .forEach(u -> userNames.put(u.getId(), u.getRealName()));
         }
+        return userNames;
+    }
+
+    private Map<Long, String> loadDeptNames(Set<Long> deptIds) {
         Map<Long, String> deptNames = new HashMap<>();
         if (!deptIds.isEmpty()) {
             deptMapper.selectByIds(deptIds)
                     .forEach(d -> deptNames.put(d.getId(), d.getDeptName()));
         }
+        return deptNames;
+    }
 
+    private void applyCustomerNames(List<BizCustomer> customers, Map<Long, String> userNames,
+                                    Map<Long, String> deptNames) {
         for (BizCustomer c : customers) {
             if (c.getOwnerId() != null) c.setOwnerName(userNames.get(c.getOwnerId()));
             if (c.getManagerId() != null) c.setManagerName(userNames.get(c.getManagerId()));

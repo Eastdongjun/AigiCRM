@@ -657,6 +657,11 @@ public class FolderPermissionService {
         if (upperId == null || lowerId == null) return false;
         SysUser lower = userMapper.selectById(lowerId);
         if (lower == null) return false;
+        if (managerChainHit(upperId, lower)) return true;
+        return deptLeaderChainHit(upperId, lower);
+    }
+
+    private boolean managerChainHit(Long upperId, SysUser lower) {
         SysUser cur = lower;
         for (int i = 0; i < MAX_HOP && cur != null; i++) {
             if (cur.getManagerId() != null) {
@@ -664,13 +669,16 @@ public class FolderPermissionService {
                 cur = userMapper.selectById(cur.getManagerId());
             } else break;
         }
-        if (lower.getManagerId() == null && lower.getDeptId() != null) {
-            SysDept dept = deptMapper.selectById(lower.getDeptId());
-            for (int i = 0; i < MAX_HOP && dept != null; i++) {
-                if (dept.getLeaderId() != null && dept.getLeaderId().equals(upperId)) return true;
-                if (dept.getParentId() == null || dept.getParentId() == 0) break;
-                dept = deptMapper.selectById(dept.getParentId());
-            }
+        return false;
+    }
+
+    private boolean deptLeaderChainHit(Long upperId, SysUser lower) {
+        if (lower.getManagerId() != null || lower.getDeptId() == null) return false;
+        SysDept dept = deptMapper.selectById(lower.getDeptId());
+        for (int i = 0; i < MAX_HOP && dept != null; i++) {
+            if (dept.getLeaderId() != null && dept.getLeaderId().equals(upperId)) return true;
+            if (dept.getParentId() == null || dept.getParentId() == 0) break;
+            dept = deptMapper.selectById(dept.getParentId());
         }
         return false;
     }

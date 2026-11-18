@@ -131,18 +131,23 @@ public class FileGrantService {
         Map<Long, Set<Long>> orgCache = new HashMap<>();
         Map<Long, Set<Long>> folderCache = new HashMap<>();
         for (BizFile file : files) {
-            Set<Long> orgs = orgCache.computeIfAbsent(file.getOrgId(), this::orgAncestors);
-            Set<Long> folders = file.getFolderId() == null ? Set.of()
-                    : folderCache.computeIfAbsent(file.getFolderId(), this::folderAncestors);
-            Decision decision = Decision.ABSTAIN;
-            for (BizFileGrant g : grants) {
-                if (!coversFile(g, file, orgs, folders)) continue;
-                if ("DENY".equalsIgnoreCase(g.getEffect())) { decision = Decision.DENY; break; }
-                if (LIT_ALLOW.equalsIgnoreCase(g.getEffect())) decision = Decision.ALLOW;
-            }
-            out.put(file.getId(), decision);
+            out.put(file.getId(), decideFile(file, grants, orgCache, folderCache));
         }
         return out;
+    }
+
+    private Decision decideFile(BizFile file, List<BizFileGrant> grants,
+                                Map<Long, Set<Long>> orgCache, Map<Long, Set<Long>> folderCache) {
+        Set<Long> orgs = orgCache.computeIfAbsent(file.getOrgId(), this::orgAncestors);
+        Set<Long> folders = file.getFolderId() == null ? Set.of()
+                : folderCache.computeIfAbsent(file.getFolderId(), this::folderAncestors);
+        Decision decision = Decision.ABSTAIN;
+        for (BizFileGrant g : grants) {
+            if (!coversFile(g, file, orgs, folders)) continue;
+            if ("DENY".equalsIgnoreCase(g.getEffect())) return Decision.DENY;
+            if (LIT_ALLOW.equalsIgnoreCase(g.getEffect())) decision = Decision.ALLOW;
+        }
+        return decision;
     }
 
     // ==================== 【Batch-4 #1】多动作批量判定（按钮视图收口） ====================
