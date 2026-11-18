@@ -170,29 +170,36 @@ public class SysUserService {
             return applyGroupScope(deptIds);
         }
         java.util.Set<Long> allowed = new LinkedHashSet<>(visibleDeptIds);
-        if (SecurityUtils.isOrgAdmin()) {
-            java.util.List<Long> managedOrgIds = SecurityUtils.getCurrentManagedOrgIds();
-            if (managedOrgIds != null) {
-                for (Long orgId : managedOrgIds) {
-                    if (orgId == null) continue;
-                    allowed.add(orgId);
-                    java.util.List<Long> descendants = deptMapper.selectDescendantIds(orgId);
-                    if (descendants != null) allowed.addAll(descendants);
-                }
-            }
-        }
+        mergeManagedOrgs(allowed);
         if (allowed.isEmpty()) return null;
-        if (!StringUtils.hasText(deptIds)) {
-            return allowed.stream().map(String::valueOf).collect(java.util.stream.Collectors.joining(","));
+        if (!StringUtils.hasText(deptIds)) return joinIds(allowed);
+        java.util.Set<Long> requested = parseRequestedDeptIds(deptIds);
+        requested.retainAll(allowed);
+        return requested.isEmpty() ? null : joinIds(requested);
+    }
+
+    private void mergeManagedOrgs(java.util.Set<Long> allowed) {
+        if (!SecurityUtils.isOrgAdmin()) return;
+        java.util.List<Long> managedOrgIds = SecurityUtils.getCurrentManagedOrgIds();
+        if (managedOrgIds == null) return;
+        for (Long orgId : managedOrgIds) {
+            if (orgId == null) continue;
+            allowed.add(orgId);
+            java.util.List<Long> descendants = deptMapper.selectDescendantIds(orgId);
+            if (descendants != null) allowed.addAll(descendants);
         }
-        java.util.Set<Long> requested = java.util.Arrays.stream(deptIds.split(","))
+    }
+
+    private java.util.Set<Long> parseRequestedDeptIds(String deptIds) {
+        return java.util.Arrays.stream(deptIds.split(","))
                 .map(String::trim)
                 .filter(StringUtils::hasText)
                 .map(Long::parseLong)
                 .collect(java.util.stream.Collectors.toSet());
-        requested.retainAll(allowed);
-        if (requested.isEmpty()) return null;
-        return requested.stream().map(String::valueOf).collect(java.util.stream.Collectors.joining(","));
+    }
+
+    private String joinIds(java.util.Set<Long> ids) {
+        return ids.stream().map(String::valueOf).collect(java.util.stream.Collectors.joining(","));
     }
 
     /**

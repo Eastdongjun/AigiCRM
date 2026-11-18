@@ -126,38 +126,48 @@ public class StatisticsQueryService {
      */
     static Map<Long, java.math.BigDecimal[]> annualAmountsByCustomer(
             List<com.aigicrm.module.customer.entity.BizCustomerStageAmount> rows) {
-        Map<Long, Map<Integer, List<com.aigicrm.module.customer.entity.BizCustomerStageAmount>>> byCustomerYear = new HashMap<>();
-        for (com.aigicrm.module.customer.entity.BizCustomerStageAmount r : rows) {
-            if (r.getCustomerId() == null) continue;
-            byCustomerYear.computeIfAbsent(r.getCustomerId(), k -> new HashMap<>())
-                    .computeIfAbsent(r.getPeriodYear(), k -> new ArrayList<>()).add(r);
-        }
+        Map<Long, Map<Integer, List<com.aigicrm.module.customer.entity.BizCustomerStageAmount>>> byCustomerYear = groupByCustomerYear(rows);
         Map<Long, java.math.BigDecimal[]> result = new HashMap<>();
         for (var e : byCustomerYear.entrySet()) {
-            int baseYear = 0;
-            for (var ye : e.getValue().entrySet()) {
-                if (ye.getValue().stream().anyMatch(StatisticsQueryService::hasStageAmount)) {
-                    baseYear = Math.max(baseYear, ye.getKey());
-                }
-            }
+            int baseYear = baseYearOf(e.getValue());
             if (baseYear == 0) continue;
-            List<com.aigicrm.module.customer.entity.BizCustomerStageAmount> yearRows = e.getValue().get(baseYear);
-            var fy = yearRows.stream()
-                    .filter(r -> "FY".equals(r.getPeriodType()) && hasStageAmount(r)).findFirst().orElse(null);
-            java.math.BigDecimal inv;
-            java.math.BigDecimal pay;
-            if (fy != null) {
-                inv = nvl(fy.getInvoiceAmount());
-                pay = nvl(fy.getPaymentAmount());
-            } else {
-                List<com.aigicrm.module.customer.entity.BizCustomerStageAmount> halves = yearRows.stream()
-                        .filter(r -> "H1".equals(r.getPeriodType()) || "H2".equals(r.getPeriodType())).toList();
-                inv = halves.stream().map(r -> nvl(r.getInvoiceAmount())).reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
-                pay = halves.stream().map(r -> nvl(r.getPaymentAmount())).reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
-            }
-            result.put(e.getKey(), new java.math.BigDecimal[]{inv, pay});
+            result.put(e.getKey(), annualPair(e.getValue().get(baseYear)));
         }
         return result;
+    }
+
+    private static Map<Long, Map<Integer, List<com.aigicrm.module.customer.entity.BizCustomerStageAmount>>> groupByCustomerYear(
+            List<com.aigicrm.module.customer.entity.BizCustomerStageAmount> rows) {
+        Map<Long, Map<Integer, List<com.aigicrm.module.customer.entity.BizCustomerStageAmount>>> out = new HashMap<>();
+        for (com.aigicrm.module.customer.entity.BizCustomerStageAmount r : rows) {
+            if (r.getCustomerId() == null) continue;
+            out.computeIfAbsent(r.getCustomerId(), k -> new HashMap<>())
+                    .computeIfAbsent(r.getPeriodYear(), k -> new ArrayList<>()).add(r);
+        }
+        return out;
+    }
+
+    private static int baseYearOf(Map<Integer, List<com.aigicrm.module.customer.entity.BizCustomerStageAmount>> byYear) {
+        int baseYear = 0;
+        for (var ye : byYear.entrySet()) {
+            if (ye.getValue().stream().anyMatch(StatisticsQueryService::hasStageAmount)) {
+                baseYear = Math.max(baseYear, ye.getKey());
+            }
+        }
+        return baseYear;
+    }
+
+    private static java.math.BigDecimal[] annualPair(List<com.aigicrm.module.customer.entity.BizCustomerStageAmount> yearRows) {
+        var fy = yearRows.stream()
+                .filter(r -> "FY".equals(r.getPeriodType()) && hasStageAmount(r)).findFirst().orElse(null);
+        if (fy != null) {
+            return new java.math.BigDecimal[]{nvl(fy.getInvoiceAmount()), nvl(fy.getPaymentAmount())};
+        }
+        List<com.aigicrm.module.customer.entity.BizCustomerStageAmount> halves = yearRows.stream()
+                .filter(r -> "H1".equals(r.getPeriodType()) || "H2".equals(r.getPeriodType())).toList();
+        java.math.BigDecimal inv = halves.stream().map(r -> nvl(r.getInvoiceAmount())).reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+        java.math.BigDecimal pay = halves.stream().map(r -> nvl(r.getPaymentAmount())).reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+        return new java.math.BigDecimal[]{inv, pay};
     }
 
     static int indicatorScore(BizCustomerIndicator indicator) {
