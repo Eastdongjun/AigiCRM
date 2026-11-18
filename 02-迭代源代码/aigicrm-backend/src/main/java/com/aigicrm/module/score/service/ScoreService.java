@@ -302,38 +302,12 @@ public class ScoreService {
             w.eq(BizScoreEntry::getPeriod, period);
         }
         List<BizScoreEntry> entries = entryMapper.selectList(w);
-
-        // 按 userId 汇总
-        Map<Long, Integer> totalScores = new HashMap<>();
-        Map<Long, Integer> itemCounts = new HashMap<>(); // 非零得分项数
-        for (BizScoreEntry e : entries) {
-            totalScores.merge(e.getUserId(), e.getScore(), Integer::sum);
-            if (e.getScore() != null && e.getScore() > 0) {
-                itemCounts.merge(e.getUserId(), 1, Integer::sum);
-            }
-        }
+        ScoreTotals totals = aggregateScores(entries);
 
         // 上一期排名（用于计算趋势）
         Map<Long, Integer> prevRanks = getPrevRanks(period);
-
-        // 排序：总分降序 → 项数降序 → 姓名
-        // 【11-08 逐点核对修复】第三键"姓名"此前仅存在于注释与前端 footer 文案, 未落进比较器,
-        // 同分同名次取决于 HashMap 迭代序(不确定)——补姓名兜底使排序确定化, 与文档/文案口径对齐。
-        Map<Long, String> userNames = new HashMap<>();
-        for (SysUser u : userMapper.selectBatchIds(totalScores.keySet())) {
-            userNames.put(u.getId(), u.getRealName());
-        }
-        List<Map.Entry<Long, Integer>> sorted = new ArrayList<>(totalScores.entrySet());
-        sorted.sort((a, b) -> {
-            int cmp = b.getValue().compareTo(a.getValue());
-            if (cmp != 0) return cmp;
-            cmp = (itemCounts.getOrDefault(b.getKey(), 0)).compareTo(
-                    itemCounts.getOrDefault(a.getKey(), 0));
-            if (cmp != 0) return cmp;
-            String nameA = userNames.getOrDefault(a.getKey(), "");
-            String nameB = userNames.getOrDefault(b.getKey(), "");
-            return nameA.compareTo(nameB);
-        });
+        Map<Long, String> userNames = userNames(totals.totalScores().keySet());
+        List<Map.Entry<Long, Integer>> sorted = sortedEntries(totals, userNames);
 
         List<Map<String, Object>> result = new ArrayList<>();
         int rank = 0;
@@ -344,35 +318,77 @@ public class ScoreService {
             // 判空通过才占名次, 趋势(prevRanks)口径同步不受影响。
             if (user == null) continue;
             rank++;
-
-            String officeName = "";
-            if (user.getDeptId() != null) {
-                var dept = deptMapper.selectById(user.getDeptId());
-                if (dept != null) officeName = dept.getDeptName();
-            }
-
-            // 趋势
-            String trend;
-            if (rank == 1) {
-                trend = "领先";
-            } else if (prevRanks.containsKey(uid)) {
-                int prevRank = prevRanks.get(uid);
-                trend = rank < prevRank ? "上升" : "追赶";
-            } else {
-                trend = "追赶";
-            }
-
-            Map<String, Object> row = new LinkedHashMap<>();
-            row.put("rank", rank);
-            row.put(LIT_USERID, uid);
-            row.put(LIT_REALNAME, user.getRealName());
-            row.put(LIT_OFFICENAME, officeName);
-            row.put(LIT_TOTALSCORE, entry.getValue());
-            row.put(LIT_ITEMCOUNT, itemCounts.getOrDefault(uid, 0));
-            row.put("trend", trend);
-            result.add(row);
+            result.add(rankingRow(uid, entry.getValue(), rank, user, totals.itemCounts(), prevRanks));
         }
         return result;
+    }
+
+    private record ScoreTotals(Map<Long, Integer> totalScores, Map<Long, Integer> itemCounts) {}
+
+    private ScoreTotals aggregateScores(List<BizScoreEntry> entries) {
+        // 按 userId 汇总
+        Map<Long, Integer> totalScores = new HashMap<>();
+        Map<Long, Integer> itemCounts = new HashMap<>(); // 非零得分项数
+        for (BizScoreEntry e : entries) {
+            totalScores.merge(e.getUserId(), e.getScore(), Integer::sum);
+            if (e.getScore() != null && e.getScore() > 0) {
+                itemCounts.merge(e.getUserId(), 1, Integer::sum);
+            }
+        }
+        return new ScoreTotals(totalScores, itemCounts);
+    }
+
+    private Map<Long, String> userNames(Set<Long> userIds) {
+        Map<Long, String> userNames = new HashMap<>();
+        for (SysUser u : userMapper.selectBatchIds(userIds)) {
+            userNames.put(u.getId(), u.getRealName());
+        }
+        return userNames;
+    }
+
+    private List<Map.Entry<Long, Integer>> sortedEntries(ScoreTotals totals, Map<Long, String> userNames) {
+        // 排序：总分降序 → 项数降序 → 姓名
+        // 【11-08 逐点核对修复】第三键"姓名"此前仅存在于注释与前端 footer 文案, 未落进比较器,
+        // 同分同名次取决于 HashMap 迭代序(不确定)——补姓名兜底使排序确定化, 与文档/文案口径对齐。
+        List<Map.Entry<Long, Integer>> sorted = new ArrayList<>(totals.totalScores().entrySet());
+        sorted.sort((a, b) -> {
+            int cmp = b.getValue().compareTo(a.getValue());
+            if (cmp != 0) return cmp;
+            cmp = (totals.itemCounts().getOrDefault(b.getKey(), 0)).compareTo(
+                    totals.itemCounts().getOrDefault(a.getKey(), 0));
+            if (cmp != 0) return cmp;
+            String nameA = userNames.getOrDefault(a.getKey(), "");
+            String nameB = userNames.getOrDefault(b.getKey(), "");
+            return nameA.compareTo(nameB);
+        });
+        return sorted;
+    }
+
+    private Map<String, Object> rankingRow(Long uid, Integer score, int rank, SysUser user,
+                                           Map<Long, Integer> itemCounts, Map<Long, Integer> prevRanks) {
+        String officeName = "";
+        if (user.getDeptId() != null) {
+            var dept = deptMapper.selectById(user.getDeptId());
+            if (dept != null) officeName = dept.getDeptName();
+        }
+        String trend;
+        if (rank == 1) {
+            trend = "领先";
+        } else if (prevRanks.containsKey(uid)) {
+            int prevRank = prevRanks.get(uid);
+            trend = rank < prevRank ? "上升" : "追赶";
+        } else {
+            trend = "追赶";
+        }
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("rank", rank);
+        row.put(LIT_USERID, uid);
+        row.put(LIT_REALNAME, user.getRealName());
+        row.put(LIT_OFFICENAME, officeName);
+        row.put(LIT_TOTALSCORE, score);
+        row.put(LIT_ITEMCOUNT, itemCounts.getOrDefault(uid, 0));
+        row.put("trend", trend);
+        return row;
     }
 
     /** 【2026-11-07 用户令"部门排行做成明细, PC端也一样"】部门成员明细: 复用个人排行按 officeName
