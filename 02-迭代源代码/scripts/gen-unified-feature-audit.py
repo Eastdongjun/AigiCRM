@@ -117,7 +117,6 @@ CONTROLLER_MAPPING_BARE_RE = re.compile(r"@(Get|Post|Put|Delete|Patch)Mapping")
 CONTROLLER_MAPPING_VALUE_RE = re.compile(r"@(Get|Post|Put|Delete|Patch)Mapping\(value\s*=\s*\"([^\"]*)\"\s*\)")
 CONTROLLER_MAPPING_STRING_RE = re.compile(r"@(Get|Post|Put|Delete|Patch)Mapping\(\"([^\"]*)\"\s*\)")
 CONTROLLER_AUTH_RE = re.compile(r"@PreAuthorize\(\"([^\"]+)\"\)")
-CONTROLLER_SIGNATURE_RE = re.compile(r"public\s+[^(\n]*\(")
 
 
 def _controller_mapping(annotations: str):
@@ -147,6 +146,11 @@ def _resets_annotations(stripped: str) -> bool:
     return bool(stripped and not stripped.startswith("//") and not stripped.startswith("*") and not stripped.startswith("/*"))
 
 
+def _looks_like_signature(stripped: str) -> bool:
+    """public 后跟空白且含 '('（无正则，避免 S5852 启发式）。"""
+    return stripped.startswith("public") and len(stripped) > 6 and stripped[6].isspace() and "(" in stripped
+
+
 def _controller_endpoints(path: Path, root: Path) -> list[Endpoint]:
     endpoints: list[Endpoint] = []
     text = read(path)
@@ -156,7 +160,7 @@ def _controller_endpoints(path: Path, root: Path) -> list[Endpoint]:
         stripped = line.strip()
         if stripped.startswith("@"):
             annotation_lines.append(stripped)
-        elif CONTROLLER_SIGNATURE_RE.match(stripped):
+        elif _looks_like_signature(stripped):
             endpoint = _endpoint_from_annotations(annotation_lines, class_mapping, path, root)
             if endpoint is not None:
                 endpoints.append(endpoint)
