@@ -114,14 +114,18 @@ def extract_mobile_apis(api_dir: Path, root: Path) -> list[ApiFunction]:
 
 CONTROLLER_CLASS_MAPPING_RE = re.compile(r"@RequestMapping\(\"([^\"]+)\"\)")
 CONTROLLER_MAPPING_BARE_RE = re.compile(r"@(Get|Post|Put|Delete|Patch)Mapping")
-CONTROLLER_MAPPING_ARGS_RE = re.compile(r"@(Get|Post|Put|Delete|Patch)Mapping\(\s*(?:value\s*=\s*)?\"([^\"]*)\"\s*\)")
+CONTROLLER_MAPPING_VALUE_RE = re.compile(r"@(Get|Post|Put|Delete|Patch)Mapping\(value\s*=\s*\"([^\"]*)\"\s*\)")
+CONTROLLER_MAPPING_STRING_RE = re.compile(r"@(Get|Post|Put|Delete|Patch)Mapping\(\"([^\"]*)\"\s*\)")
 CONTROLLER_AUTH_RE = re.compile(r"@PreAuthorize\(\"([^\"]+)\"\)")
 CONTROLLER_SIGNATURE_RE = re.compile(r"public\s+.+\s+\w+\s*\(")
 
 
 def _controller_mapping(annotations: str):
-    """返回 (method, suffix)；无映射注解返回 (None, "")。拆两条正则避免 S5852 嵌套可选组。"""
-    mapping = CONTROLLER_MAPPING_ARGS_RE.search(annotations)
+    """返回 (method, suffix)；无映射注解返回 (None, "")。三条正则均无可选组，避免 S5852。"""
+    mapping = CONTROLLER_MAPPING_VALUE_RE.search(annotations)
+    if mapping:
+        return mapping.group(1).upper(), mapping.group(2)
+    mapping = CONTROLLER_MAPPING_STRING_RE.search(annotations)
     if mapping:
         return mapping.group(1).upper(), mapping.group(2)
     bare = CONTROLLER_MAPPING_BARE_RE.search(annotations)
