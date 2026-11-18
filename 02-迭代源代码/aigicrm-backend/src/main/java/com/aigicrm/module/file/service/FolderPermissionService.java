@@ -164,42 +164,50 @@ public class FolderPermissionService {
         BizFile file = fileMapper.selectById(fileId);
         if (file == null) return false;
         // 【2026-11-17 阶段二】统一授权 DENY 优先于“上传者本人恒管”；ALLOW 作为例外通道。
-        if (fileGrantService != null) {
-            FileGrantService.Decision d = fileGrantService.decideFile(file, action, userId);
-            if (d == FileGrantService.Decision.DENY) return false;
-            if (d == FileGrantService.Decision.ALLOW) return true;
-        }
+        Boolean grantDecision = applyFileGrantDecision(file, action, userId);
+        if (grantDecision != null) return grantDecision;
         // 【2026-11-10 用户令"A"】上传者本人恒可管理自己上传的文件(改名/替换/删除/分享/下载), 无论在哪个夹
         if (Objects.equals(file.getUploaderId(), userId)) return true;
         if (isManagerChain(userId, file.getUploaderId())) return true;
-        String folderType = null;
-        Long folderRef = file.getFolderId();
-        BizFileFolder ref = null;
-        if (folderRef != null) {
-            ref = folderMapper.selectById(folderRef);
-            if (ref != null) folderType = ref.getFolderType();
-        }
-        // 【安全修复 2026-11-12 根因4】无夹文件(激励附件/无夹上传/夹已删孤儿)以 fileScope 为类型锚:
-        // 原 null 锚使 grantHitIn 的 "folderType != null 才校验" 约束被跳过, 公共/私人空间的
-        // 类型授权可跨空间命中激励附件——与 :106 "激励附件只吃 incentive 类型授权"口径相悖。
-        // 空间锚后类型授权不跨空间(生产实测无夹文件 fileScope 无 NULL: incentive 2553/public 2)。
-        if (folderType == null && file.getFileScope() != null) folderType = file.getFileScope();
-        if (grantGranted(OBJ_FILE, folderType, folderRef, file.getOrgId(), file.getUploaderId(), action, userId)) return true;
+        FolderRef ref = resolveFolderRef(file);
+        if (grantGranted(OBJ_FILE, ref.folderType(), file.getFolderId(), file.getOrgId(), file.getUploaderId(), action, userId)) return true;
         // 【2026-11-14 用户令】公共夹文件的查看/下载按 data_scope；不再“公共夹全员默认”。
-        if ("public".equals(folderType) && isPublicReadAction(action)) {
-            Long org = ref != null ? ref.getOrgId() : file.getOrgId();
+        if ("public".equals(ref.folderType()) && isPublicReadAction(action)) {
+            Long org = ref.ref() != null ? ref.ref().getOrgId() : file.getOrgId();
             return deptVisible(org, userId, matrixActionOf(action));
         }
         // 【拍板 A 2026-11-14 私人空间收口】私人文件不走组织矩阵——仅本人/上级链/例外授权(已在前)。
         // 有夹跟夹(夹=private); 无夹跟空间锚(fileScope=private)。同部门普通同事不得因 dept 档
         // 看到他人私人夹内文件/他人无夹私人文件。
-        if (ref != null && LIT_PRIVATE.equals(ref.getFolderType())) return false;
+        if (ref.ref() != null && LIT_PRIVATE.equals(ref.ref().getFolderType())) return false;
         // 【2026-11-10 三层定型】无夹文件按 fileScope 定型(激励附件只吃 incentive 类型授权, 公共/私人授权不再误盖)
-        if (ref == null && LIT_PRIVATE.equals(file.getFileScope())) return false;
+        if (ref.ref() == null && LIT_PRIVATE.equals(file.getFileScope())) return false;
         // 【拍板②】夹内文件跟夹走(夹.org ∈ 可见部门集); 无夹文件(激励附件/公共无夹)跟上传人(OWNER 锚)
-        if (ref != null) return deptVisible(ref.getOrgId(), userId, matrixActionOf(action));
+        if (ref.ref() != null) return deptVisible(ref.ref().getOrgId(), userId, matrixActionOf(action));
         Long uploader = file.getUploaderId();
         return uploader != null && matrixVisible(uploader, userId, matrixActionOf(action));
+    }
+
+    private Boolean applyFileGrantDecision(BizFile file, String action, Long userId) {
+        if (fileGrantService == null) return null;
+        FileGrantService.Decision d = fileGrantService.decideFile(file, action, userId);
+        if (d == FileGrantService.Decision.DENY) return false;
+        if (d == FileGrantService.Decision.ALLOW) return true;
+        return null;
+    }
+
+    private record FolderRef(BizFileFolder ref, String folderType) {}
+
+    private FolderRef resolveFolderRef(BizFile file) {
+        Long folderRef = file.getFolderId();
+        BizFileFolder ref = folderRef != null ? folderMapper.selectById(folderRef) : null;
+        String folderType = ref != null ? ref.getFolderType() : null;
+        // 【安全修复 2026-11-12 根因4】无夹文件(激励附件/无夹上传/夹已删孤儿)以 fileScope 为类型锚:
+        // 原 null 锚使 grantHitIn 的 "folderType != null 才校验" 约束被跳过, 公共/私人空间的
+        // 类型授权可跨空间命中激励附件——与 :106 "激励附件只吃 incentive 类型授权"口径相悖。
+        // 空间锚后类型授权不跨空间(生产实测无夹文件 fileScope 无 NULL: incentive 2553/public 2)。
+        if (folderType == null && file.getFileScope() != null) folderType = file.getFileScope();
+        return new FolderRef(ref, folderType);
     }
 
     /**
