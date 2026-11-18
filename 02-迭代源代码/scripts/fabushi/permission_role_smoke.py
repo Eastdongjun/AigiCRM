@@ -38,6 +38,23 @@ def main():
         ('POST','/api/fabushi/posts',{'200','400'}),
         ('POST','/api/fabushi/books',{'200','400'}),
     ]
+    # 路径变量/管理动作：用真实/不存在 ID 验证权限门
+    path_cases=[
+        ('GET','/api/fabushi/books/3',{'200'},None),
+        ('GET','/api/fabushi/books/1',{'admin'},None),  # disabled 仅 manage
+        ('PUT','/api/fabushi/posts/999999/offline',{'admin'},{}),
+        ('PUT','/api/fabushi/posts/999999/restore',{'admin'},{}),
+        ('PUT','/api/fabushi/books/999999/approve',{'admin'},{}),
+        ('POST','/api/fabushi/books/999999/pdf',{'admin'},{'fileId':999999}),
+    ]
+    run_no_path_cases(no_path, rows, failures)
+    run_path_cases(path_cases, rows, failures)
+    print(json.dumps({'cases':len(rows),'failures':failures,'sample':rows[:8]},ensure_ascii=False,indent=1))
+    Path('test-results/permission-matrix/fabushi-role-smoke.json').write_text(json.dumps({'cases':len(rows),'failures':failures,'rows':rows},ensure_ascii=False,indent=1),encoding='utf-8')
+    return 0 if not failures else 1
+
+
+def run_no_path_cases(no_path, rows, failures):
     for uid,name in USERS.items():
         token=tok(uid,name)
         # 拿真实权限集合，避免猜
@@ -48,15 +65,9 @@ def main():
             ok=no_path_ok(path, method, name, st)
             rows.append({'user':name,'method':method,'path':path,'status':st,'perms':sorted(perms)[:5]})
             if not ok: failures.append(rows[-1])
-    # 路径变量/管理动作：用真实/不存在 ID 验证权限门
-    path_cases=[
-        ('GET','/api/fabushi/books/3',{'200'},None),
-        ('GET','/api/fabushi/books/1',{'admin'},None),  # disabled 仅 manage
-        ('PUT','/api/fabushi/posts/999999/offline',{'admin'},{}),
-        ('PUT','/api/fabushi/posts/999999/restore',{'admin'},{}),
-        ('PUT','/api/fabushi/books/999999/approve',{'admin'},{}),
-        ('POST','/api/fabushi/books/999999/pdf',{'admin'},{'fileId':999999}),
-    ]
+
+
+def run_path_cases(path_cases, rows, failures):
     for uid,name in USERS.items():
         token=tok(uid,name)
         for method,path,allowed,body in path_cases:  # noqa: B007
@@ -64,9 +75,6 @@ def main():
             ok=path_ok(path, name, st)
             rows.append({'user':name,'method':method,'path':path,'status':st})
             if not ok: failures.append(rows[-1])
-    print(json.dumps({'cases':len(rows),'failures':failures,'sample':rows[:8]},ensure_ascii=False,indent=1))
-    Path('test-results/permission-matrix/fabushi-role-smoke.json').write_text(json.dumps({'cases':len(rows),'failures':failures,'rows':rows},ensure_ascii=False,indent=1),encoding='utf-8')
-    return 0 if not failures else 1
 
 def parse_perms(body):
     try: return set(json.loads(body)['data'].get('permissions') or [])
