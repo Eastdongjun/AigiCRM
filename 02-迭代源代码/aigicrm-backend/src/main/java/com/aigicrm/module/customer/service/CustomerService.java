@@ -674,6 +674,31 @@ public class CustomerService {
         // 本单 updateById 写回旧值"会丢一次累加; 锁内读改写保证与审批路径串行。
         BizCustomer existing = customerMapper.selectByIdForUpdate(customer.getId());
         if (existing == null) throw new BusinessException(LIT_X);
+        assertUpdateAccess(existing, customer);
+        applyNameValidation(existing, customer);
+        boolean invoiceDateManuallyChanged = protectCustomerDateFields(existing, customer);
+        // 【P2-2 2026-08-12 A3】始终按最终负责人(请求显式或库内现有)重同步 dept_id——
+        // 负责人变更(admin 转交)与负责人部门调整都跟随; owner 无部门时显式清空,
+        // 不再遗留旧负责人部门(原实现仅 admin 且 owner 变更时才同步, 且空部门跳过)。
+        Long effectiveOwnerId = customer.getOwnerId() != null ? customer.getOwnerId() : existing.getOwnerId();
+        Long effectiveDeptId = syncCustomerDeptId(customer, effectiveOwnerId);
+        freezeUpdateFields(existing, customer, invoiceDateManuallyChanged);
+        customerMapper.updateById(customer);
+        // 【生命线 2026-11-02 裁决D】人工维护最近开票日事件(customer:invoice-date:edit 持码者操作)
+        if (invoiceDateManuallyChanged) {
+            customerEventService.record(customer.getId(), CustomerEventService.TYPE_INVOICE_MANUAL,
+                    customer.getLastInvoiceDate(), "人工维护最近开票日(新基准重算保护期)",
+                    existing.getLastInvoiceDate() != null ? existing.getLastInvoiceDate().toString() : null,
+                    customer.getLastInvoiceDate() != null ? customer.getLastInvoiceDate().toString() : null,
+                    SecurityUtils.getCurrentUserId());
+        }
+        // updateById 只写非 null 字段: owner 无部门时显式清空 dept_id, 防旧部门残留
+        if (effectiveDeptId == null && existing.getDeptId() != null) {
+            persistCustomerDeptId(customer.getId(), null);
+        }
+    }
+
+    private void assertUpdateAccess(BizCustomer existing, BizCustomer customer) {
         // 【2026-08-10 池级权限】编辑校验: 客户在公海池内用池编辑权限, 否则负责人/管理员(checkOwnerOrAdmin 语义由 canEdit 覆盖)
         if (!customerAccessService.canEdit(customer.getId())) {
             throw new org.springframework.security.access.AccessDeniedException("只能编辑自己的客户");
@@ -702,27 +727,26 @@ public class CustomerService {
                 throw new BusinessException("客户状态/保护状态变更请通过归档、恢复、释放或保护期机制操作");
             }
         }
+    }
+
+    private void applyNameValidation(BizCustomer existing, BizCustomer customer) {
         // 【2026-11-17 客户名称全集团唯一】改名才查重；未改名保留历史 dup_exempt（祖父条款）。
         // 改名后 dup_exempt=0，进入严格唯一集合；归一化只影响 name_norm，展示名仅 trim。
-        if (customer.getCustomerName() != null) {
-            String nameNorm = CustomerNameNormalizer.normalizeOrThrow(customer.getCustomerName());
-            String existingNorm = existing.getNameNorm() != null
-                    ? existing.getNameNorm()
-                    : CustomerNameNormalizer.normalize(existing.getCustomerName());
-            boolean nameChanged = existingNorm == null || !existingNorm.equals(nameNorm);
-            if (nameChanged && existsByNameGlobal(nameNorm, customer.getId())) {
-                throw new BusinessException(400, "客户名称已存在");
-            }
-            customer.setCustomerName(CustomerNameNormalizer.displayName(customer.getCustomerName()));
-            customer.setNameNorm(nameNorm);
-            customer.setDupExempt(nameChanged ? 0 : (existing.getDupExempt() == null ? 0 : existing.getDupExempt()));
+        if (customer.getCustomerName() == null) return;
+        String nameNorm = CustomerNameNormalizer.normalizeOrThrow(customer.getCustomerName());
+        String existingNorm = existing.getNameNorm() != null
+                ? existing.getNameNorm()
+                : CustomerNameNormalizer.normalize(existing.getCustomerName());
+        boolean nameChanged = existingNorm == null || !existingNorm.equals(nameNorm);
+        if (nameChanged && existsByNameGlobal(nameNorm, customer.getId())) {
+            throw new BusinessException(400, "客户名称已存在");
         }
-        boolean invoiceDateManuallyChanged = protectCustomerDateFields(existing, customer);
-        // 【P2-2 2026-08-12 A3】始终按最终负责人(请求显式或库内现有)重同步 dept_id——
-        // 负责人变更(admin 转交)与负责人部门调整都跟随; owner 无部门时显式清空,
-        // 不再遗留旧负责人部门(原实现仅 admin 且 owner 变更时才同步, 且空部门跳过)。
-        Long effectiveOwnerId = customer.getOwnerId() != null ? customer.getOwnerId() : existing.getOwnerId();
-        Long effectiveDeptId = syncCustomerDeptId(customer, effectiveOwnerId);
+        customer.setCustomerName(CustomerNameNormalizer.displayName(customer.getCustomerName()));
+        customer.setNameNorm(nameNorm);
+        customer.setDupExempt(nameChanged ? 0 : (existing.getDupExempt() == null ? 0 : existing.getDupExempt()));
+    }
+
+    private void freezeUpdateFields(BizCustomer existing, BizCustomer customer, boolean invoiceDateManuallyChanged) {
         // 【A1 2026-10-20】延期/到期三字段冻结为服务端派生, 普通编辑"不可写也不可静默清零":
         // ① approved_extend_days 一律以库内值覆盖请求值——表单不传(null)时公式按 0 重算会把
         //   已批延期从 expireDate 静默清零(最常触发), 显式传值则可任意拉长保护期;
@@ -738,19 +762,6 @@ public class CustomerService {
         // 【2026-11-02 裁决B】捞取日期=审批域派生字段(仅 applyClaimReset 写入), 通用编辑不得直改
         customer.setClaimDate(existing.getClaimDate());
         calculateExpireDates(customer);
-        customerMapper.updateById(customer);
-        // 【生命线 2026-11-02 裁决D】人工维护最近开票日事件(customer:invoice-date:edit 持码者操作)
-        if (invoiceDateManuallyChanged) {
-            customerEventService.record(customer.getId(), CustomerEventService.TYPE_INVOICE_MANUAL,
-                    customer.getLastInvoiceDate(), "人工维护最近开票日(新基准重算保护期)",
-                    existing.getLastInvoiceDate() != null ? existing.getLastInvoiceDate().toString() : null,
-                    customer.getLastInvoiceDate() != null ? customer.getLastInvoiceDate().toString() : null,
-                    SecurityUtils.getCurrentUserId());
-        }
-        // updateById 只写非 null 字段: owner 无部门时显式清空 dept_id, 防旧部门残留
-        if (effectiveDeptId == null && existing.getDeptId() != null) {
-            persistCustomerDeptId(customer.getId(), null);
-        }
     }
 
     /** 请求字段是否显式变更(null 视为未指定, 不判定为变更) */
