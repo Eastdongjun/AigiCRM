@@ -1,0 +1,87 @@
+-- DRAFT ONLY — 不要放进 db/migration，未评审/未对账前不得执行。
+-- A2：biz_folder_type_default -> biz_file_grant 存量迁移（幂等、不删旧表）。
+-- 前置：V2026.11.18.1 草案已执行（legacy_ref/source/scope_mode/索引）。
+-- 语义：
+--   * FILE + folder_id NULL  -> SPACE（object_id NULL, scope_level=folder_type）
+--   * FILE + folder_id       -> FOLDER（inherit=1）
+--   * FOLDER + folder_id NULL-> SPACE（通常 create）
+--   * FOLDER + folder_id     -> FOLDER（inherit=1）
+--   * edit/rename/replace 归并为 edit；create 保留
+--   * 旧行 scope_org_id 精确语义 -> scope_mode='EXACT'
+--   * ALLOW；过期时间保留；永久(NULL)仍 NULL
+--   * legacy_ref=ftd:<旧最小id>:<动作>，唯一键保证重跑幂等
+--
+-- ⚠️ 执行前必须先在测试库副本演练，并对账脚本输出 0 差异。
+-- ⚠️ 同主体+对象+动作多 scope 的旧行会撞新表 uk_file_grant，必须先按文档 §2.8 出清单人工确认。
+
+INSERT INTO `biz_file_grant`
+  (`tenant_id`, `subject_type`, `subject_id`,
+   `object_type`, `object_id`, `action`, `effect`, `inherit`,
+   `scope_org_id`, `scope_level`, `scope_mode`, `expire_at`,
+   `created_by`, `created_at`, `legacy_ref`, `source`)
+SELECT
+  d.`tenant_id`,
+  d.`subject_type`,
+  d.`subject_id`,
+  CASE
+    WHEN COALESCE(d.`object_type`, 'FILE') = 'FILE' AND d.`folder_id` IS NULL THEN 'SPACE'
+    WHEN COALESCE(d.`object_type`, 'FILE') = 'FOLDER' AND d.`folder_id` IS NULL THEN 'SPACE'
+    ELSE 'FOLDER'
+  END AS new_object_type,
+  CASE WHEN d.`folder_id` IS NULL THEN NULL ELSE d.`folder_id` END AS new_object_id,
+  CASE WHEN a.`action` IN ('rename', 'replace') THEN 'edit' ELSE a.`action` END AS new_action,
+  'ALLOW',
+  CASE
+    WHEN (COALESCE(d.`object_type`, 'FILE') = 'FOLDER' OR d.`folder_id` IS NOT NULL) THEN 1
+    ELSE 0
+  END AS new_inherit,
+  d.`scope_org_id`,
+  d.`scope_level`,
+  'EXACT',
+  CASE
+    WHEN COUNT(*) > COUNT(d.`expires_at`) THEN NULL
+    ELSE MAX(d.`expires_at`)
+  END AS new_expire_at,
+  MAX(d.`created_by`),
+  MIN(d.`created_at`),
+  CONCAT('ftd:', MIN(d.`id`), ':', CASE WHEN a.`action` IN ('rename', 'replace') THEN 'edit' ELSE a.`action` END),
+  'legacy'
+FROM `biz_folder_type_default` d
+JOIN (
+  SELECT 'view' AS `action`
+  UNION ALL SELECT 'download'
+  UNION ALL SELECT 'upload'
+  UNION ALL SELECT 'edit'
+  UNION ALL SELECT 'rename'
+  UNION ALL SELECT 'replace'
+  UNION ALL SELECT 'delete'
+  UNION ALL SELECT 'share'
+  UNION ALL SELECT 'manage'
+  UNION ALL SELECT 'create'
+) a
+  ON FIND_IN_SET(a.`action`, REPLACE(COALESCE(d.`perms`, ''), ' ', '')) > 0
+WHERE d.`subject_type` IN ('ROLE', 'USER')
+  AND d.`subject_id` IS NOT NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM `biz_file_grant` g
+     WHERE g.`tenant_id` = d.`tenant_id`
+       AND g.`subject_type` = d.`subject_type`
+       AND g.`subject_id` = d.`subject_id`
+       AND g.`object_type` = CASE
+             WHEN COALESCE(d.`object_type`, 'FILE') = 'FILE' AND d.`folder_id` IS NULL THEN 'SPACE'
+             WHEN COALESCE(d.`object_type`, 'FILE') = 'FOLDER' AND d.`folder_id` IS NULL THEN 'SPACE'
+             ELSE 'FOLDER'
+           END
+       AND g.`object_id` <=> CASE WHEN d.`folder_id` IS NULL THEN NULL ELSE d.`folder_id` END
+       AND g.`action` = CASE WHEN a.`action` IN ('rename', 'replace') THEN 'edit' ELSE a.`action` END
+  )
+GROUP BY
+  d.`tenant_id`, d.`subject_type`, d.`subject_id`,
+  CASE
+    WHEN COALESCE(d.`object_type`, 'FILE') = 'FILE' AND d.`folder_id` IS NULL THEN 'SPACE'
+    WHEN COALESCE(d.`object_type`, 'FILE') = 'FOLDER' AND d.`folder_id` IS NULL THEN 'SPACE'
+    ELSE 'FOLDER'
+  END,
+  CASE WHEN d.`folder_id` IS NULL THEN NULL ELSE d.`folder_id` END,
+  CASE WHEN a.`action` IN ('rename', 'replace') THEN 'edit' ELSE a.`action` END,
+  d.`scope_org_id`, d.`scope_level`;

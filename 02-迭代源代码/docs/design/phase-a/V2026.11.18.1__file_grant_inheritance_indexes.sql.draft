@@ -1,0 +1,16 @@
+-- DRAFT ONLY — 不要放进 db/migration，未评审前不得执行。
+-- A1/A2 共用结构草案：组织子树、旧表迁移来源、精确/子树兼容。
+-- 评审点：
+--   1) legacy_ref 唯一键用于迁移幂等/对账；
+--   2) scope_mode：legacy 旧行默认 EXACT（保持旧精确语义），新配置默认 SUBTREE；
+--   3) 不删 biz_folder_type_default，不删旧列。
+
+ALTER TABLE `biz_file_grant`
+  ADD COLUMN `legacy_ref` VARCHAR(120) NULL COMMENT '旧表迁移来源 ftd:<id>:<action>',
+  ADD COLUMN `source` VARCHAR(20) NOT NULL DEFAULT 'manual' COMMENT 'manual/legacy/dual_write/migration',
+  ADD COLUMN `scope_mode` VARCHAR(10) NOT NULL DEFAULT 'SUBTREE' COMMENT 'SUBTREE=含下级组织/EXACT=仅本节点',
+  ADD UNIQUE KEY `uk_file_grant_legacy` (`tenant_id`, `legacy_ref`),
+  ADD KEY `idx_file_grant_scope_org` (`tenant_id`, `scope_org_id`);
+
+-- 说明：MySQL 唯一索引允许多个 NULL；新表原有 uk_file_grant 仍保留，
+-- 迁移前需对映射后的重复动作去重（见 .2 草案）。
