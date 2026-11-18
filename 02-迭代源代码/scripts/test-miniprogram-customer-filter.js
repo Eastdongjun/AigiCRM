@@ -97,9 +97,9 @@ assert.ok(filterPageConfig, 'filter page config captured')
   page.applyState = filterPageConfig.applyState
 
   const statusDomain = page.data.statusOptions.map((o) => o.value).filter(Boolean)
-  assert.deepEqual(statusDomain.sort(), ['normal', 'warning'].sort(), '客户状态域只允许 normal/warning')
+  assert.deepEqual(statusDomain.sort((a, b) => a.localeCompare(b)), ['normal', 'warning'].sort((a, b) => a.localeCompare(b)), '客户状态域只允许 normal/warning')
   const protectDomain = page.data.protectOptions.map((o) => o.value).filter(Boolean)
-  assert.deepEqual(protectDomain.sort(), ['active', 'expired', 'expiring'].sort(), '保护状态域应为 active/expiring/expired')
+  assert.deepEqual(protectDomain.sort((a, b) => a.localeCompare(b)), ['active', 'expired', 'expiring'].sort((a, b) => a.localeCompare(b)), '保护状态域应为 active/expiring/expired')
 
   page.applyState({ province: ' 山西 ', city: '太原' })
   page.data.selectedIndustryIndex = 1

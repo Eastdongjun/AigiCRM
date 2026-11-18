@@ -42,5 +42,5 @@ if (d.renameModal.visible) {
   console.log('终还原 →', JSON.stringify(r3).slice(0, 120))
   await wait(600)
 }
-await mini.disconnect()
+mini.disconnect()
 console.log('FINAL_DONE')

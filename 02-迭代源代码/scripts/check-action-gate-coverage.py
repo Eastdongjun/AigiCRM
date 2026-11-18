@@ -21,6 +21,10 @@ import re
 import pathlib
 import sys
 
+# P0-5 batch C: duplicated string literals (Sonar python:S1192)
+CLEAR_FILTER_VIEW_OP = '清空筛选=视图操作'
+RESET_FILTER_VIEW_OP = '重置筛选=视图操作'
+
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 UI = ROOT / 'aigicrm-ui/src/views'
 MP = ROOT / 'aigicrm-miniprogram/pages'
@@ -51,7 +55,7 @@ ALLOW = {
         [("doReject", "驳回确认弹窗footer按钮: 操作列入口行已按 fabushi:book:manage 门禁, 弹窗仅从入口可达+后端 book:manage 守卫兜底(照 approval 注记#1 取舍, 2026-11-15)")],
         "法布施书目管理: 驳回弹窗确认步骤"),
     'customer/MainTable.vue': (
-        [("hasActiveFilter", "清空筛选=视图操作")],
+        [("hasActiveFilter", CLEAR_FILTER_VIEW_OP)],
         "客户列表"),
     'customer/TopBar.vue': (
         [("customer:import", "已按码(局部 hasPerm 封装, 扫描器未识别=误报)"),
@@ -64,7 +68,7 @@ ALLOW = {
         [("downloadCurrent", "已可见数据的下载(激励查询分享制数据, dlToken 链口径)")],
         "激励查询灯箱下载"),
     'incentive/search.vue': (
-        [("doReset", "重置筛选=视图操作")],
+        [("doReset", RESET_FILTER_VIEW_OP)],
         "激励查询"),
     'reminder/index.vue': (
         [("handleClearAll", "一键处理=本人提醒数据处理(数据面天然本人)")],
@@ -74,7 +78,7 @@ ALLOW = {
         "学分录入导出"),
     'sea/index.vue': (
         [("statusFilter", "状态页签=视图操作"),
-         ("resetFilters", "重置筛选=视图操作"),
+         ("resetFilters", RESET_FILTER_VIEW_OP),
          ("下载模板", "对话框内部动作: 公海导入入口已按 sea:import 门禁(canImport)"),
          ("showImportDialog=false", "对话框关闭按钮")],
         "公海管理导入/筛选"),
@@ -119,20 +123,20 @@ MP_ALLOW = {
         [("showDeleteButton", "客户删除按钮: 权限推导(2026-11-04 实测他人记录无删除钮)")],
         "MP 客户详情删除"),
     'customer/filter/index.wxml': (
-        [("reset", "重置筛选=视图操作")],
+        [("reset", RESET_FILTER_VIEW_OP)],
         "MP 客户筛选"),
     'customer/index.wxml': (
-        [("showReset", "重置筛选=视图操作")],
+        [("showReset", RESET_FILTER_VIEW_OP)],
         "MP 客户列表"),
     'incentive/detail/index.wxml': (
         [("previewLoading", "本人/授权记录的附件预览"),
          ("showDeleteAction", "本人/授权记录删除(权限推导)")],
         "MP 激励详情"),
     'incentive/home/index.wxml': (
-        [("resetRecordFilters", "清空筛选=视图操作")],
+        [("resetRecordFilters", CLEAR_FILTER_VIEW_OP)],
         "MP 四项服务首页"),
     'incentive/index.wxml': (
-        [("resetRecordFilters", "清空筛选=视图操作"),
+        [("resetRecordFilters", CLEAR_FILTER_VIEW_OP),
          ("downloadStatDetailAtt", "已可见数据的附件下载")],
         "MP 四项服务"),
     'incentive/upload/index.wxml': (

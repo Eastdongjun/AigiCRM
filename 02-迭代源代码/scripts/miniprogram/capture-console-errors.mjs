@@ -118,5 +118,5 @@ await walk('激励统计', async () => {
 const total = await mini.evaluate(() => getApp().__errLog)
 console.log('=== 全量收集(' + ((total && total.length) || 0) + ' 条) ===')
 ;(total || []).slice(0, 30).forEach((l) => console.log(l))
-await mini.disconnect()
+mini.disconnect()
 console.log('CAPTURE_DONE')

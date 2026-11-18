@@ -22,6 +22,10 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
+# P0-5 batch C: duplicated string literals (Sonar python:S1192)
+NONE_ROW = '- None'
+MD_TABLE_SEPARATOR = '| --- | --- | --- | --- |'
+
 
 @dataclass(frozen=True)
 class Route:
@@ -499,7 +503,7 @@ def render(args, routes, pc_apis, mobile_pages, mobile_apis, endpoints, perm_dic
         "## PC Routes",
         "",
         "| Route | Title | Permission | Source |",
-        "| --- | --- | --- | --- |",
+        MD_TABLE_SEPARATOR,
     ]
     for r in routes:
         lines.append(f"| `{r.path}` | {r.title} | `{r.permission}` | `{r.source}` |")
@@ -508,23 +512,23 @@ def render(args, routes, pc_apis, mobile_pages, mobile_apis, endpoints, perm_dic
     for page in mobile_pages:
         lines.append(f"| `{page}` |")
 
-    lines += ["", "## PC UI Actions", "", "| Label | Handler | Permission Hint | Source |", "| --- | --- | --- | --- |"]
+    lines += ["", "## PC UI Actions", "", "| Label | Handler | Permission Hint | Source |", MD_TABLE_SEPARATOR]
     for action in pc_actions:
         lines.append(f"| {action.label} | `{action.handler}` | `{action.permission_hint}` | `{action.source}` |")
 
-    lines += ["", "## Mini Program UI Actions", "", "| Label | Handler | Condition Hint | Source |", "| --- | --- | --- | --- |"]
+    lines += ["", "## Mini Program UI Actions", "", "| Label | Handler | Condition Hint | Source |", MD_TABLE_SEPARATOR]
     for action in mobile_actions:
         lines.append(f"| {action.label} | `{action.handler}` | `{action.permission_hint}` | `{action.source}` |")
 
-    lines += ["", "## PC API Functions", "", "| Function | Method | Path | Source |", "| --- | --- | --- | --- |"]
+    lines += ["", "## PC API Functions", "", "| Function | Method | Path | Source |", MD_TABLE_SEPARATOR]
     for api in pc_apis:
         lines.append(f"| `{api.name}` | `{api.method}` | `{api.path}` | `{api.source}` |")
 
-    lines += ["", "## Mini Program API Functions", "", "| Function | Method | Path | Source |", "| --- | --- | --- | --- |"]
+    lines += ["", "## Mini Program API Functions", "", "| Function | Method | Path | Source |", MD_TABLE_SEPARATOR]
     for api in mobile_apis:
         lines.append(f"| `{api.name}` | `{api.method}` | `{api.path}` | `{api.source}` |")
 
-    lines += ["", "## Backend Endpoints", "", "| Method | Path | Permission Expression | Source |", "| --- | --- | --- | --- |"]
+    lines += ["", "## Backend Endpoints", "", "| Method | Path | Permission Expression | Source |", MD_TABLE_SEPARATOR]
     for e in endpoints:
         permission = e.permission.replace("|", "\\|") if e.permission else ""
         lines.append(f"| `{e.method}` | `{e.path}` | `{permission}` | `{e.source}` |")
@@ -541,37 +545,37 @@ def render(args, routes, pc_apis, mobile_pages, mobile_apis, endpoints, perm_dic
     if missing_in_dict:
         lines.extend(f"- `{p}`" for p in missing_in_dict)
     else:
-        lines.append("- None")
+        lines.append(NONE_ROW)
 
     lines += ["", "### Frontend Code Permission Tokens Missing In Known Sources", ""]
     if frontend_missing_in_sources:
         lines.extend(f"- `{permission}`" for permission in frontend_missing_in_sources)
     else:
-        lines.append("- None")
+        lines.append(NONE_ROW)
 
     lines += ["", "### Runtime Dictionary Permissions Not Directly Seen In Backend Annotations", ""]
     if dict_not_in_backend:
         lines.extend(permission_bullet(p, perm_dict) for p in dict_not_in_backend)
     else:
-        lines.append("- None")
+        lines.append(NONE_ROW)
 
     lines += ["", "### Runtime Dictionary Permissions Referenced Outside Backend Annotations", ""]
     if dict_with_code_refs:
         lines.extend(permission_bullet(p, perm_dict) for p in dict_with_code_refs)
     else:
-        lines.append("- None")
+        lines.append(NONE_ROW)
 
     lines += ["", "### Runtime Dictionary Permissions Not Seen In Backend Annotations Or Code References", ""]
     if dict_not_seen_anywhere:
         lines.extend(permission_bullet(p, perm_dict) for p in dict_not_seen_anywhere)
     else:
-        lines.append("- None")
+        lines.append(NONE_ROW)
 
     lines += ["", "### Compatibility Or Deprecated Dictionary Permissions Excluded From Runtime Drift", ""]
     if compatibility_dict_perms:
         lines.extend(permission_bullet(p, perm_dict) for p in compatibility_dict_perms)
     else:
-        lines.append("- None")
+        lines.append(NONE_ROW)
 
     lines += [
         "",
@@ -592,20 +596,20 @@ def render(args, routes, pc_apis, mobile_pages, mobile_apis, endpoints, perm_dic
     if ui_missing_in_sources:
         lines.extend(f"- `{permission}`" for permission in ui_missing_in_sources)
     else:
-        lines.append("- None")
+        lines.append(NONE_ROW)
 
     lines += ["", "## API Drift Candidates", ""]
     lines += ["### PC API Wrappers Without Backend Endpoint Match", ""]
     if unmatched_pc_apis:
         lines.extend(f"- `{api.method} {normalize_api_path(api.path, '/api')}` from `{api.source}` (`{api.name}`)" for api in unmatched_pc_apis)
     else:
-        lines.append("- None")
+        lines.append(NONE_ROW)
 
     lines += ["", "### Mini Program API Wrappers Without Backend Endpoint Match", ""]
     if unmatched_mobile_apis:
         lines.extend(f"- `{api.method} {normalize_api_path(api.path, '')}` from `{api.source}` (`{api.name}`)" for api in unmatched_mobile_apis)
     else:
-        lines.append("- None")
+        lines.append(NONE_ROW)
 
     lines += [
         "",

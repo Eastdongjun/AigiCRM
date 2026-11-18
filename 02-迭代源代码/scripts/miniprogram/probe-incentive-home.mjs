@@ -13,7 +13,7 @@ async function main() {
   console.log('[page]', page.path)
   await sleep(8000)
   const data = await page.data()
-  const keys = Object.keys(data).sort()
+  const keys = Object.keys(data).sort((a, b) => a.localeCompare(b))
   console.log('[data 键]', keys.join(', '))
   for (const k of keys) {
     const v = data[k]

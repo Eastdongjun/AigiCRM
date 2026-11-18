@@ -46,5 +46,5 @@ if (r1.status === 200) {
     console.log('PUT 还原 →', JSON.stringify(r2).slice(0, 160))
   }
 }
-await mini.disconnect()
+mini.disconnect()
 console.log('PROBE3_DONE')

@@ -208,6 +208,20 @@ const userStore = useUserStore()
 // （常见 CRM 惯例是仅保留列表入口 + 按钮）。路由 /customer/add 保留作页面载体（按钮跳转/面包屑不受影响），
 // 仅从侧栏菜单树中滤除；后端将来若停发该菜单行，此过滤为空操作
 const HIDDEN_ACTION_PATHS = new Set(['/customer/add'])
+
+/** 菜单去重：首次出现的 path 胜出（保持原顺序）。 */
+const firstPathWins = (item, seen) => {
+  if (seen.has(item.path)) return false
+  seen.add(item.path)
+  return true
+}
+
+/** 子页面同 path 去重。 */
+const dedupeByPath = (items) => {
+  const seen = new Set()
+  return items.filter((item) => firstPathWins(item, seen))
+}
+
 const menuGroups = computed(() => {
   const seenPaths = new Set()
   const groups = (userStore.menus || [])
@@ -216,17 +230,12 @@ const menuGroups = computed(() => {
       children: (group.children || [])
         .filter(c => c.menuType === 2 && c.path)
         .filter(c => !HIDDEN_ACTION_PATHS.has(c.path))
-        .filter(c => {
-          if (seenPaths.has(c.path)) return false
-          seenPaths.add(c.path)
-          return true
-        })
+        .filter(c => firstPathWins(c, seenPaths))
         .map(c => ({
           ...c,
           // 二级子页面：子级中可见的页面级菜单（客户详情 visible=0 不显示），同 path 也去重
-          subChildren: (c.children || [])
-            .filter(s => s.menuType === 2 && s.path && s.visible !== 0)
-            .filter((s, idx, arr) => arr.findIndex(x => x.path === s.path) === idx)
+          subChildren: dedupeByPath((c.children || [])
+            .filter(s => s.menuType === 2 && s.path && s.visible !== 0))
         }))
     }))
     .filter(group => group.children.length > 0)

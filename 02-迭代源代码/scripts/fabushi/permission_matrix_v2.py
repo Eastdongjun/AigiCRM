@@ -283,7 +283,6 @@ def main():
         tok = c['token']
         used_path = path
         meta = ''
-        send = True
         if group == 'B':
             used_path, ent, found = fill_ids(path, u['id'], pools, want_own=False, all_scope=False)
             meta = f'他人资源({ent or "无"})'
@@ -299,7 +298,7 @@ def main():
                         '结果': '未执行', '匹配': '未执行', '错误内容': '该用户无自身资源，未执行', '模块': path.split('/')[2], '动作项': method.lower()}
             meta = f'自身资源({ent})'
 
-        status = call(args.base, method, used_path, tok, timeout=args.timeout) if send else 'SKIP'
+        status = call(args.base, method, used_path, tok, timeout=args.timeout)
 
         if group == 'A':
             if mode == 'valid':

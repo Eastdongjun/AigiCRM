@@ -24,6 +24,9 @@ from permission_matrix_20k import (  # noqa: E402
     PARAM_SHAPE_OK, call, expected_ok, fill_path, make_token, permission_rule,
 )
 
+# P0-5 batch C: duplicated string literals (Sonar python:S1192)
+BOOK_ID_PLACEHOLDER = '{bookId}'
+
 STATUS_TEXT = {200: '放行', 201: '放行', 204: '放行', 400: '参数校验', 401: '未认证', 403: '拒绝', 404: '未找到'}
 
 
@@ -69,13 +72,13 @@ def pick_item(pools, ent, uid, want_own):
 def fill_ids(path, uid, pools, want_own):
     """返回 (实际路径, 主实体, 是否注入, 注入项dict)。"""
     out = path
-    if '{bookId}' in out:
+    if BOOK_ID_PLACEHOLDER in out:
         if '/sections' in path:
             it = pick_item(pools, 'section', uid, False)
-            out = out.replace('{bookId}', str(it['owner'] if it else 1))
+            out = out.replace(BOOK_ID_PLACEHOLDER, str(it['owner'] if it else 1))
         else:
             it = pick_item(pools, 'book', uid, want_own) or pick_item(pools, 'book', uid, False)
-            out = out.replace('{bookId}', str(it['id'] if it else 1))
+            out = out.replace(BOOK_ID_PLACEHOLDER, str(it['id'] if it else 1))
     if '{postId}' in out:
         it = pick_item(pools, 'post', uid, False)
         out = out.replace('{postId}', str(it['id'] if it else 1))

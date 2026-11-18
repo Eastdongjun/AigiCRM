@@ -43,6 +43,6 @@ out.checks.taskPage={path:page.path,canManage:d.canManage,stats:d.stats,taskCoun
 await mini.screenshot({path:'test-results/menu-dict/mp-task.png'})
 console.log(JSON.stringify(out,null,1))
 fs.writeFileSync('test-results/menu-dict/mp-smoke.json',JSON.stringify(out,null,1))
-await mini.disconnect()
+mini.disconnect()
 const ok = out.checks.fabushiTab.path==='pages/fabushi/index' && out.checks.appCenter.groups.join(',')==='客户经营,文件管理,四项激励,法布施,学分管理,统计分析,流程协同' && out.checks.appCenter.workflow?.join(',')==='我的任务,提醒管理,审批管理,公海池' && out.checks.filesPage.path==='pages/files/index' && out.checks.taskPage.path==='pages/task/index'
 process.exit(ok?0:1)

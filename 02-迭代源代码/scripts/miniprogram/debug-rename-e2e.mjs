@@ -33,7 +33,7 @@ const imgIdx = rows.findIndex((r) => /\.(png|jpg|jpeg)$/i.test(String(r.name || 
 const before = rows[imgIdx] ? rows[imgIdx].name : ''
 const fileId = rows[imgIdx] ? rows[imgIdx].id : ''
 console.log('target row:', imgIdx, before, 'id:', fileId)
-if (!fileId) { console.log('NO_TARGET'); await mini.disconnect(); process.exit(1) }
+if (!fileId) { console.log('NO_TARGET'); mini.disconnect(); process.exit(1) }
 
 // 改名
 const evt = { currentTarget: { dataset: { index: imgIdx } } }
@@ -50,4 +50,4 @@ await mini.screenshot({ path: '/tmp/mp-debug-shots/9-renamed-list.png' })
 console.log('FILE_ID=' + fileId)
 console.log('NEW_NAME=' + NEW_NAME)
 console.log('DONE-PART5')
-await mini.disconnect()
+mini.disconnect()

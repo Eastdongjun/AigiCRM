@@ -183,7 +183,7 @@ try {
   evidence.failure = String(e && e.message ? e.message : e)
   console.error('FAILED:', evidence.failure)
 } finally {
-  try { if (mini) await mini.disconnect() } catch (_) {}
+  try { if (mini) mini.disconnect() } catch (_) {}
   fs.mkdirSync(OUT, { recursive: true })
   fs.writeFileSync(EVIDENCE, JSON.stringify(evidence, null, 2))
   console.log('evidence:', EVIDENCE, 'result:', evidence.result)

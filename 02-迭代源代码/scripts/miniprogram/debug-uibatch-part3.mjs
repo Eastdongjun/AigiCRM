@@ -15,5 +15,5 @@ try {
   await mini.screenshot({ path: '/tmp/mp-debug-shots/4-approval-queue.png' })
   console.log('shot: 4-approval-queue')
 } catch (e) { console.log('err:', String(e).slice(0, 140)) }
-await mini.disconnect()
+mini.disconnect()
 console.log('DONE-PART3')

@@ -38,5 +38,5 @@ try {
   console.log('token restored')
 } catch (e) { console.log('login skip:', String(e).slice(0, 160)) }
 
-await mini.disconnect()
+mini.disconnect()
 console.log('DONE-PART2')

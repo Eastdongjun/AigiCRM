@@ -36,5 +36,5 @@ console.log('renameModal visible:', d2.renameModal.visible, 'input:', d2.renameM
 await mini.screenshot({ path: '/tmp/mp-debug-shots/7-rename-modal.png' })
 console.log('shot: 7-rename-modal')
 await page.callMethod('cancelRenameModal')
-await mini.disconnect()
+mini.disconnect()
 console.log('DONE-PART4')

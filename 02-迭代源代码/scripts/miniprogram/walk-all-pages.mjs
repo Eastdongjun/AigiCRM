@@ -84,7 +84,7 @@ for (const r of results) {
 const skipped = results.filter((r) => !r.opened)
 const allLogs = (await mini.evaluate(() => getApp().__walkLog)) || []
 console.log(`── 汇总: 打开 ${results.length - skipped.length}/${pages.length}, 跳过 ${skipped.length}, 报错页 ${failed}, console.warn ${allLogs.filter((l) => l.startsWith('console.warn')).length} 条(不判红) ──`)
-await mini.disconnect()
+mini.disconnect()
 if (failed > 0) { console.log('WALK_RED'); process.exit(1) }
 console.log('WALK_GREEN')
 process.exit(0)

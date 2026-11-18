@@ -33,5 +33,5 @@ for (const [name, url] of CASES) {
   await mini.navigateBack()
   await new Promise((r) => setTimeout(r, 500))
 }
-await mini.disconnect()
+mini.disconnect()
 console.log('AUDIT_DONE')

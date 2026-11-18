@@ -1,4 +1,15 @@
 #!/usr/bin/env python3
+
+# P0-5 batch C: duplicated string literals (Sonar python:S1192)
+MP_HOME_INDEX_WXML = 'aigicrm-miniprogram/pages/home/index.wxml'
+MP_CUSTOMER_DETAIL_INDEX = 'pages/customer/detail/index'
+MP_PROFILE_INDEX_WXML = 'aigicrm-miniprogram/pages/profile/index.wxml'
+UNIFIED_FEATURE_MANIFEST = 'docs/unified-feature-manifest.md'
+BACKEND_JAVA_SRC = 'aigicrm-backend/src/main/java'
+MP_SEA_INDEX = 'pages/sea/index'
+MP_APPROVAL_DETAIL_INDEX = 'pages/approval/detail/index'
+MP_APPROVAL_INDEX = 'pages/approval/index'
+MP_PROFILE_INDEX = 'pages/profile/index'
 """Ensure the generated feature audit does not omit expected project contracts."""
 
 import importlib.util
@@ -73,7 +84,7 @@ def assert_manifest_feature_keys() -> list[str]:
     errors: list[str] = []
     seen: dict[str, int] = {}
     for line_number, columns in iter_manifest_feature_rows(
-        ROOT / "docs/unified-feature-manifest.md"
+        ROOT / UNIFIED_FEATURE_MANIFEST
     ):
         feature_key = columns[0].strip("`")
         if len(columns) != 8:
@@ -103,7 +114,7 @@ def assert_manifest_pc_routes(routes) -> list[str]:
     pc_routes = {normalize_pc_route(route.path) for route in routes}
     errors: list[str] = []
     for line_number, columns in iter_manifest_feature_rows(
-        ROOT / "docs/unified-feature-manifest.md"
+        ROOT / UNIFIED_FEATURE_MANIFEST
     ):
         feature_key = columns[0].strip("`")
         pc_column = columns[2]
@@ -142,7 +153,7 @@ def expand_manifest_permission_token(token: str, known_permissions: set[str]) ->
 def assert_manifest_permissions(known_permissions: set[str]) -> list[str]:
     errors: list[str] = []
     for line_number, columns in iter_manifest_feature_rows(
-        ROOT / "docs/unified-feature-manifest.md"
+        ROOT / UNIFIED_FEATURE_MANIFEST
     ):
         feature_key = columns[0].strip("`")
         permission_column = columns[4]
@@ -156,7 +167,7 @@ def assert_manifest_permissions(known_permissions: set[str]) -> list[str]:
 def assert_manifest_mobile_statuses() -> list[str]:
     errors: list[str] = []
     for line_number, columns in iter_manifest_feature_rows(
-        ROOT / "docs/unified-feature-manifest.md"
+        ROOT / UNIFIED_FEATURE_MANIFEST
     ):
         feature_key = columns[0].strip("`")
         mini_program_column = columns[3]
@@ -205,7 +216,7 @@ def load_registered_miniprogram_pages(app_json_path: Path) -> set[str]:
 
 
 def assert_manifest_pages_registered() -> list[tuple[str, str]]:
-    manifest_pages = extract_manifest_mobile_pages(ROOT / "docs/unified-feature-manifest.md")
+    manifest_pages = extract_manifest_mobile_pages(ROOT / UNIFIED_FEATURE_MANIFEST)
     registered_pages = load_registered_miniprogram_pages(ROOT / "aigicrm-miniprogram/app.json")
     missing_pages: list[tuple[str, str]] = []
     for feature_key, pages in sorted(manifest_pages.items()):
@@ -216,7 +227,7 @@ def assert_manifest_pages_registered() -> list[tuple[str, str]]:
 
 
 def assert_registered_pages_in_manifest() -> list[str]:
-    manifest_pages = extract_manifest_mobile_pages(ROOT / "docs/unified-feature-manifest.md")
+    manifest_pages = extract_manifest_mobile_pages(ROOT / UNIFIED_FEATURE_MANIFEST)
     registered_pages = load_registered_miniprogram_pages(ROOT / "aigicrm-miniprogram/app.json")
     documented_pages = set().union(*manifest_pages.values()) if manifest_pages else set()
     return sorted(registered_pages - documented_pages)
@@ -226,10 +237,10 @@ def main() -> int:
     wiring = load(ROOT / "scripts/check_api_wiring.py", "aigicrm_check_api_wiring")
     audit = load(ROOT / "scripts/gen-unified-feature-audit.py", "aigicrm_feature_audit")
     api_list = load(ROOT / "scripts/gen-api.py", "aigicrm_gen_api")
-    _, readable = wiring.parse_backend(ROOT / "aigicrm-backend/src/main/java")
+    _, readable = wiring.parse_backend(ROOT / BACKEND_JAVA_SRC)
     pc_routes = audit.extract_pc_routes(ROOT / "aigicrm-ui/src/router/index.js", ROOT)
     backend_endpoints = audit.extract_backend_endpoints(
-        ROOT / "aigicrm-backend/src/main/java", ROOT
+        ROOT / BACKEND_JAVA_SRC, ROOT
     )
     wiring_endpoints = {tuple(item.split(" ", 1)) for item in readable}
     generated_endpoints = {
@@ -243,7 +254,7 @@ def main() -> int:
         return 1
     generated_api_list = {
         (item["method"], item["path"])
-        for item in api_list.extract_apis(str(ROOT / "aigicrm-backend/src/main/java"))
+        for item in api_list.extract_apis(str(ROOT / BACKEND_JAVA_SRC))
     }
     api_missing = sorted(wiring_endpoints - generated_api_list)
     api_extra = sorted(generated_api_list - wiring_endpoints)
@@ -278,7 +289,7 @@ def main() -> int:
         return 1
     dictionary_codes = ["sea:claim"]
     code_references = audit.extract_backend_permission_references(
-        ROOT / "aigicrm-backend/src/main/java", ROOT, dictionary_codes
+        ROOT / BACKEND_JAVA_SRC, ROOT, dictionary_codes
     )
     missing_code_references = [
         permission for permission in dictionary_codes
@@ -323,19 +334,19 @@ def main() -> int:
         # 【2026-10-22 钉随代码】首页改版+四项激励→四项服务更名批: 快捷项=CSS 图标类(ic-*)+纯标题,
         # 解析标签不再带字形前缀(原 ＋/激/审 前缀随汉字图标块退役)
         # 【2026-11-04 统一命名】宫格入口名对齐 PC 菜单权威名: 新客户→新增客户/四项服务上传→激励上传/客户统计→统计分析/提醒→提醒管理
-        ("新增客户", "openNewCustomer", "aigicrm-miniprogram/pages/home/index.wxml"),
-        ("四项服务", "openIncentive", "aigicrm-miniprogram/pages/home/index.wxml"),
-        ("激励上传", "openIncentiveUpload", "aigicrm-miniprogram/pages/home/index.wxml"),
-        ("统计分析", "openStatistics", "aigicrm-miniprogram/pages/home/index.wxml"),
-        ("提醒管理", "openReminder", "aigicrm-miniprogram/pages/home/index.wxml"),
-        ("审批管理", "openApproval", "aigicrm-miniprogram/pages/home/index.wxml"),
+        ("新增客户", "openNewCustomer", MP_HOME_INDEX_WXML),
+        ("四项服务", "openIncentive", MP_HOME_INDEX_WXML),
+        ("激励上传", "openIncentiveUpload", MP_HOME_INDEX_WXML),
+        ("统计分析", "openStatistics", MP_HOME_INDEX_WXML),
+        ("提醒管理", "openReminder", MP_HOME_INDEX_WXML),
+        ("审批管理", "openApproval", MP_HOME_INDEX_WXML),
         ("打开", "previewAttachment", "aigicrm-miniprogram/pages/incentive/detail/index.wxml"),
         ("下载", "downloadAttachment", "aigicrm-miniprogram/pages/incentive/detail/index.wxml"),
         ("预览", "previewSelectedFile", "aigicrm-miniprogram/pages/incentive/upload/index.wxml"),
         ("下载", "downloadSelectedFile", "aigicrm-miniprogram/pages/incentive/upload/index.wxml"),
-        ("◉我的客户›", "openCustomers", "aigicrm-miniprogram/pages/profile/index.wxml"),
-        ("★我的四项服务›", "openIncentive", "aigicrm-miniprogram/pages/profile/index.wxml"),
-        ("↻我的捞取记录›", "openClaims", "aigicrm-miniprogram/pages/profile/index.wxml"),
+        ("◉我的客户›", "openCustomers", MP_PROFILE_INDEX_WXML),
+        ("★我的四项服务›", "openIncentive", MP_PROFILE_INDEX_WXML),
+        ("↻我的捞取记录›", "openClaims", MP_PROFILE_INDEX_WXML),
     }
     discovered_mobile_actions = {
         (action.label, action.handler, action.source.split(":", 1)[0])
@@ -390,7 +401,7 @@ def main() -> int:
             f"missing={undocumented_registered_pages}"
         )
         return 1
-    manifest_mobile_pages = extract_manifest_mobile_pages(ROOT / "docs/unified-feature-manifest.md")
+    manifest_mobile_pages = extract_manifest_mobile_pages(ROOT / UNIFIED_FEATURE_MANIFEST)
     required_manifest_pages = {
         "auth.passwordRecovery": {"pages/login/forgot/index"},
         "incentive.index": {
@@ -404,30 +415,30 @@ def main() -> int:
         },
         "incentive.upload": {"pages/incentive/upload/index"},
         "customer.finance": {
-            "pages/customer/detail/index",
+            MP_CUSTOMER_DETAIL_INDEX,
             "pages/customer/finance/index",
             "pages/customer/finance/form/index",
         },
         "customer.contact": {
-            "pages/customer/detail/index",
+            MP_CUSTOMER_DETAIL_INDEX,
             "pages/customer/contact/index",
             "pages/customer/contact/form/index",
             "pages/customer/contact/detail/index",
         },
         "customer.filter": {"pages/customer/filter/index"},
-        "customer.log": {"pages/customer/detail/index", "pages/customer/log/index"},
+        "customer.log": {MP_CUSTOMER_DETAIL_INDEX, "pages/customer/log/index"},
         # 2026-10-26 用户令: 客户跟进时间线页退役, customer.timeline 仅剩详情页跟进日志区块
-        "customer.timeline": {"pages/customer/detail/index"},
-        "customer.indicator": {"pages/customer/detail/index", "pages/customer/indicator/index"},
-        "customer.relationship": {"pages/customer/detail/index"},
+        "customer.timeline": {MP_CUSTOMER_DETAIL_INDEX},
+        "customer.indicator": {MP_CUSTOMER_DETAIL_INDEX, "pages/customer/indicator/index"},
+        "customer.relationship": {MP_CUSTOMER_DETAIL_INDEX},
         "app.launcher": {"pages/app/index"},
         # 【2026-11-05 用户令】file.aclView 撤除转 PC-only, 无 MP 页面承载, 移出 required pages
-        "sea.edit": {"pages/sea/index", "pages/customer/form/index"},
-        "sea.claim": {"pages/sea/index", "pages/sea/claim-detail/index"},
-        "approval.detail": {"pages/approval/index", "pages/approval/detail/index"},
-        "approval.approve": {"pages/approval/index", "pages/approval/detail/index"},
-        "approval.reject": {"pages/approval/index", "pages/approval/detail/index"},
-        "approval.submit": {"pages/customer/detail/index", "pages/sea/index"},
+        "sea.edit": {MP_SEA_INDEX, "pages/customer/form/index"},
+        "sea.claim": {MP_SEA_INDEX, "pages/sea/claim-detail/index"},
+        "approval.detail": {MP_APPROVAL_INDEX, MP_APPROVAL_DETAIL_INDEX},
+        "approval.approve": {MP_APPROVAL_INDEX, MP_APPROVAL_DETAIL_INDEX},
+        "approval.reject": {MP_APPROVAL_INDEX, MP_APPROVAL_DETAIL_INDEX},
+        "approval.submit": {MP_CUSTOMER_DETAIL_INDEX, MP_SEA_INDEX},
         # 【钉随代码 2026-10-07】notification 两页随 1b3c865b 删除, 提醒由 reminder 模块承载
         "reminder.notification": {
             "pages/reminder/index",
@@ -435,15 +446,15 @@ def main() -> int:
         "score.ranking": {
             "pages/ranking/index",
             "pages/ranking/detail/index",
-            "pages/customer/detail/index",
+            MP_CUSTOMER_DETAIL_INDEX,
         },
         "auth.profile": {
-            "pages/profile/index",
+            MP_PROFILE_INDEX,
             "pages/profile/password/index",
             "pages/profile/scope/index",
         },
-        "auth.feedback": {"pages/profile/index", "pages/profile/feedback/index"},
-        "auth.wechatBinding": {"pages/profile/index", "pages/profile/wechat/index"},
+        "auth.feedback": {MP_PROFILE_INDEX, "pages/profile/feedback/index"},
+        "auth.wechatBinding": {MP_PROFILE_INDEX, "pages/profile/wechat/index"},
         "auth.legalDocs": {
             "pages/profile/about/index",
             "pages/profile/agreement/index",

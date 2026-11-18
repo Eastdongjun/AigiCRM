@@ -72,7 +72,7 @@ function loadBaseline() {
   return JSON.parse(fs.readFileSync(baselinePath, 'utf8'))
 }
 
-const files = walk(pagesDir).sort()
+const files = walk(pagesDir).sort((a, b) => a.localeCompare(b))
 const baseline = loadBaseline()
 const baselineFiles = new Set(Object.keys(baseline).filter((k) => !k.startsWith('_')))
 const results = {}

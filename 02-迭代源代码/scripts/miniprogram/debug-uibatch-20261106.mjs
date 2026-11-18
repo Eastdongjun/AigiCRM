@@ -94,5 +94,5 @@ if (saved) {
   await mini.callWxMethod('setStorageSync', TOKEN_KEY_PREFIX + 'http://111.229.37.220', saved)
 }
 
-await mini.disconnect()
+mini.disconnect()
 console.log('DONE')

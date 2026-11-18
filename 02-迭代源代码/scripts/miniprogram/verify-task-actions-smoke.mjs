@@ -41,6 +41,6 @@ if(idx>=0){
 await mini.screenshot({path:'test-results/menu-dict/mp-task-actions.png'})
 console.log(JSON.stringify(out,null,1))
 fs.writeFileSync('test-results/menu-dict/mp-task-actions.json',JSON.stringify(out,null,1))
-await mini.disconnect()
+mini.disconnect()
 const ok = out.taskCount>=1 && out.completeModal?.visible && out.transferModal?.visible && out.transferModal?.assignees>0 && out.transferResult?.visible===false
 process.exit(ok?0:1)
