@@ -57,6 +57,11 @@
             <el-radio value="ROLE">指定角色</el-radio>
           </el-radio-group>
         </el-form-item>
+        <!-- 【A4 拍板 #4】单人快照模型提示：handover/org_move 建议指定角色（默认销售总监），角色下第一个启用人员审批；
+             在途单审批人创建时快照，不随成员变化；停用/离职由管理员在申请列表转交 -->
+        <el-alert v-if="form.flowType==='handover' || form.flowType==='org_move'" type="info" :closable="false" show-icon
+          style="margin-bottom:8px"
+          title="交接/调动为单人快照审批：建议指定角色（如销售总监），角色下第一个启用成员担任审批人；在途单不随成员变化，审批人不可用由管理员转交。" />
         <el-form-item :label="form.approverType==='ROLE'?'选择角色':'选择人员'" required>
           <el-select v-if="form.approverType==='USER'" v-model="approverIds" multiple filterable placeholder="可多选" style="width:100%">
             <el-option v-for="u in userOptions" :key="u.id" :label="u.realName" :value="u.id" />

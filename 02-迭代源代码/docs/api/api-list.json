@@ -1,6 +1,6 @@
 {
  "generated_at": "2026-11-18",
- "count": 317,
+ "count": 318,
  "endpoints": [
   {
    "method": "POST",
@@ -1465,6 +1465,12 @@
    "path": "/api/system/lifecycle/requests/{id}/rollback",
    "permission": "hasAuthority('system:user:edit')",
    "handler": "rollback"
+  },
+  {
+   "method": "POST",
+   "path": "/api/system/lifecycle/requests/{id}/transfer-approver",
+   "permission": "hasAuthority('system:user:edit')",
+   "handler": "transferApprover"
   },
   {
    "method": "GET",

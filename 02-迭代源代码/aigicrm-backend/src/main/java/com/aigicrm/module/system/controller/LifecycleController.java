@@ -47,6 +47,20 @@ public class LifecycleController {
         return Result.ok(lifecycleService.detail(id));
     }
 
+    /** 【A4 拍板 #4/#5】管理员转交在途单审批人（仅 pending；功能码之外服务层再收口 admin）。 */
+    @PreAuthorize("hasAuthority('system:user:edit')")
+    @PostMapping("/requests/{id}/transfer-approver")
+    public Result<Map<String, Object>> transferApprover(@PathVariable Long id,
+                                                        @RequestBody TransferApproverRequest body) {
+        return Result.ok(lifecycleService.transferApprover(id, body.newApproverId, body.reason));
+    }
+
+    /** 转交请求 DTO。 */
+    public static class TransferApproverRequest {
+        public Long newApproverId;
+        public String reason;
+    }
+
     @PreAuthorize("hasAnyAuthority('system:user:edit','approval:view')")
     @PostMapping("/requests/{id}/approve")
     public Result<Map<String, Object>> approve(@PathVariable Long id,

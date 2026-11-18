@@ -39,6 +39,9 @@ public class LifecycleService {
     private final JdbcTemplate jdbc;
     private final BizApprovalConfigMapper approvalConfigMapper;
     private final PermissionCacheService permissionCacheService;
+    /** 【A4】审批人转交审计留痕；单测可缺省。 */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.aigicrm.security.SecurityAuditService securityAudit;
 
     /** 【2026-11-17 P2】激励归属改派后清排行缓存；单测可缺省。 */
     @org.springframework.beans.factory.annotation.Autowired(required = false)
@@ -54,13 +57,14 @@ public class LifecycleService {
         if (fromUserId.equals(toUserId)) throw new BusinessException("离职人与继任人不能是同一人");
         requireActiveUser(fromUserId);
         requireActiveUser(toUserId);
-        Long approver = resolveApprover("handover");
+        ApproverSnapshot snapshot = resolveApproverSnapshot("handover");
+        Long approver = snapshot.userId();
         Long applicant = SecurityUtils.getCurrentUserId();
         if (approver.equals(applicant) && !SecurityUtils.isAdmin()) {
             throw new BusinessException("审批人不能是申请人，请配置其他审批人");
         }
         long id = insertRequest("HANDOVER", applicant, fromUserId, toUserId, null,
-                reason, copyRoles, transferIncentives, transferReports, approver, null);
+                reason, copyRoles, transferIncentives, transferReports, approver, null, snapshot.json());
         return requestView(id);
     }
 
@@ -75,25 +79,35 @@ public class LifecycleService {
         }
         Long oldDept = longVal(user.get("dept_id"));
         if (toDeptId.equals(oldDept)) throw new BusinessException("人员已在目标部门");
-        Long approver = resolveApprover("org_move");
+        ApproverSnapshot snapshot = resolveApproverSnapshot("org_move");
+        Long approver = snapshot.userId();
         Long applicant = SecurityUtils.getCurrentUserId();
         if (approver.equals(applicant) && !SecurityUtils.isAdmin()) {
             throw new BusinessException("审批人不能是申请人，请配置其他审批人");
         }
         long id = insertRequest("ORG_MOVE", applicant, userId, null, toDeptId,
-                reason, false, false, false, approver, null);
+                reason, false, false, false, approver, null, snapshot.json());
         return requestView(id);
     }
 
     private long insertRequest(String type, Long applicant, Long subject, Long targetUser, Long targetDept,
                                String reason, boolean copyRoles, boolean transferIncentives,
                                boolean transferReports, Long approver, String snapshotJson) {
+        return insertRequest(type, applicant, subject, targetUser, targetDept, reason, copyRoles,
+                transferIncentives, transferReports, approver, snapshotJson, null);
+    }
+
+    /** 【A4】带审批人快照的创建（在途单审批人不随角色成员变化，拍板 #4）。 */
+    private long insertRequest(String type, Long applicant, Long subject, Long targetUser, Long targetDept,
+                               String reason, boolean copyRoles, boolean transferIncentives,
+                               boolean transferReports, Long approver, String snapshotJson,
+                               String approverSnapshotJson) {
         jdbc.update("INSERT INTO biz_lifecycle_request " +
                         "(request_type, applicant_id, subject_user_id, target_user_id, target_dept_id, reason, copy_roles, " +
-                        "transfer_incentives, transfer_reports, status, approver_id, snapshot_json) " +
-                        "VALUES (?,?,?,?,?,?,?,?,?, 'pending', ?, ?)",
+                        "transfer_incentives, transfer_reports, status, approver_id, snapshot_json, approver_snapshot_json) " +
+                        "VALUES (?,?,?,?,?,?,?,?,?, 'pending', ?, ?, ?)",
                 type, applicant, subject, targetUser, targetDept, reason, copyRoles ? 1 : 0,
-                transferIncentives ? 1 : 0, transferReports ? 1 : 0, approver, snapshotJson);
+                transferIncentives ? 1 : 0, transferReports ? 1 : 0, approver, snapshotJson, approverSnapshotJson);
         Long id = jdbc.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
         return id == null ? 0L : id;
     }
@@ -129,6 +143,10 @@ public class LifecycleService {
         Long approver = longVal(req.get("approver_id"));
         if (!SecurityUtils.isAdmin() && !current.equals(approver)) {
             throw new BusinessException(403, "只有配置的审批人可审批");
+        }
+        // 【A4 §2.4】审批人停用/删除后不能审批——admin 亦不得代批（单人快照模型，走管理员转交）
+        if (!SecurityUtils.isAdmin() && !activeUser(approver)) {
+            throw new BusinessException(403, "审批人已停用或删除，请联系管理员转交审批人");
         }
         String type = String.valueOf(req.get("request_type"));
         Map<String, Object> result = "HANDOVER".equals(type)
@@ -448,7 +466,14 @@ public class LifecycleService {
         return null;
     }
 
+    /** 【A4 拍板 #4】审批人解析快照：单人（角色下第一个启用成员/指定用户），含来源与解析时间。 */
+    public record ApproverSnapshot(Long userId, String json) {}
+
     private Long resolveApprover(String flowType) {
+        return resolveApproverSnapshot(flowType).userId();
+    }
+
+    private ApproverSnapshot resolveApproverSnapshot(String flowType) {
         List<BizApprovalConfig> configs = approvalConfigMapper.selectList(
                 new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<BizApprovalConfig>()
                         .eq(BizApprovalConfig::getFlowType, flowType)
@@ -457,9 +482,44 @@ public class LifecycleService {
                         .orderByAsc(BizApprovalConfig::getId));
         for (BizApprovalConfig c : configs) {
             Long id = firstApprover(c);
-            if (id != null) return id;
+            if (id != null) return snapshotOf(c, id);
         }
-        throw new BusinessException("未配置「" + flowType + "」审批人，请先在审批配置中设置一级审批人");
+        throw new BusinessException("未配置「" + flowType + "」审批人，请先在审批配置中设置一级审批人（或角色下无启用人员）");
+    }
+
+    /** 快照 JSON：type/roleId/roleCode/userId/userName/source/resolvedAt（在途单不随角色成员变化）。 */
+    private ApproverSnapshot snapshotOf(BizApprovalConfig c, Long userId) {
+        String type = c.getApproverType() == null ? "USER" : c.getApproverType().toUpperCase();
+        long configRefId = 0;
+        String roleCode = null;
+        try {
+            JsonNode node = JSON.readTree(c.getApproverIds() == null ? "[]" : c.getApproverIds());
+            if (node.isArray() && !node.isEmpty()) configRefId = node.get(0).asLong(0);
+            if ("ROLE".equals(type) && configRefId > 0) {
+                roleCode = jdbc.queryForObject("SELECT role_code FROM sys_role WHERE id=?", String.class, configRefId);
+            }
+        } catch (Exception ignored) {
+            // 解析失败按无 roleCode 快照
+        }
+        String userName = null;
+        try {
+            userName = jdbc.queryForObject("SELECT real_name FROM sys_user WHERE id=?", String.class, userId);
+        } catch (Exception ignored) {
+            // 已删用户名留空
+        }
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("type", type);
+        if (configRefId > 0) m.put("roleId", configRefId);
+        if (roleCode != null) m.put("roleCode", roleCode);
+        m.put("userId", userId);
+        if (userName != null) m.put("userName", userName);
+        m.put("source", "config:" + type + (configRefId > 0 ? "#" + configRefId : "") + ("ROLE".equals(type) ? " first-active" : ""));
+        m.put("resolvedAt", LocalDateTime.now().withNano(0).toString());
+        try {
+            return new ApproverSnapshot(userId, JSON.writeValueAsString(m));
+        } catch (Exception e) {
+            return new ApproverSnapshot(userId, "{}");
+        }
     }
 
     private Long firstApprover(BizApprovalConfig c) {
@@ -491,6 +551,42 @@ public class LifecycleService {
         return rows.isEmpty() ? null : rows.get(0);
     }
 
+    // ==================== 【A4 拍板 #4/#5】审批人转交（仅 admin, 仅 pending） ====================
+
+    /**
+     * 管理员转交在途单审批人：写 approver_id/changed_* + 审计；单人快照模型下不自动换人，
+     * 原审批人停用/删除时由此通道显式转交。转交权限收窄为仅 admin（拍板 #5：审批人自转有绕过面）。
+     */
+    @Transactional
+    public Map<String, Object> transferApprover(Long id, Long newApproverId, String reason) {
+        if (!SecurityUtils.isAdmin()) {
+            throw new BusinessException(403, "审批人转交仅系统管理员可操作");
+        }
+        if (newApproverId == null || newApproverId <= 0) throw new BusinessException("新审批人不能为空");
+        Map<String, Object> req = requirePendingForUpdate(id);
+        if (!activeUser(newApproverId)) throw new BusinessException("新审批人不存在或已停用");
+        if (newApproverId.equals(longVal(req.get("applicant_id")))) {
+            throw new BusinessException("审批人不能是申请人");
+        }
+        if (newApproverId.equals(longVal(req.get("approver_id")))) {
+            throw new BusinessException("新审批人与当前审批人相同");
+        }
+        Long operator = SecurityUtils.getCurrentUserId();
+        jdbc.update("UPDATE biz_lifecycle_request SET approver_id=?, approver_changed_by=?, " +
+                        "approver_changed_at=NOW(), approver_change_reason=? WHERE id=? AND status='pending'",
+                newApproverId, operator, reason == null ? "" : reason, id);
+        if (securityAudit != null) {
+            try {
+                securityAudit.permissionChange("lifecycle_approver_transfer",
+                        "request=" + id + " old=" + req.get("approver_id") + " new=" + newApproverId
+                                + " by=" + operator + " reason=" + (reason == null ? "" : reason));
+            } catch (Exception ignored) {
+                // 审计失败不阻断转交；changed_* 字段已留痕
+            }
+        }
+        return requestView(id);
+    }
+
     private Map<String, Object> requirePendingForUpdate(Long id) {
         Map<String, Object> req = requestMapForUpdate(id);
         if (req == null) throw new BusinessException("请求不存在");
@@ -515,8 +611,12 @@ public class LifecycleService {
         Map<String, Object> out = new LinkedHashMap<>(req);
         Object snapshot = req.get("snapshot_json");
         Object result = req.get("result_json");
+        Object approverSnapshot = req.get("approver_snapshot_json");
         if (snapshot instanceof String s) out.put("snapshot", parseMap(s));
         if (result instanceof String s) out.put("result", parseMap(s));
+        // 【A4】审批人快照解析为嵌套对象（UI 显示来源）；转交仅 admin（拍板 #5）
+        if (approverSnapshot instanceof String s) out.put("approverSnapshot", parseMap(s));
+        out.put("canTransferApprover", SecurityUtils.isAdmin() && "pending".equals(req.get("status")));
         return out;
     }
 

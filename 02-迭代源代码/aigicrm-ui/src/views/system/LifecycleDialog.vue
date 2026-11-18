@@ -77,17 +77,45 @@
               <el-tag size="small" :type="statusType(row.status)">{{ statusText(row.status) }}</el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="approver_name" label="审批人" width="90" />
+          <el-table-column label="审批人" width="130">
+            <template #default="{ row }">
+              <div>{{ row.approver_name || row.approver_id || '—' }}</div>
+              <div v-if="approverSource(row)" class="approver-src">{{ approverSource(row) }}</div>
+              <el-tooltip v-if="row.approver_changed_at" :content="`已转交 · ${row.approver_changed_at}`">
+                <el-tag size="small" type="warning">已转交</el-tag>
+              </el-tooltip>
+            </template>
+          </el-table-column>
           <el-table-column label="操作" width="150">
             <template #default="{ row }">
               <el-button v-if="row.status === 'pending' && (userStore.hasPermission('approval:view') || userStore.hasPermission('system:user:edit'))" link size="small" type="success" @click="approve(row)">通过</el-button>
               <el-button v-if="row.status === 'pending' && (userStore.hasPermission('approval:view') || userStore.hasPermission('system:user:edit'))" link size="small" type="danger" @click="reject(row)">驳回</el-button>
               <el-button v-if="row.status === 'approved' && userStore.hasPermission('system:user:edit')" link size="small" type="warning" @click="rollback(row)">回滚</el-button>
+              <el-button v-if="row.status === 'pending' && userStore.isAdmin" link size="small" type="primary" @click="openTransfer(row)">转交</el-button>
             </template>
           </el-table-column>
         </el-table>
       </el-tab-pane>
     </el-tabs>
+  
+    <!-- 【A4 拍板 #4/#5】管理员转交审批人（仅 pending 单；单人快照模型下不自动换人） -->
+    <el-dialog v-model="transferVisible" title="转交审批人" width="420px" append-to-body>
+      <el-form label-width="90px">
+        <el-form-item label="当前审批人">{{ transferRow.approver_name || transferRow.approver_id }}</el-form-item>
+        <el-form-item label="新审批人" required>
+          <el-select v-model="transferForm.newApproverId" filterable style="width:100%">
+            <el-option v-for="u in userOptions" :key="u.value" :label="u.label" :value="u.value" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="原因">
+          <el-input v-model="transferForm.reason" type="textarea" :rows="2" placeholder="原审批人停用/离职等" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="transferVisible=false">取消</el-button>
+        <el-button type="primary" :loading="transferring" @click="submitTransfer">确认转交</el-button>
+      </template>
+    </el-dialog>
   </el-dialog>
 </template>
 
@@ -105,6 +133,36 @@ const requests = ref([])
 const filterStatus = ref('')
 const handover = reactive({ fromUserId: null, toUserId: null, reason: '', copyRoles: false, transferIncentives: false, transferReports: false })
 const move = reactive({ userId: null, toDeptId: null, reason: '' })
+const transferVisible = ref(false)
+const transferring = ref(false)
+/** 转交目标行(后端 list 行, 动态结构) */
+const transferRow = /** @type {any} */ (ref({}))
+const transferForm = reactive({ newApproverId: null, reason: '' })
+
+const approverSource = (row) => {
+  let snap = row.approverSnapshot
+  if (!snap && row.approver_snapshot_json) {
+    try { snap = JSON.parse(row.approver_snapshot_json) } catch (e) { snap = null }
+  }
+  if (!snap || !snap.type) return ''
+  return snap.type === 'ROLE' ? `角色#${snap.roleId || ''}${snap.roleCode ? '(' + snap.roleCode + ')' : ''}·首位成员` : (snap.type === 'USER' ? '指定人员' : snap.type)
+}
+const openTransfer = (row) => {
+  transferRow.value = row
+  transferForm.newApproverId = null
+  transferForm.reason = ''
+  transferVisible.value = true
+}
+const submitTransfer = async () => {
+  if (!transferForm.newApproverId) return ElMessage.warning('请选择新审批人')
+  transferring.value = true
+  try {
+    await request.post(`/system/lifecycle/requests/${transferRow.value.id}/transfer-approver`, transferForm)
+    ElMessage.success('审批人已转交')
+    transferVisible.value = false
+    loadRequests()
+  } catch (e) { /* 拦截器提示 */ } finally { transferring.value = false }
+}
 
 const open = () => {
   visible.value = true
@@ -177,4 +235,5 @@ const statusType = (s) => ({ pending: 'warning', approved: 'success', rejected: 
 <style scoped>
 .hint { margin-left: 10px; color: var(--el-color-info); font-size: 12px }
 .toolbar { display: flex; gap: 8px; margin-bottom: 8px }
+.approver-src { font-size: 11px; color: var(--el-text-color-secondary); line-height: 1.2; }
 </style>

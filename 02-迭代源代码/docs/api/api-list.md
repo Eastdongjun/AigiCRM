@@ -4,7 +4,7 @@
 > 本文件由 scripts/gen-api.py 自动生成,**禁止手改**;接口变更后重新运行。
 > 权限码与 docs/permission/permission-dict.md 对应。
 
-## 接口清单(317 个)
+## 接口清单(318 个)
 
 | 方法 | 路径 | 权限码 | 方法名 | 文件 |
 |---|---|---|---|---|
@@ -252,6 +252,7 @@
 | POST | `/api/system/lifecycle/requests/{id}/approve` | `hasAnyAuthority('system:user:edit','approval:view')` | approve | LifecycleController.java |
 | POST | `/api/system/lifecycle/requests/{id}/reject` | `hasAnyAuthority('system:user:edit','approval:view')` | reject | LifecycleController.java |
 | POST | `/api/system/lifecycle/requests/{id}/rollback` | `hasAuthority('system:user:edit')` | rollback | LifecycleController.java |
+| POST | `/api/system/lifecycle/requests/{id}/transfer-approver` | `hasAuthority('system:user:edit')` | transferApprover | LifecycleController.java |
 | GET | `/api/system/logs` | `hasAuthority('system:log:view')` | page | SysLogController.java |
 | GET | `/api/system/logs/counts` | `hasAuthority('system:log:view')` | counts | SysLogController.java |
 | GET | `/api/system/menus/tree` | `hasAuthority('system:menu:view')` | tree | SysMenuController.java |
