@@ -118,6 +118,24 @@ def call(base, method, path, token=None, timeout=3):
 
 
 def main():
+    args = parse_args_20k()
+    secret, users, eps = load_inputs_20k(args)
+    out_path = Path(args.out); out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # 1) 真实拉取每个用户权限（不猜）
+    user_perms = load_user_perms_20k(args, secret, users)
+    invalid = make_token(secret, 99999999, 'invalid-probe')
+    # 2) 用户 × 端点 × 3 认证态；无/伪造 token 也按每个用户重复，保证 20k+ 真实请求
+    cases = build_cases_20k(users, eps, invalid)
+
+    counts, results = execute_cases_20k(cases, args, user_perms)
+    summary = build_summary_20k(args, users, eps, cases, counts, results)
+    out_path.write_text(json.dumps(summary, ensure_ascii=False, indent=1), encoding='utf-8')
+    print(json.dumps({k: summary[k] for k in ('users','endpoints','cases','pass','fail','by_mode','by_status')}, ensure_ascii=False, indent=1))
+    return 0 if counts['fail'] == 0 else 1
+
+
+def parse_args_20k():
     ap = argparse.ArgumentParser()
     ap.add_argument('--base', default='http://111.229.37.220')
     ap.add_argument('--secret-file', default='/tmp/jwt_secret.txt')
@@ -125,15 +143,18 @@ def main():
     ap.add_argument('--endpoints', default='docs/api/api-list.json')
     ap.add_argument('--out', default='test-results/permission-matrix/result.json')
     ap.add_argument('--workers', type=int, default=16)
-    args = ap.parse_args()
+    return ap.parse_args()
 
+
+def load_inputs_20k(args):
     secret = Path(args.secret_file).read_text().strip()
     users = json.loads(Path(args.users).read_text(encoding='utf-8'))
     eps = [e for e in json.loads(Path(args.endpoints).read_text(encoding='utf-8'))['endpoints']
            if e['path'] not in ('/api/auth/logout', '/api/auth/switch-group')]
-    out_path = Path(args.out); out_path.parent.mkdir(parents=True, exist_ok=True)
+    return secret, users, eps
 
-    # 1) 真实拉取每个用户权限（不猜）
+
+def load_user_perms_20k(args, secret, users):
     user_perms = {}
     for u in users:
         token = make_token(secret, u['id'], u['username'])
@@ -146,9 +167,10 @@ def main():
         except Exception:
             user_perms[u['id']] = set()
         u['token'] = token
-    invalid = make_token(secret, 99999999, 'invalid-probe')
+    return user_perms
 
-    # 2) 用户 × 端点 × 3 认证态；无/伪造 token 也按每个用户重复，保证 20k+ 真实请求
+
+def build_cases_20k(users, eps, invalid):
     cases = []
     for u in users:
         for e in eps:
@@ -156,49 +178,14 @@ def main():
             cases.append((u, e, 'valid', u['token'], rule))
             cases.append((u, e, 'no_token', None, rule))
             cases.append((u, e, 'invalid_token', invalid, rule))
+    return cases
 
+
+def execute_cases_20k(cases, args, user_perms):
     results = []
     counts = {'total': len(cases), 'pass': 0, 'fail': 0, 'by_mode': {}, 'by_status': {}}
-    lock = None
-
-    def run(c):
-        u, e, mode, token, rule = c
-        status = call(args.base, e['method'], e['path'], token)
-        if not isinstance(status, int):
-            return {**{'user': u['username'], 'userId': u['id'], 'mode': mode,
-                       'method': e['method'], 'path': e['path'], 'permission': e.get('permission'),
-                       'status': status}, 'fail': True, 'reason': 'network'}
-        exp = None
-        if mode == 'valid':
-            ok = expected_ok(rule, user_perms.get(u['id'], set()))
-            if ok is True:
-                exp = 'authorized'; bad = status in (401, 403)
-            elif ok is False:
-                exp = 'denied'
-                # 鉴权前 400 白名单端点：参数形状先于方法鉴权（登记见
-                # docs/fabushi-preauth-400-registry-20261116.md），400 与 401/403 同为已解释；
-                # 2xx（越权成功）/5xx 仍 fail
-                if (e['method'], e['path']) in PARAM_SHAPE_OK:
-                    bad = status not in (400, 401, 403)
-                else:
-                    bad = status not in (401, 403)
-            else:
-                exp = 'unknown'; bad = status >= 500
-        elif mode == 'no_token':
-            exp = 'denied' if rule[0] not in ('anon',) else 'anon'
-            bad = (status not in (401, 403)) if exp == 'denied' else (status in (401, 403))
-        else:  # invalid token: 401/403 is acceptable for both protected and anonymous endpoints
-            exp = 'rejected'
-            bad = status >= 500 or status < 400
-        if status >= 500:
-            bad = True
-        return {**{'user': u['username'], 'userId': u['id'], 'mode': mode,
-                   'method': e['method'], 'path': e['path'], 'permission': e.get('permission'),
-                   'status': status, 'expected': exp}, 'fail': bad,
-                'reason': 'status' if bad else 'ok'}
-
     with ThreadPoolExecutor(max_workers=args.workers) as ex:
-        futs = [ex.submit(run, c) for c in cases]
+        futs = [ex.submit(run_case_20k, c, args, user_perms) for c in cases]
         for f in as_completed(futs):
             r = f.result()
             counts['by_mode'][r['mode']] = counts['by_mode'].get(r['mode'], 0) + 1
@@ -212,17 +199,54 @@ def main():
             done = counts['pass'] + counts['fail']
             if done % 2000 == 0:
                 print(f'progress {done}/{len(cases)} fail={counts["fail"]} status={counts["by_status"]}', flush=True)
+    return counts, results
 
-    summary = {
+
+def run_case_20k(c, args, user_perms):
+    u, e, mode, token, rule = c
+    status = call(args.base, e['method'], e['path'], token)
+    if not isinstance(status, int):
+        return {**{'user': u['username'], 'userId': u['id'], 'mode': mode,
+                   'method': e['method'], 'path': e['path'], 'permission': e.get('permission'),
+                   'status': status}, 'fail': True, 'reason': 'network'}
+    exp, bad = evaluate_20k(mode, e, status, rule, user_perms, u)
+    if status >= 500:
+        bad = True
+    return {**{'user': u['username'], 'userId': u['id'], 'mode': mode,
+               'method': e['method'], 'path': e['path'], 'permission': e.get('permission'),
+               'status': status, 'expected': exp}, 'fail': bad,
+            'reason': 'status' if bad else 'ok'}
+
+
+def evaluate_20k(mode, e, status, rule, user_perms, u):
+    if mode == 'valid':
+        ok = expected_ok(rule, user_perms.get(u['id'], set()))
+        if ok is True:
+            return 'authorized', status in (401, 403)
+        if ok is False:
+            # 鉴权前 400 白名单端点：参数形状先于方法鉴权（登记见
+            # docs/fabushi-preauth-400-registry-20261116.md），400 与 401/403 同为已解释；
+            # 2xx（越权成功）/5xx 仍 fail
+            if (e['method'], e['path']) in PARAM_SHAPE_OK:
+                return 'denied', status not in (400, 401, 403)
+            return 'denied', status not in (401, 403)
+        return 'unknown', status >= 500
+    if mode == 'no_token':
+        exp = 'denied' if rule[0] not in ('anon',) else 'anon'
+        bad = (status not in (401, 403)) if exp == 'denied' else (status in (401, 403))
+        return exp, bad
+    # invalid token: 401/403 is acceptable for both protected and anonymous endpoints
+    return 'rejected', status >= 500 or status < 400
+
+
+def build_summary_20k(args, users, eps, cases, counts, results):
+    return {
         'generated_at': time.strftime('%Y-%m-%dT%H:%M:%S%z'),
         'base': args.base, 'users': len(users), 'endpoints': len(eps),
         'cases': len(cases), 'pass': counts['pass'], 'fail': counts['fail'],
         'by_mode': counts['by_mode'], 'by_status': counts['by_status'],
         'failures': results,
     }
-    out_path.write_text(json.dumps(summary, ensure_ascii=False, indent=1), encoding='utf-8')
-    print(json.dumps({k: summary[k] for k in ('users','endpoints','cases','pass','fail','by_mode','by_status')}, ensure_ascii=False, indent=1))
-    return 0 if counts['fail'] == 0 else 1
 
 
 if __name__ == '__main__':

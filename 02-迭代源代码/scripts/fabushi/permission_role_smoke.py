@@ -41,23 +41,11 @@ def main():
     for uid,name in USERS.items():
         token=tok(uid,name)
         # 拿真实权限集合，避免猜
-        st,body=call('GET','/api/auth/info',token)
-        try: perms=set(json.loads(body)['data'].get('permissions') or [])
-        except Exception: perms=set()
-        for method,path,allow in no_path:
+        st,body=call('GET','/api/auth/info',token)  # noqa: F841
+        perms=parse_perms(body)
+        for method,path,allow in no_path:  # noqa: B007
             st,_=call(method,path,token, {} if method=='POST' else None)
-            # pending/team/dashboard 的期望：admin/0 有码；05/06 无码
-            if path.endswith('/pending'):
-                allowed = name=='admin'
-                ok = (st==200) if allowed else (st in (401,403))
-            elif '/stats/team' in path or '/stats/dashboard' in path:
-                allowed = name in ('admin','NO001')
-                ok = (st==200) if allowed else (st in (401,403))
-            elif path == '/api/fabushi/books?status=all':
-                # 非 manage 仍 200，但只返回 approved；管理端含 disabled
-                ok = st==200
-            else:
-                ok = (st in (200,400)) if method in ('POST',) else st==200
+            ok=no_path_ok(path, method, name, st)
             rows.append({'user':name,'method':method,'path':path,'status':st,'perms':sorted(perms)[:5]})
             if not ok: failures.append(rows[-1])
     # 路径变量/管理动作：用真实/不存在 ID 验证权限门
@@ -71,20 +59,37 @@ def main():
     ]
     for uid,name in USERS.items():
         token=tok(uid,name)
-        for method,path,allowed,body in path_cases:
+        for method,path,allowed,body in path_cases:  # noqa: B007
             st,_=call(method,path,token,body)
-            allowed_user = name=='admin' or ('11' if name=='NO001' else '') in allowed and '11' in allowed
-            # 只有 admin 和 0 具备 book:manage? 实际 seed: admin only; 0 lacks. 以权限码为准:
-            if path == '/api/fabushi/books/3':
-                ok = st == 200  # approved 全员可读
-            elif name!='admin':
-                ok = st in (401,403,404)  # 404 也允许(不暴露对象)
-            else:
-                ok = st not in (401,403)
+            ok=path_ok(path, name, st)
             rows.append({'user':name,'method':method,'path':path,'status':st})
             if not ok: failures.append(rows[-1])
     print(json.dumps({'cases':len(rows),'failures':failures,'sample':rows[:8]},ensure_ascii=False,indent=1))
     Path('test-results/permission-matrix/fabushi-role-smoke.json').write_text(json.dumps({'cases':len(rows),'failures':failures,'rows':rows},ensure_ascii=False,indent=1),encoding='utf-8')
     return 0 if not failures else 1
+
+def parse_perms(body):
+    try: return set(json.loads(body)['data'].get('permissions') or [])
+    except Exception: return set()
+
+def no_path_ok(path, method, name, st):
+    # pending/team/dashboard 的期望：admin/0 有码；05/06 无码
+    if path.endswith('/pending'):
+        allowed = name=='admin'
+        return (st==200) if allowed else (st in (401,403))
+    if '/stats/team' in path or '/stats/dashboard' in path:
+        allowed = name in ('admin','NO001')
+        return (st==200) if allowed else (st in (401,403))
+    if path == '/api/fabushi/books?status=all':
+        # 非 manage 仍 200，但只返回 approved；管理端含 disabled
+        return st==200
+    return (st in (200,400)) if method in ('POST',) else st==200
+
+def path_ok(path, name, st):
+    if path == '/api/fabushi/books/3':
+        return st == 200  # approved 全员可读
+    if name!='admin':
+        return st in (401,403,404)  # 404 也允许(不暴露对象)
+    return st not in (401,403)
 
 if __name__=='__main__': raise SystemExit(main())

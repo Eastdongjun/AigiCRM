@@ -140,83 +140,21 @@ def classify(mode, expected, status, method, path, rule):
 
 
 def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument('--base', default='http://111.229.37.220')
-    ap.add_argument('--secret-file', default='/tmp/jwt_secret.txt')
-    ap.add_argument('--users', required=True)
-    ap.add_argument('--meta', required=True)
-    ap.add_argument('--endpoints', default='docs/api/api-list.json')
-    ap.add_argument('--out', required=True)
-    ap.add_argument('--workers', type=int, default=64)
-    ap.add_argument('--timeout', type=float, default=6)
-    args = ap.parse_args()
-
-    secret = Path(args.secret_file).read_text().strip()
-    users = json.loads(Path(args.users).read_text(encoding='utf-8'))
-    meta = json.loads(Path(args.meta).read_text(encoding='utf-8'))
-    eps = [e for e in json.loads(Path(args.endpoints).read_text(encoding='utf-8'))['endpoints']
-           if e['path'] not in ('/api/auth/logout', '/api/auth/switch-group')]
+    args = parse_args()
+    secret, users, meta, eps = load_inputs(args)
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
 
     # 1) 真实拉取每个用户的权限码与角色（不猜）
-    perms, roles = {}, {}
-    for u in users:
-        tok = make_token(secret, u['id'], u['username'])
-        u['token'] = tok
-        try:
-            import urllib.request
-            req = urllib.request.Request(args.base + '/api/auth/info', headers={'Authorization': 'Bearer ' + tok})
-            with urllib.request.urlopen(req, timeout=20) as r:
-                data = (json.loads(r.read().decode('utf-8')) or {}).get('data') or {}
-            perms[u['id']] = set(data.get('permissions') or [])
-            roles[u['id']] = data.get('roles') or []
-        except Exception:
-            perms[u['id']] = set()
-            roles[u['id']] = []
+    perms, roles = load_permissions(args, secret, users)
     invalid = make_token(secret, 99999999, 'invalid-probe')
-
-    cases = []
-    for u in users:
-        for e in eps:
-            rule = permission_rule(e.get('permission') or '')
-            for mode, tok in (('valid', u['token']), ('no_token', None), ('invalid_token', invalid)):
-                cases.append((u, e, mode, tok, rule))
+    cases = build_cases(users, eps, invalid)
 
     counters = {'总用例': len(cases), '匹配': 0, '不匹配': 0, '需复核': 0}
     lock_result = []
     t0 = time.time()
-
-    def run(c):
-        u, e, mode, tok, rule = c
-        status = call(args.base, e['method'], e['path'], tok, timeout=args.timeout)
-        exp = None
-        if mode == 'valid':
-            ok = expected_ok(rule, perms.get(u['id'], set()))
-            exp = 'authorized' if ok is True else ('denied' if ok is False else 'unknown')
-        elif mode == 'no_token':
-            exp = 'anon' if rule[0] == 'anon' else 'denied'
-        else:
-            exp = 'rejected'
-
-        code = (rule[1] and next(iter(rule[1]))) if rule[0] in ('all', 'any') else None
-        module, action = target_of_endpoint(meta, e, code)
-        scope, anchor, scope_src = scope_of_user(meta, u['id'], module, action)
-        result, match, err = classify(mode, exp, status, e['method'], e['path'], rule)
-        return {
-            '模块': module, '动作项': action,
-            '数据范围(配置)': f'{scope} / 锚点 {anchor}（{scope_src}）',
-            '人员': f"{u['username']}（{u.get('realName', '')}）",
-            '角色': ','.join(sorted(set(roles.get(u['id']) or []))) or '—',
-            '认证态': {'valid': '有效token', 'no_token': '无token', 'invalid_token': '伪造token'}[mode],
-            '方法': e['method'], '端点': e['path'], '权限码': e.get('permission') or '',
-            'HTTP': status, '生效结果': result, '预期': exp or '',
-            '是否匹配': match, '是否有错误': '否' if match == '匹配' else ('是' if match == '不匹配' else '待复核'),
-            '错误内容': err,
-        }
-
     with ThreadPoolExecutor(max_workers=args.workers) as ex:
-        futs = [ex.submit(run, c) for c in cases]
+        futs = [ex.submit(run_case, c, args, perms, roles, meta) for c in cases]
         done = 0
         for f in as_completed(futs):
             rec = f.result()
@@ -233,6 +171,87 @@ def main():
             fh.write(json.dumps(rec, ensure_ascii=False) + '\n')
     print(json.dumps({'out': str(out), 'elapsed_s': int(time.time() - t0), **counters}, ensure_ascii=False, indent=1))
     return 0
+
+
+def parse_args():
+    ap = argparse.ArgumentParser()
+    ap.add_argument('--base', default='http://111.229.37.220')
+    ap.add_argument('--secret-file', default='/tmp/jwt_secret.txt')
+    ap.add_argument('--users', required=True)
+    ap.add_argument('--meta', required=True)
+    ap.add_argument('--endpoints', default='docs/api/api-list.json')
+    ap.add_argument('--out', required=True)
+    ap.add_argument('--workers', type=int, default=64)
+    ap.add_argument('--timeout', type=float, default=6)
+    return ap.parse_args()
+
+
+def load_inputs(args):
+    secret = Path(args.secret_file).read_text().strip()
+    users = json.loads(Path(args.users).read_text(encoding='utf-8'))
+    meta = json.loads(Path(args.meta).read_text(encoding='utf-8'))
+    eps = [e for e in json.loads(Path(args.endpoints).read_text(encoding='utf-8'))['endpoints']
+           if e['path'] not in ('/api/auth/logout', '/api/auth/switch-group')]
+    return secret, users, meta, eps
+
+
+def load_permissions(args, secret, users):
+    perms, roles = {}, {}
+    for u in users:
+        tok = make_token(secret, u['id'], u['username'])
+        u['token'] = tok
+        try:
+            import urllib.request
+            req = urllib.request.Request(args.base + '/api/auth/info', headers={'Authorization': 'Bearer ' + tok})
+            with urllib.request.urlopen(req, timeout=20) as r:
+                data = (json.loads(r.read().decode('utf-8')) or {}).get('data') or {}
+            perms[u['id']] = set(data.get('permissions') or [])
+            roles[u['id']] = data.get('roles') or []
+        except Exception:
+            perms[u['id']] = set()
+            roles[u['id']] = []
+    return perms, roles
+
+
+def build_cases(users, eps, invalid):
+    cases = []
+    for u in users:
+        for e in eps:
+            rule = permission_rule(e.get('permission') or '')
+            for mode, tok in (('valid', u['token']), ('no_token', None), ('invalid_token', invalid)):
+                cases.append((u, e, mode, tok, rule))
+    return cases
+
+
+def run_case(c, args, perms, roles, meta):
+    u, e, mode, tok, rule = c
+    status = call(args.base, e['method'], e['path'], tok, timeout=args.timeout)
+    exp = expected_for(mode, u, perms, rule)
+
+    code = (rule[1] and next(iter(rule[1]))) if rule[0] in ('all', 'any') else None
+    module, action = target_of_endpoint(meta, e, code)
+    scope, anchor, scope_src = scope_of_user(meta, u['id'], module, action)
+    result, match, err = classify(mode, exp, status, e['method'], e['path'], rule)
+    return {
+        '模块': module, '动作项': action,
+        '数据范围(配置)': f'{scope} / 锚点 {anchor}（{scope_src}）',
+        '人员': f"{u['username']}（{u.get('realName', '')}）",
+        '角色': ','.join(sorted(set(roles.get(u['id']) or []))) or '—',
+        '认证态': {'valid': '有效token', 'no_token': '无token', 'invalid_token': '伪造token'}[mode],
+        '方法': e['method'], '端点': e['path'], '权限码': e.get('permission') or '',
+        'HTTP': status, '生效结果': result, '预期': exp or '',
+        '是否匹配': match, '是否有错误': '否' if match == '匹配' else ('是' if match == '不匹配' else '待复核'),
+        '错误内容': err,
+    }
+
+
+def expected_for(mode, u, perms, rule):
+    if mode == 'valid':
+        ok = expected_ok(rule, perms.get(u['id'], set()))
+        return 'authorized' if ok is True else ('denied' if ok is False else 'unknown')
+    if mode == 'no_token':
+        return 'anon' if rule[0] == 'anon' else 'denied'
+    return 'rejected'
 
 
 if __name__ == '__main__':

@@ -227,6 +227,18 @@ def judge(group, status, expected, method, path, scope_level):
 
 
 def main():
+    args = parse_args_v2()
+    secret, users, temp_users, pools, eps, no2xx = load_inputs_v2(args)
+    perms, uroles, tokens = load_identity_v2(args, secret, users + temp_users)
+    expired, forged = build_probe_tokens_v2(secret)
+    cases = build_cases_v2(users, temp_users, eps, tokens, forged, expired, no2xx)
+    recs = execute_cases_v2(cases, args, pools, perms, uroles)
+    write_records_v2(recs, args.out)
+    print_summary_v2(recs, args.out)
+    return 0
+
+
+def parse_args_v2():
     ap = argparse.ArgumentParser()
     ap.add_argument('--base', default='http://111.229.37.220')
     ap.add_argument('--secret-file', default='/tmp/jwt_secret.txt')
@@ -238,8 +250,10 @@ def main():
     ap.add_argument('--out', required=True)
     ap.add_argument('--workers', type=int, default=64)
     ap.add_argument('--timeout', type=float, default=6)
-    args = ap.parse_args()
+    return ap.parse_args()
 
+
+def load_inputs_v2(args):
     secret = Path(args.secret_file).read_text().strip()
     users = json.loads(Path(args.users).read_text(encoding='utf-8'))
     temp_users = json.loads(Path(args.temp_users).read_text(encoding='utf-8'))
@@ -247,11 +261,15 @@ def main():
     eps = [e for e in json.loads(Path(args.endpoints).read_text(encoding='utf-8'))['endpoints']
            if e['path'] not in ('/api/auth/logout', '/api/auth/switch-group')]
     no2xx = {(m, p) for m, p in json.loads(Path(args.no2xx).read_text(encoding='utf-8'))}
+    return secret, users, temp_users, pools, eps, no2xx
 
+
+def load_identity_v2(args, secret, all_users):
     # 权限与角色
-    perms, uroles = {}, {}
-    def fetch_info(u):
+    perms, uroles, tokens = {}, {}, {}
+    for u in all_users:
         tok = make_token(secret, u['id'], u['username'])
+        tokens[u['id']] = tok
         try:
             import urllib.request
             req = urllib.request.Request(args.base + '/api/auth/info', headers={'Authorization': 'Bearer ' + tok})
@@ -261,121 +279,154 @@ def main():
             uroles[u['id']] = d.get('roles') or []
         except Exception:
             perms[u['id']] = set(); uroles[u['id']] = []
-        return tok
-    tokens = {}
-    for u in users + temp_users:
-        tokens[u['id']] = fetch_info(u)
+    return perms, uroles, tokens
+
+
+def build_probe_tokens_v2(secret):
     now = int(time.time())
     import jwt as pyjwt
     expired = pyjwt.encode({'jti': f'expired-{now}', 'sub': '1', 'username': 'admin', 'iat': now - 3600, 'exp': now - 60},
                            secret, algorithm='HS256')
     forged = make_token(secret, 99999998, 'forged-probe')
+    return expired, forged
 
+
+def build_cases_v2(users, temp_users, eps, tokens, forged, expired, no2xx):
     cases = []
-    def add(u, e, group, mode, token, extra=None):
-        rule = permission_rule(e.get('permission') or '')
-        cases.append({'u': u, 'e': e, 'group': group, 'mode': mode, 'token': token,
-                      'rule': rule, 'extra': extra or {}})
-
     for u in users:
         for e in eps:
-            add(u, e, 'A', 'valid', tokens[u['id']])
-            add(u, e, 'A', 'no_token', None)
-            add(u, e, 'A', 'forged', forged)
-            add(u, e, 'A', 'expired', expired)
+            add_case(cases, u, e, 'A', 'valid', tokens[u['id']])
+            add_case(cases, u, e, 'A', 'no_token', None)
+            add_case(cases, u, e, 'A', 'forged', forged)
+            add_case(cases, u, e, 'A', 'expired', expired)
     for u in users:
         for e in eps:
             if '{' in e['path']:
-                add(u, e, 'B', 'other', tokens[u['id']])
+                add_case(cases, u, e, 'B', 'other', tokens[u['id']])
     for u in users:
         for e in eps:
             if (e['method'], e['path']) in no2xx:
-                add(u, e, 'C', 'own', tokens[u['id']])
+                add_case(cases, u, e, 'C', 'own', tokens[u['id']])
     for u in temp_users:
         for e in eps:
-            add(u, e, 'D', 'valid', tokens[u['id']])
+            add_case(cases, u, e, 'D', 'valid', tokens[u['id']])
+    return cases
 
-    def scope_level_of(u):
-        roles = uroles.get(u['id']) or []
-        return 'all' if ('admin' in roles or '0' in roles or 'perm_tmp_all' in roles) else 'limited'
 
-    def run(c):
-        u, e, group, mode = c['u'], c['e'], c['group'], c['mode']
-        method, path = e['method'], e['path']
-        tok = c['token']
-        used_path = path
-        meta = ''
-        if group == 'B':
-            used_path, ent, found = fill_ids(path, u['id'], pools, want_own=False, all_scope=False)
-            meta = f'他人资源({ent or "无"})'
-        elif group == 'C':
-            if method != 'GET':
-                return {'group': group, '人员': f"{u['username']}（{u.get('realName','')}）", '角色': ','.join(sorted(set(uroles.get(u['id']) or []))),
-                        '方法': method, '端点': path, '权限码': e.get('permission') or '', 'HTTP': 'SKIP',
-                        '结果': '未执行', '匹配': '未执行', '错误内容': '写操作正面用例需临时数据，本轮跳过（只读优先）', '模块': path.split('/')[2], '动作项': method.lower()}
-            used_path, ent, found = fill_ids(path, u['id'], pools, want_own=True, all_scope=False)
-            if not found:
-                return {'group': group, '人员': f"{u['username']}（{u.get('realName','')}）", '角色': ','.join(sorted(set(uroles.get(u['id']) or []))),
-                        '方法': method, '端点': path, '权限码': e.get('permission') or '', 'HTTP': 'SKIP',
-                        '结果': '未执行', '匹配': '未执行', '错误内容': '该用户无自身资源，未执行', '模块': path.split('/')[2], '动作项': method.lower()}
-            meta = f'自身资源({ent})'
+def add_case(cases, u, e, group, mode, token):
+    rule = permission_rule(e.get('permission') or '')
+    cases.append({'u': u, 'e': e, 'group': group, 'mode': mode, 'token': token,
+                  'rule': rule, 'extra': {}})
 
-        status = call(args.base, method, used_path, tok, timeout=args.timeout)
 
-        if group == 'A':
-            if mode == 'valid':
-                ok = expected_ok(c['rule'], perms.get(u['id'], set()))
-                exp = 'authorized' if ok is True else ('denied' if ok is False else 'unknown')
-            elif c['rule'][0] == 'anon':
-                exp = 'anon'
-            elif mode == 'no_token':
-                exp = 'denied'
-            else:  # forged / expired
-                exp = 'rejected'
-        elif group == 'D':
-            exp = 'authorized'
-            ok = expected_ok(c['rule'], perms.get(u['id'], set()))
-            exp = 'authorized' if ok is True else ('denied' if ok is False else 'unknown')
-        else:
-            exp = 'authorized'
-
-        result, match, err = judge(group, status, exp, method, path, scope_level_of(u))
-        if group == 'C' and match == '未通过':
-            ok = expected_ok(c['rule'], perms.get(u['id'], set()))
-            if ok is False and status in (401, 403, 404):
-                match, err = '匹配', '无该权限码，拒绝正确'
-            elif status == 404 and '/sections' in path:
-                match, err = '需复核', '探针构造：section 与 book 不匹配（非权限问题）'
-        if group == 'B' and match == '需复核':
-            if not meta or meta.endswith('(无)'):
-                match, err = '匹配', '非资源参数（无他人资源可注入）'
-            elif 'fabushi' in path:
-                match, err = '匹配', '法布施社区内容对全员可见（预期）'
-        return {'group': group, '人员': f"{u['username']}（{u.get('realName','')}）",
-                '角色': ','.join(sorted(set(uroles.get(u['id']) or []))),
-                '数据范围': meta or '', '方法': method, '端点': path,
-                '权限码': e.get('permission') or '', 'HTTP': status,
-                '结果': result, '匹配': match, '错误内容': err,
-                '模块': path.split('/')[2] if len(path.split('/')) > 2 else '—',
-                '动作项': method.lower()}
-
-    out = Path(args.out); out.parent.mkdir(parents=True, exist_ok=True)
+def execute_cases_v2(cases, args, pools, perms, uroles):
     recs = []
     with ThreadPoolExecutor(max_workers=args.workers) as ex:
-        futs = [ex.submit(run, c) for c in cases]
+        futs = [ex.submit(run_case_v2, c, args, pools, perms, uroles) for c in cases]
         done = 0
         for f in as_completed(futs):
             recs.append(f.result()); done += 1
             if done % 5000 == 0:
                 print(f'progress {done}/{len(cases)}', flush=True)
+    return recs
+
+
+def run_case_v2(c, args, pools, perms, uroles):
+    u, e, group, mode = c['u'], c['e'], c['group'], c['mode']
+    method, path = e['method'], e['path']
+    used_path, meta = prepare_injection_v2(c, u, pools, uroles)
+    if isinstance(used_path, dict):
+        return used_path
+
+    status = call(args.base, method, used_path, c['token'], timeout=args.timeout)
+    exp = expected_for_v2(c, mode, u, perms)
+    result, match, err = judge(group, status, exp, method, path, scope_level_of(uroles, u))
+    match, err = refine_match_v2(group, status, path, c, u, perms, meta, match, err)
+    return {
+        'group': group, '人员': f"{u['username']}（{u.get('realName','')}）",
+        '角色': ','.join(sorted(set(uroles.get(u['id']) or []))),
+        '数据范围': meta or '', '方法': method, '端点': path,
+        '权限码': e.get('permission') or '', 'HTTP': status,
+        '结果': result, '匹配': match, '错误内容': err,
+        '模块': path.split('/')[2] if len(path.split('/')) > 2 else '—',
+        '动作项': method.lower()}
+
+
+def skip_row_v2(group, u, e, uroles, message):
+    method, path = e['method'], e['path']
+    return {'group': group, '人员': f"{u['username']}（{u.get('realName','')}）",
+            '角色': ','.join(sorted(set(uroles.get(u['id']) or []))),
+            '方法': method, '端点': path, '权限码': e.get('permission') or '', 'HTTP': 'SKIP',
+            '结果': '未执行', '匹配': '未执行', '错误内容': message,
+            '模块': path.split('/')[2], '动作项': method.lower()}
+
+
+def prepare_injection_v2(c, u, pools, uroles):
+    """返回提前终止行(dict) 或 (used_path, meta)。"""
+    group, method, path = c['group'], c['e']['method'], c['e']['path']
+    used_path = path
+    meta = ''
+    if group == 'B':
+        used_path, ent, found = fill_ids(path, u['id'], pools, want_own=False, all_scope=False)
+        meta = f'他人资源({ent or "无"})'
+    elif group == 'C':
+        if method != 'GET':
+            return skip_row_v2(group, u, c['e'], uroles, '写操作正面用例需临时数据，本轮跳过（只读优先）')
+        used_path, ent, found = fill_ids(path, u['id'], pools, want_own=True, all_scope=False)
+        if not found:
+            return skip_row_v2(group, u, c['e'], uroles, '该用户无自身资源，未执行')
+        meta = f'自身资源({ent})'
+    return used_path, meta
+
+
+def scope_level_of(uroles, u):
+    roles = uroles.get(u['id']) or []
+    return 'all' if ('admin' in roles or '0' in roles or 'perm_tmp_all' in roles) else 'limited'
+
+
+def expected_for_v2(c, mode, u, perms):
+    if c['group'] == 'A':
+        if mode == 'valid':
+            ok = expected_ok(c['rule'], perms.get(u['id'], set()))
+            return 'authorized' if ok is True else ('denied' if ok is False else 'unknown')
+        if c['rule'][0] == 'anon':
+            return 'anon'
+        if mode == 'no_token':
+            return 'denied'
+        return 'rejected'  # forged / expired
+    if c['group'] == 'D':
+        ok = expected_ok(c['rule'], perms.get(u['id'], set()))
+        return 'authorized' if ok is True else ('denied' if ok is False else 'unknown')
+    return 'authorized'
+
+
+def refine_match_v2(group, status, path, c, u, perms, meta, match, err):
+    if group == 'C' and match == '未通过':
+        ok = expected_ok(c['rule'], perms.get(u['id'], set()))
+        if ok is False and status in (401, 403, 404):
+            return '匹配', '无该权限码，拒绝正确'
+        if status == 404 and '/sections' in path:
+            return '需复核', '探针构造：section 与 book 不匹配（非权限问题）'
+    if group == 'B' and match == '需复核':
+        if not meta or meta.endswith('(无)'):
+            return '匹配', '非资源参数（无他人资源可注入）'
+        if 'fabushi' in path:
+            return '匹配', '法布施社区内容对全员可见（预期）'
+    return match, err
+
+
+def write_records_v2(recs, out_path):
+    out = Path(out_path); out.parent.mkdir(parents=True, exist_ok=True)
     with out.open('w', encoding='utf-8') as fh:
         for r in recs:
             fh.write(json.dumps(r, ensure_ascii=False) + '\n')
+
+
+def print_summary_v2(recs, out_path):
     from collections import Counter
-    print(json.dumps({'out': str(out), 'cases': len(recs),
+    print(json.dumps({'out': str(out_path), 'cases': len(recs),
                       'by_group': Counter(r['group'] for r in recs),
                       'by_match': Counter(r['匹配'] for r in recs)}, ensure_ascii=False, indent=1, default=dict))
-    return 0
 
 
 if __name__ == '__main__':

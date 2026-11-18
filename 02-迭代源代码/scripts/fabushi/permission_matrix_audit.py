@@ -200,6 +200,18 @@ def judge(group, status, expected, method, path, mode):
 
 
 def main():
+    args = parse_args()
+    secret, users, temp_users, pools, eps, no2xx = load_inputs(args)
+    perms, uroles, tokens = load_permissions(args, secret, users + temp_users)
+    expired, forged = build_probe_tokens(secret)
+    cases = build_cases(users, temp_users, eps, tokens, forged, expired, no2xx)
+    recs = execute_cases(cases, args, pools, perms, uroles)
+    write_records(recs, args.out)
+    print_summary(recs, args.out)
+    return 0
+
+
+def parse_args():
     ap = argparse.ArgumentParser()
     ap.add_argument('--base', default='http://111.229.37.220')
     ap.add_argument('--secret-file', default='/tmp/jwt_secret.txt')
@@ -211,8 +223,10 @@ def main():
     ap.add_argument('--out', required=True)
     ap.add_argument('--workers', type=int, default=64)
     ap.add_argument('--timeout', type=float, default=6)
-    args = ap.parse_args()
+    return ap.parse_args()
 
+
+def load_inputs(args):
     secret = Path(args.secret_file).read_text().strip()
     users = json.loads(Path(args.users).read_text(encoding='utf-8'))
     temp_users = json.loads(Path(args.temp_users).read_text(encoding='utf-8'))
@@ -220,10 +234,13 @@ def main():
     eps = [e for e in json.loads(Path(args.endpoints).read_text(encoding='utf-8'))['endpoints']
            if e['path'] not in ('/api/auth/logout', '/api/auth/switch-group')]
     no2xx = {(m, p) for m, p in json.loads(Path(args.no2xx).read_text(encoding='utf-8'))}
+    return secret, users, temp_users, pools, eps, no2xx
 
+
+def load_permissions(args, secret, all_users):
     import urllib.request
     perms, uroles, tokens = {}, {}, {}
-    for u in users + temp_users:
+    for u in all_users:
         tok = make_token(secret, u['id'], u['username'])
         tokens[u['id']] = tok
         try:
@@ -234,13 +251,19 @@ def main():
             uroles[u['id']] = d.get('roles') or []
         except Exception:
             perms[u['id']] = set(); uroles[u['id']] = []
+    return perms, uroles, tokens
 
+
+def build_probe_tokens(secret):
     import jwt as pyjwt
     now = int(time.time())
     expired = pyjwt.encode({'jti': f'exp-{now}', 'sub': '1', 'username': 'admin', 'iat': now - 3600, 'exp': now - 60},
                            secret, algorithm='HS256')
     forged = make_token(secret, 99999998, 'forged-probe')
+    return expired, forged
 
+
+def build_cases(users, temp_users, eps, tokens, forged, expired, no2xx):
     cases = []
     for u in users + temp_users:
         for e in eps:
@@ -257,95 +280,124 @@ def main():
             if (e['method'], e['path']) in no2xx:
                 cases.append({'u': u, 'e': e, 'group': 'C', 'mode': 'own', 'token': tokens[u['id']],
                               'rule': permission_rule(e.get('permission') or '')})
+    return cases
 
-    def run(c):
-        u, e, group, mode = c['u'], c['e'], c['group'], c['mode']
-        method, path = e['method'], e['path']
-        base = {'group': group, 'mode': mode, '人员': f"{u['username']}（{u.get('realName','')}）",
-                '角色': ','.join(sorted(set(uroles.get(u['id']) or []))), '模块': path.split('/')[2],
-                '方法': method, '端点': path, '权限码': e.get('permission') or ''}
 
-        injected = '—'
-        used_path = path
-        executed = True
-        if group == 'B':
-            used_path, ent, found, item = fill_ids(path, u['id'], pools, want_own=False)
-            if not found:
-                executed = False
-                return {**base, '实际请求': used_path, 'HTTP': 'N/A', '结果': '未执行',
-                        '匹配': 'N/A', '错误内容': '无他人资源可注入（不充数）', '执行': False, '注入资源': '无'}
-            if item:
-                injected = f"{item['entity']}#{item['id']}@owner={item['owner']}"
-        elif group == 'C':
-            if method != 'GET':
-                return {**base, '实际请求': used_path, 'HTTP': 'SKIP', '结果': '未执行',
-                        '匹配': '未执行', '错误内容': '写操作需临时数据，单列 skipped', '执行': False, '注入资源': '—'}
-            used_path, ent, found, item = fill_ids(path, u['id'], pools, want_own=True)
-            if not found:
-                return {**base, '实际请求': used_path, 'HTTP': 'SKIP', '结果': '未执行',
-                        '匹配': '未执行', '错误内容': '该用户无自身资源', '执行': False, '注入资源': '—'}
-            if item:
-                injected = f"{item['entity']}#{item['id']}@owner={item['owner']}"
-
-        status = call(args.base, method, used_path, c['token'], timeout=args.timeout)
-        tries = 0
-        while not isinstance(status, int) and tries < 2:
-            time.sleep(0.4)
-            status = call(args.base, method, used_path, c['token'], timeout=args.timeout)
-            tries += 1
-
-        if group == 'A':
-            if mode == 'valid':
-                ok = expected_ok(c['rule'], perms.get(u['id'], set()))
-                exp = 'authorized' if ok is True else ('denied' if ok is False else 'unknown')
-            elif c['rule'][0] == 'anon':
-                exp = 'anon'
-            elif mode == 'no_token':
-                exp = 'denied'
-            else:
-                exp = 'rejected'
-        else:
-            exp = 'authorized'
-
-        result, match, err = judge(group, status, exp, method, path, mode)
-        if group == 'C' and match in ('未通过', '需复核') and isinstance(status, int):
-            ok = expected_ok(c['rule'], perms.get(u['id'], set()))
-            if status == 404 and ('/**' in path or 'recycle' in path):
-                match, err = '匹配', '探针资源不存在（公共下载/recycle 占位）'
-            elif status == 403 and 'permission-explain' in path:
-                match, err = '匹配', '管理员专属守卫（非缺陷）'
-            elif ok is False and status in (401, 403, 404):
-                match, err = '匹配', '无该权限码，拒绝正确'
-            elif status == 403:
-                match, err = '需复核', '持有权限码仍 403（可能资源 ACL/组织守卫）'
-            elif status == 404:
-                match, err = '匹配', '资源不存在（探针 id 失效，不计缺陷）'
-        return {**base, '实际请求': used_path, 'HTTP': status, '结果': result, '匹配': match,
-                '错误内容': err, '执行': executed, '注入资源': injected}
-
-    out = Path(args.out); out.parent.mkdir(parents=True, exist_ok=True)
+def execute_cases(cases, args, pools, perms, uroles):
     recs = []
     with ThreadPoolExecutor(max_workers=args.workers) as ex:
-        futs = [ex.submit(run, c) for c in cases]
+        futs = [ex.submit(run_case, c, args, pools, perms, uroles) for c in cases]
         done = 0
         for f in as_completed(futs):
             recs.append(f.result()); done += 1
             if done % 5000 == 0:
                 print(f'progress {done}/{len(cases)}', flush=True)
+    return recs
+
+
+def run_case(c, args, pools, perms, uroles):
+    u, e, group, mode = c['u'], c['e'], c['group'], c['mode']
+    method, path = e['method'], e['path']
+    base = {'group': group, 'mode': mode, '人员': f"{u['username']}（{u.get('realName','')}）",
+            '角色': ','.join(sorted(set(uroles.get(u['id']) or []))), '模块': path.split('/')[2],
+            '方法': method, '端点': path, '权限码': e.get('permission') or ''}
+
+    prep = prepare_injection(c, u, base, pools)
+    if isinstance(prep, dict):
+        return prep
+    used_path, executed, injected = prep
+
+    status = call_with_retry(args.base, method, used_path, c['token'], args.timeout)
+    exp = expected_for(c, mode, u, perms)
+    result, match, err = judge(group, status, exp, method, path, mode)
+    match, err = refine_c_match(group, status, path, c, u, perms, match, err)
+    return {**base, '实际请求': used_path, 'HTTP': status, '结果': result, '匹配': match,
+            '错误内容': err, '执行': executed, '注入资源': injected}
+
+
+def prepare_injection(c, u, base, pools):
+    """返回提前终止行(dict) 或 (used_path, executed, injected)。"""
+    group, method, path = c['group'], c['e']['method'], c['e']['path']
+    injected = '—'
+    used_path = path
+    if group == 'B':
+        used_path, ent, found, item = fill_ids(path, u['id'], pools, want_own=False)
+        if not found:
+            return {**base, '实际请求': used_path, 'HTTP': 'N/A', '结果': '未执行',
+                    '匹配': 'N/A', '错误内容': '无他人资源可注入（不充数）', '执行': False, '注入资源': '无'}
+        if item:
+            injected = f"{item['entity']}#{item['id']}@owner={item['owner']}"
+    elif group == 'C':
+        if method != 'GET':
+            return {**base, '实际请求': used_path, 'HTTP': 'SKIP', '结果': '未执行',
+                    '匹配': '未执行', '错误内容': '写操作需临时数据，单列 skipped', '执行': False, '注入资源': '—'}
+        used_path, ent, found, item = fill_ids(path, u['id'], pools, want_own=True)
+        if not found:
+            return {**base, '实际请求': used_path, 'HTTP': 'SKIP', '结果': '未执行',
+                    '匹配': '未执行', '错误内容': '该用户无自身资源', '执行': False, '注入资源': '—'}
+        if item:
+            injected = f"{item['entity']}#{item['id']}@owner={item['owner']}"
+    return used_path, True, injected
+
+
+def call_with_retry(base_url, method, path, token, timeout):
+    status = call(base_url, method, path, token, timeout=timeout)
+    tries = 0
+    while not isinstance(status, int) and tries < 2:
+        time.sleep(0.4)
+        status = call(base_url, method, path, token, timeout=timeout)
+        tries += 1
+    return status
+
+
+def expected_for(c, mode, u, perms):
+    if c['group'] != 'A':
+        return 'authorized'
+    if mode == 'valid':
+        ok = expected_ok(c['rule'], perms.get(u['id'], set()))
+        return 'authorized' if ok is True else ('denied' if ok is False else 'unknown')
+    if c['rule'][0] == 'anon':
+        return 'anon'
+    if mode == 'no_token':
+        return 'denied'
+    return 'rejected'
+
+
+def refine_c_match(group, status, path, c, u, perms, match, err):
+    """C 组(本人资源)误判复核：仅对 未通过/需复核 且拿到 HTTP 码的行做二次归类。"""
+    if not (group == 'C' and match in ('未通过', '需复核') and isinstance(status, int)):
+        return match, err
+    ok = expected_ok(c['rule'], perms.get(u['id'], set()))
+    if status == 404 and ('/**' in path or 'recycle' in path):
+        return '匹配', '探针资源不存在（公共下载/recycle 占位）'
+    if status == 403 and 'permission-explain' in path:
+        return '匹配', '管理员专属守卫（非缺陷）'
+    if ok is False and status in (401, 403, 404):
+        return '匹配', '无该权限码，拒绝正确'
+    if status == 403:
+        return '需复核', '持有权限码仍 403（可能资源 ACL/组织守卫）'
+    if status == 404:
+        return '匹配', '资源不存在（探针 id 失效，不计缺陷）'
+    return match, err
+
+
+def write_records(recs, out_path):
+    out = Path(out_path); out.parent.mkdir(parents=True, exist_ok=True)
     with out.open('w', encoding='utf-8') as fh:
         for r in recs:
             fh.write(json.dumps(r, ensure_ascii=False) + '\n')
 
+
+def print_summary(recs, out_path):
     from collections import Counter
     executed = [r for r in recs if r['执行']]
     print(json.dumps({
-        'out': str(out), 'planned': len(recs), 'executed': len(executed),
+        'out': str(out_path), 'planned': len(recs), 'executed': len(executed),
         'skipped': len(recs) - len(executed),
         'by_group': dict(Counter(r['group'] for r in executed)),
         'by_match': dict(Counter(r['匹配'] for r in recs)),
         'http': dict(Counter(str(r['HTTP']) for r in recs)),
     }, ensure_ascii=False, indent=1))
-    return 0
 
 
 if __name__ == '__main__':
