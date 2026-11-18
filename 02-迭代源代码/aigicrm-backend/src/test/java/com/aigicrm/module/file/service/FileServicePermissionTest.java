@@ -73,7 +73,7 @@ class FileServicePermissionTest {
     private java.nio.file.Path thumbCacheDir;
 
     @BeforeEach
-    void setUp() throws Exception {
+    void initForTest() throws Exception {
         // 绕过 @Value 注入：storageType 固定 local（与生产默认一致，使存储走真实本地落盘路径，替换/下载用例可验证文件内容），
         // uploadDir 指向临时目录，避免下载路径 Paths.get(null,...) 依赖异常吞掉的巧合
         ReflectionTestUtils.setField(svc, "storageType", "local");
@@ -89,7 +89,7 @@ class FileServicePermissionTest {
     }
 
     @AfterEach
-    void tearDown() throws Exception {
+    void cleanupAfterTest() throws Exception {
         if (thumbCacheDir == null) return;
         try (java.util.stream.Stream<java.nio.file.Path> walk = java.nio.file.Files.walk(thumbCacheDir)) {
             walk.sorted(java.util.Comparator.reverseOrder()).forEach(p -> {

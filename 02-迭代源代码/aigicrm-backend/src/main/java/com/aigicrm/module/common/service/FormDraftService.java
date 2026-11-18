@@ -143,7 +143,7 @@ public class FormDraftService {
 
     /** 冲突异常:携带服务器当前草稿供客户端展示选择。 */
     public static class ConflictException extends BusinessException {
-        private final BizFormDraft serverDraft;
+        private final transient BizFormDraft serverDraft;
 
         public ConflictException(BizFormDraft serverDraft) {
             super(409, "草稿已在其他设备修改");

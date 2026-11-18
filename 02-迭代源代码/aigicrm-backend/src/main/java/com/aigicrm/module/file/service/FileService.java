@@ -1476,7 +1476,7 @@ public class FileService {
             java.util.Iterator<javax.imageio.ImageReader> readers = javax.imageio.ImageIO.getImageReaders(iis);
             if (!readers.hasNext()) return null;
             javax.imageio.ImageReader reader = readers.next();
-            try {
+            try (AutoCloseable readerClose = reader::dispose) {
                 reader.setInput(iis, true, true);
                 int w = reader.getWidth(0), h = reader.getHeight(0);
                 if (w <= 0 || h <= 0) return null;
@@ -1512,8 +1512,6 @@ public class FileService {
                 java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream(16 * 1024);
                 if (!javax.imageio.ImageIO.write(out, png ? "png" : "jpg", bos)) return null;
                 return bos.toByteArray();
-            } finally {
-                reader.dispose();
             }
         } catch (Exception ignored) {
             return null;

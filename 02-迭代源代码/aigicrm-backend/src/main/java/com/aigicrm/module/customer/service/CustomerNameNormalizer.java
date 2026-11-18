@@ -22,8 +22,8 @@ public final class CustomerNameNormalizer {
         if (raw == null) return null;
         String s = Normalizer.normalize(raw, Normalizer.Form.NFKC);
         // 零宽字符/软连字符：不可见但会造成“看起来同名”却判不同
-        s = s.replace("​", "").replace("‌", "").replace("‍", "")
-                .replace("﻿", "").replace("­", "");
+        s = s.replace("\u200B", "").replace("\u200C", "").replace("\u200D", "")
+                .replace("\uFEFF", "").replace("\u00AD", "");
         // 常见中文括号/书名号/方头括号统一为 ASCII 括号（NFKC 已处理全角圆括号，这里补
         // 兼容中文输入法常见的【】〔〕〖〗）
         s = s.replace('【', '(').replace('】', ')')

@@ -673,6 +673,7 @@ public class FolderPermissionService {
                 case P_EDIT -> hasEdit = true;
                 case P_RENAME -> hasRename = true;
                 case P_REPLACE -> hasReplace = true;
+                default -> { }
             }
         }
         return switch (action) {

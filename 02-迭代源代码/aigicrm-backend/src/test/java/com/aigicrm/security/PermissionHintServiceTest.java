@@ -56,27 +56,33 @@ class PermissionHintServiceTest {
     static class DemoController {
         @PreAuthorize("hasAuthority('customer:view')")
         public void list() {
+            // no-op: 端点注册测试桩
         }
 
         @PreAuthorize("hasAnyAuthority('statistics:view','dashboard:view')")
         public void stats() {
+            // no-op: 端点注册测试桩
         }
 
         @PreAuthorize("hasAuthority('incentive:view-2026')")
         public void incentiveAuth() {
+            // no-op: 端点注册测试桩
         }
 
         @PreAuthorize("hasAnyAuthority('a:one','a:two','a:three','a:four','a:five')")
         public void manyCodes() {
+            // no-op: 端点注册测试桩
         }
 
         public void noAnno() {
+            // no-op: 端点注册测试桩
         }
     }
 
     @PreAuthorize("hasAuthority('sea:view')")
     static class ClassLevelController {
         public void anything() {
+            // no-op: 端点注册测试桩
         }
     }
 
