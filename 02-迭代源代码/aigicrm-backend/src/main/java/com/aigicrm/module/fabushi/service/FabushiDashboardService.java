@@ -407,16 +407,41 @@ public class FabushiDashboardService {
     private List<Map<String, Object>> buildDeptProgress(Set<Long> visible, List<BizFabushiPost> posts,
                                                         List<BizFabushiLike> likes, List<BizFabushiComment> comments,
                                                         List<BizFabushiReadStatus> reads) {
-        List<SysUser> members = (visible == null)
-                ? userMapper.selectList(new LambdaQueryWrapper<SysUser>().select(SysUser::getId, SysUser::getDeptId, SysUser::getRealName))
-                : userMapper.selectBatchIds(visible);
+        List<SysUser> members = loadDeptMembers(visible);
         if (members.isEmpty()) return List.of();
 
+        Map<Long, String> depts = deptNameMap(members);
+        DeptGroups groups = buildDeptGroups(members);
+        DeptAggregates agg = buildDeptAggregates(posts, likes, comments, reads, visible, members);
+
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (Map.Entry<Long, Set<Long>> e : groups.byDept().entrySet()) {
+            rows.add(deptRow(e.getKey(), e.getValue(), depts, agg.deptReaders(), agg.counts()));
+        }
+        if (groups.noDeptCount() > 0) {
+            // 无部门成员单独一行, 不并入任何部门(口径与成员榜 deptName="—" 一致)
+            rows.add(noDeptRow(members, groups.noDeptCount(), reads, agg.counts()));
+        }
+        sortDeptRows(rows);
+        return rows;
+    }
+
+    private List<SysUser> loadDeptMembers(Set<Long> visible) {
+        return (visible == null)
+                ? userMapper.selectList(new LambdaQueryWrapper<SysUser>().select(SysUser::getId, SysUser::getDeptId, SysUser::getRealName))
+                : userMapper.selectBatchIds(visible);
+    }
+
+    private Map<Long, String> deptNameMap(List<SysUser> members) {
         Set<Long> deptIds = members.stream().map(SysUser::getDeptId).filter(Objects::nonNull).collect(Collectors.toSet());
-        Map<Long, String> depts = deptIds.isEmpty() ? Collections.emptyMap()
+        return deptIds.isEmpty() ? Collections.emptyMap()
                 : deptMapper.selectBatchIds(deptIds).stream()
                 .collect(Collectors.toMap(SysDept::getId, SysDept::getDeptName, (a, b) -> a));
+    }
 
+    private record DeptGroups(Map<Long, Set<Long>> byDept, long noDeptCount) {}
+
+    private DeptGroups buildDeptGroups(List<SysUser> members) {
         // 部门键 = deptId; 无部门用户单独归"未分配"
         Map<Long, Set<Long>> deptMembers = new LinkedHashMap<>();
         long noDeptCount = 0;
@@ -424,7 +449,14 @@ public class FabushiDashboardService {
             if (u.getDeptId() == null) { noDeptCount++; continue; }
             deptMembers.computeIfAbsent(u.getDeptId(), k -> new HashSet<>()).add(u.getId());
         }
+        return new DeptGroups(deptMembers, noDeptCount);
+    }
 
+    private record DeptAggregates(DeptCounts counts, Map<Long, Set<Long>> deptReaders) {}
+
+    private DeptAggregates buildDeptAggregates(List<BizFabushiPost> posts, List<BizFabushiLike> likes,
+                                               List<BizFabushiComment> comments, List<BizFabushiReadStatus> reads,
+                                               Set<Long> visible, List<SysUser> members) {
         Map<Long, Long> postCnt = posts.stream().filter(p -> p.getUserId() != null)
                 .collect(Collectors.groupingBy(BizFabushiPost::getUserId, Collectors.counting()));
         Map<Long, Long> likeCnt = likes.stream().filter(l -> l.getUserId() != null)
@@ -442,16 +474,10 @@ public class FabushiDashboardService {
                     Long d = userDept.get(r.getUserId());
                     if (d != null) deptReaders.computeIfAbsent(d, k -> new HashSet<>()).add(r.getUserId());
                 });
+        return new DeptAggregates(new DeptCounts(postCnt, likeCnt, commentCnt, userReadDays), deptReaders);
+    }
 
-        DeptCounts counts = new DeptCounts(postCnt, likeCnt, commentCnt, userReadDays);
-        List<Map<String, Object>> rows = new ArrayList<>();
-        for (Map.Entry<Long, Set<Long>> e : deptMembers.entrySet()) {
-            rows.add(deptRow(e.getKey(), e.getValue(), depts, deptReaders, counts));
-        }
-        if (noDeptCount > 0) {
-            // 无部门成员单独一行, 不并入任何部门(口径与成员榜 deptName="—" 一致)
-            rows.add(noDeptRow(members, noDeptCount, reads, counts));
-        }
+    private void sortDeptRows(List<Map<String, Object>> rows) {
         // 排序: 覆盖率降序 → 已读人数降序 → 成员数降序
         // (memberCount 来自 Set.size() 是 Integer、readUsers 是 long——统一经 Number 取值,
         //  【2026-11-16 实测教训】直接 (Long) 强转 Integer 在运行时 ClassCastException→500)
@@ -462,7 +488,6 @@ public class FabushiDashboardService {
             if (c != 0) return c;
             return Long.compare(((Number) b.get(LIT_MEMBERCOUNT)).longValue(), ((Number) a.get(LIT_MEMBERCOUNT)).longValue());
         });
-        return rows;
     }
 
     private record DeptCounts(Map<Long, Long> postCnt, Map<Long, Long> likeCnt,
