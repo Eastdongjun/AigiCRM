@@ -163,12 +163,23 @@ public class FolderPermissionService {
         if (SecurityUtils.isAdmin()) return adminActionAllowed(action);
         BizFile file = fileMapper.selectById(fileId);
         if (file == null) return false;
+        Boolean shortCircuit = shortCircuitAllows(file, action, userId);
+        if (shortCircuit != null) return shortCircuit;
+        return fallbackMatrix(file, action, userId);
+    }
+
+    /** 授权例外/上传者本人/上级链短路；返回 null 表示继续走矩阵回退。 */
+    private Boolean shortCircuitAllows(BizFile file, String action, Long userId) {
         // 【2026-11-17 阶段二】统一授权 DENY 优先于“上传者本人恒管”；ALLOW 作为例外通道。
         Boolean grantDecision = applyFileGrantDecision(file, action, userId);
         if (grantDecision != null) return grantDecision;
         // 【2026-11-10 用户令"A"】上传者本人恒可管理自己上传的文件(改名/替换/删除/分享/下载), 无论在哪个夹
         if (Objects.equals(file.getUploaderId(), userId)) return true;
         if (isManagerChain(userId, file.getUploaderId())) return true;
+        return null;
+    }
+
+    private boolean fallbackMatrix(BizFile file, String action, Long userId) {
         FolderRef ref = resolveFolderRef(file);
         if (grantGranted(OBJ_FILE, ref.folderType(), file.getFolderId(), file.getOrgId(), file.getUploaderId(), action, userId)) return true;
         // 【2026-11-14 用户令】公共夹文件的查看/下载按 data_scope；不再“公共夹全员默认”。

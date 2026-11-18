@@ -281,34 +281,44 @@ public class RolePermScopeService {
 
     /** 模块级锚点: 配置行 anchor 列(OWNER/ORG), 未配置默认 OWNER(批②: 客户模块可配 ORG) */
     public ScopeRequest.AnchorType anchorOf(SecurityUser user, String module, String action) {
+        if (user == null) return ScopeRequest.AnchorType.OWNER;
         // 【批③】优先内存配置(登录装载)
-        if (user != null && user.getScopeConfigs() != null) {
-            for (ScopeConfig c : user.getScopeConfigs()) {
-                if (module.equals(c.getModule()) && action.equals(c.getAction())) {
-                    return "ORG".equalsIgnoreCase(c.getAnchor()) ? ScopeRequest.AnchorType.ORG : ScopeRequest.AnchorType.OWNER;
-                }
-            }
-        }
-        if (user != null && user.getRoleCodes() != null) {
+        ScopeRequest.AnchorType memoryAnchor = anchorFromMemory(user, module, action);
+        if (memoryAnchor != null) return memoryAnchor;
+        if (user.getRoleCodes() != null) {
             for (String roleCode : user.getRoleCodes()) {
-                AnchorCacheEntry hit = anchorCache.get(roleCode + ":" + module + ":" + action);
-                if (hit != null && !hit.expired()) return hit.anchor();
-                try {
-                    List<String> rows = jdbc.queryForList(
-                            "SELECT anchor FROM role_perm_scope WHERE role_code=? AND module=? AND action=? ORDER BY id ASC LIMIT 1",
-                            String.class, roleCode, module, action);
-                    ScopeRequest.AnchorType a = rows.isEmpty() ? ScopeRequest.AnchorType.OWNER
-                            : "ORG".equalsIgnoreCase(rows.get(0)) ? ScopeRequest.AnchorType.ORG : ScopeRequest.AnchorType.OWNER;
-                    anchorCache.put(roleCode + ":" + module + ":" + action, new AnchorCacheEntry(a, System.currentTimeMillis() + CACHE_TTL_MS));
-                    return a;
-                } catch (Exception e) {
-                    // 【G3 2026-09-21 fail-closed】锚点读取失败不得静默回退 OWNER(故障期 ORG 配置被悄悄换口径,
-                    // 可能更宽)——与全服务 role_perm_scope 读点统一按 503 拒绝
-                    throw new BusinessException(503, "权限范围锚点读取失败，暂不可用");
-                }
+                return anchorFromRole(roleCode, module, action);
             }
         }
         return ScopeRequest.AnchorType.OWNER;
+    }
+
+    private ScopeRequest.AnchorType anchorFromMemory(SecurityUser user, String module, String action) {
+        if (user.getScopeConfigs() == null) return null;
+        for (ScopeConfig c : user.getScopeConfigs()) {
+            if (module.equals(c.getModule()) && action.equals(c.getAction())) {
+                return "ORG".equalsIgnoreCase(c.getAnchor()) ? ScopeRequest.AnchorType.ORG : ScopeRequest.AnchorType.OWNER;
+            }
+        }
+        return null;
+    }
+
+    private ScopeRequest.AnchorType anchorFromRole(String roleCode, String module, String action) {
+        AnchorCacheEntry hit = anchorCache.get(roleCode + ":" + module + ":" + action);
+        if (hit != null && !hit.expired()) return hit.anchor();
+        try {
+            List<String> rows = jdbc.queryForList(
+                    "SELECT anchor FROM role_perm_scope WHERE role_code=? AND module=? AND action=? ORDER BY id ASC LIMIT 1",
+                    String.class, roleCode, module, action);
+            ScopeRequest.AnchorType a = rows.isEmpty() ? ScopeRequest.AnchorType.OWNER
+                    : "ORG".equalsIgnoreCase(rows.get(0)) ? ScopeRequest.AnchorType.ORG : ScopeRequest.AnchorType.OWNER;
+            anchorCache.put(roleCode + ":" + module + ":" + action, new AnchorCacheEntry(a, System.currentTimeMillis() + CACHE_TTL_MS));
+            return a;
+        } catch (Exception e) {
+            // 【G3 2026-09-21 fail-closed】锚点读取失败不得静默回退 OWNER(故障期 ORG 配置被悄悄换口径,
+            // 可能更宽)——与全服务 role_perm_scope 读点统一按 503 拒绝
+            throw new BusinessException(503, "权限范围锚点读取失败，暂不可用");
+        }
     }
 
     /** 某角色的全部范围配置 */
