@@ -487,60 +487,17 @@ public class IncentiveService {
         BizIncentiveRecord existing = recordMapper.selectByIdForUpdate(id);
         if (existing == null) return;
 
-        // 合并可编辑业务字段（全部 != null 才合并；user_id/created_at/period/category_id 保持不动——
-        // 初始上传人(userId) 在编辑时不可被改变，上传时间(createdAt) 不被重置）
-        // 【2026-08-16 审查修复】归属客户变更仅 admin/can_edit 授权允许：
-        // 本人记录改挂任意客户会绕过"记录-客户"绑定语义；前端编辑回传原值不受影响
-        if (update.getCustomerId() != null
-                && !Objects.equals(update.getCustomerId(), existing.getCustomerId())
-                && !canEdit()) {
-            throw new BusinessException(403, "无权修改记录归属客户");
-        }
-        if (update.getCustomerId() != null) existing.setCustomerId(update.getCustomerId());
-        if (update.getIndustry() != null) existing.setIndustry(update.getIndustry());
-        if (update.getRelatedProducts() != null) existing.setRelatedProducts(update.getRelatedProducts());
-        if (update.getSpecificProduct() != null) existing.setSpecificProduct(update.getSpecificProduct());
-        if (update.getPreInstallQuestion() != null) existing.setPreInstallQuestion(update.getPreInstallQuestion());
-        // 文件字段 + 分享开关（【2026-08-08 分享制】本人随时可开关分享）
-        // 【四轮复检修复】与 mergeSlotJson"空串=未提供"对齐: 只有非空白槽位才算触碰,
-        // 否则五槽全空的存量脏数据做纯业务字段编辑(前端回传空串)会被守卫误拒
-        boolean fileTouched = isProvidedSlot(update.getFilePreId()) || isProvidedSlot(update.getFileMidId())
-                || isProvidedSlot(update.getFilePostId()) || isProvidedSlot(update.getFileId()) || isProvidedSlot(update.getFileTrackId());
+        validateCustomerChange(update, existing);
+        boolean fileTouched = isFileTouched(update);
         // 【真机UAT修复 2026-09-22】文件归属只校验"本次新引入"的引用:编辑/追加场景合并后的记录
         // 天然携带原上传人的存量文件(admin 或 can_edit 编辑他人记录、追加者≠原作者都属正常业务),
         // 存量引用在原上传时已按 create 同口径校验过。此前对合并后全量校验 uploader==当前编辑人,
         // 会把编辑他人记录整体误拒(实测 record 266: 原作者文件 869, admin 编辑被"无效文件引用"拒绝)。
         Set<Long> beforeFileIds = fileTouched ? new HashSet<>(collectFileIds(existing)) : Collections.emptySet();
-        // 【三轮复检修复】槽位只接受合法 JSON 数组: 空白串一律视为"未提供"(清空槽位的唯一
-        // 途径=remove-file 专用接口, 统一空槽表示为 NULL), 非法脏串直接拒绝不落库
-        mergeSlotJson(update, existing, LIT_FILEPREID);
-        mergeSlotJson(update, existing, LIT_FILEMIDID);
-        mergeSlotJson(update, existing, LIT_FILEPOSTID);
-        mergeSlotJson(update, existing, LIT_FILEID);
-        mergeSlotJson(update, existing, LIT_FILETRACKID);
-        // 【DeepSeek四审 P1 修复 2026-09-22】update 新增文件槽时与 create 同口径核对归属:
-        // 旧代码只赋值不校验, 填他人/不存在文件 ID 也能保住上传材料分。核对对象=新引入的文件 ID
-        if (fileTouched) {
-            List<Long> newFileIds = collectFileIds(existing).stream()
-                    .filter(fid -> !beforeFileIds.contains(fid)).collect(Collectors.toList());
-            if (!newFileIds.isEmpty()) {
-                Long currentUserId = SecurityUtils.getCurrentUserId();
-                Long existCount = fileMapper.selectCount(new LambdaQueryWrapper<BizFile>()
-                        .in(BizFile::getId, newFileIds)
-                        .eq(BizFile::getUploaderId, currentUserId));
-                if (existCount == null || existCount != newFileIds.size()) {
-                    throw new BusinessException("包含无效文件引用，请重新上传");
-                }
-            }
-        }
-        if (update.getRemark() != null) existing.setRemark(update.getRemark());
-        // 【2026-08-12】分享开关仅本人可改：admin/can_edit 编辑他人记录时忽略 shared，保持原值
-        if (update.getShared() != null) {
-            Long currentUserId = SecurityUtils.getCurrentUserId();
-            if (currentUserId != null && currentUserId.equals(existing.getUserId())) {
-                existing.setShared(update.getShared());
-            }
-        }
+        mergeBusinessFields(update, existing);
+        mergeFileSlots(update, existing);
+        assertNewFilesOwned(existing, beforeFileIds, fileTouched);
+        applyShareIfOwner(update, existing);
         // 【五轮复检对齐】防御性留置：现行语义下 PUT 空白=未提供、合法槽位必含≥1个ID，本守卫在
         // 正常路径不可达；防的是未来 merge 语义变化或存量脏数据(五槽全空记录)被槽位编辑意外固化。
         if (fileTouched && !existing.hasAnyFile()) {
@@ -549,11 +506,75 @@ public class IncentiveService {
 
         // 审计：记录最后修改人（updated_at 由 DB ON UPDATE 自动维护）
         existing.setUpdatedBy(SecurityUtils.getCurrentUserId());
+        recalcScoreAndSave(existing);
+    }
 
+    private void validateCustomerChange(BizIncentiveRecord update, BizIncentiveRecord existing) {
+        // 【2026-08-16 审查修复】归属客户变更仅 admin/can_edit 授权允许：
+        // 本人记录改挂任意客户会绕过"记录-客户"绑定语义；前端编辑回传原值不受影响
+        if (update.getCustomerId() != null
+                && !Objects.equals(update.getCustomerId(), existing.getCustomerId())
+                && !canEdit()) {
+            throw new BusinessException(403, "无权修改记录归属客户");
+        }
+    }
+
+    private boolean isFileTouched(BizIncentiveRecord update) {
+        // 【四轮复检修复】与 mergeSlotJson"空串=未提供"对齐: 只有非空白槽位才算触碰,
+        // 否则五槽全空的存量脏数据做纯业务字段编辑(前端回传空串)会被守卫误拒
+        return isProvidedSlot(update.getFilePreId()) || isProvidedSlot(update.getFileMidId())
+                || isProvidedSlot(update.getFilePostId()) || isProvidedSlot(update.getFileId())
+                || isProvidedSlot(update.getFileTrackId());
+    }
+
+    private void mergeBusinessFields(BizIncentiveRecord update, BizIncentiveRecord existing) {
+        if (update.getCustomerId() != null) existing.setCustomerId(update.getCustomerId());
+        if (update.getIndustry() != null) existing.setIndustry(update.getIndustry());
+        if (update.getRelatedProducts() != null) existing.setRelatedProducts(update.getRelatedProducts());
+        if (update.getSpecificProduct() != null) existing.setSpecificProduct(update.getSpecificProduct());
+        if (update.getPreInstallQuestion() != null) existing.setPreInstallQuestion(update.getPreInstallQuestion());
+        if (update.getRemark() != null) existing.setRemark(update.getRemark());
+    }
+
+    private void mergeFileSlots(BizIncentiveRecord update, BizIncentiveRecord existing) {
+        // 【三轮复检修复】槽位只接受合法 JSON 数组: 空白串一律视为"未提供"(清空槽位的唯一
+        // 途径=remove-file 专用接口, 统一空槽表示为 NULL), 非法脏串直接拒绝不落库
+        mergeSlotJson(update, existing, LIT_FILEPREID);
+        mergeSlotJson(update, existing, LIT_FILEMIDID);
+        mergeSlotJson(update, existing, LIT_FILEPOSTID);
+        mergeSlotJson(update, existing, LIT_FILEID);
+        mergeSlotJson(update, existing, LIT_FILETRACKID);
+    }
+
+    private void assertNewFilesOwned(BizIncentiveRecord existing, Set<Long> beforeFileIds, boolean fileTouched) {
+        if (!fileTouched) return;
+        // 【DeepSeek四审 P1 修复 2026-09-22】update 新增文件槽时与 create 同口径核对归属:
+        // 旧代码只赋值不校验, 填他人/不存在文件 ID 也能保住上传材料分。核对对象=新引入的文件 ID
+        List<Long> newFileIds = collectFileIds(existing).stream()
+                .filter(fid -> !beforeFileIds.contains(fid)).collect(Collectors.toList());
+        if (newFileIds.isEmpty()) return;
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        Long existCount = fileMapper.selectCount(new LambdaQueryWrapper<BizFile>()
+                .in(BizFile::getId, newFileIds)
+                .eq(BizFile::getUploaderId, currentUserId));
+        if (existCount == null || existCount != newFileIds.size()) {
+            throw new BusinessException("包含无效文件引用，请重新上传");
+        }
+    }
+
+    private void applyShareIfOwner(BizIncentiveRecord update, BizIncentiveRecord existing) {
+        // 【2026-08-12】分享开关仅本人可改：admin/can_edit 编辑他人记录时忽略 shared，保持原值
+        if (update.getShared() == null) return;
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        if (currentUserId != null && currentUserId.equals(existing.getUserId())) {
+            existing.setShared(update.getShared());
+        }
+    }
+
+    private void recalcScoreAndSave(BizIncentiveRecord existing) {
         BizIncentiveCategory category = categoryMapper.selectById(existing.getCategoryId());
         int base = (category != null && category.getScore() != null) ? category.getScore() : 0;
         existing.setScore(calcScore(existing, category, base));
-
         recordMapper.updateById(existing);
         evictScoreboardCache();
     }

@@ -1434,6 +1434,20 @@ public class FileService {
         if (!lower.matches(".*\\.(jpg|jpeg|png|gif|webp|bmp)$")) return false;
         boolean png = lower.endsWith(".png");
 
+        ThumbnailCache cache = resolveThumbnailCache(file, filePath, png);
+        if (writeCachedThumbnail(cache.cacheFile(), png, response)) return true;
+
+        byte[] bytes = generateThumbnailBytes(filePath, png);
+        if (bytes == null) return false;
+
+        String cacheKey = storeGeneratedThumbnail(cache, file, filePath, png, bytes);
+        writeGeneratedThumbnail(response, bytes, png, cacheKey, file);
+        return true;
+    }
+
+    private record ThumbnailCache(Path cacheRoot, Path cacheFile, String cacheKey) {}
+
+    private ThumbnailCache resolveThumbnailCache(BizFile file, Path filePath, boolean png) {
         Path cacheRoot = thumbnailCacheRoot();
         Path cacheFile = null;
         String cacheKey = null;
@@ -1454,33 +1468,41 @@ public class FileService {
             cacheRoot = null;
             cacheFile = null;
         }
+        return new ThumbnailCache(cacheRoot, cacheFile, cacheKey);
+    }
 
-        if (cacheFile != null) {
-            byte[] cached = null;
-            try {
-                cached = Files.readAllBytes(cacheFile);
-            } catch (Exception e) {
-                log.debug("缩略图缓存读取失败 {}: {}", cacheFile.getFileName(), e.getMessage());
-            }
-            if (cached != null && cached.length > 0) {
-                try {
-                    writeThumbnailResponse(response, cached, png, cacheFile.getFileName().toString());
-                } catch (Exception e) {
-                    // 缓存已命中、响应可能已提交：不再重试生成/回退完整下载，避免向同一响应追加内容
-                    log.warn("缩略图响应写出失败（缓存命中）file={}: {}", cacheFile.getFileName(), e.getMessage());
-                }
-                return true;
-            }
+    private boolean writeCachedThumbnail(Path cacheFile, boolean png,
+                                         jakarta.servlet.http.HttpServletResponse response) {
+        if (cacheFile == null) return false;
+        byte[] cached = null;
+        try {
+            cached = Files.readAllBytes(cacheFile);
+        } catch (Exception e) {
+            log.debug("缩略图缓存读取失败 {}: {}", cacheFile.getFileName(), e.getMessage());
         }
+        if (cached == null || cached.length == 0) return false;
+        try {
+            writeThumbnailResponse(response, cached, png, cacheFile.getFileName().toString());
+        } catch (Exception e) {
+            // 缓存已命中、响应可能已提交：不再重试生成/回退完整下载，避免向同一响应追加内容
+            log.warn("缩略图响应写出失败（缓存命中）file={}: {}", cacheFile.getFileName(), e.getMessage());
+        }
+        return true;
+    }
 
-        byte[] bytes = generateThumbnailBytes(filePath, png);
-        if (bytes == null) return false;
-
-        if (cacheRoot != null) {
+    private String storeGeneratedThumbnail(ThumbnailCache cache, BizFile file, Path filePath,
+                                           boolean png, byte[] bytes) {
+        if (cache.cacheRoot() != null) {
+            String cacheKey = cache.cacheKey();
             if (cacheKey == null) cacheKey = thumbnailCacheKey(file, filePath, png);
-            if (cacheKey != null) storeThumbnail(cacheRoot, cacheKey, bytes);
+            if (cacheKey != null) storeThumbnail(cache.cacheRoot(), cacheKey, bytes);
+            return cacheKey;
         }
+        return cache.cacheKey();
+    }
 
+    private void writeGeneratedThumbnail(jakarta.servlet.http.HttpServletResponse response, byte[] bytes,
+                                         boolean png, String cacheKey, BizFile file) {
         try {
             writeThumbnailResponse(response, bytes, png,
                     cacheKey != null ? cacheKey : "generated-" + file.getId());
@@ -1488,7 +1510,6 @@ public class FileService {
             // 字节已生成、响应可能已提交：此时回退完整下载会向同一响应追加内容，故按成功处理并留日志
             log.warn("缩略图响应写出失败 fileId={}: {}", file.getId(), e.getMessage());
         }
-        return true;
     }
 
     private record ThumbnailPlan(javax.imageio.ImageReadParam param, int width, int height, boolean needScale) {}
