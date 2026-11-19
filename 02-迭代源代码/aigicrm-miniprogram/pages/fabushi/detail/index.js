@@ -59,7 +59,11 @@ Page({
         loading: false
       })
       this.loadAttachmentUrls()
-      markFabushiRead(id).catch(() => {})
+      markFabushiRead(id).then(() => {
+        // 【F4a】读过了 → 清法布施 tabBar 红点
+        const { setUnreadDot } = require('../../../utils/fabushi-reminder')
+        setUnreadDot(false)
+      }).catch(() => {})
       this.loadComments()
     }).catch((err) => {
       this.setData({ loading: false })

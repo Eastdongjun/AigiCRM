@@ -35,7 +35,8 @@ Component({
       const admin = isAdmin()
       const tabs = TABS.map((tab) => ({
         ...tab,
-        disabled: Boolean(tab.permission) && !demo && !admin && !hasPermission(tab.permission)
+        disabled: Boolean(tab.permission) && !demo && !admin && !hasPermission(tab.permission),
+        dot: tab.key === 'fabushi' && Boolean(globalData.fabushiUnread) // 【F4a】今日未读红点
       }))
       this.setData({ tabs })
     },

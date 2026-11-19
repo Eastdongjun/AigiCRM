@@ -8,6 +8,7 @@
     bindtap="onTap"
   >
     <view class="tab-icon"></view>
+    <view wx:if="{{item.dot}}" class="tab-dot"></view>
     <text class="tab-label">{{item.title}}</text>
   </view>
 </view>

@@ -21,7 +21,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -75,6 +77,9 @@ public class FabushiPostService {
     private static final String TYPE_AUDIO = "audio";
 
     private static final Set<String> COMMENT_TYPES = Set.of("text", "highlight", TYPE_AUDIO);
+
+    /** 【F4a】提醒触达在线自检日界口径: Asia/Shanghai(与 C4 时区结论同源)。 */
+    private static final ZoneId ZONE_SHANGHAI = ZoneId.of("Asia/Shanghai");
 
     /**
      * 内容分页(fabushi:view 门): 默认 published 按时间倒序 + 联显/互动计数。
@@ -426,6 +431,16 @@ public class FabushiPostService {
         } catch (org.springframework.dao.DuplicateKeyException e) {
             // 并发浏览撞唯一键: 已被并发请求标记, 幂等忽略
         }
+    }
+
+    /** 【F4a 提醒触达·在线自检】今日(Asia/Shanghai 日界)是否已有已读记录: readAt ∈ [今日0点, 明日0点)。 */
+    public boolean hasReadToday(Long userId) {
+        if (userId == null) return false;
+        LocalDateTime start = LocalDate.now(ZONE_SHANGHAI).atStartOfDay();
+        return readStatusMapper.selectCount(new LambdaQueryWrapper<BizFabushiReadStatus>()
+                .eq(BizFabushiReadStatus::getUserId, userId)
+                .ge(BizFabushiReadStatus::getReadAt, start)
+                .lt(BizFabushiReadStatus::getReadAt, start.plusDays(1))) > 0;
     }
 
     /** 列表/详情互动联显: 发帖人名 + 木鱼数 + 本人点赞/已读标记 + NEW 标记(F1 30 天窗口)。 */

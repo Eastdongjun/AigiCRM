@@ -1,6 +1,6 @@
 {
- "generated_at": "2026-11-18",
- "count": 322,
+ "generated_at": "2026-11-19",
+ "count": 323,
  "endpoints": [
   {
    "method": "POST",
@@ -565,6 +565,12 @@
    "path": "/api/fabushi/reads/mark",
    "permission": "hasAuthority('fabushi:view')",
    "handler": "markRead"
+  },
+  {
+   "method": "GET",
+   "path": "/api/fabushi/reads/today",
+   "permission": "hasAuthority('fabushi:view')",
+   "handler": "readToday"
   },
   {
    "method": "GET",

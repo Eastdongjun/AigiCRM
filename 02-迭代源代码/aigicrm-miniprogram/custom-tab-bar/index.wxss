@@ -80,3 +80,7 @@
 }
 
 .tab.disabled { opacity: .35; }
+
+/* 【F4a 法布施提醒】今日到点未读红点(读完清零; refreshTabs 从 globalData.fabushiUnread 取态) */
+.tab { position: relative; }
+.tab-dot { position: absolute; top: 2rpx; right: 26rpx; width: 14rpx; height: 14rpx; border-radius: 50%; background: #b5543a; box-shadow: 0 0 0 3rpx rgba(255, 255, 255, .9); }

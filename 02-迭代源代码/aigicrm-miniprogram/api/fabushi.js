@@ -62,9 +62,11 @@ function saveFabushiProgress(bookId, data) { return request({ url: `/api/fabushi
 function getFabushiRecords(month) { return request({ url: '/api/fabushi/records', data: { month } }) }
 function getFabushiSettings() { return request({ url: '/api/fabushi/settings' }) }
 function saveFabushiSettings(data) { return request({ url: '/api/fabushi/settings', method: 'PUT', data }) }
+function getFabushiReadToday() { return request({ url: '/api/fabushi/reads/today' }) }
 module.exports = Object.assign(module.exports, {
   getFabushiShelf, addFabushiShelf, updateFabushiShelf, removeFabushiShelf,
   getFabushiProgress, saveFabushiProgress, getFabushiRecords, getFabushiSettings, saveFabushiSettings,
+  getFabushiReadToday,
 })
 
 function getFabushiDashboard(period) {

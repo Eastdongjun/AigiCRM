@@ -1,10 +1,10 @@
 # AIGICRM API 清单(自动生成)
 
-> 生成时间: 2026-11-18 | 来源: 后端 controller 源码扫描
+> 生成时间: 2026-11-19 | 来源: 后端 controller 源码扫描
 > 本文件由 scripts/gen-api.py 自动生成,**禁止手改**;接口变更后重新运行。
 > 权限码与 docs/permission/permission-dict.md 对应。
 
-## 接口清单(322 个)
+## 接口清单(323 个)
 
 | 方法 | 路径 | 权限码 | 方法名 | 文件 |
 |---|---|---|---|---|
@@ -102,6 +102,7 @@
 | GET | `/api/fabushi/progress/{bookId}` | `hasAuthority('fabushi:view')` | progress | FabushiReadingController.java |
 | PUT | `/api/fabushi/progress/{bookId}` | `hasAuthority('fabushi:view')` | saveProgress | FabushiReadingController.java |
 | POST | `/api/fabushi/reads/mark` | `hasAuthority('fabushi:view')` | markRead | FabushiReadController.java |
+| GET | `/api/fabushi/reads/today` | `hasAuthority('fabushi:view')` | readToday | FabushiReadController.java |
 | GET | `/api/fabushi/records` | `hasAuthority('fabushi:view')` | records | FabushiReadingController.java |
 | GET | `/api/fabushi/settings` | `hasAuthority('fabushi:view')` | settings | FabushiReadingController.java |
 | PUT | `/api/fabushi/settings` | `hasAuthority('fabushi:view')` | saveSettings | FabushiReadingController.java |

@@ -65,6 +65,9 @@ Page({
     this.setData({ canCreate: hasPermission('fabushi:create'), hasView: true })
     this.loadPersonal()
     this.refreshReading() // 【书卷改版 2026-11-16】从阅读器返回时刷新在读卡进度
+    // 【F4a 提醒】进入法布施页也自检(红点刷新; 弹窗受 storage 日去重约束)
+    const { checkAndRemind } = require('../../../utils/fabushi-reminder')
+    checkAndRemind()
   },
 
   // 【书卷改版 2026-11-16】在读卡: 书架中第一本"在读"→ 工作台首屏"继续读"直达
