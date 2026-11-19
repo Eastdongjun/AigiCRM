@@ -63,7 +63,8 @@ Page({
     }).then((res) => {
       if (seq !== this._seq) return
       const data = res || {}
-      const records = data.records || []
+      // 显式承接后端 isNew（NEW 标记 30 天口径由后端产出），同时满足 MP 视图绑定守卫的“同目录 JS 产出证据”
+      const records = (data.records || []).map((item) => ({ ...item, isNew: Boolean(item.isNew) }))
       this.setData({
         posts: this.data.page > 1 ? this.data.posts.concat(records) : records,
         total: Number(data.total) || 0,

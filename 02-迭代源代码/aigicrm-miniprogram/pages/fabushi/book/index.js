@@ -114,7 +114,8 @@ Page({
       const flat = []
       const walk = (rows, depth) => (rows || []).forEach((row) => { flat.push({ ...row, depth }); walk(row.children, depth + 1) })
       walk((secRes && secRes.sections) || [], 0)
-      this.setData({ detailBook: book, detailPosts: (postRes && postRes.records) || [], sections: flat })
+      const detailPosts = ((postRes && postRes.records) || []).map((item) => ({ ...item, isNew: Boolean(item.isNew) }))
+      this.setData({ detailBook: book, detailPosts, sections: flat })
     })
   },
 
