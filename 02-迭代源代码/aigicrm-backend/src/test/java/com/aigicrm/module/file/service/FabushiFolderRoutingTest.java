@@ -71,9 +71,8 @@ class FabushiFolderRoutingTest {
 
     @Test
     void tree_returnsTwoSystemFoldersOrdered() {
-        // getFolderTree('fabushi') 分支: selectList by type, orderBy sort — 判定走 folderMapper;
-        // 直接验证 FileService 分支需重构造, 由 FabushiFolderRoutingControllerTest(测试服) 覆盖,
-        // 此处钉排序契约: sort 1=书籍 在前
+        // 文件夹树的法布施分支按类型查询并按排序值升序返回, 该分支的端到端行为由测试服
+        // 路由实测覆盖; 本测试钉住两个系统夹的排序契约, 书籍在前分享心得在后。
         BizFileFolder book = folder(11L, "fabushi", 1);
         BizFileFolder share = folder(12L, "fabushi", 2);
         List<BizFileFolder> ordered = new java.util.ArrayList<>(List.of(share, book));
