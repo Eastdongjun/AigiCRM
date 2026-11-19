@@ -68,6 +68,12 @@ public class FabushiPostService {
     private static final long NEW_WINDOW_DAYS = 30;
 
     /**
+     * 【F2 2026-11-19 拍板③】评论类型白名单: text 默认 / highlight 重点描述 / audio 语音诵读。
+     * 与 DDL biz_fabushi_comment.type 注释一致(type 列建表即预留三态, 此前 service 硬编码 text 未接线)。
+     */
+    private static final Set<String> COMMENT_TYPES = Set.of("text", "highlight", "audio");
+
+    /**
      * 内容分页(fabushi:view 门): 默认 published 按时间倒序 + 联显/互动计数。
      * status 传参仅治理门生效: 持 fabushi:content:manage 者可查 offline 记录(内容治理页),
      * 其余调用方一律强制 published——防越权翻看下架内容。
@@ -113,11 +119,17 @@ public class FabushiPostService {
         return Map.of("id", created.getId());
     }
 
-    /** 评论 Map 化。 */
+    /** 评论 Map 化(F2: 透传 type/audioFileId; parentCommentId 建模未接线, 不扩)。 */
     public Map<String, Object> addCommentData(Long postId, Map<String, Object> body) {
         BizFabushiComment c = new BizFabushiComment();
         Object content = body == null ? null : body.get(LIT_CONTENT);
         c.setContent(content == null ? null : String.valueOf(content));
+        if (body != null && body.get("type") != null) {
+            c.setType(String.valueOf(body.get("type")));
+        }
+        if (body != null && body.get("audioFileId") != null) {
+            c.setAudioFileId(Long.valueOf(String.valueOf(body.get("audioFileId"))));
+        }
         BizFabushiComment created = addComment(postId, c);
         return Map.of("id", created.getId());
     }
@@ -307,14 +319,24 @@ public class FabushiPostService {
         if (post == null || !LIT_PUBLISHED.equals(post.getStatus())) {
             throw new BusinessException(404, LIT_X);
         }
-        if (comment.getContent() == null || comment.getContent().isBlank()) {
+        // 【F2 2026-11-19 拍板③】类型白名单; audio=语音诵读(标题可选, 须挂 fabushi 空间音频文件)
+        String type = comment.getType() == null || comment.getType().isBlank() ? "text" : comment.getType();
+        if (!COMMENT_TYPES.contains(type)) {
+            throw new BusinessException(400, "评论类型不合法");
+        }
+        if ("audio".equals(type)) {
+            if (comment.getAudioFileId() == null) {
+                throw new BusinessException(400, "语音评论缺少音频文件");
+            }
+            validateFabushiFile(comment.getAudioFileId());
+        } else if (comment.getContent() == null || comment.getContent().isBlank()) {
             throw new BusinessException(400, "评论内容不能为空");
         }
         com.aigicrm.security.SecurityUser user = com.aigicrm.security.SecurityUtils.getCurrentUser();
         comment.setId(null);
         comment.setPostId(postId);
         comment.setUserId(user == null ? null : user.getUserId());
-        comment.setType("text");
+        comment.setType(type);
         comment.setStatus(LIT_PUBLISHED);
         commentMapper.insert(comment);
         return comment;

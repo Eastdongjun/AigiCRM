@@ -27,13 +27,20 @@
     <view class="fb-card">
       <view class="fb-section-title">评论（{{comments.length}}）</view>
       <view wx:if="{{!comments.length}}" class="fb-empty">还没有评论</view>
-      <view wx:for="{{comments}}" wx:key="id" class="fb-comment">
-        <view class="fb-comment-name">{{item.userName || '同事'}}</view>
-        <view class="fb-comment-content">{{item.content}}</view>
+      <view wx:for="{{comments}}" wx:key="id" class="fb-comment {{item.type === 'highlight' ? 'highlight' : ''}}">
+        <view class="fb-comment-name">{{item.userName || '同事'}}<text wx:if="{{item.type === 'highlight'}}" class="fb-comment-badge">重点</text></view>
+        <view wx:if="{{item.content}}" class="fb-comment-content">{{item.content}}</view>
+        <audio wx:if="{{item.type === 'audio' && item.audioUrl}}" class="fb-comment-audio" src="{{item.audioUrl}}" controls />
       </view>
-      <view wx:if="{{canCreate}}" class="fb-comment-form">
+      <view wx:if="{{canCreate && !voiceMode}}" class="fb-comment-form">
         <input class="fb-input" value="{{commentText}}" placeholder="写评论..." bindinput="onCommentInput" />
+        <view class="fb-chip {{highlightChecked ? 'on' : ''}}" bindtap="toggleHighlight">重点</view>
+        <view class="fb-chip" bindtap="enterVoice">🎤</view>
         <button class="fb-send" size="mini" bindtap="submitComment" loading="{{submitting}}">发送</button>
+      </view>
+      <view wx:if="{{canCreate && voiceMode}}" class="fb-comment-form">
+        <input class="fb-input" value="{{commentText}}" placeholder="语音标题（可选）" bindinput="onCommentInput" />
+        <view class="fb-chip rec" bindtap="stopVoice">{{recSeconds}}s ⏹ 发送</view>
       </view>
     </view>
   </block>

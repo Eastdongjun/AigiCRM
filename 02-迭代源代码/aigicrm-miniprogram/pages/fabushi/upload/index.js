@@ -1,6 +1,6 @@
 const { hasPermission, requireLogin } = require('../../../utils/auth')
 const { getFabushiBooks, createFabushiPost, addFabushiAttachment, getFabushiSettings } = require('../../../api/fabushi')
-const { uploadFile } = require('../../../api/file')
+const { uploadFile, getDownloadToken, getDownloadUrl } = require('../../../api/file')
 const { showError } = require('../../../utils/feedback')
 
 // 【法布施一期 2026-11-15】发布页: 心得/诵读(文字版)/正能量; 书目可选挂靠
@@ -27,7 +27,10 @@ Page({
     attachments: [],
     uploading: false,
     soundEnabled: true,
-    attachHint: '图片 0/5 · 视频 0/5 · 语音 0/10'
+    attachHint: '图片 0/5 · 视频 0/5 · 语音 0/10',
+    recording: false,
+    recordSeconds: 0,
+    playingIndex: -1
   },
 
   onShow() {
@@ -35,6 +38,16 @@ Page({
     getFabushiSettings().then((s) => {
       if (s && s.soundEnabled !== undefined) this.setData({ soundEnabled: Number(s.soundEnabled) !== 0 })
     }).catch(() => {})
+  },
+
+  onHide() {
+    // 【F2 录音】页面隐藏时保段: 停录且 ≥1s 段走 onStop 正常入库
+    if (this.data.recording && this._recorder) this._recorder.stop()
+  },
+
+  onUnload() {
+    if (this._recTimer) clearInterval(this._recTimer)
+    if (this.data.recording && this._recorder) this._recorder.stop()
   },
 
   onPermissionChanged() {
@@ -71,6 +84,99 @@ Page({
 
   onScope(e) {
     this.setData({ scopeType: e.currentTarget.dataset.value })
+  },
+
+  // ===== 【F2 录音】getRecorderManager 分段录制: mp3/44.1k/96k, 60s 自动停, <1s 丢弃 =====
+
+  initRecorder() {
+    if (this._recorderInited) return
+    this._recorderInited = true
+    const rm = wx.getRecorderManager()
+    rm.onStart(() => {
+      this.setData({ recording: true, recordSeconds: 0 })
+      this._recTimer = setInterval(() => this.setData({ recordSeconds: this.data.recordSeconds + 1 }), 1000)
+    })
+    rm.onStop((res) => {
+      if (this._recTimer) { clearInterval(this._recTimer); this._recTimer = null }
+      this.setData({ recording: false })
+      const durationMs = (res && res.duration) || 0
+      if (durationMs < 1000) {
+        wx.showToast({ title: '时长太短，已丢弃', icon: 'none' })
+        return
+      }
+      if (this.attachmentCounts().audio >= 10) {
+        wx.showToast({ title: '语音已达上限10段', icon: 'none' })
+        return
+      }
+      this.uploadRecordSegment(res.tempFilePath, Math.round(durationMs / 1000))
+    })
+    rm.onError((err) => {
+      if (this._recTimer) { clearInterval(this._recTimer); this._recTimer = null }
+      this.setData({ recording: false })
+      const msg = (err && err.errMsg) || ''
+      if (msg.indexOf('auth') >= 0 || msg.indexOf('deny') >= 0) {
+        wx.showModal({
+          title: '需要麦克风权限',
+          content: '录制语音需授权麦克风，请在设置中开启',
+          confirmText: '去设置',
+          success: (r) => { if (r.confirm) wx.openSetting() }
+        })
+      } else {
+        wx.showToast({ title: '录音失败', icon: 'none' })
+      }
+    })
+    this._recorder = rm
+  },
+
+  toggleRecord() {
+    if (this.data.uploading) return
+    this.initRecorder()
+    if (this.data.recording) {
+      this._recorder.stop()
+      return
+    }
+    if (this.attachmentCounts().audio >= 10) {
+      wx.showToast({ title: '语音已达上限10段', icon: 'none' })
+      return
+    }
+    // mp3 三端(iOS/Android/微信H5播放)兼容最好; duration=60s 到时自动停走 onStop
+    this._recorder.start({ format: 'mp3', duration: 60000, sampleRate: 44100, numberOfChannels: 1, encodeBitRate: 96000 })
+  },
+
+  uploadRecordSegment(path, seconds) {
+    this.setData({ uploading: true })
+    uploadFile(path, null, 'fabushi').then((res) => {
+      const fileId = res && (res.id || (res.data && res.data.id))
+      if (!fileId) throw new Error('upload no fileId')
+      const added = { fileId, fileType: 'audio', name: `录音 ${seconds}s`, durationSeconds: seconds }
+      this.setData({ attachments: this.data.attachments.concat(added), uploading: false })
+      this.syncAttachHint()
+    }).catch((err) => { this.setData({ uploading: false }); showError(err, '录音上传失败') })
+  },
+
+  playAttachment(e) {
+    const index = Number(e.currentTarget.dataset.index)
+    const item = this.data.attachments[index]
+    if (!item || item.fileType !== 'audio') return
+    if (this._playingIndex === index && this._segAudio) {
+      this._segAudio.stop()
+      this._playingIndex = -1
+      this.setData({ playingIndex: -1 })
+      return
+    }
+    Promise.resolve(this._segToken ? this._segToken : getDownloadToken().then((r) => {
+      this._segToken = r && (r.token || (r.data && r.data.token)) || ''
+      return this._segToken
+    })).then((token) => {
+      if (this._segAudio) this._segAudio.destroy()
+      const a = wx.createInnerAudioContext()
+      a.src = getDownloadUrl({ id: item.fileId }) + (token ? '?token=' + encodeURIComponent(token) : '')
+      a.onEnded(() => { this._playingIndex = -1; this.setData({ playingIndex: -1 }) })
+      a.play()
+      this._segAudio = a
+      this._playingIndex = index
+      this.setData({ playingIndex: index })
+    }).catch((err) => showError(err, '试听失败'))
   },
 
   onBookChange(e) {
@@ -165,7 +271,9 @@ Page({
     createFabushiPost(payload).then(async (res) => {
       const id = res && (res.id || (res.data && res.data.id))
       if (id && this.data.attachments.length) {
-        await Promise.all(this.data.attachments.map((a) => addFabushiAttachment(id, { fileId: a.fileId, fileType: a.fileType })))
+        await Promise.all(this.data.attachments.map((a) => addFabushiAttachment(id, {
+          fileId: a.fileId, fileType: a.fileType, durationSeconds: a.durationSeconds || undefined
+        })))
       }
       this.setData({ submitting: false, success: true, publishedPostId: id || null, muyuAnim: true })
       if (wx.vibrateShort) wx.vibrateShort({ type: 'light' })

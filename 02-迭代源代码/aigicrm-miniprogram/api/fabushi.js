@@ -25,8 +25,10 @@ function createFabushiPost(data) {
   return request({ url: '/api/fabushi/posts', method: 'POST', data })
 }
 
-function addFabushiComment(postId, content) {
-  return request({ url: `/api/fabushi/posts/${postId}/comments`, method: 'POST', data: { content } })
+function addFabushiComment(postId, payload) {
+  // 【F2 2026-11-19】兼容旧 string(纯文字)与新对象 {content, type:'text'|'highlight'|'audio', audioFileId}
+  const data = typeof payload === 'string' ? { content: payload } : (payload || {})
+  return request({ url: `/api/fabushi/posts/${postId}/comments`, method: 'POST', data })
 }
 
 function getFabushiComments(postId) {

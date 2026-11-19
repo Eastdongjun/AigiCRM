@@ -46,3 +46,9 @@ page { background: #f7f3ec; }
 .attach-item { display: flex; justify-content: space-between; padding: 12rpx 0; border-bottom: 1rpx dashed #e8e0d3; color: #6b6257; font-size: 21rpx; }
 .attach-remove { color: #b5543a; }
 .attach-hint { margin-top: 10rpx; color: #9c9184; font-size: 19rpx; }
+/* 【F2 录音】三通道第一步: 相册/拍摄 + 录制语音为主入口, 聊天选文件降级次入口 */
+.attach-btn.rec { background: #b5543a; color: #fff7ee; font-weight: 700; }
+.rec-hint { color: #b5543a; }
+.attach-sub { margin-top: 10rpx; color: #9c9184; font-size: 20rpx; text-align: center; }
+.attach-name.playable { color: #2d5a4a; }
+.attach-name.playing { font-weight: 700; }

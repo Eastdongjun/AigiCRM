@@ -20,3 +20,10 @@ page { background: #f7f3ec; }
 .fb-attach-video { width: 100%; height: 380rpx; border-radius: 14rpx; }
 .fb-attach-audio { width: 100%; }
 .fb-attach-name { color: #9c9184; font-size: 19rpx; }
+/* 【F2 2026-11-19 拍板③】highlight 重点评论(徽标+描边底)与 audio 语音诵读评论 */
+.fb-comment.highlight { border-left: 6rpx solid #b5543a; padding-left: 14rpx; background: #fdf6f0; border-radius: 8rpx; }
+.fb-comment-badge { margin-left: 8rpx; padding: 1rpx 8rpx; border-radius: 6rpx; background: #b5543a; color: #fff7ee; font-size: 16rpx; font-weight: 700; }
+.fb-comment-audio { margin-top: 8rpx; width: 100%; }
+.fb-chip { padding: 8rpx 16rpx; border-radius: 999rpx; background: #efe7d8; color: #6b6257; font-size: 22rpx; flex-shrink: 0; }
+.fb-chip.on { background: #b5543a; color: #fff7ee; font-weight: 700; }
+.fb-chip.rec { background: #b5543a; color: #fff7ee; font-weight: 700; min-width: 120rpx; text-align: center; }

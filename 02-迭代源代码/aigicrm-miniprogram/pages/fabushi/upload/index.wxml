@@ -21,8 +21,16 @@
   </view>
   <view class="attach-card">
     <view class="attach-head"><text>附件</text><text class="attach-count">{{attachHint}}</text></view>
-    <view class="attach-btns"><view class="attach-btn" bindtap="chooseMedia">图片 / 视频</view><view class="attach-btn" bindtap="chooseAudio">音频</view></view>
-    <view wx:for="{{attachments}}" wx:key="fileId" class="attach-item"><text>{{item.name}}</text><text class="attach-remove" data-index="{{index}}" bindtap="removeAttachment">移除</text></view>
+    <view class="attach-btns">
+      <view class="attach-btn" bindtap="chooseMedia">相册 / 拍摄</view>
+      <view class="attach-btn {{recording ? 'rec' : ''}}" bindtap="toggleRecord">{{recording ? '停止 · ' + recordSeconds + 's' : '录制语音'}}</view>
+    </view>
+    <view wx:if="{{recording}}" class="attach-hint rec-hint">录音中…每段最长 60 秒，到时自动保存；不足 1 秒丢弃</view>
+    <view class="attach-sub" bindtap="chooseAudio">从聊天文件选音频（备选入口）</view>
+    <view wx:for="{{attachments}}" wx:key="fileId" class="attach-item">
+      <text class="attach-name {{item.fileType === 'audio' ? 'playable' : ''}} {{playingIndex === index ? 'playing' : ''}}" data-index="{{index}}" catchtap="playAttachment">{{item.fileType === 'audio' ? (playingIndex === index ? '⏸ ' : '▶ ') : ''}}{{item.name}}</text>
+      <text class="attach-remove" data-index="{{index}}" bindtap="removeAttachment">移除</text>
+    </view>
     <view wx:if="{{uploading}}" class="attach-hint">上传中…</view>
   </view>
   <view class="tip">附件上传到法布施空间，计入个人配额。</view>
