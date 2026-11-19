@@ -44,6 +44,23 @@ public class FabushiUploadTicketController {
         return Result.ok(h5UploadService.issueTicket(uid, parentJti));
     }
 
+    /** 【F3a-2】法布施阅读器短时票(scope=download∧scene=fabushi-reader, 60min, pjti 联检):
+     *  reader H5 以 Bearer 票拉取 PDF(/api/file/download/** 属过滤器放行的下载路径);
+     *  URL 从此不携带主 JWT——MP-TOKEN-001 法布施侧闭环(QC 红线终验项)。 */
+    @GetMapping("/reader-ticket")
+    @PreAuthorize("hasAuthority('fabushi:view')")
+    public Result<Map<String, Object>> readerTicket(jakarta.servlet.http.HttpServletRequest request) {
+        Long uid = SecurityUtils.getCurrentUserId();
+        String parentJti = null;
+        String auth = request != null ? request.getHeader("Authorization") : null;
+        if (auth != null && auth.startsWith("Bearer ")) {
+            parentJti = jwtTokenProvider.getJtiFromToken(auth.substring(7));
+        }
+        String ticket = jwtTokenProvider.generateTransferToken(uid, parentJti, "download",
+                "fabushi-reader", 60L);
+        return Result.ok(Map.of("ticket", ticket, "expiresIn", 3600L));
+    }
+
     /** H5 上传消费(permitAll, 无主 JWT): 鉴权收敛在 FabushiH5UploadService(票校验+分型大小闸+
      *  复用 FileService 同路径同闸: 配额/病毒扫描/租户/归属快照)。回滚=开关 404, revert 即回。 */
     @PostMapping("/upload/h5")

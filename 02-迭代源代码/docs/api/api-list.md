@@ -4,7 +4,7 @@
 > 本文件由 scripts/gen-api.py 自动生成,**禁止手改**;接口变更后重新运行。
 > 权限码与 docs/permission/permission-dict.md 对应。
 
-## 接口清单(325 个)
+## 接口清单(326 个)
 
 | 方法 | 路径 | 权限码 | 方法名 | 文件 |
 |---|---|---|---|---|
@@ -101,6 +101,7 @@
 | DELETE | `/api/fabushi/posts/{postId}/attachments/{attachmentId}` | `hasAuthority('fabushi:create')` | removeAttachment | FabushiPostController.java |
 | GET | `/api/fabushi/progress/{bookId}` | `hasAuthority('fabushi:view')` | progress | FabushiReadingController.java |
 | PUT | `/api/fabushi/progress/{bookId}` | `hasAuthority('fabushi:view')` | saveProgress | FabushiReadingController.java |
+| GET | `/api/fabushi/reader-ticket` | `hasAuthority('fabushi:view')` | readerTicket | FabushiUploadTicketController.java |
 | POST | `/api/fabushi/reads/mark` | `hasAuthority('fabushi:view')` | markRead | FabushiReadController.java |
 | GET | `/api/fabushi/reads/today` | `hasAuthority('fabushi:view')` | readToday | FabushiReadController.java |
 | GET | `/api/fabushi/records` | `hasAuthority('fabushi:view')` | records | FabushiReadingController.java |

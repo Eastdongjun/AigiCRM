@@ -38,10 +38,15 @@ export function resolveResumePage(progress, pageCount) {
  *   pdfFileId: import('vue').Ref<string|number>,
  *   token: import('vue').Ref<string>,
  *   saveDelay?: number,
- *   canvasMaxWidth?: number
+ *   canvasMaxWidth?: number,
+ *   progress?: boolean,
+ *   initialPage?: number
  * }} opts
+ * 【F3a-2】票据模式(MP 壳): progress=false 关内建进度读写(由壳经 postMessage/容器代传);
+ * initialPage>0 跳过进度回读直接从该页续读(URL 带 lastPage)。PC 端不传=行为不变。
  */
-export function useFabushiPdfReader({ bookId, pdfFileId, token, saveDelay = SAVE_DEBOUNCE_MS, canvasMaxWidth = MAX_CANVAS_WIDTH }) {
+export function useFabushiPdfReader({ bookId, pdfFileId, token, saveDelay = SAVE_DEBOUNCE_MS, canvasMaxWidth = MAX_CANVAS_WIDTH,
+    progress = true, initialPage = 0 }) {
   const state = ref('loading') // loading | ready | error
   const loadPct = ref(0)
   const errorMsg = ref('')
@@ -58,6 +63,8 @@ export function useFabushiPdfReader({ bookId, pdfFileId, token, saveDelay = SAVE
   let disposed = false
 
   const authHeader = () => 'Bearer ' + String((token && token.value) || '')
+  // 【F3a-2】progress=false 时关内建进度读写(票据模式由壳层经 postMessage/容器代传)
+  const progressEnabled = () => progress !== false
   const resolveCanvas = () => {
     if (typeof canvasSource === 'function') return canvasSource()
     return canvasSource
@@ -95,7 +102,7 @@ export function useFabushiPdfReader({ bookId, pdfFileId, token, saveDelay = SAVE
       if (disposed) return
       pdfjsLib.GlobalWorkerOptions.workerSrc = workerMod.default
 
-      const progress = await readProgress()
+      const progress = progressEnabled() ? await readProgress() : null
       if (disposed) return
 
       const task = pdfjsLib.getDocument({
@@ -110,7 +117,10 @@ export function useFabushiPdfReader({ bookId, pdfFileId, token, saveDelay = SAVE
       if (disposed) return
 
       totalPages.value = pdfDoc.numPages
-      currentPage.value = resolveResumePage(progress, pdfDoc.numPages)
+      // 【F3a-2】initialPage(URL lastPage)优先于内建进度回读; 两路都缺失回第 1 页
+      currentPage.value = initialPage > 0
+              ? clampPage(initialPage, pdfDoc.numPages)
+              : resolveResumePage(progress, pdfDoc.numPages)
       state.value = 'ready'
       await nextTick() // 等画布挂载后再量宽度
       await renderPage(currentPage.value)
@@ -161,8 +171,9 @@ export function useFabushiPdfReader({ bookId, pdfFileId, token, saveDelay = SAVE
     saveTimer = setTimeout(saveProgress, saveDelay) // debounce: 连续翻页只保存最终页码
   }
 
-  /** 保存进度；静默失败（下次翻页再试，不打断阅读）。 */
+  /** 保存进度；静默失败（下次翻页再试，不打断阅读）。F3a-2 票据模式下为 no-op(壳层接管)。 */
   async function saveProgress() {
+    if (!progressEnabled()) return
     if (!bookId.value || !totalPages.value) return
     lastSavedPage = currentPage.value
     try {

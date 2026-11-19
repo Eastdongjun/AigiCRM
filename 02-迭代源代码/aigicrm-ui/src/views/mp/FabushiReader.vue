@@ -1,6 +1,6 @@
 <template>
   <div class="mfbr">
-    <!-- 仅微信小程序 web-view 内可用: token 由小程序 URL 带入, 不依赖 PC 登录态 -->
+    <!-- 仅微信小程序 web-view 内可用: 短时阅读票由小程序 URL 带入(F3a-2 起不携带主 JWT), 不依赖 PC 登录态 -->
     <div v-if="!isWechat" class="mfbr-block">
       <div class="mfbr-icon">🔒</div>
       <div class="mfbr-title">请从微信小程序进入</div>
@@ -9,8 +9,8 @@
 
     <div v-else-if="!token || !pdfFileId" class="mfbr-block">
       <div class="mfbr-icon">⚠️</div>
-      <div class="mfbr-title">参数缺失</div>
-      <div class="mfbr-desc">请返回小程序重新进入</div>
+      <div class="mfbr-title">阅读票缺失或已过期</div>
+      <div class="mfbr-desc">请返回小程序重新进入（票有效期 60 分钟）</div>
     </div>
 
     <template v-else>
@@ -50,11 +50,11 @@
 </template>
 
 <script setup>
-// 【2026-11-16 P3】渲染/进度逻辑收敛到 useFabushiPdfReader（PC /fabushi/read 同源），
-// 本页只保留微信 web-view 壳：URL 取 token/参数、JSSDK 返回、触摸翻页。
-// P2 的页码级行为不变：翻页 debounce 自动回传 /api/fabushi/progress/{bookId}。
-// 鉴权与 /mp-file-picker 先例同构: token 由小程序 URL 带入, API 直传 Authorization header。
-import { onMounted, ref } from 'vue'
+// 【2026-11-16 P3 → F3a-2 2026-11-19 换票】渲染逻辑仍收敛在 useFabushiPdfReader（PC /fabushi/read 同源）。
+// 【MP-TOKEN-001 法布施侧闭环】URL 从"携带主 JWT"改为短时阅读票(scope=download∧scene=fabushi-reader,
+// 60min)——票仅能拉 PDF(/api/file/download/** 下载路径), 进度读写不再由本页直连(票对 progress 路径
+// 无效): 改 postMessage 页码给小程序容器代传(QC 批准方案 A), localStorage 按 bookId 缓存页码供崩溃恢复。
+import { onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useFabushiPdfReader } from '@/composables/useFabushiPdfReader'
 
@@ -68,18 +68,50 @@ const isWechat = /MicroMessenger/i.test(navigator.userAgent)
 const canvasEl = ref(null)
 const wxReady = ref(false)
 
+// URL lastPage(服务端续读页) vs localStorage 缓存(崩溃恢复, QC 建议采纳)——取较大者
+function resolveInitialPage() {
+  const fromUrl = Math.floor(Number(route.query.lastPage || 0)) || 0
+  let cached = 0
+  try {
+    const raw = localStorage.getItem('fabushi-reader:' + route.query.bookId)
+    const obj = raw ? JSON.parse(raw) : null
+    if (obj && Number.isFinite(Number(obj.p))) cached = Math.floor(Number(obj.p))
+  } catch (_) { /* localStorage 不可用不阻断 */ }
+  return Math.max(fromUrl, cached)
+}
+
 const { state, loadPct, errorMsg, currentPage, totalPages, load, goPage, retry } = useFabushiPdfReader({
   bookId,
   pdfFileId,
   token,
-  canvasMaxWidth: 800
+  canvasMaxWidth: 800,
+  progress: false, // 票据模式: 进度由容器代传, 本页不直连 progress API
+  initialPage: resolveInitialPage()
 })
 
 let touchX = 0
+let postTimer = null
+
+// 翻页 → debounce 双写: localStorage(同设备崩溃恢复) + postMessage(容器代传, 平台回退/销毁时送达)
+function persistProgress() {
+  if (!bookId.value || !currentPage.value) return
+  try {
+    localStorage.setItem('fabushi-reader:' + bookId.value, JSON.stringify({ p: currentPage.value, t: totalPages.value }))
+  } catch (_) { /* 同上不阻断 */ }
+  const wxApi = /** @type {any} */ (window).wx
+  if (wxReady.value && wxApi && wxApi.miniProgram) {
+    wxApi.miniProgram.postMessage({ data: { bookId: bookId.value, lastPage: currentPage.value, totalPages: totalPages.value } })
+  }
+}
+
+watch([currentPage, totalPages], () => {
+  if (postTimer) clearTimeout(postTimer)
+  postTimer = setTimeout(persistProgress, 800)
+})
 
 // web-view 内跳回小程序需微信 JSSDK(动态加载 + CSP 定向放行, 同 FilePicker.vue 方案)
 onMounted(() => {
-  token.value = String(route.query.token || '')
+  token.value = String(route.query.ticket || '')
   bookId.value = String(route.query.bookId || '')
   pdfFileId.value = String(route.query.pdfFileId || '')
   title.value = decodeURIComponent(String(route.query.title || '在线阅读'))
@@ -92,6 +124,7 @@ onMounted(() => {
 })
 
 function goBack() {
+  persistProgress()
   setTimeout(() => {
     // 微信 JSSDK 动态注入的全局(仅 web-view 环境存在), JSDoc cast 绕开 Window 类型无 wx 声明
     const wxApi = /** @type {any} */ (window).wx

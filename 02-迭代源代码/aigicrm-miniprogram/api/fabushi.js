@@ -64,10 +64,11 @@ function getFabushiSettings() { return request({ url: '/api/fabushi/settings' })
 function saveFabushiSettings(data) { return request({ url: '/api/fabushi/settings', method: 'PUT', data }) }
 function getFabushiReadToday() { return request({ url: '/api/fabushi/reads/today' }) }
 function getFabushiUploadTicket() { return request({ url: '/api/fabushi/upload-ticket' }) }
+function getFabushiReaderTicket() { return request({ url: '/api/fabushi/reader-ticket' }) }
 module.exports = Object.assign(module.exports, {
   getFabushiShelf, addFabushiShelf, updateFabushiShelf, removeFabushiShelf,
   getFabushiProgress, saveFabushiProgress, getFabushiRecords, getFabushiSettings, saveFabushiSettings,
-  getFabushiReadToday, getFabushiUploadTicket,
+  getFabushiReadToday, getFabushiUploadTicket, getFabushiReaderTicket,
 })
 
 function getFabushiDashboard(period) {
