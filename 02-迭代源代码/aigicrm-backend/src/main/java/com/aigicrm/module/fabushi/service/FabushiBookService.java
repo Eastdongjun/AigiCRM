@@ -50,7 +50,7 @@ public class FabushiBookService {
         if (books.isEmpty()) {
             return;
         }
-        Map<String, String> catNames = dictService.listDataByCode("fabushi_category").stream()
+        Map<String, String> catNames = dictService.listDataByCode(FabushiStatsService.DICT_FABUSHI_CATEGORY).stream()
                 .collect(Collectors.toMap(SysDictData::getDictValue, SysDictData::getDictLabel, (a, b) -> a));
         Set<Long> userIds = books.stream().map(BizFabushiBook::getCreatedBy).collect(Collectors.toSet());
         Map<Long, String> userNames = userMapper.selectBatchIds(userIds).stream()
@@ -225,7 +225,7 @@ public class FabushiBookService {
         if (categoryCode == null || categoryCode.isBlank()) {
             throw new BusinessException(400, "类别不能为空");
         }
-        boolean valid = dictService.listDataByCode("fabushi_category").stream()
+        boolean valid = dictService.listDataByCode(FabushiStatsService.DICT_FABUSHI_CATEGORY).stream()
                 .anyMatch(d -> categoryCode.equals(d.getDictValue()) && Integer.valueOf(1).equals(d.getStatus()));
         if (!valid) {
             throw new BusinessException(400, "类别不存在或已停用");

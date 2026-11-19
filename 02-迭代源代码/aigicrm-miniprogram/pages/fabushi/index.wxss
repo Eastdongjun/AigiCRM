@@ -125,3 +125,5 @@ page { background: #f7f3ec; }
 .fb-entry-title { color: #2e2a24; font-size: 25rpx; font-weight: 700; }
 .fb-entry-sub { margin-top: 4rpx; color: #9c9184; font-size: 20rpx; }
 .fb-entry-arrow { color: #c9bda6; font-size: 34rpx; }
+/* 【UI-STATS-REDESIGN-001 M1】最常读类别为文本值: 缩号显示 */
+.stats-num.stats-txt { font-size: 24rpx; line-height: 48rpx; }

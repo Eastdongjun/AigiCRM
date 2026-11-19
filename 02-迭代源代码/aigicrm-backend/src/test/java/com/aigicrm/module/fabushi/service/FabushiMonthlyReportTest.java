@@ -65,7 +65,8 @@ class FabushiMonthlyReportTest {
 
     private final FabushiDashboardService svc = new FabushiDashboardService(
             statsService, postMapper, likeMapper, commentMapper, readStatusMapper,
-            bookMapper, userMapper, deptMapper, dictService);
+            bookMapper, userMapper, deptMapper, dictService,
+            mock(BizFabushiSectionMapper.class), mock(BizFabushiUserSettingMapper.class));
 
     /** 负例(核心): 非 admin + 解析空集 = 零数据 + 不发任何统计查询(fail-closed)。 */
     @Test

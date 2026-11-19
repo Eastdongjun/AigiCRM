@@ -6,11 +6,15 @@ import com.aigicrm.module.fabushi.entity.BizFabushiComment;
 import com.aigicrm.module.fabushi.entity.BizFabushiLike;
 import com.aigicrm.module.fabushi.entity.BizFabushiPost;
 import com.aigicrm.module.fabushi.entity.BizFabushiReadStatus;
+import com.aigicrm.module.fabushi.entity.BizFabushiSection;
+import com.aigicrm.module.fabushi.entity.BizFabushiUserSetting;
 import com.aigicrm.module.fabushi.mapper.BizFabushiBookMapper;
 import com.aigicrm.module.fabushi.mapper.BizFabushiCommentMapper;
 import com.aigicrm.module.fabushi.mapper.BizFabushiLikeMapper;
 import com.aigicrm.module.fabushi.mapper.BizFabushiPostMapper;
 import com.aigicrm.module.fabushi.mapper.BizFabushiReadStatusMapper;
+import com.aigicrm.module.fabushi.mapper.BizFabushiSectionMapper;
+import com.aigicrm.module.fabushi.mapper.BizFabushiUserSettingMapper;
 import com.aigicrm.module.system.entity.SysDept;
 import com.aigicrm.module.system.entity.SysDictData;
 import com.aigicrm.module.system.entity.SysUser;
@@ -52,6 +56,13 @@ public class FabushiDashboardService {
     private static final String LIT_DEPTNAME = "deptName";
     private static final String LIT_POSTCOUNT = "postCount";
     private static final String LIT_READDAYS = "readDays";
+    // 【UI-STATS-REDESIGN-001 2026-11-19】阅读优先重构新增字段/口径
+    private static final String LIT_CATEGORYNAME = "categoryName";
+    private static final String LIT_READCOUNT = "readCount";
+    private static final String LIT_BOOKRANKING = "bookRanking";
+    private static final String LIT_CATEGORYREADS = "categoryReads";
+    private static final String LIT_FREQ_WORKDAY = "workday";
+    private static final String LIT_FREQ_WEEKEND = "weekend";
 
 
     private final FabushiStatsService statsService;
@@ -63,6 +74,8 @@ public class FabushiDashboardService {
     private final SysUserMapper userMapper;
     private final SysDeptMapper deptMapper;
     private final SysDictService dictService;
+    private final BizFabushiSectionMapper sectionMapper;
+    private final BizFabushiUserSettingMapper settingMapper;
 
     public Map<String, Object> dashboard(String period) {
         boolean month = LIT_MONTH.equalsIgnoreCase(period);
@@ -93,9 +106,23 @@ public class FabushiDashboardService {
 
         List<BizFabushiReadStatus> periodReads = readStatusMapper.selectList(new LambdaQueryWrapper<BizFabushiReadStatus>()
                 .ge(BizFabushiReadStatus::getReadAt, startAt));
-        data.put(LIT_RANKING, buildRanking(visible, periodPosts, periodReads, startAt));
-        data.put(LIT_DEPTPROGRESS, buildDeptProgress(visible, periodPosts, periodLikes, periodComments, periodReads));
-        data.put("categoryHeat", buildCategoryHeat(periodPosts));
+
+        // 【UI-STATS-REDESIGN-001】阅读优先 KPI: 周期已读人数(distinct user, 可见集收口)与周期覆盖率
+        List<BizFabushiReadStatus> visibleReads = periodReads.stream()
+                .filter(r -> visible == null || visible.contains(r.getUserId())).collect(Collectors.toList());
+        long periodReadUsers = visibleReads.stream().map(BizFabushiReadStatus::getUserId).distinct().count();
+        data.put("periodReadUsers", periodReadUsers);
+        data.put("periodCoveragePct", visible == null ? null
+                : Math.round(periodReadUsers * 1000.0 / visible.size()) / 10.0);
+        // 每日一读达成率(口径见规格 §二-4, 分母=提醒人日, 无分母=null 前端显示 —)
+        data.put("dailyGoalRate", buildDailyGoalRate(visible, visibleReads, start, today));
+
+        data.put(LIT_RANKING, buildRanking(visible, periodPosts, visibleReads, startAt));
+        data.put(LIT_DEPTPROGRESS, buildDeptProgress(visible, periodPosts, periodLikes, periodComments, visibleReads));
+        // 【重构】类别分布换已读人次口径(原 categoryHeat 发布口径下线); 书目阅读榜新表
+        BookReadRollup rollup = buildBookReadRollup(visibleReads);
+        data.put(LIT_BOOKRANKING, rollup.bookRanking());
+        data.put(LIT_CATEGORYREADS, buildCategoryReads(rollup));
         data.put(LIT_TREND, buildTrend(visible, today));
         return data;
     }
@@ -106,9 +133,13 @@ public class FabushiDashboardService {
         data.put("periodPosts", 0);
         data.put("periodLikes", 0);
         data.put("periodComments", 0);
+        data.put("periodReadUsers", 0L);
+        data.put("periodCoveragePct", null);
+        data.put("dailyGoalRate", null);
         data.put(LIT_RANKING, List.of());
         data.put(LIT_DEPTPROGRESS, List.of());
-        data.put("categoryHeat", List.of());
+        data.put(LIT_BOOKRANKING, List.of());
+        data.put(LIT_CATEGORYREADS, List.of());
         data.put(LIT_TREND, List.of());
         return data;
     }
@@ -145,27 +176,141 @@ public class FabushiDashboardService {
                 .collect(Collectors.toSet());
     }
 
-    private List<Map<String, Object>> buildCategoryHeat(List<BizFabushiPost> periodPosts) {
-        Map<String, String> catNames = dictService.listDataByCode("fabushi_category").stream()
-                .collect(Collectors.toMap(SysDictData::getDictValue, SysDictData::getDictLabel, (a, b) -> a));
-        Set<Long> bookIds = periodPosts.stream().map(BizFabushiPost::getBookId).filter(Objects::nonNull).collect(Collectors.toSet());
-        Map<Long, String> bookCategories = bookIds.isEmpty() ? Collections.emptyMap()
-                : bookMapper.selectBatchIds(bookIds).stream()
-                .collect(Collectors.toMap(BizFabushiBook::getId, BizFabushiBook::getCategoryCode));
+    // ==================== 【UI-STATS-REDESIGN-001】阅读优先聚合(口径=规格 §二, QC 按此复算) ====================
+
+    /** 书目阅读 rollup 内部件: 每条已读记录解析到的 book 行(未解析=feed 帖/未发布, 已剔除)。 */
+    private record ResolvedRead(Long userId, Long bookId, LocalDateTime readAt) {}
+
+    private record BookReadRollup(List<Map<String, Object>> bookRanking, List<ResolvedRead> resolvedReads) {}
+
+    /**
+     * 书目阅读 rollup(§二-2): read→post(仅 PUBLISHED)→section(book_id)→book。
+     * feed 帖(无 section 链)排除——post 只挂 bookId 未挂 section 的同样视为无章节链不计入(口径写死)。
+     * 输出行: bookId/title/category/categoryName/readUsers(distinct)/readCount/max(readAt); Top10 按人次 desc。
+     */
+    private BookReadRollup buildBookReadRollup(List<BizFabushiReadStatus> visibleReads) {
+        List<ResolvedRead> resolved = resolveReadsToBooks(visibleReads);
+        Map<String, String> catNames = categoryNames();
+        Map<Long, List<ResolvedRead>> byBook = resolved.stream()
+                .collect(Collectors.groupingBy(ResolvedRead::bookId));
+        Map<Long, BizFabushiBook> books = byBook.keySet().isEmpty() ? Collections.emptyMap()
+                : bookMapper.selectBatchIds(byBook.keySet()).stream()
+                .collect(Collectors.toMap(BizFabushiBook::getId, b -> b));
+        List<Map<String, Object>> rows = byBook.entrySet().stream()
+                .map(e -> {
+                    List<ResolvedRead> rs = e.getValue();
+                    BizFabushiBook b = books.get(e.getKey());
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("bookId", e.getKey());
+                    row.put("title", b == null ? "已删除书目" : b.getTitle());
+                    row.put("category", b == null ? null : b.getCategoryCode());
+                    row.put(LIT_CATEGORYNAME, b == null ? null : catNames.get(b.getCategoryCode()));
+                    row.put(LIT_READUSERS, rs.stream().map(ResolvedRead::userId).distinct().count());
+                    row.put(LIT_READCOUNT, (long) rs.size());
+                    row.put("latestReadAt", rs.stream().map(ResolvedRead::readAt)
+                            .max(LocalDateTime::compareTo).map(Object::toString).orElse(null));
+                    return row;
+                })
+                .sorted((a, b) -> Long.compare((Long) b.get(LIT_READCOUNT), (Long) a.get(LIT_READCOUNT)))
+                .limit(10)
+                .collect(Collectors.toList());
+        return new BookReadRollup(rows, resolved);
+    }
+
+    /** read→book 解析(§二-2 链路): 仅 PUBLISHED 且有 sectionId 的帖; section→bookId; 书/章删失剔除。 */
+    private List<ResolvedRead> resolveReadsToBooks(List<BizFabushiReadStatus> reads) {
+        if (reads.isEmpty()) return List.of();
+        Set<Long> postIds = reads.stream().map(BizFabushiReadStatus::getPostId).collect(Collectors.toSet());
+        Map<Long, BizFabushiPost> posts = postMapper.selectBatchIds(postIds).stream()
+                .filter(p -> LIT_PUBLISHED.equals(p.getStatus()) && p.getSectionId() != null)
+                .collect(Collectors.toMap(BizFabushiPost::getId, p -> p));
+        if (posts.isEmpty()) return List.of();
+        Map<Long, Long> sectionBook = sectionMapper.selectBatchIds(posts.values().stream()
+                        .map(BizFabushiPost::getSectionId).collect(Collectors.toSet())).stream()
+                .filter(s -> s.getBookId() != null)
+                .collect(Collectors.toMap(BizFabushiSection::getId, BizFabushiSection::getBookId));
+        return reads.stream()
+                .filter(r -> posts.containsKey(r.getPostId()))
+                .map(r -> {
+                    Long bookId = sectionBook.get(posts.get(r.getPostId()).getSectionId());
+                    return bookId == null ? null : new ResolvedRead(r.getUserId(), bookId, r.getReadAt());
+                })
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+    }
+
+    /** 类别已读口径(§二-3): 书目 rollup 按 category 再聚合已读人次; 行: categoryCode/categoryName/readCount。 */
+    private List<Map<String, Object>> buildCategoryReads(BookReadRollup rollup) {
+        Map<Long, BizFabushiBook> books = rollup.resolvedReads().isEmpty() ? Collections.emptyMap()
+                : bookMapper.selectBatchIds(rollup.resolvedReads().stream()
+                        .map(ResolvedRead::bookId).collect(Collectors.toSet())).stream()
+                .collect(Collectors.toMap(BizFabushiBook::getId, b -> b));
+        Map<String, String> catNames = categoryNames();
         Map<String, Long> heat = new HashMap<>();
-        periodPosts.forEach(p -> {
-            String code = bookCategories.get(p.getBookId());
-            if (code != null) heat.merge(code, 1L, Long::sum);
+        rollup.resolvedReads().forEach(r -> {
+            BizFabushiBook b = books.get(r.bookId());
+            if (b != null && b.getCategoryCode() != null) heat.merge(b.getCategoryCode(), 1L, Long::sum);
         });
         return heat.entrySet().stream()
                 .sorted((a, b) -> Long.compare(b.getValue(), a.getValue()))
                 .map(e -> {
                     Map<String, Object> row = new LinkedHashMap<>();
                     row.put("categoryCode", e.getKey());
-                    row.put("categoryName", catNames.getOrDefault(e.getKey(), e.getKey()));
-                    row.put(LIT_COUNT, e.getValue());
+                    row.put(LIT_CATEGORYNAME, catNames.getOrDefault(e.getKey(), e.getKey()));
+                    row.put(LIT_READCOUNT, e.getValue());
                     return row;
                 }).collect(Collectors.toList());
+    }
+
+    private Map<String, String> categoryNames() {
+        return dictService.listDataByCode(FabushiStatsService.DICT_FABUSHI_CATEGORY).stream()
+                .collect(Collectors.toMap(SysDictData::getDictValue, SysDictData::getDictLabel, (a, b) -> a));
+    }
+
+    /**
+     * 每日一读达成率(§二-4): 分母=周期内已过去自然日 × 每日"提醒开启∧频率匹配当日"的用户的人日
+     * (频率判定与 F4a freqMatchesToday 同一规则: daily=恒真/未知按 daily; workday=周一~五; weekend=周六日);
+     * 分子=其中当日有 ≥1 条 read 的人日; 无分母(无人开提醒)返回 null(前端显示 —)。
+     * 设置按请求一次性加载(不缓存——设置可变, 单例缓存会过期)。
+     */
+    private Object buildDailyGoalRate(Set<Long> visible, List<BizFabushiReadStatus> visibleReads,
+                                      LocalDate start, LocalDate today) {
+        Map<Long, String> freqByUser = settingMapper.selectList(new LambdaQueryWrapper<BizFabushiUserSetting>()
+                        .eq(BizFabushiUserSetting::getReminderEnabled, 1))
+                .stream()
+                // Java 侧守卫(belt-and-suspenders): wrapper 条件外的二次过滤, 兼作 mock 可测缝
+                .filter(s -> Integer.valueOf(1).equals(s.getReminderEnabled()))
+                .filter(s -> visible == null || visible.contains(s.getUserId()))
+                .collect(Collectors.toMap(BizFabushiUserSetting::getUserId,
+                        s -> s.getFreqCode() == null ? "" : s.getFreqCode(), (a, b) -> a));
+        if (freqByUser.isEmpty()) return null;
+        Map<Long, Set<LocalDate>> readDates = visibleReads.stream().collect(Collectors.groupingBy(
+                BizFabushiReadStatus::getUserId,
+                Collectors.mapping(r -> r.getReadAt().toLocalDate(), Collectors.toSet())));
+        long denom = 0;
+        long numer = 0;
+        for (Map.Entry<Long, String> e : freqByUser.entrySet()) {
+            Set<LocalDate> mine = readDates.getOrDefault(e.getKey(), Set.of());
+            for (LocalDate d = start; !d.isAfter(today); d = d.plusDays(1)) {
+                if (!freqMatchesDay(e.getValue(), d)) continue;
+                denom++;
+                if (mine.contains(d)) numer++;
+            }
+        }
+        return denom == 0 ? null : Math.round(numer * 1000.0 / denom) / 10.0;
+    }
+
+    /** F4a freqMatchesToday 服务端同构: 未知/空→daily 兜底, workday=周一~五, weekend=周六日。 */
+    private boolean freqMatchesDay(String freqCode, LocalDate day) {
+        if (LIT_FREQ_WORKDAY.equals(freqCode)) {
+            int dow = day.getDayOfWeek().getValue();
+            return dow >= 1 && dow <= 5;
+        }
+        if (LIT_FREQ_WEEKEND.equals(freqCode)) {
+            int dow = day.getDayOfWeek().getValue();
+            return dow == 6 || dow == 7;
+        }
+        return true;
     }
 
     private List<Map<String, Object>> buildTrend(Set<Long> visible, LocalDate today) {
@@ -218,7 +363,7 @@ public class FabushiDashboardService {
         data.put(LIT_POSTS, 0L);
         data.put(LIT_LIKES, 0L);
         data.put(LIT_COMMENTS, 0L);
-        data.put("readCount", 0L);
+        data.put(LIT_READCOUNT, 0L);
         data.put(LIT_READUSERS, 0);
         data.put("activeUsers", 0);
         data.put(LIT_COVERAGEPCT, null);
@@ -332,6 +477,10 @@ public class FabushiDashboardService {
 
         data.put(LIT_DEPTPROGRESS, buildDeptProgress(visible, posts, likes, comments, reads));
         data.put(LIT_RANKING, buildRanking(visible, posts, reads, startAt));
+        // 【UI-STATS-REDESIGN-001】月报 CSV 需任意月的书目/类别阅读区块 → 后端扩两字段(非零改动, 如实申报)
+        BookReadRollup rollup = buildBookReadRollup(reads);
+        data.put(LIT_BOOKRANKING, rollup.bookRanking());
+        data.put(LIT_CATEGORYREADS, buildCategoryReads(rollup));
         return data;
     }
 
@@ -363,9 +512,13 @@ public class FabushiDashboardService {
             likes.forEach(l -> likesReceived.merge(postOwner.get(l.getPostId()), 1L, Long::sum));
         }
         Map<Long, Set<LocalDate>> readDays = new HashMap<>();
+        Map<Long, Long> readCount = new HashMap<>();
         periodReads.stream()
                 .filter(r -> visible == null || visible.contains(r.getUserId()))
-                .forEach(r -> readDays.computeIfAbsent(r.getUserId(), k -> new HashSet<>()).add(r.getReadAt().toLocalDate()));
+                .forEach(r -> {
+                    readDays.computeIfAbsent(r.getUserId(), k -> new HashSet<>()).add(r.getReadAt().toLocalDate());
+                    readCount.merge(r.getUserId(), 1L, Long::sum);
+                });
 
         Set<Long> candidateIds = new LinkedHashSet<>();
         candidateIds.addAll(postCount.keySet());
@@ -389,9 +542,10 @@ public class FabushiDashboardService {
             row.put("userId", uid);
             row.put("userName", u.getRealName());
             row.put(LIT_DEPTNAME, depts.getOrDefault(u.getDeptId(), "—"));
+            row.put(LIT_READDAYS, readDays.getOrDefault(uid, Set.of()).size());
+            row.put(LIT_READCOUNT, readCount.getOrDefault(uid, 0L));
             row.put(LIT_POSTCOUNT, p);
             row.put("likesReceived", likesReceived.getOrDefault(uid, 0L));
-            row.put(LIT_READDAYS, readDays.getOrDefault(uid, Set.of()).size());
             row.put("activityPct", Math.round(p * 100.0 / Math.max(maxPost, 1)));
             ranking.add(row);
         }

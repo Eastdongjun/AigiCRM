@@ -27,12 +27,18 @@ public class FabushiStatsService {
     // P0-5 batch A: duplicated string literals (Sonar java:S1192)
     private static final String LIT_PUBLISHED = "published";
 
+    /** 【字典红线 2026-11-19】法布施类别字典码——全链零字面量, 跨服务共享常量(QC §四)。 */
+    static final String DICT_FABUSHI_CATEGORY = "fabushi_category";
+
 
     private final OrgScopeResolver scopeResolver;
     private final BizFabushiPostMapper postMapper;
     private final BizFabushiCommentMapper commentMapper;
     private final BizFabushiLikeMapper likeMapper;
     private final BizFabushiReadStatusMapper readStatusMapper;
+    private final BizFabushiSectionMapper sectionMapper;
+    private final BizFabushiBookMapper bookMapper;
+    private final com.aigicrm.module.system.service.SysDictService dictService;
 
     /**
      * 团队统计可见人员集。admin → null(全量); 非 admin → 双轨解析:
@@ -125,6 +131,9 @@ public class FabushiStatsService {
             data.put("myComments", 0);
             data.put("myReadCount", 0);
             data.put("myLikesReceived", 0);
+            data.put("myReadDays", 0);
+            data.put("myStreakDays", 0);
+            data.put("myTopCategory", null);
             return data;
         }
 
@@ -146,6 +155,69 @@ public class FabushiStatsService {
         data.put("myLikesReceived", myPostIds.isEmpty() ? 0
                 : likeMapper.selectCount(new LambdaQueryWrapper<com.aigicrm.module.fabushi.entity.BizFabushiLike>()
                         .in(com.aigicrm.module.fabushi.entity.BizFabushiLike::getPostId, myPostIds)));
+
+        // 【UI-STATS-REDESIGN-001 §二-5/6】阅读四格: 累计已读天数 / 连续天数(截至今日, 今日未读自昨日回溯;
+        // 跨月不限窗口) / 最常读类别(全量已读按类别累计人次 top1) / 阅读人次(=myReadCount 已有)
+        List<com.aigicrm.module.fabushi.entity.BizFabushiReadStatus> myReads =
+                readStatusMapper.selectList(new LambdaQueryWrapper<com.aigicrm.module.fabushi.entity.BizFabushiReadStatus>()
+                        .eq(com.aigicrm.module.fabushi.entity.BizFabushiReadStatus::getUserId, uid));
+        Set<LocalDate> dates = myReads.stream()
+                .map(r -> r.getReadAt().toLocalDate())
+                .collect(Collectors.toSet());
+        data.put("myReadDays", dates.size());
+        data.put("myStreakDays", streakDays(dates, LocalDate.now()));
+        data.put("myTopCategory", topReadCategory(uid));
         return data;
+    }
+
+    /** 连续阅读天数: distinct 日期集合自今日(今日无阅读则自昨日)逐日回溯至首个断日(§二-5)。包内可见供单测直钉跨月/断日。 */
+    int streakDays(Set<LocalDate> dates, LocalDate today) {
+        LocalDate cursor = dates.contains(today) ? today : today.minusDays(1);
+        int streak = 0;
+        while (dates.contains(cursor)) {
+            streak++;
+            cursor = cursor.minusDays(1);
+        }
+        return streak;
+    }
+
+    /** 最常读类别(§二-6): 本人全量已读 → post(PUBLISHED∧有 section 链)→section→book→category 累计人次 top1。 */
+    private String topReadCategory(Long uid) {
+        List<com.aigicrm.module.fabushi.entity.BizFabushiReadStatus> reads =
+                readStatusMapper.selectList(new LambdaQueryWrapper<com.aigicrm.module.fabushi.entity.BizFabushiReadStatus>()
+                        .eq(com.aigicrm.module.fabushi.entity.BizFabushiReadStatus::getUserId, uid));
+        if (reads.isEmpty()) return null;
+        Set<Long> postIds = reads.stream()
+                .map(com.aigicrm.module.fabushi.entity.BizFabushiReadStatus::getPostId).collect(Collectors.toSet());
+        Map<Long, Long> postSection = postMapper.selectBatchIds(postIds).stream()
+                .filter(p -> LIT_PUBLISHED.equals(p.getStatus()) && p.getSectionId() != null)
+                .collect(Collectors.toMap(BizFabushiPost::getId, BizFabushiPost::getSectionId));
+        if (postSection.isEmpty()) return null;
+        Map<Long, Long> sectionBook = sectionMapper.selectBatchIds(new HashSet<>(postSection.values())).stream()
+                .filter(s -> s.getBookId() != null)
+                .collect(Collectors.toMap(com.aigicrm.module.fabushi.entity.BizFabushiSection::getId,
+                        com.aigicrm.module.fabushi.entity.BizFabushiSection::getBookId));
+        Set<Long> bookIds = postSection.values().stream().map(sectionBook::get).filter(Objects::nonNull).collect(Collectors.toSet());
+        if (bookIds.isEmpty()) return null;
+        Map<Long, String> bookCategory = bookMapper.selectBatchIds(bookIds).stream()
+                .filter(b -> b.getCategoryCode() != null)
+                .collect(Collectors.toMap(com.aigicrm.module.fabushi.entity.BizFabushiBook::getId,
+                        com.aigicrm.module.fabushi.entity.BizFabushiBook::getCategoryCode));
+        Map<String, Long> byCategory = new HashMap<>();
+        reads.forEach(r -> {
+            Long sec = postSection.get(r.getPostId());
+            if (sec == null) return;
+            Long book = sectionBook.get(sec);
+            if (book == null) return;
+            String cat = bookCategory.get(book);
+            if (cat != null) byCategory.merge(cat, 1L, Long::sum);
+        });
+        return byCategory.entrySet().stream()
+                .max(Map.Entry.comparingByValue())
+                .map(e -> dictService.listDataByCode(DICT_FABUSHI_CATEGORY).stream()
+                        .filter(d -> e.getKey().equals(d.getDictValue()))
+                        .map(com.aigicrm.module.system.entity.SysDictData::getDictLabel)
+                        .findFirst().orElse(e.getKey()))
+                .orElse(null);
     }
 }

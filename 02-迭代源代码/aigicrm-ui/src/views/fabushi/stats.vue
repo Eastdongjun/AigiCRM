@@ -14,26 +14,27 @@
       <el-button v-if="userStore.hasPermission('fabushi:stats:export')" class="export-btn" @click="exportStats">导出报表（CSV）</el-button>
     </div>
 
+    <!-- 【UI-STATS-REDESIGN-001 方案A】KPI 行换 4 张阅读卡(发布/木鱼/评论收编月度报告) -->
     <div class="stat-cards">
       <div class="stat-card">
         <div class="stat-label">今日已读人数</div>
         <div class="stat-value">{{ dashboard.todayReadUsers || 0 }}<span class="unit">人</span></div>
-        <div class="stat-sub">{{ dashboard.coveragePct != null ? dashboard.coveragePct + '% 覆盖率' : '全部范围' }}</div>
+        <div class="stat-sub">今日已读 / 可见成员 {{ dashboard.coveragePct != null ? dashboard.coveragePct + '%' : '—' }}</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">本周期新增内容</div>
-        <div class="stat-value">{{ dashboard.periodPosts || 0 }}<span class="unit">篇</span></div>
-        <div class="stat-sub">心得 + 诵读 + 正能量</div>
+        <div class="stat-label">周期已读人数</div>
+        <div class="stat-value">{{ dashboard.periodReadUsers || 0 }}<span class="unit">人</span></div>
+        <div class="stat-sub">{{ dashboard.period === 'month' ? '本月' : '本周' }}内有过阅读的成员</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">本周期木鱼</div>
-        <div class="stat-value">{{ dashboard.periodLikes || 0 }}</div>
-        <div class="stat-sub">点赞 = 敲木鱼</div>
+        <div class="stat-label">阅读覆盖率</div>
+        <div class="stat-value">{{ dashboard.periodCoveragePct != null ? dashboard.periodCoveragePct : '—' }}<span v-if="dashboard.periodCoveragePct != null" class="unit">%</span></div>
+        <div class="stat-sub">= 周期已读人数 / 可见成员数</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">本周期评论</div>
-        <div class="stat-value">{{ dashboard.periodComments || 0 }}</div>
-        <div class="stat-sub">已发布评论</div>
+        <div class="stat-label">每日一读达成率</div>
+        <div class="stat-value">{{ dashboard.dailyGoalRate != null ? dashboard.dailyGoalRate : '—' }}<span v-if="dashboard.dailyGoalRate != null" class="unit">%</span></div>
+        <div class="stat-sub">开提醒且应读的人日中实读占比</div>
       </div>
     </div>
 
@@ -46,15 +47,16 @@
         </div>
         <div class="table-scroll">
           <table class="rank-table">
-            <thead><tr><th class="w-no">名次</th><th>成员</th><th>部门</th><th class="w-num">发布</th><th class="w-num">获木鱼</th><th class="w-num">已读天数</th><th class="w-act">活跃度</th></tr></thead>
+            <thead><tr><th class="w-no">名次</th><th>成员</th><th>部门</th><th class="w-num">已读天数</th><th class="w-num">已读人次</th><th class="w-num">发布</th><th class="w-num">获木鱼</th><th class="w-act">活跃度</th></tr></thead>
             <tbody>
               <tr v-for="(row, index) in dashboard.ranking || []" :key="row.userId">
                 <td class="w-no"><span class="rank-no" :class="{ top: index < 3 }">{{ index + 1 }}</span></td>
                 <td class="strong">{{ row.userName }}</td>
                 <td class="dim" :title="row.deptName">{{ row.deptName }}</td>
+                <td class="num w-num">{{ row.readDays }}</td>
+                <td class="num w-num">{{ row.readCount }}</td>
                 <td class="num w-num">{{ row.postCount }}</td>
                 <td class="num w-num">{{ row.likesReceived }}</td>
-                <td class="num w-num">{{ row.readDays }}</td>
                 <td class="w-act"><div class="activity"><i :style="{ width: (row.activityPct || 0) + '%' }" /></div></td>
               </tr>
             </tbody>
@@ -65,13 +67,14 @@
 
       <div class="side-stack">
         <section class="panel">
-          <div class="panel-head"><span>类别热度分布</span></div>
-          <div v-for="item in dashboard.categoryHeat || []" :key="item.categoryCode" class="heat-row">
+          <!-- 【重构】类别分布换已读人次口径(原 categoryHeat 发布口径下线) -->
+          <div class="panel-head"><span>阅读类别分布</span><span class="panel-hint">已读人次</span></div>
+          <div v-for="item in dashboard.categoryReads || []" :key="item.categoryCode" class="heat-row">
             <span class="heat-label">{{ item.categoryName }}</span>
-            <div class="heat-track"><i :style="{ width: heatWidth(item.count) }" /></div>
-            <span class="heat-val">{{ item.count }}</span>
+            <div class="heat-track"><i :style="{ width: heatWidth(item.readCount) }" /></div>
+            <span class="heat-val">{{ item.readCount }}</span>
           </div>
-          <div v-if="!(dashboard.categoryHeat || []).length" class="empty">本周期暂无内容</div>
+          <div v-if="!(dashboard.categoryReads || []).length" class="empty">本周期暂无书目阅读</div>
         </section>
 
         <section class="panel">
@@ -86,6 +89,29 @@
         </section>
       </div>
     </div>
+
+    <!-- 【UI-STATS-REDESIGN-001#4】书目阅读榜(新表): read→post→section→book rollup, feed 帖排除; Top10 -->
+    <section class="panel">
+      <div class="panel-head">
+        <span>书目阅读榜 · {{ dashboard.period === 'month' ? '本月' : '本周' }}</span>
+        <span class="panel-hint">按已读人次排序 / 仅章节帖计入</span>
+      </div>
+      <div class="table-scroll">
+        <table class="rank-table book-table">
+          <thead><tr><th>书名</th><th>类别</th><th class="w-num">已读人数</th><th class="w-num">已读人次</th><th class="w-time">最新阅读</th></tr></thead>
+          <tbody>
+            <tr v-for="row in dashboard.bookRanking || []" :key="row.bookId">
+              <td class="strong">{{ row.title }}</td>
+              <td class="dim">{{ row.categoryName || row.category || '—' }}</td>
+              <td class="num w-num">{{ row.readUsers }}</td>
+              <td class="num w-num">{{ row.readCount }}</td>
+              <td class="dim w-time">{{ shortTime(row.latestReadAt) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div v-if="!(dashboard.bookRanking || []).length" class="empty">本周期暂无书目阅读</div>
+    </section>
 
     <!-- 底双列: 部门进度表(列宽重排) + 月度报告(纵向格子) -->
     <div class="grid-bottom">
@@ -129,24 +155,32 @@
             <el-button v-if="userStore.hasPermission('fabushi:stats:export')" size="small" @click="exportMonthly">导出</el-button>
           </span>
         </div>
+        <!-- 【重构#8】月报分两组: 阅读组(主) + 互动组(收编, 保留环比) -->
+        <div class="m-sub">阅读组</div>
         <div class="m-grid">
-          <div class="m-cell"><span>新增内容</span><b>{{ monthly.posts || 0 }}</b><i :class="pctClass(monthly.prev && monthly.prev.postsPct)">{{ pctText(monthly.prev && monthly.prev.postsPct) }}</i></div>
-          <div class="m-cell"><span>木鱼</span><b>{{ monthly.likes || 0 }}</b><i :class="pctClass(monthly.prev && monthly.prev.likesPct)">{{ pctText(monthly.prev && monthly.prev.likesPct) }}</i></div>
-          <div class="m-cell"><span>评论</span><b>{{ monthly.comments || 0 }}</b><i :class="pctClass(monthly.prev && monthly.prev.commentsPct)">{{ pctText(monthly.prev && monthly.prev.commentsPct) }}</i></div>
           <div class="m-cell"><span>已读人数</span><b>{{ monthly.readUsers || 0 }}</b><i :class="pctClass(monthly.prev && monthly.prev.readUsersPct)">{{ pctText(monthly.prev && monthly.prev.readUsersPct) }}</i></div>
           <div class="m-cell"><span>已读人次</span><b>{{ monthly.readCount || 0 }}</b></div>
           <div class="m-cell"><span>活跃人数</span><b>{{ monthly.activeUsers || 0 }}</b></div>
           <div class="m-cell wide"><span>覆盖率</span><b>{{ monthly.coveragePct != null ? monthly.coveragePct + '%' : '—' }}</b><i>{{ monthly.month }}</i></div>
         </div>
+        <div class="m-sub">互动组</div>
+        <div class="m-grid">
+          <div class="m-cell"><span>新增内容</span><b>{{ monthly.posts || 0 }}</b><i :class="pctClass(monthly.prev && monthly.prev.postsPct)">{{ pctText(monthly.prev && monthly.prev.postsPct) }}</i></div>
+          <div class="m-cell"><span>木鱼</span><b>{{ monthly.likes || 0 }}</b><i :class="pctClass(monthly.prev && monthly.prev.likesPct)">{{ pctText(monthly.prev && monthly.prev.likesPct) }}</i></div>
+          <div class="m-cell"><span>评论</span><b>{{ monthly.comments || 0 }}</b><i :class="pctClass(monthly.prev && monthly.prev.commentsPct)">{{ pctText(monthly.prev && monthly.prev.commentsPct) }}</i></div>
+        </div>
       </section>
     </div>
 
+    <!-- 【重构#9】我的法布施: 6 格(阅读四新格 + 内容/获木鱼) -->
     <section class="personal">
       <div class="panel-head"><span>我的法布施</span></div>
       <div class="personal-grid">
+        <div><span>累计已读天数</span><b>{{ personal.myReadDays || 0 }}</b></div>
+        <div><span>连续阅读天数</span><b>{{ personal.myStreakDays || 0 }}</b></div>
+        <div><span>最常读类别</span><b class="txt">{{ personal.myTopCategory || '—' }}</b></div>
+        <div><span>阅读人次</span><b>{{ personal.myReadCount || 0 }}</b></div>
         <div><span>我的内容</span><b>{{ personal.myPosts || 0 }}</b></div>
-        <div><span>我的评论</span><b>{{ personal.myComments || 0 }}</b></div>
-        <div><span>我的阅读</span><b>{{ personal.myReadCount || 0 }}</b></div>
         <div><span>获木鱼</span><b>{{ personal.myLikesReceived || 0 }}</b></div>
       </div>
     </section>
@@ -164,20 +198,32 @@ const userStore = useUserStore()
 const loading = ref(false)
 const period = ref('week')
 const dashboard = ref({
+  period: 'week',
   memberCount: 0, todayReadUsers: 0, coveragePct: null,
   periodPosts: 0, periodLikes: 0, periodComments: 0,
-  ranking: [], deptProgress: [], categoryHeat: [], trend: [],
+  periodReadUsers: 0, periodCoveragePct: null, dailyGoalRate: null,
+  ranking: [], deptProgress: [], categoryReads: [], trend: [], bookRanking: [],
 })
-const personal = ref({ myPosts: 0, myComments: 0, myReadCount: 0, myLikesReceived: 0 })
+// 【UI-STATS-REDESIGN-001】personal 扩阅读四格(后端新字段)
+const personal = ref({
+  myPosts: 0, myComments: 0, myReadCount: 0, myLikesReceived: 0,
+  myReadDays: 0, myStreakDays: 0, myTopCategory: null,
+})
 // 【2026-11-16 P3】月度报告: 默认当月, el-date-picker(type=month) 切换
 const monthly = ref({ month: '', periodStart: '', periodEnd: '', memberCount: 0, posts: 0, likes: 0, comments: 0, readCount: 0, readUsers: 0, activeUsers: 0, coveragePct: null, prev: {}, deptProgress: [], ranking: [], trend: [] })
 const monthlyMonth = ref(new Date().toISOString().slice(0, 7))
-const maxHeat = computed(() => Math.max(1, ...(dashboard.value.categoryHeat || []).map((item) => Number(item.count) || 0)))
+const maxHeat = computed(() => Math.max(1, ...(dashboard.value.categoryReads || []).map((item) => Number(item.readCount) || 0)))
 const maxTrend = computed(() => Math.max(1, ...(dashboard.value.trend || []).map((item) => Number(item.count) || 0)))
 const heatWidth = (value) => Math.round((Number(value) || 0) * 100 / maxHeat.value) + '%'
 const trendHeight = (value) => Math.max(8, Math.round((Number(value) || 0) * 100 / maxTrend.value)) + '%'
 const pctText = (pct) => (pct == null ? '—' : (pct > 0 ? '+' : '') + pct + '%')
 const pctClass = (pct) => ({ up: pct != null && pct > 0, down: pct != null && pct < 0 })
+// 【UI-STATS-REDESIGN-001】latestReadAt(ISO) → "MM-DD HH:mm" 简显示
+const shortTime = (iso) => {
+  if (!iso) return '—'
+  const m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/)
+  return m ? `${m[2]}-${m[3]} ${m[4]}:${m[5]}` : String(iso)
+}
 
 const loadData = async () => {
   loading.value = true
@@ -295,7 +341,11 @@ onMounted(() => {
 /* 底双列: 部门表 + 月度报告纵向格子 */
 .grid-bottom { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 14px; align-items: start; }
 .monthly-tools { display: flex; align-items: center; gap: 8px; font-weight: 400; }
+/* 【重构#8】月报分组小标 */
+.m-sub { margin: 10px 2px 6px; color: #a67c52; font-size: 12px; font-weight: 600; }
+.m-sub:first-of-type { margin-top: 2px; }
 .m-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 12px; padding: 4px 0 10px; /* 【#3】底部图例条与卡底边框留白 */ }
+.m-grid:last-of-type { padding-bottom: 2px; }
 .m-cell { padding: 8px 10px; border: 1px solid #efe7d8; border-radius: 10px; background: #faf6ee; }
 .m-cell.wide { grid-column: span 3; display: flex; align-items: baseline; gap: 10px; }
 .m-cell span { display: block; color: #9c9184; font-size: 11px; }
@@ -311,6 +361,10 @@ onMounted(() => {
 .personal-grid div { display: flex; flex-direction: column; gap: 3px; }
 .personal-grid span { color: #a67c52; font-size: 11px; }
 .personal-grid b { color: #2e2a24; font-family: 'Songti SC', 'STSong', serif; font-size: 20px; font-variant-numeric: tabular-nums; }
+/* 【重构#9】最常读类别为文本值: 缩号降权显示 */
+.personal-grid b.txt { font-size: 16px; font-weight: 700; }
+/* 【重构#4】书目阅读榜时间列 */
+.book-table .w-time { width: 110px; font-size: 11.5px; }
 @media (max-width: 1100px) {
   .stat-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .grid-main, .grid-bottom { grid-template-columns: 1fr; }

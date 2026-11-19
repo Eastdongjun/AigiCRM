@@ -49,7 +49,10 @@ class FabushiStatsServiceTest {
     private final BizFabushiReadStatusMapper readStatusMapper = mock(BizFabushiReadStatusMapper.class);
 
     private final FabushiStatsService svc = new FabushiStatsService(
-            scopeResolver, postMapper, commentMapper, likeMapper, readStatusMapper);
+            scopeResolver, postMapper, commentMapper, likeMapper, readStatusMapper,
+            mock(com.aigicrm.module.fabushi.mapper.BizFabushiSectionMapper.class),
+            mock(com.aigicrm.module.fabushi.mapper.BizFabushiBookMapper.class),
+            mock(com.aigicrm.module.system.service.SysDictService.class));
 
     private void stubSession(boolean admin) {
         SecurityUser u = new SecurityUser();

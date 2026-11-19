@@ -106,11 +106,12 @@
   <block wx:if="{{activeTab === 'stats'}}">
     <view class="card stats-panel">
       <view class="stats-title">我的法布施</view>
+      <!-- 【UI-STATS-REDESIGN-001 M1/M6】数据格改阅读四格(发布类仅留"我的内容"一格降位) -->
       <view class="stats-grid">
+        <view class="stats-cell"><text class="stats-num">{{personal.myReadCount || 0}}</text><text class="stats-label">累计阅读(人次)</text></view>
+        <view class="stats-cell"><text class="stats-num">{{personal.myStreakDays || 0}}</text><text class="stats-label">连续阅读天数</text></view>
         <view class="stats-cell"><text class="stats-num">{{personal.myPosts || 0}}</text><text class="stats-label">我的内容</text></view>
-        <view class="stats-cell"><text class="stats-num">{{personal.myComments || 0}}</text><text class="stats-label">我的评论</text></view>
-        <view class="stats-cell"><text class="stats-num">{{personal.myReadCount || 0}}</text><text class="stats-label">我的阅读</text></view>
-        <view class="stats-cell"><text class="stats-num">{{personal.myLikesReceived || 0}}</text><text class="stats-label">获木鱼</text></view>
+        <view class="stats-cell"><text class="stats-num stats-txt">{{personal.myTopCategory || '—'}}</text><text class="stats-label">最常读类别</text></view>
       </view>
       <view class="stats-link" bindtap="goSettings">提醒设置 ›</view>
     </view>
@@ -121,6 +122,13 @@
         <text class="rank-no">{{index + 1}}</text><text class="rank-name">{{item.userName}}</text><text class="rank-dept">{{item.deptName}}</text><b>{{item.postCount}}</b>
       </view>
       <view wx:if="{{teamRanking.length === 0}}" class="ghost-sub">本周期暂无团队数据</view>
+    </view>
+    <!-- 【M4】书目阅读榜 Top5(本周, read→章节帖→book rollup; 仅书目帖计入) -->
+    <view wx:if="{{bookRanking.length}}" class="card">
+      <view class="stats-title">书目阅读榜 · 本周</view>
+      <view wx:for="{{bookRanking}}" wx:key="bookId" class="rank-row">
+        <text class="rank-no">{{index + 1}}</text><text class="rank-name">{{item.title}}</text><text class="rank-dept">{{item.categoryName || '—'}}</text><b>{{item.readCount}}</b>
+      </view>
     </view>
     <!-- 【2026-11-16 P3】部门进度(前5) + 月度简报(当月) -->
     <view wx:if="{{deptProgress.length}}" class="card">
