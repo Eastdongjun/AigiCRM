@@ -156,6 +156,12 @@ public class FileService {
             // 【文件权限体系】私有树候选集扩展为全部私有文件夹，
             // 可见性（本人创建/上级链/ACL view）在下方内存过滤，支持上级与 ACL 授权用户查看他人私有树。
             wrapper.eq(BizFileFolder::getFolderType, LIT_PRIVATE);
+        } else if (com.aigicrm.module.file.service.FabushiFolderService.FOLDER_TYPE.equals(scope)) {
+            // 【FILE-FABU-FOLDER-001】法布施树=固定两个系统夹(书籍 sort1/分享心得 sort2), 全员可见
+            // (书籍=电子书大家读; 分享沿用空间现口径), 无子夹无 ACL。
+            return folderMapper.selectList(new LambdaQueryWrapper<BizFileFolder>()
+                    .eq(BizFileFolder::getFolderType, FabushiFolderService.FOLDER_TYPE)
+                    .orderByAsc(BizFileFolder::getSortOrder));
         } else {
             // 【安全修复 FEAT-20260804-FILE-AUTHZ】未识别的 scope 默认拒绝(返回空)，
             // 而不是默认放行返回全部文件夹(此前会泄露他人私有文件夹信息)。
@@ -460,10 +466,20 @@ public class FileService {
         if (fabushiScope && !SecurityUtils.hasAuthority("fabushi:create")) {
             throw new BusinessException(403, LIT_X);
         }
-        // 【文件权限体系】上传到文件夹需文件夹上传权限（管理员/本人/上级链/ACL upload）
-        if (folderId != null && !folderPermissionService.check(folderId, FolderPermissionService.P_UPLOAD, userId)) {
+        // 【文件权限体系】上传到文件夹需文件夹上传权限（管理员/本人/上级链/ACL upload）。
+        // 【FILE-FABU-FOLDER-001】法布施系统夹例外: 无 ACL/无属主, 通道门槛已在 FileController.upload
+        // 路由层判定(书籍=fabushi:book:manage; 分享=fabushi:create 上面同码门), 此处不重复走夹级判定。
+        if (folderId != null && !isFabushiSystemFolder(folderId)
+                && !folderPermissionService.check(folderId, FolderPermissionService.P_UPLOAD, userId)) {
             throw new BusinessException(403, LIT_X);
         }
+    }
+
+    /** 【FILE-FABU-FOLDER-001】folderId 是否法布施系统夹(folder_type='fabushi')。 */
+    private boolean isFabushiSystemFolder(Long folderId) {
+        if (folderId == null) return false;
+        BizFileFolder f = folderMapper.selectById(folderId);
+        return f != null && FabushiFolderService.FOLDER_TYPE.equals(f.getFolderType());
     }
 
     public BizFile upload(MultipartFile file, Long folderId, String scope) {
@@ -557,6 +573,10 @@ public class FileService {
         if (!LIT_PUBLIC.equals(type) && !LIT_PRIVATE.equals(type)) {
             throw new BusinessException("不支持的文件夹类型");
         }
+        // 【FILE-FABU-FOLDER-001】系统夹禁建子夹(folder_type='fabushi' 下不允许任何用户建夹)
+        if (folder.getParentId() != null && isFabushiSystemFolder(folder.getParentId())) {
+            throw new BusinessException(403, "法布施系统文件夹下不允许创建子文件夹");
+        }
         // 【体检 H3 2026-10-12】parentId=0 与 null 同为根级（0 是 DDL 哨兵，buildFolderTree 以 0 为根）。
         // PC(CreateFolderDialog selectedFolderId||0) 与 MP(建夹恒传 0) 均传 0，此前 0 被当真实父夹
         // 做 P_UPLOAD 校验（selectById(0)=null→403），非 admin 建根夹恒败。归一化后走根级规则：
@@ -598,6 +618,10 @@ public class FileService {
         if (folder == null) {
             throw new BusinessException("文件夹不存在");
         }
+        // 【FILE-FABU-FOLDER-001】系统夹禁改名
+        if (FabushiFolderService.FOLDER_TYPE.equals(folder.getFolderType())) {
+            throw new BusinessException(403, "法布施系统文件夹不允许改名");
+        }
         // 【文件权限 v2】文件夹改名走独立动作 rename(从 edit 伞拆出); 判定链 admin>本人>上级链>ACL>类型授权
         if (!folderPermissionService.check(folder.getId(), FolderPermissionService.P_RENAME, SecurityUtils.getCurrentUserId())) {
             throw new BusinessException(403, LIT_X);
@@ -611,6 +635,10 @@ public class FileService {
         BizFileFolder folder = folderMapper.selectById(folderId);
         if (folder == null) {
             throw new BusinessException("文件夹不存在");
+        }
+        // 【FILE-FABU-FOLDER-001】系统夹禁删(书籍/分享心得出入口, 删除=两端失联)
+        if (FabushiFolderService.FOLDER_TYPE.equals(folder.getFolderType())) {
+            throw new BusinessException(403, "法布施系统文件夹不允许删除");
         }
         // 【文件权限体系】ACL/上级链/本人 删除权限（管理员恒通过），
         // 为操作唯一仲裁（已覆盖 admin>本人>上级链>ACL 优先级且 folder==null 已拒绝）

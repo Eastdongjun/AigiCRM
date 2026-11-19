@@ -71,8 +71,8 @@
       </div>
 
       <div class="content-body">
-        <!-- 左侧: 文件夹树（四项服务和分享给我Tab不显示） -->
-        <template v-if="activeTab !== 'incentive' && activeTab !== 'shared_to_me' && activeTab !== 'fabushi'">
+        <!-- 左侧: 文件夹树（四项服务和分享给我Tab不显示；法布施Tab显示固定两系统夹 2026-11-19） -->
+        <template v-if="activeTab !== 'incentive' && activeTab !== 'shared_to_me'">
           <FolderPanel />
           <!-- 分隔线 -->
           <div class="divider"></div>

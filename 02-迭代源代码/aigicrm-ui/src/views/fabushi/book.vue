@@ -283,9 +283,14 @@ const handlePdfChosen = async (evt) => {
   }
   pdfUploading.value = true
   try {
+    // 【FILE-FABU-FOLDER-001】挂书通道: 上传即落「书籍」系统夹(后端 attachPdf 校验 folder=书籍,
+    // 非书籍夹文件挂书 400); 夹 id 从法布施树取(sort 1=书籍), 服务端路由兜底在前端之上。
+    const treeRes = await request.get('/file/folders', { params: { scope: 'fabushi' } })
+    const bookFolder = (treeRes.data || []).find((f) => f.sortOrder === 1)
     const formData = new FormData()
     formData.append('file', file)
     formData.append('scope', 'fabushi')
+    if (bookFolder) formData.append('folderId', bookFolder.id)
     const res = await request.post('/file/upload', formData)
     await attachBookPdf(pdfVisible.value.id, res.data && res.data.id)
     ElMessage.success('PDF 已挂载')

@@ -70,7 +70,8 @@
       <view class="sheet-cancel" catchtap="closeActionSheet">取消</view>
     </view>
   </view>
-  <view wx:if="{{canManageFolder && fileView.showFolderCard}}" class="files-manage-card">
+  <!-- 【FILE-FABU-FOLDER-001】法布施 tab 只读浏览系统夹: 隐藏管理卡(系统夹禁删改禁建子夹) -->
+  <view wx:if="{{canManageFolder && fileView.showFolderCard && activeTab !== '法布施'}}" class="files-manage-card">
     <view class="files-manage-head"><text>文件夹管理</text><button class="folder-new-action" bindtap="openFolderForm">＋ 新建</button></view>
     <block wx:if="{{fileView.showManageFolders}}">
       <view wx:for="{{fileView.folders}}" wx:key="id" class="folder-manage-row">

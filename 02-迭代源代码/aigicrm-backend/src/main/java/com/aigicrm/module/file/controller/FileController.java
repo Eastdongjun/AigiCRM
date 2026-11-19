@@ -40,6 +40,12 @@ public class FileController {
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.aigicrm.module.file.service.FileChunkUploadService fileChunkUploadService;
 
+    /** 【FILE-FABU-FOLDER-001 2026-11-19】法布施系统夹解析(书籍/分享心得路由)。字段注入(非构造)——
+     *  本控制器被 PermissionBehaviorMatrixTest 瘦上下文显式导入构造(不扫 @Service, Bean 缺席),
+     *  required=false 保持该上下文可装配; 完整上下文恒注入, fabushi 路由分支仅在完整链路可达。 */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.aigicrm.module.file.service.FabushiFolderService fabushiFolderService;
+
     /** F2: 签发短时下载专用 token（1h，scope=download，仅下载/导出路径可用）——主 JWT 不再进 URL/日志。
      *  【2026-10-27 深度检查修复】dlToken 携带当前主 token 的 jti: 登出拉黑主 token 后, 派生下载 token 联动失效 */
     @PreAuthorize("hasAuthority('file:download')")
@@ -85,6 +91,21 @@ public class FileController {
         // 统一回 400，此处再兜底空文件(防 0 字节/空 part 继续走落盘链路)
         if (file == null || file.isEmpty()) {
             throw new com.aigicrm.common.BusinessException(400, "请选择要上传的文件");
+        }
+        // 【FILE-FABU-FOLDER-001】法布施空间路由服务端定死(不依赖前端自觉):
+        // 帖子附件通道(无 folderId)→分享心得; 书籍夹仅限挂书通道(fabushi:book:manage);
+        // 其余 folderId 不接受(法布施空间只有两个系统夹)。瘦上下文(无 Bean)时跳过=旧测试路径不受影响。
+        if ("fabushi".equals(scope) && fabushiFolderService != null) {
+            if (folderId == null) {
+                folderId = fabushiFolderService.shareFolderId();
+            } else if (fabushiFolderService.isSystemFolder(folderId)) {
+                Long bookId = fabushiFolderService.bookFolderId();
+                if (bookId.equals(folderId) && !SecurityUtils.hasAuthority("fabushi:book:manage")) {
+                    throw new com.aigicrm.common.BusinessException(403, "书籍文件夹仅限书目管理挂载 PDF 上传");
+                }
+            } else {
+                throw new com.aigicrm.common.BusinessException(400, "法布施空间仅接受系统文件夹（书籍/分享心得）");
+            }
         }
         return Result.ok(fileService.upload(file, folderId, scope));
     }

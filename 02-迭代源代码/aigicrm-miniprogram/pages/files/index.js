@@ -373,7 +373,8 @@ function buildFileView(data) {
   const fileCount = Number.isFinite(totalFiles) && totalFiles > 0 ? totalFiles : files.length
   const isIncentiveTab = data.activeTab === '四项服务'
   const isFabushiTab = data.activeTab === '法布施'
-  const showFolderCard = !isIncentiveTab && !isFabushiTab && data.activeTab !== '分享给我'
+  // 【FILE-FABU-FOLDER-001】法布施 tab 显示两个系统夹(书籍/分享心得, 只读浏览不可管理)
+  const showFolderCard = !isIncentiveTab && data.activeTab !== '分享给我'
   return {
     showUploadAction,
     tabs,
@@ -585,7 +586,8 @@ Page({
       const folderScope = this.activeFileScope()
       const [folderResponse, storageInfo] = await Promise.all([
         // 【体检 P1 2026-10-12】带 scope 请求: 后端缺省只回公共树, 私人 Tab 此前恒空
-        getFolders(this.data.activeTab === '公共' || this.data.activeTab === '私人' ? folderScope : undefined),
+        // 【FILE-FABU-FOLDER-001】法布施 tab 同样带 scope=fabushi(两系统夹)
+        getFolders(this.data.activeTab === '公共' || this.data.activeTab === '私人' || this.data.activeTab === '法布施' ? folderScope : undefined),
         getStorageInfo().catch((error) => {
           showError(error, '存储统计加载失败')
           return null
@@ -613,7 +615,7 @@ Page({
         })
         return out
       }
-      folders = (this.data.activeTab === '公共' || this.data.activeTab === '私人')
+      folders = (this.data.activeTab === '公共' || this.data.activeTab === '私人' || this.data.activeTab === '法布施')
         ? flattenFolders(rawFolders.filter((item) => item.folderType === folderScope), 0, [])
         : []
       const fileResponse = this.data.activeTab === '分享给我'
