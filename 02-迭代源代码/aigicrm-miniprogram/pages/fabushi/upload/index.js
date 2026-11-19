@@ -1,5 +1,5 @@
 const { hasPermission, requireLogin } = require('../../../utils/auth')
-const { getFabushiBooks, createFabushiPost, addFabushiAttachment, getFabushiSettings } = require('../../../api/fabushi')
+const { getFabushiBooks, createFabushiPost, addFabushiAttachment, getFabushiSettings, getFabushiUploadTicket } = require('../../../api/fabushi')
 const { uploadFile, getDownloadToken, getDownloadUrl } = require('../../../api/file')
 const { showError } = require('../../../utils/feedback')
 
@@ -34,6 +34,13 @@ Page({
   },
 
   onShow() {
+    // 【F3a】消费 H5 上传回传清单(容器页 bindmessage → globalData 中转)
+    const app = getApp()
+    const manifest = app.globalData.fabushiUploadFiles
+    if (manifest && manifest.length) {
+      app.globalData.fabushiUploadFiles = null
+      this.consumeH5Files(manifest)
+    }
     // 【F1-3 木鱼音效】拉设置开关(失败保持默认开)
     getFabushiSettings().then((s) => {
       if (s && s.soundEnabled !== undefined) this.setData({ soundEnabled: Number(s.soundEnabled) !== 0 })
@@ -177,6 +184,40 @@ Page({
       this._playingIndex = index
       this.setData({ playingIndex: index })
     }).catch((err) => showError(err, '试听失败'))
+  },
+
+  // ===== 【F3a】三通道之三: 手机本地文件(H5 票据通道) =====
+
+  choosePhoneFile() {
+    if (this.data.uploading) return
+    getFabushiUploadTicket().then((res) => {
+      const ticket = res && (res.ticket || (res.data && res.data.ticket))
+      if (!ticket) throw new Error('no ticket')
+      wx.navigateTo({ url: '/pages/fabushi/uploader/index?ticket=' + encodeURIComponent(ticket) })
+    }).catch((err) => showError(err, '上传票获取失败'))
+  },
+
+  consumeH5Files(manifest) {
+    const added = []
+    let pdfCount = 0
+    let skipped = 0
+    const counts = this.attachmentCounts()
+    manifest.forEach((f) => {
+      if (f.fileType === 'image' || f.fileType === 'video' || f.fileType === 'audio') {
+        const cap = f.fileType === 'audio' ? 10 : 5
+        if (counts[f.fileType] >= cap) { skipped++; return }
+        counts[f.fileType]++
+        added.push({ fileId: f.fileId, fileType: f.fileType, name: f.fileName || '手机文件' })
+      } else if (f.fileType === 'pdf') {
+        pdfCount++
+      }
+    })
+    if (added.length) {
+      this.setData({ attachments: this.data.attachments.concat(added) })
+      this.syncAttachHint()
+    }
+    if (skipped) wx.showToast({ title: skipped + ' 个文件超出分型上限未添加', icon: 'none' })
+    if (pdfCount) wx.showToast({ title: 'PDF 已传至法布施空间，请在 PC 书目管理挂载', icon: 'none', duration: 2500 })
   },
 
   onBookChange(e) {

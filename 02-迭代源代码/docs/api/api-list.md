@@ -4,7 +4,7 @@
 > 本文件由 scripts/gen-api.py 自动生成,**禁止手改**;接口变更后重新运行。
 > 权限码与 docs/permission/permission-dict.md 对应。
 
-## 接口清单(323 个)
+## 接口清单(325 个)
 
 | 方法 | 路径 | 权限码 | 方法名 | 文件 |
 |---|---|---|---|---|
@@ -116,6 +116,8 @@
 | GET | `/api/fabushi/stats/monthly/export` | `hasAuthority('fabushi:stats:export')` | monthlyExport | FabushiStatsController.java |
 | GET | `/api/fabushi/stats/personal` | `hasAuthority('fabushi:view')` | personal | FabushiStatsController.java |
 | GET | `/api/fabushi/stats/team` | `hasAuthority('fabushi:stats:view')` | team | FabushiStatsController.java |
+| GET | `/api/fabushi/upload-ticket` | `hasAuthority('fabushi:create')` | uploadTicket | FabushiUploadTicketController.java |
+| POST | `/api/fabushi/upload/h5` | `登录即可` | uploadH5 | FabushiUploadTicketController.java |
 | POST | `/api/file/batch-delete` | `hasAnyAuthority('file:delete','fabushi:file:delete')` | batchDelete | FileController.java |
 | POST | `/api/file/batch-download` | `hasAuthority('file:download')` | batchDownload | FileController.java |
 | POST | `/api/file/chunk/init` | `hasAuthority('file:upload')` | chunkInit | FileController.java |

@@ -53,7 +53,8 @@
     "pages/fabushi/feed/index",
     "pages/fabushi/detail/index",
     "pages/fabushi/settings/index",
-    "pages/fabushi/reader/index"
+    "pages/fabushi/reader/index",
+    "pages/fabushi/uploader/index"
   ],
   "window": {
     "navigationBarTitleText": "AIGICRM",

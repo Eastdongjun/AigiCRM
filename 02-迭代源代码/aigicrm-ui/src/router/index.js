@@ -33,6 +33,16 @@ const routes = [
     component: () => import('@/views/mp/FabushiReader.vue'),
     meta: { title: '在线阅读' }
   },
+  // 【F3a 2026-11-19 spec v2 GAP-B】法布施 H5 上传页(MP web-view 容器页):
+  // 手机本地任意文件(PDF 等)经 <input type=file> 多选直传; 鉴权=短时上传票(5min/
+  // scope=upload/scene=fabushi, 发票走主 JWT header), 主 JWT 绝不进 URL(与
+  // /mp-file-picker 的 URL 主 JWT 模式刻意不同——那是 MP-TOKEN-001 待修弱点)。
+  {
+    path: '/mp-fabushi-uploader',
+    name: 'MpFabushiUploader',
+    component: () => import('@/views/mp/FabushiUploader.vue'),
+    meta: { title: '手机文件上传' }
+  },
   // 【C12 2026-10-08 二轮】404 兜底：深链错误路径不再白屏（catchAll 放最后，不拦截已定义路由）
   {
     path: '/:pathMatch(.*)*',
@@ -376,7 +386,8 @@ const router = createRouter({
 // 【2026-10-13】品牌回归 'AIGICRM'（A4 三轮曾统一为运筹马年·市场资源管理系统，已按用户指令撤销）
 const BRAND_NAME = 'AIGICRM'
 const isPublicPath = (to) =>
-  to.path === '/login' || to.path === '/mp-file-picker' || to.path === '/mp-fabushi-reader'
+  to.path === '/login' || to.path === '/mp-file-picker' || to.path === '/mp-fabushi-reader' ||
+  to.path === '/mp-fabushi-uploader' // 【F3a】短时上传票鉴权, 无 PC 登录态
 
 const ensureUserLoaded = async (userStore, next) => {
   if (userStore.userId && userStore.permissions.size > 0) return true

@@ -70,6 +70,9 @@ public class SecurityConfig {
                 auth.requestMatchers("/api/auth/login", "/api/auth/forgot-password/**",
                         "/api/system/configs/public", "/api/system/configs/logo",
                         "/api/file/download/public/**",
+                        // 【F3a 2026-11-19】法布施 H5 票据上传: permitAll 但鉴权未裸奔——
+                        // 短时上传票(scope=upload∧scene=fabushi∧TTL 5min∧限速)收敛在 FabushiH5UploadService
+                        "/api/fabushi/upload/h5",
                         "/actuator/health").permitAll(); // 【可观测性】仅 health 匿名(无详情); metrics/prometheus 由 anyRequest authenticated 保护
 
                 // Swagger 默认关闭, 显式 aigicrm.swagger.enabled=true 才开放(原 profile 推断已移除)

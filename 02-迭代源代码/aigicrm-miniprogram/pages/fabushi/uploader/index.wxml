@@ -1,0 +1,2 @@
+<!-- 【F3a】web-view 自动铺满: 手机文件上传由 H5 页(/mp-fabushi-uploader, 短时票鉴权)承载 -->
+<web-view wx:if="{{src}}" src="{{src}}" bindmessage="onWebViewMessage"></web-view>

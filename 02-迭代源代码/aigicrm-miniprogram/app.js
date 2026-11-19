@@ -36,7 +36,9 @@ App({
     // 绕过 30s 节流一次 —— 保证"写完回来立刻见结果"(PR-12 契约);节流只拦纯回流的流量放大
     forceRefresh: { incentive: false, files: false },
     // 【F4a 法布施提醒】今日到点未读红点(custom-tab-bar 消费; 读完清零)
-    fabushiUnread: false
+    fabushiUnread: false,
+    // 【F3a 法布施 H5 上传】web-view 回传清单中转([{fileId,fileName,fileType}], 上传页 onShow 消费后清)
+    fabushiUploadFiles: null
   },
 
   onLaunch() {

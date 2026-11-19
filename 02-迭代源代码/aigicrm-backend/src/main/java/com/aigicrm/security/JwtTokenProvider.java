@@ -245,6 +245,36 @@ public class JwtTokenProvider {
         }
     }
 
+    /** 【F3a 2026-11-19】通用短时流转票: scope(download/upload) + scene(业务场景) + 自定义 TTL(分);
+     *  与 download token 同签名体系, 主 token 撤销经 pjti 联检(黑名单机制对流转票同样生效)。 */
+    public String generateTransferToken(Long userId, String parentJti, String scope, String scene, long ttlMinutes) {
+        Date now = new Date();
+        JwtBuilder builder = Jwts.builder()
+                .id(UUID.randomUUID().toString())
+                .subject(String.valueOf(userId))
+                .claim("scope", scope)
+                .issuedAt(now)
+                .expiration(new Date(now.getTime() + ttlMinutes * 60_000L))
+                .signWith(getSigningKey());
+        if (parentJti != null && !parentJti.isBlank()) {
+            builder.claim("pjti", parentJti);
+        }
+        if (scene != null && !scene.isBlank()) {
+            builder.claim("scene", scene);
+        }
+        return builder.compact();
+    }
+
+    /** 流转票的 scene 声明(无则 null)——upload 票消费端校验 scene=fabushi 用。 */
+    public String getSceneFromToken(String token) {
+        try {
+            Claims claims = Jwts.parser().verifyWith(getSigningKey()).build().parseSignedClaims(token).getPayload();
+            return claims.get("scene", String.class);
+        } catch (JwtException | IllegalArgumentException e) {
+            return null;
+        }
+    }
+
     // ==================== 改密后旧 token 失效 (P2-13 2026-08-10) ====================
 
     private static final String PWD_CHANGED_PREFIX = "jwt:pwd-changed:";

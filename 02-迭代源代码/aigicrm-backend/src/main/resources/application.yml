@@ -91,6 +91,10 @@ file:
 aigicrm:
   tenant:
     enable: ${TENANT_ENABLE:false}
+  fabushi:
+    h5-upload:
+      # 【F3a 2026-11-19】法布施 H5 上传通道总开关(回滚用): false → 发票/消费两端点 404
+      enabled: ${FABUSHI_H5_UPLOAD:true}
 
 # 阿里云 OSS — 生产环境必须通过环境变量注入真实密钥
 # ⚠️ 已泄露的旧密钥已作废，请在阿里云控制台生成新密钥并轮换

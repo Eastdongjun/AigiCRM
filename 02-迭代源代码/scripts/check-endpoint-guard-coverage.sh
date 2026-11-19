@@ -28,6 +28,7 @@ SysConfigController.java @GetMapping("/logo")|公开 logo
 SysUserController.java @PostMapping("/change-password")|本人改自己密码(自服务)
 FileController.java @GetMapping("/download-token")|短效下载令牌签发(本人自服务, 1h)
 FileController.java @GetMapping("/download/public/**")|分享直链(设计公开, shareToken 校验)
+FabushiUploadTicketController.java @PostMapping("/upload/h5")|F3a 法布施 H5 票据上传(短时票 scope=upload∧scene=fabushi∧TTL5min∧限速, FabushiH5UploadService 收敛, 发票端点仍受 fabushi:create)
 IncentivePermissionController.java @GetMapping("/check")|查本人激励开关布尔值(自服务, 无他人数据)
 ScopeController.java @GetMapping("/users")|可见人员下拉(按调用者数据范围过滤, 非全量枚举)
 ScopeController.java @GetMapping("/depts")|可见部门树(按调用者数据范围过滤, 非全量枚举)

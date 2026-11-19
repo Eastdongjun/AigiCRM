@@ -84,7 +84,11 @@ public class PermissionMatrixTest {
             "FileController.deleteFile",
             "FileController.replaceFile",
             "FileController.shareFile",
-            "ReminderController.process");
+            "ReminderController.process",
+            // 【F3a 2026-11-19】法布施 H5 票据上传消费端点: permitAll 无会话故无法挂 @PreAuthorize——
+            // 鉴权收敛在 FabushiH5UploadService(短时票 scope=upload∧scene=fabushi∧TTL 5min∧限速∧
+            // 黑名单/pjti 联检), 发票端点 upload-ticket 仍受 fabushi:create 硬门(类 login 家族取舍)
+            "FabushiUploadTicketController.uploadH5");
 
     /**
      * 字典中保留但不再作为运行时 @PreAuthorize 或服务层 hasAuthority 门禁使用的兼容/历史码。

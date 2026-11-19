@@ -1,0 +1,169 @@
+package com.aigicrm.module.fabushi.service;
+
+import com.aigicrm.common.BusinessException;
+import com.aigicrm.module.file.entity.BizFile;
+import com.aigicrm.module.file.service.FileService;
+import com.aigicrm.security.JwtTokenProvider;
+import com.aigicrm.security.SecurityUser;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.time.Duration;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+
+/**
+ * 【F3a 2026-11-19 spec v2 GAP-B】法布施 H5 上传通道: 短时上传票 + 分型大小闸 + 复用既有上传路径。
+ * 红线(QC 验收 grep 项): 主 JWT 绝不进 URL——发票端点走 Authorization header, H5 消费端只认票。
+ * 回滚: aigicrm.fabushi.h5-upload.enabled=false → 发票/消费两端点 404(路由纯增量, revert 即回)。
+ */
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class FabushiH5UploadService {
+
+    public static final String SCOPE_UPLOAD = "upload";
+    public static final String SCENE_FABUSHI = "fabushi";
+    private static final long TICKET_TTL_MINUTES = 5;
+    private static final long TICKET_TTL_SECONDS = TICKET_TTL_MINUTES * 60;
+    /** 发票限速: 同 uid 60s 滚动窗 ≤10 张(防票池囤积)。 */
+    private static final long RATE_WINDOW_SECONDS = 60;
+    private static final long RATE_MAX_PER_WINDOW = 10;
+    private static final String RATE_KEY_PREFIX = "fabushi:h5-ticket:";
+
+    /** H5 通道单文件分型大小闸(spec v2 口径, 后端强制; 与 MP 原生通道独立)。 */
+    private static final long MAX_IMAGE_BYTES = 10L * 1024 * 1024;
+    private static final long MAX_AUDIO_BYTES = 20L * 1024 * 1024;
+    private static final long MAX_VIDEO_BYTES = 100L * 1024 * 1024;
+    private static final long MAX_PDF_BYTES = 100L * 1024 * 1024;
+    private static final Set<String> IMAGE_EXTS = Set.of("JPG", "JPEG", "PNG", "GIF", "WEBP", "BMP");
+    private static final Set<String> AUDIO_EXTS = Set.of("MP3", "M4A", "WAV", "AAC");
+    private static final Set<String> VIDEO_EXTS = Set.of("MP4", "MOV", "AVI");
+    private static final String PDF_EXT = "PDF";
+
+    private final JwtTokenProvider jwtTokenProvider;
+    private final FileService fileService;
+    private final UserDetailsService userDetailsService;
+    private final RedisTemplate<String, Object> redisTemplate;
+
+    /** 默认开; 生产可经 yml/环境变量一键关(回滚开关)。 */
+    @Value("${aigicrm.fabushi.h5-upload.enabled:true}")
+    private boolean enabled = true;
+
+    /** 签发短时上传票(scope=upload∧scene=fabushi, TTL 5min, 携 pjti 随主 token 撤销联动)。 */
+    public Map<String, Object> issueTicket(Long userId, String parentJti) {
+        requireEnabled();
+        enforceIssueRate(userId);
+        String ticket = jwtTokenProvider.generateTransferToken(userId, parentJti, SCOPE_UPLOAD, SCENE_FABUSHI,
+                TICKET_TTL_MINUTES);
+        return Map.of("ticket", ticket, "expiresIn", TICKET_TTL_SECONDS);
+    }
+
+    /** H5 上传消费(无主 JWT): 票校验 → 分型大小闸 → 以票内用户身份复用 FileService.upload 同路径同闸。
+     *  返回 Map 化(controller_must_not_depend_on_entity 铁律, 同 FabushiPostService 口径)。 */
+    public Map<String, Object> consumeUpload(String ticket, MultipartFile file) {
+        requireEnabled();
+        Long userId = validateTicket(ticket);
+        validateTypeAndSize(file);
+        UserDetails userDetails = userDetailsService.loadUserByUsername(String.valueOf(userId));
+        if (!(userDetails instanceof SecurityUser su)) {
+            throw new BusinessException(401, "上传票内用户无效");
+        }
+        applyMinimalGroup(su);
+        UsernamePasswordAuthenticationToken auth =
+                new UsernamePasswordAuthenticationToken(su, null, userDetails.getAuthorities());
+        BizFile out;
+        try {
+            SecurityContextHolder.getContext().setAuthentication(auth);
+            // scope 固定 fabushi, folderId=null(帖子附件不挂文件夹)——配额/病毒扫描/租户/归属快照全复用
+            out = fileService.upload(file, null, SCENE_FABUSHI);
+        } finally {
+            SecurityContextHolder.clearContext();
+        }
+        return Map.of("id", out.getId(), "fileName", out.getFileName(),
+                "fileSize", out.getFileSize(), "fileType", out.getFileType());
+    }
+
+    private void requireEnabled() {
+        if (!enabled) throw new BusinessException(404, "H5 上传未启用");
+    }
+
+    private void enforceIssueRate(Long userId) {
+        try {
+            String key = RATE_KEY_PREFIX + userId;
+            Long count = redisTemplate.opsForValue().increment(key);
+            if (count != null && count == 1L) {
+                redisTemplate.expire(key, Duration.ofSeconds(RATE_WINDOW_SECONDS));
+            }
+            if (count != null && count > RATE_MAX_PER_WINDOW) {
+                throw new BusinessException(429, "发票过于频繁，请稍后再试");
+            }
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            // fail-open: 签发仍需 fabushi:create 会话门; Redis 故障放行并留审计日志
+            log.warn("H5 上传票限速 Redis 异常(本张放行): {}", e.getMessage());
+        }
+    }
+
+    private Long validateTicket(String ticket) {
+        if (ticket == null || ticket.isBlank() || !jwtTokenProvider.validateToken(ticket)) {
+            throw new BusinessException(401, "上传票无效或已过期");
+        }
+        if (!SCOPE_UPLOAD.equals(jwtTokenProvider.getScopeFromToken(ticket))) {
+            throw new BusinessException(403, "上传票 scope 不符");
+        }
+        if (!SCENE_FABUSHI.equals(jwtTokenProvider.getSceneFromToken(ticket))) {
+            throw new BusinessException(403, "上传票 scene 不符");
+        }
+        String jti = jwtTokenProvider.getJtiFromToken(ticket);
+        if (jti != null && jwtTokenProvider.isBlacklisted(jti)) {
+            throw new BusinessException(401, "上传票已撤销");
+        }
+        String parentJti = jwtTokenProvider.getParentJtiFromToken(ticket);
+        if (parentJti != null && jwtTokenProvider.isBlacklisted(parentJti)) {
+            throw new BusinessException(401, "上传票已随登录撤销");
+        }
+        Long userId = jwtTokenProvider.getUserIdFromToken(ticket);
+        if (userId == null) {
+            throw new BusinessException(401, "上传票无效或已过期");
+        }
+        return userId;
+    }
+
+    private void validateTypeAndSize(MultipartFile file) {
+        String name = file.getOriginalFilename() == null ? "" : file.getOriginalFilename();
+        int dot = name.lastIndexOf('.');
+        String ext = dot > 0 ? name.substring(dot + 1).toUpperCase(Locale.ROOT) : "";
+        long size = file.getSize();
+        if (IMAGE_EXTS.contains(ext)) {
+            if (size > MAX_IMAGE_BYTES) throw new BusinessException(400, "图片不能超过10MB");
+        } else if (AUDIO_EXTS.contains(ext)) {
+            if (size > MAX_AUDIO_BYTES) throw new BusinessException(400, "语音不能超过20MB");
+        } else if (VIDEO_EXTS.contains(ext)) {
+            if (size > MAX_VIDEO_BYTES) throw new BusinessException(400, "视频不能超过100MB");
+        } else if (PDF_EXT.equals(ext)) {
+            if (size > MAX_PDF_BYTES) throw new BusinessException(400, "PDF不能超过100MB");
+        } else {
+            throw new BusinessException(400, "不支持的文件类型(仅图片/语音/视频/PDF)");
+        }
+    }
+
+    /** 票内用户无会话集团 claim——最小集团兜底(与 JwtAuthFilter.applySessionGroup 回退分支同口径)。 */
+    private void applyMinimalGroup(SecurityUser su) {
+        Long cg = null;
+        if (su.getGroupIds() != null && !su.getGroupIds().isEmpty()) {
+            cg = su.getGroupIds().stream().min(Long::compareTo).orElse(null);
+        }
+        su.setCurrentGroupId(cg);
+    }
+}

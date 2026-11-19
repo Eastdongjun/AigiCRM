@@ -24,6 +24,7 @@
     <view class="attach-btns">
       <view class="attach-btn" bindtap="chooseMedia">相册 / 拍摄</view>
       <view class="attach-btn {{recording ? 'rec' : ''}}" bindtap="toggleRecord">{{recording ? '停止 · ' + recordSeconds + 's' : '录制语音'}}</view>
+      <view class="attach-btn" bindtap="choosePhoneFile">手机文件</view>
     </view>
     <view wx:if="{{recording}}" class="attach-hint rec-hint">录音中…每段最长 60 秒，到时自动保存；不足 1 秒丢弃</view>
     <view class="attach-sub" bindtap="chooseAudio">从聊天文件选音频（备选入口）</view>
