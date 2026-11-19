@@ -640,7 +640,9 @@ public class PermissionMatrixTest {
         } catch (IOException e) {
             throw new IllegalStateException("读取 JwtTokenProvider 源码失败", e);
         }
-        assertTrue(providerBody.contains(".claim(\"scope\", \"download\")"),
+        // 【F3a-1b 2026-11-19 重钉】claim 键常量化(CLAIM_SCOPE)后同步本断言; 意图不变:
+        // generateDownloadToken 必须写入 scope=download, 供过滤器识别 URL token
+        assertTrue(providerBody.contains(".claim(CLAIM_SCOPE, \"download\")"),
                 "generateDownloadToken 必须写入 scope=download，供过滤器识别 URL token");
         assertTrue(providerBody.contains("DOWNLOAD_TOKEN_TTL_MS = 3600_000L")
                         && providerBody.contains("now.getTime() + DOWNLOAD_TOKEN_TTL_MS"),

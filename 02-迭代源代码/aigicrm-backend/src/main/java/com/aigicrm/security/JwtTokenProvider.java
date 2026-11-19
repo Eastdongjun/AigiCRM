@@ -213,6 +213,11 @@ public class JwtTokenProvider {
         }
     }
 
+    /** 【F3a-1b】java:S1192——JWT claim 键常量化(scope 达阈值; scene/pjti 顺手一并防后续再触)。 */
+    private static final String CLAIM_SCOPE = "scope";
+    private static final String CLAIM_SCENE = "scene";
+    private static final String CLAIM_PJTI = "pjti";
+
     /** 短时下载专用 token：scope=download，1h 有效（<img> 缩略图/导出无法带 header，避免主 JWT 进 URL/日志）。
      *  【2026-10-27 深度检查修复】嵌入签发时主 token 的 jti(pjti)——主 token 注销拉黑后,
      *  其派生的下载 token 随之失效(JwtAuthFilter 联检), 不再"登出后 1h 内仍可下载" */
@@ -225,12 +230,12 @@ public class JwtTokenProvider {
         JwtBuilder builder = Jwts.builder()
                 .id(UUID.randomUUID().toString()) // 【修复 2026-08-10 P1-07】补充 jti，黑名单机制对下载 token 生效
                 .subject(String.valueOf(userId))
-                .claim("scope", "download")
+                .claim(CLAIM_SCOPE, "download")
                 .issuedAt(now)
                 .expiration(new Date(now.getTime() + DOWNLOAD_TOKEN_TTL_MS))
                 .signWith(getSigningKey());
         if (parentJti != null && !parentJti.isBlank()) {
-            builder.claim("pjti", parentJti);
+            builder.claim(CLAIM_PJTI, parentJti);
         }
         return builder.compact();
     }
@@ -239,7 +244,7 @@ public class JwtTokenProvider {
     public String getParentJtiFromToken(String token) {
         try {
             Claims claims = Jwts.parser().verifyWith(getSigningKey()).build().parseSignedClaims(token).getPayload();
-            return claims.get("pjti", String.class);
+            return claims.get(CLAIM_PJTI, String.class);
         } catch (JwtException | IllegalArgumentException e) {
             return null;
         }
@@ -252,15 +257,15 @@ public class JwtTokenProvider {
         JwtBuilder builder = Jwts.builder()
                 .id(UUID.randomUUID().toString())
                 .subject(String.valueOf(userId))
-                .claim("scope", scope)
+                .claim(CLAIM_SCOPE, scope)
                 .issuedAt(now)
                 .expiration(new Date(now.getTime() + ttlMinutes * 60_000L))
                 .signWith(getSigningKey());
         if (parentJti != null && !parentJti.isBlank()) {
-            builder.claim("pjti", parentJti);
+            builder.claim(CLAIM_PJTI, parentJti);
         }
         if (scene != null && !scene.isBlank()) {
-            builder.claim("scene", scene);
+            builder.claim(CLAIM_SCENE, scene);
         }
         return builder.compact();
     }
@@ -269,7 +274,7 @@ public class JwtTokenProvider {
     public String getSceneFromToken(String token) {
         try {
             Claims claims = Jwts.parser().verifyWith(getSigningKey()).build().parseSignedClaims(token).getPayload();
-            return claims.get("scene", String.class);
+            return claims.get(CLAIM_SCENE, String.class);
         } catch (JwtException | IllegalArgumentException e) {
             return null;
         }
@@ -352,7 +357,7 @@ public class JwtTokenProvider {
     public String getScopeFromToken(String token) {
         try {
             Claims claims = Jwts.parser().verifyWith(getSigningKey()).build().parseSignedClaims(token).getPayload();
-            return claims.get("scope", String.class);
+            return claims.get(CLAIM_SCOPE, String.class);
         } catch (JwtException | IllegalArgumentException e) {
             return null;
         }
