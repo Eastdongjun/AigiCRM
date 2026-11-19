@@ -60,7 +60,7 @@
     <view class="detail-section-title">本书目内容</view>
     <view wx:if="{{detailPosts.length === 0}}" class="detail-empty">暂无作品，欢迎发布第一条</view>
     <view wx:for="{{detailPosts}}" wx:key="id" class="detail-post" data-id="{{item.id}}" bindtap="openPost">
-      <view class="detail-post-title">{{item.title || (item.content || '')}}</view>
+      <view class="detail-post-title">{{item.title || (item.content || '')}}<text wx:if="{{item.isNew}}" class="detail-new">NEW</text></view>
       <view class="detail-post-meta">{{item.userName || '法布施'}} · 木鱼 {{item.likeCount || 0}} · 评论 {{item.commentCount || 0}}</view>
     </view>
     <view class="detail-note">结构树（序→部分→章→节）为二期；一期按书目维度发布通读内容。</view>

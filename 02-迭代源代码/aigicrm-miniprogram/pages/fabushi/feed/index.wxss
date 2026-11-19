@@ -12,3 +12,5 @@ page { background: #f7f3ec; }
 .fb-card-stats { display: flex; gap: 28rpx; font-size: 24rpx; color: #a67c52; margin-top: 12rpx; }
 .fb-empty, .fb-loading, .fb-end { text-align: center; color: #9c9184; font-size: 24rpx; padding: 40rpx 0; }
 .fb-fab { position: fixed; right: 36rpx; bottom: 120rpx; width: 96rpx; height: 96rpx; border-radius: 50%; background: #b5543a; color: #fff7ee; font-size: 52rpx; line-height: 96rpx; text-align: center; box-shadow: 0 10rpx 26rpx rgba(181, 84, 58, .32); }
+/* 【F1 2026-11-19 spec v2】30 天内发布的作品标 NEW */
+.fb-new { display: inline-block; margin-left: 10rpx; padding: 2rpx 10rpx; border-radius: 6rpx; background: #b5543a; color: #fff7ee; font-size: 18rpx; font-weight: 700; font-family: sans-serif; vertical-align: middle; }

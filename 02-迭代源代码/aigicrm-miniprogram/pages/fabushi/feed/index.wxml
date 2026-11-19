@@ -11,7 +11,7 @@
 <view class="fb-list">
   <view wx:if="{{!loading && !posts.length}}" class="fb-empty">暂无法布施内容</view>
   <view wx:for="{{posts}}" wx:key="id" class="fb-card" data-id="{{item.id}}" bindtap="goDetail">
-    <view class="fb-card-title">{{item.title || '无标题'}}</view>
+    <view class="fb-card-title">{{item.title || '无标题'}}<text wx:if="{{item.isNew}}" class="fb-new">NEW</text></view>
     <view class="fb-card-content">{{item.content}}</view>
     <view class="fb-card-meta">
       <text>{{item.userName || '法布施'}}</text>

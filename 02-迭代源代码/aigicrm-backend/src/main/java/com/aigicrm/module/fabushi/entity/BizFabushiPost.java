@@ -44,4 +44,7 @@ public class BizFabushiPost {
     private Boolean readByMe;
     @TableField(exist = false)
     private Boolean likedByMe;
+    /** 【F1 2026-11-19 spec v2】"一月内上传显示 NEW"——30 天窗口, fillInteractions 装配 */
+    @TableField(exist = false)
+    private Boolean isNew;
 }

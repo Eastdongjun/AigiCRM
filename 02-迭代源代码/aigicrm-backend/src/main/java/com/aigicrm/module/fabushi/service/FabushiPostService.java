@@ -58,6 +58,15 @@ public class FabushiPostService {
 
     private static final Set<String> SCOPE_TYPES = Set.of("heart", "recitation", "znl");
 
+    /** 【F1 2026-11-19 spec v2】附件分型限额: 图≤5 / 视≤5 / 音≤10 段。 */
+    private static final int MAX_IMAGE = 5;
+    private static final int MAX_VIDEO = 5;
+    private static final int MAX_AUDIO = 10;
+    /** 【F1】音单段时长上限(秒); durationSeconds 未知暂放行, F2 录音上线后必填。 */
+    private static final int MAX_AUDIO_SECONDS = 60;
+    /** 【F1 2026-11-19 spec v2】"一月内上传显示 NEW" 窗口(天)。 */
+    private static final long NEW_WINDOW_DAYS = 30;
+
     /**
      * 内容分页(fabushi:view 门): 默认 published 按时间倒序 + 联显/互动计数。
      * status 传参仅治理门生效: 持 fabushi:content:manage 者可查 offline 记录(内容治理页),
@@ -173,6 +182,7 @@ public class FabushiPostService {
         requireOwnedPublishedPost(postId, uid);
         AttachmentInput input = parseAttachmentInput(body);
         validateFabushiFile(input.fileId());
+        enforceAttachmentLimits(postId, input);
         Long count = attachmentMapper.selectCount(new LambdaQueryWrapper<BizFabushiPostAttachment>()
                 .eq(BizFabushiPostAttachment::getPostId, postId));
         BizFabushiPostAttachment row = new BizFabushiPostAttachment();
@@ -190,6 +200,30 @@ public class FabushiPostService {
         BizFabushiPostAttachment row = attachmentMapper.selectById(attachmentId);
         if (row == null || !postId.equals(row.getPostId())) throw new BusinessException(404, "附件不存在");
         attachmentMapper.deleteById(attachmentId);
+    }
+
+    /**
+     * 【F1 2026-11-19 spec v2】分型限额: 图≤5 / 视≤5 / 音≤10 段; 音单段>60s 拒绝。
+     * durationSeconds 未知(旧聊天选文件路径)暂放行, F2 录音上线后改为必填校验。
+     */
+    private void enforceAttachmentLimits(Long postId, AttachmentInput input) {
+        List<BizFabushiPostAttachment> existing = attachmentMapper.selectList(new LambdaQueryWrapper<BizFabushiPostAttachment>()
+                .eq(BizFabushiPostAttachment::getPostId, postId));
+        long sameType = existing.stream().filter(a -> input.fileType().equals(a.getFileType())).count();
+        switch (input.fileType()) {
+            case "image" -> {
+                if (sameType >= MAX_IMAGE) throw new BusinessException(400, "图片已达上限5张");
+            }
+            case "video" -> {
+                if (sameType >= MAX_VIDEO) throw new BusinessException(400, "视频已达上限5段");
+            }
+            case "audio" -> {
+                if (sameType >= MAX_AUDIO) throw new BusinessException(400, "语音已达上限10段");
+                if (input.durationSeconds() != null && input.durationSeconds() > MAX_AUDIO_SECONDS)
+                    throw new BusinessException(400, "单段语音不得超过60秒");
+            }
+            default -> { /* parseAttachmentInput 已白名单 {image,audio,video}, 不可达 */ }
+        }
     }
 
     private List<Map<String, Object>> attachmentData(Long postId) {
@@ -369,7 +403,7 @@ public class FabushiPostService {
         }
     }
 
-    /** 列表/详情互动联显: 发帖人名 + 木鱼数 + 本人点赞/已读标记。 */
+    /** 列表/详情互动联显: 发帖人名 + 木鱼数 + 本人点赞/已读标记 + NEW 标记(F1 30 天窗口)。 */
     private void fillInteractions(List<BizFabushiPost> posts, Long viewerId) {
         if (posts.isEmpty()) {
             return;
@@ -400,6 +434,8 @@ public class FabushiPostService {
             p.setCommentCount(commentCounts.getOrDefault(p.getId(), 0L));
             p.setReadByMe(myRead.contains(p.getId()));
             p.setLikedByMe(myLiked.contains(p.getId()));
+            p.setIsNew(p.getCreatedAt() != null
+                    && p.getCreatedAt().isAfter(LocalDateTime.now().minusDays(NEW_WINDOW_DAYS)));
         }
     }
 

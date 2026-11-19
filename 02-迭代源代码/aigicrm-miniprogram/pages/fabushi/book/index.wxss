@@ -42,3 +42,5 @@ page { background: #f7f3ec; }
 .detail-note { margin-top: 14rpx; color: #9c9184; font-size: 19rpx; line-height: 1.6; text-align: center; }
 .section-row { display: flex; align-items: center; gap: 8rpx; padding: 12rpx 16rpx; border-radius: 12rpx; background: #fffdf8; margin-bottom: 8rpx; color: #6b6257; font-size: 22rpx; border: 1rpx solid #efe7d8; }
 .section-level { flex-shrink: 0; padding: 1rpx 8rpx; border-radius: 6rpx; color: #a67c52; background: #f4ead9; font-family: 'Songti SC', 'STSong', serif; font-size: 18rpx; }
+/* 【F1 2026-11-19 spec v2】30 天内发布的作品标 NEW */
+.detail-new { display: inline-block; margin-left: 8rpx; padding: 1rpx 8rpx; border-radius: 6rpx; background: #b5543a; color: #fff7ee; font-size: 16rpx; font-weight: 700; font-family: sans-serif; vertical-align: middle; }

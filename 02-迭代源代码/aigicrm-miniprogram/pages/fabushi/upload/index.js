@@ -1,5 +1,5 @@
 const { hasPermission, requireLogin } = require('../../../utils/auth')
-const { getFabushiBooks, createFabushiPost, addFabushiAttachment } = require('../../../api/fabushi')
+const { getFabushiBooks, createFabushiPost, addFabushiAttachment, getFabushiSettings } = require('../../../api/fabushi')
 const { uploadFile } = require('../../../api/file')
 const { showError } = require('../../../utils/feedback')
 
@@ -25,7 +25,16 @@ Page({
     publishedPostId: null,
     muyuAnim: false,
     attachments: [],
-    uploading: false
+    uploading: false,
+    soundEnabled: true,
+    attachHint: '图片 0/5 · 视频 0/5 · 语音 0/10'
+  },
+
+  onShow() {
+    // 【F1-3 木鱼音效】拉设置开关(失败保持默认开)
+    getFabushiSettings().then((s) => {
+      if (s && s.soundEnabled !== undefined) this.setData({ soundEnabled: Number(s.soundEnabled) !== 0 })
+    }).catch(() => {})
   },
 
   onPermissionChanged() {
@@ -73,18 +82,54 @@ Page({
 
   chooseMedia() {
     if (this.data.uploading) return
-    wx.chooseMedia({ count: 9 - this.data.attachments.length, mediaType: ['image', 'video'], success: (res) => {
-      const files = (res.tempFiles || []).map((f) => ({ path: f.tempFilePath, type: f.fileType === 'video' ? 'video' : 'image', name: f.fileType === 'video' ? '视频' : '图片' }))
+    // 【F1 限额】图/视各≤5, 按剩余量分型截断(spec v2: 图1-5张/视1-5段)
+    const counts = this.attachmentCounts()
+    const imgLeft = 5 - counts.image
+    const vidLeft = 5 - counts.video
+    if (imgLeft <= 0 && vidLeft <= 0) {
+      wx.showToast({ title: '图片/视频已达上限', icon: 'none' })
+      return
+    }
+    const count = Math.max(Math.min(9 - this.data.attachments.length, Math.max(imgLeft, vidLeft)), 1)
+    wx.chooseMedia({ count, mediaType: ['image', 'video'], success: (res) => {
+      const picked = (res.tempFiles || []).map((f) => ({ path: f.tempFilePath, type: f.fileType === 'video' ? 'video' : 'image', name: f.fileType === 'video' ? '视频' : '图片' }))
+      const files = []
+      let imgAdded = 0
+      let vidAdded = 0
+      let imgCut = false
+      let vidCut = false
+      picked.forEach((f) => {
+        if (f.type === 'image') {
+          if (imgAdded < imgLeft) { files.push(f); imgAdded++ } else { imgCut = true }
+        } else if (vidAdded < vidLeft) { files.push(f); vidAdded++ } else { vidCut = true }
+      })
+      if (imgCut) wx.showToast({ title: '图片最多5张，已保留前5', icon: 'none' })
+      else if (vidCut) wx.showToast({ title: '视频最多5段，已保留前5', icon: 'none' })
       this.uploadFiles(files)
     } })
   },
 
   chooseAudio() {
     if (this.data.uploading) return
+    if (this.attachmentCounts().audio >= 10) {
+      wx.showToast({ title: '语音已达上限10段', icon: 'none' })
+      return
+    }
     wx.chooseMessageFile({ count: 1, type: 'file', extension: ['mp3', 'm4a', 'wav', 'aac'], success: (res) => {
       const files = (res.tempFiles || []).map((f) => ({ path: f.path, type: 'audio', name: f.name || '音频' }))
       this.uploadFiles(files)
     } })
+  },
+
+  attachmentCounts() {
+    const counts = { image: 0, video: 0, audio: 0 }
+    this.data.attachments.forEach((a) => { if (counts[a.fileType] !== undefined) counts[a.fileType]++ })
+    return counts
+  },
+
+  syncAttachHint() {
+    const c = this.attachmentCounts()
+    this.setData({ attachHint: `图片 ${c.image}/5 · 视频 ${c.video}/5 · 语音 ${c.audio}/10` })
   },
 
   uploadFiles(files) {
@@ -93,12 +138,14 @@ Page({
     Promise.all(files.map((f) => uploadFile(f.path, null, 'fabushi'))).then((results) => {
       const added = results.map((res, i) => ({ fileId: res && (res.id || (res.data && res.data.id)), fileType: files[i].type, name: files[i].name })).filter((x) => x.fileId)
       this.setData({ attachments: this.data.attachments.concat(added), uploading: false })
+      this.syncAttachHint()
     }).catch((err) => { this.setData({ uploading: false }); showError(err, '附件上传失败') })
   },
 
   removeAttachment(e) {
     const index = Number(e.currentTarget.dataset.index)
     const attachments = this.data.attachments.slice(); attachments.splice(index, 1); this.setData({ attachments })
+    this.syncAttachHint()
   },
 
   submit() {
@@ -122,6 +169,7 @@ Page({
       }
       this.setData({ submitting: false, success: true, publishedPostId: id || null, muyuAnim: true })
       if (wx.vibrateShort) wx.vibrateShort({ type: 'light' })
+      this.playMuyuSound()
     }).catch((err) => {
       this.setData({ submitting: false })
       showError(err, '发布失败')
@@ -133,7 +181,21 @@ Page({
     setTimeout(() => {
       this.setData({ muyuAnim: true })
       if (wx.vibrateShort) wx.vibrateShort({ type: 'light' })
+      this.playMuyuSound()
     }, 40)
+  },
+
+  // 【F1-3 木鱼音效】懒建单例; 开关=设置页 soundEnabled(onShow 拉取)
+  playMuyuSound() {
+    if (!this.data.soundEnabled) return
+    try {
+      if (!this._muyuAudio) {
+        this._muyuAudio = wx.createInnerAudioContext()
+        this._muyuAudio.src = '/assets/audio/muyu.mp3'
+      }
+      this._muyuAudio.stop()
+      this._muyuAudio.play()
+    } catch (e) { /* 音效失败不阻断主流程 */ }
   },
 
   goDetail() {
