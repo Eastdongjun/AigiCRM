@@ -551,7 +551,9 @@ public class FabushiDashboardService {
             ranking.add(row);
         }
         ranking.sort((a, b) -> Long.compare((Long) b.get(LIT_POSTCOUNT), (Long) a.get(LIT_POSTCOUNT)));
-        return ranking.size() > 10 ? new ArrayList<>(ranking.subList(0, 10)) : ranking;
+        // 【UI-STATS-PAGE-001 2026-11-19】成员榜改前端分页(默认每页 10): 服务端不再截断 Top10,
+        // 返回全量有记录名单, 仅保留 500 防御性上限防极端组织拉爆载荷
+        return ranking.size() > 500 ? new ArrayList<>(ranking.subList(0, 500)) : ranking;
     }
 
     /**
@@ -566,12 +568,13 @@ public class FabushiDashboardService {
         if (members.isEmpty()) return List.of();
 
         Map<Long, String> depts = deptNameMap(members);
+        Set<Long> rootDeptIds = rootDeptIds();
         DeptGroups groups = buildDeptGroups(members);
         DeptAggregates agg = buildDeptAggregates(posts, likes, comments, reads, visible, members);
 
         List<Map<String, Object>> rows = new ArrayList<>();
         for (Map.Entry<Long, Set<Long>> e : groups.byDept().entrySet()) {
-            rows.add(deptRow(e.getKey(), e.getValue(), depts, agg.deptReaders(), agg.counts()));
+            rows.add(deptRow(e.getKey(), e.getValue(), depts, agg.deptReaders(), agg.counts(), rootDeptIds));
         }
         if (groups.noDeptCount() > 0) {
             // 无部门成员单独一行, 不并入任何部门(口径与成员榜 deptName="—" 一致)
@@ -592,6 +595,14 @@ public class FabushiDashboardService {
         return deptIds.isEmpty() ? Collections.emptyMap()
                 : deptMapper.selectBatchIds(deptIds).stream()
                 .collect(Collectors.toMap(SysDept::getId, SysDept::getDeptName, (a, b) -> a));
+    }
+
+    /** 【UI-STATS-PAGE-001 2026-11-19】公司级部门 id 集: 根节点(parentId 为 null 或 0, 与全仓根判定惯例一致) */
+    private Set<Long> rootDeptIds() {
+        return deptMapper.selectList(new LambdaQueryWrapper<SysDept>()
+                        .select(SysDept::getId, SysDept::getParentId)
+                        .and(w -> w.isNull(SysDept::getParentId).or().eq(SysDept::getParentId, 0L)))
+                .stream().map(SysDept::getId).collect(Collectors.toSet());
     }
 
     private record DeptGroups(Map<Long, Set<Long>> byDept, long noDeptCount) {}
@@ -649,11 +660,13 @@ public class FabushiDashboardService {
                               Map<Long, Long> commentCnt, Map<Long, Set<LocalDate>> userReadDays) {}
 
     private Map<String, Object> deptRow(Long deptId, Set<Long> uids, Map<Long, String> depts,
-                                        Map<Long, Set<Long>> deptReaders, DeptCounts c) {
+                                        Map<Long, Set<Long>> deptReaders, DeptCounts c, Set<Long> rootDeptIds) {
         long readUsers = deptReaders.getOrDefault(deptId, Set.of()).size();
         long readDaysSum = uids.stream().mapToLong(uid -> c.userReadDays().getOrDefault(uid, Set.of()).size()).sum();
         Map<String, Object> row = new LinkedHashMap<>();
         row.put("deptId", deptId);
+        // 【UI-STATS-PAGE-001 2026-11-19】公司级部门(根节点)标记, 前端渲染"公司直隶"章
+        row.put("companyLevel", rootDeptIds.contains(deptId));
         row.put(LIT_DEPTNAME, depts.getOrDefault(deptId, "—"));
         row.put(LIT_MEMBERCOUNT, uids.size());
         row.put(LIT_READUSERS, readUsers);
