@@ -39,11 +39,8 @@ public class FabushiBookService {
     private final SysUserMapper userMapper;
     private final SysDictService dictService;
     private final com.aigicrm.security.SecurityAuditService securityAuditService;
-
-    /** 【FILE-FABU-FOLDER-001】法布施系统夹解析(书籍夹校验)。字段注入(非构造)——本服务构造器被
-     *  FabushiBookAttachPdfTest 等旧单测锁定, 加构造参会破坏其编译(同 FileController 先例)。 */
-    @org.springframework.beans.factory.annotation.Autowired(required = false)
-    private com.aigicrm.module.file.service.FabushiFolderService fabushiFolderService;
+    /** 【FILE-FABU-FOLDER-001】法布施系统夹解析(书籍夹校验)。构造注入(S6813 裁决, 旧测试同步解锁)。 */
+    private final com.aigicrm.module.file.service.FabushiFolderService fabushiFolderService;
 
     /** 挂载 PDF 大小上限: 与前端文案一致(挂载电子书 PDF「≤100MB」, book.vue)。 */
     static final long MAX_PDF_BYTES = 100L * 1024 * 1024;
@@ -174,12 +171,9 @@ public class FabushiBookService {
         }
         // 【FILE-FABU-FOLDER-001】挂书通道落夹校验: 文件必须在「书籍」系统夹(路由在 FileController
         // 上传时按通道定死; 从分享夹/平铺时代文件挂书一律 400 引导回书目挂载入口重传)。
-        // fabushiFolderService 为字段注入(构造器被旧单测锁定), 旧单测未注入时跳过该校验(测试缝)。
-        if (fabushiFolderService != null) {
-            Long bookFolderId = fabushiFolderService.bookFolderId();
-            if (!bookFolderId.equals(f.getFolderId())) {
-                throw new BusinessException(400, "PDF 应从书目管理「挂 PDF」入口上传（自动归入书籍文件夹），请重新上传");
-            }
+        Long bookFolderId = fabushiFolderService.bookFolderId();
+        if (!bookFolderId.equals(f.getFolderId())) {
+            throw new BusinessException(400, "PDF 应从书目管理「挂 PDF」入口上传（自动归入书籍文件夹），请重新上传");
         }
         // 2026-11-17 U1/U2 缺口修复: 类型/大小校验收口在挂载点(单点治本, 不影响 feed 附件上传)
         if (!FILE_TYPE_PDF.equals(f.getFileType())) {

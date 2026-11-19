@@ -355,7 +355,12 @@ const shortTime = (iso) => {
   const m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/)
   return m ? `${m[2]}-${m[3]} ${m[4]}:${m[5]}` : String(iso)
 }
-const pctText = (pct) => (pct == null ? '' : (pct > 0 ? '▲ ' : '▼ ') + Math.abs(pct) + '%')
+// 【S3358 修复】环比文案: 嵌套三元拆独立语句(无值空串/升箭头/降箭头三分支)
+const pctText = (pct) => {
+  if (pct == null) return ''
+  const arrow = pct > 0 ? '▲ ' : '▼ '
+  return arrow + Math.abs(pct) + '%'
+}
 const pctClass = (pct) => ({ up: pct != null && pct > 0, down: pct != null && pct < 0 })
 
 const goRead = () => router.push('/fabushi/read')

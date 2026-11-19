@@ -18,17 +18,17 @@ import static org.mockito.Mockito.when;
 
 /**
  * 【FILE-FABU-FOLDER-001】法布施系统夹矩阵钉:
- * 解析器(fail-closed/系统夹判定) + FileService 变更守卫(禁删/禁改名/禁建子夹) + 树返回两系统夹。
- * (上传路由在 FileController 层, 其瘦上下文测试构造限制下由 QC 测试服路由实测覆盖——规格 §六-2)
+ * 解析器(fail-closed/系统夹判定) + 树返回两系统夹排序契约。
+ * 上传路由与变更守卫属集成面, 由测试服路由实测覆盖(规格 §六-2)。
  */
 class FabushiFolderRoutingTest {
 
     private final BizFileFolderMapper folderMapper = mock(BizFileFolderMapper.class);
     private final FabushiFolderService svc = new FabushiFolderService(folderMapper);
 
-    // FileService 变更守卫走真实 FileService: 构造依赖过多——守卫逻辑在前置 selectById 判型,
-    // 用轻量代理断言(直接构造 FileService 需 15+ 依赖, 由 controller 层集成/QC 实测覆盖)。
-    // 此处钉: 系统夹判定 + 解析器行为 + 守卫的判型输入。
+    // 说明: FileService 的三个变更守卫(禁删禁改禁建子夹)位于其方法前置判型处,
+    // 完整构造该服务需要十余个依赖, 属集成测试面; 本类聚焦解析器契约与排序契约,
+    // 守卫路径由测试服路由实测覆盖。
 
     @BeforeEach
     void setUp() {

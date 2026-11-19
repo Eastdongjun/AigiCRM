@@ -35,16 +35,12 @@ public class FileController {
     private final com.aigicrm.module.system.service.SysUserService userService;
     /** 【D1=A 2026-10-18】在途 storage 单判定(与提交侧同一口径) */
     private final com.aigicrm.module.approval.service.ApprovalService approvalService;
+    /** 【FILE-FABU-FOLDER-001】法布施系统夹解析(书籍/分享心得上传路由)。构造注入(S6813 裁决)。 */
+    private final com.aigicrm.module.file.service.FabushiFolderService fabushiFolderService;
 
     /** 【2026-11-17 阶段三】分片上传；旧单测构造器可缺省。 */
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.aigicrm.module.file.service.FileChunkUploadService fileChunkUploadService;
-
-    /** 【FILE-FABU-FOLDER-001 2026-11-19】法布施系统夹解析(书籍/分享心得路由)。字段注入(非构造)——
-     *  本控制器被 PermissionBehaviorMatrixTest 瘦上下文显式导入构造(不扫 @Service, Bean 缺席),
-     *  required=false 保持该上下文可装配; 完整上下文恒注入, fabushi 路由分支仅在完整链路可达。 */
-    @org.springframework.beans.factory.annotation.Autowired(required = false)
-    private com.aigicrm.module.file.service.FabushiFolderService fabushiFolderService;
 
     /** F2: 签发短时下载专用 token（1h，scope=download，仅下载/导出路径可用）——主 JWT 不再进 URL/日志。
      *  【2026-10-27 深度检查修复】dlToken 携带当前主 token 的 jti: 登出拉黑主 token 后, 派生下载 token 联动失效 */
@@ -92,10 +88,10 @@ public class FileController {
         if (file == null || file.isEmpty()) {
             throw new com.aigicrm.common.BusinessException(400, "请选择要上传的文件");
         }
-        // 【FILE-FABU-FOLDER-001】法布施空间路由服务端定死(不依赖前端自觉):
-        // 帖子附件通道(无 folderId)→分享心得; 书籍夹仅限挂书通道(fabushi:book:manage);
-        // 其余 folderId 不接受(法布施空间只有两个系统夹)。瘦上下文(无 Bean)时跳过=旧测试路径不受影响。
-        if ("fabushi".equals(scope) && fabushiFolderService != null) {
+        // FILE-FABU-FOLDER-001 法布施空间的上传落夹由服务端按通道决定。附件通道不带夹时落到
+        // 分享心得系统夹。书籍系统夹只开放给书目管理挂载动作对应的权限。法布施空间不接受
+        // 其他任何文件夹编号。
+        if ("fabushi".equals(scope)) {
             if (folderId == null) {
                 folderId = fabushiFolderService.shareFolderId();
             } else if (fabushiFolderService.isSystemFolder(folderId)) {
@@ -133,7 +129,10 @@ public class FileController {
 
     @PreAuthorize("hasAnyAuthority('file:delete','fabushi:file:delete')")
     @DeleteMapping("/{id}")
+    @com.aigicrm.common.annotation.AigicrmLog(action = "删除文件", targetType = "file")
     public Result<Void> deleteFile(@PathVariable Long id) {
+        // 【FILE-FABU-FOLDER-001 §7.2】法布施文件删除留痕点: 共享端点(法布施权限码共用),
+        // module 由切面按 URL 推断为"文件", 法布施归属经 detail 的文件路径可见
         fileService.deleteFile(id);
         return Result.ok();
     }

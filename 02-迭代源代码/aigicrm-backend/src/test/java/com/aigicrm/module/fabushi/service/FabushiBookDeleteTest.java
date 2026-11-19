@@ -25,7 +25,8 @@ class FabushiBookDeleteTest {
     private final SysDictService dictService = mock(SysDictService.class);
     private final SecurityAuditService auditService = mock(SecurityAuditService.class);
     private final FabushiBookService svc = new FabushiBookService(
-            bookMapper, postMapper, fileMapper, userMapper, dictService, auditService);
+            bookMapper, postMapper, fileMapper, userMapper, dictService, auditService,
+            mock(com.aigicrm.module.file.service.FabushiFolderService.class));
 
     @BeforeEach
     void initLambdaCache() {

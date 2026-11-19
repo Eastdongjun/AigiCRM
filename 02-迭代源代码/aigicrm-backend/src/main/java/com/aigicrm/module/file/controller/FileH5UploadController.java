@@ -46,6 +46,7 @@ public class FileH5UploadController {
     /** H5 上传消费(permitAll, 无主 JWT): 复用 FileService.upload 同路径同闸(文件夹权限/配额/扫描);
      *  类型大小与原生通道同口径不另设闸。回滚=aigicrm.file.h5-upload.enabled=false → 两端点 404。 */
     @PostMapping("/upload/h5")
+    @com.aigicrm.common.annotation.AigicrmLog(module = "文件", action = "H5票据上传", targetType = "file")
     public Result<Map<String, Object>> uploadH5(@RequestParam("ticket") String ticket,
                                                 @RequestParam("file") MultipartFile file,
                                                 @RequestParam(value = "scope", required = false) String scope,

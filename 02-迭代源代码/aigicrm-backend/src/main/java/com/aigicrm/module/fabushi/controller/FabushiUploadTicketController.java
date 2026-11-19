@@ -62,8 +62,10 @@ public class FabushiUploadTicketController {
     }
 
     /** H5 上传消费(permitAll, 无主 JWT): 鉴权收敛在 FabushiH5UploadService(票校验+分型大小闸+
-     *  复用 FileService 同路径同闸: 配额/病毒扫描/租户/归属快照)。回滚=开关 404, revert 即回。 */
+     *  复用 FileService 同路径同闸: 配额/病毒扫描/租户/归属快照)。回滚=开关 404, revert 即回。
+     *  【§7.2】permitAll 端点必须留痕(票内 uid/scene/落夹经 detail 可见)。 */
     @PostMapping("/upload/h5")
+    @com.aigicrm.common.annotation.AigicrmLog(module = "法布施", action = "H5票据上传", targetType = "file")
     public Result<Map<String, Object>> uploadH5(@RequestParam("ticket") String ticket,
                                                 @RequestParam("file") MultipartFile file) {
         return Result.ok(h5UploadService.consumeUpload(ticket, file));

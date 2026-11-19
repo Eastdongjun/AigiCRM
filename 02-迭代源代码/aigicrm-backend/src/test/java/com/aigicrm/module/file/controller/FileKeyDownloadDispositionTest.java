@@ -35,7 +35,8 @@ class FileKeyDownloadDispositionTest {
     void setUp() throws Exception {
         controller = new FileController(fileService, mock(JwtTokenProvider.class),
                 mock(com.aigicrm.module.system.service.SysUserService.class),
-                mock(com.aigicrm.module.approval.service.ApprovalService.class));
+                mock(com.aigicrm.module.approval.service.ApprovalService.class),
+                mock(com.aigicrm.module.file.service.FabushiFolderService.class));
         when(fileService.getLocalFilePath("")).thenReturn(root);
     }
 

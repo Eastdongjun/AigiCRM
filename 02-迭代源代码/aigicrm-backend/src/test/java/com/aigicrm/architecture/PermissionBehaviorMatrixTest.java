@@ -98,6 +98,8 @@ class PermissionBehaviorMatrixTest {
     @MockitoBean com.aigicrm.security.JwtTokenProvider jwtTokenProvider;
     @MockitoBean com.aigicrm.module.system.service.SysUserService sysUserService;
     @MockitoBean com.aigicrm.module.approval.service.ApprovalService approvalService;
+    // 【FILE-FABU-FOLDER-001】FileController 构造注入新增参数(瘦上下文 Mock 供给)
+    @MockitoBean com.aigicrm.module.file.service.FabushiFolderService fabushiFolderService;
     // Statistics 组
     @MockitoBean com.aigicrm.module.statistics.service.StatisticsQueryService statisticsQueryService;
     // Task 组

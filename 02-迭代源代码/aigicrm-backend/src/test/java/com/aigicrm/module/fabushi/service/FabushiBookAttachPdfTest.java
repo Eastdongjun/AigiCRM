@@ -30,11 +30,15 @@ class FabushiBookAttachPdfTest {
     private final SysUserMapper userMapper = mock(SysUserMapper.class);
     private final SysDictService dictService = mock(SysDictService.class);
     private final SecurityAuditService auditService = mock(SecurityAuditService.class);
+    private final com.aigicrm.module.file.service.FabushiFolderService fabushiFolderService =
+            mock(com.aigicrm.module.file.service.FabushiFolderService.class);
     private final FabushiBookService svc = new FabushiBookService(
-            bookMapper, postMapper, fileMapper, userMapper, dictService, auditService);
+            bookMapper, postMapper, fileMapper, userMapper, dictService, auditService,
+            fabushiFolderService);
 
     @BeforeEach
     void initLambdaCache() {
+        when(fabushiFolderService.bookFolderId()).thenReturn(77L);
         com.baomidou.mybatisplus.core.MybatisConfiguration cfg = new com.baomidou.mybatisplus.core.MybatisConfiguration();
         com.baomidou.mybatisplus.core.metadata.TableInfoHelper.initTableInfo(
                 new org.apache.ibatis.builder.MapperBuilderAssistant(cfg, ""),
@@ -56,6 +60,7 @@ class FabushiBookAttachPdfTest {
         f.setFileType(fileType);
         f.setFileSize(fileSize);
         f.setFileScope("fabushi");
+        f.setFolderId(77L);
         f.setDeleted(0);
         return f;
     }

@@ -81,6 +81,7 @@ public class FabushiBookController {
     /** 电子书 PDF 挂载/替换(fileId=已上传到 scope=fabushi 的文件)。 */
     @PostMapping("/{id}/pdf")
     @PreAuthorize("hasAuthority('fabushi:book:manage')")
+    @com.aigicrm.common.annotation.AigicrmLog(module = "法布施", action = "挂载PDF", targetType = "file")
     public Result<Void> attachPdf(@PathVariable Long id, @RequestBody Map<String, Long> body) {
         bookService.attachPdf(id, body == null ? null : body.get("fileId"));
         return Result.ok();

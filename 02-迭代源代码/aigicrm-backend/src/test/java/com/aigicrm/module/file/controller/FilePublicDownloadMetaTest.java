@@ -34,7 +34,8 @@ class FilePublicDownloadMetaTest {
     void setUp() throws Exception {
         controller = new FileController(fileService, mock(JwtTokenProvider.class),
                 mock(com.aigicrm.module.system.service.SysUserService.class),
-                mock(com.aigicrm.module.approval.service.ApprovalService.class));
+                mock(com.aigicrm.module.approval.service.ApprovalService.class),
+                mock(com.aigicrm.module.file.service.FabushiFolderService.class));
         Path publicDir = Files.createDirectories(root.resolve("public/1"));
         publicFile = Files.write(publicDir.resolve("logo.jpg"), new byte[]{1, 2, 3});
         when(fileService.getLocalFilePath("")).thenReturn(root);
