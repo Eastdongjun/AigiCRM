@@ -66,6 +66,9 @@ public class FabushiH5UploadService {
     @Value("${aigicrm.file.h5-upload.enabled:true}")
     private boolean fileEnabled = true;
 
+    /** 【F3b-fix】java:S1192——开关关闭文案 ×3 达阈值, 常量化(本文件已做全量字面量自查, 其余均 <3)。 */
+    private static final String MSG_H5_DISABLED = "H5 上传未启用";
+
     /** 签发短时上传票(scope=upload∧scene=fabushi, TTL 5min, 携 pjti 随主 token 撤销联动)。 */
     public Map<String, Object> issueTicket(Long userId, String parentJti) {
         requireEnabled();
@@ -77,7 +80,7 @@ public class FabushiH5UploadService {
 
     /** 【F3b】文件中心 H5 上传票(scope=upload∧scene=files, 同限速口径, 独立 Redis 键)。 */
     public Map<String, Object> issueFileTicket(Long userId, String parentJti) {
-        if (!fileEnabled) throw new BusinessException(404, "H5 上传未启用");
+        if (!fileEnabled) throw new BusinessException(404, MSG_H5_DISABLED);
         enforceIssueRate(FILE_RATE_KEY_PREFIX, userId);
         String ticket = jwtTokenProvider.generateTransferToken(userId, parentJti, SCOPE_UPLOAD, SCENE_FILES,
                 TICKET_TTL_MINUTES);
@@ -113,10 +116,10 @@ public class FabushiH5UploadService {
      * 【F3b】文件中心 H5 上传消费(/mp-file-picker 换票, MP-TOKEN-001 最后一处):
      * 票校验(scene=files)后以票内用户身份复用 FileService.upload 同路径同闸——文件夹上传权限/
      * 配额/病毒扫描/归属快照全复用; 类型大小不另设闸(与原生 /api/file/upload 完全同口径,
-     * 唯一硬闸=Spring multipart 500MB)。
+     * 唯一硬闸=Spring multipart 200MB, application.yml max-file-size)。
      */
     public Map<String, Object> consumeFileUpload(String ticket, MultipartFile file, Long folderId, String scope) {
-        if (!fileEnabled) throw new BusinessException(404, "H5 上传未启用");
+        if (!fileEnabled) throw new BusinessException(404, MSG_H5_DISABLED);
         Long userId = validateTicket(ticket, SCENE_FILES);
         UserDetails userDetails = userDetailsService.loadUserByUsername(String.valueOf(userId));
         if (!(userDetails instanceof SecurityUser su)) {
@@ -138,7 +141,7 @@ public class FabushiH5UploadService {
     }
 
     private void requireEnabled() {
-        if (!enabled) throw new BusinessException(404, "H5 上传未启用");
+        if (!enabled) throw new BusinessException(404, MSG_H5_DISABLED);
     }
 
     private void enforceIssueRate(String keyPrefix, Long userId) {
