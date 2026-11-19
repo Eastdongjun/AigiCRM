@@ -212,8 +212,6 @@ public class StatisticsQueryService {
     private final BizCustomerLogMapper customerLogMapper;
     private final BizIncentiveRecordMapper incentiveRecordMapper;
     private final BizIncentiveCategoryMapper incentiveCategoryMapper;
-    // 【2026-09-23】客户排行四项服务聚合与激励模块分享制同口径(applyShareVisibility),复用其授权判定
-    private final com.aigicrm.module.incentive.service.IncentiveService incentiveService;
     private final BizFileMapper fileMapper;
     private final BizCustomerIndicatorMapper indicatorMapper;
     // 【裁决 2026-10-10】判定金额源换 biz_customer_stage_amount; 逐笔 invoice/payment mapper 不再用于判定

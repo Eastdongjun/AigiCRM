@@ -15,7 +15,6 @@ import com.aigicrm.module.file.entity.BizFileShare;
 import com.aigicrm.module.file.mapper.BizFileFolderMapper;
 import com.aigicrm.module.file.mapper.BizFileMapper;
 import com.aigicrm.module.file.mapper.BizFileShareMapper;
-import com.aigicrm.module.file.mapper.BizFolderAclMapper;
 import com.aigicrm.module.incentive.entity.BizIncentiveRecord;
 import com.aigicrm.module.incentive.mapper.BizIncentiveRecordMapper;
 import com.aigicrm.module.system.entity.SysUser;
@@ -58,10 +57,9 @@ class FileServicePermissionTest {
     private final OSS ossClient = mock(OSS.class);
     private final OssConfig ossConfig = mock(OssConfig.class);
     private final FolderPermissionService folderPermissionService = mock(FolderPermissionService.class);
-    private final BizFolderAclMapper folderAclMapper = mock(BizFolderAclMapper.class);
     private final com.aigicrm.module.file.mapper.BizFileVersionMapper fileVersionMapper =
             mock(com.aigicrm.module.file.mapper.BizFileVersionMapper.class);
-    private final FileService svc = new FileService(fileMapper, folderMapper, fileShareMapper, folderAclMapper,
+    private final FileService svc = new FileService(fileMapper, folderMapper, fileShareMapper,
                 fileVersionMapper,
                 mock(org.springframework.transaction.support.TransactionTemplate.class),
                 configService,
@@ -787,7 +785,6 @@ class FileServicePermissionTest {
             when(folderPermissionService.check(100L, FolderPermissionService.P_DELETE, 2L)).thenReturn(true);
             svc.deleteFolder(100L);
             verify(folderMapper).deleteById(100L);
-            org.mockito.Mockito.verify(folderAclMapper, org.mockito.Mockito.never()).delete(any());
         }
     }
 

@@ -7,7 +7,6 @@ import com.aigicrm.module.file.entity.BizFile;
 import com.aigicrm.module.file.mapper.BizFileFolderMapper;
 import com.aigicrm.module.file.mapper.BizFileMapper;
 import com.aigicrm.module.file.mapper.BizFileShareMapper;
-import com.aigicrm.module.file.mapper.BizFolderAclMapper;
 import com.aigicrm.module.incentive.mapper.BizIncentiveRecordMapper;
 import com.aigicrm.module.system.mapper.SysUserMapper;
 import org.apache.ibatis.annotations.Select;
@@ -45,7 +44,6 @@ class FilePublicDownloadMapperTest {
             fileMapper,
             mock(BizFileFolderMapper.class),
             mock(BizFileShareMapper.class),
-            mock(BizFolderAclMapper.class),
             mock(com.aigicrm.module.file.mapper.BizFileVersionMapper.class),
                 mock(org.springframework.transaction.support.TransactionTemplate.class),
                 mock(com.aigicrm.module.system.service.SysConfigService.class),

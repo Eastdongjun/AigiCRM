@@ -29,7 +29,6 @@ public class PermEpochService {
     private final JdbcTemplate jdbc;
     private final GrantReader grantReader;
     private final PermActionRegistry registry;
-    private final PermissionCacheService permissionCacheService;
     private final RedisTemplate<String, Object> redisTemplate;
 
     private volatile long cachedAt = 0;

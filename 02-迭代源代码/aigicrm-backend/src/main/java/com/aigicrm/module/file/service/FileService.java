@@ -82,7 +82,6 @@ public class FileService {
     private final BizFileMapper fileMapper;
     private final BizFileFolderMapper folderMapper;
     private final BizFileShareMapper fileShareMapper;
-    private final BizFolderAclMapper folderAclMapper;
     /** 【V2026.11.14.1 版本历史】replace 归档/版本列表/回滚 */
     private final com.aigicrm.module.file.mapper.BizFileVersionMapper fileVersionMapper;
     /** 【V2026.11.14.3 P1】批量删除逐条事务(内部 this 调用绕过 @Transactional 代理, 须显式模板) */

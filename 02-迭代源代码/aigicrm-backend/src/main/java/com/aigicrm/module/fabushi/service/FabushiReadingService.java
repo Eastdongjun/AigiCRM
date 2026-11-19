@@ -32,7 +32,6 @@ public class FabushiReadingService {
     private final BizFabushiShelfMapper shelfMapper;
     private final BizFabushiReadingProgressMapper progressMapper;
     private final BizFabushiReadStatusMapper readStatusMapper;
-    private final BizFabushiPostMapper postMapper;
     private final BizFabushiBookMapper bookMapper;
     private final BizFabushiUserSettingMapper settingMapper;
 

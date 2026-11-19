@@ -32,7 +32,6 @@ public class PermReconcileService {
 
 
     private final OrgScopeResolver legacyResolver;
-    private final com.aigicrm.module.system.mapper.SysUserMapper userMapper;
     private final AuthorizationService authorizationService;
     private final RolePermScopeService rolePermScopeService;
     private final JdbcTemplate jdbc;

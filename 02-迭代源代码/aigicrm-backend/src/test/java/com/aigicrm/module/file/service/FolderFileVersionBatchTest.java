@@ -51,8 +51,6 @@ class FolderFileVersionBatchTest {
     private final BizFileMapper fileMapper = mock(BizFileMapper.class);
     private final com.aigicrm.module.file.mapper.BizFileFolderMapper folderMapper =
             mock(com.aigicrm.module.file.mapper.BizFileFolderMapper.class);
-    private final com.aigicrm.module.file.mapper.BizFolderAclMapper folderAclMapper =
-            mock(com.aigicrm.module.file.mapper.BizFolderAclMapper.class);
     private final BizFileVersionMapper fileVersionMapper = mock(BizFileVersionMapper.class);
     private final BizIncentiveRecordMapper incentiveRecordMapper = mock(BizIncentiveRecordMapper.class);
     private final SysUserMapper userMapper = mock(SysUserMapper.class);
@@ -85,7 +83,7 @@ class FolderFileVersionBatchTest {
             @Override public com.aliyun.oss.OSS getIfUnique() { return null; }
         };
         svc = new FileService(fileMapper, folderMapper, mock(com.aigicrm.module.file.mapper.BizFileShareMapper.class),
-                folderAclMapper, fileVersionMapper,
+                fileVersionMapper,
                 transactionTemplate, configService,
                 incentiveRecordMapper,
                 userMapper, provider, null /* ossConfig 本地模式不触 */, folderPermissionService,
@@ -207,9 +205,9 @@ class FolderFileVersionBatchTest {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
             svc.deleteFolder(30L);
         }
-        // 软删: deleteById(@TableLogic→UPDATE deleted=1) 被调用; ACL 行**保留**(恢复即原授权生效)
+        // 软删: deleteById(@TableLogic→UPDATE deleted=1) 被调用; ACL 行**保留**——FileService 已无
+        // folderAclMapper 依赖(结构性不触 ACL 表), 恢复即原授权生效
         verify(folderMapper, times(1)).deleteById(30L);
-        verify(folderAclMapper, never()).delete(any());
         assertNotNull(folder, "软删不物理清行");
     }
 

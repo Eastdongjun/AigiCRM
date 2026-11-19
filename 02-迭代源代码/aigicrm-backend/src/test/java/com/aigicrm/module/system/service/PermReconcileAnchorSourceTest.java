@@ -35,7 +35,6 @@ class PermReconcileAnchorSourceTest {
         AuthorizationService authService = mock(AuthorizationService.class);
         PermReconcileService svc = new PermReconcileService(
                 legacyResolver,
-                mock(com.aigicrm.module.system.mapper.SysUserMapper.class),
                 authService,
                 mock(RolePermScopeService.class),
                 mock(org.springframework.jdbc.core.JdbcTemplate.class),
