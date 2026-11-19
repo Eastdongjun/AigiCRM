@@ -51,6 +51,12 @@ services:
       - "80:80"
     depends_on:
       - backend
+    # 【2026-11-19 QC 实测发现固化】frontend 需同时挂 shopjoy-net：/api 反代目标 backend 在
+    # 共享设施网，仅挂默认网时 nginx 解析得到 IP 但跨网不可达 → 容器重建后 /api 存量 502
+    # （当日期急修复=docker network connect；本处固化后重建不复现）
+    networks:
+      - default
+      - shopjoy-net
 
 volumes:
   upload-data:
