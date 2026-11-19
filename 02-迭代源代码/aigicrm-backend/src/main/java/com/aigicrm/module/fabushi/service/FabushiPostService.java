@@ -71,7 +71,10 @@ public class FabushiPostService {
      * 【F2 2026-11-19 拍板③】评论类型白名单: text 默认 / highlight 重点描述 / audio 语音诵读。
      * 与 DDL biz_fabushi_comment.type 注释一致(type 列建表即预留三态, 此前 service 硬编码 text 未接线)。
      */
-    private static final Set<String> COMMENT_TYPES = Set.of("text", "highlight", "audio");
+    /** 【F2b】java:S1192——"audio" 字面量 4 处达阈值, 常量化(纯重构零逻辑变化)。 */
+    private static final String TYPE_AUDIO = "audio";
+
+    private static final Set<String> COMMENT_TYPES = Set.of("text", "highlight", TYPE_AUDIO);
 
     /**
      * 内容分页(fabushi:view 门): 默认 published 按时间倒序 + 联显/互动计数。
@@ -161,7 +164,7 @@ public class FabushiPostService {
     private AttachmentInput parseAttachmentInput(Map<String, Object> body) {
         Long fileId = body == null || body.get(LIT_FILEID) == null ? null : Long.valueOf(String.valueOf(body.get(LIT_FILEID)));
         String fileType = body == null || body.get(LIT_FILETYPE) == null ? null : String.valueOf(body.get(LIT_FILETYPE));
-        if (fileId == null || !Set.of("image", "audio", "video").contains(fileType)) {
+        if (fileId == null || !Set.of("image", TYPE_AUDIO, "video").contains(fileType)) {
             throw new BusinessException(400, "附件类型或文件不合法");
         }
         Integer durationSeconds = body.get(LIT_DURATIONSECONDS) == null ? null
@@ -229,7 +232,7 @@ public class FabushiPostService {
             case "video" -> {
                 if (sameType >= MAX_VIDEO) throw new BusinessException(400, "视频已达上限5段");
             }
-            case "audio" -> {
+            case TYPE_AUDIO -> {
                 if (sameType >= MAX_AUDIO) throw new BusinessException(400, "语音已达上限10段");
                 if (input.durationSeconds() != null && input.durationSeconds() > MAX_AUDIO_SECONDS)
                     throw new BusinessException(400, "单段语音不得超过60秒");
@@ -324,7 +327,7 @@ public class FabushiPostService {
         if (!COMMENT_TYPES.contains(type)) {
             throw new BusinessException(400, "评论类型不合法");
         }
-        if ("audio".equals(type)) {
+        if (TYPE_AUDIO.equals(type)) {
             if (comment.getAudioFileId() == null) {
                 throw new BusinessException(400, "语音评论缺少音频文件");
             }
