@@ -44,20 +44,22 @@
           <span>成员阅读榜 · {{ period === 'week' ? '本周' : '本月' }}</span>
           <span class="panel-hint">发布数 / 获木鱼 / 已读天数</span>
         </div>
-        <table class="rank-table">
-          <thead><tr><th class="w-no">名次</th><th>成员</th><th>部门</th><th class="w-num">发布</th><th class="w-num">获木鱼</th><th class="w-num">已读天数</th><th class="w-act">活跃度</th></tr></thead>
-          <tbody>
-            <tr v-for="(row, index) in dashboard.ranking || []" :key="row.userId">
-              <td class="w-no"><span class="rank-no" :class="{ top: index < 3 }">{{ index + 1 }}</span></td>
-              <td class="strong">{{ row.userName }}</td>
-              <td class="dim">{{ row.deptName }}</td>
-              <td class="num w-num">{{ row.postCount }}</td>
-              <td class="num w-num">{{ row.likesReceived }}</td>
-              <td class="num w-num">{{ row.readDays }}</td>
-              <td class="w-act"><div class="activity"><i :style="{ width: (row.activityPct || 0) + '%' }" /></div></td>
-            </tr>
-          </tbody>
-        </table>
+        <div class="table-scroll">
+          <table class="rank-table">
+            <thead><tr><th class="w-no">名次</th><th>成员</th><th>部门</th><th class="w-num">发布</th><th class="w-num">获木鱼</th><th class="w-num">已读天数</th><th class="w-act">活跃度</th></tr></thead>
+            <tbody>
+              <tr v-for="(row, index) in dashboard.ranking || []" :key="row.userId">
+                <td class="w-no"><span class="rank-no" :class="{ top: index < 3 }">{{ index + 1 }}</span></td>
+                <td class="strong">{{ row.userName }}</td>
+                <td class="dim" :title="row.deptName">{{ row.deptName }}</td>
+                <td class="num w-num">{{ row.postCount }}</td>
+                <td class="num w-num">{{ row.likesReceived }}</td>
+                <td class="num w-num">{{ row.readDays }}</td>
+                <td class="w-act"><div class="activity"><i :style="{ width: (row.activityPct || 0) + '%' }" /></div></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
         <div v-if="!(dashboard.ranking || []).length" class="empty">本周期暂无阅读数据</div>
       </section>
 
@@ -92,26 +94,29 @@
           <span>部门进度 · {{ period === 'week' ? '本周' : '本月' }}</span>
           <span class="panel-hint">覆盖率 = 已读人数 / 部门成员数</span>
         </div>
-        <table class="rank-table dept-table">
-          <colgroup>
-            <col /><col class="c-num" /><col class="c-num" /><col class="c-cov" /><col class="c-num" /><col class="c-num" /><col class="c-num" /><col class="c-num" />
-          </colgroup>
-          <thead><tr><th>部门</th><th>成员数</th><th>已读人数</th><th>覆盖率</th><th>内容</th><th>木鱼</th><th>评论</th><th>已读天数</th></tr></thead>
-          <tbody>
-            <tr v-for="row in dashboard.deptProgress || []" :key="row.deptId ?? 'none'">
-              <td class="strong">{{ row.deptName }}</td>
-              <td class="num">{{ row.memberCount }}</td>
-              <td class="num">{{ row.readUsers }}</td>
-              <td>
-                <span class="cov-wrap"><b class="cov-num">{{ row.coveragePct }}%</b><span class="cov-track"><i :style="{ width: Math.min(100, row.coveragePct || 0) + '%' }" /></span></span>
-              </td>
-              <td class="num">{{ row.posts }}</td>
-              <td class="num">{{ row.likes }}</td>
-              <td class="num">{{ row.comments }}</td>
-              <td class="num">{{ row.readDays }}</td>
-            </tr>
-          </tbody>
-        </table>
+        <!-- 【UI-STATS-BORDER-001#1】表体滚动包裹: 长数据在卡内滚动, 末行不再被卡片底边裁切 -->
+        <div class="table-scroll">
+          <table class="rank-table dept-table">
+            <colgroup>
+              <col /><col class="c-num" /><col class="c-num" /><col class="c-cov" /><col class="c-num" /><col class="c-num" /><col class="c-num" /><col class="c-num" />
+            </colgroup>
+            <thead><tr><th>部门</th><th>成员数</th><th>已读人数</th><th>覆盖率</th><th>内容</th><th>木鱼</th><th>评论</th><th>已读天数</th></tr></thead>
+            <tbody>
+              <tr v-for="row in dashboard.deptProgress || []" :key="row.deptId ?? 'none'">
+                <td class="strong" :title="row.deptName">{{ row.deptName }}</td>
+                <td class="num">{{ row.memberCount }}</td>
+                <td class="num">{{ row.readUsers }}</td>
+                <td>
+                  <span class="cov-wrap"><b class="cov-num">{{ row.coveragePct }}%</b><span class="cov-track"><i :style="{ width: Math.min(100, row.coveragePct || 0) + '%' }" /></span></span>
+                </td>
+                <td class="num">{{ row.posts }}</td>
+                <td class="num">{{ row.likes }}</td>
+                <td class="num">{{ row.comments }}</td>
+                <td class="num">{{ row.readDays }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
         <div v-if="!(dashboard.deptProgress || []).length" class="empty">本周期暂无部门数据</div>
       </section>
 
@@ -219,7 +224,9 @@ onMounted(() => {
 <style scoped>
 /* 【书卷化 2026-11-16】纸色卡/墨绿主色/朱砂强调/宋体标题, 与 MP 同语言 */
 .fabushi-stats { display: flex; flex-direction: column; gap: 14px; }
-.filter { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px; border: 1px solid #e8e0d3; border-radius: 12px; background: #fffdf8; }
+.filter { display: flex; align-items: center; gap: 10px; row-gap: 8px; flex-wrap: wrap; padding: 10px 14px; border: 1px solid #e8e0d3; border-radius: 12px; background: #fffdf8; }
+/* 【UI-STATS-BORDER-001#4】窄幅换行时导出钮与筛选控件基线对齐 */
+.export-btn { align-self: center; }
 .fl { color: #a67c52; font-size: 12px; }
 .scope-pill { padding: 4px 10px; border-radius: 999px; color: #2d5a4a; background: #eef3ee; font-size: 12px; }
 .spacer { flex: 1; }
@@ -228,9 +235,10 @@ onMounted(() => {
 .seg-item.active { color: #fff7ee; background: #2d5a4a; font-weight: 600; }
 
 .stat-cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
-.stat-card { padding: 15px 18px; border: 1px solid #e8e0d3; border-radius: 12px; background: #fffdf8; border-top: 3px solid #2d5a4a; }
-.stat-card + .stat-card { border-top-color: #b5543a; }
-.stat-card:nth-child(3) { border-top-color: #a67c52; }
+/* 【UI-STATS-BORDER-001#2】顶部装饰条改内嵌 ::before 圆角条(直角 border-top 压圆角已除);
+   四卡顶色统一墨绿(原绿/红/棕混排) */
+.stat-card { position: relative; padding: 15px 18px; border: 1px solid #e8e0d3; border-radius: 12px; background: #fffdf8; }
+.stat-card::before { content: ''; position: absolute; top: 0; left: 14px; right: 14px; height: 3px; border-radius: 0 0 999px 999px; background: #2d5a4a; }
 .stat-label { color: #9c9184; font-size: 12px; }
 .stat-value { margin-top: 6px; color: #2e2a24; font-family: 'Songti SC', 'STSong', serif; font-size: 30px; font-weight: 800; font-variant-numeric: tabular-nums; }
 .unit { margin-left: 3px; color: #9c9184; font-size: 12px; font-weight: 500; }
@@ -246,11 +254,15 @@ onMounted(() => {
 .rank-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
 .rank-table th { padding: 7px 8px; color: #9c9184; font-size: 11px; font-weight: 500; text-align: left; border-bottom: 1px solid #e8e0d3; }
 .rank-table td { padding: 9px 8px; color: #6b6257; border-bottom: 1px dashed #efe7d8; }
-.rank-table tr:last-child td { border-bottom: 0; }
+.rank-table tr:last-child td { border-bottom: 0; padding-bottom: 4px; /* 【#5】末行下留白收敛 */ }
 .rank-table .strong { color: #2e2a24; font-weight: 600; white-space: nowrap; }
+/* 【UI-STATS-BORDER-001#1】两表滚动容器: 卡内滚动替代静默溢出(末行完整可见) */
+.table-scroll { max-height: 440px; overflow-y: auto; overscroll-behavior: contain; }
+/* 【#5】部门列长名单行截断(hover 看 title 全名), 消除换行导致的行高不均 */
+.rank-table .dim { color: #9c9184; max-width: 132px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dept-table .strong { max-width: 132px; overflow: hidden; text-overflow: ellipsis; }
 .filter :deep(.el-button--primary) { background: #2d5a4a; border-color: #2d5a4a; }
 .filter :deep(.el-button--primary:hover) { background: #356350; border-color: #356350; }
-.rank-table .dim { color: #9c9184; }
 .rank-table .num { font-variant-numeric: tabular-nums; }
 .w-no { width: 44px; }
 .w-num { width: 72px; }
@@ -283,7 +295,7 @@ onMounted(() => {
 /* 底双列: 部门表 + 月度报告纵向格子 */
 .grid-bottom { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 14px; align-items: start; }
 .monthly-tools { display: flex; align-items: center; gap: 8px; font-weight: 400; }
-.m-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 12px; padding: 4px 0 2px; }
+.m-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 12px; padding: 4px 0 10px; /* 【#3】底部图例条与卡底边框留白 */ }
 .m-cell { padding: 8px 10px; border: 1px solid #efe7d8; border-radius: 10px; background: #faf6ee; }
 .m-cell.wide { grid-column: span 3; display: flex; align-items: baseline; gap: 10px; }
 .m-cell span { display: block; color: #9c9184; font-size: 11px; }
