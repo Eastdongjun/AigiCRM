@@ -43,8 +43,10 @@ class FabushiH5UploadServiceTest {
     private final RedisTemplate<String, Object> redisTemplate = mock(RedisTemplate.class);
     @SuppressWarnings("unchecked")
     private final ValueOperations<String, Object> valueOps = mock(ValueOperations.class);
+    private final com.aigicrm.module.file.service.FabushiFolderService folderService =
+            mock(com.aigicrm.module.file.service.FabushiFolderService.class);
     private final FabushiH5UploadService svc = new FabushiH5UploadService(
-            provider, fileService, userDetailsService, redisTemplate);
+            provider, fileService, userDetailsService, redisTemplate, folderService);
 
     @AfterEach
     void cleanContext() {
@@ -120,11 +122,12 @@ class FabushiH5UploadServiceTest {
         out.setFileName("a.jpg");
         out.setFileSize(1024L);
         out.setFileType("JPG");
-        when(fileService.upload(f, null, "fabushi")).thenReturn(out);
+        when(folderService.shareFolderId()).thenReturn(18L);
+        when(fileService.upload(f, 18L, "fabushi")).thenReturn(out);
         Map<String, Object> result = svc.consumeUpload("T", f);
         assertEquals(2696L, result.get("id"));
         assertEquals("a.jpg", result.get("fileName"));
-        verify(fileService).upload(f, null, "fabushi");
+        verify(fileService).upload(f, 18L, "fabushi");
         assertNull(SecurityContextHolder.getContext().getAuthentication(), "消费完毕清会话");
     }
 

@@ -58,6 +58,8 @@ public class FabushiH5UploadService {
     private final FileService fileService;
     private final UserDetailsService userDetailsService;
     private final RedisTemplate<String, Object> redisTemplate;
+    /** 【收口窗修复】分享心得系统夹解析(H5 票通道落夹)。 */
+    private final com.aigicrm.module.file.service.FabushiFolderService fabushiFolderService;
 
     /** 默认开; 生产可经 yml/环境变量一键关(回滚开关)。 */
     @Value("${aigicrm.fabushi.h5-upload.enabled:true}")
@@ -104,7 +106,9 @@ public class FabushiH5UploadService {
         try {
             SecurityContextHolder.getContext().setAuthentication(auth);
             // scope 固定 fabushi, folderId=null(帖子附件不挂文件夹)——配额/病毒扫描/租户/归属快照全复用
-            out = fileService.upload(file, null, SCENE_FABUSHI);
+            // 【收口窗修复】H5 票通道直调本服务绕过 FileController 路由层——此处显式落分享心
+            // 得系统夹(与 MP 原生附件通道同口径; scene=files 通道走 consumeFileUpload 的票内夹)
+            out = fileService.upload(file, fabushiFolderService.shareFolderId(), SCENE_FABUSHI);
         } finally {
             SecurityContextHolder.clearContext();
         }
