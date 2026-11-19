@@ -72,7 +72,9 @@ async function uploadFile(token, fileName, bytes) {
 
 async function createApprovedBook(token, title) {
   const created = await api(token, 'POST', '/fabushi/books', {
-    categoryCode: 'jiaxun', title, author: '验收员', editionType: 'original',
+    // 【F5 2026-11-19】类别 v3 迁移(V2026.11.19.3)后旧码 jiaxun 不在字典——换 guoxue;
+    // 本脚本在测试服窗口执行, 时序=先部署含本迁移的后端再跑 live
+    categoryCode: 'guoxue', title, author: '验收员', editionType: 'original',
   });
   let bookId = created.body && created.body.data && created.body.data.id;
   if (!bookId) {
