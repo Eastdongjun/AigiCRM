@@ -23,8 +23,10 @@ import java.util.Set;
 
 /**
  * 【F3a 2026-11-19 spec v2 GAP-B】法布施 H5 上传通道: 短时上传票 + 分型大小闸 + 复用既有上传路径。
+ * 【F3b 2026-11-19】scene 通用化: 同一套票机制服务 fabushi 与 files(/mp-file-picker 换票,
+ * MP-TOKEN-001 最后一处)两个通道; 类名承 F3a-1 历史, 如后续通道再增可择批重命名。
  * 红线(QC 验收 grep 项): 主 JWT 绝不进 URL——发票端点走 Authorization header, H5 消费端只认票。
- * 回滚: aigicrm.fabushi.h5-upload.enabled=false → 发票/消费两端点 404(路由纯增量, revert 即回)。
+ * 回滚: aigicrm.fabushi.h5-upload.enabled / aigicrm.file.h5-upload.enabled 分别关两通道。
  */
 @Slf4j
 @Service
@@ -33,12 +35,14 @@ public class FabushiH5UploadService {
 
     public static final String SCOPE_UPLOAD = "upload";
     public static final String SCENE_FABUSHI = "fabushi";
+    public static final String SCENE_FILES = "files";
     private static final long TICKET_TTL_MINUTES = 5;
     private static final long TICKET_TTL_SECONDS = TICKET_TTL_MINUTES * 60;
     /** 发票限速: 同 uid 60s 滚动窗 ≤10 张(防票池囤积)。 */
     private static final long RATE_WINDOW_SECONDS = 60;
     private static final long RATE_MAX_PER_WINDOW = 10;
     private static final String RATE_KEY_PREFIX = "fabushi:h5-ticket:";
+    private static final String FILE_RATE_KEY_PREFIX = "file:h5-ticket:";
 
     /** H5 通道单文件分型大小闸(spec v2 口径, 后端强制; 与 MP 原生通道独立)。 */
     private static final long MAX_IMAGE_BYTES = 10L * 1024 * 1024;
@@ -58,12 +62,24 @@ public class FabushiH5UploadService {
     /** 默认开; 生产可经 yml/环境变量一键关(回滚开关)。 */
     @Value("${aigicrm.fabushi.h5-upload.enabled:true}")
     private boolean enabled = true;
+    /** 【F3b】files 通道独立开关。 */
+    @Value("${aigicrm.file.h5-upload.enabled:true}")
+    private boolean fileEnabled = true;
 
     /** 签发短时上传票(scope=upload∧scene=fabushi, TTL 5min, 携 pjti 随主 token 撤销联动)。 */
     public Map<String, Object> issueTicket(Long userId, String parentJti) {
         requireEnabled();
-        enforceIssueRate(userId);
+        enforceIssueRate(RATE_KEY_PREFIX, userId);
         String ticket = jwtTokenProvider.generateTransferToken(userId, parentJti, SCOPE_UPLOAD, SCENE_FABUSHI,
+                TICKET_TTL_MINUTES);
+        return Map.of("ticket", ticket, "expiresIn", TICKET_TTL_SECONDS);
+    }
+
+    /** 【F3b】文件中心 H5 上传票(scope=upload∧scene=files, 同限速口径, 独立 Redis 键)。 */
+    public Map<String, Object> issueFileTicket(Long userId, String parentJti) {
+        if (!fileEnabled) throw new BusinessException(404, "H5 上传未启用");
+        enforceIssueRate(FILE_RATE_KEY_PREFIX, userId);
+        String ticket = jwtTokenProvider.generateTransferToken(userId, parentJti, SCOPE_UPLOAD, SCENE_FILES,
                 TICKET_TTL_MINUTES);
         return Map.of("ticket", ticket, "expiresIn", TICKET_TTL_SECONDS);
     }
@@ -72,7 +88,7 @@ public class FabushiH5UploadService {
      *  返回 Map 化(controller_must_not_depend_on_entity 铁律, 同 FabushiPostService 口径)。 */
     public Map<String, Object> consumeUpload(String ticket, MultipartFile file) {
         requireEnabled();
-        Long userId = validateTicket(ticket);
+        Long userId = validateTicket(ticket, SCENE_FABUSHI);
         validateTypeAndSize(file);
         UserDetails userDetails = userDetailsService.loadUserByUsername(String.valueOf(userId));
         if (!(userDetails instanceof SecurityUser su)) {
@@ -93,13 +109,41 @@ public class FabushiH5UploadService {
                 "fileSize", out.getFileSize(), "fileType", out.getFileType());
     }
 
+    /**
+     * 【F3b】文件中心 H5 上传消费(/mp-file-picker 换票, MP-TOKEN-001 最后一处):
+     * 票校验(scene=files)后以票内用户身份复用 FileService.upload 同路径同闸——文件夹上传权限/
+     * 配额/病毒扫描/归属快照全复用; 类型大小不另设闸(与原生 /api/file/upload 完全同口径,
+     * 唯一硬闸=Spring multipart 500MB)。
+     */
+    public Map<String, Object> consumeFileUpload(String ticket, MultipartFile file, Long folderId, String scope) {
+        if (!fileEnabled) throw new BusinessException(404, "H5 上传未启用");
+        Long userId = validateTicket(ticket, SCENE_FILES);
+        UserDetails userDetails = userDetailsService.loadUserByUsername(String.valueOf(userId));
+        if (!(userDetails instanceof SecurityUser su)) {
+            throw new BusinessException(401, "上传票内用户无效");
+        }
+        applyMinimalGroup(su);
+        UsernamePasswordAuthenticationToken auth =
+                new UsernamePasswordAuthenticationToken(su, null, userDetails.getAuthorities());
+        BizFile out;
+        try {
+            SecurityContextHolder.getContext().setAuthentication(auth);
+            String uploadScope = scope == null || scope.isBlank() ? "private" : scope;
+            out = fileService.upload(file, folderId, uploadScope);
+        } finally {
+            SecurityContextHolder.clearContext();
+        }
+        return Map.of("id", out.getId(), "fileName", out.getFileName(),
+                "fileSize", out.getFileSize(), "fileType", out.getFileType());
+    }
+
     private void requireEnabled() {
         if (!enabled) throw new BusinessException(404, "H5 上传未启用");
     }
 
-    private void enforceIssueRate(Long userId) {
+    private void enforceIssueRate(String keyPrefix, Long userId) {
         try {
-            String key = RATE_KEY_PREFIX + userId;
+            String key = keyPrefix + userId;
             Long count = redisTemplate.opsForValue().increment(key);
             if (count != null && count == 1L) {
                 redisTemplate.expire(key, Duration.ofSeconds(RATE_WINDOW_SECONDS));
@@ -115,14 +159,14 @@ public class FabushiH5UploadService {
         }
     }
 
-    private Long validateTicket(String ticket) {
+    private Long validateTicket(String ticket, String expectedScene) {
         if (ticket == null || ticket.isBlank() || !jwtTokenProvider.validateToken(ticket)) {
             throw new BusinessException(401, "上传票无效或已过期");
         }
         if (!SCOPE_UPLOAD.equals(jwtTokenProvider.getScopeFromToken(ticket))) {
             throw new BusinessException(403, "上传票 scope 不符");
         }
-        if (!SCENE_FABUSHI.equals(jwtTokenProvider.getSceneFromToken(ticket))) {
+        if (!expectedScene.equals(jwtTokenProvider.getSceneFromToken(ticket))) {
             throw new BusinessException(403, "上传票 scene 不符");
         }
         String jti = jwtTokenProvider.getJtiFromToken(ticket);

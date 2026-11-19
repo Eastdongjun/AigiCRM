@@ -73,6 +73,9 @@ public class SecurityConfig {
                         // 【F3a 2026-11-19】法布施 H5 票据上传: permitAll 但鉴权未裸奔——
                         // 短时上传票(scope=upload∧scene=fabushi∧TTL 5min∧限速)收敛在 FabushiH5UploadService
                         "/api/fabushi/upload/h5",
+                        // 【F3b 2026-11-19】文件中心 H5 票据上传(/mp-file-picker 换票, MP-TOKEN-001 最后一处):
+                        // 同上票据机制, scene=files, 鉴权收敛同服务
+                        "/api/file/upload/h5",
                         "/actuator/health").permitAll(); // 【可观测性】仅 health 匿名(无详情); metrics/prometheus 由 anyRequest authenticated 保护
 
                 // Swagger 默认关闭, 显式 aigicrm.swagger.enabled=true 才开放(原 profile 推断已移除)

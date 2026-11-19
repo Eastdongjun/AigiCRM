@@ -82,6 +82,15 @@ class FabushiH5UploadServiceTest {
         return f;
     }
 
+    private void filesTicketStubs(String ticket) {
+        when(provider.validateToken(ticket)).thenReturn(true);
+        when(provider.getScopeFromToken(ticket)).thenReturn(FabushiH5UploadService.SCOPE_UPLOAD);
+        when(provider.getSceneFromToken(ticket)).thenReturn(FabushiH5UploadService.SCENE_FILES);
+        when(provider.getJtiFromToken(ticket)).thenReturn("jti-f");
+        when(provider.getParentJtiFromToken(ticket)).thenReturn(null);
+        when(provider.getUserIdFromToken(ticket)).thenReturn(5L);
+    }
+
     // ===== 发票 =====
 
     @Test
@@ -176,6 +185,40 @@ class FabushiH5UploadServiceTest {
                 assertThrows(BusinessException.class, () -> svc.consumeUpload("T", file("a.exe", 1024))).getMessage());
         verify(fileService, never()).upload(any(), any(), anyString());
         verify(userDetailsService, never()).loadUserByUsername(anyString());
+    }
+
+    // ===== 【F3b】files 通道 =====
+
+    @Test
+    void fileTicket_issue_and_consume() {
+        // 发票: scene=files, 独立限速键
+        when(redisTemplate.opsForValue()).thenReturn(valueOps);
+        when(valueOps.increment(anyString())).thenReturn(1L);
+        when(provider.generateTransferToken(5L, null, FabushiH5UploadService.SCOPE_UPLOAD,
+                FabushiH5UploadService.SCENE_FILES, 5L)).thenReturn("FT");
+        assertEquals("FT", svc.issueFileTicket(5L, null).get("ticket"));
+
+        // 消费: 委托 upload(file, folderId, scope 缺省 private); 文件通道无分型闸(exe 同原生口径直过校验)
+        filesTicketStubs("FT");
+        when(userDetailsService.loadUserByUsername("5")).thenReturn(user());
+        MultipartFile f = file("a.exe", 999L);
+        BizFile out = new BizFile();
+        out.setId(1L);
+        out.setFileName("a.exe");
+        out.setFileSize(999L);
+        out.setFileType("EXE");
+        when(fileService.upload(f, 9L, "private")).thenReturn(out);
+        assertEquals(1L, svc.consumeFileUpload("FT", f, 9L, null).get("id"));
+        verify(fileService).upload(f, 9L, "private");
+    }
+
+    @Test
+    void fileTicket_crossScene_rejected() {
+        // fabushi 票不能走 files 通道(scene 校验双向)
+        validTicketStubs("T");
+        assertEquals(403, assertThrows(BusinessException.class,
+                () -> svc.consumeFileUpload("T", file("a.jpg", 1L), null, "private")).getCode());
+        verify(fileService, never()).upload(any(), any(), anyString());
     }
 
     // ===== 会话包裹 =====

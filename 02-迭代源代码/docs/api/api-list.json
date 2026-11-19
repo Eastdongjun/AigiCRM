@@ -1,6 +1,6 @@
 {
  "generated_at": "2026-11-19",
- "count": 326,
+ "count": 328,
  "endpoints": [
   {
    "method": "POST",
@@ -901,6 +901,18 @@
    "path": "/api/file/upload",
    "permission": "hasAuthority('file:upload')",
    "handler": "upload"
+  },
+  {
+   "method": "GET",
+   "path": "/api/file/upload-ticket",
+   "permission": "hasAuthority('file:upload')",
+   "handler": "uploadTicket"
+  },
+  {
+   "method": "POST",
+   "path": "/api/file/upload/h5",
+   "permission": "登录即可",
+   "handler": "uploadH5"
   },
   {
    "method": "DELETE",

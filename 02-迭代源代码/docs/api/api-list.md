@@ -4,7 +4,7 @@
 > 本文件由 scripts/gen-api.py 自动生成,**禁止手改**;接口变更后重新运行。
 > 权限码与 docs/permission/permission-dict.md 对应。
 
-## 接口清单(326 个)
+## 接口清单(328 个)
 
 | 方法 | 路径 | 权限码 | 方法名 | 文件 |
 |---|---|---|---|---|
@@ -158,6 +158,8 @@
 | GET | `/api/file/storage` | `hasAuthority('file:view')` | getStorageInfo | FileController.java |
 | GET | `/api/file/storage/apply-info` | `hasAuthority('file:view')` | storageApplyInfo | FileController.java |
 | POST | `/api/file/upload` | `hasAuthority('file:upload')` | upload | FileController.java |
+| GET | `/api/file/upload-ticket` | `hasAuthority('file:upload')` | uploadTicket | FileH5UploadController.java |
+| POST | `/api/file/upload/h5` | `登录即可` | uploadH5 | FileH5UploadController.java |
 | DELETE | `/api/file/{id}` | `hasAnyAuthority('file:delete','fabushi:file:delete')` | deleteFile | FileController.java |
 | GET | `/api/file/{id}/preview` | `hasAuthority('file:view')` | preview | FileController.java |
 | PUT | `/api/file/{id}/rename` | `hasAuthority('file:edit')` | renameFile | FileController.java |

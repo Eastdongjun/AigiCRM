@@ -45,6 +45,12 @@ function getDownloadToken() {
   return request({ url: '/api/file/download-token' })
 }
 
+// 【F3b 2026-11-19】文件中心 H5 上传票(短时 5min/scope=upload/scene=files)——
+// /mp-file-picker 换票用, 主 JWT 不再进 URL(MP-TOKEN-001 最后一处)
+function getH5UploadTicket() {
+  return request({ url: '/api/file/upload-ticket' })
+}
+
 // 【体检 P1 2026-10-12】带 scope 请求文件夹树: 后端 @RequestParam(defaultValue="public")——
 // 不带参恒返回公共树, 私人 Tab 再按 folderType 过滤必为空(PC 端已带 scope, MP 此前漏传)
 function getFolders(scope) {
@@ -92,6 +98,7 @@ module.exports = {
   getStorageInfo,
   getStorageApplyInfo,
   getDownloadToken,
+  getH5UploadTicket,
   getFolders,
   createFolder,
   renameFolder,

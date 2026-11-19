@@ -7,10 +7,10 @@
       <div class="mpfp-desc">本页面仅在小程序「文件页 → 上传 → 手机文件」中使用</div>
     </div>
 
-    <div v-else-if="!token" class="mpfp-block">
+    <div v-else-if="!ticket" class="mpfp-block">
       <div class="mpfp-icon">⚠️</div>
-      <div class="mpfp-title">登录状态缺失</div>
-      <div class="mpfp-desc">请返回小程序重新进入</div>
+      <div class="mpfp-title">上传票缺失或已过期</div>
+      <div class="mpfp-desc">请返回小程序重新进入（票有效期 5 分钟）</div>
     </div>
 
     <template v-else>
@@ -54,7 +54,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 
 const route = useRoute()
-const token = ref('')
+const ticket = ref('')
 const folderId = ref('')
 const scope = ref('private')
 const state = ref('idle') // idle | uploading | done | error
@@ -71,7 +71,8 @@ const folderLabel = computed(() => (folderId.value ? '（当前文件夹）' : '
 // CSP 定向放行(nginx location /mp-file-picker 加 script-src 含 res.wx.qq.com)
 const wxReady = ref(false)
 onMounted(() => {
-  token.value = String(route.query.token || '')
+  // 【F3b 2026-11-19 换票】URL 从主 JWT 改短时上传票(scene=files, MP-TOKEN-001 最后一处)
+  ticket.value = String(route.query.ticket || '')
   folderId.value = String(route.query.folderId || '')
   scope.value = String(route.query.scope || 'private')
   const s = document.createElement('script')
@@ -113,8 +114,8 @@ function upload(file) {
   form.append('scope', scope.value || 'private')
   if (folderId.value) form.append('folderId', folderId.value)
   const xhr = new XMLHttpRequest()
-  xhr.open('POST', '/api/file/upload')
-  xhr.setRequestHeader('Authorization', 'Bearer ' + token.value)
+  // 【F3b】票据上传: 只带短时票(5min/scene=files), 不带 Authorization 主 JWT
+  xhr.open('POST', '/api/file/upload/h5?ticket=' + encodeURIComponent(ticket.value))
   xhr.upload.onprogress = (e) => {
     if (e.lengthComputable) progress.value = Math.min(99, Math.round((e.loaded / e.total) * 100))
   }
