@@ -156,8 +156,9 @@ public class FabushiStatsService {
                 : likeMapper.selectCount(new LambdaQueryWrapper<com.aigicrm.module.fabushi.entity.BizFabushiLike>()
                         .in(com.aigicrm.module.fabushi.entity.BizFabushiLike::getPostId, myPostIds)));
 
-        // 【UI-STATS-REDESIGN-001 §二-5/6】阅读四格: 累计已读天数 / 连续天数(截至今日, 今日未读自昨日回溯;
-        // 跨月不限窗口) / 最常读类别(全量已读按类别累计人次 top1) / 阅读人次(=myReadCount 已有)
+        // 【UI-STATS-REDESIGN-001 规格二之五与六】下方为阅读四格聚合说明文档, 非代码:
+        // 累计已读天数取去重日期数, 连续天数自今日回溯到首个断日且跨月不限窗口,
+        // 最常读类别为全量已读按类别累计人次的榜首, 阅读人次沿用已有字段 myReadCount
         List<com.aigicrm.module.fabushi.entity.BizFabushiReadStatus> myReads =
                 readStatusMapper.selectList(new LambdaQueryWrapper<com.aigicrm.module.fabushi.entity.BizFabushiReadStatus>()
                         .eq(com.aigicrm.module.fabushi.entity.BizFabushiReadStatus::getUserId, uid));

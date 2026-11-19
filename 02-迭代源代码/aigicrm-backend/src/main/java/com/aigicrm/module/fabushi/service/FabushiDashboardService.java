@@ -59,6 +59,7 @@ public class FabushiDashboardService {
     // 【UI-STATS-REDESIGN-001 2026-11-19】阅读优先重构新增字段/口径
     private static final String LIT_CATEGORYNAME = "categoryName";
     private static final String LIT_READCOUNT = "readCount";
+    private static final String LIT_ACTIVEUSERS = "activeUsers";
     private static final String LIT_BOOKRANKING = "bookRanking";
     private static final String LIT_CATEGORYREADS = "categoryReads";
     private static final String LIT_FREQ_WORKDAY = "workday";
@@ -365,7 +366,7 @@ public class FabushiDashboardService {
         data.put(LIT_COMMENTS, 0L);
         data.put(LIT_READCOUNT, 0L);
         data.put(LIT_READUSERS, 0);
-        data.put("activeUsers", 0);
+        data.put(LIT_ACTIVEUSERS, 0);
         data.put(LIT_COVERAGEPCT, null);
         data.put("prev", Map.of());
         data.put(LIT_DEPTPROGRESS, List.of());
@@ -420,9 +421,9 @@ public class FabushiDashboardService {
         data.put(LIT_POSTS, (long) posts.size());
         data.put(LIT_LIKES, (long) likes.size());
         data.put(LIT_COMMENTS, (long) comments.size());
-        data.put("readCount", (long) reads.size());
+        data.put(LIT_READCOUNT, (long) reads.size());
         data.put(LIT_READUSERS, readUsers.size());
-        data.put("activeUsers", activeUsers.size());
+        data.put(LIT_ACTIVEUSERS, activeUsers.size());
         data.put(LIT_COVERAGEPCT, visible == null ? null
                 : Math.round(readUsers.size() * 1000.0 / visible.size()) / 10.0);
 
