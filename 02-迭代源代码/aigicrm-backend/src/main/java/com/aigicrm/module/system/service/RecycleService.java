@@ -456,9 +456,12 @@ public class RecycleService {
                         + "AND COALESCE(deleted_at, updated_at) < ?", Long.class, cutoff);
         PurgeFilesResult result = purgeFileRows(ids);
         // 【V2026.11.14.3 P2 4.2】夹回收站同保留期清理(空夹软删无内容, 直接清台账+授权行)
+        // 【FILE-RECYCLE-TASK-001 2026-11-20】biz_file_folder 无 updated_at 列(V1 DDL 只有
+        // created_at; 11-14.1 回收站补的是 deleted_at/deleted_by)——原 COALESCE 每晚 03:30
+        // SQL 报错, 夹清理自 11-14 起未跑(失败方向安全)。只认 deleted_at(1ae9e8e9 口径)。
         List<Long> folderIds = jdbc.queryForList(
                 "SELECT id FROM biz_file_folder WHERE deleted = 1 "
-                        + "AND COALESCE(deleted_at, updated_at) < ?", Long.class, cutoff);
+                        + "AND deleted_at < ?", Long.class, cutoff);
         for (Long fid : folderIds) {
             try {
                 jdbc.update("DELETE FROM biz_folder_acl WHERE folder_id = ?", fid);
