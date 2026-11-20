@@ -159,9 +159,20 @@ public class FileService {
         } else if (com.aigicrm.module.file.service.FabushiFolderService.FOLDER_TYPE.equals(scope)) {
             // 【FILE-FABU-FOLDER-001】法布施树=固定两个系统夹(书籍 sort1/分享心得 sort2), 全员可见
             // (书籍=电子书大家读; 分享沿用空间现口径), 无子夹无 ACL。
-            return folderMapper.selectList(new LambdaQueryWrapper<BizFileFolder>()
+            // 【FILE-FABU-FOLDER-003 尾巴】角标 fileCount 按夹批量 count 回填(其他分支同口径,
+            // 原漏回填致 UI 显示 0/N 而实际 5/12)。
+            List<BizFileFolder> fabushiFolders = folderMapper.selectList(new LambdaQueryWrapper<BizFileFolder>()
                     .eq(BizFileFolder::getFolderType, FabushiFolderService.FOLDER_TYPE)
                     .orderByAsc(BizFileFolder::getSortOrder));
+            for (BizFileFolder folder : fabushiFolders) {
+                long count = fileMapper.selectCount(
+                        new LambdaQueryWrapper<BizFile>()
+                                .eq(BizFile::getFolderId, folder.getId())
+                                .eq(BizFile::getDeleted, 0)
+                                .eq(BizFile::getFileScope, FabushiFolderService.FOLDER_TYPE));
+                folder.setFileCount((int) count);
+            }
+            return fabushiFolders;
         } else {
             // 【安全修复 FEAT-20260804-FILE-AUTHZ】未识别的 scope 默认拒绝(返回空)，
             // 而不是默认放行返回全部文件夹(此前会泄露他人私有文件夹信息)。
@@ -228,7 +239,7 @@ public class FileService {
         if (LIT_INCENTIVE.equals(scope) && !applyIncentiveVisibility(wrapper, userId)) {
             return new Page<>(current, size, 0);
         }
-        if (LIT_FABUSHI.equals(scope) && !applyFabushiVisibility(wrapper, folderId, userId)) {
+        if (LIT_FABUSHI.equals(scope) && !applyFabushiVisibility(wrapper, userId)) {
             return new Page<>(current, size, 0);
         }
         if (!LIT_INCENTIVE.equals(scope) && !LIT_FABUSHI.equals(scope)
@@ -285,7 +296,7 @@ public class FileService {
      * 分享夹沿用 fabushi|file_view 空间现口径); 原"带 folderId 即空"是分夹前旧假设。
      * 非系统夹 folderId 已在 FileController.upload 路由层拒绝, 此处不重复判(查询侧
      * 传非法夹 id 属越权探测, 命中空集自然为空)。 */
-    private boolean applyFabushiVisibility(LambdaQueryWrapper<BizFile> wrapper, Long folderId, Long userId) {
+    private boolean applyFabushiVisibility(LambdaQueryWrapper<BizFile> wrapper, Long userId) {
         // 【2026-11-17 阶段二】法布施空间：默认公司级 all，但可由权限中心按角色/人员收窄到
         // 大区/办事处/部门/self；按上传人 ∈ fabushi|file_view 范围过滤。
         // 【003 修复】上传人可见集过滤与 folderId 过滤叠加生效(L224-226 已按 folderId eq),
