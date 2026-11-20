@@ -53,7 +53,7 @@
           <template v-if="dashboard.dailyGoalRate != null">{{ dashboard.dailyGoalRate }}<em>%</em></template>
           <template v-else>—</template>
         </div>
-        <div class="sub">开提醒应读人日中实读占比</div>
+        <div class="sub">提醒应读人日中实读占比</div>
       </div>
     </div>
 
@@ -63,7 +63,7 @@
       <div class="interact-item"><span class="num">{{ dashboard.periodPosts || 0 }}</span><span class="u">篇</span><span class="lb">发布内容</span></div>
       <div class="interact-item"><span class="num">{{ dashboard.periodLikes || 0 }}</span><span class="u">次</span><span class="lb">🐟 敲木鱼（点赞）</span></div>
       <div class="interact-item"><span class="num">{{ dashboard.periodComments || 0 }}</span><span class="u">条</span><span class="lb">评论</span></div>
-      <span class="interact-note">口径：互动条与部门表按"谁做的"计；榜单"获木鱼"按"内容归属"计</span>
+      <span class="interact-note">口径：互动条与部门表按「谁做的」计；榜单「获木鱼」按「内容归属」计</span>
     </div>
 
     <!-- ④ 成员榜(行型 A 全宽 + 前端分页): 名次章=全榜前三, 占比条=指标/全榜最高值(跨页可比) -->
@@ -103,7 +103,7 @@
       <div v-if="!rankedTotal" class="empty">本周期暂无阅读 / 发布数据</div>
       <!-- 分页底栏: 左信息右翻页; URL 直达态暂不做(vue-router 协同留待后续) -->
       <div v-if="rankedTotal" class="rank-pager">
-        <span class="info">共 <b>{{ rankedTotal }}</b> 人 · 本周期有阅读 / 发布记录 <b>{{ rankedTotal }} / {{ scopeTotalText }}</b> 人</span>
+        <span class="info">共 <b>{{ rankedTotal }}</b> 人上榜（可见范围 {{ scopeTotalText }}{{ dashboard.memberCount === -1 ? '' : ' 人' }}）</span>
         <select v-model.number="rankSize" class="pager-size" aria-label="每页人数" @change="rankPage = 1">
           <option :value="10">每页 10 人</option>
           <option :value="20">每页 20 人</option>

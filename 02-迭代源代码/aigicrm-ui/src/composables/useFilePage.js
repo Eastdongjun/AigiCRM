@@ -244,7 +244,8 @@ export function useFilePage() {
     activeTab.value = tab
     selectedFolderId.value = null
     query.value.current = 1
-    if (tab !== 'incentive' && tab !== 'shared_to_me' && tab !== 'fabushi') loadFolders()
+    // 【FILE-FABU-FOLDER-002】法布施 tab 需加载两系统夹(f1247a8f 漏删此跳过门致 PC 两夹不显示)
+    if (tab !== 'incentive' && tab !== 'shared_to_me') loadFolders()
     loadFolderPerms()
     loadFiles()
   }
