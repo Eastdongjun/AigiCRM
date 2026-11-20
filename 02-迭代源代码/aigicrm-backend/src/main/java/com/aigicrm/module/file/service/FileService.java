@@ -279,11 +279,17 @@ public class FileService {
         return true;
     }
 
-    /** 法布施空间可见性过滤；返回 false 表示候选集必空（法布施无文件夹，带 folderId 即空）。 */
+    /** 法布施空间可见性过滤；返回 false 表示候选集必空。
+     * 【FILE-FABU-FOLDER-003 2026-11-20】分夹后 folderId=两系统夹为合法过滤维度(夹内文件
+     * 属于"上传人可见集"口径的自然子集, 不放宽——书籍夹文件本就全员可读=书目库口径,
+     * 分享夹沿用 fabushi|file_view 空间现口径); 原"带 folderId 即空"是分夹前旧假设。
+     * 非系统夹 folderId 已在 FileController.upload 路由层拒绝, 此处不重复判(查询侧
+     * 传非法夹 id 属越权探测, 命中空集自然为空)。 */
     private boolean applyFabushiVisibility(LambdaQueryWrapper<BizFile> wrapper, Long folderId, Long userId) {
         // 【2026-11-17 阶段二】法布施空间：默认公司级 all，但可由权限中心按角色/人员收窄到
-        // 大区/办事处/部门/self；按上传人 ∈ fabushi|file_view 范围过滤。法布施无文件夹。
-        if (folderId != null) return false;
+        // 大区/办事处/部门/self；按上传人 ∈ fabushi|file_view 范围过滤。
+        // 【003 修复】上传人可见集过滤与 folderId 过滤叠加生效(L224-226 已按 folderId eq),
+        // 夹内文件仍受可见集约束(非系统夹探测空集)。
         Set<Long> visibleUploaders = folderPermissionService.fabushiVisibleUploaderIds(userId);
         if (visibleUploaders != null) {
             if (visibleUploaders.isEmpty()) return false;
