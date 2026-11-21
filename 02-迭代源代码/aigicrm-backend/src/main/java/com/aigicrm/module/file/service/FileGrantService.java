@@ -395,12 +395,14 @@ public class FileGrantService {
     /** 主体/对象类型及空间类型组合校验（SPACE 必填 spaceType；非 SPACE 不得携带）。 */
     private void applyGrantTypeRules(BizFileGrant g) {
         String subjectType = upper(g.getSubjectType());
-        if (!Set.of("USER", "ROLE", LIT_POSITION).contains(subjectType)) {
+        // 【2026-11-21 PM-D1】null 必须显式判空：Set.of(...).contains(null) 会抛 NPE，
+        // 空 body 的授权保存此前返回 500；这里统一转 400 参数校验。
+        if (subjectType == null || !Set.of("USER", "ROLE", LIT_POSITION).contains(subjectType)) {
             throw new BusinessException("主体类型仅支持 USER/ROLE/POSITION");
         }
         if (g.getSubjectId() == null) throw new BusinessException("主体不能为空");
         String objectType = upper(g.getObjectType());
-        if (!Set.of(OBJ_SPACE, OBJ_FOLDER, OBJ_FILE).contains(objectType)) {
+        if (objectType == null || !Set.of(OBJ_SPACE, OBJ_FOLDER, OBJ_FILE).contains(objectType)) {
             throw new BusinessException("对象类型仅支持 SPACE/FOLDER/FILE");
         }
         if (!OBJ_SPACE.equals(objectType) && g.getObjectId() == null) {

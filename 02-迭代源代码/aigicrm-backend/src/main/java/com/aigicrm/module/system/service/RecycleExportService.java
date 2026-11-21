@@ -136,11 +136,22 @@ public class RecycleExportService {
                 .stream().map(this::view).toList();
     }
 
+    /**
+     * 【2026-11-21 PM-D2】按 id+租户取导出台账行。
+     * 原实现用 queryForMap，行不存在时抛 EmptyResultDataAccessException → HTTP 500；
+     * 改为 queryForList + 空判，返回 404「导出记录不存在」。
+     */
+    private Map<String, Object> requireExportRow(Long id) {
+        List<Map<String, Object>> rows = jdbc.queryForList(
+                "SELECT * FROM biz_recycle_export WHERE id=? AND tenant_id=?", id, tenantId());
+        if (rows.isEmpty()) throw new BusinessException(404, "导出记录不存在");
+        return rows.get(0);
+    }
+
     /** 下载（admin + 未过期）：返回 {filePath, fileName, checksum}，流式由 controller 落地。 */
     public Map<String, Object> download(Long id) {
         requireAdmin();
-        Map<String, Object> row = jdbc.queryForMap("SELECT * FROM biz_recycle_export WHERE id=? AND tenant_id=?", id, tenantId());
-        if (row == null || row.isEmpty()) throw new BusinessException("导出记录不存在");
+        Map<String, Object> row = requireExportRow(id);
         if (!"ready".equals(row.get(LIT_STATUS))) throw new BusinessException("导出未就绪或已失效: " + row.get(LIT_STATUS));
         LocalDateTime exp = toLdt(row.get("expires_at"));
         if (exp != null && exp.isBefore(LocalDateTime.now())) {
@@ -161,8 +172,7 @@ public class RecycleExportService {
     @Transactional
     public void delete(Long id) {
         requireAdmin();
-        Map<String, Object> row = jdbc.queryForMap("SELECT * FROM biz_recycle_export WHERE id=? AND tenant_id=?", id, tenantId());
-        if (row == null || row.isEmpty()) throw new BusinessException("导出记录不存在");
+        Map<String, Object> row = requireExportRow(id);
         Object fp = row.get(LIT_FILE_PATH);
         if (fp != null) {
             try {

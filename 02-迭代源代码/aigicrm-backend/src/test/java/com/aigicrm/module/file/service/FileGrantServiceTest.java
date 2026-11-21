@@ -378,4 +378,31 @@ class FileGrantServiceTest {
             assertEquals(FileGrantService.Decision.ALLOW, svc.decideFile(file(10L, 1L, 3L, 5L), "view", 2L));
         }
     }
+
+    @Test
+    void nullSubjectTypeIs400Not500() {
+        // 【2026-11-21 PM-D1】空 body 保存授权：subjectType=null 不得触发
+        // Set.of(...).contains(null) 的 NPE（HTTP 500），应返回 400 业务异常。
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(true);
+            BusinessException e = assertThrows(BusinessException.class, () -> svc.save(
+                    new FileGrantService.Command(null, null, 2L, "FILE", 10L, null,
+                            "view", "ALLOW", 1, null, null, null, null)));
+            assertEquals(400, e.getCode());
+            assertTrue(e.getMessage().contains("主体类型"));
+        }
+    }
+
+    @Test
+    void nullObjectTypeIs400Not500() {
+        // 【2026-11-21 PM-D1】subjectType 合法但 objectType=null 同样要 400，不是 NPE 500。
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(true);
+            BusinessException e = assertThrows(BusinessException.class, () -> svc.save(
+                    new FileGrantService.Command(null, "USER", 2L, null, null, null,
+                            "view", "ALLOW", 1, null, null, null, null)));
+            assertEquals(400, e.getCode());
+            assertTrue(e.getMessage().contains("对象类型"));
+        }
+    }
 }

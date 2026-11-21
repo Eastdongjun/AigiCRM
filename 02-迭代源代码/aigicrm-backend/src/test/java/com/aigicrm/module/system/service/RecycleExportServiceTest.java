@@ -278,4 +278,19 @@ CREATE TABLE IF NOT EXISTS biz_recycle_export (id BIGINT AUTO_INCREMENT PRIMARY 
                 java.nio.charset.StandardCharsets.UTF_8);
         assertTrue(content.contains(needle), entry + " 应含 " + needle);
     }
+
+    @Test
+    void t10_missingExportReturns404Not500() {
+        // 【2026-11-21 PM-D2】不存在的导出 id 不得让 queryForMap 抛
+        // EmptyResultDataAccessException → HTTP 500；应返回 404「导出记录不存在」。
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(true);
+            BusinessException d = assertThrows(BusinessException.class, () -> svc.download(999999L));
+            assertEquals(404, d.getCode());
+            assertTrue(d.getMessage().contains("导出记录不存在"));
+            BusinessException x = assertThrows(BusinessException.class, () -> svc.delete(999999L));
+            assertEquals(404, x.getCode());
+            assertTrue(x.getMessage().contains("导出记录不存在"));
+        }
+    }
 }
