@@ -12,6 +12,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 
 const mapProto = /** @type {any} */ (Map.prototype)
+const u8Proto = /** @type {any} */ (Uint8Array.prototype)
 const POLYFILL = '../utils/map-upsert-polyfill.js'
 
 // 测试里在 Map 实例上调运行时注入的方法：tslib ES2020 无 upsert 声明，
@@ -32,9 +33,18 @@ function deleteUpsertMethods() {
   delete mapProto.getOrInsertComputed
 }
 
+function deleteUint8ArrayMethods() {
+  for (const target of [u8Proto, Uint8Array]) {
+    for (const name of ['toHex', 'toBase64', 'fromBase64', 'fromHex']) {
+      try { delete target[name] } catch (e) { /* native non-configurable: leave */ }
+    }
+  }
+}
+
 afterEach(() => {
   // 不把注入方法泄漏给同文件后续用例（vitest 默认按文件隔离 fork，双保险）
   deleteUpsertMethods()
+  deleteUint8ArrayMethods()
   delete globalThis.pdfjsWorker
 })
 
@@ -227,5 +237,33 @@ describe('pdf.js 真实取数路径复现（缺陷修复验证）', () => {
     const result = await runPdfFetchPath()
     expect(result.numPages).toBe(1)
     expect(result.opCount).toBeGreaterThan(0)
+  })
+})
+
+describe('Uint8Array base64/hex polyfill（pdfjs 6.5.438 依赖）', () => {
+  beforeEach(deleteUint8ArrayMethods)
+
+  it('toHex：小写、每字节两位', async () => {
+    await applyPolyfillFresh()
+    expect(u8Proto.toHex.call(new Uint8Array([0, 15, 255]))).toBe('000fff')
+  })
+
+  it('toBase64：标准字母表与 padding', async () => {
+    await applyPolyfillFresh()
+    expect(u8Proto.toBase64.call(new Uint8Array([0, 15, 255]))).toBe('AA//')
+    expect(u8Proto.toBase64.call(new Uint8Array([0, 15, 255]), { omitPadding: true })).toBe('AA//')
+  })
+
+  it('toBase64/fromBase64：base64url 与往返', async () => {
+    await applyPolyfillFresh()
+    const src = new Uint8Array([251, 255, 0, 1, 2])
+    const url = u8Proto.toBase64.call(src, { alphabet: 'base64url' })
+    expect(url).toBe('-_8AAQI=')
+    expect(Array.from(Uint8Array.fromBase64(url, { alphabet: 'base64url' }))).toEqual(Array.from(src))
+  })
+
+  it('fromHex：往返', async () => {
+    await applyPolyfillFresh()
+    expect(Array.from(Uint8Array.fromHex('000fff'))).toEqual([0, 15, 255])
   })
 })

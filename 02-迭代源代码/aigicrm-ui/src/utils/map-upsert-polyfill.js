@@ -1,43 +1,135 @@
 /**
- * 【K-ENG-FE-001】Map.prototype.getOrInsert / getOrInsertComputed polyfill
+ * 【K-ENG-FE-001】微信 web-view 内核兼容 polyfill
  *
- * 缘起：pdfjs-dist 6.5.438（aigicrm-ui 唯一 PDF 渲染库）在主线程与 worker 线程
- * 无条件调用 Map.prototype.getOrInsertComputed（TC39 Upsert 提案，
- * https://tc39.es/proposal-upsert ，Chrome/Edge 145+ 才有原生实现）。
- * 微信小程序 web-view 内核（XWeb，Chromium ~107-130 档）没有该方法，
- * H5 阅读页在真机上报
- * `this._requestsByChunk.getOrInsertComputed is not a function`（worker 线程，
- * pdf.worker.mjs:3127）后崩溃；主线程 pdf.mjs 还有 22 处同类调用。
+ * pdfjs-dist 6.5.438 在微信 web-view（XWeb，Chromium ~107-130 档）里会用到
+ * 比内核更新的 JS API：
+ * - Map.prototype.getOrInsertComputed（TC39 Upsert，主线程 22 处 + worker 19 处）
+ * - Uint8Array.prototype.toHex（worker 计算 PDF 指纹）
+ * - Uint8Array.prototype.toBase64 / Uint8Array.fromBase64（附件/签名数据）
  *
- * 方案：本文件被两条线程各注入一次——
- * - 主线程：useFabushiPdfReader.js 顶部静态 import（pdfjs 任何运行时调用前执行）；
- * - worker 线程：pdfjs-worker-shim.worker.js 静态 import，
- *   经 Vite `?worker&url` 打包为含 polyfill 的 worker 产物。
+ * 本文件被两条线程各注入一次：
+ * - 主线程：useFabushiPdfReader.js 顶部静态 import；
+ * - worker：pdfjs-worker-shim.worker.js 静态 import，经 Vite `?worker&url` 打包。
  *
- * 语义对齐 TC39 upsert 提案（2025-06 状态）：
- * - 已有键：直接返回现值，不覆盖、不调回调；
- * - getOrInsert(key, value)：缺键时插入 value 并返回 value；
- * - getOrInsertComputed(key, callbackfn)：缺键时以 key 为唯一实参、
- *   undefined 为 this 调 callbackfn，插入并返回其返回值；
- * - callbackfn 非函数 → TypeError；接收者非 Map → TypeError；
- * - 方法不可枚举（defineProperty），可写可配置（与原生一致）。
- *
- * 本文件禁止引第三方依赖（es-shims 等），改动面收口在 ~40 行自写实现。
+ * 语义按 TC39 提案实现；只补缺失方法，不覆盖内核原生实现。
+ * 禁止引第三方依赖，保持单文件、可审计。
  */
 
 const mapProto = /** @type {any} */ (Map.prototype)
+const u8Proto = /** @type {any} */ (Uint8Array.prototype)
 
-if (typeof mapProto.getOrInsert !== 'function') {
-  Object.defineProperty(Map.prototype, 'getOrInsert', {
-    value: function (key, value) {
-      if (!(this instanceof Map)) {
-        throw new TypeError('Method Map.prototype.getOrInsert called on incompatible receiver')
-      }
-      if (this.has(key)) {
-        return this.get(key)
-      }
-      this.set(key, value)
-      return value
+function defineMethod(target, name, value) {
+  if (typeof target[name] === 'function') return
+  Object.defineProperty(target, name, {
+    value,
+    writable: true,
+    enumerable: false,
+    configurable: true,
+  })
+}
+
+function assertUint8Array(receiver, method) {
+  if (!(receiver instanceof Uint8Array)) {
+    throw new TypeError(`Method ${method} called on incompatible receiver`)
+  }
+  return receiver
+}
+
+// ---------------------------------------------------------------------------
+// Map.getOrInsert / getOrInsertComputed（TC39 Upsert）
+// ---------------------------------------------------------------------------
+
+defineMethod(mapProto, 'getOrInsert', function (key, value) {
+  if (!(this instanceof Map)) {
+    throw new TypeError('Method Map.prototype.getOrInsert called on incompatible receiver')
+  }
+  if (this.has(key)) return this.get(key)
+  this.set(key, value)
+  return value
+})
+
+defineMethod(mapProto, 'getOrInsertComputed', function (key, callbackfn) {
+  if (!(this instanceof Map)) {
+    throw new TypeError('Method Map.prototype.getOrInsertComputed called on incompatible receiver')
+  }
+  if (this.has(key)) return this.get(key)
+  if (typeof callbackfn !== 'function') {
+    throw new TypeError('Map.prototype.getOrInsertComputed: callback must be a function')
+  }
+  const inserted = callbackfn(key)
+  this.set(key, inserted)
+  return inserted
+})
+
+// ---------------------------------------------------------------------------
+// Uint8Array base64/hex（TC39 uint8array-base64 / uint8array-hex）
+// ---------------------------------------------------------------------------
+
+const B64_STD = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+const B64_URL = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'
+
+function alphabetOf(options) {
+  return options && options.alphabet === 'base64url' ? B64_URL : B64_STD
+}
+
+defineMethod(u8Proto, 'toHex', function () {
+  const bytes = assertUint8Array(this, 'Uint8Array.prototype.toHex')
+  let out = ''
+  for (let i = 0; i < bytes.length; i += 1) {
+    out += bytes[i].toString(16).padStart(2, '0')
+  }
+  return out
+})
+
+defineMethod(u8Proto, 'toBase64', function (options) {
+  const bytes = assertUint8Array(this, 'Uint8Array.prototype.toBase64')
+  const alphabet = alphabetOf(options)
+  const omitPadding = Boolean(options && options.omitPadding)
+  let out = ''
+  for (let i = 0; i < bytes.length; i += 3) {
+    const b0 = bytes[i]
+    const has1 = i + 1 < bytes.length
+    const has2 = i + 2 < bytes.length
+    const b1 = has1 ? bytes[i + 1] : 0
+    const b2 = has2 ? bytes[i + 2] : 0
+    out += alphabet[b0 >> 2]
+    out += alphabet[((b0 & 3) << 4) | (b1 >> 4)]
+    out += has1 ? alphabet[((b1 & 15) << 2) | (b2 >> 6)] : (omitPadding ? '' : '=')
+    out += has2 ? alphabet[b2 & 63] : (omitPadding ? '' : '=')
+  }
+  return out
+})
+
+function decodeBase64(text, options) {
+  const alphabet = alphabetOf(options)
+  const table = Object.create(null)
+  for (let i = 0; i < alphabet.length; i += 1) table[alphabet[i]] = i
+
+  const clean = String(text).replace(/[\t\n\f\r ]/g, '')
+  if (clean.length % 4 === 1) {
+    throw new SyntaxError('Invalid base64 string')
+  }
+  const bytes = []
+  let buffer = 0
+  let bits = 0
+  for (const ch of clean) {
+    if (ch === '=') break
+    const value = table[ch]
+    if (value === undefined) throw new SyntaxError('Invalid base64 character')
+    buffer = ((buffer << 6) | value) & 0xffffff
+    bits += 6
+    if (bits >= 8) {
+      bits -= 8
+      bytes.push((buffer >> bits) & 0xff)
+    }
+  }
+  return new Uint8Array(bytes)
+}
+
+if (typeof Uint8Array.fromBase64 !== 'function') {
+  Object.defineProperty(Uint8Array, 'fromBase64', {
+    value: function (text, options) {
+      return decodeBase64(text, options)
     },
     writable: true,
     enumerable: false,
@@ -45,21 +137,18 @@ if (typeof mapProto.getOrInsert !== 'function') {
   })
 }
 
-if (typeof mapProto.getOrInsertComputed !== 'function') {
-  Object.defineProperty(Map.prototype, 'getOrInsertComputed', {
-    value: function (key, callbackfn) {
-      if (!(this instanceof Map)) {
-        throw new TypeError('Method Map.prototype.getOrInsertComputed called on incompatible receiver')
+if (typeof Uint8Array.fromHex !== 'function') {
+  Object.defineProperty(Uint8Array, 'fromHex', {
+    value: function (text) {
+      const clean = String(text).replace(/[\t\n\f\r ]/g, '')
+      if (clean.length % 2 !== 0 || /[^0-9a-fA-F]/.test(clean)) {
+        throw new SyntaxError('Invalid hex string')
       }
-      if (this.has(key)) {
-        return this.get(key) // 已有键：不调回调，直接返回现值
+      const bytes = new Uint8Array(clean.length / 2)
+      for (let i = 0; i < bytes.length; i += 1) {
+        bytes[i] = parseInt(clean.slice(i * 2, i * 2 + 2), 16)
       }
-      if (typeof callbackfn !== 'function') {
-        throw new TypeError('Map.prototype.getOrInsertComputed: callback must be a function')
-      }
-      const inserted = callbackfn(key) // 回调无 this、唯一实参为 key
-      this.set(key, inserted)
-      return inserted
+      return bytes
     },
     writable: true,
     enumerable: false,
