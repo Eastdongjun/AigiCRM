@@ -12,6 +12,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 
 const mapProto = /** @type {any} */ (Map.prototype)
+const weakMapProto = /** @type {any} */ (WeakMap.prototype)
 const u8Proto = /** @type {any} */ (Uint8Array.prototype)
 const POLYFILL = '../utils/map-upsert-polyfill.js'
 
@@ -31,6 +32,8 @@ async function applyPolyfillFresh() {
 function deleteUpsertMethods() {
   delete mapProto.getOrInsert
   delete mapProto.getOrInsertComputed
+  delete weakMapProto.getOrInsert
+  delete weakMapProto.getOrInsertComputed
 }
 
 function deleteUint8ArrayMethods() {
@@ -237,6 +240,28 @@ describe('pdf.js 真实取数路径复现（缺陷修复验证）', () => {
     const result = await runPdfFetchPath()
     expect(result.numPages).toBe(1)
     expect(result.opCount).toBeGreaterThan(0)
+  })
+})
+
+describe('WeakMap.upsert polyfill 语义（pdfjs CanvasGraphics.pathCaches）', () => {
+  beforeEach(deleteUpsertMethods)
+
+  it('缺失时注入两个方法', async () => {
+    await applyPolyfillFresh()
+    expect(typeof weakMapProto.getOrInsert).toBe('function')
+    expect(typeof weakMapProto.getOrInsertComputed).toBe('function')
+  })
+
+  it('getOrInsertComputed：缺键插入并返回，已有键不调回调', async () => {
+    await applyPolyfillFresh()
+    const m = new WeakMap()
+    const key = {}
+    let calls = 0
+    const first = weakMapProto.getOrInsertComputed.call(m, key, () => { calls += 1; return { ok: true } })
+    const second = weakMapProto.getOrInsertComputed.call(m, key, () => { calls += 1; return { ok: false } })
+    expect(calls).toBe(1)
+    expect(second).toBe(first)
+    expect(first).toEqual({ ok: true })
   })
 })
 

@@ -16,6 +16,7 @@
  */
 
 const mapProto = /** @type {any} */ (Map.prototype)
+const weakMapProto = /** @type {any} */ (WeakMap.prototype)
 const u8Proto = /** @type {any} */ (Uint8Array.prototype)
 
 function defineMethod(target, name, value) {
@@ -55,6 +56,29 @@ defineMethod(mapProto, 'getOrInsertComputed', function (key, callbackfn) {
   if (this.has(key)) return this.get(key)
   if (typeof callbackfn !== 'function') {
     throw new TypeError('Map.prototype.getOrInsertComputed: callback must be a function')
+  }
+  const inserted = callbackfn(key)
+  this.set(key, inserted)
+  return inserted
+})
+
+// CanvasGraphics 的路径缓存、部分 pdfjs 内部缓存使用 WeakMap；TC39 Upsert 同样覆盖 WeakMap。
+defineMethod(weakMapProto, 'getOrInsert', function (key, value) {
+  if (!(this instanceof WeakMap)) {
+    throw new TypeError('Method WeakMap.prototype.getOrInsert called on incompatible receiver')
+  }
+  if (this.has(key)) return this.get(key)
+  this.set(key, value)
+  return value
+})
+
+defineMethod(weakMapProto, 'getOrInsertComputed', function (key, callbackfn) {
+  if (!(this instanceof WeakMap)) {
+    throw new TypeError('Method WeakMap.prototype.getOrInsertComputed called on incompatible receiver')
+  }
+  if (this.has(key)) return this.get(key)
+  if (typeof callbackfn !== 'function') {
+    throw new TypeError('WeakMap.prototype.getOrInsertComputed: callback must be a function')
   }
   const inserted = callbackfn(key)
   this.set(key, inserted)
