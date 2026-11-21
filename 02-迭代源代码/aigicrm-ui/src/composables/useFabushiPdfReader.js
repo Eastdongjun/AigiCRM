@@ -9,6 +9,18 @@
 // - 进度读写 = /api/fabushi/progress/{bookId}，与书架页/统计同口径；
 // - 翻页 debounce 保存，连续翻页只落最终页码；加载完成回读 lastPage 续读定位；
 // - 卸载/切书释放渲染任务与 PDF 文档，防内存泄漏与晚到渲染。
+//
+// 【K-ENG-FE-001】小程序 web-view 内核缺 Map.prototype.getOrInsertComputed
+// （TC39 Upsert，Chrome 145+；pdfjs-dist 6.x 主线程 22 处 + worker 线程 19 处调用，
+// 真机报 `getOrInsertComputed is not a function`）。此处静态 import 给主线程补齐，
+// worker 线程由 pdfjs-worker-shim.worker.js 经 Vite `?worker&url` 打包注入。
+// 该 import 必须位于本文件（pdfjs 动态 import 发生在 load() 运行期，
+// 静态 import 先于全部运行时求值，时序安全）。
+import '@/utils/map-upsert-polyfill'
+// worker 资源 URL：Vite 把「polyfill + pdf.worker」打包成独立 worker 产物，
+// 运行期仍走 GlobalWorkerOptions.workerSrc（每次加载新建 Worker，
+// 与原 `?url` 静态资源行为一致，无 workerPort 的跨加载共享状态）。
+import pdfjsWorkerUrl from './pdfjs-worker-shim.worker.js?worker&url'
 import { nextTick, onBeforeUnmount, ref } from 'vue'
 
 export const SAVE_DEBOUNCE_MS = 1200
@@ -95,12 +107,10 @@ export function useFabushiPdfReader({ bookId, pdfFileId, token, saveDelay = SAVE
     errorMsg.value = ''
     try {
       // 动态 import：pdfjs-dist 仅阅读页加载，不进 PC 主包
-      const [pdfjsLib, workerMod] = await Promise.all([
-        import('pdfjs-dist'),
-        import('pdfjs-dist/build/pdf.worker.min.mjs?url'),
-      ])
+      const pdfjsLib = await import('pdfjs-dist')
       if (disposed) return
-      pdfjsLib.GlobalWorkerOptions.workerSrc = workerMod.default
+      // 【K-ENG-FE-001】worker 换成含 Map.upsert polyfill 的打包产物（见文件顶部说明）
+      pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl
 
       const progress = progressEnabled() ? await readProgress() : null
       if (disposed) return

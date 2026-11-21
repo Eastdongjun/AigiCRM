@@ -17,6 +17,13 @@ export default defineConfig({
       '@': resolve(__dirname, 'src')
     }
   },
+  // 【K-ENG-FE-001】pdfjs worker 壳（pdfjs-worker-shim.worker.js）走 ESM
+  // （静态 import polyfill + re-export pdf.worker），iife（Vite 默认）无法表达
+  // export；pdf.js 主线程以 {type:"module"} 实例化 worker（pdf.mjs:17094），
+  // format 必须为 es。全仓仅此一处 worker 用点（已 grep 确认）。
+  worker: {
+    format: 'es'
+  },
   build: {
     rolldownOptions: {
       output: {
