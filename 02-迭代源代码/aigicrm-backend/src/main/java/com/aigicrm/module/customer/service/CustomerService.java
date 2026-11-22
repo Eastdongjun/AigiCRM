@@ -1365,7 +1365,10 @@ public class CustomerService {
 
     public Map<String, Object> getStatistics() {
         LambdaQueryWrapper<BizCustomer> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", LIT_ARCHIVED); // B5 统一口径: 排sea+archived
+        // 【2026-11-21 B3-PERF-001】只取聚合所需两列，避免 5 万客户整行/大字段加载；
+        // 部门名称改为一次 selectBatchIds，消除按 office 的 N+1 查询。
+        wrapper.select(BizCustomer::getIndustry, BizCustomer::getOfficeId)
+                .eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, "sea", LIT_ARCHIVED); // B5 统一口径: 排sea+archived
 
         // 数据范围过滤（统计也受范围控制）
         applyDataScope(wrapper);
@@ -1382,11 +1385,16 @@ public class CustomerService {
                 .collect(Collectors.groupingBy(BizCustomer::getOfficeId, Collectors.counting()));
 
         List<Map<String, Object>> officeList = new ArrayList<>();
+        Map<Long, String> officeNames = new HashMap<>();
+        if (!officeStats.isEmpty()) {
+            for (var dept : deptMapper.selectBatchIds(officeStats.keySet())) {
+                officeNames.put(dept.getId(), dept.getDeptName());
+            }
+        }
         officeStats.forEach((oid, count) -> {
             Map<String, Object> item = new HashMap<>();
-            var dept = deptMapper.selectById(oid);
             item.put("officeId", oid);
-            item.put("officeName", dept != null ? dept.getDeptName() : "未知");
+            item.put("officeName", officeNames.getOrDefault(oid, "未知"));
             item.put("count", count);
             officeList.add(item);
         });

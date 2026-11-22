@@ -3277,4 +3277,49 @@ class CustomerServiceTest {
         assertNull(customer.getLastInvoiceDate(), "最近开票日保持置空");
         verify(customerMapper, never()).updateById(any(BizCustomer.class));
     }
+
+    @Test
+    void statisticsLoadsAggregateColumnsAndBatchesDeptLookup() {
+        // 【B3-PERF-001】统计只取 industry/office_id，部门名一次批量查询，禁止逐 office N+1。
+        BizCustomerMapper cm = mock(BizCustomerMapper.class);
+        SysDeptMapper dm = mock(SysDeptMapper.class);
+        OrgScopeResolver resolver = mock(OrgScopeResolver.class);
+        com.aigicrm.module.system.service.RolePermScopeService rps =
+                mock(com.aigicrm.module.system.service.RolePermScopeService.class);
+        when(rps.anchorOf(any(), eq("customer"), eq("view")))
+                .thenReturn(com.aigicrm.common.scope.ScopeRequest.AnchorType.OWNER);
+        when(resolver.resolveScope(any())).thenReturn(com.aigicrm.common.scope.ScopeDecision.all());
+        BizCustomer a = new BizCustomer(); a.setIndustry("A"); a.setOfficeId(4L);
+        BizCustomer b = new BizCustomer(); b.setIndustry(null); b.setOfficeId(4L);
+        BizCustomer c = new BizCustomer(); c.setIndustry("A "); c.setOfficeId(5L);
+        when(cm.selectList(any())).thenReturn(List.of(a, b, c));
+        com.aigicrm.module.system.entity.SysDept d4 = new com.aigicrm.module.system.entity.SysDept();
+        d4.setId(4L); d4.setDeptName("Office4");
+        com.aigicrm.module.system.entity.SysDept d5 = new com.aigicrm.module.system.entity.SysDept();
+        d5.setId(5L); d5.setDeptName("Office5");
+        when(dm.selectBatchIds(any())).thenReturn(List.of(d4, d5));
+        CustomerService svc = new CustomerService(
+                cm, mock(CustomerVisibilityService.class), mock(BizCustomerLogMapper.class),
+                mock(BizInvoiceMapper.class), mock(BizCustomerShareMapper.class),
+                mock(BizCustomerIndicatorMapper.class), mock(BizContactMapper.class),
+                mock(BizPaymentMapper.class), mock(com.aigicrm.module.customer.mapper.BizCustomerStageAmountMapper.class),
+                mock(com.aigicrm.module.sea.mapper.BizSeaPoolMapper.class), mock(SysUserMapper.class), dm,
+                mock(BizReminderMapper.class), mock(JdbcTemplate.class), mock(SysConfigService.class),
+                resolver, mock(CustomerAccessService.class), rps,
+                mock(com.aigicrm.module.approval.mapper.BizApprovalMapper.class),
+                mock(com.aigicrm.module.system.mapper.SysLogMapper.class),
+                mock(com.aigicrm.module.customer.service.CustomerEventService.class));
+        SecurityUser u = new SecurityUser();
+        u.setUserId(1L);
+        u.setPermissionRules(List.of());
+        try (MockedStatic<SecurityUtils> m = org.mockito.Mockito.mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::getCurrentUser).thenReturn(u);
+            Map<String, Object> res = svc.getStatistics();
+            assertEquals(3, res.get("total"));
+            assertEquals(2L, ((Map<?, ?>) res.get("industryStats")).get("A"));
+            assertEquals(1L, ((Map<?, ?>) res.get("industryStats")).get("未填写"));
+            verify(dm, times(1)).selectBatchIds(any());
+            verify(dm, never()).selectById(any());
+        }
+    }
 }
