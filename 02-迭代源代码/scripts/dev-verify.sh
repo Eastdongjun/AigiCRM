@@ -28,7 +28,7 @@ run() {
 
 latest_evidence_run() {
   local evidence_root
-  evidence_root="/Users/dongjun/东来/Agent/00-管理/项目执行/802fad80-8665-4b11-9f9d-04b92bda4666/runs"
+  evidence_root="/Users/dongjun/东来/Agent/00-治理/项目执行/802fad80-8665-4b11-9f9d-04b92bda4666/runs"
   [ -d "$evidence_root" ] || return 0
   # Shared runs can be created by different hosts, so the run-id clock is not
   # authoritative. Use the handoff file's filesystem update time instead.
@@ -41,7 +41,7 @@ latest_evidence_run() {
 
 evidence_history() {
   local evidence_root limit
-  evidence_root="/Users/dongjun/东来/Agent/00-管理/项目执行/802fad80-8665-4b11-9f9d-04b92bda4666/runs"
+  evidence_root="/Users/dongjun/东来/Agent/00-治理/项目执行/802fad80-8665-4b11-9f9d-04b92bda4666/runs"
   limit="${1:-5}"
   [ -d "$evidence_root" ] || {
     echo "No central evidence runs found."
@@ -91,7 +91,7 @@ evidence_history() {
 
 latest_sonar_evidence_summary() {
   local evidence_root log_file local_status qg_status exit_code
-  evidence_root="/Users/dongjun/东来/Agent/00-管理/项目执行/802fad80-8665-4b11-9f9d-04b92bda4666/runs"
+  evidence_root="/Users/dongjun/东来/Agent/00-治理/项目执行/802fad80-8665-4b11-9f9d-04b92bda4666/runs"
   [ -d "$evidence_root" ] || {
     echo "unavailable (no central evidence runs)"
     return 0

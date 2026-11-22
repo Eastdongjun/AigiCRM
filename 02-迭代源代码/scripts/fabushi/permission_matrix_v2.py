@@ -120,9 +120,13 @@ def _judge_a_anon(txt, status):
     return txt, '匹配', '匿名端点（无效 token 被拒绝亦可接受）' if status in (401, 403) else ''
 
 
-def _judge_a_rejected(txt, status):
+def _judge_a_rejected(txt, status, in_white):
     if status in (401, 403):
         return txt, '匹配', ''
+    # 【2026-11-21】H5 上传走 ticket 而非 JWT；缺 ticket 时参数解析先于鉴权返回 400。
+    # 伪造/过期 JWT 被忽略但未放行（2xx），属参数形状已解释，不是鉴权绕过。
+    if status == 400 and in_white:
+        return txt, '匹配', '鉴权前参数校验（ticket/参数形状）'
     if status >= 500:
         return txt, '不匹配', f'服务端 {status}'
     return txt, '不匹配', '无效/过期 token 未被拒绝'
@@ -160,7 +164,7 @@ def _judge_a(txt, status, expected, in_white, path):
     if expected in ('rejected', 'anon'):
         if expected == 'anon':
             return _judge_a_anon(txt, status)
-        return _judge_a_rejected(txt, status)
+        return _judge_a_rejected(txt, status, in_white)
     if expected == 'authorized':
         return _judge_a_authorized(txt, status, in_white, path)
     if expected == 'denied':
@@ -311,7 +315,9 @@ def build_a_cases_v2(cases, users, eps, tokens, forged, expired):
 def build_bc_cases_v2(cases, users, eps, tokens, no2xx):
     for u in users:
         for e in eps:
-            if '{' in e['path']:
+            # 【2026-11-21】B 组只做只读越权（GET），避免 DELETE/POST process 对真实资源产生副作用。
+            # 写越权另用一次性测试资源验证，不拿生产快照的真实客户/文件/提醒做破坏性探针。
+            if '{' in e['path'] and e['method'] == 'GET':
                 add_case(cases, u, e, 'B', 'other', tokens[u['id']])
     for u in users:
         for e in eps:
@@ -346,9 +352,12 @@ def execute_cases_v2(cases, args, pools, perms, uroles):
 def run_case_v2(c, args, pools, perms, uroles):
     u, e, group, mode = c['u'], c['e'], c['group'], c['mode']
     method, path = e['method'], e['path']
-    used_path, meta = prepare_injection_v2(c, u, pools, uroles)
-    if isinstance(used_path, dict):
-        return used_path
+    # prepare_injection_v2 有两种返回：提前终止行(dict) 或 (used_path, meta) 元组。
+    # 【2026-11-21 修复】此前直接解包，C 组 SKIP 行(dict)会触发 ValueError，40k 例处崩溃。
+    prepared = prepare_injection_v2(c, u, pools, uroles)
+    if isinstance(prepared, dict):
+        return prepared
+    used_path, meta = prepared
 
     status = call(args.base, method, used_path, c['token'], timeout=args.timeout)
     exp = expected_for_v2(c, mode, u, perms)

@@ -48,7 +48,7 @@ fi
 
 echo "=== [CMP-05/06/07] 契约登记与矩阵注记 ==="
 info "CMP-05 最低内核基线=微信内核 v140(K-ENG-FE-001 定档): polyfill 覆盖 Map/WeakMap upsert + Uint8Array toHex/fromBase64/toBase64/fromHex 家族; <140 内核不支持(已登记, 如有需求另立专项); fromBase64 签名 PDF 路径维持登记不修"
-info "CMP-06 真机矩阵: PDF 阅读+翻页已于 2026-11-22 用户真机回归通过(内核 140-144 区间); 机型扩展矩阵属手工项(低端安卓/iOS 抽样), 挂矩阵待办"
+info "CMP-06 真机矩阵: 待真机执行（REAL-DEVICE-CHECKLIST.md 仍 pending；iOS/Android 未完成前 GATE-AIGICRM-WEBVIEW-001 不得 PASS）；机型扩展矩阵属手工项(低端安卓/iOS 抽样), 挂矩阵待办"
 info "CMP-07 PC 浏览器: chromium 经 CMP-02 运行级+PERF-08 页面指标覆盖; Safari/Firefox 未测(内部 CRM 以 chromium 系为主), 按需扩展"
 
 echo "==> 兼容域回归: PASS=$PASS FAIL=$FAIL INFO=$INFO"

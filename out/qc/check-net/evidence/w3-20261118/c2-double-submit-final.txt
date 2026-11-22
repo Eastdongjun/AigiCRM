@@ -1,0 +1,3 @@
+# C2 双击最终结果（extraData="{}"，2026-11-18 21:02 UTC）
+DOUBLE_SUBMIT first=(200, '{"code":200,"data":null,"errorCode":null,"message":"success"}') second=(400, '{"code":400,"data":null,"errorCode":null,"message":"该客户已被他人申请捞取，正在审批中"}') expect=first-2xx+second-4xx
+# 判定 PASS

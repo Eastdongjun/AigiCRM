@@ -1,0 +1,1 @@
+DOUBLE_SUBMIT first=(500, '{"code":500,"data":null,"errorCode":null,"message":"数据访问异常，支持编号 S-20261119050118-92420"}') second=(500, '{"code":500,"data":null,"errorCode":null,"message":"数据访问异常，支持编号 S-20261119050118-fb36d"}') expect=first-2xx+second-4xx

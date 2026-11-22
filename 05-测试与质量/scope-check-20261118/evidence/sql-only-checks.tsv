@@ -1,0 +1,101 @@
+id	module	severity	desc	value	sample	status
+AUTH-01	认证/用户	P1	启用用户部门缺失/无效	0		PASS
+AUTH-02	认证/用户	P1	启用用户组织缺失/无效	0		PASS
+AUTH-03	认证/用户	P1	用户-角色绑定指向不存在角色	0		PASS
+AUTH-04	认证/用户	P2	用户-角色重复绑定	0		PASS
+AUTH-05	认证/用户	P1	角色 data_scope 非法值	0		PASS
+AUTH-06	认证/用户	P1	用户 data_scope_override 非法值	0		PASS
+AUTH-07	认证/用户	P1	用户名重复	0		PASS
+ORG-01	组织	P1	部门父节点不存在（非根）	0		PASS
+ORG-02	组织	P2	启用部门闭包缺自身行	0		PASS
+ORG-03	组织	P1	组织闭包指向不存在部门	0		PASS
+ORG-04	组织	P2	部门负责人指向不存在用户	0		PASS
+ORG-05	组织	P1	组织管理员指向不存在组织/用户	0		PASS
+PERM-02	权限	P1	范围行 USER 主体不存在	0		PASS
+PERM-03	权限	P1	范围级别非法值	0		PASS
+PERM-04	权限	P1	范围锚点非法值	0		PASS
+PERM-05	权限	P1	同一主体同一模块动作存在多套范围（歧义）	0		PASS
+PERM-06	权限	P2	范围行主体键为空	0		PASS
+PERM-07	权限	P1	组织范围明细指向不存在范围行/部门	0		PASS
+PERM-08	权限	P1	字段范围明细指向不存在范围行	0		PASS
+PERM-09	权限	P1	角色-菜单绑定孤儿	0		PASS
+CUS-01	客户	P1	客户负责人不存在	0		PASS
+CUS-02	客户	P1	客户部门不存在	0		PASS
+CUS-03	客户	P1	活跃客户编码重复	0		PASS
+CUS-05	客户	P1	客户状态非法值	0		PASS
+CUS-06	客户	P2	到期日早于注册日	0		PASS
+CUS-07	客户	P1	联系人孤儿	0		PASS
+CUS-08	客户	P1	分享记录孤儿或重复	0		PASS
+CUS-09	客户	P1	转移记录用户不存在	0		PASS
+CUS-10	客户	P1	阶段金额孤儿或负数	0		PASS
+CUS-11	客户	P1	开票孤儿/负数/作废无原因	0		PASS
+CUS-12	客户	P1	回款孤儿或负数	0		PASS
+CUS-13	客户	P2	客户事件/日志孤儿	0		PASS
+CUS-14	客户	P1	客户指标孤儿或重复	0		PASS
+CUS-15	客户	P1	公海客户无任何池记录	0		PASS
+CUS-16	客户	P1	活跃客户负责人为空	0		PASS
+SEA-01	公海	P1	池记录引用不存在池配置	0		PASS
+SEA-02	公海	P1	池权限范围引用不存在配置	0		PASS
+SEA-03	公海	P1	池区域引用不存在配置/部门	0		PASS
+SEA-04	公海	P2	同一客户存在多条 available 池记录	0		PASS
+APP-01	审批	P1	审批单客户不存在	0		PASS
+APP-02	审批	P1	审批节点孤儿	0		PASS
+APP-03	审批	P1	审批节点审批人不存在	0		PASS
+APP-04	审批	P1	审批状态非法值	0		PASS
+APP-05	审批	P1	已通过审批无通过节点	0		PASS
+APP-07	审批	P1	审批节点重复（同单同人同序）	0		PASS
+FIL-02	文件	P1	文件夹父节点不存在（非根）	0		PASS
+FIL-03	文件	P1	文件夹自指父节点	0		PASS
+FIL-04	文件	P1	文件版本孤儿或版本号重复	0		PASS
+FIL-05	文件	P1	文件分享孤儿或重复	0		PASS
+FIL-06	文件	P1	文件夹 ACL 孤儿	0		PASS
+FIL-07	文件	P1	文件上传人不存在	0		PASS
+FIL-08	文件	P1	文件 scope 非法值	0		PASS
+FIL-09	文件	P2	文件大小非正	0		PASS
+FIL-11	文件	P1	类型默认授权孤儿文件夹（仅非空 folder_id）	0		PASS
+INC-01	激励	P1	激励记录客户不存在	0		PASS
+INC-02	激励	P1	激励记录用户不存在	0		PASS
+INC-03	激励	P1	激励主文件引用不存在（file_id）	0		PASS
+INC-04	激励	P1	激励类别孤儿	0		PASS
+INC-06	激励	P1	激励周期为空	0		PASS
+INC-07	激励	P1	激励分数为负	0		PASS
+INC-08	激励	P1	已读记录孤儿	0		PASS
+INC-09	激励	P1	激励授权指向不存在用户	0		PASS
+SCO-01	积分	P1	积分条目孤儿	0		PASS
+SCO-03	积分	P1	积分参与人孤儿或重复	0		PASS
+SCO-04	积分	P1	积分超出条目上下限	0		PASS
+SCO-05	积分	P1	积分条目分数为负	0		PASS
+REM-01	提醒	P1	提醒负责人不存在	0		PASS
+REM-02	提醒	P1	提醒客户不存在	0		PASS
+REM-03	提醒	P2	同一客户/负责人存在多条待处理提醒	0		PASS
+REM-04	提醒	P1	已处理提醒无处理时间	0		PASS
+TAS-01	任务	P1	任务负责人/创建人/客户不存在	0		PASS
+TAS-02	任务	P1	任务状态非法值	0		PASS
+TAS-03	任务	P1	已完成任务无完成时间	0		PASS
+DRF-01	表单草稿	P1	草稿用户不存在	0		PASS
+DRF-03	表单草稿	P2	草稿版本号非正	0		PASS
+FAB-02	法布施	P1	内容书目/章节孤儿	0		PASS
+FAB-03	法布施	P1	内容附件文件不存在	0		PASS
+FAB-04	法布施	P1	评论主题/父评论孤儿	0		PASS
+FAB-05	法布施	P1	活动参与孤儿/重复	0		PASS
+FAB-06	法布施	P2	点赞/已读/书架/进度重复	0		PASS
+FAB-07	法布施	P1	章节自指父节点	0		PASS
+FAB-08	法布施	P1	书目/内容/活动状态非法值	0		PASS
+FAB-09	法布施	P1	内容状态非法值	0		PASS
+FAB-10	法布施	P1	活动状态非法值	0		PASS
+FAB-11	法布施	P1	阅读进度页码越界	0		PASS
+INC-03P	激励	P2	激励附件 JSON 引用不存在（Python 复核）	0		PASS
+PERM-01	权限	P2	范围行 ROLE 主体不存在（临时角色残留）	3		FINDING
+FIL-01	文件	P1	文件引用不存在文件夹	2		FINDING
+FIL-10	文件	P2	活跃文件 oss_key 重复	3		FINDING
+FAB-01	法布施	P2	阅读进度书不存在	42		FINDING
+AUTH-08	认证/用户	P2	已过期 token 黑名单残留（可清理）	83		INFO
+AUTH-09	认证/用户	P2	启用用户中仍要求强制改密	0		INFO
+CUS-04	客户	P2	活跃客户名称重复（迁移前存量，需 grandfather 核对）	3		INFO
+APP-06	审批	P2	申请人自审自批样本（需策略确认）	0		INFO
+INC-05	激励	P2	激励记录业务键重复（需业务确认）	91		INFO
+SCO-02	积分	P2	积分条目重复（需业务确认）	0		INFO
+REM-05	提醒	P2	overdue_days 为负（未到期天数，信息项）	24		INFO
+DRF-02	表单草稿	P2	同一用户同类型草稿重复	0		INFO
+STA-01	统计	P2	全量可见客户数（admin 口径，应 294）	294		INFO
+STA-02	统计	P2	开票金额合计与回款金额合计（信息）	192.54		INFO

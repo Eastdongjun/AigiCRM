@@ -1,0 +1,1364 @@
+{
+  "generated": "2026-11-18",
+  "head": "10a6aa99",
+  "domains": [
+    "1 认证",
+    "2 客户",
+    "3 生命周期/交接",
+    "4 公海",
+    "5 审批",
+    "6 文件",
+    "7 激励",
+    "8 积分",
+    "9 统计",
+    "10 提醒",
+    "11 任务/定时",
+    "12 表单草稿",
+    "13 回收站",
+    "14 系统管理",
+    "15 权限中心/数据范围",
+    "16 法布施",
+    "17 公共/支撑",
+    "18 部署/运维"
+  ],
+  "dimensions": [
+    {
+      "id": "D1",
+      "name": "业务链端到端"
+    },
+    {
+      "id": "D2",
+      "name": "模块与接口功能"
+    },
+    {
+      "id": "D3",
+      "name": "权限与人员"
+    },
+    {
+      "id": "D4",
+      "name": "数据一致性/对账"
+    },
+    {
+      "id": "D5",
+      "name": "文件与存储"
+    },
+    {
+      "id": "D6",
+      "name": "状态机/并发/幂等"
+    },
+    {
+      "id": "D7",
+      "name": "安全"
+    },
+    {
+      "id": "D8",
+      "name": "数据库合理性"
+    },
+    {
+      "id": "D9",
+      "name": "架构与代码"
+    },
+    {
+      "id": "D10",
+      "name": "前端与三端一致性"
+    },
+    {
+      "id": "D11",
+      "name": "非功能"
+    },
+    {
+      "id": "D12",
+      "name": "运维与可观测"
+    },
+    {
+      "id": "D13",
+      "name": "需求覆盖(RTM)"
+    }
+  ],
+  "cells": {
+    "1 认证|D1": {
+      "status": "U",
+      "evidence": null
+    },
+    "1 认证|D2": {
+      "status": "P",
+      "evidence": "JWT/权限单测 + 10-12 维度3/4"
+    },
+    "1 认证|D3": {
+      "status": "P",
+      "evidence": "JWT 单测；当前 HEAD E2E 未跑"
+    },
+    "1 认证|D4": {
+      "status": "U",
+      "evidence": null
+    },
+    "1 认证|D5": {
+      "status": "U",
+      "evidence": null
+    },
+    "1 认证|D6": {
+      "status": "U",
+      "evidence": null
+    },
+    "1 认证|D7": {
+      "status": "U",
+      "evidence": null
+    },
+    "1 认证|D8": {
+      "status": "U",
+      "evidence": null
+    },
+    "1 认证|D9": {
+      "status": "U",
+      "evidence": null
+    },
+    "1 认证|D10": {
+      "status": "U",
+      "evidence": null
+    },
+    "1 认证|D11": {
+      "status": "U",
+      "evidence": null
+    },
+    "1 认证|D12": {
+      "status": "U",
+      "evidence": null
+    },
+    "1 认证|D13": {
+      "status": "U",
+      "evidence": null
+    },
+    "2 客户|D1": {
+      "status": "U",
+      "evidence": null
+    },
+    "2 客户|D2": {
+      "status": "U",
+      "evidence": null
+    },
+    "2 客户|D3": {
+      "status": "P",
+      "evidence": "28 启用用户 customer:view；其余 3 轴未做"
+    },
+    "2 客户|D4": {
+      "status": "P",
+      "evidence": "counts 196/196；ID 集合 27/28；DEF-1 待修"
+    },
+    "2 客户|D5": {
+      "status": "U",
+      "evidence": null
+    },
+    "2 客户|D6": {
+      "status": "U",
+      "evidence": null
+    },
+    "2 客户|D7": {
+      "status": "U",
+      "evidence": null
+    },
+    "2 客户|D8": {
+      "status": "U",
+      "evidence": null
+    },
+    "2 客户|D9": {
+      "status": "U",
+      "evidence": null
+    },
+    "2 客户|D10": {
+      "status": "U",
+      "evidence": null
+    },
+    "2 客户|D11": {
+      "status": "U",
+      "evidence": null
+    },
+    "2 客户|D12": {
+      "status": "U",
+      "evidence": null
+    },
+    "2 客户|D13": {
+      "status": "U",
+      "evidence": null
+    },
+    "3 生命周期/交接|D1": {
+      "status": "P",
+      "evidence": "11-17 1 单/回滚；范围与默认审批人缺口"
+    },
+    "3 生命周期/交接|D2": {
+      "status": "U",
+      "evidence": null
+    },
+    "3 生命周期/交接|D3": {
+      "status": "U",
+      "evidence": null
+    },
+    "3 生命周期/交接|D4": {
+      "status": "U",
+      "evidence": null
+    },
+    "3 生命周期/交接|D5": {
+      "status": "U",
+      "evidence": null
+    },
+    "3 生命周期/交接|D6": {
+      "status": "U",
+      "evidence": null
+    },
+    "3 生命周期/交接|D7": {
+      "status": "U",
+      "evidence": null
+    },
+    "3 生命周期/交接|D8": {
+      "status": "U",
+      "evidence": null
+    },
+    "3 生命周期/交接|D9": {
+      "status": "U",
+      "evidence": null
+    },
+    "3 生命周期/交接|D10": {
+      "status": "U",
+      "evidence": null
+    },
+    "3 生命周期/交接|D11": {
+      "status": "U",
+      "evidence": null
+    },
+    "3 生命周期/交接|D12": {
+      "status": "U",
+      "evidence": null
+    },
+    "3 生命周期/交接|D13": {
+      "status": "U",
+      "evidence": null
+    },
+    "4 公海|D1": {
+      "status": "U",
+      "evidence": null
+    },
+    "4 公海|D2": {
+      "status": "U",
+      "evidence": null
+    },
+    "4 公海|D3": {
+      "status": "U",
+      "evidence": null
+    },
+    "4 公海|D4": {
+      "status": "U",
+      "evidence": null
+    },
+    "4 公海|D5": {
+      "status": "U",
+      "evidence": null
+    },
+    "4 公海|D6": {
+      "status": "U",
+      "evidence": null
+    },
+    "4 公海|D7": {
+      "status": "U",
+      "evidence": null
+    },
+    "4 公海|D8": {
+      "status": "U",
+      "evidence": null
+    },
+    "4 公海|D9": {
+      "status": "U",
+      "evidence": null
+    },
+    "4 公海|D10": {
+      "status": "U",
+      "evidence": null
+    },
+    "4 公海|D11": {
+      "status": "U",
+      "evidence": null
+    },
+    "4 公海|D12": {
+      "status": "U",
+      "evidence": null
+    },
+    "4 公海|D13": {
+      "status": "U",
+      "evidence": null
+    },
+    "5 审批|D1": {
+      "status": "P",
+      "evidence": "10-12 链 + SQL-only 7；B6/M1 未决"
+    },
+    "5 审批|D2": {
+      "status": "U",
+      "evidence": null
+    },
+    "5 审批|D3": {
+      "status": "U",
+      "evidence": null
+    },
+    "5 审批|D4": {
+      "status": "U",
+      "evidence": null
+    },
+    "5 审批|D5": {
+      "status": "U",
+      "evidence": null
+    },
+    "5 审批|D6": {
+      "status": "U",
+      "evidence": null
+    },
+    "5 审批|D7": {
+      "status": "U",
+      "evidence": null
+    },
+    "5 审批|D8": {
+      "status": "U",
+      "evidence": null
+    },
+    "5 审批|D9": {
+      "status": "U",
+      "evidence": null
+    },
+    "5 审批|D10": {
+      "status": "U",
+      "evidence": null
+    },
+    "5 审批|D11": {
+      "status": "U",
+      "evidence": null
+    },
+    "5 审批|D12": {
+      "status": "U",
+      "evidence": null
+    },
+    "5 审批|D13": {
+      "status": "U",
+      "evidence": null
+    },
+    "6 文件|D1": {
+      "status": "U",
+      "evidence": null
+    },
+    "6 文件|D2": {
+      "status": "U",
+      "evidence": null
+    },
+    "6 文件|D3": {
+      "status": "P",
+      "evidence": "11-17 治理 + grants；MP perms 未验"
+    },
+    "6 文件|D4": {
+      "status": "U",
+      "evidence": null
+    },
+    "6 文件|D5": {
+      "status": "P",
+      "evidence": "reconcile 2632/2632；A8 三方未做"
+    },
+    "6 文件|D6": {
+      "status": "U",
+      "evidence": null
+    },
+    "6 文件|D7": {
+      "status": "U",
+      "evidence": null
+    },
+    "6 文件|D8": {
+      "status": "U",
+      "evidence": null
+    },
+    "6 文件|D9": {
+      "status": "U",
+      "evidence": null
+    },
+    "6 文件|D10": {
+      "status": "U",
+      "evidence": null
+    },
+    "6 文件|D11": {
+      "status": "U",
+      "evidence": null
+    },
+    "6 文件|D12": {
+      "status": "U",
+      "evidence": null
+    },
+    "6 文件|D13": {
+      "status": "U",
+      "evidence": null
+    },
+    "7 激励|D1": {
+      "status": "U",
+      "evidence": null
+    },
+    "7 激励|D2": {
+      "status": "P",
+      "evidence": "单测 10 类 + SQL-only 9；M2 period 未决"
+    },
+    "7 激励|D3": {
+      "status": "U",
+      "evidence": null
+    },
+    "7 激励|D4": {
+      "status": "U",
+      "evidence": null
+    },
+    "7 激励|D5": {
+      "status": "U",
+      "evidence": null
+    },
+    "7 激励|D6": {
+      "status": "U",
+      "evidence": null
+    },
+    "7 激励|D7": {
+      "status": "U",
+      "evidence": null
+    },
+    "7 激励|D8": {
+      "status": "U",
+      "evidence": null
+    },
+    "7 激励|D9": {
+      "status": "U",
+      "evidence": null
+    },
+    "7 激励|D10": {
+      "status": "U",
+      "evidence": null
+    },
+    "7 激励|D11": {
+      "status": "U",
+      "evidence": null
+    },
+    "7 激励|D12": {
+      "status": "U",
+      "evidence": null
+    },
+    "7 激励|D13": {
+      "status": "U",
+      "evidence": null
+    },
+    "8 积分|D1": {
+      "status": "U",
+      "evidence": null
+    },
+    "8 积分|D2": {
+      "status": "U",
+      "evidence": null
+    },
+    "8 积分|D3": {
+      "status": "U",
+      "evidence": null
+    },
+    "8 积分|D4": {
+      "status": "U",
+      "evidence": null
+    },
+    "8 积分|D5": {
+      "status": "U",
+      "evidence": null
+    },
+    "8 积分|D6": {
+      "status": "U",
+      "evidence": null
+    },
+    "8 积分|D7": {
+      "status": "U",
+      "evidence": null
+    },
+    "8 积分|D8": {
+      "status": "U",
+      "evidence": null
+    },
+    "8 积分|D9": {
+      "status": "U",
+      "evidence": null
+    },
+    "8 积分|D10": {
+      "status": "U",
+      "evidence": null
+    },
+    "8 积分|D11": {
+      "status": "U",
+      "evidence": null
+    },
+    "8 积分|D12": {
+      "status": "U",
+      "evidence": null
+    },
+    "8 积分|D13": {
+      "status": "U",
+      "evidence": null
+    },
+    "9 统计|D1": {
+      "status": "U",
+      "evidence": null
+    },
+    "9 统计|D2": {
+      "status": "U",
+      "evidence": null
+    },
+    "9 统计|D3": {
+      "status": "U",
+      "evidence": null
+    },
+    "9 统计|D4": {
+      "status": "P",
+      "evidence": "10-12 对账 + STA-01；B12 未决"
+    },
+    "9 统计|D5": {
+      "status": "U",
+      "evidence": null
+    },
+    "9 统计|D6": {
+      "status": "U",
+      "evidence": null
+    },
+    "9 统计|D7": {
+      "status": "U",
+      "evidence": null
+    },
+    "9 统计|D8": {
+      "status": "U",
+      "evidence": null
+    },
+    "9 统计|D9": {
+      "status": "U",
+      "evidence": null
+    },
+    "9 统计|D10": {
+      "status": "U",
+      "evidence": null
+    },
+    "9 统计|D11": {
+      "status": "U",
+      "evidence": null
+    },
+    "9 统计|D12": {
+      "status": "U",
+      "evidence": null
+    },
+    "9 统计|D13": {
+      "status": "U",
+      "evidence": null
+    },
+    "10 提醒|D1": {
+      "status": "U",
+      "evidence": null
+    },
+    "10 提醒|D2": {
+      "status": "P",
+      "evidence": "单测 + SQL-only 5；L6/L7 未决"
+    },
+    "10 提醒|D3": {
+      "status": "U",
+      "evidence": null
+    },
+    "10 提醒|D4": {
+      "status": "U",
+      "evidence": null
+    },
+    "10 提醒|D5": {
+      "status": "U",
+      "evidence": null
+    },
+    "10 提醒|D6": {
+      "status": "U",
+      "evidence": null
+    },
+    "10 提醒|D7": {
+      "status": "U",
+      "evidence": null
+    },
+    "10 提醒|D8": {
+      "status": "U",
+      "evidence": null
+    },
+    "10 提醒|D9": {
+      "status": "U",
+      "evidence": null
+    },
+    "10 提醒|D10": {
+      "status": "U",
+      "evidence": null
+    },
+    "10 提醒|D11": {
+      "status": "U",
+      "evidence": null
+    },
+    "10 提醒|D12": {
+      "status": "U",
+      "evidence": null
+    },
+    "10 提醒|D13": {
+      "status": "U",
+      "evidence": null
+    },
+    "11 任务/定时|D1": {
+      "status": "U",
+      "evidence": null
+    },
+    "11 任务/定时|D2": {
+      "status": "P",
+      "evidence": "单测；任务列表 0 条，系统级未验"
+    },
+    "11 任务/定时|D3": {
+      "status": "U",
+      "evidence": null
+    },
+    "11 任务/定时|D4": {
+      "status": "U",
+      "evidence": null
+    },
+    "11 任务/定时|D5": {
+      "status": "U",
+      "evidence": null
+    },
+    "11 任务/定时|D6": {
+      "status": "U",
+      "evidence": null
+    },
+    "11 任务/定时|D7": {
+      "status": "U",
+      "evidence": null
+    },
+    "11 任务/定时|D8": {
+      "status": "U",
+      "evidence": null
+    },
+    "11 任务/定时|D9": {
+      "status": "U",
+      "evidence": null
+    },
+    "11 任务/定时|D10": {
+      "status": "U",
+      "evidence": null
+    },
+    "11 任务/定时|D11": {
+      "status": "U",
+      "evidence": null
+    },
+    "11 任务/定时|D12": {
+      "status": "U",
+      "evidence": null
+    },
+    "11 任务/定时|D13": {
+      "status": "U",
+      "evidence": null
+    },
+    "12 表单草稿|D1": {
+      "status": "U",
+      "evidence": null
+    },
+    "12 表单草稿|D2": {
+      "status": "U",
+      "evidence": null
+    },
+    "12 表单草稿|D3": {
+      "status": "U",
+      "evidence": null
+    },
+    "12 表单草稿|D4": {
+      "status": "U",
+      "evidence": null
+    },
+    "12 表单草稿|D5": {
+      "status": "U",
+      "evidence": null
+    },
+    "12 表单草稿|D6": {
+      "status": "U",
+      "evidence": null
+    },
+    "12 表单草稿|D7": {
+      "status": "U",
+      "evidence": null
+    },
+    "12 表单草稿|D8": {
+      "status": "U",
+      "evidence": null
+    },
+    "12 表单草稿|D9": {
+      "status": "U",
+      "evidence": null
+    },
+    "12 表单草稿|D10": {
+      "status": "U",
+      "evidence": null
+    },
+    "12 表单草稿|D11": {
+      "status": "U",
+      "evidence": null
+    },
+    "12 表单草稿|D12": {
+      "status": "U",
+      "evidence": null
+    },
+    "12 表单草稿|D13": {
+      "status": "U",
+      "evidence": null
+    },
+    "13 回收站|D1": {
+      "status": "P",
+      "evidence": "40 单测 + 迁移后 API；B9 未决"
+    },
+    "13 回收站|D2": {
+      "status": "U",
+      "evidence": null
+    },
+    "13 回收站|D3": {
+      "status": "U",
+      "evidence": null
+    },
+    "13 回收站|D4": {
+      "status": "U",
+      "evidence": null
+    },
+    "13 回收站|D5": {
+      "status": "U",
+      "evidence": null
+    },
+    "13 回收站|D6": {
+      "status": "U",
+      "evidence": null
+    },
+    "13 回收站|D7": {
+      "status": "U",
+      "evidence": null
+    },
+    "13 回收站|D8": {
+      "status": "U",
+      "evidence": null
+    },
+    "13 回收站|D9": {
+      "status": "U",
+      "evidence": null
+    },
+    "13 回收站|D10": {
+      "status": "U",
+      "evidence": null
+    },
+    "13 回收站|D11": {
+      "status": "U",
+      "evidence": null
+    },
+    "13 回收站|D12": {
+      "status": "U",
+      "evidence": null
+    },
+    "13 回收站|D13": {
+      "status": "U",
+      "evidence": null
+    },
+    "14 系统管理|D1": {
+      "status": "U",
+      "evidence": null
+    },
+    "14 系统管理|D2": {
+      "status": "U",
+      "evidence": null
+    },
+    "14 系统管理|D3": {
+      "status": "P",
+      "evidence": "10-12 维度4 + 11-12 专项；当前 HEAD UI 未拍"
+    },
+    "14 系统管理|D4": {
+      "status": "U",
+      "evidence": null
+    },
+    "14 系统管理|D5": {
+      "status": "U",
+      "evidence": null
+    },
+    "14 系统管理|D6": {
+      "status": "U",
+      "evidence": null
+    },
+    "14 系统管理|D7": {
+      "status": "U",
+      "evidence": null
+    },
+    "14 系统管理|D8": {
+      "status": "U",
+      "evidence": null
+    },
+    "14 系统管理|D9": {
+      "status": "U",
+      "evidence": null
+    },
+    "14 系统管理|D10": {
+      "status": "U",
+      "evidence": null
+    },
+    "14 系统管理|D11": {
+      "status": "U",
+      "evidence": null
+    },
+    "14 系统管理|D12": {
+      "status": "U",
+      "evidence": null
+    },
+    "14 系统管理|D13": {
+      "status": "U",
+      "evidence": null
+    },
+    "15 权限中心/数据范围|D1": {
+      "status": "U",
+      "evidence": null
+    },
+    "15 权限中心/数据范围|D2": {
+      "status": "U",
+      "evidence": null
+    },
+    "15 权限中心/数据范围|D3": {
+      "status": "P",
+      "evidence": "客户 28 用户 + 法布施 4 用户；12+ 域未做"
+    },
+    "15 权限中心/数据范围|D4": {
+      "status": "U",
+      "evidence": null
+    },
+    "15 权限中心/数据范围|D5": {
+      "status": "U",
+      "evidence": null
+    },
+    "15 权限中心/数据范围|D6": {
+      "status": "U",
+      "evidence": null
+    },
+    "15 权限中心/数据范围|D7": {
+      "status": "U",
+      "evidence": null
+    },
+    "15 权限中心/数据范围|D8": {
+      "status": "U",
+      "evidence": null
+    },
+    "15 权限中心/数据范围|D9": {
+      "status": "U",
+      "evidence": null
+    },
+    "15 权限中心/数据范围|D10": {
+      "status": "U",
+      "evidence": null
+    },
+    "15 权限中心/数据范围|D11": {
+      "status": "U",
+      "evidence": null
+    },
+    "15 权限中心/数据范围|D12": {
+      "status": "U",
+      "evidence": null
+    },
+    "15 权限中心/数据范围|D13": {
+      "status": "U",
+      "evidence": null
+    },
+    "16 法布施|D1": {
+      "status": "U",
+      "evidence": null
+    },
+    "16 法布施|D2": {
+      "status": "P",
+      "evidence": "11-16 五轮 + 291 端点；当前 HEAD 未重跑"
+    },
+    "16 法布施|D3": {
+      "status": "P",
+      "evidence": "4 用户 × 9 端点抽查；收窄档未做"
+    },
+    "16 法布施|D4": {
+      "status": "P",
+      "evidence": "24.3k 三项全零；当前 HEAD 未重跑"
+    },
+    "16 法布施|D5": {
+      "status": "U",
+      "evidence": null
+    },
+    "16 法布施|D6": {
+      "status": "U",
+      "evidence": null
+    },
+    "16 法布施|D7": {
+      "status": "U",
+      "evidence": null
+    },
+    "16 法布施|D8": {
+      "status": "U",
+      "evidence": null
+    },
+    "16 法布施|D9": {
+      "status": "U",
+      "evidence": null
+    },
+    "16 法布施|D10": {
+      "status": "U",
+      "evidence": null
+    },
+    "16 法布施|D11": {
+      "status": "U",
+      "evidence": null
+    },
+    "16 法布施|D12": {
+      "status": "U",
+      "evidence": null
+    },
+    "16 法布施|D13": {
+      "status": "U",
+      "evidence": null
+    },
+    "17 公共/支撑|D1": {
+      "status": "X",
+      "reason": "支撑域无独立业务链/数据面"
+    },
+    "17 公共/支撑|D2": {
+      "status": "P",
+      "evidence": "单测/架构守卫"
+    },
+    "17 公共/支撑|D3": {
+      "status": "X",
+      "reason": "支撑域无独立业务链/数据面"
+    },
+    "17 公共/支撑|D4": {
+      "status": "X",
+      "reason": "支撑域无独立业务链/数据面"
+    },
+    "17 公共/支撑|D5": {
+      "status": "X",
+      "reason": "支撑域无独立业务链/数据面"
+    },
+    "17 公共/支撑|D6": {
+      "status": "X",
+      "reason": "支撑域无独立业务链/数据面"
+    },
+    "17 公共/支撑|D7": {
+      "status": "X",
+      "reason": "支撑域无独立业务链/数据面"
+    },
+    "17 公共/支撑|D8": {
+      "status": "X",
+      "reason": "支撑域无独立业务链/数据面"
+    },
+    "17 公共/支撑|D9": {
+      "status": "P",
+      "evidence": "ArchitectureTest/StabilityInvariant"
+    },
+    "17 公共/支撑|D10": {
+      "status": "X",
+      "reason": "支撑域无独立业务链/数据面"
+    },
+    "17 公共/支撑|D11": {
+      "status": "X",
+      "reason": "支撑域无独立业务链/数据面"
+    },
+    "17 公共/支撑|D12": {
+      "status": "U",
+      "evidence": null
+    },
+    "17 公共/支撑|D13": {
+      "status": "X",
+      "reason": "支撑域无独立业务链/数据面"
+    },
+    "18 部署/运维|D1": {
+      "status": "X",
+      "reason": "非代码域（脚本/容器/迁移）"
+    },
+    "18 部署/运维|D2": {
+      "status": "X",
+      "reason": "非代码域（脚本/容器/迁移）"
+    },
+    "18 部署/运维|D3": {
+      "status": "X",
+      "reason": "非代码域（脚本/容器/迁移）"
+    },
+    "18 部署/运维|D4": {
+      "status": "X",
+      "reason": "非代码域（脚本/容器/迁移）"
+    },
+    "18 部署/运维|D5": {
+      "status": "X",
+      "reason": "非代码域（脚本/容器/迁移）"
+    },
+    "18 部署/运维|D6": {
+      "status": "X",
+      "reason": "非代码域（脚本/容器/迁移）"
+    },
+    "18 部署/运维|D7": {
+      "status": "X",
+      "reason": "非代码域（脚本/容器/迁移）"
+    },
+    "18 部署/运维|D8": {
+      "status": "X",
+      "reason": "非代码域（脚本/容器/迁移）"
+    },
+    "18 部署/运维|D9": {
+      "status": "X",
+      "reason": "非代码域（脚本/容器/迁移）"
+    },
+    "18 部署/运维|D10": {
+      "status": "X",
+      "reason": "非代码域（脚本/容器/迁移）"
+    },
+    "18 部署/运维|D11": {
+      "status": "X",
+      "reason": "非代码域（脚本/容器/迁移）"
+    },
+    "18 部署/运维|D12": {
+      "status": "P",
+      "evidence": "阶段 A 11 轮/3 窗口/生产七项快照/回滚链"
+    },
+    "18 部署/运维|D13": {
+      "status": "X",
+      "reason": "非代码域（脚本/容器/迁移）"
+    }
+  },
+  "chains": [
+    "L1 登录认证",
+    "L2 客户生命周期",
+    "L3 公海",
+    "L4 审批",
+    "L5 文件",
+    "L6 激励",
+    "L7 统计",
+    "L8 提醒",
+    "L9 系统管理",
+    "L10 任务/回收/草稿",
+    "L11 小程序",
+    "L12 法布施",
+    "L13 生命周期交接"
+  ],
+  "stages": [
+    "入口可见",
+    "提交/动作",
+    "后端状态/DB",
+    "跨端反映",
+    "负例/守卫",
+    "补偿/回滚"
+  ],
+  "chain_cells": {
+    "L1 登录认证|入口可见": {
+      "status": "P",
+      "evidence": "10-12 维度3/4"
+    },
+    "L1 登录认证|提交/动作": {
+      "status": "P",
+      "evidence": "JWT 单测"
+    },
+    "L1 登录认证|后端状态/DB": {
+      "status": "U",
+      "evidence": null
+    },
+    "L1 登录认证|跨端反映": {
+      "status": "U",
+      "evidence": null
+    },
+    "L1 登录认证|负例/守卫": {
+      "status": "U",
+      "evidence": null
+    },
+    "L1 登录认证|补偿/回滚": {
+      "status": "U",
+      "evidence": null
+    },
+    "L2 客户生命周期|入口可见": {
+      "status": "P",
+      "evidence": "28 用户列表/计数"
+    },
+    "L2 客户生命周期|提交/动作": {
+      "status": "P",
+      "evidence": "客户新建/编辑单测"
+    },
+    "L2 客户生命周期|后端状态/DB": {
+      "status": "P",
+      "evidence": "counts 196/196"
+    },
+    "L2 客户生命周期|跨端反映": {
+      "status": "U",
+      "evidence": null
+    },
+    "L2 客户生命周期|负例/守卫": {
+      "status": "U",
+      "evidence": null
+    },
+    "L2 客户生命周期|补偿/回滚": {
+      "status": "U",
+      "evidence": null
+    },
+    "L3 公海|入口可见": {
+      "status": "U",
+      "evidence": null
+    },
+    "L3 公海|提交/动作": {
+      "status": "U",
+      "evidence": null
+    },
+    "L3 公海|后端状态/DB": {
+      "status": "U",
+      "evidence": null
+    },
+    "L3 公海|跨端反映": {
+      "status": "U",
+      "evidence": null
+    },
+    "L3 公海|负例/守卫": {
+      "status": "U",
+      "evidence": null
+    },
+    "L3 公海|补偿/回滚": {
+      "status": "U",
+      "evidence": null
+    },
+    "L4 审批|入口可见": {
+      "status": "U",
+      "evidence": null
+    },
+    "L4 审批|提交/动作": {
+      "status": "U",
+      "evidence": null
+    },
+    "L4 审批|后端状态/DB": {
+      "status": "U",
+      "evidence": null
+    },
+    "L4 审批|跨端反映": {
+      "status": "U",
+      "evidence": null
+    },
+    "L4 审批|负例/守卫": {
+      "status": "U",
+      "evidence": null
+    },
+    "L4 审批|补偿/回滚": {
+      "status": "U",
+      "evidence": null
+    },
+    "L5 文件|入口可见": {
+      "status": "P",
+      "evidence": "file list/grants"
+    },
+    "L5 文件|提交/动作": {
+      "status": "P",
+      "evidence": "11-17 治理"
+    },
+    "L5 文件|后端状态/DB": {
+      "status": "P",
+      "evidence": "reconcile 2632/2632"
+    },
+    "L5 文件|跨端反映": {
+      "status": "P",
+      "evidence": "MP perms 未验"
+    },
+    "L5 文件|负例/守卫": {
+      "status": "U",
+      "evidence": null
+    },
+    "L5 文件|补偿/回滚": {
+      "status": "U",
+      "evidence": null
+    },
+    "L6 激励|入口可见": {
+      "status": "U",
+      "evidence": null
+    },
+    "L6 激励|提交/动作": {
+      "status": "U",
+      "evidence": null
+    },
+    "L6 激励|后端状态/DB": {
+      "status": "U",
+      "evidence": null
+    },
+    "L6 激励|跨端反映": {
+      "status": "U",
+      "evidence": null
+    },
+    "L6 激励|负例/守卫": {
+      "status": "U",
+      "evidence": null
+    },
+    "L6 激励|补偿/回滚": {
+      "status": "U",
+      "evidence": null
+    },
+    "L7 统计|入口可见": {
+      "status": "U",
+      "evidence": null
+    },
+    "L7 统计|提交/动作": {
+      "status": "U",
+      "evidence": null
+    },
+    "L7 统计|后端状态/DB": {
+      "status": "U",
+      "evidence": null
+    },
+    "L7 统计|跨端反映": {
+      "status": "U",
+      "evidence": null
+    },
+    "L7 统计|负例/守卫": {
+      "status": "U",
+      "evidence": null
+    },
+    "L7 统计|补偿/回滚": {
+      "status": "U",
+      "evidence": null
+    },
+    "L8 提醒|入口可见": {
+      "status": "U",
+      "evidence": null
+    },
+    "L8 提醒|提交/动作": {
+      "status": "U",
+      "evidence": null
+    },
+    "L8 提醒|后端状态/DB": {
+      "status": "U",
+      "evidence": null
+    },
+    "L8 提醒|跨端反映": {
+      "status": "U",
+      "evidence": null
+    },
+    "L8 提醒|负例/守卫": {
+      "status": "U",
+      "evidence": null
+    },
+    "L8 提醒|补偿/回滚": {
+      "status": "U",
+      "evidence": null
+    },
+    "L9 系统管理|入口可见": {
+      "status": "U",
+      "evidence": null
+    },
+    "L9 系统管理|提交/动作": {
+      "status": "U",
+      "evidence": null
+    },
+    "L9 系统管理|后端状态/DB": {
+      "status": "U",
+      "evidence": null
+    },
+    "L9 系统管理|跨端反映": {
+      "status": "U",
+      "evidence": null
+    },
+    "L9 系统管理|负例/守卫": {
+      "status": "U",
+      "evidence": null
+    },
+    "L9 系统管理|补偿/回滚": {
+      "status": "U",
+      "evidence": null
+    },
+    "L10 任务/回收/草稿|入口可见": {
+      "status": "U",
+      "evidence": null
+    },
+    "L10 任务/回收/草稿|提交/动作": {
+      "status": "U",
+      "evidence": null
+    },
+    "L10 任务/回收/草稿|后端状态/DB": {
+      "status": "U",
+      "evidence": null
+    },
+    "L10 任务/回收/草稿|跨端反映": {
+      "status": "U",
+      "evidence": null
+    },
+    "L10 任务/回收/草稿|负例/守卫": {
+      "status": "U",
+      "evidence": null
+    },
+    "L10 任务/回收/草稿|补偿/回滚": {
+      "status": "U",
+      "evidence": null
+    },
+    "L11 小程序|入口可见": {
+      "status": "U",
+      "evidence": null
+    },
+    "L11 小程序|提交/动作": {
+      "status": "U",
+      "evidence": null
+    },
+    "L11 小程序|后端状态/DB": {
+      "status": "U",
+      "evidence": null
+    },
+    "L11 小程序|跨端反映": {
+      "status": "U",
+      "evidence": null
+    },
+    "L11 小程序|负例/守卫": {
+      "status": "U",
+      "evidence": null
+    },
+    "L11 小程序|补偿/回滚": {
+      "status": "U",
+      "evidence": null
+    },
+    "L12 法布施|入口可见": {
+      "status": "P",
+      "evidence": "11-16 五轮"
+    },
+    "L12 法布施|提交/动作": {
+      "status": "P",
+      "evidence": "291 端点"
+    },
+    "L12 法布施|后端状态/DB": {
+      "status": "P",
+      "evidence": "24.3k 三项全零"
+    },
+    "L12 法布施|跨端反映": {
+      "status": "U",
+      "evidence": null
+    },
+    "L12 法布施|负例/守卫": {
+      "status": "U",
+      "evidence": null
+    },
+    "L12 法布施|补偿/回滚": {
+      "status": "U",
+      "evidence": null
+    },
+    "L13 生命周期交接|入口可见": {
+      "status": "U",
+      "evidence": null
+    },
+    "L13 生命周期交接|提交/动作": {
+      "status": "U",
+      "evidence": null
+    },
+    "L13 生命周期交接|后端状态/DB": {
+      "status": "U",
+      "evidence": null
+    },
+    "L13 生命周期交接|跨端反映": {
+      "status": "U",
+      "evidence": null
+    },
+    "L13 生命周期交接|负例/守卫": {
+      "status": "U",
+      "evidence": null
+    },
+    "L13 生命周期交接|补偿/回滚": {
+      "status": "U",
+      "evidence": null
+    }
+  },
+  "stats": {
+    "l1": {
+      "U": 191,
+      "P": 21,
+      "X": 22
+    },
+    "l3": {
+      "P": 12,
+      "U": 66
+    }
+  }
+}

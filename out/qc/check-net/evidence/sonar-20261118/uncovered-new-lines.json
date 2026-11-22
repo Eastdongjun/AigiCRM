@@ -1,0 +1,3757 @@
+{
+  "total_new_lines_to_cover": 1031,
+  "total_new_uncovered": 449,
+  "new_coverage": 56.45004849660524,
+  "files": [
+    {
+      "key": "Eastdongjun_AigiCRM-local:02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/approval/controller/ApprovalController.java",
+      "to_cover": 2,
+      "uncovered": 2,
+      "uncovered_lines": [
+        {
+          "line": 84,
+          "code": "if (params != null && params.get(LIT_EXTENDDAYS) != null && !params.get(LIT_EXTENDDAYS).isBlank()) {"
+        },
+        {
+          "line": 86,
+          "code": "extendDays = Integer.valueOf(params.get(LIT_EXTENDDAYS).trim());"
+        }
+      ],
+      "new_non_instruction_lines": [
+        {
+          "line": 19,
+          "code": "// P0-5 batch A: duplicated string literals (Sonar java:S1192)"
+        },
+        {
+          "line": 20,
+          "code": "private static final String LIT_EXTENDDAYS = \"extendDays\";"
+        },
+        {
+          "line": 21,
+          "code": ""
+        }
+      ]
+    },
+    {
+      "key": "Eastdongjun_AigiCRM-local:02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/approval/service/ApprovalService.java",
+      "to_cover": 80,
+      "uncovered": 14,
+      "uncovered_lines": [
+        {
+          "line": 98,
+          "code": "if (LIT_PENDING.equals(tab)) {"
+        },
+        {
+          "line": 103,
+          "code": ".eq(BizApprovalNode::getStatus, LIT_PENDING)"
+        },
+        {
+          "line": 112,
+          "code": "} else if (LIT_REVIEWING.equals(tab) || LIT_APPROVED.equals(tab) || LIT_REJECTED.equals(tab)) {"
+        },
+        {
+          "line": 160,
+          "code": ".eq(BizApprovalNode::getStatus, LIT_PENDING)"
+        },
+        {
+          "line": 206,
+          "code": "throw new BusinessException(LIT_X);"
+        },
+        {
+          "line": 221,
+          "code": "if (invalid && (LIT_PENDING.equals(node.getStatus()) || LIT_WAITING.equals(node.getStatus()))) {"
+        },
+        {
+          "line": 226,
+          "code": "if (LIT_PENDING.equals(node.getStatus()) || LIT_WAITING.equals(node.getStatus())) {"
+        },
+        {
+          "line": 233,
+          "code": "result.put(LIT_APPROVAL, approval);"
+        },
+        {
+          "line": 237,
+          "code": ".filter(n -> LIT_PENDING.equals(n.getStatus()))"
+        },
+        {
+          "line": 250,
+          "code": "List<Long> visible = scopeResolver.resolveModuleUsers(SecurityUtils.getCurrentUser(), \"approval\");"
+        },
+        {
+          "line": 459,
+          "code": "node.setStatus(LIT_PENDING);"
+        },
+        {
+          "line": 471,
+          "code": "node.setStatus(LIT_PENDING);"
+        },
+        {
+          "line": 795,
+          "code": ".eq(BizSeaPool::getStatus, LIT_PENDING_APPROVAL)"
+        },
+        {
+          "line": 798,
+          "code": "pool.setStatus(LIT_AVAILABLE);"
+        }
+      ],
+      "new_non_instruction_lines": [
+        {
+          "line": 46,
+          "code": "// P0-5 batch A: duplicated string literals (Sonar java:S1192)"
+        },
+        {
+          "line": 47,
+          "code": "private static final String LIT_PENDING = \"pending\";"
+        },
+        {
+          "line": 48,
+          "code": "private static final String LIT_STORAGE = \"storage\";"
+        },
+        {
+          "line": 49,
+          "code": "private static final String LIT_EXTEND = \"extend\";"
+        },
+        {
+          "line": 50,
+          "code": "private static final String LIT_CLAIM = \"claim\";"
+        },
+        {
+          "line": 51,
+          "code": "private static final String LIT_TRANSFER = \"transfer\";"
+        },
+        {
+          "line": 52,
+          "code": "private static final String LIT_REVIEWING = \"reviewing\";"
+        },
+        {
+          "line": 53,
+          "code": "private static final String LIT_EXTENDDAYS = \"extendDays\";"
+        },
+        {
+          "line": 54,
+          "code": "private static final String LIT_APPROVED = \"approved\";"
+        },
+        {
+          "line": 55,
+          "code": "private static final String LIT_REJECTED = \"rejected\";"
+        },
+        {
+          "line": 56,
+          "code": "private static final String LIT_APPROVAL = \"approval\";"
+        },
+        {
+          "line": 57,
+          "code": "private static final String LIT_WAITING = \"waiting\";"
+        },
+        {
+          "line": 58,
+          "code": "private static final String LIT_X = \"资源不存在或无权访问\";"
+        },
+        {
+          "line": 59,
+          "code": "private static final String LIT_PENDING_APPROVAL = \"pending_approval\";"
+        },
+        {
+          "line": 60,
+          "code": "private static final String LIT_AVAILABLE = \"available\";"
+        },
+        {
+          "line": 61,
+          "code": ""
+        },
+        {
+          "line": 898,
+          "code": "case LIT_CLAIM -> {"
+        },
+        {
+          "line": 902,
+          "code": "case LIT_EXTEND -> {"
+        },
+        {
+          "line": 936,
+          "code": "case LIT_TRANSFER -> {"
+        },
+        {
+          "line": 998,
+          "code": "case LIT_STORAGE -> {"
+        }
+      ]
+    },
+    {
+      "key": "Eastdongjun_AigiCRM-local:02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/auth/controller/AuthController.java",
+      "to_cover": 5,
+      "uncovered": 5,
+      "uncovered_lines": [
+        {
+          "line": 50,
+          "code": "if (ua == null) return LIT_UNKNOWN;"
+        },
+        {
+          "line": 51,
+          "code": "String browser = LIT_UNKNOWN;"
+        },
+        {
+          "line": 52,
+          "code": "String os = LIT_UNKNOWN;"
+        },
+        {
+          "line": 53,
+          "code": "if (ua.contains(LIT_CHROME) && !ua.contains(\"Edg\")) browser = LIT_CHROME;"
+        },
+        {
+          "line": 56,
+          "code": "else if (ua.contains(\"Safari\") && !ua.contains(LIT_CHROME)) browser = \"Safari\";"
+        }
+      ],
+      "new_non_instruction_lines": [
+        {
+          "line": 19,
+          "code": "// P0-5 batch A: duplicated string literals (Sonar java:S1192)"
+        },
+        {
+          "line": 20,
+          "code": "private static final String LIT_UNKNOWN = \"Unknown\";"
+        },
+        {
+          "line": 21,
+          "code": "private static final String LIT_CHROME = \"Chrome\";"
+        },
+        {
+          "line": 22,
+          "code": ""
+        }
+      ]
+    },
+    {
+      "key": "Eastdongjun_AigiCRM-local:02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java",
+      "to_cover": 6,
+      "uncovered": 5,
+      "uncovered_lines": [
+        {
+          "line": 352,
+          "code": "if (!SecurityUtils.hasAuthority(LIT_FINANCE_VIEW)) {"
+        },
+        {
+          "line": 508,
+          "code": "if (!SecurityUtils.hasAuthority(LIT_FINANCE_VIEW)) return Result.ok(List.of());"
+        },
+        {
+          "line": 516,
+          "code": "if (!SecurityUtils.hasAuthority(LIT_FINANCE_VIEW)) return Result.ok(Map.of(\"totalCount\", 0, \"totalAmount\", 0));"
+        },
+        {
+          "line": 629,
+          "code": ".excludeColumnFieldNames(List.of(\"deleted\", LIT_CREATEDAT, \"updatedAt\", \"id\"))"
+        },
+        {
+          "line": 647,
+          "code": "result.put(LIT_CREATEDAT, info.getOrDefault(LIT_CREATEDAT, \"\"));"
+        }
+      ],
+      "new_non_instruction_lines": [
+        {
+          "line": 30,
+          "code": "// P0-5 batch A: duplicated string literals (Sonar java:S1192)"
+        },
+        {
+          "line": 31,
+          "code": "private static final String LIT_FINANCE_VIEW = \"finance:view\";"
+        },
+        {
+          "line": 32,
+          "code": "private static final String LIT_CREATEDAT = \"createdAt\";"
+        },
+        {
+          "line": 33,
+          "code": ""
+        }
+      ]
+    },
+    {
+      "key": "Eastdongjun_AigiCRM-local:02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/service/CustomerService.java",
+      "to_cover": 114,
+      "uncovered": 39,
+      "uncovered_lines": [
+        {
+          "line": 326,
+          "code": "allW.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, \"sea\", LIT_ARCHIVED); // B5 统一口径: 排sea+archived"
+        },
+        {
+          "line": 333,
+          "code": ".eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, \"sea\", LIT_ARCHIVED) // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)"
+        },
+        {
+          "line": 844,
+          "code": "recycleBinService.record(LIT_CUSTOMER, id, snap, \"用户删除\", \"user\");"
+        },
+        {
+          "line": 907,
+          "code": ".in(com.aigicrm.module.approval.entity.BizApproval::getStatus, \"reviewing\", LIT_PENDING));"
+        },
+        {
+          "line": 1057,
+          "code": "applyDataScopeAndAutoShareFor(wrapper, scopeUser, getAutoShareOwnerIdsFor(scopeUser));"
+        },
+        {
+          "line": 1058,
+          "code": "}"
+        },
+        {
+          "line": 1070,
+          "code": "wrapper.eq(BizCustomer::getOwnerId, -1L);"
+        },
+        {
+          "line": 1071,
+          "code": "return;"
+        },
+        {
+          "line": 1095,
+          "code": "} else if (!extra.isEmpty()) {"
+        },
+        {
+          "line": 1096,
+          "code": "wrapper.in(BizCustomer::getOwnerId, extra);"
+        },
+        {
+          "line": 1098,
+          "code": "wrapper.eq(BizCustomer::getDeptId, -1L); // 空集合: 不可见"
+        },
+        {
+          "line": 1162,
+          "code": "w.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, \"sea\", LIT_ARCHIVED); // B5 统一口径: 排sea+archived"
+        },
+        {
+          "line": 1178,
+          "code": "w.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, \"sea\", LIT_ARCHIVED);"
+        },
+        {
+          "line": 1179,
+          "code": "applyDataScopeAndAutoShareFor(w, target);"
+        },
+        {
+          "line": 1187,
+          "code": "w.eq(BizCustomer::getDeleted, 0).eq(BizCustomer::getProtectionStatus, LIT_ACTIVE)"
+        },
+        {
+          "line": 1188,
+          "code": ".notIn(BizCustomer::getStatus, \"sea\", LIT_ARCHIVED);"
+        },
+        {
+          "line": 1196,
+          "code": ".notIn(BizCustomer::getStatus, \"sea\", LIT_ARCHIVED);"
+        },
+        {
+          "line": 1227,
+          "code": "w.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, \"sea\", LIT_ARCHIVED) // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)"
+        },
+        {
+          "line": 1244,
+          "code": "w.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, \"sea\", LIT_ARCHIVED) // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)"
+        },
+        {
+          "line": 1267,
+          "code": "w.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, \"sea\", LIT_ARCHIVED) // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)"
+        },
+        {
+          "line": 1302,
+          "code": "wrapper.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, \"sea\", LIT_ARCHIVED); // B5 统一口径: 排sea+archived"
+        },
+        {
+          "line": 1310,
+          "code": "wrapper.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, \"sea\", LIT_ARCHIVED); // B5 统一口径: 排sea+archived"
+        },
+        {
+          "line": 1316,
+          "code": "wrapper.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, \"sea\", LIT_ARCHIVED); // B5 统一口径: 排sea+archived"
+        },
+        {
+          "line": 1401,
+          "code": "String ruleWhere = PermissionRuleEngine.evaluateForEntity(user.getPermissionRules(), user, LIT_CUSTOMER);"
+        },
+        {
+          "line": 1589,
+          "code": ".ne(BizInvoice::getStatus, LIT_VOIDED)"
+        },
+        {
+          "line": 1591,
+          "code": ".last(LIT_LIMIT_1));"
+        },
+        {
+          "line": 1620,
+          "code": "throw new BusinessException(LIT_X_2);"
+        },
+        {
+          "line": 1622,
+          "code": "if (!LIT_PENDING.equals(invoice.getStatus())) {"
+        },
+        {
+          "line": 1640,
+          "code": "throw new BusinessException(LIT_X_2);"
+        },
+        {
+          "line": 1657,
+          "code": "throw new BusinessException(LIT_X_3);"
+        },
+        {
+          "line": 1659,
+          "code": "if (!LIT_PENDING.equals(payment.getStatus())) {"
+        },
+        {
+          "line": 1677,
+          "code": "throw new BusinessException(LIT_X_3);"
+        },
+        {
+          "line": 1679,
+          "code": "if (LIT_VOIDED.equals(payment.getStatus())) {"
+        },
+        {
+          "line": 1682,
+          "code": "payment.setStatus(LIT_VOIDED);"
+        },
+        {
+          "line": 2226,
+          "code": "r.setReminderType(LIT_SHARE_TO);"
+        },
+        {
+          "line": 2228,
+          "code": "r.setStatus(LIT_PENDING);"
+        },
+        {
+          "line": 2237,
+          "code": "r2.setStatus(LIT_PENDING);"
+        },
+        {
+          "line": 2249,
+          "code": "r3.setStatus(LIT_PENDING);"
+        },
+        {
+          "line": 2374,
+          "code": ".last(LIT_LIMIT_1));"
+        }
+      ],
+      "new_non_instruction_lines": [
+        {
+          "line": 41,
+          "code": "// P0-5 batch A: duplicated string literals (Sonar java:S1192)"
+        },
+        {
+          "line": 42,
+          "code": "private static final String LIT_CUSTOMER = \"customer\";"
+        },
+        {
+          "line": 43,
+          "code": "private static final String LIT_ARCHIVED = \"archived\";"
+        },
+        {
+          "line": 44,
+          "code": "private static final String LIT_NORMAL = \"normal\";"
+        },
+        {
+          "line": 45,
+          "code": "private static final String LIT_ACTIVE = \"active\";"
+        },
+        {
+          "line": 46,
+          "code": "private static final String LIT_PENDING = \"pending\";"
+        },
+        {
+          "line": 47,
+          "code": "private static final String LIT_X = \"客户不存在\";"
+        },
+        {
+          "line": 48,
+          "code": "private static final String LIT_SHARE_TO = \"share_to\";"
+        },
+        {
+          "line": 49,
+          "code": "private static final String LIT_VOIDED = \"voided\";"
+        },
+        {
+          "line": 50,
+          "code": "private static final String LIT_X_2 = \"发票不存在或不属于该客户\";"
+        },
+        {
+          "line": 51,
+          "code": "private static final String LIT_X_3 = \"回款不存在或不属于该客户\";"
+        },
+        {
+          "line": 52,
+          "code": "private static final String LIT_LIMIT_1 = \"LIMIT 1\";"
+        },
+        {
+          "line": 53,
+          "code": ""
+        },
+        {
+          "line": 1043,
+          "code": "/** B1-A 2026-11-18：auto_share 只扩不缩——office 档（全办事处）不再被 superior/roles 收窄。 */"
+        },
+        {
+          "line": 1044,
+          "code": "private boolean isOfficeScopeFor(com.aigicrm.security.SecurityUser scopeUser) {"
+        },
+        {
+          "line": 1047,
+          "code": "}"
+        },
+        {
+          "line": 1048,
+          "code": ""
+        },
+        {
+          "line": 1049,
+          "code": "/** B1-A 2026-11-18：数据范围 + auto_share 合并为一组 (base OR share)，auto_share 只扩不缩。 */"
+        },
+        {
+          "line": 1050,
+          "code": "private void applyDataScopeAndAutoShare(LambdaQueryWrapper<BizCustomer> wrapper) {"
+        },
+        {
+          "line": 1054,
+          "code": "/** 【D2 修复】按指定用户解析，预览与列表同口径。 */"
+        },
+        {
+          "line": 1055,
+          "code": "private void applyDataScopeAndAutoShareFor(LambdaQueryWrapper<BizCustomer> wrapper,"
+        },
+        {
+          "line": 1056,
+          "code": "com.aigicrm.security.SecurityUser scopeUser) {"
+        },
+        {
+          "line": 1059,
+          "code": ""
+        },
+        {
+          "line": 1060,
+          "code": "private void applyDataScopeAndAutoShareFor(LambdaQueryWrapper<BizCustomer> wrapper,"
+        },
+        {
+          "line": 1061,
+          "code": "com.aigicrm.security.SecurityUser scopeUser,"
+        },
+        {
+          "line": 1062,
+          "code": "java.util.List<Long> shareOwnerIds) {"
+        },
+        {
+          "line": 1066,
+          "code": "}"
+        },
+        {
+          "line": 1072,
+          "code": "}"
+        },
+        {
+          "line": 1077,
+          "code": "} else {"
+        },
+        {
+          "line": 1079,
+          "code": "}"
+        },
+        {
+          "line": 1080,
+          "code": "}"
+        },
+        {
+          "line": 1081,
+          "code": "// 规则引擎：追加运行时 WHERE 条件（与统一层 AND 合并，追加条件层）"
+        },
+        {
+          "line": 1084,
+          "code": ""
+        },
+        {
+          "line": 1085,
+          "code": "/** ORG 锚点：部门基础范围 OR auto_share 扩展 owner（只扩不缩）。 */"
+        },
+        {
+          "line": 1086,
+          "code": "private void applyOrgScopeWithShare(LambdaQueryWrapper<BizCustomer> wrapper,"
+        },
+        {
+          "line": 1087,
+          "code": "com.aigicrm.common.scope.ScopeDecision d,"
+        },
+        {
+          "line": 1088,
+          "code": "java.util.List<Long> extra) {"
+        },
+        {
+          "line": 1097,
+          "code": "} else {"
+        },
+        {
+          "line": 1099,
+          "code": "}"
+        },
+        {
+          "line": 1101,
+          "code": ""
+        },
+        {
+          "line": 1102,
+          "code": "/** OWNER 锚点：base∪share 合并为单个 IN（只扩不缩）。 */"
+        },
+        {
+          "line": 1103,
+          "code": "private void applyOwnerScopeWithShare(LambdaQueryWrapper<BizCustomer> wrapper,"
+        },
+        {
+          "line": 1104,
+          "code": "com.aigicrm.common.scope.ScopeDecision d,"
+        },
+        {
+          "line": 1105,
+          "code": "java.util.List<Long> extra) {"
+        },
+        {
+          "line": 1113,
+          "code": "/** auto_share 的\"扩展部分\"：已在基础范围内的 owner 不重复加入；office 档不扩不缩。 */"
+        },
+        {
+          "line": 1114,
+          "code": "private java.util.List<Long> applicableAutoShareOwnerIds(com.aigicrm.security.SecurityUser scopeUser,"
+        },
+        {
+          "line": 1115,
+          "code": "com.aigicrm.common.scope.ScopeDecision d,"
+        },
+        {
+          "line": 1116,
+          "code": "java.util.List<Long> shareOwnerIds) {"
+        },
+        {
+          "line": 1130,
+          "code": "/** 【D2 修复 2026-11-16】客户查看范围统一解析请求（列表/预览/auto_share 共用，不再各写一套）。 */"
+        }
+      ]
+    },
+    {
+      "key": "Eastdongjun_AigiCRM-local:02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/service/CustomerVisibilityService.java",
+      "to_cover": 3,
+      "uncovered": 1,
+      "uncovered_lines": [
+        {
+          "line": 57,
+          "code": "String code = auth.actionCodeOf(LIT_CUSTOMER, \"view\");"
+        }
+      ],
+      "new_non_instruction_lines": [
+        {
+          "line": 33,
+          "code": "// P0-5 batch A: duplicated string literals (Sonar java:S1192)"
+        },
+        {
+          "line": 34,
+          "code": "private static final String LIT_CUSTOMER = \"customer\";"
+        },
+        {
+          "line": 35,
+          "code": ""
+        }
+      ]
+    },
+    {
+      "key": "Eastdongjun_AigiCRM-local:02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/service/FabushiActivityService.java",
+      "to_cover": 8,
+      "uncovered": 8,
+      "uncovered_lines": [
+        {
+          "line": 47,
+          "code": "m.put(\"id\", a.getId()); m.put(LIT_TITLE, a.getTitle()); m.put(LIT_BOOKID, a.getBookId());"
+        },
+        {
+          "line": 48,
+          "code": "m.put(\"bookTitle\", titles.get(a.getBookId())); m.put(LIT_DESCRIPTION, a.getDescription());"
+        },
+        {
+          "line": 49,
+          "code": "m.put(LIT_STARTDATE, a.getStartDate()); m.put(LIT_ENDDATE, a.getEndDate()); m.put(\"status\", a.getStatus());"
+        },
+        {
+          "line": 72,
+          "code": "String title = body == null || body.get(LIT_TITLE) == null ? null : String.valueOf(body.get(LIT_TITLE)).trim();"
+        },
+        {
+          "line": 73,
+          "code": "Long bookId = body == null || body.get(LIT_BOOKID) == null ? null : Long.valueOf(String.valueOf(body.get(LIT_BOOKID)));"
+        },
+        {
+          "line": 78,
+          "code": "a.setDescription(body.get(LIT_DESCRIPTION) == null ? null : String.valueOf(body.get(LIT_DESCRIPTION)));"
+        },
+        {
+          "line": 79,
+          "code": "a.setStartDate(body.get(LIT_STARTDATE) == null ? LocalDate.now() : LocalDate.parse(String.valueOf(body.get(LIT_STARTDATE))));"
+        },
+        {
+          "line": 80,
+          "code": "a.setEndDate(body.get(LIT_ENDDATE) == null ? LocalDate.now().plusDays(30) : LocalDate.parse(String.valueOf(body.get(LIT_ENDDATE))));"
+        }
+      ],
+      "new_non_instruction_lines": [
+        {
+          "line": 23,
+          "code": "// P0-5 batch A: duplicated string literals (Sonar java:S1192)"
+        },
+        {
+          "line": 24,
+          "code": "private static final String LIT_BOOKID = \"bookId\";"
+        },
+        {
+          "line": 25,
+          "code": "private static final String LIT_TITLE = \"title\";"
+        },
+        {
+          "line": 26,
+          "code": "private static final String LIT_DESCRIPTION = \"description\";"
+        },
+        {
+          "line": 27,
+          "code": "private static final String LIT_STARTDATE = \"startDate\";"
+        },
+        {
+          "line": 28,
+          "code": "private static final String LIT_ENDDATE = \"endDate\";"
+        },
+        {
+          "line": 29,
+          "code": ""
+        }
+      ]
+    },
+    {
+      "key": "Eastdongjun_AigiCRM-local:02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/service/FabushiBookService.java",
+      "to_cover": 8,
+      "uncovered": 7,
+      "uncovered_lines": [
+        {
+          "line": 78,
+          "code": "if (!LIT_APPROVED.equals(book.getStatus())"
+        },
+        {
+          "line": 88,
+          "code": "String st = (status == null || status.isBlank()) ? LIT_APPROVED : status;"
+        },
+        {
+          "line": 90,
+          "code": "if (!LIT_APPROVED.equals(st) && !canManage) st = LIT_APPROVED;"
+        },
+        {
+          "line": 125,
+          "code": "book.setStatus(LIT_APPROVED);"
+        },
+        {
+          "line": 130,
+          "code": "securityAuditService.permissionChange(\"fabushi_book_approve\", LIT_BOOK + id + \":\" + book.getTitle());"
+        },
+        {
+          "line": 144,
+          "code": "securityAuditService.permissionChange(\"fabushi_book_reject\", LIT_BOOK + id + \":\" + book.getTitle());"
+        },
+        {
+          "line": 153,
+          "code": "securityAuditService.permissionChange(\"fabushi_book_disable\", LIT_BOOK + id + \":\" + book.getTitle());"
+        }
+      ],
+      "new_non_instruction_lines": [
+        {
+          "line": 31,
+          "code": "// P0-5 batch A: duplicated string literals (Sonar java:S1192)"
+        },
+        {
+          "line": 32,
+          "code": "private static final String LIT_BOOK = \"book:\";"
+        },
+        {
+          "line": 33,
+          "code": "private static final String LIT_APPROVED = \"approved\";"
+        },
+        {
+          "line": 34,
+          "code": ""
+        }
+      ]
+    },
+    {
+      "key": "Eastdongjun_AigiCRM-local:02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/service/FabushiDashboardService.java",
+      "to_cover": 67,
+      "uncovered": 20,
+      "uncovered_lines": [
+        {
+          "line": 68,
+          "code": "boolean month = LIT_MONTH.equalsIgnoreCase(period);"
+        },
+        {
+          "line": 75,
+          "code": "data.put(\"period\", month ? LIT_MONTH : \"week\");"
+        },
+        {
+          "line": 77,
+          "code": "data.put(LIT_MEMBERCOUNT, visible == null ? -1 : visible.size());"
+        },
+        {
+          "line": 80,
+          "code": "data.put(LIT_COVERAGEPCT, null);"
+        },
+        {
+          "line": 84,
+          "code": "data.put(LIT_RANKING, List.of());"
+        },
+        {
+          "line": 85,
+          "code": "data.put(LIT_DEPTPROGRESS, List.of());"
+        },
+        {
+          "line": 87,
+          "code": "data.put(LIT_TREND, List.of());"
+        },
+        {
+          "line": 92,
+          "code": ".eq(BizFabushiPost::getStatus, LIT_PUBLISHED)"
+        },
+        {
+          "line": 103,
+          "code": ".eq(BizFabushiComment::getStatus, LIT_PUBLISHED)"
+        },
+        {
+          "line": 118,
+          "code": "data.put(LIT_COVERAGEPCT, visible == null ? null"
+        },
+        {
+          "line": 128,
+          "code": "data.put(LIT_RANKING, buildRanking(visible, periodPosts, periodReads, startAt));"
+        },
+        {
+          "line": 131,
+          "code": "data.put(LIT_DEPTPROGRESS, buildDeptProgress(visible, periodPosts, periodLikes, periodComments, periodReads));"
+        },
+        {
+          "line": 151,
+          "code": "row.put(LIT_COUNT, e.getValue());"
+        },
+        {
+          "line": 171,
+          "code": "row.put(LIT_COUNT, e.getValue().size());"
+        },
+        {
+          "line": 174,
+          "code": "data.put(LIT_TREND, trend);"
+        },
+        {
+          "line": 355,
+          "code": "row.put(LIT_DEPTNAME, depts.getOrDefault(u.getDeptId(), \"—\"));"
+        },
+        {
+          "line": 356,
+          "code": "row.put(LIT_POSTCOUNT, p);"
+        },
+        {
+          "line": 358,
+          "code": "row.put(LIT_READDAYS, readDays.getOrDefault(uid, Set.of()).size());"
+        },
+        {
+          "line": 450,
+          "code": "c = Long.compare(((Number) b.get(LIT_READUSERS)).longValue(), ((Number) a.get(LIT_READUSERS)).longValue());"
+        },
+        {
+          "line": 452,
+          "code": "return Long.compare(((Number) b.get(LIT_MEMBERCOUNT)).longValue(), ((Number) a.get(LIT_MEMBERCOUNT)).longValue());"
+        }
+      ],
+      "new_non_instruction_lines": [
+        {
+          "line": 39,
+          "code": "// P0-5 batch A: duplicated string literals (Sonar java:S1192)"
+        },
+        {
+          "line": 40,
+          "code": "private static final String LIT_MONTH = \"month\";"
+        },
+        {
+          "line": 41,
+          "code": "private static final String LIT_MEMBERCOUNT = \"memberCount\";"
+        },
+        {
+          "line": 42,
+          "code": "private static final String LIT_COVERAGEPCT = \"coveragePct\";"
+        },
+        {
+          "line": 43,
+          "code": "private static final String LIT_RANKING = \"ranking\";"
+        },
+        {
+          "line": 44,
+          "code": "private static final String LIT_DEPTPROGRESS = \"deptProgress\";"
+        },
+        {
+          "line": 45,
+          "code": "private static final String LIT_TREND = \"trend\";"
+        },
+        {
+          "line": 46,
+          "code": "private static final String LIT_PUBLISHED = \"published\";"
+        },
+        {
+          "line": 47,
+          "code": "private static final String LIT_COUNT = \"count\";"
+        },
+        {
+          "line": 48,
+          "code": "private static final String LIT_POSTS = \"posts\";"
+        },
+        {
+          "line": 49,
+          "code": "private static final String LIT_LIKES = \"likes\";"
+        },
+        {
+          "line": 50,
+          "code": "private static final String LIT_COMMENTS = \"comments\";"
+        },
+        {
+          "line": 51,
+          "code": "private static final String LIT_READUSERS = \"readUsers\";"
+        },
+        {
+          "line": 52,
+          "code": "private static final String LIT_DEPTNAME = \"deptName\";"
+        },
+        {
+          "line": 53,
+          "code": "private static final String LIT_POSTCOUNT = \"postCount\";"
+        },
+        {
+          "line": 54,
+          "code": "private static final String LIT_READDAYS = \"readDays\";"
+        },
+        {
+          "line": 55,
+          "code": ""
+        }
+      ]
+    },
+    {
+      "key": "Eastdongjun_AigiCRM-local:02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/service/FabushiPostService.java",
+      "to_cover": 26,
+      "uncovered": 26,
+      "uncovered_lines": [
+        {
+          "line": 68,
+          "code": "boolean publishedOnly = !manageAllowed || status == null || status.isBlank() || LIT_PUBLISHED.equals(status);"
+        },
+        {
+          "line": 70,
+          "code": ".eq(BizFabushiPost::getStatus, publishedOnly ? LIT_PUBLISHED : status)"
+        },
+        {
+          "line": 96,
+          "code": "post.setContent(body.get(LIT_CONTENT) == null ? null : String.valueOf(body.get(LIT_CONTENT)));"
+        },
+        {
+          "line": 110,
+          "code": "Object content = body == null ? null : body.get(LIT_CONTENT);"
+        },
+        {
+          "line": 119,
+          "code": "if (post == null || !LIT_PUBLISHED.equals(post.getStatus())) {"
+        },
+        {
+          "line": 120,
+          "code": "throw new BusinessException(404, LIT_X);"
+        },
+        {
+          "line": 136,
+          "code": "if (post == null || !LIT_PUBLISHED.equals(post.getStatus())) throw new BusinessException(404, LIT_X);"
+        },
+        {
+          "line": 140,
+          "code": "Long fileId = body == null || body.get(LIT_FILEID) == null ? null : Long.valueOf(String.valueOf(body.get(LIT_FILEID)));"
+        },
+        {
+          "line": 141,
+          "code": "String fileType = body == null || body.get(LIT_FILETYPE) == null ? null : String.valueOf(body.get(LIT_FILETYPE));"
+        },
+        {
+          "line": 153,
+          "code": "if (body.get(LIT_DURATIONSECONDS) != null) row.setDurationSeconds(Integer.parseInt(String.valueOf(body.get(LIT_DURATIONSECONDS))));"
+        },
+        {
+          "line": 155,
+          "code": "return Map.of(\"id\", row.getId(), LIT_FILEID, fileId, LIT_FILETYPE, fileType);"
+        },
+        {
+          "line": 162,
+          "code": "if (post == null) throw new BusinessException(404, LIT_X_2);"
+        },
+        {
+          "line": 181,
+          "code": "m.put(\"id\", row.getId()); m.put(\"postId\", row.getPostId()); m.put(LIT_FILEID, row.getFileId());"
+        },
+        {
+          "line": 182,
+          "code": "m.put(LIT_FILETYPE, row.getFileType()); m.put(LIT_DURATIONSECONDS, row.getDurationSeconds());"
+        },
+        {
+          "line": 204,
+          "code": "post.setStatus(LIT_PUBLISHED);"
+        },
+        {
+          "line": 217,
+          "code": "throw new BusinessException(404, LIT_X_2);"
+        },
+        {
+          "line": 232,
+          "code": "throw new BusinessException(404, LIT_X_2);"
+        },
+        {
+          "line": 239,
+          "code": ".set(BizFabushiPost::getStatus, LIT_PUBLISHED)"
+        },
+        {
+          "line": 249,
+          "code": "if (post == null || !LIT_PUBLISHED.equals(post.getStatus())) {"
+        },
+        {
+          "line": 250,
+          "code": "throw new BusinessException(404, LIT_X);"
+        },
+        {
+          "line": 260,
+          "code": "comment.setStatus(LIT_PUBLISHED);"
+        },
+        {
+          "line": 269,
+          "code": ".eq(BizFabushiComment::getStatus, LIT_PUBLISHED)"
+        },
+        {
+          "line": 295,
+          "code": "if (post == null || !LIT_PUBLISHED.equals(post.getStatus())) {"
+        },
+        {
+          "line": 296,
+          "code": "throw new BusinessException(404, LIT_X);"
+        },
+        {
+          "line": 326,
+          "code": "throw new BusinessException(404, LIT_X_2);"
+        },
+        {
+          "line": 370,
+          "code": ".eq(BizFabushiComment::getStatus, LIT_PUBLISHED).in(BizFabushiComment::getPostId, postIds)).stream()"
+        }
+      ],
+      "new_non_instruction_lines": [
+        {
+          "line": 40,
+          "code": "// P0-5 batch A: duplicated string literals (Sonar java:S1192)"
+        },
+        {
+          "line": 41,
+          "code": "private static final String LIT_PUBLISHED = \"published\";"
+        },
+        {
+          "line": 42,
+          "code": "private static final String LIT_X = \"内容不存在或已下架\";"
+        },
+        {
+          "line": 43,
+          "code": "private static final String LIT_FILEID = \"fileId\";"
+        },
+        {
+          "line": 44,
+          "code": "private static final String LIT_FILETYPE = \"fileType\";"
+        },
+        {
+          "line": 45,
+          "code": "private static final String LIT_DURATIONSECONDS = \"durationSeconds\";"
+        },
+        {
+          "line": 46,
+          "code": "private static final String LIT_X_2 = \"内容不存在\";"
+        },
+        {
+          "line": 47,
+          "code": "private static final String LIT_CONTENT = \"content\";"
+        },
+        {
+          "line": 48,
+          "code": ""
+        }
+      ]
+    },
+    {
+      "key": "Eastdongjun_AigiCRM-local:02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/service/FabushiReadingService.java",
+      "to_cover": 17,
+      "uncovered": 17,
+      "uncovered_lines": [
+        {
+          "line": 67,
+          "code": "m.put(LIT_LASTSECTIONID, row.getLastSectionId());"
+        },
+        {
+          "line": 68,
+          "code": "m.put(LIT_LASTPAGE, p == null ? 1 : p.getLastPage());"
+        },
+        {
+          "line": 69,
+          "code": "m.put(LIT_TOTALPAGES, p == null ? null : p.getTotalPages());"
+        },
+        {
+          "line": 96,
+          "code": "if (body.get(LIT_LASTSECTIONID) != null) row.setLastSectionId(Long.valueOf(String.valueOf(body.get(LIT_LASTSECTIONID))));"
+        },
+        {
+          "line": 113,
+          "code": "m.put(LIT_LASTPAGE, row == null || row.getLastPage() == null ? 1 : row.getLastPage());"
+        },
+        {
+          "line": 114,
+          "code": "m.put(LIT_TOTALPAGES, row == null ? null : row.getTotalPages());"
+        },
+        {
+          "line": 121,
+          "code": "int lastPage = body != null && body.get(LIT_LASTPAGE) != null ? Integer.parseInt(String.valueOf(body.get(LIT_LASTPAGE))) : 1;"
+        },
+        {
+          "line": 123,
+          "code": "Integer totalPages = body != null && body.get(LIT_TOTALPAGES) != null ? Integer.parseInt(String.valueOf(body.get(LIT_TOTALPAGES))) : null;"
+        },
+        {
+          "line": 165,
+          "code": "m.put(LIT_REMINDERENABLED, row == null ? 0 : row.getReminderEnabled());"
+        },
+        {
+          "line": 166,
+          "code": "m.put(LIT_FREQCODE, row == null ? LIT_DAILY : row.getFreqCode());"
+        },
+        {
+          "line": 167,
+          "code": "m.put(LIT_REMINDTIME, row == null ? \"20:00\" : row.getRemindTime());"
+        },
+        {
+          "line": 168,
+          "code": "m.put(LIT_SOUNDENABLED, row == null ? 1 : row.getSoundEnabled());"
+        },
+        {
+          "line": 175,
+          "code": "String freq = body != null && body.get(LIT_FREQCODE) != null ? String.valueOf(body.get(LIT_FREQCODE)) : LIT_DAILY;"
+        },
+        {
+          "line": 176,
+          "code": "if (!Set.of(LIT_DAILY, \"weekday\", \"weekend\").contains(freq)) throw new BusinessException(400, \"提醒频率不合法\");"
+        },
+        {
+          "line": 177,
+          "code": "String time = body != null && body.get(LIT_REMINDTIME) != null ? String.valueOf(body.get(LIT_REMINDTIME)) : \"20:00\";"
+        },
+        {
+          "line": 179,
+          "code": "int enabled = body != null && body.get(LIT_REMINDERENABLED) != null ? Integer.parseInt(String.valueOf(body.get(LIT_REMINDERENABLED))) : 0;"
+        },
+        {
+          "line": 180,
+          "code": "int sound = body != null && body.get(LIT_SOUNDENABLED) != null ? Integer.parseInt(String.valueOf(body.get(LIT_SOUNDENABLED))) : 1;"
+        }
+      ],
+      "new_non_instruction_lines": [
+        {
+          "line": 22,
+          "code": "// P0-5 batch A: duplicated string literals (Sonar java:S1192)"
+        },
+        {
+          "line": 23,
+          "code": "private static final String LIT_LASTSECTIONID = \"lastSectionId\";"
+        },
+        {
+          "line": 24,
+          "code": "private static final String LIT_LASTPAGE = \"lastPage\";"
+        },
+        {
+          "line": 25,
+          "code": "private static final String LIT_TOTALPAGES = \"totalPages\";"
+        },
+        {
+          "line": 26,
+          "code": "private static final String LIT_REMINDERENABLED = \"reminderEnabled\";"
+        },
+        {
+          "line": 27,
+          "code": "private static final String LIT_DAILY = \"daily\";"
+        },
+        {
+          "line": 28,
+          "code": "private static final String LIT_FREQCODE = \"freqCode\";"
+        },
+        {
+          "line": 29,
+          "code": "private static final String LIT_REMINDTIME = \"remindTime\";"
+        },
+        {
+          "line": 30,
+          "code": "private static final String LIT_SOUNDENABLED = \"soundEnabled\";"
+        },
+        {
+          "line": 31,
+          "code": ""
+        }
+      ]
+    },
+    {
+      "key": "Eastdongjun_AigiCRM-local:02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/service/FabushiSectionService.java",
+      "to_cover": 10,
+      "uncovered": 10,
+      "uncovered_lines": [
+        {
+          "line": 41,
+          "code": "m.put(\"id\", s.getId()); m.put(\"bookId\", s.getBookId()); m.put(LIT_PARENTID, s.getParentId());"
+        },
+        {
+          "line": 42,
+          "code": "m.put(LIT_LEVELCODE, s.getLevelCode()); m.put(LIT_TITLE, s.getTitle()); m.put(LIT_SORTORDER, s.getSortOrder());"
+        },
+        {
+          "line": 51,
+          "code": "String title = body == null || body.get(LIT_TITLE) == null ? null : String.valueOf(body.get(LIT_TITLE)).trim();"
+        },
+        {
+          "line": 55,
+          "code": "row.setParentId(body.get(LIT_PARENTID) == null ? 0L : Long.valueOf(String.valueOf(body.get(LIT_PARENTID))));"
+        },
+        {
+          "line": 56,
+          "code": "row.setLevelCode(body.get(LIT_LEVELCODE) == null ? \"section\" : String.valueOf(body.get(LIT_LEVELCODE)));"
+        },
+        {
+          "line": 58,
+          "code": "row.setSortOrder(body.get(LIT_SORTORDER) == null ? 0 : Integer.parseInt(String.valueOf(body.get(LIT_SORTORDER))));"
+        },
+        {
+          "line": 67,
+          "code": "if (body != null && body.get(LIT_TITLE) != null) {"
+        },
+        {
+          "line": 68,
+          "code": "String title = String.valueOf(body.get(LIT_TITLE)).trim();"
+        },
+        {
+          "line": 72,
+          "code": "if (body != null && body.get(LIT_SORTORDER) != null) row.setSortOrder(Integer.parseInt(String.valueOf(body.get(LIT_SORTORDER))));"
+        },
+        {
+          "line": 73,
+          "code": "if (body != null && body.get(LIT_LEVELCODE) != null) row.setLevelCode(String.valueOf(body.get(LIT_LEVELCODE)));"
+        }
+      ],
+      "new_non_instruction_lines": [
+        {
+          "line": 19,
+          "code": "// P0-5 batch A: duplicated string literals (Sonar java:S1192)"
+        },
+        {
+          "line": 20,
+          "code": "private static final String LIT_PARENTID = \"parentId\";"
+        },
+        {
+          "line": 21,
+          "code": "private static final String LIT_SORTORDER = \"sortOrder\";"
+        },
+        {
+          "line": 22,
+          "code": "private static final String LIT_LEVELCODE = \"levelCode\";"
+        },
+        {
+          "line": 23,
+          "code": "private static final String LIT_TITLE = \"title\";"
+        },
+        {
+          "line": 24,
+          "code": ""
+        }
+      ]
+    },
+    {
+      "key": "Eastdongjun_AigiCRM-local:02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiStatsController.java",
+      "to_cover": 21,
+      "uncovered": 21,
+      "uncovered_lines": [
+        {
+          "line": 57,
+          "code": "sb.append(\"覆盖率,\").append(d.get(LIT_COVERAGEPCT) == null ? \"\" : d.get(LIT_COVERAGEPCT)).append(\"\\n\");"
+        },
+        {
+          "line": 63,
+          "code": "sb.append(r.get(\"userName\")).append(',').append(r.get(LIT_DEPTNAME)).append(',')"
+        },
+        {
+          "line": 65,
+          "code": ".append(r.get(LIT_READDAYS)).append('\\n');"
+        },
+        {
+          "line": 89,
+          "code": "sb.append(csv(\"月份\")).append(',').append(csv(d.get(LIT_MONTH))).append('\\n');"
+        },
+        {
+          "line": 91,
+          "code": "sb.append(csv(\"新增内容\")).append(',').append(d.get(LIT_POSTS)).append('\\n');"
+        },
+        {
+          "line": 92,
+          "code": "sb.append(csv(\"木鱼\")).append(',').append(d.get(LIT_LIKES)).append('\\n');"
+        },
+        {
+          "line": 93,
+          "code": "sb.append(csv(\"评论\")).append(',').append(d.get(LIT_COMMENTS)).append('\\n');"
+        },
+        {
+          "line": 95,
+          "code": "sb.append(csv(\"已读人数\")).append(',').append(d.get(LIT_READUSERS)).append('\\n');"
+        },
+        {
+          "line": 97,
+          "code": "sb.append(csv(\"覆盖率%\")).append(',').append(csv(d.get(LIT_COVERAGEPCT))).append('\\n');"
+        },
+        {
+          "line": 99,
+          "code": "sb.append('\\n').append(csv(\"环比上月\")).append(',').append(csv(prev.get(LIT_MONTH))).append('\\n');"
+        },
+        {
+          "line": 101,
+          "code": "sb.append(csv(\"新增内容\")).append(',').append(prev.get(LIT_POSTS)).append(',').append(csv(prev.get(\"postsPct\"))).append('\\n');"
+        },
+        {
+          "line": 102,
+          "code": "sb.append(csv(\"木鱼\")).append(',').append(prev.get(LIT_LIKES)).append(',').append(csv(prev.get(\"likesPct\"))).append('\\n');"
+        },
+        {
+          "line": 103,
+          "code": "sb.append(csv(\"评论\")).append(',').append(prev.get(LIT_COMMENTS)).append(',').append(csv(prev.get(\"commentsPct\"))).append('\\n');"
+        },
+        {
+          "line": 104,
+          "code": "sb.append(csv(\"已读人数\")).append(',').append(prev.get(LIT_READUSERS)).append(',').append(csv(prev.get(\"readUsersPct\"))).append('\\n');"
+        },
+        {
+          "line": 109,
+          "code": "sb.append(csv(r.get(LIT_DEPTNAME))).append(',').append(r.get(\"memberCount\")).append(',')"
+        },
+        {
+          "line": 110,
+          "code": ".append(r.get(LIT_READUSERS)).append(',').append(r.get(LIT_COVERAGEPCT)).append(',')"
+        },
+        {
+          "line": 111,
+          "code": ".append(r.get(LIT_POSTS)).append(',').append(r.get(LIT_LIKES)).append(',')"
+        },
+        {
+          "line": 112,
+          "code": ".append(r.get(LIT_COMMENTS)).append(',').append(r.get(LIT_READDAYS)).append('\\n');"
+        },
+        {
+          "line": 118,
+          "code": "sb.append(csv(r.get(\"userName\"))).append(',').append(csv(r.get(LIT_DEPTNAME))).append(',')"
+        },
+        {
+          "line": 120,
+          "code": ".append(r.get(LIT_READDAYS)).append('\\n');"
+        },
+        {
+          "line": 122,
+          "code": "String filename = \"fabushi-monthly-\" + d.get(LIT_MONTH) + \".csv\";"
+        }
+      ],
+      "new_non_instruction_lines": [
+        {
+          "line": 20,
+          "code": "// P0-5 batch A: duplicated string literals (Sonar java:S1192)"
+        },
+        {
+          "line": 21,
+          "code": "private static final String LIT_COVERAGEPCT = \"coveragePct\";"
+        },
+        {
+          "line": 22,
+          "code": "private static final String LIT_DEPTNAME = \"deptName\";"
+        },
+        {
+          "line": 23,
+          "code": "private static final String LIT_READDAYS = \"readDays\";"
+        },
+        {
+          "line": 24,
+          "code": "private static final String LIT_MONTH = \"month\";"
+        },
+        {
+          "line": 25,
+          "code": "private static final String LIT_POSTS = \"posts\";"
+        },
+        {
+          "line": 26,
+          "code": "private static final String LIT_LIKES = \"likes\";"
+        },
+        {
+          "line": 27,
+          "code": "private static final String LIT_COMMENTS = \"comments\";"
+        },
+        {
+          "line": 28,
+          "code": "private static final String LIT_READUSERS = \"readUsers\";"
+        },
+        {
+          "line": 29,
+          "code": ""
+        }
+      ]
+    },
+    {
+      "key": "Eastdongjun_AigiCRM-local:02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/service/FabushiStatsService.java",
+      "to_cover": 5,
+      "uncovered": 3,
+      "uncovered_lines": [
+        {
+          "line": 132,
+          "code": ".eq(BizFabushiPost::getUserId, uid).eq(BizFabushiPost::getStatus, LIT_PUBLISHED)));"
+        },
+        {
+          "line": 136,
+          "code": ".eq(com.aigicrm.module.fabushi.entity.BizFabushiComment::getStatus, LIT_PUBLISHED)));"
+        },
+        {
+          "line": 143,
+          "code": ".eq(BizFabushiPost::getUserId, uid).eq(BizFabushiPost::getStatus, LIT_PUBLISHED)"
+        }
+      ],
+      "new_non_instruction_lines": [
+        {
+          "line": 27,
+          "code": "// P0-5 batch A: duplicated string literals (Sonar java:S1192)"
+        },
+        {
+          "line": 28,
+          "code": "private static final String LIT_PUBLISHED = \"published\";"
+        },
+        {
+          "line": 29,
+          "code": ""
+        }
+      ]
+    },
+    {
+      "key": "Eastdongjun_AigiCRM-local:02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/file/service/FileChunkUploadService.java",
+      "to_cover": 3,
+      "uncovered": 3,
+      "uncovered_lines": [
+        {
+          "line": 109,
+          "code": "Files.copy(chunk.getInputStream(), dir.resolve(index + LIT_PART), StandardCopyOption.REPLACE_EXISTING);"
+        },
+        {
+          "line": 137,
+          "code": "Path part = dir.resolve(i + LIT_PART);"
+        },
+        {
+          "line": 211,
+          "code": "return (int) stream.filter(p -> p.getFileName().toString().endsWith(LIT_PART)).count();"
+        }
+      ],
+      "new_non_instruction_lines": [
+        {
+          "line": 33,
+          "code": "// P0-5 batch A: duplicated string literals (Sonar java:S1192)"
+        },
+        {
+          "line": 34,
+          "code": "private static final String LIT_PART = \".part\";"
+        },
+        {
+          "line": 35,
+          "code": ""
+        }
+      ]
+    },
+    {
+      "key": "Eastdongjun_AigiCRM-local:02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java",
+      "to_cover": 2,
+      "uncovered": 2,
+      "uncovered_lines": [
+        {
+          "line": 175,
+          "code": "fileService.renameFile(id, body == null ? null : body.get(LIT_FILENAME));"
+        },
+        {
+          "line": 213,
+          "code": "body.get(LIT_FILENAME) == null ? null : body.get(LIT_FILENAME).toString(),"
+        }
+      ],
+      "new_non_instruction_lines": [
+        {
+          "line": 28,
+          "code": "// P0-5 batch A: duplicated string literals (Sonar java:S1192)"
+        },
+        {
+          "line": 29,
+          "code": "private static final String LIT_FILENAME = \"fileName\";"
+        },
+        {
+          "line": 30,
+          "code": ""
+        }
+      ]
+    },
+    {
+      "key": "Eastdongjun_AigiCRM-local:02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/file/service/FileGrantService.java",
+      "to_cover": 9,
+      "uncovered": 5,
+      "uncovered_lines": [
+        {
+          "line": 258,
+          "code": "w.or(x -> x.eq(BizFileGrant::getSubjectType, LIT_POSITION)"
+        },
+        {
+          "line": 277,
+          "code": "if (LIT_ALLOW.equalsIgnoreCase(g.getEffect())) allow = true;"
+        },
+        {
+          "line": 385,
+          "code": "if (effect == null || effect.isBlank()) effect = LIT_ALLOW;"
+        },
+        {
+          "line": 386,
+          "code": "if (!Set.of(LIT_ALLOW, \"DENY\").contains(effect)) throw new BusinessException(\"效果仅支持 ALLOW/DENY\");"
+        },
+        {
+          "line": 539,
+          "code": "w.or(x -> x.eq(BizFileGrant::getSubjectType, LIT_POSITION)"
+        }
+      ],
+      "new_non_instruction_lines": [
+        {
+          "line": 52,
+          "code": "// P0-5 batch A: duplicated string literals (Sonar java:S1192)"
+        },
+        {
+          "line": 53,
+          "code": "private static final String LIT_ALLOW = \"ALLOW\";"
+        },
+        {
+          "line": 54,
+          "code": "private static final String LIT_POSITION = \"POSITION\";"
+        },
+        {
+          "line": 55,
+          "code": ""
+        }
+      ]
+    },
+    {
+      "key": "Eastdongjun_AigiCRM-local:02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileRecycleController.java",
+      "to_cover": 12,
+      "uncovered": 12,
+      "uncovered_lines": [
+        {
+          "line": 75,
+          "code": "return Result.ok(Map.of(LIT_MESSAGE, recycleService.restoreFile(id)));"
+        },
+        {
+          "line": 82,
+          "code": "return Result.ok(Map.of(LIT_MESSAGE, recycleService.hardDeleteFile(id)));"
+        },
+        {
+          "line": 89,
+          "code": "return Result.ok(Map.of(LIT_MESSAGE, recycleService.restoreFolder(id)));"
+        },
+        {
+          "line": 96,
+          "code": "return Result.ok(Map.of(LIT_MESSAGE, recycleService.hardDeleteFolder(id)));"
+        },
+        {
+          "line": 112,
+          "code": "results.put(LIT_FILE + id, \"OK\");"
+        },
+        {
+          "line": 115,
+          "code": "results.put(LIT_FILE + id, e.getMessage() == null ? \"失败\" : e.getMessage());"
+        },
+        {
+          "line": 122,
+          "code": "results.put(LIT_FOLDER + id, \"OK\");"
+        },
+        {
+          "line": 125,
+          "code": "results.put(LIT_FOLDER + id, e.getMessage() == null ? \"失败\" : e.getMessage());"
+        },
+        {
+          "line": 148,
+          "code": "results.put(LIT_FILE + id, \"OK\");"
+        },
+        {
+          "line": 151,
+          "code": "results.put(LIT_FILE + id, e.getMessage() == null ? \"失败\" : e.getMessage());"
+        },
+        {
+          "line": 158,
+          "code": "results.put(LIT_FOLDER + id, \"OK\");"
+        },
+        {
+          "line": 161,
+          "code": "results.put(LIT_FOLDER + id, e.getMessage() == null ? \"失败\" : e.getMessage());"
+        }
+      ],
+      "new_non_instruction_lines": [
+        {
+          "line": 31,
+          "code": "// P0-5 batch A: duplicated string literals (Sonar java:S1192)"
+        },
+        {
+          "line": 32,
+          "code": "private static final String LIT_MESSAGE = \"message\";"
+        },
+        {
+          "line": 33,
+          "code": "private static final String LIT_FILE = \"file:\";"
+        },
+        {
+          "line": 34,
+          "code": "private static final String LIT_FOLDER = \"folder:\";"
+        },
+        {
+          "line": 35,
+          "code": ""
+        }
+      ]
+    },
+    {
+      "key": "Eastdongjun_AigiCRM-local:02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/file/service/FileScanService.java",
+      "to_cover": 3,
+      "uncovered": 3,
+      "uncovered_lines": [
+        {
+          "line": 50,
+          "code": "} catch (InterruptedException e) {"
+        },
+        {
+          "line": 51,
+          "code": "Thread.currentThread().interrupt();"
+        },
+        {
+          "line": 52,
+          "code": "throw new BusinessException(\"病毒扫描被中断，文件已拒绝\");"
+        }
+      ],
+      "new_non_instruction_lines": []
+    },
+    {
+      "key": "Eastdongjun_AigiCRM-local:02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/file/service/FileService.java",
+      "to_cover": 62,
+      "uncovered": 21,
+      "uncovered_lines": [
+        {
+          "line": 154,
+          "code": "if (LIT_PUBLIC.equals(scope)) {"
+        },
+        {
+          "line": 155,
+          "code": "wrapper.eq(BizFileFolder::getFolderType, LIT_PUBLIC);"
+        },
+        {
+          "line": 156,
+          "code": "} else if (LIT_PRIVATE.equals(scope)) {"
+        },
+        {
+          "line": 159,
+          "code": "wrapper.eq(BizFileFolder::getFolderType, LIT_PRIVATE);"
+        },
+        {
+          "line": 291,
+          "code": "} else if (LIT_PRIVATE.equals(scope)) {"
+        },
+        {
+          "line": 396,
+          "code": "throw new BusinessException(403, LIT_X);"
+        },
+        {
+          "line": 420,
+          "code": "originalFilename = LIT_UNNAMED;"
+        },
+        {
+          "line": 430,
+          "code": "fileUrl = LIT_HTTPS + ossConfig.getBucketName() + \".\" + ossConfig.getEndpoint() + \"/\" + fileKey;"
+        },
+        {
+          "line": 547,
+          "code": "throw new BusinessException(403, LIT_X);"
+        },
+        {
+          "line": 677,
+          "code": "if (file == null) throw new BusinessException(LIT_X_2);"
+        },
+        {
+          "line": 678,
+          "code": "if (LIT_FABUSHI.equals(file.getFileScope())) {"
+        },
+        {
+          "line": 683,
+          "code": "throw new BusinessException(403, LIT_X);"
+        },
+        {
+          "line": 758,
+          "code": ": LIT_HTTPS + ossConfig.getBucketName() + \".\" + ossConfig.getEndpoint() + \"/\" + oldKey);"
+        },
+        {
+          "line": 1082,
+          "code": "throw new BusinessException(403, LIT_X);"
+        },
+        {
+          "line": 1101,
+          "code": "throw new BusinessException(403, LIT_X);"
+        },
+        {
+          "line": 1270,
+          "code": "if (file.getOssUrl() != null && file.getOssUrl().startsWith(LIT_HTTPS)) {"
+        },
+        {
+          "line": 1308,
+          "code": "if (e instanceof InterruptedException) {"
+        },
+        {
+          "line": 1309,
+          "code": "Thread.currentThread().interrupt();"
+        },
+        {
+          "line": 1697,
+          "code": "if (file != null && file.getOssUrl() != null && file.getOssUrl().startsWith(LIT_HTTPS)) {"
+        },
+        {
+          "line": 2036,
+          "code": "if (file == null) throw new BusinessException(LIT_X_2);"
+        },
+        {
+          "line": 2042,
+          "code": "throw new BusinessException(403, LIT_X);"
+        }
+      ],
+      "new_non_instruction_lines": [
+        {
+          "line": 47,
+          "code": "// P0-5 batch A: duplicated string literals (Sonar java:S1192)"
+        },
+        {
+          "line": 48,
+          "code": "private static final String LIT_FABUSHI = \"fabushi\";"
+        },
+        {
+          "line": 49,
+          "code": "private static final String LIT_INCENTIVE = \"incentive\";"
+        },
+        {
+          "line": 50,
+          "code": "private static final String LIT_HTTPS = \"https://\";"
+        },
+        {
+          "line": 51,
+          "code": "private static final String LIT_PUBLIC = \"public\";"
+        },
+        {
+          "line": 52,
+          "code": "private static final String LIT_PRIVATE = \"private\";"
+        },
+        {
+          "line": 53,
+          "code": "private static final String LIT_X = \"没有访问权限，请联系管理员授权\";"
+        },
+        {
+          "line": 54,
+          "code": "private static final String LIT_API_FILE_DOWNLOAD = \"/api/file/download/\";"
+        },
+        {
+          "line": 55,
+          "code": "private static final String LIT_X_2 = \"文件不存在\";"
+        },
+        {
+          "line": 56,
+          "code": "private static final String LIT_UNNAMED = \"unnamed\";"
+        },
+        {
+          "line": 57,
+          "code": ""
+        },
+        {
+          "line": 392,
+          "code": "// 注意 scope 判定与 hasAuthority 必须拆行: 同行会让命令式码提取把裸 LIT_FABUSHI 串"
+        },
+        {
+          "line": 1310,
+          "code": "}"
+        },
+        {
+          "line": 1773,
+          "code": "* 无扩展名文件默认拒绝（历史LIT_UNNAMED兜底不再放行未知类型）。"
+        }
+      ]
+    },
+    {
+      "key": "Eastdongjun_AigiCRM-local:02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/file/service/FolderPermissionService.java",
+      "to_cover": 26,
+      "uncovered": 4,
+      "uncovered_lines": [
+        {
+          "line": 88,
+          "code": "case P_VIEW, P_DOWNLOAD -> SecurityUtils.hasAuthority(LIT_FILE_VIEW);"
+        },
+        {
+          "line": 90,
+          "code": "case P_RENAME, P_REPLACE, P_EDIT -> SecurityUtils.hasAuthority(LIT_FILE_EDIT);"
+        },
+        {
+          "line": 91,
+          "code": "case P_SHARE -> SecurityUtils.hasAuthority(LIT_FILE_SHARE);"
+        },
+        {
+          "line": 122,
+          "code": "if (SecurityUtils.hasAuthority(LIT_FABUSHI_VIEW)) { p.add(P_VIEW); p.add(P_DOWNLOAD); }"
+        }
+      ],
+      "new_non_instruction_lines": [
+        {
+          "line": 39,
+          "code": "// P0-5 batch A: duplicated string literals (Sonar java:S1192)"
+        },
+        {
+          "line": 40,
+          "code": "private static final String LIT_FABUSHI_VIEW = \"fabushi:view\";"
+        },
+        {
+          "line": 41,
+          "code": "private static final String LIT_FABUSHI = \"fabushi\";"
+        },
+        {
+          "line": 42,
+          "code": "private static final String LIT_FILE_VIEW = \"file:view\";"
+        },
+        {
+          "line": 43,
+          "code": "private static final String LIT_FILE_EDIT = \"file:edit\";"
+        },
+        {
+          "line": 44,
+          "code": "private static final String LIT_FILE_SHARE = \"file:share\";"
+        },
+        {
+          "line": 45,
+          "code": "private static final String LIT_FILE_DELETE = \"file:delete\";"
+        },
+        {
+          "line": 46,
+          "code": "private static final String LIT_PRIVATE = \"private\";"
+        },
+        {
+          "line": 47,
+          "code": ""
+        }
+      ]
+    },
+    {
+      "key": "Eastdongjun_AigiCRM-local:02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/common/controller/FormDraftController.java",
+      "to_cover": 2,
+      "uncovered": 2,
+      "uncovered_lines": [
+        {
+          "line": 42,
+          "code": "String data = body == null || body.get(LIT_DRAFTDATA) == null ? null : body.get(LIT_DRAFTDATA).toString();"
+        },
+        {
+          "line": 59,
+          "code": "String data = body == null || body.get(LIT_DRAFTDATA) == null ? null : body.get(LIT_DRAFTDATA).toString();"
+        }
+      ],
+      "new_non_instruction_lines": [
+        {
+          "line": 23,
+          "code": "// P0-5 batch A: duplicated string literals (Sonar java:S1192)"
+        },
+        {
+          "line": 24,
+          "code": "private static final String LIT_DRAFTDATA = \"draftData\";"
+        },
+        {
+          "line": 25,
+          "code": ""
+        }
+      ]
+    },
+    {
+      "key": "Eastdongjun_AigiCRM-local:02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/incentive/service/IncentiveService.java",
+      "to_cover": 76,
+      "uncovered": 13,
+      "uncovered_lines": [
+        {
+          "line": 139,
+          "code": "m.put(LIT_REALNAME, u.getRealName());"
+        },
+        {
+          "line": 142,
+          "code": "list.sort(Comparator.comparing(m -> (String) m.getOrDefault(LIT_REALNAME, \"\")));"
+        },
+        {
+          "line": 635,
+          "code": "case LIT_FILEMIDID -> existing.setFileMidId(v.trim());"
+        },
+        {
+          "line": 636,
+          "code": "case LIT_FILEPOSTID -> existing.setFilePostId(v.trim());"
+        },
+        {
+          "line": 637,
+          "code": "case LIT_FILEID -> existing.setFileId(v.trim());"
+        },
+        {
+          "line": 638,
+          "code": "case LIT_FILETRACKID -> existing.setFileTrackId(v.trim());"
+        },
+        {
+          "line": 671,
+          "code": "case LIT_TRACK -> existing.getFileTrackIds();"
+        },
+        {
+          "line": 696,
+          "code": "case LIT_TRACK -> existing.setFileTrackIds(next);"
+        },
+        {
+          "line": 713,
+          "code": "case LIT_TRACK -> uw.set(BizIncentiveRecord::getFileTrackId, nextJson);"
+        },
+        {
+          "line": 916,
+          "code": "return parent != null && (LIT_VISIT.equals(parent.getCategoryCode()) || LIT_EXCHANGE.equals(parent.getCategoryCode()));"
+        },
+        {
+          "line": 938,
+          "code": "case LIT_EXCHANGE -> 2;"
+        },
+        {
+          "line": 939,
+          "code": "case LIT_VISIT -> 3;"
+        },
+        {
+          "line": 1516,
+          "code": "item.put(LIT_TOTALSCORE, totalScore);"
+        }
+      ],
+      "new_non_instruction_lines": [
+        {
+          "line": 28,
+          "code": "// P0-5 batch A: duplicated string literals (Sonar java:S1192)"
+        },
+        {
+          "line": 29,
+          "code": "private static final String LIT_TRACK = \"track\";"
+        },
+        {
+          "line": 30,
+          "code": "private static final String LIT_FILEPREID = \"filePreId\";"
+        },
+        {
+          "line": 31,
+          "code": "private static final String LIT_FILEMIDID = \"fileMidId\";"
+        },
+        {
+          "line": 32,
+          "code": "private static final String LIT_FILEPOSTID = \"filePostId\";"
+        },
+        {
+          "line": 33,
+          "code": "private static final String LIT_FILEID = \"fileId\";"
+        },
+        {
+          "line": 34,
+          "code": "private static final String LIT_FILETRACKID = \"fileTrackId\";"
+        },
+        {
+          "line": 35,
+          "code": "private static final String LIT_REALNAME = \"realName\";"
+        },
+        {
+          "line": 36,
+          "code": "private static final String LIT_USERID = \"userId\";"
+        },
+        {
+          "line": 37,
+          "code": "private static final String LIT_DEPTNAME = \"deptName\";"
+        },
+        {
+          "line": 38,
+          "code": "private static final String LIT_PUBLISHEDCOUNT = \"publishedCount\";"
+        },
+        {
+          "line": 39,
+          "code": "private static final String LIT_READCOUNT = \"readCount\";"
+        },
+        {
+          "line": 40,
+          "code": "private static final String LIT_UNREADCOUNT = \"unreadCount\";"
+        },
+        {
+          "line": 41,
+          "code": "private static final String LIT_EXCHANGE = \"exchange\";"
+        },
+        {
+          "line": 42,
+          "code": "private static final String LIT_VISIT = \"visit\";"
+        },
+        {
+          "line": 43,
+          "code": "private static final String LIT_TOTALSCORE = \"totalScore\";"
+        },
+        {
+          "line": 44,
+          "code": "private static final String LIT_BYCATEGORY = \"byCategory\";"
+        },
+        {
+          "line": 45,
+          "code": ""
+        },
+        {
+          "line": 569,
+          "code": "}"
+        },
+        {
+          "line": 572,
+          "code": "/** 线性解析槽位 JSON（等价原正则，无回溯风险）：[1,2] / [1]。 */"
+        },
+        {
+          "line": 573,
+          "code": "private static boolean isValidSlotJson(String t) {"
+        },
+        {
+          "line": 578,
+          "code": "while (true) {"
+        },
+        {
+          "line": 585,
+          "code": "}"
+        },
+        {
+          "line": 586,
+          "code": ""
+        },
+        {
+          "line": 587,
+          "code": "/** 下一个逗号或串尾（线性扫描，不回溯）。 */"
+        },
+        {
+          "line": 588,
+          "code": "private static int nextCommaOrEnd(String body, int from) {"
+        },
+        {
+          "line": 592,
+          "code": "}"
+        },
+        {
+          "line": 593,
+          "code": ""
+        },
+        {
+          "line": 594,
+          "code": "/** ID token：1-18 位 ASCII 数字。 */"
+        },
+        {
+          "line": 595,
+          "code": "private static boolean isValidIdToken(String body, int start, int end) {"
+        },
+        {
+          "line": 601,
+          "code": "}"
+        },
+        {
+          "line": 603,
+          "code": "}"
+        },
+        {
+          "line": 604,
+          "code": ""
+        },
+        {
+          "line": 614,
+          "code": "* 【P0-5/B14 2026-11-18】原正则 ^\\[\\d{1,18}(,\\d{1,18})*\\]$ 有回溯风险(S5998)，"
+        },
+        {
+          "line": 615,
+          "code": "* 改为线性解析（等价语义，O(n)，无回溯）。"
+        }
+      ]
+    },
+    {
+      "key": "Eastdongjun_AigiCRM-local:02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/LifecycleService.java",
+      "to_cover": 38,
+      "uncovered": 27,
+      "uncovered_lines": [
+        {
+          "line": 166,
+          "code": "Map<String, Object> result = LIT_HANDOVER.equals(type)"
+        },
+        {
+          "line": 173,
+          "code": "out.put(LIT_RESULT, result);"
+        },
+        {
+          "line": 181,
+          "code": "if (!SecurityUtils.isAdmin() && !current.equals(longVal(req.get(LIT_APPROVER_ID)))) {"
+        },
+        {
+          "line": 196,
+          "code": "if (req == null) throw new BusinessException(LIT_X);"
+        },
+        {
+          "line": 197,
+          "code": "if (!\"approved\".equals(req.get(LIT_STATUS))) throw new BusinessException(\"只有已通过的请求可以回滚\");"
+        },
+        {
+          "line": 200,
+          "code": "Map<String, Integer> counts = LIT_HANDOVER.equals(type)"
+        },
+        {
+          "line": 206,
+          "code": "out.put(LIT_RESULT, counts);"
+        },
+        {
+          "line": 214,
+          "code": "long from = longVal(req.get(LIT_SUBJECT_USER_ID));"
+        },
+        {
+          "line": 218,
+          "code": "Long toDept = longVal(target.get(LIT_DEPT_ID));"
+        },
+        {
+          "line": 246,
+          "code": "counts.put(LIT_CUSTOMER, move(LIT_CUSTOMER, \"biz_customer\", LIT_OWNER_ID, id, from, to));"
+        },
+        {
+          "line": 248,
+          "code": "counts.put(LIT_REMINDER, moveNoDeleted(LIT_REMINDER, \"biz_reminder\", LIT_OWNER_ID, id, from, to));"
+        },
+        {
+          "line": 250,
+          "code": "counts.put(LIT_FOLDER, move(LIT_FOLDER, \"biz_file_folder\", LIT_OWNER_ID, id, from, to));"
+        },
+        {
+          "line": 307,
+          "code": "return jdbc.update(\"UPDATE \" + table + \" SET \" + col + \"=? WHERE \" + col + LIT_AND_DELETED_0,"
+        },
+        {
+          "line": 316,
+          "code": "return jdbc.update(\"UPDATE \" + table + \" SET \" + col + \"=? WHERE \" + col + LIT_AND_DELETED_0, to, from);"
+        },
+        {
+          "line": 323,
+          "code": "long userId = longVal(req.get(LIT_SUBJECT_USER_ID));"
+        },
+        {
+          "line": 327,
+          "code": "Long oldDept = longVal(user.get(LIT_DEPT_ID));"
+        },
+        {
+          "line": 347,
+          "code": "counts.put(LIT_CUSTOMER, jdbc.update(\"UPDATE biz_customer SET dept_id=?, office_id=?, updated_at=NOW() WHERE owner_id=? AND deleted=0\","
+        },
+        {
+          "line": 358,
+          "code": "counts.put(LIT_FOLDER, jdbc.update(\"UPDATE biz_file_folder SET org_id=? WHERE owner_id=? AND deleted=0\", toOrg, userId));"
+        },
+        {
+          "line": 364,
+          "code": "counts.put(LIT_REMINDER, jdbc.update(\"UPDATE biz_reminder SET office_id=? WHERE owner_id=? AND deleted=0\", toOffice, userId));"
+        },
+        {
+          "line": 385,
+          "code": "counts.put(LIT_CUSTOMER, jdbc.update(\"UPDATE biz_customer c JOIN biz_lifecycle_item i ON i.biz_id=c.id \" +"
+        },
+        {
+          "line": 389,
+          "code": "counts.put(LIT_REMINDER, jdbc.update(\"UPDATE biz_reminder r JOIN biz_lifecycle_item i ON i.biz_id=r.id \" +"
+        },
+        {
+          "line": 393,
+          "code": "counts.put(LIT_FOLDER, jdbc.update(\"UPDATE biz_file_folder f JOIN biz_lifecycle_item i ON i.biz_id=f.id \" +"
+        },
+        {
+          "line": 415,
+          "code": "long userId = longVal(req.get(LIT_SUBJECT_USER_ID));"
+        },
+        {
+          "line": 422,
+          "code": "counts.put(LIT_CUSTOMER, jdbc.update(\"UPDATE biz_customer c JOIN biz_lifecycle_item i ON i.biz_id=c.id \" +"
+        },
+        {
+          "line": 427,
+          "code": "counts.put(LIT_FOLDER, jdbc.update(\"UPDATE biz_file_folder f JOIN biz_lifecycle_item i ON i.biz_id=f.id \" +"
+        },
+        {
+          "line": 429,
+          "code": "counts.put(LIT_REMINDER, jdbc.update(\"UPDATE biz_reminder r JOIN biz_lifecycle_item i ON i.biz_id=r.id \" +"
+        },
+        {
+          "line": 595,
+          "code": "\"request=\" + id + \" old=\" + req.get(LIT_APPROVER_ID) + \" new=\" + newApproverId"
+        }
+      ],
+      "new_non_instruction_lines": [
+        {
+          "line": 36,
+          "code": "// P0-5 batch A: duplicated string literals (Sonar java:S1192)"
+        },
+        {
+          "line": 37,
+          "code": "private static final String LIT_STATUS = \"status\";"
+        },
+        {
+          "line": 38,
+          "code": "private static final String LIT_APPROVER_ID = \"approver_id\";"
+        },
+        {
+          "line": 39,
+          "code": "private static final String LIT_DEPT_ID = \"dept_id\";"
+        },
+        {
+          "line": 40,
+          "code": "private static final String LIT_REMINDER = \"reminder\";"
+        },
+        {
+          "line": 41,
+          "code": "private static final String LIT_AND_DELETED_0 = \"=? AND deleted=0\";"
+        },
+        {
+          "line": 42,
+          "code": "private static final String LIT_HANDOVER = \"HANDOVER\";"
+        },
+        {
+          "line": 43,
+          "code": "private static final String LIT_RESULT = \"result\";"
+        },
+        {
+          "line": 44,
+          "code": "private static final String LIT_X = \"请求不存在\";"
+        },
+        {
+          "line": 45,
+          "code": "private static final String LIT_SUBJECT_USER_ID = \"subject_user_id\";"
+        },
+        {
+          "line": 46,
+          "code": "private static final String LIT_OWNER_ID = \"owner_id\";"
+        },
+        {
+          "line": 47,
+          "code": "private static final String LIT_CUSTOMER = \"customer\";"
+        },
+        {
+          "line": 48,
+          "code": "private static final String LIT_FOLDER = \"folder\";"
+        },
+        {
+          "line": 49,
+          "code": ""
+        },
+        {
+          "line": 305,
+          "code": "\"SELECT ?, ?, id, \" + col + \", ? FROM \" + table + \" WHERE \" + col + LIT_AND_DELETED_0,"
+        },
+        {
+          "line": 314,
+          "code": "\"SELECT ?, ?, id, \" + col + \", ? FROM \" + table + \" WHERE \" + col + LIT_AND_DELETED_0,"
+        }
+      ]
+    },
+    {
+      "key": "Eastdongjun_AigiCRM-local:02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/OrgAdminService.java",
+      "to_cover": 3,
+      "uncovered": 2,
+      "uncovered_lines": [
+        {
+          "line": 126,
+          "code": "if (SecurityUtils.hasAuthority(LIT_SYSTEM_ORG_ADMIN)) return true;"
+        },
+        {
+          "line": 133,
+          "code": "if (SecurityUtils.hasAuthority(LIT_SYSTEM_ORG_ADMIN)) return java.util.Collections.emptyList();"
+        }
+      ],
+      "new_non_instruction_lines": [
+        {
+          "line": 27,
+          "code": "// P0-5 batch A: duplicated string literals (Sonar java:S1192)"
+        },
+        {
+          "line": 28,
+          "code": "private static final String LIT_SYSTEM_ORG_ADMIN = \"system:org:admin\";"
+        },
+        {
+          "line": 29,
+          "code": ""
+        }
+      ]
+    },
+    {
+      "key": "Eastdongjun_AigiCRM-local:02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/PermCenterService.java",
+      "to_cover": 2,
+      "uncovered": 2,
+      "uncovered_lines": [
+        {
+          "line": 112,
+          "code": "if (LIT_CUSTOMER.equals(module) && \"view\".equals(action)) {"
+        },
+        {
+          "line": 194,
+          "code": ".evaluateForEntity(rules == null ? List.of() : rules, target, LIT_CUSTOMER));"
+        }
+      ],
+      "new_non_instruction_lines": [
+        {
+          "line": 35,
+          "code": "// P0-5 batch A: duplicated string literals (Sonar java:S1192)"
+        },
+        {
+          "line": 36,
+          "code": "private static final String LIT_CUSTOMER = \"customer\";"
+        },
+        {
+          "line": 37,
+          "code": ""
+        },
+        {
+          "line": 53,
+          "code": "{LIT_CUSTOMER, \"view\", \"客户·查看\"},"
+        },
+        {
+          "line": 54,
+          "code": "{LIT_CUSTOMER, \"edit\", \"客户·编辑\"},"
+        },
+        {
+          "line": 55,
+          "code": "{LIT_CUSTOMER, \"delete\", \"客户·删除\"},"
+        },
+        {
+          "line": 56,
+          "code": "{LIT_CUSTOMER, \"finance_edit\", \"开票回款·编辑\"},"
+        }
+      ]
+    },
+    {
+      "key": "Eastdongjun_AigiCRM-local:02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/PermissionMetadataService.java",
+      "to_cover": 19,
+      "uncovered": 2,
+      "uncovered_lines": [
+        {
+          "line": 109,
+          "code": "meta.put(\"scopeAxis\", Map.of(LIT_MODULE, scopeModule, \"action\","
+        },
+        {
+          "line": 110,
+          "code": "scopeAction == null ? \"view\" : scopeAction));"
+        }
+      ],
+      "new_non_instruction_lines": [
+        {
+          "line": 28,
+          "code": "// P0-5 batch A: duplicated string literals (Sonar java:S1192)"
+        },
+        {
+          "line": 29,
+          "code": "private static final String LIT_STATS_VIEW = \"stats_view\";"
+        },
+        {
+          "line": 30,
+          "code": "private static final String LIT_FABUSHI = \"fabushi\";"
+        },
+        {
+          "line": 31,
+          "code": "private static final String LIT_CUSTOMER = \"customer\";"
+        },
+        {
+          "line": 32,
+          "code": "private static final String LIT_MODULE = \"module\";"
+        },
+        {
+          "line": 33,
+          "code": "private static final String LIT_DEPRECATED = \"deprecated\";"
+        },
+        {
+          "line": 34,
+          "code": ""
+        },
+        {
+          "line": 77,
+          "code": "\"finance\", \"客户管理\", \"contact\", \"客户管理\", \"ranking\", \"统计分析\", LIT_FABUSHI, \"法布施\");"
+        },
+        {
+          "line": 108,
+          "code": "} else {"
+        },
+        {
+          "line": 111,
+          "code": "}"
+        }
+      ]
+    },
+    {
+      "key": "Eastdongjun_AigiCRM-local:02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/PermReconcileService.java",
+      "to_cover": 3,
+      "uncovered": 2,
+      "uncovered_lines": [
+        {
+          "line": 84,
+          "code": "boolean same = Boolean.TRUE.equals(row.get(LIT_MATCH));"
+        },
+        {
+          "line": 96,
+          "code": "out.put(LIT_MATCH, diff == 0);"
+        }
+      ],
+      "new_non_instruction_lines": [
+        {
+          "line": 30,
+          "code": "// P0-5 batch A: duplicated string literals (Sonar java:S1192)"
+        },
+        {
+          "line": 31,
+          "code": "private static final String LIT_MATCH = \"match\";"
+        },
+        {
+          "line": 32,
+          "code": ""
+        }
+      ]
+    },
+    {
+      "key": "Eastdongjun_AigiCRM-local:02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/RecycleController.java",
+      "to_cover": 15,
+      "uncovered": 13,
+      "uncovered_lines": [
+        {
+          "line": 59,
+          "code": "return Result.ok(Map.of(LIT_MESSAGE, recycleService.restoreCustomer(id)));"
+        },
+        {
+          "line": 66,
+          "code": "return Result.ok(Map.of(LIT_MESSAGE, recycleService.hardDeleteCustomer(id)));"
+        },
+        {
+          "line": 88,
+          "code": "return Result.ok(Map.of(LIT_MESSAGE, recycleService.restoreUser(id)));"
+        },
+        {
+          "line": 95,
+          "code": "return Result.ok(Map.of(LIT_MESSAGE, recycleService.hardDeleteUser(id)));"
+        },
+        {
+          "line": 113,
+          "code": "return Result.ok(Map.of(LIT_MESSAGE, recycleService.restoreTask(id)));"
+        },
+        {
+          "line": 120,
+          "code": "return Result.ok(Map.of(LIT_MESSAGE, recycleService.hardDeleteTask(id)));"
+        },
+        {
+          "line": 136,
+          "code": "return Result.ok(Map.of(LIT_MESSAGE, recycleService.restoreReminder(id)));"
+        },
+        {
+          "line": 143,
+          "code": "return Result.ok(Map.of(LIT_MESSAGE, recycleService.hardDeleteReminder(id)));"
+        },
+        {
+          "line": 159,
+          "code": "return Result.ok(Map.of(LIT_MESSAGE, recycleService.restoreIncentive(id)));"
+        },
+        {
+          "line": 166,
+          "code": "return Result.ok(Map.of(LIT_MESSAGE, recycleService.hardDeleteIncentive(id)));"
+        },
+        {
+          "line": 202,
+          "code": "return Result.ok(Map.of(LIT_MESSAGE, recycleService.hardDeleteFile(id)));"
+        },
+        {
+          "line": 221,
+          "code": "return Result.ok(Map.of(LIT_MESSAGE, recycleService.restoreFolder(id)));"
+        },
+        {
+          "line": 228,
+          "code": "return Result.ok(Map.of(LIT_MESSAGE, recycleService.hardDeleteFolder(id)));"
+        }
+      ],
+      "new_non_instruction_lines": [
+        {
+          "line": 27,
+          "code": "// P0-5 batch A: duplicated string literals (Sonar java:S1192)"
+        },
+        {
+          "line": 28,
+          "code": "private static final String LIT_MESSAGE = \"message\";"
+        },
+        {
+          "line": 29,
+          "code": ""
+        }
+      ]
+    },
+    {
+      "key": "Eastdongjun_AigiCRM-local:02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/RecycleExportService.java",
+      "to_cover": 32,
+      "uncovered": 1,
+      "uncovered_lines": [
+        {
+          "line": 184,
+          "code": "Object fp = r.get(LIT_FILE_PATH);"
+        }
+      ],
+      "new_non_instruction_lines": [
+        {
+          "line": 50,
+          "code": "// P0-5 batch A: duplicated string literals (Sonar java:S1192)"
+        },
+        {
+          "line": 51,
+          "code": "private static final String LIT_REMINDER = \"reminder\";"
+        },
+        {
+          "line": 52,
+          "code": "private static final String LIT_CUSTOMER_ID = \"customer_id\";"
+        },
+        {
+          "line": 53,
+          "code": "private static final String LIT_INCENTIVE = \"incentive\";"
+        },
+        {
+          "line": 54,
+          "code": "private static final String LIT_CUSTOMER = \"customer\";"
+        },
+        {
+          "line": 55,
+          "code": "private static final String LIT_STATUS = \"status\";"
+        },
+        {
+          "line": 56,
+          "code": "private static final String LIT_EXPORT_NO = \"export_no\";"
+        },
+        {
+          "line": 57,
+          "code": "private static final String LIT_FILE_PATH = \"file_path\";"
+        },
+        {
+          "line": 58,
+          "code": "private static final String LIT_OSS_KEY = \"oss_key\";"
+        },
+        {
+          "line": 59,
+          "code": "private static final String LIT_DELETED_REASON = \"deleted_reason\";"
+        },
+        {
+          "line": 60,
+          "code": "private static final String LIT_DELETED_AT = \"deleted_at\";"
+        },
+        {
+          "line": 61,
+          "code": "private static final String LIT_DELETED_BY = \"deleted_by\";"
+        },
+        {
+          "line": 62,
+          "code": ""
+        }
+      ]
+    },
+    {
+      "key": "Eastdongjun_AigiCRM-local:02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/RecycleService.java",
+      "to_cover": 33,
+      "uncovered": 23,
+      "uncovered_lines": [
+        {
+          "line": 141,
+          "code": "throw new BusinessException(LIT_X_7);"
+        },
+        {
+          "line": 171,
+          "code": "throw new BusinessException(LIT_X_6);"
+        },
+        {
+          "line": 180,
+          "code": "throw new BusinessException(LIT_X_7);"
+        },
+        {
+          "line": 196,
+          "code": "throw new BusinessException(LIT_X_5);"
+        },
+        {
+          "line": 206,
+          "code": "throw new BusinessException(LIT_X_6);"
+        },
+        {
+          "line": 243,
+          "code": "throw new BusinessException(LIT_X_5);"
+        },
+        {
+          "line": 261,
+          "code": "throw new BusinessException(LIT_X_3);"
+        },
+        {
+          "line": 274,
+          "code": "throw new BusinessException(LIT_X_6);"
+        },
+        {
+          "line": 293,
+          "code": "throw new BusinessException(LIT_X_3);"
+        },
+        {
+          "line": 308,
+          "code": "throw new BusinessException(LIT_X_4);"
+        },
+        {
+          "line": 401,
+          "code": "throw new BusinessException(LIT_X_7);"
+        },
+        {
+          "line": 540,
+          "code": "throw new BusinessException(LIT_X_3);"
+        },
+        {
+          "line": 633,
+          "code": "throw new BusinessException(LIT_X_4);"
+        },
+        {
+          "line": 907,
+          "code": "if (n != 1) throw new BusinessException(LIT_X);"
+        },
+        {
+          "line": 916,
+          "code": "if (n != 1) throw new BusinessException(LIT_X_2);"
+        },
+        {
+          "line": 951,
+          "code": "Long userId = r.get(LIT_USER_ID) == null ? null : ((Number) r.get(LIT_USER_ID)).longValue();"
+        },
+        {
+          "line": 955,
+          "code": "Long customerId = r.get(LIT_CUSTOMER_ID) == null ? null : ((Number) r.get(LIT_CUSTOMER_ID)).longValue();"
+        },
+        {
+          "line": 963,
+          "code": "if (n != 1) throw new BusinessException(LIT_X);"
+        },
+        {
+          "line": 982,
+          "code": "long uid = u.path(LIT_USER_ID).asLong(0);"
+        },
+        {
+          "line": 996,
+          "code": "if (n != 1) throw new BusinessException(LIT_X_2);"
+        },
+        {
+          "line": 1032,
+          "code": "Long customerId = r.get(LIT_CUSTOMER_ID) == null ? null : ((Number) r.get(LIT_CUSTOMER_ID)).longValue();"
+        },
+        {
+          "line": 1040,
+          "code": "if (n != 1) throw new BusinessException(LIT_X);"
+        },
+        {
+          "line": 1049,
+          "code": "if (n != 1) throw new BusinessException(LIT_X_2);"
+        }
+      ],
+      "new_non_instruction_lines": [
+        {
+          "line": 62,
+          "code": "// P0-5 batch A: duplicated string literals (Sonar java:S1192)"
+        },
+        {
+          "line": 63,
+          "code": "private static final String LIT_USER_ID = \"user_id\";"
+        },
+        {
+          "line": 64,
+          "code": "private static final String LIT_CUSTOMER = \"customer\";"
+        },
+        {
+          "line": 65,
+          "code": "private static final String LIT_X = \"恢复失败（状态已变化），请刷新后重试\";"
+        },
+        {
+          "line": 66,
+          "code": "private static final String LIT_X_2 = \"彻底删除失败（状态已变化），请刷新后重试\";"
+        },
+        {
+          "line": 67,
+          "code": "private static final String LIT_CUSTOMER_ID = \"customer_id\";"
+        },
+        {
+          "line": 68,
+          "code": "private static final String LIT_X_3 = \"彻底删除失败：数据状态已变化，请刷新后重试\";"
+        },
+        {
+          "line": 69,
+          "code": "private static final String LIT_X_4 = \"该文件不在回收站（可能已被恢复或已被彻底删除）\";"
+        },
+        {
+          "line": 70,
+          "code": "private static final String LIT_BIZ_FILE = \"biz_file\";"
+        },
+        {
+          "line": 71,
+          "code": "private static final String LIT_X_5 = \"该客户不在回收站（可能已被恢复或已被彻底删除）\";"
+        },
+        {
+          "line": 72,
+          "code": "private static final String LIT_X_6 = \"该人员不在回收站（可能已被恢复或已被彻底删除）\";"
+        },
+        {
+          "line": 73,
+          "code": "private static final String LIT_X_7 = \"恢复失败：数据状态已变化，请刷新后重试\";"
+        },
+        {
+          "line": 74,
+          "code": ""
+        }
+      ]
+    },
+    {
+      "key": "Eastdongjun_AigiCRM-local:02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/reminder/service/ReminderService.java",
+      "to_cover": 36,
+      "uncovered": 13,
+      "uncovered_lines": [
+        {
+          "line": 407,
+          "code": "String val = configService.getValue(LIT_CUSTOMER_WARNING_DAYS);"
+        },
+        {
+          "line": 418,
+          "code": ".notIn(BizCustomer::getStatus, \"sea\", LIT_ARCHIVED); // B5 统一口径: 排sea+archived"
+        },
+        {
+          "line": 419,
+          "code": "List<Long> visibleOwners = scopeResolver.resolveModuleUsers(SecurityUtils.getCurrentUser(), LIT_REMINDER);"
+        },
+        {
+          "line": 431,
+          "code": ".eq(BizReminder::getReminderType, LIT_EXPIRING)"
+        },
+        {
+          "line": 432,
+          "code": ".eq(BizReminder::getStatus, LIT_PENDING));"
+        },
+        {
+          "line": 436,
+          "code": ".eq(BizReminder::getReminderType, LIT_EXPIRING)"
+        },
+        {
+          "line": 437,
+          "code": ".eq(BizReminder::getStatus, LIT_PROCESSED)"
+        },
+        {
+          "line": 442,
+          "code": "r.setReminderType(LIT_EXPIRING);"
+        },
+        {
+          "line": 446,
+          "code": "r.setStatus(LIT_PENDING);"
+        },
+        {
+          "line": 527,
+          "code": "snap.put(LIT_CUSTOMERID, reminder.getCustomerId());"
+        },
+        {
+          "line": 528,
+          "code": "snap.put(LIT_OWNERID, reminder.getOwnerId());"
+        },
+        {
+          "line": 530,
+          "code": "snap.put(LIT_STATUS, reminder.getStatus());"
+        },
+        {
+          "line": 531,
+          "code": "recycleBinService.record(LIT_REMINDER, id, snap, reminder.getDeletedReason(), \"user\");"
+        }
+      ],
+      "new_non_instruction_lines": [
+        {
+          "line": 46,
+          "code": "// P0-5 batch A: duplicated string literals (Sonar java:S1192)"
+        },
+        {
+          "line": 47,
+          "code": "private static final String LIT_REMINDER = \"reminder\";"
+        },
+        {
+          "line": 48,
+          "code": "private static final String LIT_CUSTOMERID = \"customerId\";"
+        },
+        {
+          "line": 49,
+          "code": "private static final String LIT_OWNERID = \"ownerId\";"
+        },
+        {
+          "line": 50,
+          "code": "private static final String LIT_STATUS = \"status\";"
+        },
+        {
+          "line": 51,
+          "code": "private static final String LIT_PENDING = \"pending\";"
+        },
+        {
+          "line": 52,
+          "code": "private static final String LIT_EXPIRING = \"expiring\";"
+        },
+        {
+          "line": 53,
+          "code": "private static final String LIT_PROCESSED = \"processed\";"
+        },
+        {
+          "line": 54,
+          "code": "private static final String LIT_CUSTOMER_WARNING_DAYS = \"customer.warning.days\";"
+        },
+        {
+          "line": 55,
+          "code": "private static final String LIT_ARCHIVED = \"archived\";"
+        },
+        {
+          "line": 56,
+          "code": ""
+        }
+      ]
+    },
+    {
+      "key": "Eastdongjun_AigiCRM-local:02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/RolePermScopeService.java",
+      "to_cover": 26,
+      "uncovered": 18,
+      "uncovered_lines": [
+        {
+          "line": 130,
+          "code": "throw new BusinessException(503, LIT_X);"
+        },
+        {
+          "line": 142,
+          "code": "c.setModule(rs.getString(LIT_MODULE));"
+        },
+        {
+          "line": 143,
+          "code": "c.setAction(rs.getString(LIT_ACTION));"
+        },
+        {
+          "line": 144,
+          "code": "c.setScopeLevel(rs.getString(LIT_SCOPE_LEVEL));"
+        },
+        {
+          "line": 145,
+          "code": "c.setAnchor(rs.getString(LIT_ANCHOR));"
+        },
+        {
+          "line": 208,
+          "code": "throw new BusinessException(503, LIT_X);"
+        },
+        {
+          "line": 339,
+          "code": "recordScopeVersion(assigneeType, assigneeKey, String.valueOf(row.get(LIT_MODULE)), String.valueOf(row.get(LIT_ACTION)),"
+        },
+        {
+          "line": 340,
+          "code": "row.get(LIT_SCOPE_LEVEL) + \"/\" + row.get(LIT_ANCHOR), \"默认(未配置)\");"
+        },
+        {
+          "line": 378,
+          "code": "&& (LIT_REGION.equals(scope) || LIT_OFFICE.equals(scope))) {"
+        },
+        {
+          "line": 379,
+          "code": "int wantType = LIT_REGION.equals(scope) ? 2 : 3;"
+        },
+        {
+          "line": 401,
+          "code": "oldScope = row.get(LIT_SCOPE_LEVEL) + \"/\" + row.get(LIT_ANCHOR);"
+        },
+        {
+          "line": 430,
+          "code": "case LIT_CUSTOM: return \"CUSTOM\";"
+        },
+        {
+          "line": 431,
+          "code": "case LIT_REGION: return \"MY_REGION_SUB\";"
+        },
+        {
+          "line": 432,
+          "code": "case LIT_OFFICE: return \"MY_OFFICE_SUB\";"
+        },
+        {
+          "line": 521,
+          "code": "String anchor = LIT_OWNER;"
+        },
+        {
+          "line": 525,
+          "code": "scopeLevel = String.valueOf(row.get(LIT_SCOPE_LEVEL));"
+        },
+        {
+          "line": 526,
+          "code": "anchor = String.valueOf(row.get(LIT_ANCHOR));"
+        },
+        {
+          "line": 649,
+          "code": "throw new BusinessException(503, LIT_X);"
+        }
+      ],
+      "new_non_instruction_lines": [
+        {
+          "line": 25,
+          "code": "// P0-5 batch A: duplicated string literals (Sonar java:S1192)"
+        },
+        {
+          "line": 26,
+          "code": "private static final String LIT_REGION = \"region\";"
+        },
+        {
+          "line": 27,
+          "code": "private static final String LIT_OFFICE = \"office\";"
+        },
+        {
+          "line": 28,
+          "code": "private static final String LIT_CUSTOM = \"custom\";"
+        },
+        {
+          "line": 29,
+          "code": "private static final String LIT_SCOPE_LEVEL = \"scope_level\";"
+        },
+        {
+          "line": 30,
+          "code": "private static final String LIT_ANCHOR = \"anchor\";"
+        },
+        {
+          "line": 31,
+          "code": "private static final String LIT_OWNER = \"OWNER\";"
+        },
+        {
+          "line": 32,
+          "code": "private static final String LIT_MODULE = \"module\";"
+        },
+        {
+          "line": 33,
+          "code": "private static final String LIT_ACTION = \"action\";"
+        },
+        {
+          "line": 34,
+          "code": "private static final String LIT_X = \"权限范围配置读取失败，暂不可用\";"
+        },
+        {
+          "line": 35,
+          "code": ""
+        },
+        {
+          "line": 39,
+          "code": "\"all\", LIT_CUSTOM, LIT_REGION, LIT_OFFICE, \"dept\", \"dept_and_children\", \"org\", \"org_and_children\", \"team\", \"self\");"
+        }
+      ]
+    },
+    {
+      "key": "Eastdongjun_AigiCRM-local:02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/score/service/ScoreService.java",
+      "to_cover": 26,
+      "uncovered": 26,
+      "uncovered_lines": [
+        {
+          "line": 180,
+          "code": "Long userId = toLong(e.get(LIT_USERID));"
+        },
+        {
+          "line": 274,
+          "code": "m.put(LIT_REALNAME, u.getRealName());"
+        },
+        {
+          "line": 349,
+          "code": "row.put(LIT_USERID, uid);"
+        },
+        {
+          "line": 350,
+          "code": "row.put(LIT_REALNAME, user.getRealName());"
+        },
+        {
+          "line": 351,
+          "code": "row.put(LIT_OFFICENAME, officeName);"
+        },
+        {
+          "line": 352,
+          "code": "row.put(LIT_TOTALSCORE, entry.getValue());"
+        },
+        {
+          "line": 353,
+          "code": "row.put(LIT_ITEMCOUNT, itemCounts.getOrDefault(uid, 0));"
+        },
+        {
+          "line": 369,
+          "code": "if (!deptName.equals(p.getOrDefault(LIT_OFFICENAME, \"未知\"))) continue;"
+        },
+        {
+          "line": 371,
+          "code": "m.put(LIT_USERID, p.get(LIT_USERID));"
+        },
+        {
+          "line": 372,
+          "code": "m.put(LIT_REALNAME, p.get(LIT_REALNAME));"
+        },
+        {
+          "line": 373,
+          "code": "m.put(LIT_TOTALSCORE, p.get(LIT_TOTALSCORE));"
+        },
+        {
+          "line": 374,
+          "code": "m.put(LIT_ITEMCOUNT, p.get(LIT_ITEMCOUNT));"
+        },
+        {
+          "line": 377,
+          "code": "total += (int) p.getOrDefault(LIT_TOTALSCORE, 0);"
+        },
+        {
+          "line": 379,
+          "code": "members.sort((a, b) -> (int) b.get(LIT_TOTALSCORE) - (int) a.get(LIT_TOTALSCORE));"
+        },
+        {
+          "line": 383,
+          "code": "result.put(LIT_PARTICIPANTCOUNT, members.size());"
+        },
+        {
+          "line": 384,
+          "code": "result.put(LIT_TOTALSCORE, total);"
+        },
+        {
+          "line": 395,
+          "code": "String dept = (String) p.getOrDefault(LIT_OFFICENAME, \"未知\");"
+        },
+        {
+          "line": 397,
+          "code": "agg[0] += (int) p.getOrDefault(LIT_TOTALSCORE, 0);"
+        },
+        {
+          "line": 411,
+          "code": "row.put(LIT_TOTALSCORE, e.getValue()[0]);"
+        },
+        {
+          "line": 412,
+          "code": "row.put(LIT_PARTICIPANTCOUNT, e.getValue()[1]);"
+        },
+        {
+          "line": 422,
+          "code": "stats.put(LIT_PARTICIPANTCOUNT, personal.size());"
+        },
+        {
+          "line": 429,
+          "code": "depts.add((String) p.getOrDefault(LIT_OFFICENAME, \"\"));"
+        },
+        {
+          "line": 430,
+          "code": "int score = (int) p.getOrDefault(LIT_TOTALSCORE, 0);"
+        },
+        {
+          "line": 433,
+          "code": "topName = (String) p.getOrDefault(LIT_REALNAME, \"\");"
+        },
+        {
+          "line": 435,
+          "code": "totalItems += (int) p.getOrDefault(LIT_ITEMCOUNT, 0);"
+        },
+        {
+          "line": 444,
+          "code": "stats.put(\"topItemCount\", personal.get(0).getOrDefault(LIT_ITEMCOUNT, 0));"
+        }
+      ],
+      "new_non_instruction_lines": [
+        {
+          "line": 34,
+          "code": "// P0-5 batch A: duplicated string literals (Sonar java:S1192)"
+        },
+        {
+          "line": 35,
+          "code": "private static final String LIT_USERID = \"userId\";"
+        },
+        {
+          "line": 36,
+          "code": "private static final String LIT_REALNAME = \"realName\";"
+        },
+        {
+          "line": 37,
+          "code": "private static final String LIT_OFFICENAME = \"officeName\";"
+        },
+        {
+          "line": 38,
+          "code": "private static final String LIT_TOTALSCORE = \"totalScore\";"
+        },
+        {
+          "line": 39,
+          "code": "private static final String LIT_ITEMCOUNT = \"itemCount\";"
+        },
+        {
+          "line": 40,
+          "code": "private static final String LIT_PARTICIPANTCOUNT = \"participantCount\";"
+        },
+        {
+          "line": 41,
+          "code": ""
+        }
+      ]
+    },
+    {
+      "key": "Eastdongjun_AigiCRM-local:02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/sea/service/SeaConfigService.java",
+      "to_cover": 9,
+      "uncovered": 9,
+      "uncovered_lines": [
+        {
+          "line": 85,
+          "code": "try { securityAudit.permissionChange(\"sea_pool_create\", LIT_SEAPOOL + config.getPoolName()); }"
+        },
+        {
+          "line": 100,
+          "code": "try { securityAudit.permissionChange(\"sea_pool_update\", LIT_SEAPOOL + config.getId()); }"
+        },
+        {
+          "line": 139,
+          "code": "try { securityAudit.permissionChange(\"sea_pool_delete\", LIT_SEAPOOL + id); }"
+        },
+        {
+          "line": 315,
+          "code": "group.put(LIT_LABEL, \"未分配部门\");"
+        },
+        {
+          "line": 316,
+          "code": "group.put(LIT_DISABLED, true);"
+        },
+        {
+          "line": 329,
+          "code": "node.put(LIT_LABEL, d.getDeptName());"
+        },
+        {
+          "line": 331,
+          "code": "node.put(LIT_DISABLED, !selectable);"
+        },
+        {
+          "line": 347,
+          "code": "n.put(LIT_LABEL, u.getRealName());"
+        },
+        {
+          "line": 348,
+          "code": "n.put(LIT_DISABLED, false);"
+        }
+      ],
+      "new_non_instruction_lines": [
+        {
+          "line": 27,
+          "code": "// P0-5 batch A: duplicated string literals (Sonar java:S1192)"
+        },
+        {
+          "line": 28,
+          "code": "private static final String LIT_SEAPOOL = \"seaPool:\";"
+        },
+        {
+          "line": 29,
+          "code": "private static final String LIT_LABEL = \"label\";"
+        },
+        {
+          "line": 30,
+          "code": "private static final String LIT_DISABLED = \"disabled\";"
+        },
+        {
+          "line": 31,
+          "code": ""
+        }
+      ]
+    },
+    {
+      "key": "Eastdongjun_AigiCRM-local:02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/sea/controller/SeaController.java",
+      "to_cover": 5,
+      "uncovered": 5,
+      "uncovered_lines": [
+        {
+          "line": 154,
+          "code": "wrapper.eq(BizApproval::getApprovalType, LIT_CLAIM)"
+        },
+        {
+          "line": 233,
+          "code": ".eq(BizApproval::getApprovalType, LIT_CLAIM);"
+        },
+        {
+          "line": 238,
+          "code": ".eq(BizApproval::getApprovalType, LIT_CLAIM).eq(BizApproval::getStatus, \"approved\")"
+        },
+        {
+          "line": 241,
+          "code": ".eq(BizApproval::getApprovalType, LIT_CLAIM).eq(BizApproval::getStatus, \"rejected\")"
+        },
+        {
+          "line": 244,
+          "code": ".eq(BizApproval::getApprovalType, LIT_CLAIM).eq(BizApproval::getStatus, \"reviewing\")"
+        }
+      ],
+      "new_non_instruction_lines": [
+        {
+          "line": 34,
+          "code": "// P0-5 batch A: duplicated string literals (Sonar java:S1192)"
+        },
+        {
+          "line": 35,
+          "code": "private static final String LIT_CLAIM = \"claim\";"
+        },
+        {
+          "line": 36,
+          "code": ""
+        }
+      ]
+    },
+    {
+      "key": "Eastdongjun_AigiCRM-local:02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/sea/service/SeaService.java",
+      "to_cover": 13,
+      "uncovered": 7,
+      "uncovered_lines": [
+        {
+          "line": 81,
+          "code": "wrapper.ne(BizSeaPool::getStatus, LIT_CLAIMED);"
+        },
+        {
+          "line": 152,
+          "code": "stats.put(\"total\", seaPoolMapper.selectCount(scoped(visiblePoolIds).eq(BizSeaPool::getStatus, LIT_AVAILABLE)));"
+        },
+        {
+          "line": 156,
+          "code": ".eq(BizSeaPool::getStatus, LIT_CLAIMED).ge(BizSeaPool::getClaimDate, monthStart)));"
+        },
+        {
+          "line": 177,
+          "code": ".ne(BizSeaPool::getStatus, LIT_CLAIMED));"
+        },
+        {
+          "line": 201,
+          "code": "pool.setStatus(LIT_AVAILABLE);"
+        },
+        {
+          "line": 324,
+          "code": "throw new BusinessException(403, LIT_X);"
+        },
+        {
+          "line": 339,
+          "code": "throw new BusinessException(LIT_X);"
+        }
+      ],
+      "new_non_instruction_lines": [
+        {
+          "line": 42,
+          "code": "// P0-5 batch A: duplicated string literals (Sonar java:S1192)"
+        },
+        {
+          "line": 43,
+          "code": "private static final String LIT_AVAILABLE = \"available\";"
+        },
+        {
+          "line": 44,
+          "code": "private static final String LIT_X = \"资源不存在或无权访问\";"
+        },
+        {
+          "line": 45,
+          "code": "private static final String LIT_CLAIMED = \"claimed\";"
+        },
+        {
+          "line": 46,
+          "code": ""
+        }
+      ]
+    },
+    {
+      "key": "Eastdongjun_AigiCRM-local:02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/security/SecurityAuditService.java",
+      "to_cover": 14,
+      "uncovered": 4,
+      "uncovered_lines": [
+        {
+          "line": 110,
+          "code": "event(LIT_PERMISSION_CHANGE, LIT_ACTION, action, \"target\", targetDesc, LIT_ACTORID, actorId);"
+        },
+        {
+          "line": 111,
+          "code": "persist(LIT_PERMISSION_CHANGE, actorId, null, null, LIT_ACTION_2 + action + \" \" + targetDesc);"
+        },
+        {
+          "line": 138,
+          "code": "event(\"USER_ORG_CHANGED\", LIT_USERID, userId, \"from\", oldOrgId, \"to\", newOrgId, LIT_ACTORID, actorId);"
+        },
+        {
+          "line": 156,
+          "code": "\"canEdit\", canEdit, \"canDelete\", canDelete, LIT_ACTORID, actorId);"
+        }
+      ],
+      "new_non_instruction_lines": [
+        {
+          "line": 35,
+          "code": "// P0-5 batch A: duplicated string literals (Sonar java:S1192)"
+        },
+        {
+          "line": 36,
+          "code": "private static final String LIT_PERMISSION_CHANGE = \"PERMISSION_CHANGE\";"
+        },
+        {
+          "line": 37,
+          "code": "private static final String LIT_ACTORID = \"actorId\";"
+        },
+        {
+          "line": 38,
+          "code": "private static final String LIT_ACTION = \"action\";"
+        },
+        {
+          "line": 39,
+          "code": "private static final String LIT_ACTION_2 = \"action=\";"
+        },
+        {
+          "line": 40,
+          "code": "private static final String LIT_USERID = \"userId\";"
+        },
+        {
+          "line": 41,
+          "code": "private static final String LIT_USERNAME = \"username\";"
+        },
+        {
+          "line": 42,
+          "code": ""
+        },
+        {
+          "line": 95,
+          "code": "LIT_ACTION_2 + action + \" roleId=\" + targetRoleId + \" roleName=\" + roleName);"
+        },
+        {
+          "line": 131,
+          "code": "\"targetUsername\", targetUsername, LIT_ACTORID, actorId);"
+        },
+        {
+          "line": 133,
+          "code": "LIT_ACTION_2 + action + \" targetUserId=\" + targetUserId);"
+        },
+        {
+          "line": 180,
+          "code": "\"operator\", actorId, LIT_ACTORID, actorId);"
+        }
+      ]
+    },
+    {
+      "key": "Eastdongjun_AigiCRM-local:02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/statistics/service/StatisticsQueryService.java",
+      "to_cover": 81,
+      "uncovered": 31,
+      "uncovered_lines": [
+        {
+          "line": 366,
+          "code": "item.put(LIT_CUSTOMERNAME, c.getCustomerName());"
+        },
+        {
+          "line": 499,
+          "code": "else if (LIT_QUASI.equals(ct)) quasiCount++;"
+        },
+        {
+          "line": 547,
+          "code": "return String.valueOf(a.getOrDefault(LIT_CUSTOMERNAME, \"\")).compareTo(String.valueOf(b.getOrDefault(LIT_CUSTOMERNAME, \"\")));"
+        },
+        {
+          "line": 600,
+          "code": "row.put(LIT_DEPTNAME, deptName);"
+        },
+        {
+          "line": 601,
+          "code": "row.put(LIT_CUSTOMERCOUNT, custCount);"
+        },
+        {
+          "line": 602,
+          "code": "row.put(LIT_CORECOUNT, cores);"
+        },
+        {
+          "line": 603,
+          "code": "row.put(LIT_AVGSCORE, avgScoreP);"
+        },
+        {
+          "line": 605,
+          "code": "row.put(LIT_TOTALSCORE, totalScore);"
+        },
+        {
+          "line": 610,
+          "code": "int cmp = Integer.compare(((Number) b.get(LIT_TOTALSCORE)).intValue(), ((Number) a.get(LIT_TOTALSCORE)).intValue());"
+        },
+        {
+          "line": 612,
+          "code": "return Long.compare(((Number) b.get(LIT_CUSTOMERCOUNT)).longValue(), ((Number) a.get(LIT_CUSTOMERCOUNT)).longValue());"
+        },
+        {
+          "line": 618,
+          "code": "String dn = (String) p.getOrDefault(LIT_DEPTNAME, \"未知\");"
+        },
+        {
+          "line": 620,
+          "code": "agg[0] += ((Number) p.get(LIT_TOTALSCORE)).intValue();"
+        },
+        {
+          "line": 621,
+          "code": "agg[1] += ((Number) p.get(LIT_CUSTOMERCOUNT)).intValue();"
+        },
+        {
+          "line": 622,
+          "code": "agg[2] += ((Number) p.get(LIT_CORECOUNT)).intValue();"
+        },
+        {
+          "line": 628,
+          "code": "row.put(LIT_DEPTNAME, e.getKey());"
+        },
+        {
+          "line": 629,
+          "code": "row.put(LIT_TOTALSCORE, e.getValue()[0]);"
+        },
+        {
+          "line": 630,
+          "code": "row.put(LIT_CUSTOMERCOUNT, e.getValue()[1]);"
+        },
+        {
+          "line": 631,
+          "code": "row.put(LIT_CORECOUNT, e.getValue()[2]);"
+        },
+        {
+          "line": 633,
+          "code": "row.put(LIT_AVGSCORE, e.getValue()[1] > 0 ? Math.round(e.getValue()[0] * 10.0 / e.getValue()[1]) / 10.0 : 0);"
+        },
+        {
+          "line": 745,
+          "code": "int cmp = Integer.compare(((Number) b.getOrDefault(LIT_RELATIONSHIPSCORE, 0)).intValue(),"
+        },
+        {
+          "line": 746,
+          "code": "((Number) a.getOrDefault(LIT_RELATIONSHIPSCORE, 0)).intValue());"
+        },
+        {
+          "line": 748,
+          "code": "return String.valueOf(a.getOrDefault(LIT_CUSTOMERNAME, \"\")).compareTo(String.valueOf(b.getOrDefault(LIT_CUSTOMERNAME, \"\")));"
+        },
+        {
+          "line": 821,
+          "code": "int cmp = Integer.compare(((Number) b.getOrDefault(LIT_TOTALSCORE, 0)).intValue(),"
+        },
+        {
+          "line": 822,
+          "code": "((Number) a.getOrDefault(LIT_TOTALSCORE, 0)).intValue());"
+        },
+        {
+          "line": 824,
+          "code": "return String.valueOf(a.getOrDefault(LIT_CUSTOMERNAME, \"\")).compareTo(String.valueOf(b.getOrDefault(LIT_CUSTOMERNAME, \"\")));"
+        },
+        {
+          "line": 875,
+          "code": ".notIn(BizCustomer::getStatus, \"sea\", LIT_ARCHIVED)"
+        },
+        {
+          "line": 888,
+          "code": "w.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, \"sea\", LIT_ARCHIVED) // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)"
+        },
+        {
+          "line": 898,
+          "code": ".notIn(BizCustomer::getStatus, \"sea\", LIT_ARCHIVED)"
+        },
+        {
+          "line": 904,
+          "code": "nw.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, \"sea\", LIT_ARCHIVED) // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)"
+        },
+        {
+          "line": 916,
+          "code": "rw.eq(BizCustomer::getDeleted, 0).notIn(BizCustomer::getStatus, \"sea\", LIT_ARCHIVED) // 【B5 2026-09-22】归档不参与统计/提醒/到期检查(统一口径)"
+        },
+        {
+          "line": 925,
+          "code": "row.put(LIT_CUSTOMERCOUNT, total);"
+        }
+      ],
+      "new_non_instruction_lines": [
+        {
+          "line": 56,
+          "code": "// P0-5 batch A: duplicated string literals (Sonar java:S1192)"
+        },
+        {
+          "line": 57,
+          "code": "private static final String LIT_ARCHIVED = \"archived\";"
+        },
+        {
+          "line": 58,
+          "code": "private static final String LIT_QUASI = \"quasi\";"
+        },
+        {
+          "line": 59,
+          "code": "private static final String LIT_COREMINORWAN = \"coreMinorWan\";"
+        },
+        {
+          "line": 60,
+          "code": "private static final String LIT_COREMAJORWAN = \"coreMajorWan\";"
+        },
+        {
+          "line": 61,
+          "code": "private static final String LIT_CORECOUNT = \"coreCount\";"
+        },
+        {
+          "line": 62,
+          "code": "private static final String LIT_CORETYPE = \"coreType\";"
+        },
+        {
+          "line": 63,
+          "code": "private static final String LIT_CUSTOMER = \"customer\";"
+        },
+        {
+          "line": 64,
+          "code": "private static final String LIT_EXPIRING = \"expiring\";"
+        },
+        {
+          "line": 65,
+          "code": "private static final String LIT_CUSTOMERNAME = \"customerName\";"
+        },
+        {
+          "line": 66,
+          "code": "private static final String LIT_AVGSCORE = \"avgScore\";"
+        },
+        {
+          "line": 67,
+          "code": "private static final String LIT_RELATIONSHIPSCORE = \"relationshipScore\";"
+        },
+        {
+          "line": 68,
+          "code": "private static final String LIT_TOTALSCORE = \"totalScore\";"
+        },
+        {
+          "line": 69,
+          "code": "private static final String LIT_DEPTNAME = \"deptName\";"
+        },
+        {
+          "line": 70,
+          "code": "private static final String LIT_CUSTOMERCOUNT = \"customerCount\";"
+        },
+        {
+          "line": 71,
+          "code": "private static final String LIT_RECORDCOUNT = \"recordCount\";"
+        },
+        {
+          "line": 72,
+          "code": "private static final String LIT_BYPARENT = \"byParent\";"
+        },
+        {
+          "line": 73,
+          "code": "private static final String LIT_LIMIT_5 = \"LIMIT 5\";"
+        },
+        {
+          "line": 74,
+          "code": ""
+        },
+        {
+          "line": 287,
+          "code": "*   还会追加 applyRuleEngineFilter(同一 evaluateForEntity(rules, user, LIT_CUSTOMER) 维度)，"
+        },
+        {
+          "line": 328,
+          "code": "* 规则引擎指纹:PermissionRuleEngine.evaluateForEntity(rules, user, LIT_CUSTOMER) 的 WHERE 指纹，"
+        }
+      ]
+    },
+    {
+      "key": "Eastdongjun_AigiCRM-local:02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysDictService.java",
+      "to_cover": 2,
+      "uncovered": 2,
+      "uncovered_lines": [
+        {
+          "line": 173,
+          "code": ".eq(LIT_INDUSTRY.equals(column)"
+        },
+        {
+          "line": 176,
+          "code": ".set(LIT_INDUSTRY.equals(column)"
+        }
+      ],
+      "new_non_instruction_lines": [
+        {
+          "line": 24,
+          "code": "// P0-5 batch A: duplicated string literals (Sonar java:S1192)"
+        },
+        {
+          "line": 25,
+          "code": "private static final String LIT_INDUSTRY = \"industry\";"
+        },
+        {
+          "line": 26,
+          "code": ""
+        },
+        {
+          "line": 87,
+          "code": "LIT_INDUSTRY, LIT_INDUSTRY,"
+        }
+      ]
+    },
+    {
+      "key": "Eastdongjun_AigiCRM-local:02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysUserController.java",
+      "to_cover": 3,
+      "uncovered": 1,
+      "uncovered_lines": [
+        {
+          "line": 80,
+          "code": "if (!orgAdminService.canManageUser(id)) throw new BusinessException(403, LIT_X);"
+        }
+      ],
+      "new_non_instruction_lines": [
+        {
+          "line": 20,
+          "code": "// P0-5 batch A: duplicated string literals (Sonar java:S1192)"
+        },
+        {
+          "line": 21,
+          "code": "private static final String LIT_X = \"无权操作该用户\";"
+        },
+        {
+          "line": 22,
+          "code": ""
+        }
+      ]
+    },
+    {
+      "key": "Eastdongjun_AigiCRM-local:02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysUserService.java",
+      "to_cover": 18,
+      "uncovered": 4,
+      "uncovered_lines": [
+        {
+          "line": 567,
+          "code": "throw new BusinessException(403, LIT_X);"
+        },
+        {
+          "line": 584,
+          "code": "if (user == null) throw new BusinessException(LIT_X_2);"
+        },
+        {
+          "line": 604,
+          "code": "if (user == null) throw new BusinessException(LIT_X_2);"
+        },
+        {
+          "line": 656,
+          "code": "throw new BusinessException(LIT_X_2);"
+        }
+      ],
+      "new_non_instruction_lines": [
+        {
+          "line": 38,
+          "code": "// P0-5 batch A: duplicated string literals (Sonar java:S1192)"
+        },
+        {
+          "line": 39,
+          "code": "private static final String LIT_SYSTEM_ROLE_GRANT = \"system:role:grant\";"
+        },
+        {
+          "line": 40,
+          "code": "private static final String LIT_X = \"无权操作该用户\";"
+        },
+        {
+          "line": 41,
+          "code": "private static final String LIT_X_2 = \"用户不存在\";"
+        },
+        {
+          "line": 42,
+          "code": "private static final String LIT_CUSTOM = \"custom\";"
+        },
+        {
+          "line": 43,
+          "code": ""
+        },
+        {
+          "line": 47,
+          "code": "\"self\", \"team\", \"dept\", \"office\", \"region\", \"all\", LIT_CUSTOM);"
+        }
+      ]
+    },
+    {
+      "key": "Eastdongjun_AigiCRM-local:02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/task/service/TaskService.java",
+      "to_cover": 25,
+      "uncovered": 14,
+      "uncovered_lines": [
+        {
+          "line": 57,
+          "code": "if (body.get(LIT_TITLE) != null) task.setTitle(body.get(LIT_TITLE).toString());"
+        },
+        {
+          "line": 58,
+          "code": "if (body.get(LIT_DETAIL) != null) task.setDetail(body.get(LIT_DETAIL).toString());"
+        },
+        {
+          "line": 60,
+          "code": "if (body.get(LIT_DUEDATE) != null) task.setDueDate(LocalDate.parse(body.get(LIT_DUEDATE).toString()));"
+        },
+        {
+          "line": 69,
+          "code": "if (body.get(LIT_TITLE) != null) task.setTitle(body.get(LIT_TITLE).toString());"
+        },
+        {
+          "line": 70,
+          "code": "if (body.get(LIT_DETAIL) != null) task.setDetail(body.get(LIT_DETAIL).toString());"
+        },
+        {
+          "line": 71,
+          "code": "if (body.get(LIT_DUEDATE) != null) task.setDueDate(LocalDate.parse(body.get(LIT_DUEDATE).toString()));"
+        },
+        {
+          "line": 143,
+          "code": "if (LIT_COMPLETED.equals(task.getStatus())) {"
+        },
+        {
+          "line": 147,
+          "code": "if (LIT_CANCELLED.equals(task.getStatus())) {"
+        },
+        {
+          "line": 150,
+          "code": "task.setStatus(LIT_CANCELLED);"
+        },
+        {
+          "line": 159,
+          "code": "if (LIT_COMPLETED.equals(task.getStatus())) {"
+        },
+        {
+          "line": 170,
+          "code": "snap.put(LIT_TITLE, task.getTitle());"
+        },
+        {
+          "line": 202,
+          "code": "if (LIT_COMPLETED.equals(existing.getStatus())) {"
+        },
+        {
+          "line": 251,
+          "code": "wrapper.eq(BizTask::getStatus, LIT_PENDING)"
+        },
+        {
+          "line": 309,
+          "code": "task.setOverdue(LIT_PENDING.equals(task.getStatus())"
+        }
+      ],
+      "new_non_instruction_lines": [
+        {
+          "line": 34,
+          "code": "// P0-5 batch A: duplicated string literals (Sonar java:S1192)"
+        },
+        {
+          "line": 35,
+          "code": "private static final String LIT_TITLE = \"title\";"
+        },
+        {
+          "line": 36,
+          "code": "private static final String LIT_COMPLETED = \"completed\";"
+        },
+        {
+          "line": 37,
+          "code": "private static final String LIT_CANCELLED = \"cancelled\";"
+        },
+        {
+          "line": 38,
+          "code": "private static final String LIT_DETAIL = \"detail\";"
+        },
+        {
+          "line": 39,
+          "code": "private static final String LIT_DUEDATE = \"dueDate\";"
+        },
+        {
+          "line": 40,
+          "code": "private static final String LIT_PENDING = \"pending\";"
+        },
+        {
+          "line": 41,
+          "code": ""
+        }
+      ]
+    }
+  ]
+}

@@ -18,7 +18,8 @@ const appJson = JSON.parse(fs.readFileSync(path.join(mpRoot, 'app.json'), 'utf8'
 const pages = appJson.pages || []
 const tabPages = new Set(((appJson.tabBar && appJson.tabBar.list) || []).map((t) => '/' + (t.pagePath || t.page_path)))
 
-const mini = await automator.connect({ wsEndpoint: 'ws://127.0.0.1:9424' })
+const WS = process.env.WECHAT_AUTOMATOR_WS || 'ws://127.0.0.1:9424'
+const mini = await automator.connect({ wsEndpoint: WS })
 console.log(`connected — ${pages.length} 页面(其中 tabBar ${tabPages.size})`)
 
 await mini.evaluate(() => {

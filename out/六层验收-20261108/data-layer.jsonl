@@ -1,0 +1,19 @@
+{"c": "accounts", "ok": {"t_auto_ty2": true, "t_auto_nm": true, "t_auto_xz": true, "t_auto_ty3": true, "admin": true}}
+{"c": "crud-create", "st": 200, "name": "六层验收客户A1108185031", "id": 633, "resp": "{\"code\":200,\"data\":633,\"message\":\"success\"}"}
+{"c": "crud-create-sql", "rows": ["89\t4\t煤矿"], "err": "mysql: [Warning] Using a password on the command line interface can be insecure.\n"}
+{"c": "crud-read", "st": 200, "name_in": true}
+{"c": "crud-update", "st": 200, "db_name": ["六层验收客户A1108185031改"]}
+{"c": "filter-industry", "api_total": 2, "sql_total": [], "st": 200}
+{"c": "hz-ty3-read", "st": 400, "resp": "{\"code\":400,\"data\":null,\"message\":\"无权查看该客户\"}"}
+{"c": "scope-ty3-list", "contains": false}
+{"c": "xz-read", "st": 400}
+{"c": "orphan", "name": "客户归属人孤儿", "count": "0", "err": "mysql: [Warning] Using a password on the command line interface can be insecure.\n"}
+{"c": "orphan", "name": "客户部门孤儿", "count": "0", "err": "mysql: [Warning] Using a password on the command line interface can be insecure.\n"}
+{"c": "orphan", "name": "激励记录客户孤儿", "count": "0", "err": "mysql: [Warning] Using a password on the command line interface can be insecure.\n"}
+{"c": "orphan", "name": "审批单申请人孤儿", "count": "0", "err": "mysql: [Warning] Using a password on the command line interface can be insecure.\n"}
+{"c": "orphan", "name": "任务负责人孤儿", "count": "0", "err": "mysql: [Warning] Using a password on the command line interface can be insecure.\n"}
+{"c": "orphan", "name": "角色菜单绑定孤儿", "count": "0", "err": "mysql: [Warning] Using a password on the command line interface can be insecure.\n"}
+{"c": "orphan", "name": "用户角色孤儿", "count": "0", "err": "mysql: [Warning] Using a password on the command line interface can be insecure.\n"}
+{"c": "ref-log-created", "st": 200, "sql": ["1"]}
+{"c": "ref-del-soft", "st": 200, "db": ["1"], "resp": "{\"code\":200,\"data\":null,\"message\":\"success\"}"}
+{"c": "recycle-restore", "st": 404, "db": ["1"], "resp": "{\"code\":404,\"data\":null,\"message\":\"请求的地址不存在\"}"}

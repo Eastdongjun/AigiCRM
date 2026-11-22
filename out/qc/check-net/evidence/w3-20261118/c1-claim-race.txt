@@ -1,0 +1,1 @@
+CLAIM_RACE results=[(400, '{"code":400,"data":null,"errorCode":null,"message":"该客户已被他人申请捞取，正在审批中"}'), (200, '{"code":200,"data":null,"errorCode":null,"message":"success"}')] success_count=1 expect=1 (pool pending_approval guard)

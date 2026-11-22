@@ -5,7 +5,7 @@ set -euo pipefail
 # CI runner 无此路径必炸。CI 的 contracts job 传 AIGI_SKIP_VSCODE=1 跳过(本地不传=照常跑)。
 [ "${AIGI_SKIP_VSCODE:-0}" = "1" ] && { echo "SKIP: vscode-diagnostics 契约(CI 无本机诊断导出)"; exit 0; }
 
-CENTRAL='/Users/dongjun/东来/Agent/00-管理/项目执行/802fad80-8665-4b11-9f9d-04b92bda4666/current'
+CENTRAL='/Users/dongjun/东来/Agent/00-治理/项目执行/802fad80-8665-4b11-9f9d-04b92bda4666/current'
 RAW="$CENTRAL/vscode-diagnostics.raw.json"
 NORMALIZED="$CENTRAL/vscode-diagnostics.json"
 REQUEST="$CENTRAL/vscode-diagnostics.request.json"

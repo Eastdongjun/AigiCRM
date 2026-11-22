@@ -1,0 +1,1 @@
+AUTH_PROBE status=200 body='{"code":200,"data":{"avatar":null,"currentGroupId":1,"currentGroupName":"艾志集团","dataScope":"all","deptName":"艾志（南京）环保管接技'

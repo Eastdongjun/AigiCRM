@@ -1,0 +1,95 @@
+1	05	dashboard	view	region	ROLE	05	OWNER
+5	05	*	*	office	ROLE	05	OWNER
+6	06	*	*	self	ROLE	06	OWNER
+12		*	*	team	USER	40	OWNER
+13		*	*	office	USER	41	OWNER
+14		*	*	team	USER	42	OWNER
+15		*	*	custom	USER	43	OWNER
+16		*	*	team	USER	44	OWNER
+19		*	*	custom	USER	61	OWNER
+20		*	*	custom	USER	62	OWNER
+27	0	dashboard	view	all	ROLE	0	OWNER
+28	06	dashboard	view	self	ROLE	06	OWNER
+32	0	system	dept	all	ROLE	0	OWNER
+33	0	customer	view	all	ROLE	0	ORG
+38		customer	view	all	USER	11	OWNER
+39		customer	add	all	USER	11	OWNER
+40		customer	edit	all	USER	11	OWNER
+44		customer	delete	all	USER	11	ORG
+45		customer	export	all	USER	11	ORG
+47		customer	share	all	USER	11	OWNER
+50		customer	import	all	USER	11	OWNER
+51	0	incentive	edit	all	ROLE	0	OWNER
+52	0	incentive	delete	all	ROLE	0	OWNER
+53	06	incentive	delete	self	ROLE	06	ORG
+55	0	sea	view	all	ROLE	0	OWNER
+56	0	sea	pool	all	ROLE	0	OWNER
+57	0	sea	config	all	ROLE	0	OWNER
+59	06	sea	view	office	ROLE	06	OWNER
+61	05	sea	view	office	ROLE	05	OWNER
+64	0	score	entry	all	ROLE	0	OWNER
+65	0	score	manage	all	ROLE	0	OWNER
+66	0	score	view	all	ROLE	0	OWNER
+67	0	score	ranking	all	ROLE	0	OWNER
+68	06	score	ranking	all	ROLE	06	OWNER
+71	0	incentive	view	all	ROLE	0	OWNER
+72	0	incentive	manage	all	ROLE	0	OWNER
+73	0	incentive	view-all	all	ROLE	0	OWNER
+74	0	incentive	view-shared	all	ROLE	0	OWNER
+75	06	incentive	view-all	all	ROLE	06	OWNER
+76	06	incentive	view-shared	all	ROLE	06	OWNER
+77	05	incentive	view-all	region	ROLE	05	OWNER
+78	05	incentive	view-shared	region	ROLE	05	OWNER
+80	06	incentive	view	all	ROLE	06	OWNER
+81	06	incentive	add	all	ROLE	06	OWNER
+117	05	incentive	view	all	ROLE	05	OWNER
+118	05	incentive	edit	all	ROLE	05	OWNER
+119	05	incentive	manage	all	ROLE	05	OWNER
+120	05	incentive	add	all	ROLE	05	OWNER
+122	0	incentive	add	self	ROLE	0	ORG
+128	0	customer	add	all	ROLE	0	OWNER
+130	0	customer	export	all	ROLE	0	OWNER
+131	0	customer	date	all	ROLE	0	OWNER
+132	0	customer	import	all	ROLE	0	OWNER
+134	admin	customer	view	all	ROLE	admin	OWNER
+135	admin	customer	add	all	ROLE	admin	OWNER
+136	admin	customer	edit	all	ROLE	admin	OWNER
+137	admin	customer	delete	all	ROLE	admin	OWNER
+138	admin	customer	export	all	ROLE	admin	OWNER
+139	admin	customer	date	all	ROLE	admin	OWNER
+140	admin	customer	import	all	ROLE	admin	OWNER
+142	05	customer	add	office	ROLE	05	OWNER
+145	05	customer	export	office	ROLE	05	OWNER
+146	05	customer	date	office	ROLE	05	OWNER
+147	05	customer	import	office	ROLE	05	OWNER
+154	0	customer	edit	all	ROLE	0	ORG
+155	0	customer	delete	all	ROLE	0	ORG
+157	05	customer	finance_edit	region	ROLE	05	ORG
+158	0	incentive	stats_view	all	ROLE	0	OWNER
+159	06	incentive	stats_view	all	ROLE	06	OWNER
+160	admin	incentive	stats_view	all	ROLE	admin	OWNER
+161	05	incentive	stats_view	all	ROLE	05	OWNER
+164	0	customer	finance_edit	all	ROLE	0	ORG
+165	05	customer	view	office	ROLE	05	ORG
+166	05	customer	edit	office	ROLE	05	ORG
+167	05	customer	delete	office	ROLE	05	ORG
+168	admin	score	view	all	ROLE	admin	ORG
+169	06	file	view	all	ROLE	06	OWNER
+170	0	file	view	all	ROLE	0	OWNER
+171	05	file	view	all	ROLE	05	OWNER
+172	admin	file	view	all	ROLE	admin	OWNER
+173	06	file	manage	dept	ROLE	06	OWNER
+174	0	file	manage	dept	ROLE	0	OWNER
+175	05	file	manage	dept	ROLE	05	OWNER
+176	admin	file	manage	dept	ROLE	admin	OWNER
+177	06	file	delete	self	ROLE	06	OWNER
+178	0	file	delete	self	ROLE	0	OWNER
+179	05	file	delete	self	ROLE	05	OWNER
+180	admin	file	delete	self	ROLE	admin	OWNER
+269	0	fabushi	stats_view	all	ROLE	0	OWNER
+270	06	fabushi	stats_view	all	ROLE	06	OWNER
+271	admin	fabushi	stats_view	all	ROLE	admin	OWNER
+272	05	fabushi	stats_view	all	ROLE	05	OWNER
+276	fabu_audit_tmp	file	view	self	ROLE	fabu_audit_tmp	OWNER
+277	fabu_audit_tmp	file	manage	self	ROLE	fabu_audit_tmp	OWNER
+278	fabu_audit_tmp	file	delete	self	ROLE	fabu_audit_tmp	OWNER

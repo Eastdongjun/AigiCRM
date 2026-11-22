@@ -1,0 +1,185 @@
+===JSON-START===
+[
+ {
+  "sev": "P1",
+  "layer": "②",
+  "pos": "POST /api/customer/add",
+  "what": "空body/探测id 触发 500(缺参数校验)",
+  "ev": "{\"code\":500,\"data\":null,\"message\":\"数据访问异常，支持编号 S-20261108182910-84beb\"}"
+ },
+ {
+  "sev": "P1",
+  "layer": "②",
+  "pos": "POST /api/customer/import",
+  "what": "空body/探测id 触发 500(缺参数校验)",
+  "ev": "{\"code\":500,\"data\":null,\"message\":\"系统异常，支持编号 S-20261108182923-1c9b0\"}"
+ },
+ {
+  "sev": "P2",
+  "layer": "⑤",
+  "pos": "GET /api/customer/rankings",
+  "what": "sales_ty(06) 测试库无码却放行",
+  "ev": "{\"code\":200,\"data\":{\"incentive\":[{\"customerId\":256,\"customerName\":\"邯钢集团邯宝钢铁有限公司（ guard=hasAuthority('score:view') or hasAuthority('ranking:customer:view') or hasAuthority('statistics:view')"
+ },
+ {
+  "sev": "P2",
+  "layer": "⑤",
+  "pos": "GET /api/customer/rankings",
+  "what": "xz(05) 测试库无码却放行",
+  "ev": "{\"code\":200,\"data\":{\"incentive\":[{\"customerId\":256,\"customerName\":\"邯钢集团邯宝钢铁有限公司（ guard=hasAuthority('score:view') or hasAuthority('ranking:customer:view') or hasAuthority('statistics:view')"
+ },
+ {
+  "sev": "P1",
+  "layer": "②",
+  "pos": "POST /api/customer/990000001/logs",
+  "what": "空body/探测id 触发 500(缺参数校验)",
+  "ev": "{\"code\":500,\"data\":null,\"message\":\"数据访问异常，支持编号 S-20261108183004-88c41\"}"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "GET /api/file/folders/990000001/acl",
+  "what": "sales_ty(06) 测试库有码却被拒(403)",
+  "ev": "{\"code\":403,\"data\":null,\"message\":\"没有访问权限，请联系管理员授权\"} guard=hasAuthority('file:acl:manage')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "GET /api/file/folders/990000001/acl",
+  "what": "xz(05) 测试库有码却被拒(403)",
+  "ev": "{\"code\":403,\"data\":null,\"message\":\"没有访问权限，请联系管理员授权\"} guard=hasAuthority('file:acl:manage')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "PUT /api/file/folders/990000001/download",
+  "what": "sales_ty(06) 测试库有码却被拒(403)",
+  "ev": "{\"code\":403,\"data\":null,\"message\":\"没有访问权限，请联系管理员授权\"} guard=hasAuthority('file:acl:manage')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "PUT /api/file/folders/990000001/download",
+  "what": "xz(05) 测试库有码却被拒(403)",
+  "ev": "{\"code\":403,\"data\":null,\"message\":\"没有访问权限，请联系管理员授权\"} guard=hasAuthority('file:acl:manage')"
+ },
+ {
+  "sev": "P1",
+  "layer": "②",
+  "pos": "POST /api/file/upload",
+  "what": "空body/探测id 触发 500(缺参数校验)",
+  "ev": "{\"code\":500,\"data\":null,\"message\":\"系统异常，支持编号 S-20261108183041-d4b17\"}"
+ },
+ {
+  "sev": "P1",
+  "layer": "②",
+  "pos": "POST /api/file/990000001/replace",
+  "what": "空body/探测id 触发 500(缺参数校验)",
+  "ev": "{\"code\":500,\"data\":null,\"message\":\"系统异常，支持编号 S-20261108183042-18877\"}"
+ },
+ {
+  "sev": "P1",
+  "layer": "②",
+  "pos": "POST /api/incentive/categories",
+  "what": "空body/探测id 触发 500(缺参数校验)",
+  "ev": "{\"code\":500,\"data\":null,\"message\":\"数据访问异常，支持编号 S-20261108183043-a2890\"}"
+ },
+ {
+  "sev": "P1",
+  "layer": "②",
+  "pos": "POST /api/score/entries/batch",
+  "what": "空body/探测id 触发 500(缺参数校验)",
+  "ev": "{\"code\":500,\"data\":null,\"message\":\"系统异常，支持编号 S-20261108183055-47686\"}"
+ },
+ {
+  "sev": "P1",
+  "layer": "②",
+  "pos": "POST /api/score/items",
+  "what": "空body/探测id 触发 500(缺参数校验)",
+  "ev": "{\"code\":500,\"data\":null,\"message\":\"数据访问异常，支持编号 S-20261108183056-9e7a2\"}"
+ },
+ {
+  "sev": "P1",
+  "layer": "②",
+  "pos": "PUT /api/sea/configs/990000001",
+  "what": "空body/探测id 触发 500(缺参数校验)",
+  "ev": "{\"code\":500,\"data\":null,\"message\":\"数据访问异常，支持编号 S-20261108183101-59e99\"}"
+ },
+ {
+  "sev": "P1",
+  "layer": "②",
+  "pos": "POST /api/sea/import",
+  "what": "空body/探测id 触发 500(缺参数校验)",
+  "ev": "{\"code\":500,\"data\":null,\"message\":\"系统异常，支持编号 S-20261108183102-17767\"}"
+ },
+ {
+  "sev": "P1",
+  "layer": "②",
+  "pos": "POST /api/system/depts",
+  "what": "空body/探测id 触发 500(缺参数校验)",
+  "ev": "{\"code\":500,\"data\":null,\"message\":\"数据访问异常，支持编号 S-20261108183111-4a46f\"}"
+ },
+ {
+  "sev": "P1",
+  "layer": "②",
+  "pos": "PUT /api/system/depts/990000001",
+  "what": "空body/探测id 触发 500(缺参数校验)",
+  "ev": "{\"code\":500,\"data\":null,\"message\":\"数据访问异常，支持编号 S-20261108183113-cad4f\"}"
+ },
+ {
+  "sev": "P1",
+  "layer": "②",
+  "pos": "POST /api/system/dict/data",
+  "what": "空body/探测id 触发 500(缺参数校验)",
+  "ev": "{\"code\":500,\"data\":null,\"message\":\"数据访问异常，支持编号 S-20261108183114-32516\"}"
+ },
+ {
+  "sev": "P1",
+  "layer": "②",
+  "pos": "PUT /api/system/dict/data/990000001",
+  "what": "空body/探测id 触发 500(缺参数校验)",
+  "ev": "{\"code\":500,\"data\":null,\"message\":\"数据访问异常，支持编号 S-20261108183115-5cf41\"}"
+ },
+ {
+  "sev": "P1",
+  "layer": "②",
+  "pos": "POST /api/system/dict/types",
+  "what": "空body/探测id 触发 500(缺参数校验)",
+  "ev": "{\"code\":500,\"data\":null,\"message\":\"数据访问异常，支持编号 S-20261108183116-32e34\"}"
+ },
+ {
+  "sev": "P1",
+  "layer": "②",
+  "pos": "PUT /api/system/dict/types/990000001",
+  "what": "空body/探测id 触发 500(缺参数校验)",
+  "ev": "{\"code\":500,\"data\":null,\"message\":\"数据访问异常，支持编号 S-20261108183117-8a0ac\"}"
+ },
+ {
+  "sev": "P1",
+  "layer": "②",
+  "pos": "POST /api/system/groups",
+  "what": "空body/探测id 触发 500(缺参数校验)",
+  "ev": "{\"code\":500,\"data\":null,\"message\":\"数据访问异常，支持编号 S-20261108183117-9fd3f\"}"
+ },
+ {
+  "sev": "P1",
+  "layer": "②",
+  "pos": "POST /api/system/positions",
+  "what": "空body/探测id 触发 500(缺参数校验)",
+  "ev": "{\"code\":500,\"data\":null,\"message\":\"数据访问异常，支持编号 S-20261108183137-524b8\"}"
+ },
+ {
+  "sev": "P1",
+  "layer": "②",
+  "pos": "POST /api/system/roles",
+  "what": "空body/探测id 触发 500(缺参数校验)",
+  "ev": "{\"code\":500,\"data\":null,\"message\":\"数据访问异常，支持编号 S-20261108183206-a7ce1\"}"
+ },
+ {
+  "sev": "P1",
+  "layer": "②",
+  "pos": "POST /api/system/rules",
+  "what": "空body/探测id 触发 500(缺参数校验)",
+  "ev": "{\"code\":500,\"data\":null,\"message\":\"数据访问异常，支持编号 S-20261108183211-20a02\"}"
+ }
+]

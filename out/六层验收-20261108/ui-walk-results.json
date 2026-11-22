@@ -1,0 +1,438 @@
+{
+ "results": [
+  {
+   "who": "admin",
+   "path": "/dashboard",
+   "name": "工作台",
+   "status": "OK",
+   "console_errors": [],
+   "shot": "admin-dashboard.png"
+  },
+  {
+   "who": "admin",
+   "path": "/customer",
+   "name": "客户列表",
+   "status": "OK",
+   "console_errors": [],
+   "shot": "admin-customer.png"
+  },
+  {
+   "who": "admin",
+   "path": "/customer/add",
+   "name": "新增客户",
+   "status": "OK",
+   "console_errors": [],
+   "shot": "admin-customer_add.png"
+  },
+  {
+   "who": "admin",
+   "path": "/file",
+   "name": "文件管理",
+   "status": "OK",
+   "console_errors": [],
+   "shot": "admin-file.png"
+  },
+  {
+   "who": "admin",
+   "path": "/incentive",
+   "name": "激励上传",
+   "status": "OK",
+   "console_errors": [],
+   "shot": "admin-incentive.png"
+  },
+  {
+   "who": "admin",
+   "path": "/incentive/search",
+   "name": "激励查询",
+   "status": "OK",
+   "console_errors": [],
+   "shot": "admin-incentive_search.png"
+  },
+  {
+   "who": "admin",
+   "path": "/incentive/stats",
+   "name": "激励统计",
+   "status": "OK",
+   "console_errors": [],
+   "shot": "admin-incentive_stats.png"
+  },
+  {
+   "who": "admin",
+   "path": "/case-library",
+   "name": "案例库",
+   "status": "OK",
+   "console_errors": [],
+   "shot": "admin-case-library.png"
+  },
+  {
+   "who": "admin",
+   "path": "/reminder",
+   "name": "提醒管理",
+   "status": "OK",
+   "console_errors": [],
+   "shot": "admin-reminder.png"
+  },
+  {
+   "who": "admin",
+   "path": "/sea",
+   "name": "公海池",
+   "status": "OK",
+   "console_errors": [],
+   "shot": "admin-sea.png"
+  },
+  {
+   "who": "admin",
+   "path": "/sea/records",
+   "name": "捞取记录",
+   "status": "OK",
+   "console_errors": [],
+   "shot": "admin-sea_records.png"
+  },
+  {
+   "who": "admin",
+   "path": "/approval",
+   "name": "审批管理",
+   "status": "OK",
+   "console_errors": [],
+   "shot": "admin-approval.png"
+  },
+  {
+   "who": "admin",
+   "path": "/score/entry",
+   "name": "学分录入",
+   "status": "OK",
+   "console_errors": [],
+   "shot": "admin-score_entry.png"
+  },
+  {
+   "who": "admin",
+   "path": "/score/ranking",
+   "name": "学分排行",
+   "status": "OK",
+   "console_errors": [],
+   "shot": "admin-score_ranking.png"
+  },
+  {
+   "who": "admin",
+   "path": "/statistics",
+   "name": "统计分析",
+   "status": "OK",
+   "console_errors": [],
+   "shot": "admin-statistics.png"
+  },
+  {
+   "who": "admin",
+   "path": "/indicator",
+   "name": "六项指标",
+   "status": "OK",
+   "console_errors": [],
+   "shot": "admin-indicator.png"
+  },
+  {
+   "who": "admin",
+   "path": "/ranking/customer",
+   "name": "客户排行",
+   "status": "OK",
+   "console_errors": [],
+   "shot": "admin-ranking_customer.png"
+  },
+  {
+   "who": "admin",
+   "path": "/system/org",
+   "name": "部门管理",
+   "status": "OK",
+   "console_errors": [],
+   "shot": "admin-system_org.png"
+  },
+  {
+   "who": "admin",
+   "path": "/system/user",
+   "name": "人员管理",
+   "status": "OK",
+   "console_errors": [],
+   "shot": "admin-system_user.png"
+  },
+  {
+   "who": "admin",
+   "path": "/system/role",
+   "name": "角色管理",
+   "status": "OK",
+   "console_errors": [],
+   "shot": "admin-system_role.png"
+  },
+  {
+   "who": "admin",
+   "path": "/system/position",
+   "name": "岗位管理",
+   "status": "OK",
+   "console_errors": [],
+   "shot": "admin-system_position.png"
+  },
+  {
+   "who": "admin",
+   "path": "/system/group",
+   "name": "集团管理",
+   "status": "OK",
+   "console_errors": [],
+   "shot": "admin-system_group.png"
+  },
+  {
+   "who": "admin",
+   "path": "/system/config",
+   "name": "系统设置",
+   "status": "OK",
+   "console_errors": [],
+   "shot": "admin-system_config.png"
+  },
+  {
+   "who": "admin",
+   "path": "/system/rule",
+   "name": "权限规则",
+   "status": "OK",
+   "console_errors": [],
+   "shot": "admin-system_rule.png"
+  },
+  {
+   "who": "admin",
+   "path": "/system/recycle",
+   "name": "回收站",
+   "status": "OK",
+   "console_errors": [],
+   "shot": "admin-system_recycle.png"
+  },
+  {
+   "who": "admin",
+   "path": "/system/incentive-read-ranking",
+   "name": "阅读排行榜",
+   "status": "OK",
+   "console_errors": [],
+   "shot": "admin-system_incentive-read-ranking.png"
+  },
+  {
+   "who": "admin",
+   "path": "/task",
+   "name": "任务页",
+   "status": "OK",
+   "console_errors": [],
+   "shot": "admin-task.png"
+  },
+  {
+   "who": "sales",
+   "path": "/dashboard",
+   "name": "工作台",
+   "status": "OK",
+   "console_errors": [],
+   "shot": "sales-dashboard.png"
+  },
+  {
+   "who": "sales",
+   "path": "/customer",
+   "name": "客户列表",
+   "status": "OK",
+   "console_errors": [],
+   "shot": "sales-customer.png"
+  },
+  {
+   "who": "sales",
+   "path": "/customer/add",
+   "name": "新增客户",
+   "status": "OK",
+   "console_errors": [],
+   "shot": "sales-customer_add.png"
+  },
+  {
+   "who": "sales",
+   "path": "/file",
+   "name": "文件管理",
+   "status": "OK",
+   "console_errors": [],
+   "shot": "sales-file.png"
+  },
+  {
+   "who": "sales",
+   "path": "/incentive",
+   "name": "激励上传",
+   "status": "OK",
+   "console_errors": [],
+   "shot": "sales-incentive.png"
+  },
+  {
+   "who": "sales",
+   "path": "/incentive/search",
+   "name": "激励查询",
+   "status": "OK",
+   "console_errors": [],
+   "shot": "sales-incentive_search.png"
+  },
+  {
+   "who": "sales",
+   "path": "/incentive/stats",
+   "name": "激励统计",
+   "status": "OK",
+   "console_errors": [],
+   "shot": "sales-incentive_stats.png"
+  },
+  {
+   "who": "sales",
+   "path": "/case-library",
+   "name": "案例库",
+   "status": "OK",
+   "console_errors": [],
+   "shot": "sales-case-library.png"
+  },
+  {
+   "who": "sales",
+   "path": "/reminder",
+   "name": "提醒管理",
+   "status": "OK",
+   "console_errors": [],
+   "shot": "sales-reminder.png"
+  },
+  {
+   "who": "sales",
+   "path": "/sea",
+   "name": "公海池",
+   "status": "OK",
+   "console_errors": [],
+   "shot": "sales-sea.png"
+  },
+  {
+   "who": "sales",
+   "path": "/sea/records",
+   "name": "捞取记录",
+   "status": "OK",
+   "console_errors": [],
+   "shot": "sales-sea_records.png"
+  },
+  {
+   "who": "sales",
+   "path": "/approval",
+   "name": "审批管理",
+   "status": "OK",
+   "console_errors": [],
+   "shot": "sales-approval.png"
+  },
+  {
+   "who": "sales",
+   "path": "/score/entry",
+   "name": "学分录入",
+   "status": "OK",
+   "console_errors": [],
+   "shot": "sales-score_entry.png"
+  },
+  {
+   "who": "sales",
+   "path": "/score/ranking",
+   "name": "学分排行",
+   "status": "OK",
+   "console_errors": [],
+   "shot": "sales-score_ranking.png"
+  },
+  {
+   "who": "sales",
+   "path": "/statistics",
+   "name": "统计分析",
+   "status": "OK",
+   "console_errors": [],
+   "shot": "sales-statistics.png"
+  },
+  {
+   "who": "sales",
+   "path": "/indicator",
+   "name": "六项指标",
+   "status": "OK",
+   "console_errors": [],
+   "shot": "sales-indicator.png"
+  },
+  {
+   "who": "sales",
+   "path": "/ranking/customer",
+   "name": "客户排行",
+   "status": "OK",
+   "console_errors": [],
+   "shot": "sales-ranking_customer.png"
+  },
+  {
+   "who": "sales",
+   "path": "/system/org",
+   "name": "部门管理",
+   "status": "OK",
+   "console_errors": [],
+   "shot": "sales-system_org.png"
+  },
+  {
+   "who": "sales",
+   "path": "/system/user",
+   "name": "人员管理",
+   "status": "OK",
+   "console_errors": [],
+   "shot": "sales-system_user.png"
+  },
+  {
+   "who": "sales",
+   "path": "/system/role",
+   "name": "角色管理",
+   "status": "OK",
+   "console_errors": [],
+   "shot": "sales-system_role.png"
+  },
+  {
+   "who": "sales",
+   "path": "/system/position",
+   "name": "岗位管理",
+   "status": "OK",
+   "console_errors": [],
+   "shot": "sales-system_position.png"
+  },
+  {
+   "who": "sales",
+   "path": "/system/group",
+   "name": "集团管理",
+   "status": "OK",
+   "console_errors": [],
+   "shot": "sales-system_group.png"
+  },
+  {
+   "who": "sales",
+   "path": "/system/config",
+   "name": "系统设置",
+   "status": "OK",
+   "console_errors": [],
+   "shot": "sales-system_config.png"
+  },
+  {
+   "who": "sales",
+   "path": "/system/rule",
+   "name": "权限规则",
+   "status": "OK",
+   "console_errors": [],
+   "shot": "sales-system_rule.png"
+  },
+  {
+   "who": "sales",
+   "path": "/system/recycle",
+   "name": "回收站",
+   "status": "OK",
+   "console_errors": [],
+   "shot": "sales-system_recycle.png"
+  },
+  {
+   "who": "sales",
+   "path": "/system/incentive-read-ranking",
+   "name": "阅读排行榜",
+   "status": "OK",
+   "console_errors": [],
+   "shot": "sales-system_incentive-read-ranking.png"
+  },
+  {
+   "who": "sales",
+   "path": "/task",
+   "name": "任务页",
+   "status": "OK",
+   "console_errors": [],
+   "shot": "sales-task.png"
+  }
+ ],
+ "admin_menus": [],
+ "sales_menus": []
+}

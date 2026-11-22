@@ -1,0 +1,1151 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>法布施 · PC 完整原型 · v6</title>
+<!-- 2026-11-16 v6：PC/MP 功能一致版。新增员工阅读 5 屏（分享广场/内容详情/书目浏览/在线阅读/发布内容），
+     管理端 4 屏保留（书目管理/内容治理/统计看板/类别字典）。侧栏按现网七组菜单树；
+     一期/二期逐屏标注；令牌全部收敛 :root；图标 inline SVG，零 emoji、零外链。 -->
+<style>
+  :root {
+    /* ── 画布与板面 ── */
+    --board-bg:#dde5f0; --frame-card:#fff; --bezel-dark:#172033; --bezel-ring:#31435f;
+    --chrome-bg:#f1f3f7; --chrome-line:#e3e7ee; --url-bg:#fff; --url-text:#8b98ab;
+    --win-r:#ff5f57; --win-y:#febc2e; --win-g:#28c840;
+    --frame-label:#2a3a55; --frame-note:#7c8ba1; --board-title:#172033; --board-sub:#5b6b84; --board-tag-line:#c9d3e0; --board-tag:#64748b;
+    /* ── 应用骨架 ── */
+    --canvas:#f5f7fa; --card:#fff; --line:#eef0f3; --line-soft:#f1f3f6; --table-line:#ebeef5; --table-head:#f5f7fa;
+    --primary:#1d4ed8; --accent:#2563eb; --navy:#16337a; --primary-light:#6083e4; --primary-bg:#e8edfb;
+    --hero-gradient:linear-gradient(135deg,#16337a 0%,#1d4ed8 58%,#2563eb 100%);
+    --sidebar-bg:#001629; --sidebar-text:#bfcbd9; --sidebar-active:#6083e4; --sidebar-group:#5e6d81;
+    --text-1:#1f2329; --text-2:#4e5969; --text-3:#6b7280; --text-4:#94a3b8;
+    --danger:#f56c6c; --danger-bg:#fde2e2; --green:#179050; --green-bg:#e8f7ef;
+    --orange:#c8761c; --orange-bg:#fdf3e8; --amber:#fbbf24; --amber-deep:#b45309; --amber-bg:#fffbeb; --amber-line:#fde9c0;
+    --cyan:#0e7490; --cyan-bg:#ecfeff; --red:#e11d48; --red-bg:#ffe9ee;
+    --unread-red:#e11d48; --unread-dot-bg:#ffe9ee;
+    --track:#f0f2f5; --pill-gray-bg:#f4f4f5; --pill-gray:#909399;
+    /* ── 阅读器（P4） ── */
+    --reader-bg:#16233b; --reader-bar:#1c2b45; --reader-text:#d8e1ef; --reader-muted:#8fa1bd; --reader-btn:rgba(255,255,255,.14); --reader-btn-line:rgba(255,255,255,.3);
+    --paper:#fffdf6; --paper-title:#3a2f1e; --paper-text:#43371f; --paper-note:#b9ad8e; --paper-spine:#e05252;
+    /* ── 圆角 / 阴影 / 字阶 ── */
+    --r-lg:16px; --r-md:10px; --r-sm:8px; --r-pill:999px;
+    --shadow-card:0 1px 2px rgba(16,24,40,.04),0 10px 28px rgba(16,24,40,.06);
+    --shadow-pop:0 8px 24px rgba(15,23,42,.12);
+    --shadow-frame:0 18px 44px rgba(23,38,68,.22);
+    --font-num:30px;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--board-bg); font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Helvetica Neue",Arial,"Microsoft YaHei",sans-serif; color:var(--text-1); }
+  .canvas { padding:30px 34px 40px; }
+  .board-head { margin-bottom:22px; }
+  .board-title { font-size:22px; font-weight:800; color:var(--board-title); }
+  .board-tag { display:inline-block; margin-left:10px; padding:2px 8px; border-radius:6px; border:1px solid var(--board-tag-line); color:var(--board-tag); font-size:11px; font-weight:500; vertical-align:3px; }
+  .board-sub { margin-top:8px; font-size:13px; color:var(--board-sub); line-height:1.7; }
+  .frames { display:grid; grid-template-columns:1fr 1fr; gap:30px 32px; }
+  .frame-wrap { text-align:center; }
+  .frame { width:1280px; background:var(--frame-card); border-radius:12px; box-shadow:var(--shadow-frame),0 0 0 10px var(--bezel-dark),0 0 0 12px var(--bezel-ring); overflow:hidden; }
+  .frame-label { margin-top:14px; font-size:14px; font-weight:800; color:var(--frame-label); }
+  .frame-note { margin-top:4px; font-size:12px; color:var(--frame-note); line-height:1.6; }
+  .chrome { height:38px; background:var(--chrome-bg); border-bottom:1px solid var(--chrome-line); display:flex; align-items:center; padding:0 14px; gap:8px; }
+  .dot { width:11px; height:11px; border-radius:50%; }
+  .d1{background:var(--win-r)}.d2{background:var(--win-y)}.d3{background:var(--win-g)}
+  .url { flex:1; margin-left:10px; height:22px; border-radius:var(--r-pill); background:var(--url-bg); border:1px solid var(--chrome-line); color:var(--url-text); font-size:11px; display:flex; align-items:center; padding:0 12px; gap:6px; text-align:left; }
+  .url svg { width:11px; height:11px; fill:var(--url-text); flex-shrink:0; }
+  .app { display:flex; height:760px; background:var(--canvas); }
+
+  /* ── 侧栏（现网七组菜单树） ── */
+  .sidebar { width:200px; background:var(--sidebar-bg); flex-shrink:0; display:flex; flex-direction:column; }
+  .logo { height:56px; display:flex; flex-direction:column; justify-content:center; padding:0 20px; flex-shrink:0; }
+  .logo-text { color:var(--card); font-size:17px; font-weight:800; letter-spacing:.5px; }
+  .logo-sub { color:var(--sidebar-group); font-size:11px; margin-top:2px; }
+  .menu { flex:1; padding:4px 0 14px; text-align:left; overflow:hidden; }
+  .menu-inner { position:relative; }
+  .menu-group { padding:13px 20px 5px; font-size:12px; color:var(--sidebar-group); }
+  .menu-item { display:flex; align-items:center; gap:10px; padding:0 20px; height:36px; color:var(--sidebar-text); font-size:13px; }
+  .menu-item svg { width:16px; height:16px; flex-shrink:0; fill:currentColor; }
+  .menu-item.active { color:var(--sidebar-active); font-weight:600; }
+  .mcount { margin-left:auto; background:var(--danger); color:var(--card); font-size:9px; border-radius:var(--r-pill); padding:1.5px 6px; font-style:normal; font-weight:700; }
+  .main { flex:1; display:flex; flex-direction:column; min-width:0; }
+  .header { height:56px; background:var(--card); border-bottom:1px solid var(--table-line); display:flex; align-items:center; padding:0 20px; flex-shrink:0; }
+  .collapse { color:var(--text-2); margin-right:14px; display:flex; }
+  .collapse svg { width:16px; height:16px; fill:var(--text-2); }
+  .crumb { font-size:13px; color:var(--text-2); }
+  .crumb b { color:var(--text-1); font-weight:600; }
+  .crumb i { font-style:normal; color:var(--text-4); margin:0 6px; }
+  .header-right { margin-left:auto; display:flex; align-items:center; gap:16px; }
+  .bell { position:relative; display:flex; color:var(--text-2); }
+  .bell svg { width:17px; height:17px; fill:var(--text-2); }
+  .bell-dot { position:absolute; top:-5px; right:-7px; background:var(--danger); color:var(--card); font-size:9px; border-radius:var(--r-pill); padding:1px 4px; font-weight:700; }
+  .group-sel { font-size:12.5px; color:var(--text-2); background:var(--canvas); border:1px solid var(--table-line); border-radius:var(--r-sm); padding:5px 12px; display:flex; align-items:center; gap:6px; }
+  .group-sel svg { width:13px; height:13px; fill:var(--text-2); }
+  .group-sel:after { content:""; width:0; height:0; border-left:4px solid transparent; border-right:4px solid transparent; border-top:5px solid var(--text-4); }
+  .user { display:flex; align-items:center; gap:9px; }
+  .avatar { width:32px; height:32px; border-radius:50%; background:var(--hero-gradient); color:var(--card); font-size:14px; font-weight:700; display:flex; align-items:center; justify-content:center; }
+  .user-meta { text-align:left; } .user-meta b { display:block; font-size:12.5px; } .user-meta span { font-size:10.5px; color:var(--pill-gray); }
+  .content { flex:1; padding:12px 16px; overflow:hidden; text-align:left; position:relative; display:flex; flex-direction:column; gap:10px; }
+
+  /* ── 胶囊分类条 / 筛选卡 / 按钮 ── */
+  .cat-tabs { display:flex; gap:0; background:var(--track); border-radius:12px; padding:4px; overflow:hidden; flex-shrink:0; }
+  .cat-tab { flex:1; display:flex; align-items:center; justify-content:center; gap:6px; padding:9px 6px; font-size:13px; color:var(--text-2); border-radius:var(--r-sm); font-weight:500; white-space:nowrap; cursor:pointer; user-select:none; }
+  .cat-tab.active { font-weight:700; color:var(--card); background:var(--hero-gradient); box-shadow:0 2px 8px rgba(29,78,216,.28); }
+  .cat-tab .badge { font-size:11px; padding:1px 6px; border-radius:var(--r-sm); background:rgba(0,0,0,.08); font-weight:600; }
+  .cat-tab.active .badge { background:rgba(255,255,255,.25); }
+  .cat-tab .badge.hot { background:var(--danger-bg); color:var(--danger); }
+  .cat-tab.active .badge.hot { background:rgba(255,255,255,.25); color:var(--card); }
+  .filter-card { background:var(--card); border-radius:var(--r-md); box-shadow:var(--shadow-card); padding:12px 16px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; flex-shrink:0; }
+  .fl { font-size:13px; color:var(--text-2); }
+  .sel { height:30px; border:1px solid var(--table-line); border-radius:var(--r-md); background:var(--card); color:var(--text-2); font-size:12.5px; padding:0 9px 0 12px; display:inline-flex; align-items:center; gap:10px; min-width:100px; }
+  .sel:after { content:""; width:0; height:0; border-left:4px solid transparent; border-right:4px solid transparent; border-top:5px solid var(--text-4); margin-left:auto; }
+  .inp { height:30px; border:1px solid var(--table-line); border-radius:var(--r-md); color:var(--text-4); font-size:12.5px; padding:0 10px; display:inline-flex; align-items:center; gap:6px; min-width:130px; background:var(--card); }
+  .inp svg { width:12px; height:12px; fill:var(--text-4); }
+  .btn { height:30px; padding:0 14px; border-radius:var(--r-md); font-size:12.5px; display:inline-flex; align-items:center; gap:5px; cursor:pointer; user-select:none; }
+  .btn svg { width:13px; height:13px; fill:currentColor; }
+  .btn.primary { background:var(--primary); color:var(--card); font-weight:600; }
+  .btn.plain { border:1px solid var(--table-line); background:var(--card); color:var(--text-2); }
+  .btn.green { background:var(--green); color:var(--card); font-weight:600; }
+  .btn.text { color:var(--primary); padding:0 6px; }
+  .btn.text.danger { color:var(--danger); }
+  .spacer { flex:1; }
+  .seg { display:inline-flex; background:var(--track); border-radius:var(--r-md); padding:3px; }
+  .seg-item { padding:4px 14px; font-size:12px; color:var(--text-2); border-radius:7px; font-weight:600; cursor:pointer; user-select:none; }
+  .seg-item.active { background:var(--text-1); color:var(--card); }
+  .chip2 { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:var(--r-pill); font-size:11px; font-weight:700; background:var(--amber-bg); color:var(--amber-deep); border:1px solid var(--amber-line); }
+  .chip2.blue { background:var(--primary-bg); color:var(--primary); border-color:transparent; }
+
+  /* ── 左右分栏 / 表格 ── */
+  .main-layout { flex:1; display:flex; gap:10px; min-height:0; }
+  .sub-panel { width:210px; flex-shrink:0; background:var(--card); border-radius:var(--r-md); box-shadow:var(--shadow-card); padding:12px; display:flex; flex-direction:column; text-align:left; }
+  .tbl-fit th, .tbl-fit td { padding:8px 9px; font-size:12px; }
+  .sub-title { font-size:14px; font-weight:700; margin-bottom:8px; display:flex; align-items:center; }
+  .sub-title:before { content:""; width:4px; height:14px; background:var(--primary); border-radius:2px; margin-right:8px; }
+  .sub-search { height:30px; border:1px solid var(--table-line); border-radius:var(--r-sm); color:var(--text-4); font-size:12px; padding:0 10px; display:flex; align-items:center; gap:6px; margin-bottom:8px; }
+  .sub-search svg { width:12px; height:12px; fill:var(--text-4); }
+  .sub-row { display:flex; align-items:center; gap:8px; padding:9px 10px; border-radius:6px; font-size:13px; color:var(--text-2); cursor:pointer; }
+  .sub-row svg { width:14px; height:14px; fill:var(--text-3); flex-shrink:0; }
+  .sub-row .cnt { margin-left:auto; font-size:11px; color:var(--pill-gray); background:var(--pill-gray-bg); border-radius:var(--r-pill); padding:1px 7px; }
+  .sub-row.active { background:var(--primary-bg); color:var(--primary); font-weight:700; }
+  .sub-row.active svg, .sub-row.active .cnt { color:var(--primary); }
+  .sub-row.active .cnt { background:rgba(29,78,216,.15); }
+  .table-card { flex:1; background:var(--card); border-radius:var(--r-md); box-shadow:var(--shadow-card); display:flex; flex-direction:column; min-width:0; overflow:hidden; }
+  .toolbar { display:flex; align-items:center; gap:10px; padding:10px 16px; border-bottom:1px solid var(--line-soft); }
+  .toolbar .tt { font-size:14px; font-weight:700; }
+  table { width:100%; border-collapse:collapse; font-size:12.5px; }
+  th { background:var(--table-head); color:var(--pill-gray); font-weight:600; text-align:left; padding:9px 12px; border-bottom:1px solid var(--table-line); white-space:nowrap; }
+  td { padding:9px 12px; border-bottom:1px solid var(--table-line); color:var(--text-1); white-space:nowrap; }
+  tr:last-child td { border-bottom:0; }
+  th.num, td.num { text-align:right; font-variant-numeric:tabular-nums; }
+  .tag { display:inline-block; padding:2px 8px; border-radius:6px; font-size:11px; line-height:1.5; }
+  .tag.blue { background:var(--primary-bg); color:var(--primary); }
+  .tag.gray { background:var(--pill-gray-bg); color:var(--pill-gray); }
+  .tag.orange { background:var(--orange-bg); color:var(--orange); }
+  .tag.green { background:var(--green-bg); color:var(--green); }
+  .tag.red { background:var(--danger-bg); color:var(--danger); }
+  .tag.cyan { background:var(--cyan-bg); color:var(--cyan); }
+  .em { font-weight:700; }
+  .sub2 { font-size:11px; color:var(--pill-gray); margin-top:2px; }
+  .pager { display:flex; align-items:center; justify-content:flex-end; gap:8px; padding:9px 16px; font-size:12px; color:var(--text-2); border-top:1px solid var(--line-soft); }
+  .pg { min-width:26px; height:26px; border:1px solid var(--table-line); border-radius:6px; display:inline-flex; align-items:center; justify-content:center; padding:0 6px; }
+  .pg.on { background:var(--primary); border-color:var(--primary); color:var(--card); }
+
+  /* ── P1 分享广场 ── */
+  .feed-layout { flex:1; display:flex; gap:10px; min-height:0; }
+  .feed-col { flex:1; min-width:0; display:flex; flex-direction:column; gap:10px; overflow:hidden; }
+  .fcard { background:var(--card); border-radius:var(--r-md); box-shadow:var(--shadow-card); padding:12px 16px; }
+  .fcard-top { display:flex; align-items:center; gap:8px; }
+  .fcard-title { font-size:14px; font-weight:700; color:var(--text-1); flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .badge-new { background:var(--amber-bg); color:var(--amber-deep); border-radius:4px; padding:1px 6px; font-size:10px; font-weight:700; flex-shrink:0; }
+  .fcard-meta { margin-top:5px; font-size:11.5px; color:var(--text-3); display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+  .fcard-meta .book-link { color:var(--primary); }
+  .fcard-summary { margin-top:7px; font-size:13px; color:var(--text-2); line-height:1.8; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .fcard-foot { margin-top:8px; padding-top:8px; border-top:1px solid var(--line-soft); display:flex; align-items:center; gap:14px; font-size:12px; color:var(--text-3); }
+  .fcard-foot .act { display:inline-flex; align-items:center; gap:5px; }
+  .fcard-foot svg { width:14px; height:14px; fill:var(--text-3); }
+  .fcard-foot .act.liked svg { fill:var(--primary); }
+  .read-state { margin-left:auto; display:inline-flex; align-items:center; gap:6px; font-size:11px; color:var(--pill-gray); }
+  .read-state.unread { color:var(--unread-red); font-weight:700; }
+  .read-dot { width:7px; height:7px; border-radius:50%; background:var(--track); }
+  .read-state.unread .read-dot { background:var(--unread-dot-bg); box-shadow:0 0 0 3px rgba(225,29,72,.12); position:relative; }
+  .read-state.unread .read-dot:after { content:""; position:absolute; left:1px; top:1px; width:5px; height:5px; border-radius:50%; background:var(--unread-red); }
+  .side-col { width:300px; flex-shrink:0; display:flex; flex-direction:column; gap:10px; overflow:hidden; }
+  .side-card { background:var(--card); border-radius:var(--r-md); box-shadow:var(--shadow-card); padding:13px 15px; }
+  .side-title { font-size:14px; font-weight:700; margin-bottom:8px; display:flex; align-items:center; }
+  .side-title:before { content:""; width:4px; height:14px; background:var(--primary); border-radius:2px; margin-right:8px; }
+  .side-row { display:flex; align-items:center; justify-content:space-between; padding:6px 0; font-size:12.5px; color:var(--text-2); border-top:1px solid var(--line-soft); }
+  .side-row:first-of-type { border-top:0; }
+  .side-row b { font-size:15px; font-weight:800; color:var(--text-1); font-variant-numeric:tabular-nums; }
+  .rec-book { display:flex; gap:11px; align-items:center; padding-top:4px; }
+  .book-spine { width:44px; height:58px; border-radius:6px; color:var(--card); display:flex; align-items:flex-end; justify-content:center; padding-bottom:5px; font-size:10px; font-weight:700; background:linear-gradient(150deg,var(--navy),var(--primary)); box-shadow:0 5px 10px rgba(35,57,96,.2); position:relative; overflow:hidden; flex-shrink:0; }
+  .book-spine:before { content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:rgba(255,255,255,.3); }
+  .rec-main { flex:1; min-width:0; }
+  .rec-title { font-size:13.5px; font-weight:700; }
+  .rec-meta { margin-top:3px; font-size:11px; color:var(--text-3); }
+  .rec-acts { margin-top:8px; display:flex; gap:8px; }
+  .bnum { font-size:var(--font-num); font-weight:800; font-variant-numeric:tabular-nums; }
+  .bnum i { font-style:normal; font-size:12px; color:var(--pill-gray); font-weight:600; margin-left:3px; }
+
+  /* ── P2 内容详情 ── */
+  .back-bar { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--primary); cursor:pointer; flex-shrink:0; }
+  .back-bar svg { width:14px; height:14px; fill:var(--primary); }
+  .back-bar .crumb2 { color:var(--text-2); margin-left:2px; }
+  .dtl-layout { flex:1; display:flex; gap:10px; min-height:0; }
+  .art-card { flex:1; min-width:0; background:var(--card); border-radius:var(--r-md); box-shadow:var(--shadow-card); padding:18px 22px; display:flex; flex-direction:column; overflow:hidden; }
+  .art-title { font-size:20px; font-weight:800; color:var(--text-1); display:flex; align-items:center; gap:10px; }
+  .art-meta { margin-top:8px; font-size:12px; color:var(--text-3); display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .art-meta .who { display:inline-flex; align-items:center; gap:6px; color:var(--text-2); }
+  .mini-ava { width:22px; height:22px; border-radius:50%; background:var(--primary); color:var(--card); font-size:11px; font-weight:700; display:inline-flex; align-items:center; justify-content:center; }
+  .art-body { margin-top:14px; flex:1; overflow:hidden; font-size:14.5px; line-height:1.9; color:var(--text-1); }
+  .art-body p { margin-bottom:10px; text-indent:2em; }
+  .art-acts { margin-top:10px; padding-top:12px; border-top:1px solid var(--line-soft); display:flex; align-items:center; gap:12px; }
+  .muyu-btn { display:inline-flex; align-items:center; gap:7px; height:32px; padding:0 16px; border-radius:var(--r-pill); border:1px solid var(--primary); color:var(--primary); font-size:13px; font-weight:700; cursor:pointer; user-select:none; position:relative; background:var(--card); }
+  .muyu-btn svg { width:15px; height:15px; fill:var(--primary); }
+  .muyu-btn.liked { background:var(--primary-bg); }
+  .plus-fly { position:absolute; right:-6px; top:-20px; font-size:14px; font-weight:800; color:var(--primary); opacity:0; pointer-events:none; }
+  .muyu-btn.bump .plus-fly { animation:flyup .8s ease-out; }
+  @keyframes flyup { 0%{opacity:0; transform:translateY(4px);} 25%{opacity:1;} 100%{opacity:0; transform:translateY(-14px);} }
+  .art-count { font-size:12.5px; color:var(--text-3); display:inline-flex; align-items:center; gap:5px; }
+  .art-count svg { width:14px; height:14px; fill:var(--text-3); }
+  .cmt-list { margin-top:10px; overflow:hidden; flex:1; }
+  .cmt { display:flex; gap:10px; padding:9px 0; border-top:1px solid var(--line-soft); }
+  .cmt-ava { width:28px; height:28px; border-radius:50%; color:var(--card); font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .cmt-name { font-size:12px; font-weight:700; color:var(--text-1); }
+  .cmt-time { font-size:10.5px; color:var(--text-4); margin-left:6px; font-weight:400; }
+  .cmt-text { margin-top:3px; font-size:12.5px; color:var(--text-2); line-height:1.7; }
+  .cmt-input { margin-top:8px; display:flex; gap:8px; align-items:flex-end; }
+  .cmt-input textarea { flex:1; height:44px; border:1px solid var(--table-line); border-radius:var(--r-sm); padding:8px 10px; font-size:12.5px; color:var(--text-2); resize:none; font-family:inherit; }
+
+  /* ── P3 书目浏览 ── */
+  .lib-layout { flex:1; display:flex; gap:10px; min-height:0; }
+  .cat-list { width:230px; flex-shrink:0; background:var(--card); border-radius:var(--r-md); box-shadow:var(--shadow-card); padding:12px; overflow:hidden; }
+  .cat-row { display:flex; align-items:center; padding:8px 10px; border-radius:6px; font-size:13px; color:var(--text-2); cursor:pointer; }
+  .cat-row .cnt { margin-left:auto; font-size:11px; color:var(--pill-gray); background:var(--pill-gray-bg); border-radius:var(--r-pill); padding:1px 7px; }
+  .cat-row.active { background:var(--primary-bg); color:var(--primary); font-weight:700; }
+  .cat-row.active .cnt { background:rgba(29,78,216,.15); color:var(--primary); }
+  .book-grid { flex:1; min-width:0; display:grid; grid-template-columns:1fr 1fr; gap:10px; overflow:hidden; align-content:start; }
+  .bcard { background:var(--card); border-radius:var(--r-md); box-shadow:var(--shadow-card); padding:13px 15px; display:flex; gap:12px; }
+  .bcard-main { flex:1; min-width:0; }
+  .bcard-title { font-size:14px; font-weight:800; color:var(--text-1); display:flex; align-items:center; gap:8px; }
+  .bcard-meta { margin-top:5px; font-size:11.5px; color:var(--text-3); }
+  .bcard-tags { margin-top:6px; display:flex; gap:6px; flex-wrap:wrap; }
+  .bcard-acts { margin-top:9px; display:flex; gap:8px; }
+  .btn.sm { height:26px; padding:0 11px; font-size:11.5px; border-radius:var(--r-sm); }
+
+  /* ── P4 在线阅读 ── */
+  .reader-shell { flex:1; margin:-12px -16px; background:var(--reader-bg); display:flex; flex-direction:column; min-height:0; }
+  .r-top { height:46px; background:var(--reader-bar); display:flex; align-items:center; gap:10px; padding:0 16px; color:var(--reader-text); flex-shrink:0; }
+  .r-top .back { display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--reader-text); cursor:pointer; }
+  .r-top .back svg { width:13px; height:13px; fill:var(--reader-text); }
+  .r-top .r-name { font-size:14px; font-weight:800; color:var(--card); }
+  .r-top .r-sub { font-size:11px; color:var(--reader-muted); }
+  .r-top .spacer { flex:1; }
+  .r-btn { display:inline-flex; align-items:center; gap:5px; height:28px; padding:0 12px; border-radius:var(--r-pill); background:var(--reader-btn); border:1px solid var(--reader-btn-line); color:var(--reader-text); font-size:11.5px; cursor:pointer; }
+  .r-btn svg { width:12px; height:12px; fill:var(--reader-text); }
+  .r-body { flex:1; display:flex; gap:0; min-height:0; padding:14px; }
+  .r-toc { width:250px; flex-shrink:0; background:var(--reader-bar); border-radius:var(--r-md); padding:14px; display:flex; flex-direction:column; margin-right:14px; }
+  .r-toc-head { font-size:13px; font-weight:800; color:var(--card); display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .toc-row { padding:8px 10px; border-radius:6px; font-size:12px; color:var(--reader-muted); cursor:pointer; }
+  .toc-row.lv2 { padding-left:24px; }
+  .toc-row.active { background:var(--reader-btn); color:var(--card); font-weight:700; }
+  .paper-zone { flex:1; min-width:0; background:var(--reader-bar); border-radius:var(--r-md); padding:16px; display:flex; justify-content:center; overflow:hidden; }
+  .paper { width:560px; background:var(--paper); border-radius:4px; box-shadow:0 4px 12px rgba(60,50,20,.18), inset 0 0 20px rgba(120,100,60,.09); padding:26px 30px; font-family:"Songti SC","STSong",serif; overflow:hidden; position:relative; }
+  .paper:before { content:""; position:absolute; right:22px; top:0; width:13px; height:46px; background:linear-gradient(180deg,var(--paper-spine),#c23a3a); clip-path:polygon(0 0,100% 0,100% 100%,50% 80%,0 100%); }
+  .paper h4 { text-align:center; font-size:16px; letter-spacing:2px; color:var(--paper-title); margin-bottom:14px; }
+  .paper p { font-size:13px; line-height:2.0; color:var(--paper-text); text-indent:2em; margin-bottom:10px; }
+  .paper .note-line { text-align:center; font-size:10px; color:var(--paper-note); margin-top:10px; }
+  .r-foot { height:44px; background:var(--reader-bar); display:flex; align-items:center; gap:12px; padding:0 18px; flex-shrink:0; }
+  .pg-btn { width:32px; height:28px; border-radius:var(--r-sm); background:var(--reader-btn); border:1px solid var(--reader-btn-line); color:var(--card); font-size:13px; display:flex; align-items:center; justify-content:center; cursor:pointer; }
+  .rprog { flex:1; height:5px; border-radius:var(--r-pill); background:rgba(255,255,255,.2); position:relative; }
+  .rprog i { position:absolute; left:0; top:0; height:100%; border-radius:var(--r-pill); background:linear-gradient(90deg,var(--accent),#10b981); }
+  .r-page { font-size:12px; color:var(--reader-text); font-weight:700; font-variant-numeric:tabular-nums; }
+  .r-tip { font-size:10.5px; color:#9fd8bd; display:flex; align-items:center; gap:5px; }
+  .r-tip svg { width:12px; height:12px; fill:#9fd8bd; }
+
+  /* ── 弹窗 / 蒙层 / 提示 ── */
+  .ovl { position:absolute; inset:0; background:rgba(0,0,0,.5); display:flex; align-items:center; justify-content:center; z-index:30; }
+  .ovl.hidden { display:none; }
+  .modal { width:620px; background:var(--card); border-radius:12px; box-shadow:0 12px 32px rgba(0,0,0,.25); overflow:hidden; text-align:left; max-height:640px; display:flex; flex-direction:column; }
+  .modal-head { display:flex; justify-content:space-between; align-items:center; padding:15px 20px; border-bottom:1px solid var(--table-line); font-size:15px; font-weight:700; }
+  .modal-x { color:var(--pill-gray); cursor:pointer; display:flex; }
+  .modal-x svg { width:15px; height:15px; fill:var(--pill-gray); }
+  .modal-body { padding:16px 20px; overflow:hidden; }
+  .modal-foot { padding:12px 20px; border-top:1px solid var(--table-line); display:flex; justify-content:flex-end; gap:10px; }
+  .frm-label { font-size:12.5px; color:var(--text-2); margin:12px 0 6px; display:flex; align-items:center; gap:8px; }
+  .frm-label:first-child { margin-top:0; }
+  .frm-req { color:var(--danger); }
+  .type-pills { display:flex; gap:0; background:var(--track); border-radius:var(--r-md); padding:4px; }
+  .type-pill { flex:1; text-align:center; padding:8px 0; font-size:13px; color:var(--text-2); border-radius:var(--r-sm); cursor:pointer; user-select:none; }
+  .type-pill.active { font-weight:700; color:var(--card); background:var(--hero-gradient); }
+  .frm-input, .frm-select { width:100%; height:34px; border:1px solid var(--table-line); border-radius:var(--r-sm); padding:0 12px; font-size:13px; color:var(--text-1); display:flex; align-items:center; background:var(--card); }
+  .frm-select:after { content:""; width:0; height:0; border-left:4px solid transparent; border-right:4px solid transparent; border-top:5px solid var(--text-4); margin-left:auto; }
+  .frm-textarea { width:100%; height:110px; border:1px solid var(--table-line); border-radius:var(--r-sm); padding:10px 12px; font-size:13px; color:var(--text-1); line-height:1.8; resize:none; font-family:inherit; }
+  .att-row { display:flex; gap:10px; }
+  .att-tile { flex:1; height:74px; border:1px dashed var(--table-line); border-radius:var(--r-sm); background:var(--table-head); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; color:var(--text-4); font-size:11.5px; }
+  .att-tile svg { width:18px; height:18px; fill:var(--text-4); }
+  .att-lock { display:inline-flex; align-items:center; gap:3px; font-size:10px; color:var(--amber-deep); background:var(--amber-bg); border-radius:4px; padding:1px 6px; font-weight:700; }
+  .att-lock svg { width:10px; height:10px; fill:var(--amber-deep); }
+  .toast { position:absolute; left:50%; bottom:26px; transform:translateX(-50%); background:var(--text-1); color:var(--card); font-size:12.5px; padding:8px 18px; border-radius:var(--r-pill); box-shadow:var(--shadow-pop); opacity:0; transition:opacity .25s; pointer-events:none; z-index:50; }
+  .toast.show { opacity:1; }
+
+  /* ── P7 详情弹窗专属 ── */
+  .gov-audio-note { display:flex; align-items:center; gap:8px; margin-top:10px; padding:9px 12px; background:var(--table-head); border:1px solid var(--table-line); border-radius:var(--r-sm); font-size:11.5px; color:var(--text-3); }
+  .gov-audio-note svg { width:13px; height:13px; fill:var(--text-3); flex-shrink:0; }
+
+  /* ── P9 统计看板 ── */
+  .kcards { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; flex-shrink:0; }
+  .kcard { background:var(--card); border-radius:var(--r-md); box-shadow:var(--shadow-card); padding:15px 17px 13px; }
+  .kv { font-size:26px; font-weight:800; color:var(--board-title); font-variant-numeric:tabular-nums; }
+  .kv i { font-style:normal; font-size:12px; color:var(--pill-gray); font-weight:600; margin-left:3px; }
+  .kl { font-size:12px; color:var(--pill-gray); margin-top:5px; }
+  .kt { font-size:11px; color:var(--green); background:var(--green-bg); border-radius:var(--r-pill); padding:2px 9px; display:inline-block; margin-top:8px; }
+  .kt.blue { color:var(--primary); background:var(--primary-bg); }
+  .panel-title { font-size:14px; font-weight:700; margin-bottom:8px; display:flex; align-items:center; gap:8px; }
+  .panel-title:before { content:""; width:4px; height:14px; background:var(--primary); border-radius:2px; }
+  .hbar-row { display:flex; align-items:center; gap:10px; padding:6px 0; }
+  .hbar-lbl { width:72px; font-size:12.5px; color:var(--text-2); text-align:right; }
+  .hbar-track { flex:1; height:12px; border-radius:var(--r-pill); background:var(--track); overflow:hidden; }
+  .hbar-track i { display:block; height:100%; border-radius:var(--r-pill); background:linear-gradient(90deg,var(--accent),#12b8cf); }
+  .hbar-val { width:32px; font-size:12.5px; color:var(--primary); font-weight:800; }
+  .rk { width:24px; height:24px; border-radius:6px; background:var(--track); color:var(--text-2); font-size:12px; font-weight:800; display:inline-flex; align-items:center; justify-content:center; }
+  .rk.top { background:var(--primary); color:var(--card); }
+  tr:nth-child(2) .rk.top { background:#3e8df3; } tr:nth-child(3) .rk.top { background:#12b8cf; }
+  .rb { height:7px; border-radius:var(--r-pill); background:var(--track); overflow:hidden; width:100%; }
+  .rb i { display:block; height:100%; background:linear-gradient(90deg,#3e8df3,var(--accent)); border-radius:var(--r-pill); }
+  .chart { position:relative; display:flex; align-items:flex-end; gap:6px; height:92px; margin-top:10px; border-bottom:1px solid var(--table-line); background-image:repeating-linear-gradient(to top,transparent 0 22px,var(--track) 22px 23px); }
+  .chart .bar { flex:1; background:linear-gradient(180deg,#3e8df3,#b3d1f9); border-radius:4px 4px 0 0; position:relative; }
+  .chart .bar.today { background:linear-gradient(180deg,var(--amber),#fcd34d); }
+  .chart .bar .v { position:absolute; top:-16px; left:50%; transform:translateX(-50%); font-size:10px; color:var(--amber-deep); font-weight:800; }
+  .chart-x { display:flex; justify-content:space-between; font-size:10px; color:var(--pill-gray); margin-top:6px; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="board-head">
+    <div class="board-title">法布施 · PC 完整原型 · v6<span class="board-tag">PC/MP 功能一致 · 2026-11-16</span></div>
+    <div class="board-sub">9 屏 = 员工阅读 5 屏（P1 分享广场 / P2 内容详情 / P3 书目浏览 / P4 在线阅读 / P5 发布内容）＋ 管理端 3 屏（P6 书目管理 / P7 内容治理 / P9 统计看板）＋ 类别字典 1 屏（P8）。
+      侧栏取现网七组菜单树：员工视角（P1-P5，法布施组仅社区两页）与 admin 视角（P6-P9，五项全显）分屏呈现权限差异；
+      「二期」角标 = 本期不实现（附件图音视 / 结构化章节 / 进度记忆 / 书架 / 导出 / 周榜部门进度 / 共读活动）。</div>
+  </div>
+
+  <div class="frames">
+
+    <!-- ═══ P1 分享广场 ═══ -->
+    <div class="frame-wrap"><div class="frame">
+      <div class="chrome"><span class="dot d1"></span><span class="dot d2"></span><span class="dot d3"></span><div class="url"><svg viewBox="0 0 1024 1024"><path d="M512 64a224 224 0 0 1 224 224v96h64a32 32 0 0 1 32 32v512a32 32 0 0 1-32 32H224a32 32 0 0 1-32-32V416a32 32 0 0 1 32-32h64v-96A224 224 0 0 1 512 64zm0 64a160 160 0 0 0-160 160v96h320v-96A160 160 0 0 0 512 128z"/></svg>https://crm.aigicrm.com/#/fabushi/feed</div></div>
+      <div class="app">
+        <div class="sidebar" data-side='{"role":"staff","active":"feed"}'></div>
+        <div class="main">
+          <div class="header"><span class="collapse"><svg viewBox="0 0 1024 1024"><path d="M128 224h768v64H128zm0 256h768v64H128zm0 256h768v64H128z"/></svg></span><span class="crumb">首页 <i>/</i> 法布施 <i>/</i> <b>分享广场</b></span><div class="header-right"><span class="bell"><svg viewBox="0 0 1024 1024"><path d="M512 128a256 256 0 0 1 256 256v160l64 128v32H192v-32l64-128V384a256 256 0 0 1 256-256zm-96 640h192a96 96 0 0 1-192 0z"/></svg><span class="bell-dot">3</span></span><span class="group-sel"><svg viewBox="0 0 1024 1024"><path d="M128 896V128h768v768zm-64-832a64 64 0 0 0-64 64v704a64 64 0 0 0 64 64h768a64 64 0 0 0 64-64V128a64 64 0 0 0-64-64z" opacity=".0"/><path d="M416 128v64h192v-64zM192 256v576h640V256zm128 96h96v64h-96zm160 0h96v64h-96zm-160 128h96v64h-96zm160 0h96v64h-96z"/></svg>艾志集团</span><div class="user"><div class="avatar">王</div><div class="user-meta"><b>王晓兰</b><span>销售一部 · 销售员</span></div></div></div></div>
+          <div class="content">
+            <div class="cat-tabs" data-tabs="feed">
+              <div class="cat-tab active" data-val="all">全部</div>
+              <div class="cat-tab" data-val="heart">心得</div>
+              <div class="cat-tab" data-val="recitation">诵读</div>
+              <div class="cat-tab" data-val="znl">正能量</div>
+            </div>
+            <div class="filter-card">
+              <span class="fl">书目</span><span class="sel">全部书目</span>
+              <span class="fl">关键词</span><span class="inp"><svg viewBox="0 0 1024 1024"><path d="M448 704a256 256 0 1 1 0-512 256 256 0 0 1 0 512zm0 64a320 320 0 1 0 0-640 320 320 0 0 0 0 640z"/><path d="M640 608l192 192-45 45-192-192z"/></svg>标题 / 正文 / 作者</span>
+              <span class="fl" style="display:inline-flex;align-items:center;gap:6px;"><input type="checkbox" id="unrd" style="accent-color:var(--primary);"><label for="unrd">只看未读</label></span>
+              <span class="btn plain j-reset">重置</span>
+              <span class="spacer"></span>
+              <span class="btn primary j-publish"><svg viewBox="0 0 1024 1024"><path d="M512 128a32 32 0 0 1 32 32v320h320a32 32 0 1 1 0 64H544v320a32 32 0 1 1-64 0V544H160a32 32 0 1 1 0-64h320V160a32 32 0 0 1 32-32z"/></svg>发布内容</span>
+            </div>
+            <div class="feed-layout">
+              <div class="feed-col" id="feedCol">
+                <div class="fcard" data-type="recitation" data-read="0">
+                  <div class="fcard-top"><span class="tag blue">诵读</span><span class="fcard-title">立命之学 · 诵读打卡（第一部分）</span><span class="badge-new">NEW</span></div>
+                  <div class="fcard-meta">李长青 · 客服部 · 今天 09:30 · 关联 <span class="book-link">《了凡四训》</span></div>
+                  <div class="fcard-summary">"从前种种，譬如昨日死；从后种种，譬如今日生。"把这句话抄在工位上，每天下班前对一次承诺清单，本周立命之学已通读三遍。</div>
+                  <div class="fcard-foot"><span class="act"><svg viewBox="0 0 1024 1024"><path d="M512 96c-176 0-320 96-320 224 0 68 44 128 112 168l-24 132c-2 12 10 20 20 14l148-84c20 4 42 6 64 6 176 0 320-96 320-224S688 96 512 96z"/></svg>木鱼 12</span><span class="act"><svg viewBox="0 0 1024 1024"><path d="M736 128H288a160 160 0 0 0-160 160v256a160 160 0 0 0 160 160h64l104 96 24-96h256a160 160 0 0 0 160-160V288a160 160 0 0 0-160-160zM352 384h320v64H352zm0 128h224v64H352z"/></svg>评论 5</span><span class="read-state unread"><span class="read-dot"></span>未读</span></div>
+                </div>
+                <div class="fcard" data-type="znl" data-read="0">
+                  <div class="fcard-top"><span class="tag orange">正能量</span><span class="fcard-title">下班路上的晚霞</span><span class="badge-new">NEW</span></div>
+                  <div class="fcard-meta">陈慧 · 客服部 · 昨天 18:40 · 未关联书目</div>
+                  <div class="fcard-summary">想起《了凡四训》那句"一切福田，不离方寸"——好事总会发生，先把自己的心照顾好。明天继续早读。</div>
+                  <div class="fcard-foot"><span class="act"><svg viewBox="0 0 1024 1024"><path d="M512 96c-176 0-320 96-320 224 0 68 44 128 112 168l-24 132c-2 12 10 20 20 14l148-84c20 4 42 6 64 6 176 0 320-96 320-224S688 96 512 96z"/></svg>木鱼 9</span><span class="act"><svg viewBox="0 0 1024 1024"><path d="M736 128H288a160 160 0 0 0-160 160v256a160 160 0 0 0 160 160h64l104 96 24-96h256a160 160 0 0 0 160-160V288a160 160 0 0 0-160-160zM352 384h320v64H352zm0 128h224v64H352z"/></svg>评论 2</span><span class="read-state unread"><span class="read-dot"></span>未读</span></div>
+                </div>
+                <div class="fcard" data-type="heart" data-read="1">
+                  <div class="fcard-top"><span class="tag cyan">心得</span><span class="fcard-title">读《弟子规》第 6 周：见人善，即思齐</span></div>
+                  <div class="fcard-meta">王晓兰 · 销售一部 · 昨天 12:02 · 关联 <span class="book-link">《弟子规》</span></div>
+                  <div class="fcard-summary">观摩了张哥整场谈判，学到的比看十本书都多。"见人善，即思齐"——把客户沟通里学到的三个动作写进了我的周复盘。</div>
+                  <div class="fcard-foot"><span class="act"><svg viewBox="0 0 1024 1024"><path d="M512 96c-176 0-320 96-320 224 0 68 44 128 112 168l-24 132c-2 12 10 20 20 14l148-84c20 4 42 6 64 6 176 0 320-96 320-224S688 96 512 96z"/></svg>木鱼 21</span><span class="act"><svg viewBox="0 0 1024 1024"><path d="M736 128H288a160 160 0 0 0-160 160v256a160 160 0 0 0 160 160h64l104 96 24-96h256a160 160 0 0 0 160-160V288a160 160 0 0 0-160-160zM352 384h320v64H352zm0 128h224v64H352z"/></svg>评论 8</span><span class="read-state"><span class="read-dot"></span>已读</span></div>
+                </div>
+                <div class="fcard" data-type="heart" data-read="0">
+                  <div class="fcard-top"><span class="tag cyan">心得</span><span class="fcard-title">《活法》第四章：付出不亚于任何人的努力</span></div>
+                  <div class="fcard-meta">周文静 · 行政部 · 11-14 16:20 · 关联 <span class="book-link">《活法》</span></div>
+                  <div class="fcard-summary">"努力"不是加班时长的竞赛，而是把眼前每件小事做到极致。行政工作也一样：一份通知、一间会议室，都值得认真。</div>
+                  <div class="fcard-foot"><span class="act"><svg viewBox="0 0 1024 1024"><path d="M512 96c-176 0-320 96-320 224 0 68 44 128 112 168l-24 132c-2 12 10 20 20 14l148-84c20 4 42 6 64 6 176 0 320-96 320-224S688 96 512 96z"/></svg>木鱼 15</span><span class="act"><svg viewBox="0 0 1024 1024"><path d="M736 128H288a160 160 0 0 0-160 160v256a160 160 0 0 0 160 160h64l104 96 24-96h256a160 160 0 0 0 160-160V288a160 160 0 0 0-160-160zM352 384h320v64H352zm0 128h224v64H352z"/></svg>评论 4</span><span class="read-state unread"><span class="read-dot"></span>未读</span></div>
+                </div>
+                <div class="fcard" data-type="recitation" data-read="1">
+                  <div class="fcard-top"><span class="tag blue">诵读</span><span class="fcard-title">《论语》学而第一 · 通读打卡</span></div>
+                  <div class="fcard-meta">赵一鸣 · 销售二部 · 11-14 08:15 · 关联 <span class="book-link">《论语译注》</span></div>
+                  <div class="fcard-summary">"学而时习之，不亦说乎"——晨读二十分钟再出门拜访，状态明显不一样。本周目标：把学而第一通读五遍。</div>
+                  <div class="fcard-foot"><span class="act"><svg viewBox="0 0 1024 1024"><path d="M512 96c-176 0-320 96-320 224 0 68 44 128 112 168l-24 132c-2 12 10 20 20 14l148-84c20 4 42 6 64 6 176 0 320-96 320-224S688 96 512 96z"/></svg>木鱼 6</span><span class="act"><svg viewBox="0 0 1024 1024"><path d="M736 128H288a160 160 0 0 0-160 160v256a160 160 0 0 0 160 160h64l104 96 24-96h256a160 160 0 0 0 160-160V288a160 160 0 0 0-160-160zM352 384h320v64H352zm0 128h224v64H352z"/></svg>评论 2</span><span class="read-state"><span class="read-dot"></span>已读</span></div>
+                </div>
+              </div>
+              <div class="side-col">
+                <div class="side-card">
+                  <div class="side-title">我的法布施 · 王晓兰</div>
+                  <div class="side-row"><span>本月发布</span><b>13 篇</b></div>
+                  <div class="side-row"><span>获木鱼</span><b>47</b></div>
+                  <div class="side-row"><span>收评论</span><b>32</b></div>
+                  <div class="side-row"><span>本月已读</span><b>11 天</b></div>
+                </div>
+                <div class="side-card">
+                  <div class="side-title">今日推荐书目</div>
+                  <div class="rec-book">
+                    <div class="book-spine">了凡四训</div>
+                    <div class="rec-main">
+                      <div class="rec-title">《了凡四训》</div>
+                      <div class="rec-meta">(明)袁了凡 · 中华书局 · 288 页 · 电子书</div>
+                      <div class="rec-meta">心得 12 · 诵读 9 · 评论 23</div>
+                    </div>
+                  </div>
+                  <div class="rec-acts"><span class="btn primary sm">在线阅读</span><span class="btn plain sm">写心得</span></div>
+                </div>
+                <div class="side-card">
+                  <div class="side-title">共读活动</div>
+                  <div style="font-size:12px;color:var(--text-3);line-height:1.7;">共读活动为二期能力（fabushi:activity:manage），上线后在此展示进行中的活动与打卡入口。</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      </div>
+      <div class="frame-label">P1 · 分享广场（员工阅读工作台）</div>
+      <div class="frame-note">一期 · fabushi:view（浏览/已读）/ fabushi:create（发布）。员工视角侧栏：法布施组仅「分享广场/书目浏览」，<br>书目管理/内容治理/统计看板需 book:view、content:view、stats:view，默认仅 admin 可见，员工侧栏不显示。</div>
+    </div>
+
+    <!-- ═══ P2 内容详情 ═══ -->
+    <div class="frame-wrap"><div class="frame">
+      <div class="chrome"><span class="dot d1"></span><span class="dot d2"></span><span class="dot d3"></span><div class="url"><svg viewBox="0 0 1024 1024"><path d="M512 64a224 224 0 0 1 224 224v96h64a32 32 0 0 1 32 32v512a32 32 0 0 1-32 32H224a32 32 0 0 1-32-32V416a32 32 0 0 1 32-32h64v-96A224 224 0 0 1 512 64zm0 64a160 160 0 0 0-160 160v96h320v-96A160 160 0 0 0 512 128z"/></svg>https://crm.aigicrm.com/#/fabushi/detail/12</div></div>
+      <div class="app">
+        <div class="sidebar" data-side='{"role":"staff","active":"feed"}'></div>
+        <div class="main">
+          <div class="header"><span class="collapse"><svg viewBox="0 0 1024 1024"><path d="M128 224h768v64H128zm0 256h768v64H128zm0 256h768v64H128z"/></svg></span><span class="crumb">首页 <i>/</i> 法布施 <i>/</i> 分享广场 <i>/</i> <b>内容详情</b></span><div class="header-right"><span class="bell"><svg viewBox="0 0 1024 1024"><path d="M512 128a256 256 0 0 1 256 256v160l64 128v32H192v-32l64-128V384a256 256 0 0 1 256-256zm-96 640h192a96 96 0 0 1-192 0z"/></svg><span class="bell-dot">3</span></span><span class="group-sel"><svg viewBox="0 0 1024 1024"><path d="M416 128v64h192v-64zM192 256v576h640V256zm128 96h96v64h-96zm160 0h96v64h-96zm-160 128h96v64h-96zm160 0h96v64h-96z"/></svg>艾志集团</span><div class="user"><div class="avatar">王</div><div class="user-meta"><b>王晓兰</b><span>销售一部 · 销售员</span></div></div></div></div>
+          <div class="content">
+            <div class="back-bar"><svg viewBox="0 0 1024 1024"><path d="M658 176l-288 288a32 32 0 0 0 0 45l288 288 45-45-265-265 265-266z"/></svg>返回分享广场<span class="crumb2">· 立命之学 · 诵读打卡（第一部分）</span></div>
+            <div class="dtl-layout">
+              <div class="art-card">
+                <div class="art-title"><span class="tag blue">诵读</span>立命之学 · 诵读打卡（第一部分）</div>
+                <div class="art-meta"><span class="who"><span class="mini-ava">李</span>李长青 · 客服部</span><span>2026-11-15 09:30</span><span>关联《了凡四训》· 第一部分 · 立命之学</span><span style="color:var(--unread-red);font-weight:700;">我的阅读：已读</span></div>
+                <div class="art-body">
+                  <p>"从前种种，譬如昨日死；从后种种，譬如今日生。"重新立命，先从换一副心肠开始。</p>
+                  <p>云谷问曰："凡人所以不得作圣者，只为妄念相缠耳。汝坐三日，不见起一妄念，何也？"余曰："吾为孔先生算定，荣辱生死，皆有定数，故要妄想。"</p>
+                  <p>云谷笑曰："我待汝是豪杰，原来只是凡夫。"问其故。曰："人未能无心，终为阴阳所缚，安得无数？但惟凡人有数；极善之人，数固拘他不定；极恶之人，数亦拘他不定。"</p>
+                  <p>读到这里把"数拘不定"四个字抄在便签上：命运不是排好的日程表，每天的诵读与复盘，就是在改自己的数。</p>
+                </div>
+                <div class="art-acts">
+                  <span class="muyu-btn j-muyu" id="muyuP2"><svg viewBox="0 0 1024 1024"><path d="M512 96c-176 0-320 96-320 224 0 68 44 128 112 168l-24 132c-2 12 10 20 20 14l148-84c20 4 42 6 64 6 176 0 320-96 320-224S688 96 512 96z"/></svg>木鱼 <span id="muyuCntP2">12</span><span class="plus-fly">+1</span></span>
+                  <span class="art-count"><svg viewBox="0 0 1024 1024"><path d="M736 128H288a160 160 0 0 0-160 160v256a160 160 0 0 0 160 160h64l104 96 24-96h256a160 160 0 0 0 160-160V288a160 160 0 0 0-160-160zM352 384h320v64H352zm0 128h224v64H352z"/></svg>评论 <span id="cmtCntP2">3</span></span>
+                </div>
+                <div class="cmt-list" id="cmtListP2">
+                  <div class="cmt"><div class="cmt-ava" style="background:#12b8cf;">陈</div><div><div class="cmt-name">陈慧<span class="cmt-time">今天 10:02</span></div><div class="cmt-text">"极善之人，数固拘他不定"这段读得最有味道！下周晨会想请你带读一段。</div></div></div>
+                  <div class="cmt"><div class="cmt-ava" style="background:#3e8df3;">王</div><div><div class="cmt-name">王晓兰<span class="cmt-time">今天 09:48</span></div><div class="cmt-text">跟着读了一遍，"从前种种譬如昨日死"正好用在本月复盘上。</div></div></div>
+                  <div class="cmt"><div class="cmt-ava" style="background:#6b7280;">赵</div><div><div class="cmt-name">赵一鸣<span class="cmt-time">昨天 21:15</span></div><div class="cmt-text">已加入我的晨读清单，明天跟读第二部分。</div></div></div>
+                </div>
+                <div class="cmt-input">
+                  <textarea id="cmtTxtP2" placeholder="写评论…（fabushi:create）"></textarea>
+                  <span class="btn primary j-cmt">发布评论</span>
+                </div>
+              </div>
+              <div class="side-col">
+                <div class="side-card">
+                  <div class="side-title">作者</div>
+                  <div style="display:flex;align-items:center;gap:10px;">
+                    <div class="avatar" style="width:40px;height:40px;">李</div>
+                    <div><div style="font-size:14px;font-weight:700;">李长青</div><div style="font-size:11.5px;color:var(--text-3);margin-top:2px;">客服部 · 销售总监</div></div>
+                  </div>
+                  <div class="side-row"><span>本月发布</span><b>24 篇</b></div>
+                  <div class="side-row"><span>获木鱼</span><b>39</b></div>
+                </div>
+                <div class="side-card">
+                  <div class="side-title">关联书目</div>
+                  <div class="rec-book">
+                    <div class="book-spine">了凡四训</div>
+                    <div class="rec-main">
+                      <div class="rec-title">《了凡四训》</div>
+                      <div class="rec-meta">(明)袁了凡 · 中华书局 · 288 页</div>
+                      <div class="rec-meta"><span class="tag blue" style="margin-right:4px;">电子书</span>可在线阅读</div>
+                    </div>
+                  </div>
+                  <div class="rec-acts"><span class="btn primary sm">在线阅读</span></div>
+                </div>
+                <div class="side-card">
+                  <div class="side-title">阅读状态</div>
+                  <div class="side-row"><span>我的阅读</span><b style="color:var(--green);">已读</b></div>
+                  <div class="side-row"><span>木鱼</span><b>12</b></div>
+                  <div class="side-row"><span>评论</span><b>3</b></div>
+                  <div style="font-size:11px;color:var(--text-4);margin-top:6px;line-height:1.6;">已读 = 用户+内容唯一；重复浏览仅刷新时间。木鱼 = 点赞，同一用户可切换。</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      </div>
+      <div class="frame-label">P2 · 内容详情（互动）</div>
+      <div class="frame-note">一期 · 木鱼即点赞（可切换），评论需 fabushi:create；正文为文字版诵读（图/音/视附件二期）。<br>右侧三卡：作者 / 关联书目（挂 PDF 才有「在线阅读」）/ 阅读状态。可视化验收点：正文不出现任何"点赞"按钮。</div>
+    </div>
+
+    <!-- ═══ P3 书目浏览 ═══ -->
+    <div class="frame-wrap"><div class="frame">
+      <div class="chrome"><span class="dot d1"></span><span class="dot d2"></span><span class="dot d3"></span><div class="url"><svg viewBox="0 0 1024 1024"><path d="M512 64a224 224 0 0 1 224 224v96h64a32 32 0 0 1 32 32v512a32 32 0 0 1-32 32H224a32 32 0 0 1-32-32V416a32 32 0 0 1 32-32h64v-96A224 224 0 0 1 512 64zm0 64a160 160 0 0 0-160 160v96h320v-96A160 160 0 0 0 512 128z"/></svg>https://crm.aigicrm.com/#/fabushi/library</div></div>
+      <div class="app">
+        <div class="sidebar" data-side='{"role":"staff","active":"lib"}'></div>
+        <div class="main">
+          <div class="header"><span class="collapse"><svg viewBox="0 0 1024 1024"><path d="M128 224h768v64H128zm0 256h768v64H128zm0 256h768v64H128z"/></svg></span><span class="crumb">首页 <i>/</i> 法布施 <i>/</i> <b>书目浏览</b></span><div class="header-right"><span class="bell"><svg viewBox="0 0 1024 1024"><path d="M512 128a256 256 0 0 1 256 256v160l64 128v32H192v-32l64-128V384a256 256 0 0 1 256-256zm-96 640h192a96 96 0 0 1-192 0z"/></svg><span class="bell-dot">3</span></span><span class="group-sel"><svg viewBox="0 0 1024 1024"><path d="M416 128v64h192v-64zM192 256v576h640V256zm128 96h96v64h-96zm160 0h96v64h-96zm-160 128h96v64h-96zm160 0h96v64h-96z"/></svg>艾志集团</span><div class="user"><div class="avatar">王</div><div class="user-meta"><b>王晓兰</b><span>销售一部 · 销售员</span></div></div></div></div>
+          <div class="content">
+            <div class="filter-card">
+              <span class="fl">搜索</span><span class="inp" style="min-width:220px;"><svg viewBox="0 0 1024 1024"><path d="M448 704a256 256 0 1 1 0-512 256 256 0 0 1 0 512zm0 64a320 320 0 1 0 0-640 320 320 0 0 0 0 640z"/><path d="M640 608l192 192-45 45-192-192z"/></svg>书名 / 作者</span>
+              <span class="fl">排序</span><span class="sel">默认排序</span>
+              <span class="fl">电子书</span><span class="sel">全部</span>
+              <span class="btn primary">查询</span><span class="btn plain">重置</span>
+              <span class="spacer"></span>
+              <span style="font-size:11.5px;color:var(--text-3);">人人可提交书目 · 管理员审核后展示（fabushi:create）</span>
+              <span class="btn plain j-toast" data-msg="提交书目后进入待审核队列，审核通过才全员可见（演示）">＋ 提交书目</span>
+            </div>
+            <div class="lib-layout">
+              <div class="cat-list" id="catList">
+                <div class="cat-row active" data-cat="all"><span>全部</span><span class="cnt">26</span></div>
+                <div class="cat-row" data-cat="dzg"><span>弟子规</span><span class="cnt">4</span></div>
+                <div class="cat-row" data-cat="lfsx"><span>了凡四训</span><span class="cnt">3</span></div>
+                <div class="cat-row" data-cat="ly"><span>论语</span><span class="cnt">3</span></div>
+                <div class="cat-row" data-cat="ddj"><span>道德经</span><span class="cnt">2</span></div>
+                <div class="cat-row" data-cat="xj"><span>孝经</span><span class="cnt">1</span></div>
+                <div class="cat-row" data-cat="gyp"><span>感应篇</span><span class="cnt">2</span></div>
+                <div class="cat-row" data-cat="ssy"><span>十善业</span><span class="cnt">2</span></div>
+                <div class="cat-row" data-cat="qszy"><span>群书治要</span><span class="cnt">2</span></div>
+                <div class="cat-row" data-cat="gwl"><span>国外类</span><span class="cnt">5</span></div>
+                <div class="cat-row" data-cat="syl"><span>实用类</span><span class="cnt">2</span></div>
+              </div>
+              <div class="book-grid" id="bookGrid">
+                <div class="bcard" data-cat="lfsx">
+                  <div class="book-spine">了凡四训</div>
+                  <div class="bcard-main">
+                    <div class="bcard-title">《了凡四训》<span class="tag blue">电子书</span></div>
+                    <div class="bcard-meta">(明)袁了凡 · 中华书局 2016 · 原版 · 288 页</div>
+                    <div class="bcard-meta">心得 12 · 诵读 9 · 评论 23 · 已读 18 人</div>
+                    <div class="bcard-acts"><span class="btn primary sm">在线阅读</span><span class="btn plain sm">写心得</span></div>
+                  </div>
+                </div>
+                <div class="bcard" data-cat="dzg">
+                  <div class="book-spine" style="background:linear-gradient(150deg,#b45309,var(--amber));">弟子规</div>
+                  <div class="bcard-main">
+                    <div class="bcard-title">《弟子规》<span class="tag blue">电子书</span></div>
+                    <div class="bcard-meta">(清)李毓秀 · 中华书局 2016 · 注释本 · 360 页</div>
+                    <div class="bcard-meta">心得 12 · 诵读 9 · 评论 14 · 已读 22 人</div>
+                    <div class="bcard-acts"><span class="btn primary sm">在线阅读</span><span class="btn plain sm">写心得</span></div>
+                  </div>
+                </div>
+                <div class="bcard" data-cat="dzg">
+                  <div class="book-spine" style="background:linear-gradient(150deg,#b45309,var(--amber));">弟子规</div>
+                  <div class="bcard-main">
+                    <div class="bcard-title">《细讲弟子规》</div>
+                    <div class="bcard-meta">蔡礼旭 · 世界知识出版社 2007 · 讲义 · 452 页</div>
+                    <div class="bcard-meta">心得 8 · 诵读 6 · 评论 9 · 已读 11 人</div>
+                    <div class="bcard-acts"><span class="btn plain sm" style="color:var(--text-4);">暂无电子书</span><span class="btn plain sm">写心得</span></div>
+                  </div>
+                </div>
+                <div class="bcard" data-cat="ly">
+                  <div class="book-spine" style="background:linear-gradient(150deg,#0e7490,#12b8cf);">论语</div>
+                  <div class="bcard-main">
+                    <div class="bcard-title">《论语译注》<span class="tag blue">电子书</span></div>
+                    <div class="bcard-meta">杨伯峻 · 中华书局 2009 · 译本 · 324 页</div>
+                    <div class="bcard-meta">心得 5 · 诵读 4 · 评论 8 · 已读 9 人</div>
+                    <div class="bcard-acts"><span class="btn primary sm">在线阅读</span><span class="btn plain sm">写心得</span></div>
+                  </div>
+                </div>
+                <div class="bcard" data-cat="gwl">
+                  <div class="book-spine" style="background:linear-gradient(150deg,#065f46,#10b981);">活法</div>
+                  <div class="bcard-main">
+                    <div class="bcard-title">《活法》</div>
+                    <div class="bcard-meta">稻盛和夫 · 东方出版社 2005 · 译本 · 232 页</div>
+                    <div class="bcard-meta">心得 9 · 诵读 3 · 评论 11 · 已读 14 人</div>
+                    <div class="bcard-acts"><span class="btn plain sm" style="color:var(--text-4);">暂无电子书</span><span class="btn plain sm">写心得</span></div>
+                  </div>
+                </div>
+                <div class="bcard" data-cat="syl">
+                  <div class="book-spine" style="background:linear-gradient(150deg,#6d28d9,#8ea7ec);">非暴力</div>
+                  <div class="bcard-main">
+                    <div class="bcard-title">《非暴力沟通》</div>
+                    <div class="bcard-meta">马歇尔·卢森堡 · 华夏出版社 2009 · 译本 · 264 页</div>
+                    <div class="bcard-meta">心得 4 · 诵读 2 · 评论 6 · 已读 7 人</div>
+                    <div class="bcard-acts"><span class="btn plain sm" style="color:var(--text-4);">暂无电子书</span><span class="btn plain sm">写心得</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      </div>
+      <div class="frame-label">P3 · 书目浏览（员工）</div>
+      <div class="frame-note">一期 · fabushi:view。左侧类别 = 字典 fabushi_category 的 10 个预置值（显示通过书目数）；<br>书目卡仅展示已通过（approved）书目；「在线阅读」仅挂 PDF 的书目出现；类别名与数量与管理端 P6/P8 同源。</div>
+    </div>
+
+    <!-- ═══ P4 在线阅读 ═══ -->
+    <div class="frame-wrap"><div class="frame">
+      <div class="chrome"><span class="dot d1"></span><span class="dot d2"></span><span class="dot d3"></span><div class="url"><svg viewBox="0 0 1024 1024"><path d="M512 64a224 224 0 0 1 224 224v96h64a32 32 0 0 1 32 32v512a32 32 0 0 1-32 32H224a32 32 0 0 1-32-32V416a32 32 0 0 1 32-32h64v-96A224 224 0 0 1 512 64zm0 64a160 160 0 0 0-160 160v96h320v-96A160 160 0 0 0 512 128z"/></svg>https://crm.aigicrm.com/#/fabushi/read/3</div></div>
+      <div class="app">
+        <div class="sidebar" data-side='{"role":"staff","active":"lib"}'></div>
+        <div class="main">
+          <div class="header"><span class="collapse"><svg viewBox="0 0 1024 1024"><path d="M128 224h768v64H128zm0 256h768v64H128zm0 256h768v64H128z"/></svg></span><span class="crumb">首页 <i>/</i> 法布施 <i>/</i> 书目浏览 <i>/</i> <b>在线阅读</b></span><div class="header-right"><span class="bell"><svg viewBox="0 0 1024 1024"><path d="M512 128a256 256 0 0 1 256 256v160l64 128v32H192v-32l64-128V384a256 256 0 0 1 256-256zm-96 640h192a96 96 0 0 1-192 0z"/></svg><span class="bell-dot">3</span></span><span class="group-sel"><svg viewBox="0 0 1024 1024"><path d="M416 128v64h192v-64zM192 256v576h640V256zm128 96h96v64h-96zm160 0h96v64h-96zm-160 128h96v64h-96zm160 0h96v64h-96z"/></svg>艾志集团</span><div class="user"><div class="avatar">王</div><div class="user-meta"><b>王晓兰</b><span>销售一部 · 销售员</span></div></div></div></div>
+          <div class="content">
+            <div class="reader-shell">
+              <div class="r-top">
+                <span class="back"><svg viewBox="0 0 1024 1024"><path d="M658 176l-288 288a32 32 0 0 0 0 45l288 288 45-45-265-265 265-266z"/></svg>返回书目</span>
+                <span class="r-name">《了凡四训》</span>
+                <span class="r-sub">(明)袁了凡 · 288 页 · 电子书 12.6 MB</span>
+                <span class="spacer"></span>
+                <span class="r-btn j-toast" data-msg="下载 PDF（fabushi:view · 法布施空间文件）— 演示提示"><svg viewBox="0 0 1024 1024"><path d="M544 128v425l150-150 45 45-211 211-211-211 45-45 150 150V128zM192 832h640v64H192z"/></svg>下载</span>
+              </div>
+              <div class="r-body">
+                <div class="r-toc">
+                  <div class="r-toc-head">目录 <span class="chip2">二期 · 结构化章节</span></div>
+                  <div class="toc-row">序</div>
+                  <div class="toc-row active">第一部分 · 立命之学</div>
+                  <div class="toc-row lv2">（一）孔先生算定命数</div>
+                  <div class="toc-row lv2">（二）云谷对话</div>
+                  <div class="toc-row">第二部分 · 改过之法</div>
+                  <div class="toc-row">第三部分 · 积善之方</div>
+                  <div class="toc-row">第四部分 · 谦德之效</div>
+                  <div style="margin-top:auto;padding-top:10px;font-size:10.5px;color:var(--reader-muted);line-height:1.6;">一期为浏览器内建 PDF 阅读，页码由浏览器提供；左侧结构化目录与「续读到上次页码」为二期（fb_section / fb_reading_progress）。</div>
+                </div>
+                <div class="paper-zone">
+                  <div class="paper" id="paperBox">
+                    <h4 id="paperTitle">第一部分 · 立命之学（二）</h4>
+                    <p id="paperP1">云谷问曰："凡人所以不得作圣者，只为妄念相缠耳。汝坐三日，不见起一妄念，何也？"</p>
+                    <p id="paperP2">余曰："吾为孔先生算定，荣辱生死，皆有定数，故要妄想。"</p>
+                    <p id="paperP3">云谷笑曰："我待汝是豪杰，原来只是凡夫。"问其故。曰："人未能无心，终为阴阳所缚，安得无数？但惟凡人有数；极善之人，数固拘他不定；极恶之人，数亦拘他不定。"</p>
+                    <p id="paperP4">至此方知：命数非天定，而在日日之功。诵读一遍，心便定一分。</p>
+                    <div class="note-line" id="paperNote">— 第 8 页 · 共 288 页 —</div>
+                  </div>
+                </div>
+              </div>
+              <div class="r-foot">
+                <span class="pg-btn j-prev">‹</span>
+                <div class="rprog"><i id="rprogFill" style="width:3%;"></i></div>
+                <span class="r-page" id="rPage">8 / 288</span>
+                <span class="pg-btn j-next">›</span>
+                <span class="r-tip"><svg viewBox="0 0 1024 1024"><path d="M512 64a448 448 0 1 0 0 896 448 448 0 0 0 0-896zm-32 192h64v256h-64zm0 320h64v64h-64z"/></svg>进度自动记忆 · 下次续读（二期）</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      </div>
+      <div class="frame-label">P4 · 在线阅读（PDF）</div>
+      <div class="frame-note">一期 · fabushi:view：浏览器内建 PDF 阅读 + 下载（法布施空间文件）。<br>屏内如实标注二期：左侧结构化目录（fb_section）与进度记忆/续读（fb_reading_progress）本期不实现，不伪装。</div>
+    </div>
+
+    <!-- ═══ P5 发布内容 ═══ -->
+    <div class="frame-wrap"><div class="frame">
+      <div class="chrome"><span class="dot d1"></span><span class="dot d2"></span><span class="dot d3"></span><div class="url"><svg viewBox="0 0 1024 1024"><path d="M512 64a224 224 0 0 1 224 224v96h64a32 32 0 0 1 32 32v512a32 32 0 0 1-32 32H224a32 32 0 0 1-32-32V416a32 32 0 0 1 32-32h64v-96A224 224 0 0 1 512 64zm0 64a160 160 0 0 0-160 160v96h320v-96A160 160 0 0 0 512 128z"/></svg>https://crm.aigicrm.com/#/fabushi/feed（发布内容弹窗）</div></div>
+      <div class="app">
+        <div class="sidebar" data-side='{"role":"staff","active":"feed"}'></div>
+        <div class="main">
+          <div class="header"><span class="collapse"><svg viewBox="0 0 1024 1024"><path d="M128 224h768v64H128zm0 256h768v64H128zm0 256h768v64H128z"/></svg></span><span class="crumb">首页 <i>/</i> 法布施 <i>/</i> <b>分享广场</b></span><div class="header-right"><span class="bell"><svg viewBox="0 0 1024 1024"><path d="M512 128a256 256 0 0 1 256 256v160l64 128v32H192v-32l64-128V384a256 256 0 0 1 256-256zm-96 640h192a96 96 0 0 1-192 0z"/></svg><span class="bell-dot">3</span></span><span class="group-sel"><svg viewBox="0 0 1024 1024"><path d="M416 128v64h192v-64zM192 256v576h640V256zm128 96h96v64h-96zm160 0h96v64h-96zm-160 128h96v64h-96zm160 0h96v64h-96z"/></svg>艾志集团</span><div class="user"><div class="avatar">王</div><div class="user-meta"><b>王晓兰</b><span>销售一部 · 销售员</span></div></div></div></div>
+          <div class="content">
+            <div class="cat-tabs">
+              <div class="cat-tab">全部</div><div class="cat-tab">心得</div><div class="cat-tab">诵读</div><div class="cat-tab">正能量</div>
+            </div>
+            <div class="filter-card"><span class="fl">书目</span><span class="sel">全部书目</span><span class="fl">关键词</span><span class="inp">标题 / 正文 / 作者</span><span class="btn plain">重置</span><span class="spacer"></span><span class="btn primary">发布内容</span></div>
+            <div class="feed-layout">
+              <div class="feed-col"><div class="fcard" style="opacity:.55;"><div class="fcard-top"><span class="tag cyan">心得</span><span class="fcard-title">读《弟子规》第 6 周：见人善，即思齐</span></div><div class="fcard-meta">王晓兰 · 销售一部 · 昨天 12:02 · 关联《弟子规》</div><div class="fcard-summary">"见人善，即思齐"——把客户沟通里学到的三个动作写进了我的周复盘。</div><div class="fcard-foot"><span class="act">木鱼 21</span><span class="act">评论 8</span><span class="read-state"><span class="read-dot"></span>已读</span></div></div></div>
+              <div class="side-col"><div class="side-card" style="opacity:.55;"><div class="side-title">我的法布施 · 王晓兰</div><div class="side-row"><span>本月发布</span><b>13 篇</b></div><div class="side-row"><span>获木鱼</span><b>47</b></div></div></div>
+            </div>
+            <div class="ovl" id="pubOvl">
+              <div class="modal">
+                <div class="modal-head">发布内容<span class="modal-x j-pub-close"><svg viewBox="0 0 1024 1024"><path d="M565 512l212-212-45-45-212 212-212-212-45 45 212 212-212 212 45 45 212-212 212 212 45-45z"/></svg></span></div>
+                <div class="modal-body">
+                  <div class="frm-label">内容类型 <span class="frm-req">*</span></div>
+                  <div class="type-pills" data-tabs="pub">
+                    <div class="type-pill" data-val="heart">心得</div>
+                    <div class="type-pill active" data-val="recitation">诵读</div>
+                    <div class="type-pill" data-val="znl">正能量</div>
+                  </div>
+                  <div class="frm-label">关联书目 <span style="font-size:11px;color:var(--text-4);font-weight:400;">正能量可不关联</span></div>
+                  <div class="frm-select">弟子规 · 《了凡四训》 › 第一部分 · 立命之学</div>
+                  <div class="frm-label">标题 <span class="frm-req">*</span></div>
+                  <div class="frm-input">立命之学 · 诵读打卡（第一部分）</div>
+                  <div class="frm-label">正文 <span class="frm-req">*</span></div>
+                  <div class="frm-textarea">"从前种种，譬如昨日死；从后种种，譬如今日生。"把这句话抄在工位上，每天下班前对一次承诺清单，本周立命之学已通读三遍……</div>
+                  <div class="frm-label">附件</div>
+                  <div class="att-row">
+                    <div class="att-tile"><svg viewBox="0 0 1024 1024"><path d="M672 128l192 192v576H160V128zm-32 64H224v640h576V352H640zm-352 96h192v64H288zm0 128h192v64H288zm0 128h416v64H288z"/></svg>图片<span class="att-lock"><svg viewBox="0 0 1024 1024"><path d="M512 64a224 224 0 0 1 224 224v96h64a32 32 0 0 1 32 32v512a32 32 0 0 1-32 32H224a32 32 0 0 1-32-32V416a32 32 0 0 1 32-32h64v-96A224 224 0 0 1 512 64zm0 64a160 160 0 0 0-160 160v96h320v-96A160 160 0 0 0 512 128z"/></svg>二期开放</span></div>
+                    <div class="att-tile"><svg viewBox="0 0 1024 1024"><path d="M512 96a416 416 0 1 0 0 832 416 416 0 0 0 0-832zm-64 208l256 160-256 160z"/></svg>音频<span class="att-lock"><svg viewBox="0 0 1024 1024"><path d="M512 64a224 224 0 0 1 224 224v96h64a32 32 0 0 1 32 32v512a32 32 0 0 1-32 32H224a32 32 0 0 1-32-32V416a32 32 0 0 1 32-32h64v-96A224 224 0 0 1 512 64zm0 64a160 160 0 0 0-160 160v96h320v-96A160 160 0 0 0 512 128z"/></svg>二期开放</span></div>
+                    <div class="att-tile"><svg viewBox="0 0 1024 1024"><path d="M736 128H288a160 160 0 0 0-160 160v448a160 160 0 0 0 160 160h448a160 160 0 0 0 160-160V288a160 160 0 0 0-160-160zM448 352l256 160-256 160z"/></svg>视频<span class="att-lock"><svg viewBox="0 0 1024 1024"><path d="M512 64a224 224 0 0 1 224 224v96h64a32 32 0 0 1 32 32v512a32 32 0 0 1-32 32H224a32 32 0 0 1-32-32V416a32 32 0 0 1 32-32h64v-96A224 224 0 0 1 512 64zm0 64a160 160 0 0 0-160 160v96h320v-96A160 160 0 0 0 512 128z"/></svg>二期开放</span></div>
+                  </div>
+                  <div style="margin-top:10px;font-size:11px;color:var(--text-4);line-height:1.7;">一期发布为文字版（fb_post）；图 1-5 页/次、音 1-10 段×≤60s、视 1-5 段随附件能力二期开放，届时配额独立核算（fb_ 命名空间）。</div>
+                </div>
+                <div class="modal-foot"><span class="btn plain j-pub-close">取消</span><span class="btn primary j-toast" data-msg="发布成功（演示）：内容进入分享广场，30 天内显示 NEW">发布</span></div>
+              </div>
+            </div>
+            <div class="toast" id="toastP5"></div>
+          </div>
+        </div>
+      </div>
+      </div>
+      <div class="frame-label">P5 · 发布内容（弹窗）</div>
+      <div class="frame-note">一期 · fabushi:create：类型胶囊（心得/诵读/正能量）+ 关联书目 + 标题正文，发布后 30 天显 NEW。<br>附件三瓦片灰置 = 二期开放，未画成可用状态。演示交互：类型胶囊可切换、取消可关弹窗。</div>
+    </div>
+
+    <!-- ═══ P6 书目管理 ═══ -->
+    <div class="frame-wrap"><div class="frame">
+      <div class="chrome"><span class="dot d1"></span><span class="dot d2"></span><span class="dot d3"></span><div class="url"><svg viewBox="0 0 1024 1024"><path d="M512 64a224 224 0 0 1 224 224v96h64a32 32 0 0 1 32 32v512a32 32 0 0 1-32 32H224a32 32 0 0 1-32-32V416a32 32 0 0 1 32-32h64v-96A224 224 0 0 1 512 64zm0 64a160 160 0 0 0-160 160v96h320v-96A160 160 0 0 0 512 128z"/></svg>https://crm.aigicrm.com/#/fabushi/book</div></div>
+      <div class="app">
+        <div class="sidebar" data-side='{"role":"admin","active":"book"}'></div>
+        <div class="main">
+          <div class="header"><span class="collapse"><svg viewBox="0 0 1024 1024"><path d="M128 224h768v64H128zm0 256h768v64H128zm0 256h768v64H128z"/></svg></span><span class="crumb">首页 <i>/</i> 法布施 <i>/</i> <b>书目管理</b></span><div class="header-right"><span class="bell"><svg viewBox="0 0 1024 1024"><path d="M512 128a256 256 0 0 1 256 256v160l64 128v32H192v-32l64-128V384a256 256 0 0 1 256-256zm-96 640h192a96 96 0 0 1-192 0z"/></svg><span class="bell-dot">3</span></span><span class="group-sel"><svg viewBox="0 0 1024 1024"><path d="M416 128v64h192v-64zM192 256v576h640V256zm128 96h96v64h-96zm160 0h96v64h-96zm-160 128h96v64h-96zm160 0h96v64h-96z"/></svg>艾志集团</span><div class="user"><div class="avatar">张</div><div class="user-meta"><b>张东来</b><span>系统管理员 · admin</span></div></div></div></div>
+          <div class="content">
+            <div class="cat-tabs">
+              <div class="cat-tab active"><span>弟子规</span><span class="badge">4</span></div>
+              <div class="cat-tab"><span>了凡四训</span><span class="badge">3</span></div>
+              <div class="cat-tab"><span>论语</span><span class="badge">3</span></div>
+              <div class="cat-tab"><span>道德经</span><span class="badge">2</span></div>
+              <div class="cat-tab"><span>孝经</span><span class="badge">1</span></div>
+              <div class="cat-tab"><span>感应篇</span><span class="badge">2</span></div>
+              <div class="cat-tab"><span>十善业</span><span class="badge">2</span></div>
+              <div class="cat-tab"><span>群书治要</span><span class="badge">2</span></div>
+              <div class="cat-tab"><span>国外类</span><span class="badge">5</span></div>
+              <div class="cat-tab"><span>实用类</span><span class="badge">2</span></div>
+            </div>
+            <div class="filter-card">
+              <span class="fl">状态</span><span class="sel">全部</span>
+              <span class="fl">电子书</span><span class="sel">全部</span>
+              <span class="fl">关键词</span><span class="inp">书名 / 作者 / 提交人</span>
+              <span class="btn primary">查询</span><span class="btn plain">重置</span>
+              <span class="spacer"></span>
+              <span class="btn plain j-toast" data-msg="待审核队列：2 本待审（演示）">待审核 (2)</span>
+              <span class="btn primary j-toast" data-msg="新增书目（演示）：默认待审核态">＋ 新增书目</span>
+            </div>
+            <div class="main-layout">
+              <div class="sub-panel">
+                <div class="sub-title">书目 · 弟子规类</div>
+                <div class="sub-search"><svg viewBox="0 0 1024 1024"><path d="M448 704a256 256 0 1 1 0-512 256 256 0 0 1 0 512zm0 64a320 320 0 1 0 0-640 320 320 0 0 0 0 640z"/><path d="M640 608l192 192-45 45-192-192z"/></svg>搜索书目</div>
+                <div class="sub-row active"><svg viewBox="0 0 1024 1024"><path d="M192 128v768h640V128zm-32-64h704a32 32 0 0 1 32 32v832a32 32 0 0 1-32 32H160a32 32 0 0 1-32-32V96a32 32 0 0 1 32-32"/></svg>《弟子规》<span class="cnt">21</span></div>
+                <div class="sub-row"><svg viewBox="0 0 1024 1024"><path d="M192 128v768h640V128zm-32-64h704a32 32 0 0 1 32 32v832a32 32 0 0 1-32 32H160a32 32 0 0 1-32-32V96a32 32 0 0 1 32-32"/></svg>《细讲弟子规》<span class="cnt">14</span></div>
+                <div class="sub-row"><svg viewBox="0 0 1024 1024"><path d="M192 128v768h640V128zm-32-64h704a32 32 0 0 1 32 32v832a32 32 0 0 1-32 32H160a32 32 0 0 1-32-32V96a32 32 0 0 1 32-32"/></svg>《弟子规易解》<span class="cnt">5</span></div>
+                <div class="sub-row"><svg viewBox="0 0 1024 1024"><path d="M192 128v768h640V128zm-32-64h704a32 32 0 0 1 32 32v832a32 32 0 0 1-32 32H160a32 32 0 0 1-32-32V96a32 32 0 0 1 32-32"/></svg>《弟子规·三字经合刊》<span class="cnt">9</span></div>
+                <div style="margin-top:auto;padding-top:10px;font-size:11px;color:var(--text-4);line-height:1.6;">左侧计数 = 心得+诵读作品数；右侧表格为本类全部书目（含待审核/驳回，仅管理端可见）。</div>
+              </div>
+              <div class="table-card">
+                <div class="toolbar"><span class="tt">弟子规类 · 书目治理</span><span class="tag green">通过 4</span><span class="tag orange">待审核 1</span><span class="tag red">驳回 1</span><span class="spacer"></span><span style="font-size:11px;color:var(--text-4);">全部操作需 fabushi:book:manage</span></div>
+                <table class="tbl-fit">
+                  <tr><th>书目</th><th>作者 / 版本 / 页数</th><th>状态</th><th>电子书</th><th>提交人 / 时间</th><th>操作</th></tr>
+                  <tr><td class="em">《弟子规》</td><td>(清)李毓秀 · 注释本 · 360页</td><td><span class="tag green">通过</span></td><td><span class="tag blue">已挂载</span></td><td>admin · 10-12</td><td><span class="btn text j-toast" data-msg="替换 PDF（fabushi:book:manage）演示">换PDF</span><span class="btn text danger j-toast" data-msg="停用后员工端不可见、存量内容保留（演示）">停用</span></td></tr>
+                  <tr><td class="em">《细讲弟子规》</td><td>蔡礼旭 · 讲义 · 452页</td><td><span class="tag green">通过</span></td><td><span class="tag gray">未挂载</span></td><td>admin · 10-12</td><td><span class="btn text j-toast" data-msg="挂载 PDF（fabushi:book:manage）演示">挂PDF</span><span class="btn text danger">停用</span></td></tr>
+                  <tr><td class="em">《弟子规易解》</td><td>传统文化出版社 · 注释本 · 208页</td><td><span class="tag green">通过</span></td><td><span class="tag blue">已挂载</span></td><td>admin · 10-12</td><td><span class="btn text">换PDF</span><span class="btn text danger">停用</span></td></tr>
+                  <tr><td class="em">《弟子规·三字经合刊》</td><td>中华书局 · 合刊 · 186页</td><td><span class="tag green">通过</span></td><td><span class="tag gray">未挂载</span></td><td>admin · 10-09</td><td><span class="btn text">挂PDF</span><span class="btn text danger">停用</span></td></tr>
+                  <tr><td class="em">《朱子家训》</td><td>(清)朱柏庐 · 注释本 · 96页</td><td><span class="tag orange">待审核</span></td><td><span class="tag gray">—</span></td><td>马建国 · 11-15</td><td><span class="btn text j-rowok">通过</span><span class="btn text danger j-rowno">驳回</span></td></tr>
+                  <tr><td class="em">《弟子规白话解》</td><td>李某 · 白话本 · 120页</td><td><span class="tag red">驳回</span></td><td><span class="tag gray">—</span></td><td>陈慧 · 11-12</td><td><span class="btn text j-toast" data-msg="驳回原因：与《弟子规易解》内容重复，建议换版本（留痕）">查看原因</span><span class="btn text danger">删除</span></td></tr>
+                </table>
+                <div class="pager">共 6 条<span class="pg">‹</span><span class="pg on">1</span><span class="pg">›</span>10条/页</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      </div>
+      <div class="frame-label">P6 · 书目管理（管理端）</div>
+      <div class="frame-note">一期 · fabushi:book:view 页面 / fabushi:book:manage 操作（通过·驳回·停用·挂/替换 PDF·待审队列）。<br>员工可提交书目（fabushi:create）→ 待审核 → admin 通过后才进入 P3 浏览；驳回留痕可查原因。胶囊分类 = 字典 fabushi_category 顺序。</div>
+    </div>
+
+    <!-- ═══ P7 内容治理 ═══ -->
+    <div class="frame-wrap"><div class="frame">
+      <div class="chrome"><span class="dot d1"></span><span class="dot d2"></span><span class="dot d3"></span><div class="url"><svg viewBox="0 0 1024 1024"><path d="M512 64a224 224 0 0 1 224 224v96h64a32 32 0 0 1 32 32v512a32 32 0 0 1-32 32H224a32 32 0 0 1-32-32V416a32 32 0 0 1 32-32h64v-96A224 224 0 0 1 512 64zm0 64a160 160 0 0 0-160 160v96h320v-96A160 160 0 0 0 512 128z"/></svg>https://crm.aigicrm.com/#/fabushi/content</div></div>
+      <div class="app">
+        <div class="sidebar" data-side='{"role":"admin","active":"content"}'></div>
+        <div class="main">
+          <div class="header"><span class="collapse"><svg viewBox="0 0 1024 1024"><path d="M128 224h768v64H128zm0 256h768v64H128zm0 256h768v64H128z"/></svg></span><span class="crumb">首页 <i>/</i> 法布施 <i>/</i> <b>内容治理</b></span><div class="header-right"><span class="bell"><svg viewBox="0 0 1024 1024"><path d="M512 128a256 256 0 0 1 256 256v160l64 128v32H192v-32l64-128V384a256 256 0 0 1 256-256zm-96 640h192a96 96 0 0 1-192 0z"/></svg><span class="bell-dot">3</span></span><span class="group-sel"><svg viewBox="0 0 1024 1024"><path d="M416 128v64h192v-64zM192 256v576h640V256zm128 96h96v64h-96zm160 0h96v64h-96zm-160 128h96v64h-96zm160 0h96v64h-96z"/></svg>艾志集团</span><div class="user"><div class="avatar">张</div><div class="user-meta"><b>张东来</b><span>系统管理员 · admin</span></div></div></div></div>
+          <div class="content">
+            <div class="cat-tabs">
+              <div class="cat-tab"><span>心得</span><span class="badge">109</span></div>
+              <div class="cat-tab"><span>诵读</span><span class="badge">86</span></div>
+              <div class="cat-tab"><span>正能量</span><span class="badge">47</span></div>
+              <div class="cat-tab active"><span>待审核</span><span class="badge hot">3</span></div>
+            </div>
+            <div class="filter-card">
+              <span class="fl">类别</span><span class="sel">全部</span>
+              <span class="fl">书目</span><span class="sel">全部</span>
+              <span class="fl">作者</span><span class="sel">全部</span>
+              <span class="fl">日期</span><span class="inp" style="min-width:170px;">开始 ~ 结束</span>
+              <span class="btn primary">查询</span><span class="btn plain">重置</span>
+            </div>
+            <div class="table-card">
+              <table>
+                <tr><th>作品 / 正文摘要</th><th>类型</th><th>关联书目</th><th>作者</th><th>互动</th><th>状态</th><th>发布时间</th><th>操作</th></tr>
+                <tr><td class="em">立命之学第一章诵读</td><td><span class="tag blue">诵读</span></td><td>《了凡四训》</td><td>李长青</td><td>木鱼12 · 评论5</td><td><span class="tag green">发布中</span></td><td>11-15 09:30</td><td><span class="btn text j-gov-open">详情</span><span class="btn text danger j-toast" data-msg="下架需填写原因并留痕（fabushi:content:manage）">下架</span></td></tr>
+                <tr><td class="em">弟子规总叙诵读打卡</td><td><span class="tag blue">诵读</span></td><td>《弟子规》</td><td>王晓兰</td><td>木鱼8 · 评论3</td><td><span class="tag green">发布中</span></td><td>11-15 08:20</td><td><span class="btn text j-gov-open">详情</span><span class="btn text danger">下架</span></td></tr>
+                <tr><td class="em">改过之法跟读心得</td><td><span class="tag cyan">心得</span></td><td>《了凡四训》</td><td>周文静</td><td>木鱼15 · 评论6</td><td><span class="tag green">发布中</span></td><td>11-14 18:42</td><td><span class="btn text j-gov-open">详情</span><span class="btn text danger">下架</span></td></tr>
+                <tr><td class="em">学而第一齐读</td><td><span class="tag blue">诵读</span></td><td>《论语译注》</td><td>赵一鸣</td><td>木鱼6 · 评论2</td><td><span class="tag red">已下架</span></td><td>11-13 16:07</td><td><span class="btn text j-gov-open">详情</span><span class="btn text">恢复</span></td></tr>
+              </table>
+              <div class="pager">共 86 条<span class="pg">‹</span><span class="pg on">1</span><span class="pg">2</span><span class="pg">…</span><span class="pg">9</span><span class="pg">›</span>10条/页</div>
+            </div>
+            <div class="ovl" id="govOvl">
+              <div class="modal" style="width:560px;">
+                <div class="modal-head">诵读作品详情<span class="modal-x j-gov-close"><svg viewBox="0 0 1024 1024"><path d="M565 512l212-212-45-45-212 212-212-212-45 45 212 212-212 212 45 45 212-212 212 212 45-45z"/></svg></span></div>
+                <div class="modal-body">
+                  <div style="display:flex;align-items:center;gap:10px;">
+                    <div class="mini-ava" style="width:34px;height:34px;background:#12b8cf;">李</div>
+                    <div><b style="font-size:13.5px;">李长青</b><span class="sub2" style="display:block;margin-top:2px;">客服部 · 11-15 09:30 · 《了凡四训》› 第一部分·立命之学</span></div>
+                    <span class="tag green" style="margin-left:auto;">发布中</span>
+                  </div>
+                  <div style="margin-top:12px;font-size:13px;line-height:1.9;color:var(--text-1);">"从前种种，譬如昨日死；从后种种，譬如今日生。"云谷问曰："凡人所以不得作圣者，只为妄念相缠耳……"</div>
+                  <div class="gov-audio-note"><svg viewBox="0 0 1024 1024"><path d="M512 64a448 448 0 1 0 0 896 448 448 0 0 0 0-896zm-32 192h64v256h-64zm0 320h64v64h-64z"/></svg>一期发布为文字版；图片 / 音频 / 视频素材区随附件能力二期开放，此处不展示占位素材。</div>
+                  <div style="margin:14px 0 4px;font-size:13px;font-weight:700;">互动 · 5 评论 / 木鱼 12</div>
+                  <div style="display:flex;gap:10px;padding:9px 0;border-top:1px solid var(--line-soft);"><div class="mini-ava" style="background:#3e8df3;">王</div><div><b style="font-size:12px;">王晓兰</b><span class="sub2" style="display:block;margin-top:3px;">"极善之人，数固拘他不定"这段读得最有味道！</span></div><span class="sub2" style="margin-left:auto;">今天 09:48</span></div>
+                  <div style="display:flex;gap:10px;padding:9px 0;border-top:1px solid var(--line-soft);"><div class="mini-ava" style="background:#12b8cf;">陈</div><div><b style="font-size:12px;">陈慧</b><span class="sub2" style="display:block;margin-top:3px;">下周晨会想请你带读一段。</span></div><span class="sub2" style="margin-left:auto;">今天 10:02</span></div>
+                </div>
+                <div class="modal-foot"><span class="btn plain j-gov-close">关闭</span><span class="btn j-off" style="background:var(--danger);color:var(--card);font-weight:600;">下架该作品</span></div>
+              </div>
+            </div>
+            <div class="ovl hidden" id="offOvl">
+              <div class="modal" style="width:460px;">
+                <div class="modal-head">下架内容 · 需留痕<span class="modal-x j-off-close"><svg viewBox="0 0 1024 1024"><path d="M565 512l212-212-45-45-212 212-212-212-45 45 212 212-212 212 45 45 212-212 212 212 45-45z"/></svg></span></div>
+                <div class="modal-body">
+                  <div style="font-size:12.5px;color:var(--text-2);">作品：<b>立命之学第一章诵读</b> · 李长青 · 11-15 09:30</div>
+                  <div class="frm-label">下架原因 <span class="frm-req">*</span><span style="font-size:11px;color:var(--text-4);font-weight:400;">必填，操作全量留痕（审计可查）</span></div>
+                  <div class="frm-textarea" style="height:84px;">内容与本月共读主题不符，建议移入正能量分类后重新发布。</div>
+                </div>
+                <div class="modal-foot"><span class="btn plain j-off-close">取消</span><span class="btn j-offdone" style="background:var(--danger);color:var(--card);font-weight:600;">确认下架</span></div>
+              </div>
+            </div>
+            <div class="toast" id="toastP7"></div>
+          </div>
+        </div>
+      </div>
+      </div>
+      <div class="frame-label">P7 · 内容治理（管理端）</div>
+      <div class="frame-note">一期 · fabushi:content:view 页面 / fabushi:content:manage 下架（必填原因 + 全量留痕）。<br>详情弹窗默认展开供评审；「恢复」用于已下架内容回滚。表格不含素材列（附件二期）。</div>
+    </div>
+
+    <!-- ═══ P8 类别管理（字典形态） ═══ -->
+    <div class="frame-wrap"><div class="frame">
+      <div class="chrome"><span class="dot d1"></span><span class="dot d2"></span><span class="dot d3"></span><div class="url"><svg viewBox="0 0 1024 1024"><path d="M512 64a224 224 0 0 1 224 224v96h64a32 32 0 0 1 32 32v512a32 32 0 0 1-32 32H224a32 32 0 0 1-32-32V416a32 32 0 0 1 32-32h64v-96A224 224 0 0 1 512 64zm0 64a160 160 0 0 0-160 160v96h320v-96A160 160 0 0 0 512 128z"/></svg>https://crm.aigicrm.com/#/system/config?tab=dict&amp;type=fabushi_category</div></div>
+      <div class="app">
+        <div class="sidebar" data-side='{"role":"admin","active":"config"}'></div>
+        <div class="main">
+          <div class="header"><span class="collapse"><svg viewBox="0 0 1024 1024"><path d="M128 224h768v64H128zm0 256h768v64H128zm0 256h768v64H128z"/></svg></span><span class="crumb">首页 <i>/</i> 系统管理 <i>/</i> 系统设置 <i>/</i> <b>字典管理 · 法布施类别</b></span><div class="header-right"><span class="bell"><svg viewBox="0 0 1024 1024"><path d="M512 128a256 256 0 0 1 256 256v160l64 128v32H192v-32l64-128V384a256 256 0 0 1 256-256zm-96 640h192a96 96 0 0 1-192 0z"/></svg><span class="bell-dot">3</span></span><span class="group-sel"><svg viewBox="0 0 1024 1024"><path d="M416 128v64h192v-64zM192 256v576h640V256zm128 96h96v64h-96zm160 0h96v64h-96zm-160 128h96v64h-96zm160 0h96v64h-96z"/></svg>艾志集团</span><div class="user"><div class="avatar">张</div><div class="user-meta"><b>张东来</b><span>系统管理员 · admin</span></div></div></div></div>
+          <div class="content">
+            <div style="background:var(--primary-bg);border-radius:var(--r-sm);padding:10px 14px;font-size:12.5px;color:var(--navy);display:flex;align-items:center;gap:8px;flex-shrink:0;">
+              <svg viewBox="0 0 1024 1024" style="width:15px;height:15px;fill:var(--primary);flex-shrink:0;"><path d="M512 64a448 448 0 1 0 0 896 448 448 0 0 0 0-896zm-32 192h64v256h-64zm0 320h64v64h-64z"/></svg>
+              技术方案 v2.0 裁决：法布施类别走字典管理（fabushi_category），不建独立业务表与独立页面——admin 在此增改停，省一张表 + 两个权限码；停用类别不影响存量内容展示。原独立「类别管理」页退役。
+            </div>
+            <div class="filter-card">
+              <span class="fl">字典类型</span><span class="sel" style="min-width:220px;">fabushi_category · 法布施类别</span>
+              <span class="fl">关键词</span><span class="inp">标签 / 键值 / 说明</span>
+              <span class="fl">状态</span><span class="sel">全部</span>
+              <span class="btn primary">查询</span><span class="btn plain">重置</span>
+              <span class="spacer"></span>
+              <span class="btn primary j-toast" data-msg="新增字典项（fabushi:book:manage 治理侧）演示">＋ 新增字典项</span>
+            </div>
+            <div class="table-card">
+              <table>
+                <tr><th class="num">排序</th><th>标签</th><th>键值</th><th>说明</th><th class="num">通过书目</th><th class="num">作品数</th><th>状态</th><th>更新时间</th><th>操作</th></tr>
+                <tr><td class="num">1</td><td class="em">弟子规</td><td>dizi_gui</td><td>蒙学根本 · 弟子规相关读本</td><td class="num">4</td><td class="num">49</td><td><span class="tag green">启用</span></td><td>11-14 20:15</td><td><span class="btn text">编辑</span><span class="btn text danger">停用</span></td></tr>
+                <tr><td class="num">2</td><td class="em">了凡四训</td><td>liao_fan_si_xun</td><td>立命 · 改过 · 积善 · 谦德</td><td class="num">3</td><td class="num">36</td><td><span class="tag green">启用</span></td><td>11-14 20:15</td><td><span class="btn text">编辑</span><span class="btn text danger">停用</span></td></tr>
+                <tr><td class="num">3</td><td class="em">论语</td><td>lun_yu</td><td>论语章句与讲义</td><td class="num">3</td><td class="num">17</td><td><span class="tag green">启用</span></td><td>11-07 18:33</td><td><span class="btn text">编辑</span><span class="btn text danger">停用</span></td></tr>
+                <tr><td class="num">4</td><td class="em">道德经</td><td>dao_de_jing</td><td>道德经诵读本与讲义</td><td class="num">2</td><td class="num">11</td><td><span class="tag green">启用</span></td><td>11-05 14:10</td><td><span class="btn text">编辑</span><span class="btn text danger">停用</span></td></tr>
+                <tr><td class="num">5</td><td class="em">孝经</td><td>xiao_jing</td><td>孝道教育读本</td><td class="num">1</td><td class="num">4</td><td><span class="tag green">启用</span></td><td>11-02 10:47</td><td><span class="btn text">编辑</span><span class="btn text danger">停用</span></td></tr>
+                <tr><td class="num">6</td><td class="em">感应篇</td><td>gan_ying_pian</td><td>太上感应篇 · 因果教育</td><td class="num">2</td><td class="num">9</td><td><span class="tag green">启用</span></td><td>10-09 16:40</td><td><span class="btn text">编辑</span><span class="btn text danger">停用</span></td></tr>
+                <tr><td class="num">7</td><td class="em">十善业</td><td>shi_shan_ye</td><td>十善业基础经典</td><td class="num">2</td><td class="num">7</td><td><span class="tag green">启用</span></td><td>10-08 11:22</td><td><span class="btn text">编辑</span><span class="btn text danger">停用</span></td></tr>
+                <tr><td class="num">8</td><td class="em">群书治要</td><td>qun_shu_zhi_yao</td><td>治要选读</td><td class="num">2</td><td class="num">6</td><td><span class="tag green">启用</span></td><td>10-06 09:05</td><td><span class="btn text">编辑</span><span class="btn text danger">停用</span></td></tr>
+                <tr><td class="num">9</td><td class="em">国外类</td><td>foreign</td><td>国外译作</td><td class="num">5</td><td class="num">14</td><td><span class="tag green">启用</span></td><td>09-30 19:58</td><td><span class="btn text">编辑</span><span class="btn text danger">停用</span></td></tr>
+                <tr><td class="num">10</td><td class="em">实用类</td><td>practical</td><td>工作实用书籍</td><td class="num">2</td><td class="num">3</td><td><span class="tag green">启用</span></td><td>09-27 08:16</td><td><span class="btn text">编辑</span><span class="btn text danger">停用</span></td></tr>
+              </table>
+              <div class="pager">共 10 条<span class="pg">‹</span><span class="pg on">1</span><span class="pg">›</span>10条/页</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      </div>
+      <div class="frame-label">P8 · 类别管理（= 系统设置 → 字典管理 → 法布施类别）</div>
+      <div class="frame-note">一期 · 治理走字典而非 fb_category 表（v2.0 裁决）；10 个预置类别全部启用，书目数 = 通过书目。<br>侧栏此屏为滚动后的状态（长菜单自动滚动定位，与现网行为一致），法布施组滚出视口。</div>
+    </div>
+
+    <!-- ═══ P9 统计看板 ═══ -->
+    <div class="frame-wrap"><div class="frame">
+      <div class="chrome"><span class="dot d1"></span><span class="dot d2"></span><span class="dot d3"></span><div class="url"><svg viewBox="0 0 1024 1024"><path d="M512 64a224 224 0 0 1 224 224v96h64a32 32 0 0 1 32 32v512a32 32 0 0 1-32 32H224a32 32 0 0 1-32-32V416a32 32 0 0 1 32-32h64v-96A224 224 0 0 1 512 64zm0 64a160 160 0 0 0-160 160v96h320v-96A160 160 0 0 0 512 128z"/></svg>https://crm.aigicrm.com/#/fabushi/stats</div></div>
+      <div class="app">
+        <div class="sidebar" data-side='{"role":"admin","active":"fstats"}'></div>
+        <div class="main">
+          <div class="header"><span class="collapse"><svg viewBox="0 0 1024 1024"><path d="M128 224h768v64H128zm0 256h768v64H128zm0 256h768v64H128z"/></svg></span><span class="crumb">首页 <i>/</i> 法布施 <i>/</i> <b>统计看板</b></span><div class="header-right"><span class="bell"><svg viewBox="0 0 1024 1024"><path d="M512 128a256 256 0 0 1 256 256v160l64 128v32H192v-32l64-128V384a256 256 0 0 1 256-256zm-96 640h192a96 96 0 0 1-192 0z"/></svg><span class="bell-dot">3</span></span><span class="group-sel"><svg viewBox="0 0 1024 1024"><path d="M416 128v64h192v-64zM192 256v576h640V256zm128 96h96v64h-96zm160 0h96v64h-96zm-160 128h96v64h-96zm160 0h96v64h-96z"/></svg>艾志集团</span><div class="user"><div class="avatar">张</div><div class="user-meta"><b>张东来</b><span>系统管理员 · admin</span></div></div></div></div>
+          <div class="content">
+            <div class="filter-card">
+              <span class="fl">统计范围</span><span class="sel">艾志集团 · 全员</span>
+              <span class="fl">周期</span>
+              <span class="seg" data-seg="period"><span class="seg-item active" data-val="week">本周</span><span class="seg-item" data-val="month">本月</span></span>
+              <span class="btn primary">查询</span>
+              <span class="spacer"></span>
+              <span class="btn green j-toast" data-msg="统计导出 Excel（fabushi:stats:export）为二期，未实现">导出报表 (Excel)<span class="chip2" style="margin-left:4px;">二期</span></span>
+            </div>
+            <div class="kcards">
+              <div class="kcard"><div class="kv" id="kRead">32<i>/58 人</i></div><div class="kl">今日已读人数</div><span class="kt" id="kCover">55% 覆盖率</span></div>
+              <div class="kcard"><div class="kv" id="kPost">242<i>篇</i></div><div class="kl">本月新增内容（心得+诵读+正能量）</div><span class="kt">↑ 18% vs 上月</span></div>
+              <div class="kcard"><div class="kv" id="kMuyu">1,847</div><div class="kl">本月木鱼（点赞）</div><span class="kt blue" id="kMuyuT">今日 +126</span></div>
+              <div class="kcard"><div class="kv" id="kCmt">596</div><div class="kl">本月评论</div><span class="kt blue">人均 10.3 条</span></div>
+            </div>
+            <div style="display:grid;grid-template-columns:1.25fr 1fr;gap:14px;flex:1;min-height:0;">
+              <div class="table-card" style="padding:14px 16px;">
+                <div class="panel-title">成员阅读榜 · <span id="rankPeriod">本周</span></div>
+                <table>
+                  <tr><th style="width:44px;">名次</th><th>成员</th><th>部门</th><th>发布</th><th>获木鱼</th><th>已读天数</th><th style="width:170px;">活跃度</th></tr>
+                  <tr><td><span class="rk top">1</span></td><td class="em">王晓兰</td><td>销售一部</td><td class="num">28 篇</td><td class="num">47</td><td class="num">11 天</td><td><div class="rb"><i style="width:93%;"></i></div></td></tr>
+                  <tr><td><span class="rk top">2</span></td><td class="em">李长青</td><td>客服部</td><td class="num">24 篇</td><td class="num">39</td><td class="num">9 天</td><td><div class="rb"><i style="width:80%;"></i></div></td></tr>
+                  <tr><td><span class="rk top">3</span></td><td class="em">周文静</td><td>行政部</td><td class="num">19 篇</td><td class="num">33</td><td class="num">8 天</td><td><div class="rb"><i style="width:66%;"></i></div></td></tr>
+                  <tr><td><span class="rk">4</span></td><td class="em">陈慧</td><td>客服部</td><td class="num">15 篇</td><td class="num">26</td><td class="num">7 天</td><td><div class="rb"><i style="width:54%;"></i></div></td></tr>
+                  <tr><td><span class="rk">5</span></td><td class="em">张东来</td><td>系统管理</td><td class="num">13 篇</td><td class="num">21</td><td class="num">6 天</td><td><div class="rb"><i style="width:44%;"></i></div></td></tr>
+                  <tr><td><span class="rk">6</span></td><td class="em">王建国</td><td>销售二部</td><td class="num">11 篇</td><td class="num">18</td><td class="num">5 天</td><td><div class="rb"><i style="width:37%;"></i></div></td></tr>
+                  <tr><td><span class="rk">7</span></td><td class="em">马吉亮</td><td>销售一部</td><td class="num">10 篇</td><td class="num">16</td><td class="num">5 天</td><td><div class="rb"><i style="width:33%;"></i></div></td></tr>
+                </table>
+                <div style="margin-top:auto;padding-top:8px;font-size:10.5px;color:var(--text-4);">榜单口径 = 发布作品数 / 获木鱼数 / 已读天数（fb_read_status 聚合）；周榜按 ISO 周一起止（周榜切换为二期接口，页面形态先行）。</div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:14px;min-height:0;">
+                <div class="table-card" style="padding:14px 16px;flex:1;">
+                  <div class="panel-title">类别热度分布</div>
+                  <div class="hbar-row"><span class="hbar-lbl">弟子规</span><div class="hbar-track"><i style="width:88%;"></i></div><span class="hbar-val">38</span></div>
+                  <div class="hbar-row"><span class="hbar-lbl">了凡四训</span><div class="hbar-track"><i style="width:74%;"></i></div><span class="hbar-val">32</span></div>
+                  <div class="hbar-row"><span class="hbar-lbl">论语</span><div class="hbar-track"><i style="width:52%;"></i></div><span class="hbar-val">18</span></div>
+                  <div class="hbar-row"><span class="hbar-lbl">道德经</span><div class="hbar-track"><i style="width:38%;"></i></div><span class="hbar-val">13</span></div>
+                  <div class="hbar-row"><span class="hbar-lbl">国外类</span><div class="hbar-track"><i style="width:23%;"></i></div><span class="hbar-val">8</span></div>
+                </div>
+                <div class="table-card" style="padding:14px 16px;">
+                  <div class="panel-title">每日一读 · 达成趋势<span style="margin-left:auto;font-size:10.5px;color:var(--text-4);font-weight:400;">月目标线 · 二期</span></div>
+                  <div class="chart" id="trendChart">
+                    <div class="bar" style="height:52%;"></div><div class="bar" style="height:66%;"></div><div class="bar" style="height:48%;"></div><div class="bar" style="height:74%;"></div><div class="bar" style="height:60%;"></div><div class="bar" style="height:82%;"></div><div class="bar today" style="height:94%;"><span class="v">55</span></div>
+                  </div>
+                  <div class="chart-x"><span>11-10</span><span>11-11</span><span>11-12</span><span>11-13</span><span>11-14</span><span>11-15</span><span>今日</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      </div>
+      <div class="frame-label">P9 · 统计看板（管理端）</div>
+      <div class="frame-note">一期 · fabushi:stats:view（范围档 fabushi/stats_view，照激励拍板 B 模式）。导出 Excel（fabushi:stats:export）= 二期。<br>阅读时长 / 续读率 / 月目标线后端无数据源，本屏不画假数据，列为二期指标。周榜/部门进度/月度报告 = 二期。</div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+/* ───────── 图标库（Element 风格线性 · inline SVG） ───────── */
+const ICONS = {
+  monitor:'<path d="M544 768v128h192a32 32 0 1 1 0 64H288a32 32 0 1 1 0-64h192V768H192A128 128 0 0 1 64 640V256a128 128 0 0 1 128-128h640a128 128 0 0 1 128 128v384a128 128 0 0 1-128 128zM192 192a64 64 0 0 0-64 64v384a64 64 0 0 0 64 64h640a64 64 0 0 0 64-64V256a64 64 0 0 0-64-64z"/>',
+  user:'<path d="M512 512a192 192 0 1 0 0-384 192 192 0 0 0 0 384m0 64a256 256 0 1 1 0-512 256 256 0 0 1 0 512m320 320v-96a96 96 0 0 0-96-96H288a96 96 0 0 0-96 96v96a32 32 0 1 1-64 0v-96a160 160 0 0 1 160-160h448a160 160 0 0 1 160 160v96a32 32 0 1 1-64 0"/>',
+  folder:'<path d="M128 192v640h768V320H485.76L357.504 192zm-32-64h287.872l128.384 128H928a32 32 0 0 1 32 32v576a32 32 0 0 1-32 32H96a32 32 0 0 1-32-32V160a32 32 0 0 1 32-32"/>',
+  trophy:'<path d="M480 896V702.08A256.26 256.26 0 0 1 264.064 512h-32.64a96 96 0 0 1-91.968-68.416L93.632 290.88a76.8 76.8 0 0 1 73.6-98.88H256V96a32 32 0 0 1 32-32h448a32 32 0 0 1 32 32v96h88.768a76.8 76.8 0 0 1 73.6 98.88L884.48 443.52A96 96 0 0 1 792.576 512h-32.64A256.26 256.26 0 0 1 544 702.08V896h128a32 32 0 1 1 0 64H352a32 32 0 1 1 0-64zm224-448V128H320v320a192 192 0 1 0 384 0m64 0h24.576a32 32 0 0 0 30.656-22.784l45.824-152.768A12.8 12.8 0 0 0 856.768 256H768z"/>',
+  ship:'<path d="M512 386.88V448h405.568a32 32 0 0 1 30.72 40.768l-76.48 267.968A192 192 0 0 1 687.168 896H336.832a192 192 0 0 1-184.64-139.264L75.648 488.768A32 32 0 0 1 106.368 448H448V117.888a32 32 0 0 1 47.36-28.096l13.888 7.616L512 96v2.88l231.68 126.4a32 32 0 0 1-2.048 57.216zM512 512H148.864l18.24 64H856.96l18.24-64zM185.408 640l28.352 99.2A128 128 0 0 0 336.832 832h350.336a128 128 0 0 0 123.072-92.8l28.352-99.2z"/>',
+  list:'<path d="M320 256h512v64H320zm0 256h512v64H320zm0 256h512v64H320z"/><path d="M128 256m-40 0a40 40 0 1 0 80 0 40 40 0 1 0-80 0"/><path d="M128 512m-40 0a40 40 0 1 0 80 0 40 40 0 1 0-80 0"/><path d="M128 768m-40 0a40 40 0 1 0 80 0 40 40 0 1 0-80 0"/>',
+  bell:'<path d="M512 128a256 256 0 0 1 256 256v160l64 128v32H192v-32l64-128V384a256 256 0 0 1 256-256zm-96 640h192a96 96 0 0 1-192 0z"/>',
+  check:'<path d="M512 64a448 448 0 1 1 0 896 448 448 0 0 1 0-896zm198 274l-254 254-108-108-46 46 154 154 300-300z"/>',
+  edit:'<path d="M832 512a32 32 0 1 1 64 0v352a32 32 0 0 1-32 32H160a32 32 0 0 1-32-32V160a32 32 0 0 1 32-32h352a32 32 0 0 1 0 64H192v640h640zm-464-16l348-348 90 90-348 348-106 16z"/>',
+  medal:'<path d="M512 896a256 256 0 1 0 0-512 256 256 0 0 0 0 512m0 64a320 320 0 1 1 0-640 320 320 0 0 1 0 640"/>',
+  chat:'<path d="M736 128H288a160 160 0 0 0-160 160v320a160 160 0 0 0 160 160h64l128 128 32-128h224a160 160 0 0 0 160-160V288a160 160 0 0 0-160-160zM352 352h320v64H352zm0 128h224v64H352z"/>',
+  bookopen:'<path d="M552 224c-56-40-144-64-232-64H96v640h240c72 0 144 16 200 44 8 4 24 4 32 0 56-28 128-44 200-44h160V160H664c-40 0-80 5-112 16zm-72 96v400c-56-24-136-32-208-32H160V224h160c88 0 136 40 160 96zm64 0c24-56 72-96 160-96h160v464H680c-72 0-152 8-136 32z"/>',
+  collection:'<path d="M192 128v768h640V128zm-32-64h704a32 32 0 0 1 32 32v832a32 32 0 0 1-32 32H160a32 32 0 0 1-32-32V96a32 32 0 0 1 32-32"/>',
+  doc:'<path d="M832 512a32 32 0 1 1 64 0v352a32 32 0 0 1-32 32H160a32 32 0 0 1-32-32V160a32 32 0 0 1 32-32h352a32 32 0 0 1 0 64H192v640h640z"/>',
+  trend:'<path d="M128 896V128h768v768zm291.712-327.296 128 102.4 180.16-201.792-47.744-42.624-139.84 156.608-128-102.4-180.16 201.792 47.744 42.624zM816 352a48 48 0 1 0-96 0 48 48 0 0 0 96 0"/>',
+  userfill:'<path d="M512 512a160 160 0 1 0 0-320 160 160 0 0 0 0 320zm0 64c-176 0-320 96-320 224v96h640v-96c0-128-144-224-320-224z"/>',
+  office:'<path d="M192 128v704h384V128zm-32-64h448a32 32 0 0 1 32 32v768a32 32 0 0 1-32 32H160a32 32 0 0 1-32-32V96a32 32 0 0 1 32-32"/>',
+  key:'<path d="M672 128a192 192 0 0 0-183 252L288 581v115H192v96h96v96h96v-96l32-32 32 32h64v-96l-46-46 27-88A192 192 0 1 0 672 128zm48 128a48 48 0 1 1-96 0 48 48 0 0 1 96 0z"/>',
+  gear:'<path d="M600.704 64a32 32 0 0 1 30.464 22.208l35.2 109.376c14.784 7.232 28.928 15.36 42.432 24.512l112.384-24.192a32 32 0 0 1 34.432 15.36L944.32 364.8a32 32 0 0 1-4.032 37.504l-77.12 85.12a357 357 0 0 1 0 49.024l77.12 85.248a32 32 0 0 1 4.032 37.504l-88.704 153.6a32 32 0 0 1-34.432 15.296L708.8 803.904c-13.44 9.088-27.648 17.28-42.368 24.512l-35.264 109.376A32 32 0 0 1 600.704 960H423.296a32 32 0 0 1-30.464-22.208L357.696 828.48a352 352 0 0 1-42.56-24.64l-112.32 24.256a32 32 0 0 1-34.432-15.36L79.68 659.2a32 32 0 0 1 4.032-37.504l77.12-85.248a357 357 0 0 1 0-48.896l-77.12-85.248A32 32 0 0 1 79.68 364.8l88.704-153.6a32 32 0 0 1 34.432-15.296l112.32 24.256c13.568-9.152 27.776-17.408 42.56-24.64l35.2-109.312A32 32 0 0 1 423.232 64H600.64zM512 320a192 192 0 1 1 0 384 192 192 0 0 1 0-384m0 64a128 128 0 1 0 0 256 128 128 0 0 0 0-256"/>',
+  trash:'<path d="M320 128h384v64h192v64H128v-64h192zm-64 192h512l-40 512H296z"/>'
+};
+
+/* ───────── 现网七组菜单树（页面名取自 router/index.js 真实 title；「内容流」按 2026-11-16 拍板更名「分享广场」） ───────── */
+const MENU = [
+  { g:'首页', items:[ {id:'work', t:'工作台', i:'monitor'} ] },
+  { g:'业务核心', items:[ {t:'客户管理', i:'user'}, {t:'文件管理', i:'folder'}, {t:'四项激励', i:'trophy'}, {t:'公海管理', i:'ship'} ] },
+  { g:'流程协同', items:[ {t:'我的任务', i:'list'}, {t:'提醒管理', i:'bell'}, {t:'审批管理', i:'check'} ] },
+  { g:'学分管理', items:[ {t:'学分录入', i:'edit'}, {t:'学分排行', i:'medal'} ] },
+  { g:'法布施', items:[ {id:'feed', t:'分享广场', i:'chat'}, {id:'lib', t:'书目浏览', i:'bookopen'}, {id:'book', t:'书目管理', i:'collection', admin:1}, {id:'content', t:'内容治理', i:'doc', admin:1, badge:3}, {id:'fstats', t:'统计看板', i:'trend', admin:1} ] },
+  { g:'统计分析', items:[ {t:'统计分析', i:'trend'} ] },
+  { g:'系统管理', admin:1, items:[ {t:'人员管理', i:'userfill'}, {t:'组织架构', i:'office'}, {t:'角色管理', i:'key'}, {id:'config', t:'系统设置', i:'gear'}, {t:'回收站', i:'trash'} ] },
+];
+function mountSidebar(host){
+  const opt = JSON.parse(host.dataset.side || '{}');
+  const role = opt.role || 'admin';
+  const html = MENU.filter(g => !(g.admin && role !== 'admin')).map(g => {
+    const items = (g.items || []).filter(i => !(i.admin && role !== 'admin'));
+    if (!items.length) return '';
+    return `<div class="menu-group">${g.g}</div>` + items.map(i =>
+      `<div class="menu-item${i.id === opt.active ? ' active' : ''}"><svg viewBox="0 0 1024 1024">${ICONS[i.i]}</svg>${i.t}${i.badge ? `<em class="mcount">${i.badge}</em>` : ''}</div>`
+    ).join('');
+  }).join('');
+  host.innerHTML = `<div class="logo"><span class="logo-text">AIGICRM</span><span class="logo-sub">市场资源管理系统</span></div>` +
+    `<div class="menu"><div class="menu-inner">${html}</div></div>`;
+  /* 长菜单自动滚动定位（与现网 scrollIntoView 行为一致）：激活项滚出视口时上移内容，裁切由 .menu overflow:hidden 兜底 */
+  const menuEl = host.querySelector('.menu'), inner = host.querySelector('.menu-inner');
+  const act = inner.querySelector('.menu-item.active');
+  if (act) {
+    const need = act.offsetTop + act.offsetHeight + 12 - menuEl.clientHeight;
+    if (need > 0) inner.style.marginTop = (-need) + 'px';
+  }
+}
+document.querySelectorAll('[data-side]').forEach(mountSidebar);
+
+/* ───────── 通用：胶囊/分段切换 + 轻提示 ───────── */
+function toast(frame, msg){
+  let t = frame.querySelector('.toast');
+  if (!t) { t = document.createElement('div'); t.className = 'toast'; frame.appendChild(t); }
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 1800);
+}
+function bindTabs(root){
+  root.querySelectorAll('[data-tabs]').forEach(tabs => {
+    tabs.addEventListener('click', e => {
+      const tab = e.target.closest('.cat-tab,.type-pill'); if (!tab) return;
+      const scope = tabs.closest('.content') || tabs.parentElement;
+      if (tabs.dataset.tabs === 'feed') {
+        tabs.querySelectorAll('.cat-tab').forEach(x => x.classList.toggle('active', x === tab));
+        const val = tab.dataset.val;
+        scope.querySelectorAll('#feedCol .fcard').forEach(c => {
+          c.style.display = (val === 'all' || c.dataset.type === val) ? '' : 'none';
+        });
+      } else {
+        tabs.querySelectorAll('.type-pill,.cat-tab').forEach(x => x.classList.toggle('active', x === tab));
+      }
+    });
+  });
+  root.querySelectorAll('[data-seg]').forEach(seg => {
+    seg.addEventListener('click', e => {
+      const item = e.target.closest('.seg-item'); if (!item) return;
+      seg.querySelectorAll('.seg-item').forEach(x => x.classList.toggle('active', x === item));
+      const frame = seg.closest('.frame');
+      if (seg.dataset.seg === 'period') {
+        const isWeek = item.dataset.val === 'week';
+        const f = frame;
+        f.querySelector('#kRead').innerHTML = isWeek ? '32<i>/58 人</i>' : '46<i>/58 人</i>';
+        f.querySelector('#kCover').textContent = isWeek ? '55% 覆盖率' : '79% 覆盖率';
+        f.querySelector('#kPost').innerHTML = isWeek ? '242<i>篇</i>' : '836<i>篇</i>';
+        f.querySelector('#kMuyu').textContent = isWeek ? '1,847' : '7,362';
+        f.querySelector('#kCmt').textContent = isWeek ? '596' : '2,318';
+        f.querySelector('#rankPeriod').textContent = isWeek ? '本周' : '本月';
+      }
+    });
+  });
+}
+document.querySelectorAll('.frame').forEach(bindTabs);
+
+/* ───────── P1 只看未读 / 重置 ───────── */
+document.addEventListener('change', e => {
+  if (e.target.id === 'unrd') {
+    document.querySelectorAll('#feedCol .fcard').forEach(c => {
+      c.style.display = (e.target.checked && c.dataset.read === '1') ? 'none' : '';
+    });
+  }
+});
+document.querySelectorAll('.j-reset').forEach(btn => btn.addEventListener('click', () => {
+  document.querySelectorAll('#feedCol .fcard').forEach(c => c.style.display = '');
+  const unrd = document.getElementById('unrd'); if (unrd) unrd.checked = false;
+  document.querySelectorAll('[data-tabs="feed"] .cat-tab').forEach(x => x.classList.toggle('active', x.dataset.val === 'all'));
+}));
+document.querySelectorAll('.j-publish').forEach(btn => btn.addEventListener('click', () => {
+  const ovl = document.getElementById('pubOvl'); if (ovl) ovl.classList.remove('hidden');
+}));
+document.querySelectorAll('.j-pub-close').forEach(x => x.addEventListener('click', () => {
+  document.getElementById('pubOvl').classList.add('hidden');
+}));
+
+/* ───────── 通用 toast（j-toast） ───────── */
+document.querySelectorAll('.j-toast').forEach(el => el.addEventListener('click', () => {
+  toast(el.closest('.content') || el.closest('.frame'), el.dataset.msg || '演示操作');
+}));
+
+/* ───────── P2 木鱼 + 评论 ───────── */
+(function(){
+  const btn = document.getElementById('muyuP2'); if (!btn) return;
+  btn.addEventListener('click', () => {
+    const cnt = document.getElementById('muyuCntP2');
+    cnt.textContent = (+cnt.textContent) + 1;
+    btn.classList.add('liked', 'bump');
+    setTimeout(() => btn.classList.remove('bump'), 850);
+  });
+  const add = document.querySelector('.j-cmt');
+  add.addEventListener('click', () => {
+    const txt = document.getElementById('cmtTxtP2');
+    if (!txt.value.trim()) { toast(add.closest('.content'), '评论不能为空'); return; }
+    const list = document.getElementById('cmtListP2');
+    const div = document.createElement('div'); div.className = 'cmt';
+    div.innerHTML = `<div class="cmt-ava" style="background:#3e8df3;">王</div><div><div class="cmt-name">王晓兰<span class="cmt-time">刚刚</span></div><div class="cmt-text"></div></div>`;
+    div.querySelector('.cmt-text').textContent = txt.value.trim();
+    list.appendChild(div);
+    document.getElementById('cmtCntP2').textContent = list.children.length;
+    txt.value = ''; toast(add.closest('.content'), '已评论（演示）');
+    list.scrollTop = list.scrollHeight;
+  });
+})();
+
+/* ───────── P3 类别过滤 ───────── */
+(function(){
+  const list = document.getElementById('catList'); if (!list) return;
+  list.addEventListener('click', e => {
+    const row = e.target.closest('.cat-row'); if (!row) return;
+    list.querySelectorAll('.cat-row').forEach(x => x.classList.toggle('active', x === row));
+    const cat = row.dataset.cat;
+    document.querySelectorAll('#bookGrid .bcard').forEach(c => {
+      c.style.display = (cat === 'all' || c.dataset.cat === cat) ? '' : 'none';
+    });
+  });
+})();
+
+/* ───────── P4 阅读器翻页 ───────── */
+(function(){
+  const pages = [
+    { t:'第一部分 · 立命之学（一）', ps:['余童年丧父，母命弃举业学医。后遇孔先生，为余起数：县考童生，当以第四名提；府考七十一名，提学考第九名。','明年赴考，三处之数，皆合。孔先生又为卜终身休咎：某年考第几名，某年当补廪……','一一录出，凡二十余年，无不合者。'], n:7 },
+    { t:'第一部分 · 立命之学（二）', ps:['云谷问曰："凡人所以不得作圣者，只为妄念相缠耳。汝坐三日，不见起一妄念，何也？"','余曰："吾为孔先生算定，荣辱生死，皆有定数，故要妄想。"','云谷笑曰："我待汝是豪杰，原来只是凡夫。人未能无心，终为阴阳所缚，安得无数？但惟凡人有数；极善之人，数固拘他不定。"'], n:8 },
+    { t:'第一部分 · 立命之学（三）', ps:['云谷曰："命由我作，福自己求。诗书所称，的为明训。"','"一切福田，不离方寸；从心而觅，感无不通。"','至此方知：命数非天定，而在日日之功。'], n:9 },
+  ];
+  let idx = 1;
+  const box = document.getElementById('paperBox'); if (!box) return;
+  function render(){
+    const p = pages[idx];
+    document.getElementById('paperTitle').textContent = p.t;
+    const ps = ['paperP1','paperP2','paperP3','paperP4'].map((id,i) => {
+      const el = document.getElementById(id);
+      if (p.ps[i]) { el.style.display = ''; el.textContent = p.ps[i]; return el; }
+      el.style.display = 'none'; return el;
+    });
+    document.getElementById('paperNote').textContent = `— 第 ${p.n} 页 · 共 288 页 —`;
+    document.getElementById('rPage').textContent = `${p.n} / 288`;
+    document.getElementById('rprogFill').style.width = (p.n / 288 * 100).toFixed(1) + '%';
+  }
+  document.querySelector('.j-prev').addEventListener('click', () => { idx = Math.max(0, idx - 1); render(); });
+  document.querySelector('.j-next').addEventListener('click', () => { idx = Math.min(pages.length - 1, idx + 1); render(); });
+  render();
+})();
+
+/* ───────── P6 行内审核 ───────── */
+document.querySelectorAll('.j-rowok').forEach(btn => btn.addEventListener('click', () => {
+  const tr = btn.closest('tr');
+  tr.children[2].innerHTML = '<span class="tag green">通过</span>';
+  tr.children[5].innerHTML = '<span class="btn text">挂PDF</span><span class="btn text danger">停用</span>';
+  toast(tr.closest('.content'), '已通过 · 书目进入员工端书目浏览（演示）');
+}));
+document.querySelectorAll('.j-rowno').forEach(btn => btn.addEventListener('click', () => {
+  const tr = btn.closest('tr');
+  tr.children[2].innerHTML = '<span class="tag red">驳回</span>';
+  toast(tr.closest('.content'), '已驳回（需填原因，留痕演示）');
+}));
+
+/* ───────── P7 治理弹窗 / 下架 ───────── */
+(function(){
+  const gov = document.getElementById('govOvl'); if (!gov) return;
+  const off = document.getElementById('offOvl');
+  document.querySelectorAll('.j-gov-open').forEach(b => b.addEventListener('click', () => { off.classList.add('hidden'); gov.classList.remove('hidden'); }));
+  gov.querySelector('.j-gov-close').addEventListener('click', () => gov.classList.add('hidden'));
+  gov.querySelector('.j-off').addEventListener('click', () => { gov.classList.add('hidden'); off.classList.remove('hidden'); });
+  off.querySelector('.j-off-close').addEventListener('click', () => off.classList.add('hidden'));
+  off.querySelector('.j-offdone').addEventListener('click', () => {
+    off.classList.add('hidden');
+    toast(off.closest('.content'), '已下架 · 原因已留痕（演示）');
+    const rows = document.querySelectorAll('#govOvl').length ? null : null;
+  });
+})();
+</script>
+</body>
+</html>

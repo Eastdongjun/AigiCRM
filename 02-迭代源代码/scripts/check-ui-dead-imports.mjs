@@ -33,9 +33,11 @@ function walk(dir, out = []) {
 const IMPORT_RE = /(?:^|\n)\s*(?:import\s+[^'"]*?from\s+|import\s+|export\s+(?:\{[^}]*\}|\*)\s+from\s+|import\(\s*)['"]([^'"]+)['"]/g
 
 function resolveSpec(spec, fromFile) {
+  // Vite 资源查询（?worker&url / ?url / ?raw 等）解析到查询前的真实文件。
+  const clean = spec.split(/[?#]/, 1)[0]
   let base
-  if (spec.startsWith('@/')) base = path.join(uiSrc, spec.slice(2))
-  else if (spec.startsWith('./') || spec.startsWith('../')) base = path.resolve(path.dirname(fromFile), spec)
+  if (clean.startsWith('@/')) base = path.join(uiSrc, clean.slice(2))
+  else if (clean.startsWith('./') || clean.startsWith('../')) base = path.resolve(path.dirname(fromFile), clean)
   else return true // 裸包名/别名包交给包管理器, 不在本扫描范围
   const candidates = [base, `${base}.js`, `${base}.vue`, `${base}.mjs`, `${base}.json`, path.join(base, 'index.js'), path.join(base, 'index.vue'), path.join(base, 'index.mjs')]
   return candidates.some((c) => fs.existsSync(c) && fs.statSync(c).isFile())
@@ -50,7 +52,8 @@ for (const file of files) {
   IMPORT_RE.lastIndex = 0
   while ((m = IMPORT_RE.exec(text))) {
     const spec = m[1]
-    if (!spec.startsWith('./') && !spec.startsWith('../') && !spec.startsWith('@/')) continue
+    const cleanSpec = spec.split(/[?#]/, 1)[0]
+    if (!cleanSpec.startsWith('./') && !cleanSpec.startsWith('../') && !cleanSpec.startsWith('@/')) continue
     checked += 1
     if (!resolveSpec(spec, file)) {
       const line = text.slice(0, m.index).split('\n').length

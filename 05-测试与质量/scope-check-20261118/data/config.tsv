@@ -1,0 +1,3 @@
+customer.auto_share	{"superior":true,"admin":true,"roles":[],"users":[]}
+perm.org.leader.see.org	true
+perm.superior.see.subordinate	true

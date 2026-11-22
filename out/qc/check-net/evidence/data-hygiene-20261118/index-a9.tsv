@@ -1,0 +1,8 @@
+dup_index_groups	1
+tables_no_index_except_pk	biz_incentive_grant,sys_dict_data,sys_menu,sys_perm_epoch,sys_permission_meta,sys_position_role,sys_scope_type,sys_user_archive
+idx_per_table_top	biz_customer	20
+idx_per_table_top	biz_file	9
+idx_per_table_top	biz_approval	7
+idx_per_table_top	biz_incentive_record	7
+idx_per_table_top	biz_sea_pool	7
+idx_per_table_top	biz_file_folder	6

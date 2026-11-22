@@ -1,0 +1,12 @@
+collation	utf8mb4_general_ci	57
+collation	utf8mb4_0900_ai_ci	36
+no_pk_tables	sys_role_menu_admin_bak_20261114
+engine	InnoDB	93
+rows_estimate_top	sys_log	13264
+rows_estimate_top	biz_file	2544
+rows_estimate_top	biz_incentive_read	1655
+rows_estimate_top	sys_audit_log	1219
+rows_estimate_top	biz_customer	625
+rows_estimate_top	biz_incentive_record	536
+rows_estimate_top	biz_invoice	282
+rows_estimate_top	biz_file_grant	279

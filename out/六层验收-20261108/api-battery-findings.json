@@ -1,0 +1,464 @@
+[
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "POST /api/auth/switch-group",
+  "what": "sales_ty 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"无权切换到该集团 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"} guard=登录即可"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "POST /api/auth/switch-group",
+  "what": "xz 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"无权切换到该集团 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"} guard=登录即可"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "DELETE /api/customer/990000001",
+  "what": "sales_ty 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"无权删除该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"} guard=hasAuthority('customer:delete')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "DELETE /api/customer/990000001",
+  "what": "xz 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"无权删除该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"} guard=hasAuthority('customer:delete')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "GET /api/customer/990000001",
+  "what": "sales_ty 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"无权查看该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"} guard=hasAuthority('customer:view')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "GET /api/customer/990000001",
+  "what": "xz 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"无权查看该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"} guard=hasAuthority('customer:view')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "PUT /api/customer/990000001",
+  "what": "sales_ty 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"无权编辑该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"} guard=hasAuthority('customer:edit')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "PUT /api/customer/990000001",
+  "what": "xz 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"无权编辑该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"} guard=hasAuthority('customer:edit')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "GET /api/customer/990000001/contacts",
+  "what": "sales_ty 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"无权查看该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"} guard=hasAuthority('customer:view')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "GET /api/customer/990000001/contacts",
+  "what": "xz 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"无权查看该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"} guard=hasAuthority('customer:view')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "POST /api/customer/990000001/contacts",
+  "what": "sales_ty 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"无权编辑该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"} guard=hasAuthority('customer:edit')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "POST /api/customer/990000001/contacts",
+  "what": "xz 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"无权编辑该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"} guard=hasAuthority('customer:edit')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "GET /api/customer/990000001/events",
+  "what": "sales_ty 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"无权查看该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"} guard=hasAuthority('customer:view')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "GET /api/customer/990000001/events",
+  "what": "xz 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"无权查看该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"} guard=hasAuthority('customer:view')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "GET /api/customer/990000001/indicator",
+  "what": "sales_ty 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"无权查看该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"} guard=hasAuthority('customer:view')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "GET /api/customer/990000001/indicator",
+  "what": "xz 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"无权查看该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"} guard=hasAuthority('customer:view')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "POST /api/customer/990000001/indicator",
+  "what": "sales_ty 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"无权编辑该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"} guard=hasAuthority('customer:edit')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "POST /api/customer/990000001/indicator",
+  "what": "xz 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"无权编辑该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"} guard=hasAuthority('customer:edit')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "GET /api/customer/990000001/invoices",
+  "what": "sales_ty 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"无权查看该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"} guard=hasAuthority('customer:view')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "GET /api/customer/990000001/invoices",
+  "what": "xz 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"无权查看该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"} guard=hasAuthority('customer:view')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "GET /api/customer/990000001/invoices/summary",
+  "what": "sales_ty 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"无权查看该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"} guard=hasAuthority('customer:view')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "GET /api/customer/990000001/invoices/summary",
+  "what": "xz 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"无权查看该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"} guard=hasAuthority('customer:view')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "GET /api/customer/990000001/logs",
+  "what": "sales_ty 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"无权查看该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"} guard=hasAuthority('customer:view')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "GET /api/customer/990000001/logs",
+  "what": "xz 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"无权查看该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"} guard=hasAuthority('customer:view')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "GET /api/customer/990000001/payments",
+  "what": "sales_ty 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"无权查看该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"} guard=hasAuthority('customer:view')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "GET /api/customer/990000001/payments",
+  "what": "xz 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"无权查看该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"} guard=hasAuthority('customer:view')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "GET /api/customer/990000001/payments/summary",
+  "what": "sales_ty 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"无权查看该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"} guard=hasAuthority('customer:view')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "GET /api/customer/990000001/payments/summary",
+  "what": "xz 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"无权查看该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"} guard=hasAuthority('customer:view')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "PUT /api/customer/990000001/relationship",
+  "what": "sales_ty 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"无权编辑该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"} guard=hasAuthority('customer:edit')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "PUT /api/customer/990000001/relationship",
+  "what": "xz 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"无权编辑该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"} guard=hasAuthority('customer:edit')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "POST /api/customer/990000001/release",
+  "what": "sales_ty 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"无权编辑该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"} guard=hasAuthority('customer:edit')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "POST /api/customer/990000001/release",
+  "what": "xz 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"无权编辑该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"} guard=hasAuthority('customer:edit')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "GET /api/customer/990000001/shares",
+  "what": "sales_ty 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"无权查看该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"} guard=hasAuthority('customer:view')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "GET /api/customer/990000001/shares",
+  "what": "xz 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"无权查看该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"} guard=hasAuthority('customer:view')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "POST /api/customer/990000001/shares",
+  "what": "sales_ty 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"无权编辑该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"} guard=hasAuthority('customer:edit')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "POST /api/customer/990000001/shares",
+  "what": "xz 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"无权编辑该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"} guard=hasAuthority('customer:edit')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "GET /api/customer/990000001/stage-amounts",
+  "what": "sales_ty 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"无权查看该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"} guard=hasAuthority('customer:view')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "GET /api/customer/990000001/stage-amounts",
+  "what": "xz 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"无权查看该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"} guard=hasAuthority('customer:view')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "GET /api/file/folders/990000001/acl",
+  "what": "sales_ty 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"没有访问权限，请联系管理员授权 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"} guard=hasAuthority('file:acl:manage')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "GET /api/file/folders/990000001/acl",
+  "what": "xz 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"没有访问权限，请联系管理员授权 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"} guard=hasAuthority('file:acl:manage')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "PUT /api/file/folders/990000001/download",
+  "what": "sales_ty 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"没有访问权限，请联系管理员授权 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"} guard=hasAuthority('file:acl:manage')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "PUT /api/file/folders/990000001/download",
+  "what": "xz 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"没有访问权限，请联系管理员授权 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"} guard=hasAuthority('file:acl:manage')"
+ },
+ {
+  "sev": "P2",
+  "layer": "⑤",
+  "pos": "GET /api/incentive/read-ranking",
+  "what": "sales_ty 无码却读200(读越权嫌疑, 复核返回体)",
+  "evidence": "{\"code\":200,\"data\":{\"period\":\"2026-11\",\"publishedTotal\":0,\"readTotal\":0,\"participantCount\":0,\"userCo guard=hasAuthority('incentive:read-ranking:view')"
+ },
+ {
+  "sev": "P2",
+  "layer": "⑤",
+  "pos": "GET /api/incentive/read-ranking",
+  "what": "xz 无码却读200(读越权嫌疑, 复核返回体)",
+  "evidence": "{\"code\":200,\"data\":{\"period\":\"2026-11\",\"publishedTotal\":0,\"readTotal\":0,\"participantCount\":0,\"userCo guard=hasAuthority('incentive:read-ranking:view')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "DELETE /api/incentive/records/990000001",
+  "what": "sales_ty 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"无权删除他人记录 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"} guard=hasAuthority('incentive:view')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "DELETE /api/incentive/records/990000001",
+  "what": "xz 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"无权删除他人记录 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"} guard=hasAuthority('incentive:view')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "PUT /api/incentive/records/990000001",
+  "what": "sales_ty 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"无权编辑他人记录 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"} guard=hasAuthority('incentive:view')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "PUT /api/incentive/records/990000001",
+  "what": "xz 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"无权编辑他人记录 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"} guard=hasAuthority('incentive:view')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "POST /api/incentive/records/990000001/remove-file",
+  "what": "sales_ty 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"无权编辑他人记录 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"} guard=hasAuthority('incentive:view')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "POST /api/incentive/records/990000001/remove-file",
+  "what": "xz 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"无权编辑他人记录 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"} guard=hasAuthority('incentive:view')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "POST /api/sea/configs",
+  "what": "xz 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「公海配置编辑(sea:config:edit)」功能权限。如需访问此内容，请联系管理员在【系统设置 → guard=hasAuthority('sea:config:edit')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "DELETE /api/sea/configs/990000001",
+  "what": "xz 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「公海配置编辑(sea:config:edit)」功能权限。如需访问此内容，请联系管理员在【系统设置 → guard=hasAuthority('sea:config:edit')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "PUT /api/sea/configs/990000001",
+  "what": "xz 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「公海配置编辑(sea:config:edit)」功能权限。如需访问此内容，请联系管理员在【系统设置 → guard=hasAuthority('sea:config:edit')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "GET /api/statistics/analysis",
+  "what": "xz 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「统计分析(statistics:view)」功能权限。如需访问此内容，请联系管理员在【系统设置 → 权 guard=hasAuthority('statistics:view')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "GET /api/statistics/customer-rankings",
+  "what": "xz 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「统计分析(statistics:view)」功能权限。如需访问此内容，请联系管理员在【系统设置 → 权 guard=hasAuthority('statistics:view')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "GET /api/statistics/indicator-stats",
+  "what": "xz 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「统计分析(statistics:view)」功能权限。如需访问此内容，请联系管理员在【系统设置 → 权 guard=hasAuthority('statistics:view')"
+ },
+ {
+  "sev": "P0",
+  "layer": "②",
+  "pos": "GET /api/system/configs/logo",
+  "what": "未登录返回200(疑似裸奔)",
+  "evidence": "����\u0016�Exif\u0000\u0000MM\u0000*\u0000\u0000\u0000\b\u0000\n\u0001\u0000\u0000\u0003\u0000\u0000\u0000\u0001\u0001�\u0000\u0000\u0001\u0001\u0000\u0003\u0000\u0000\u0000\u0001\u0001�\u0000\u0000\u0001\u0002\u0000\u0003\u0000\u0000\u0000\u0003\u0000\u0000\u0000�\u0001\u0006\u0000\u0003\u0000\u0000\u0000\u0001\u0000\u0002\u0000\u0000\u0001\u0012\u0000\u0003\u0000\u0000\u0000\u0001\u0000\u0001\u0000\u0000\u0001\u0015\u0000\u0003\u0000\u0000\u0000\u0001\u0000\u0003\u0000\u0000\u0001\u001a\u0000\u0005\u0000\u0000\u0000\u0001\u0000\u0000\u0000�\u0001\u001b\u0000\u0005\u0000\u0000\u0000\u0001\u0000\u0000\u0000�\u0001("
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "PUT /api/system/users/990000001",
+  "what": "xz 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"无权操作该用户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"} guard=hasAnyAuthority('system:user:edit','system:org:admin')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "POST /api/system/users/990000001/reset-password",
+  "what": "xz 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"无权操作该用户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"} guard=hasAnyAuthority('system:user:edit','system:org:admin')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "POST /api/task",
+  "what": "xz 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「任务管理(task:manage)」功能权限。如需访问此内容，请联系管理员在【系统设置 → 权限中心  guard=hasAuthority('task:manage')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "GET /api/task/list",
+  "what": "xz 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「任务查看(task:view)」功能权限。如需访问此内容，请联系管理员在【系统设置 → 权限中心 →  guard=hasAuthority('task:view')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "GET /api/task/statistics",
+  "what": "xz 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「任务查看(task:view)」功能权限。如需访问此内容，请联系管理员在【系统设置 → 权限中心 →  guard=hasAuthority('task:view')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "PUT /api/task/990000001",
+  "what": "xz 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「任务管理(task:manage)」功能权限。如需访问此内容，请联系管理员在【系统设置 → 权限中心  guard=hasAuthority('task:manage')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "POST /api/task/990000001/cancel",
+  "what": "xz 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「任务管理(task:manage)」功能权限。如需访问此内容，请联系管理员在【系统设置 → 权限中心  guard=hasAuthority('task:manage')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "POST /api/task/990000001/complete",
+  "what": "xz 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「任务管理(task:manage)」功能权限。如需访问此内容，请联系管理员在【系统设置 → 权限中心  guard=hasAuthority('task:manage')"
+ },
+ {
+  "sev": "P1",
+  "layer": "⑤",
+  "pos": "POST /api/task/990000001/transfer",
+  "what": "xz 应有权限却被拒(403)",
+  "evidence": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「任务管理(task:manage)」功能权限。如需访问此内容，请联系管理员在【系统设置 → 权限中心  guard=hasAuthority('task:manage')"
+ }
+]

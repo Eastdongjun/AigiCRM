@@ -27,7 +27,7 @@ if not output_path:
     raise SystemExit('FAIL: VS Code diagnostics exporter outputPath is not configured')
 if not request_path:
     raise SystemExit('FAIL: VS Code diagnostics exporter requestPath is not configured')
-central_current = Path('/Users/dongjun/东来/Agent/00-管理/项目执行/802fad80-8665-4b11-9f9d-04b92bda4666/current')
+central_current = Path('/Users/dongjun/东来/Agent/00-治理/项目执行/802fad80-8665-4b11-9f9d-04b92bda4666/current')
 if Path(output_path).resolve() != (central_current / 'vscode-diagnostics.raw.json').resolve():
     raise SystemExit('FAIL: VS Code diagnostics outputPath must use the AIGICRM central current channel')
 if Path(request_path).resolve() != (central_current / 'vscode-diagnostics.request.json').resolve():

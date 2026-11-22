@@ -1,0 +1,13 @@
+SELECT 'customer', id, owner_id FROM biz_customer WHERE deleted=0 AND owner_id IS NOT NULL LIMIT 400;
+SELECT 'contact', c.id, cu.owner_id FROM biz_contact c JOIN biz_customer cu ON c.customer_id=cu.id WHERE c.deleted=0 AND cu.deleted=0 AND cu.owner_id IS NOT NULL LIMIT 400;
+SELECT 'folder', id, owner_id FROM biz_file_folder WHERE deleted=0 AND owner_id IS NOT NULL LIMIT 300;
+SELECT 'file', id, uploader_id FROM biz_file WHERE deleted=0 AND uploader_id IS NOT NULL LIMIT 400;
+SELECT 'incentive', id, user_id FROM biz_incentive_record WHERE deleted=0 AND user_id IS NOT NULL LIMIT 400;
+SELECT 'approval', id, applicant_id FROM biz_approval WHERE applicant_id IS NOT NULL LIMIT 300;
+SELECT 'book', id, created_by FROM biz_fabushi_book WHERE deleted=0 AND created_by IS NOT NULL LIMIT 100;
+SELECT 'section', id, 0 FROM biz_fabushi_section WHERE deleted=0 LIMIT 200;
+SELECT 'post', id, user_id FROM biz_fabushi_post WHERE deleted=0 AND user_id IS NOT NULL LIMIT 200;
+SELECT 'activity', id, created_by FROM biz_fabushi_activity WHERE deleted=0 AND created_by IS NOT NULL LIMIT 100;
+SELECT 'task', id, assignee_id FROM biz_task WHERE deleted=0 AND assignee_id IS NOT NULL LIMIT 300;
+SELECT 'reminder', id, owner_id FROM biz_reminder WHERE deleted=0 AND owner_id IS NOT NULL LIMIT 300;
+SELECT 'seapool', id, COALESCE(claim_user_id, original_owner_id, 0) FROM biz_sea_pool LIMIT 300;

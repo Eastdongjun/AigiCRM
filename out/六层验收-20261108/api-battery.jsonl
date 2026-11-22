@@ -1,0 +1,905 @@
+{"c": "A-noauth", "m": "POST", "u": "/api/approval/config", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "POST", "u": "/api/approval/config", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"流程类型仅支持: storage/claim/transfer/extend\"}"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/approval/config", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「系统配置编辑(system:config:edit)」功能权限。如需访问此内容，请联系管理员在【系统设", "expect_pass": false}
+{"c": "C-xz", "m": "POST", "u": "/api/approval/config", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「系统配置编辑(system:config:edit)」功能权限。如需访问此内容，请联系管理员在【系统设", "expect_pass": false}
+{"c": "A-noauth", "m": "GET", "u": "/api/approval/config/list", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/approval/config/list", "st": 200, "b": "{\"code\":200,\"data\":[{\"approverIds\":\"[11]\",\"approverType\":\"USER\",\"createdAt\":\"2026-08-01T03:21:52\",\"flowName\":\"捞取客户审批\",\"f"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/approval/config/list", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「系统设置(system:config:view)」功能权限。如需访问此内容，请联系管理员在【系统设置 ", "expect_pass": false}
+{"c": "C-xz", "m": "GET", "u": "/api/approval/config/list", "st": 200, "b": "{\"code\":200,\"data\":[{\"approverIds\":\"[11]\",\"approverType\":\"USER\",\"createdAt\":\"2026-08-01T03:21:52\",\"f", "expect_pass": true}
+{"c": "A-noauth", "m": "DELETE", "u": "/api/approval/config/990000001", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "DELETE", "u": "/api/approval/config/990000001", "st": 200, "b": "{\"code\":200,\"data\":null,\"message\":\"success\"}"}
+{"c": "C-sales_ty", "m": "DELETE", "u": "/api/approval/config/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「系统配置编辑(system:config:edit)」功能权限。如需访问此内容，请联系管理员在【系统设", "expect_pass": false}
+{"c": "C-xz", "m": "DELETE", "u": "/api/approval/config/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「系统配置编辑(system:config:edit)」功能权限。如需访问此内容，请联系管理员在【系统设", "expect_pass": false}
+{"c": "A-noauth", "m": "PUT", "u": "/api/approval/config/990000001", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "PUT", "u": "/api/approval/config/990000001", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"流程类型仅支持: storage/claim/transfer/extend\"}"}
+{"c": "C-sales_ty", "m": "PUT", "u": "/api/approval/config/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「系统配置编辑(system:config:edit)」功能权限。如需访问此内容，请联系管理员在【系统设", "expect_pass": false}
+{"c": "C-xz", "m": "PUT", "u": "/api/approval/config/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「系统配置编辑(system:config:edit)」功能权限。如需访问此内容，请联系管理员在【系统设", "expect_pass": false}
+{"c": "A-noauth", "m": "GET", "u": "/api/approval/list", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/approval/list", "st": 200, "b": "{\"code\":200,\"data\":{\"current\":1,\"pages\":5,\"records\":[{\"actionAfterApprove\":\"客户归属→本人\",\"applicantId\":1,\"applicantName\":\"管理"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/approval/list", "st": 200, "b": "{\"code\":200,\"data\":{\"current\":1,\"pages\":0,\"records\":[],\"size\":15,\"total\":0},\"message\":\"success\"}", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/approval/list", "st": 200, "b": "{\"code\":200,\"data\":{\"current\":1,\"pages\":0,\"records\":[],\"size\":15,\"total\":0},\"message\":\"success\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/approval/statistics", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/approval/statistics", "st": 200, "b": "{\"code\":200,\"data\":{\"mine\":6,\"all\":71,\"rejectedTotal\":7,\"approvedThisMonth\":0,\"pending\":0,\"rejectedThisMonth\":0,\"approve"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/approval/statistics", "st": 200, "b": "{\"code\":200,\"data\":{\"mine\":0,\"all\":0,\"rejectedTotal\":0,\"approvedThisMonth\":0,\"pending\":0,\"rejectedTh", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/approval/statistics", "st": 200, "b": "{\"code\":200,\"data\":{\"mine\":0,\"all\":0,\"rejectedTotal\":0,\"approvedThisMonth\":0,\"pending\":0,\"rejectedTh", "expect_pass": true}
+{"c": "A-noauth", "m": "POST", "u": "/api/approval/submit", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "POST", "u": "/api/approval/submit", "st": 200, "b": "{\"code\":400,\"data\":null,\"message\":\"审批类型不能为空\"}"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/approval/submit", "st": 200, "b": "{\"code\":400,\"data\":null,\"message\":\"审批类型不能为空\"}", "expect_pass": true}
+{"c": "C-xz", "m": "POST", "u": "/api/approval/submit", "st": 200, "b": "{\"code\":400,\"data\":null,\"message\":\"审批类型不能为空\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/approval/990000001", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/approval/990000001", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"资源不存在或无权访问\"}"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/approval/990000001", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"资源不存在或无权访问\"}", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/approval/990000001", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"资源不存在或无权访问\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "POST", "u": "/api/approval/990000001/approve", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "POST", "u": "/api/approval/990000001/approve", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"资源不存在或无权访问\"}"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/approval/990000001/approve", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"资源不存在或无权访问\"}", "expect_pass": true}
+{"c": "C-xz", "m": "POST", "u": "/api/approval/990000001/approve", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"资源不存在或无权访问\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "PUT", "u": "/api/approval/990000001/nodes/{nodeId}/transfer", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/css\">body {font-famil"}
+{"c": "B-badparam", "m": "PUT", "u": "/api/approval/990000001/nodes/{nodeId}/transfer", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/css\">body {font-famil"}
+{"c": "C-sales_ty", "m": "PUT", "u": "/api/approval/990000001/nodes/{nodeId}/transfer", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/c", "expect_pass": true}
+{"c": "C-xz", "m": "PUT", "u": "/api/approval/990000001/nodes/{nodeId}/transfer", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/c", "expect_pass": true}
+{"c": "A-noauth", "m": "POST", "u": "/api/approval/990000001/reject", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "POST", "u": "/api/approval/990000001/reject", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"资源不存在或无权访问\"}"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/approval/990000001/reject", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"资源不存在或无权访问\"}", "expect_pass": true}
+{"c": "C-xz", "m": "POST", "u": "/api/approval/990000001/reject", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"资源不存在或无权访问\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "POST", "u": "/api/auth/forgot-password/lookup", "st": 200, "b": "{\"code\":400,\"data\":null,\"message\":\"用户名不能为空\"}"}
+{"c": "B-badparam", "m": "POST", "u": "/api/auth/forgot-password/lookup", "st": 200, "b": "{\"code\":400,\"data\":null,\"message\":\"用户名不能为空\"}"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/auth/forgot-password/lookup", "st": 200, "b": "{\"code\":400,\"data\":null,\"message\":\"用户名不能为空\"}", "expect_pass": true}
+{"c": "C-xz", "m": "POST", "u": "/api/auth/forgot-password/lookup", "st": 200, "b": "{\"code\":400,\"data\":null,\"message\":\"用户名不能为空\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "POST", "u": "/api/auth/forgot-password/reset", "st": 200, "b": "{\"code\":400,\"data\":null,\"message\":\"新密码不能为空\"}"}
+{"c": "B-badparam", "m": "POST", "u": "/api/auth/forgot-password/reset", "st": 200, "b": "{\"code\":400,\"data\":null,\"message\":\"用户名不能为空\"}"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/auth/forgot-password/reset", "st": 200, "b": "{\"code\":400,\"data\":null,\"message\":\"用户名不能为空\"}", "expect_pass": true}
+{"c": "C-xz", "m": "POST", "u": "/api/auth/forgot-password/reset", "st": 200, "b": "{\"code\":400,\"data\":null,\"message\":\"用户名不能为空\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "POST", "u": "/api/auth/forgot-password/send-code", "st": 200, "b": "{\"code\":400,\"data\":null,\"message\":\"请选择验证方式\"}"}
+{"c": "B-badparam", "m": "POST", "u": "/api/auth/forgot-password/send-code", "st": 200, "b": "{\"code\":400,\"data\":null,\"message\":\"用户名不能为空\"}"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/auth/forgot-password/send-code", "st": 200, "b": "{\"code\":400,\"data\":null,\"message\":\"请选择验证方式\"}", "expect_pass": true}
+{"c": "C-xz", "m": "POST", "u": "/api/auth/forgot-password/send-code", "st": 200, "b": "{\"code\":400,\"data\":null,\"message\":\"请选择验证方式\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/auth/info", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/auth/info", "st": 200, "b": "{\"code\":200,\"data\":{\"avatar\":null,\"currentGroupId\":1,\"currentGroupName\":\"艾志集团\",\"dataScope\":\"all\",\"deptName\":\"艾志（南京）环保管接技"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/auth/info", "st": 200, "b": "{\"code\":200,\"data\":{\"avatar\":null,\"currentGroupId\":1,\"currentGroupName\":\"艾志集团\",\"dataScope\":\"team\",\"d", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/auth/info", "st": 200, "b": "{\"code\":200,\"data\":{\"avatar\":null,\"currentGroupId\":1,\"currentGroupName\":\"艾志集团\",\"dataScope\":\"office\",", "expect_pass": true}
+{"c": "A-noauth", "m": "POST", "u": "/api/auth/login", "st": 200, "b": "{\"code\":400,\"data\":null,\"message\":\"用户名不能为空\"}"}
+{"c": "B-badparam", "m": "POST", "u": "/api/auth/login", "st": 200, "b": "{\"code\":400,\"data\":null,\"message\":\"密码不能为空\"}"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/auth/login", "st": 200, "b": "{\"code\":400,\"data\":null,\"message\":\"密码不能为空\"}", "expect_pass": true}
+{"c": "C-xz", "m": "POST", "u": "/api/auth/login", "st": 200, "b": "{\"code\":400,\"data\":null,\"message\":\"密码不能为空\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "POST", "u": "/api/auth/logout", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "A-noauth", "m": "GET", "u": "/api/auth/permission-explain", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/auth/permission-explain", "st": 200, "b": "{\"code\":200,\"data\":{\"userId\":1,\"username\":\"admin\",\"currentGroupId\":1,\"groupIds\":[1],\"roles\":[\"admin\"],\"dataScope\":\"all\","}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/auth/permission-explain", "st": 200, "b": "{\"code\":200,\"data\":{\"userId\":89,\"username\":\"t_auto_ty2\",\"currentGroupId\":1,\"groupIds\":[1],\"roles\":[\"", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/auth/permission-explain", "st": 200, "b": "{\"code\":200,\"data\":{\"userId\":91,\"username\":\"t_auto_xz\",\"currentGroupId\":1,\"groupIds\":[1],\"roles\":[\"0", "expect_pass": true}
+{"c": "A-noauth", "m": "POST", "u": "/api/auth/switch-group", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "POST", "u": "/api/auth/switch-group", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"无权切换到该集团 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"}"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/auth/switch-group", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"无权切换到该集团 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"}", "expect_pass": true}
+{"c": "C-xz", "m": "POST", "u": "/api/auth/switch-group", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"无权切换到该集团 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/common/scope/depts", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/common/scope/depts", "st": 200, "b": "{\"code\":200,\"data\":[{\"children\":[{\"children\":[{\"children\":null,\"createdAt\":\"2026-06-10T09:44:24\",\"deptCode\":\"\",\"deptName"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/common/scope/depts", "st": 200, "b": "{\"code\":200,\"data\":[{\"children\":null,\"createdAt\":\"2026-06-10T09:44:24\",\"deptCode\":\"\",\"deptName\":\"太原办", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/common/scope/depts", "st": 200, "b": "{\"code\":200,\"data\":[{\"children\":null,\"createdAt\":\"2026-06-10T09:44:24\",\"deptCode\":null,\"deptName\":\"太", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/common/scope/users", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/common/scope/users", "st": 200, "b": "{\"code\":200,\"data\":[{\"realName\":\"余慧\",\"deptId\":6,\"id\":49},{\"realName\":\"冀晓伟\",\"deptId\":44,\"id\":42},{\"realName\":\"冒烟销售员\",\"dep"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/common/scope/users", "st": 200, "b": "{\"code\":200,\"data\":[{\"realName\":\"自动化太原销售2\",\"deptId\":4,\"id\":89}],\"message\":\"success\"}", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/common/scope/users", "st": 200, "b": "{\"code\":200,\"data\":[{\"realName\":\"李艳梅\",\"deptId\":5,\"id\":61},{\"realName\":\"自动化行政\",\"deptId\":5,\"id\":91}],\"", "expect_pass": true}
+{"c": "A-noauth", "m": "POST", "u": "/api/customer/add", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "POST", "u": "/api/customer/add", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"客户名称不能为空\"}"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/customer/add", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"客户名称不能为空\"}", "expect_pass": true}
+{"c": "C-xz", "m": "POST", "u": "/api/customer/add", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"客户名称不能为空\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/customer/check-name", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/customer/check-name", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"缺少必要参数：name\"}"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/customer/check-name", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"缺少必要参数：name\"}", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/customer/check-name", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"缺少必要参数：name\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/customer/export", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/customer/export", "st": 200, "b": "PK\u0003\u0004\u0014\u0000\b\b\b\u0000�\ni]\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0013\u0000\u0000\u0000[Content_Types].xml�S�n�0\u0010����*6�PU\u0015�C\u001f�\u0016��\u0003\\{�X�%����]\u00078�R�\nq�cfgfW�d�q�ZCB\u0013|��|�*�*h㻆},^"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/customer/export", "st": 200, "b": "PK\u0003\u0004\u0014\u0000\b\b\b\u0000�\ni]\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0013\u0000\u0000\u0000[Content_Types].xml�S�n�0\u0010����*6�PU\u0015�C\u001f�\u0016��\u0003\\{�X�%����]\u00078�R�\nq�cfgfW�d", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/customer/export", "st": 200, "b": "PK\u0003\u0004\u0014\u0000\b\b\b\u0000�\ni]\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0013\u0000\u0000\u0000[Content_Types].xml�S�n�0\u0010����*6�PU\u0015�C\u001f�\u0016��\u0003\\{�X�%����]\u00078�R�\nq�cfgfW�d", "expect_pass": true}
+{"c": "A-noauth", "m": "POST", "u": "/api/customer/full", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "POST", "u": "/api/customer/full", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"缺少客户信息\"}"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/customer/full", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"缺少客户信息\"}", "expect_pass": true}
+{"c": "C-xz", "m": "POST", "u": "/api/customer/full", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"缺少客户信息\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/customer/group-names", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/customer/group-names", "st": 200, "b": "{\"code\":200,\"data\":[\"三一重能股份有限公司\",\"中国中煤能源集团有限公司\",\"中国中钢集团有限公司\",\"中国兵器工业集团有限公司\",\"中国华电集团有限公司\",\"中国华能集团有限公司\",\"中国大唐集团\",\"中国大唐集团有限"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/customer/group-names", "st": 200, "b": "{\"code\":200,\"data\":[],\"message\":\"success\"}", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/customer/group-names", "st": 200, "b": "{\"code\":200,\"data\":[],\"message\":\"success\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "POST", "u": "/api/customer/import", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "POST", "u": "/api/customer/import", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"请使用 multipart/form-data 表单提交文件\"}"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/customer/import", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"请使用 multipart/form-data 表单提交文件\"}", "expect_pass": true}
+{"c": "C-xz", "m": "POST", "u": "/api/customer/import", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"请使用 multipart/form-data 表单提交文件\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/customer/import/template", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/customer/import/template", "st": 200, "b": "PK\u0003\u0004\u0014\u0000\b\b\b\u0000�\ni]\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0013\u0000\u0000\u0000[Content_Types].xml�TIn\u00021\u0010����hl�\u0010E\u0011\u0003�,�\u0004)�\u0001���Xx��\u0010�}�\u0003\u001cB�D��r�R�U�-�����j\r\tM�\r\u001b�\u0001�����_4"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/customer/import/template", "st": 200, "b": "PK\u0003\u0004\u0014\u0000\b\b\b\u0000�\ni]\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0013\u0000\u0000\u0000[Content_Types].xml�TIn\u00021\u0010����hl�\u0010E\u0011\u0003�,�\u0004)�\u0001���Xx��\u0010�}�\u0003\u001cB�D��r�R�U�-�", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/customer/import/template", "st": 200, "b": "PK\u0003\u0004\u0014\u0000\b\b\b\u0000�\ni]\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0013\u0000\u0000\u0000[Content_Types].xml�TIn\u00021\u0010����hl�\u0010E\u0011\u0003�,�\u0004)�\u0001���Xx��\u0010�}�\u0003\u001cB�D��r�R�U�-�", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/customer/list", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/customer/list", "st": 200, "b": "{\"code\":200,\"data\":{\"current\":1,\"pages\":20,\"records\":[{\"address\":null,\"adjustDate\":null,\"alias\":null,\"approvedExtendDays"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/customer/list", "st": 200, "b": "{\"code\":200,\"data\":{\"current\":1,\"pages\":1,\"records\":[{\"address\":null,\"adjustDate\":null,\"alias\":null,", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/customer/list", "st": 200, "b": "{\"code\":200,\"data\":{\"current\":1,\"pages\":0,\"records\":[],\"size\":15,\"total\":0},\"message\":\"success\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/customer/list/counts", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/customer/list/counts", "st": 200, "b": "{\"code\":200,\"data\":{\"all\":296,\"mine\":4,\"sharedByMe\":0,\"sharedToMe\":0},\"message\":\"success\"}"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/customer/list/counts", "st": 200, "b": "{\"code\":200,\"data\":{\"all\":1,\"mine\":1,\"sharedByMe\":0,\"sharedToMe\":0},\"message\":\"success\"}", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/customer/list/counts", "st": 200, "b": "{\"code\":200,\"data\":{\"all\":0,\"mine\":0,\"sharedByMe\":0,\"sharedToMe\":0},\"message\":\"success\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/customer/list/counts-by-filter", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/customer/list/counts-by-filter", "st": 200, "b": "{\"code\":200,\"data\":{\"全部\":296,\"成熟创新\":20,\"突破开拓\":129,\"铺垫宣传\":128,\"新建改建扩建大修\":5,\"预警中\":14,\"已超期\":0},\"message\":\"success\"}"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/customer/list/counts-by-filter", "st": 200, "b": "{\"code\":200,\"data\":{\"全部\":1,\"成熟创新\":0,\"突破开拓\":0,\"铺垫宣传\":0,\"新建改建扩建大修\":0,\"预警中\":0,\"已超期\":0},\"message\":\"succe", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/customer/list/counts-by-filter", "st": 200, "b": "{\"code\":200,\"data\":{\"全部\":0,\"成熟创新\":0,\"突破开拓\":0,\"铺垫宣传\":0,\"新建改建扩建大修\":0,\"预警中\":0,\"已超期\":0},\"message\":\"succe", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/customer/rankings", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/customer/rankings", "st": 200, "b": "{\"code\":200,\"data\":{\"incentive\":[{\"customerId\":256,\"customerName\":\"邯钢集团邯宝钢铁有限公司（唐邯潇）\",\"ownerName\":\"唐邯潇\",\"industry\":\"冶金\","}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/customer/rankings", "st": 200, "b": "{\"code\":200,\"data\":{\"incentive\":[{\"customerId\":256,\"customerName\":\"邯钢集团邯宝钢铁有限公司（唐邯潇）\",\"ownerName\":\"唐", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/customer/rankings", "st": 200, "b": "{\"code\":200,\"data\":{\"incentive\":[{\"customerId\":256,\"customerName\":\"邯钢集团邯宝钢铁有限公司（唐邯潇）\",\"ownerName\":\"唐", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/customer/statistics", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/customer/statistics", "st": 200, "b": "{\"code\":200,\"data\":{\"total\":296,\"officeStats\":[{\"officeName\":\"艾志（南京）环保管接技术股份有限公司\",\"officeId\":1,\"count\":1},{\"officeName\":"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/customer/statistics", "st": 200, "b": "{\"code\":200,\"data\":{\"total\":1,\"officeStats\":[{\"officeName\":\"太原办销售部\",\"officeId\":4,\"count\":1}],\"indust", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/customer/statistics", "st": 200, "b": "{\"code\":200,\"data\":{\"total\":0,\"officeStats\":[],\"industryStats\":{}},\"message\":\"success\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/customer/users/simple", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/customer/users/simple", "st": 200, "b": "{\"code\":200,\"data\":[{\"realName\":\"管理员\",\"id\":1},{\"realName\":\"马吉亮\",\"id\":11},{\"realName\":\"李帮文\",\"id\":38},{\"realName\":\"梁文生\",\"i"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/customer/users/simple", "st": 200, "b": "{\"code\":200,\"data\":[{\"realName\":\"管理员\",\"id\":1},{\"realName\":\"马吉亮\",\"id\":11},{\"realName\":\"李帮文\",\"id\":38},", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/customer/users/simple", "st": 200, "b": "{\"code\":200,\"data\":[{\"realName\":\"管理员\",\"id\":1},{\"realName\":\"马吉亮\",\"id\":11},{\"realName\":\"李帮文\",\"id\":38},", "expect_pass": true}
+{"c": "A-noauth", "m": "DELETE", "u": "/api/customer/990000001", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "DELETE", "u": "/api/customer/990000001", "st": 200, "b": "{\"code\":200,\"data\":null,\"message\":\"success\"}"}
+{"c": "C-sales_ty", "m": "DELETE", "u": "/api/customer/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"无权删除该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"}", "expect_pass": true}
+{"c": "C-xz", "m": "DELETE", "u": "/api/customer/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"无权删除该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/customer/990000001", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/customer/990000001", "st": 404, "b": "{\"code\":404,\"data\":null,\"message\":\"客户不存在或无权访问\"}"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/customer/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"无权查看该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"}", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/customer/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"无权查看该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "PUT", "u": "/api/customer/990000001", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "PUT", "u": "/api/customer/990000001", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"客户不存在\"}"}
+{"c": "C-sales_ty", "m": "PUT", "u": "/api/customer/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"无权编辑该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"}", "expect_pass": true}
+{"c": "C-xz", "m": "PUT", "u": "/api/customer/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"无权编辑该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "POST", "u": "/api/customer/990000001/archive", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "POST", "u": "/api/customer/990000001/archive", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"客户不存在\"}"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/customer/990000001/archive", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"客户不存在\"}", "expect_pass": true}
+{"c": "C-xz", "m": "POST", "u": "/api/customer/990000001/archive", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"客户不存在\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/customer/990000001/contacts", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/customer/990000001/contacts", "st": 200, "b": "{\"code\":200,\"data\":[{\"createdAt\":\"2026-11-08T18:29:46\",\"customerId\":990000001,\"deleted\":0,\"id\":199,\"name\":null,\"phone\":n"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/customer/990000001/contacts", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"无权查看该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"}", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/customer/990000001/contacts", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"无权查看该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "POST", "u": "/api/customer/990000001/contacts", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "POST", "u": "/api/customer/990000001/contacts", "st": 200, "b": "{\"code\":200,\"data\":null,\"message\":\"success\"}"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/customer/990000001/contacts", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"无权编辑该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"}", "expect_pass": true}
+{"c": "C-xz", "m": "POST", "u": "/api/customer/990000001/contacts", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"无权编辑该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "DELETE", "u": "/api/customer/990000001/contacts/{contactId}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/css\">body {font-famil"}
+{"c": "B-badparam", "m": "DELETE", "u": "/api/customer/990000001/contacts/{contactId}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/css\">body {font-famil"}
+{"c": "C-sales_ty", "m": "DELETE", "u": "/api/customer/990000001/contacts/{contactId}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/c", "expect_pass": true}
+{"c": "C-xz", "m": "DELETE", "u": "/api/customer/990000001/contacts/{contactId}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/c", "expect_pass": true}
+{"c": "A-noauth", "m": "PUT", "u": "/api/customer/990000001/contacts/{contactId}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/css\">body {font-famil"}
+{"c": "B-badparam", "m": "PUT", "u": "/api/customer/990000001/contacts/{contactId}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/css\">body {font-famil"}
+{"c": "C-sales_ty", "m": "PUT", "u": "/api/customer/990000001/contacts/{contactId}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/c", "expect_pass": true}
+{"c": "C-xz", "m": "PUT", "u": "/api/customer/990000001/contacts/{contactId}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/c", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/customer/990000001/events", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/customer/990000001/events", "st": 200, "b": "{\"code\":200,\"data\":[],\"message\":\"success\"}"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/customer/990000001/events", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"无权查看该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"}", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/customer/990000001/events", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"无权查看该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "PUT", "u": "/api/customer/990000001/full", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "PUT", "u": "/api/customer/990000001/full", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"缺少客户信息\"}"}
+{"c": "C-sales_ty", "m": "PUT", "u": "/api/customer/990000001/full", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"缺少客户信息\"}", "expect_pass": true}
+{"c": "C-xz", "m": "PUT", "u": "/api/customer/990000001/full", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"缺少客户信息\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/customer/990000001/indicator", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/customer/990000001/indicator", "st": 200, "b": "{\"code\":200,\"data\":{\"coreType\":\"\",\"createdAt\":\"2026-11-08T18:29:58\",\"customerId\":990000001,\"id\":31,\"indicator02\":0,\"indi"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/customer/990000001/indicator", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"无权查看该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"}", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/customer/990000001/indicator", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"无权查看该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "POST", "u": "/api/customer/990000001/indicator", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "POST", "u": "/api/customer/990000001/indicator", "st": 200, "b": "{\"code\":200,\"data\":null,\"message\":\"success\"}"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/customer/990000001/indicator", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"无权编辑该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"}", "expect_pass": true}
+{"c": "C-xz", "m": "POST", "u": "/api/customer/990000001/indicator", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"无权编辑该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/customer/990000001/invoices", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/customer/990000001/invoices", "st": 200, "b": "{\"code\":200,\"data\":[],\"message\":\"success\"}"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/customer/990000001/invoices", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"无权查看该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"}", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/customer/990000001/invoices", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"无权查看该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/customer/990000001/invoices/summary", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/customer/990000001/invoices/summary", "st": 200, "b": "{\"code\":200,\"data\":{\"totalAmount\":0.00,\"latestDate\":null,\"totalCount\":0},\"message\":\"success\"}"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/customer/990000001/invoices/summary", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"无权查看该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"}", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/customer/990000001/invoices/summary", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"无权查看该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/customer/990000001/logs", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/customer/990000001/logs", "st": 200, "b": "{\"code\":200,\"data\":[],\"message\":\"success\"}"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/customer/990000001/logs", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"无权查看该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"}", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/customer/990000001/logs", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"无权查看该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "POST", "u": "/api/customer/990000001/logs", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "POST", "u": "/api/customer/990000001/logs", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"跟进内容不能为空\"}"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/customer/990000001/logs", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"跟进内容不能为空\"}", "expect_pass": true}
+{"c": "C-xz", "m": "POST", "u": "/api/customer/990000001/logs", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"跟进内容不能为空\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/customer/990000001/payments", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/customer/990000001/payments", "st": 200, "b": "{\"code\":200,\"data\":[],\"message\":\"success\"}"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/customer/990000001/payments", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"无权查看该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"}", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/customer/990000001/payments", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"无权查看该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/customer/990000001/payments/summary", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/customer/990000001/payments/summary", "st": 200, "b": "{\"code\":200,\"data\":{\"totalAmount\":0.00,\"latestDate\":null,\"totalCount\":0},\"message\":\"success\"}"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/customer/990000001/payments/summary", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"无权查看该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"}", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/customer/990000001/payments/summary", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"无权查看该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "PUT", "u": "/api/customer/990000001/relationship", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "PUT", "u": "/api/customer/990000001/relationship", "st": 200, "b": "{\"code\":200,\"data\":null,\"message\":\"success\"}"}
+{"c": "C-sales_ty", "m": "PUT", "u": "/api/customer/990000001/relationship", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"无权编辑该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"}", "expect_pass": true}
+{"c": "C-xz", "m": "PUT", "u": "/api/customer/990000001/relationship", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"无权编辑该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "POST", "u": "/api/customer/990000001/release", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "POST", "u": "/api/customer/990000001/release", "st": 404, "b": "{\"code\":404,\"data\":null,\"message\":\"客户不存在或无权访问\"}"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/customer/990000001/release", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"无权编辑该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"}", "expect_pass": true}
+{"c": "C-xz", "m": "POST", "u": "/api/customer/990000001/release", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"无权编辑该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "POST", "u": "/api/customer/990000001/restore", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "POST", "u": "/api/customer/990000001/restore", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"客户不存在\"}"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/customer/990000001/restore", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"客户不存在\"}", "expect_pass": true}
+{"c": "C-xz", "m": "POST", "u": "/api/customer/990000001/restore", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"客户不存在\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/customer/990000001/shares", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/customer/990000001/shares", "st": 200, "b": "{\"code\":200,\"data\":[],\"message\":\"success\"}"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/customer/990000001/shares", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"无权查看该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"}", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/customer/990000001/shares", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"无权查看该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "POST", "u": "/api/customer/990000001/shares", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "POST", "u": "/api/customer/990000001/shares", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"客户不存在\"}"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/customer/990000001/shares", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"无权编辑该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"}", "expect_pass": true}
+{"c": "C-xz", "m": "POST", "u": "/api/customer/990000001/shares", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"无权编辑该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "DELETE", "u": "/api/customer/990000001/shares/{userId}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/css\">body {font-famil"}
+{"c": "B-badparam", "m": "DELETE", "u": "/api/customer/990000001/shares/{userId}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/css\">body {font-famil"}
+{"c": "C-sales_ty", "m": "DELETE", "u": "/api/customer/990000001/shares/{userId}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/c", "expect_pass": true}
+{"c": "C-xz", "m": "DELETE", "u": "/api/customer/990000001/shares/{userId}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/c", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/customer/990000001/stage-amounts", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/customer/990000001/stage-amounts", "st": 200, "b": "{\"code\":200,\"data\":{\"rows\":[],\"coreType\":\"\",\"coreMinorWan\":50,\"coreMajorWan\":100,\"baseYear\":0,\"annualInvoiceAmount\":0,\"a"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/customer/990000001/stage-amounts", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"无权查看该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"}", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/customer/990000001/stage-amounts", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"无权查看该客户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "POST", "u": "/api/customer/990000001/stage-amounts", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "POST", "u": "/api/customer/990000001/stage-amounts", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"客户不存在或已删除，无法录入财务记录\"}"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/customer/990000001/stage-amounts", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"客户不存在或已删除，无法录入财务记录\"}", "expect_pass": false}
+{"c": "C-xz", "m": "POST", "u": "/api/customer/990000001/stage-amounts", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"客户不存在或已删除，无法录入财务记录\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "DELETE", "u": "/api/draft/{draftType}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/css\">body {font-famil"}
+{"c": "B-badparam", "m": "DELETE", "u": "/api/draft/{draftType}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/css\">body {font-famil"}
+{"c": "C-sales_ty", "m": "DELETE", "u": "/api/draft/{draftType}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/c", "expect_pass": true}
+{"c": "C-xz", "m": "DELETE", "u": "/api/draft/{draftType}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/c", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/draft/{draftType}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/css\">body {font-famil"}
+{"c": "B-normal", "m": "GET", "u": "/api/draft/{draftType}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/css\">body {font-famil"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/draft/{draftType}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/c", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/draft/{draftType}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/c", "expect_pass": true}
+{"c": "A-noauth", "m": "PUT", "u": "/api/draft/{draftType}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/css\">body {font-famil"}
+{"c": "B-badparam", "m": "PUT", "u": "/api/draft/{draftType}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/css\">body {font-famil"}
+{"c": "C-sales_ty", "m": "PUT", "u": "/api/draft/{draftType}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/c", "expect_pass": true}
+{"c": "C-xz", "m": "PUT", "u": "/api/draft/{draftType}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/c", "expect_pass": true}
+{"c": "A-noauth", "m": "PUT", "u": "/api/draft/{draftType}/force", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/css\">body {font-famil"}
+{"c": "B-badparam", "m": "PUT", "u": "/api/draft/{draftType}/force", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/css\">body {font-famil"}
+{"c": "C-sales_ty", "m": "PUT", "u": "/api/draft/{draftType}/force", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/c", "expect_pass": true}
+{"c": "C-xz", "m": "PUT", "u": "/api/draft/{draftType}/force", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/c", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/file/download-token", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/file/download-token", "st": 200, "b": "{\"code\":200,\"data\":{\"token\":\"<REDACTED-JWT>"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/file/download-token", "st": 200, "b": "{\"code\":200,\"data\":{\"token\":\"<REDACTED-JWT>", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/file/download-token", "st": 200, "b": "{\"code\":200,\"data\":{\"token\":\"<REDACTED-JWT>", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/file/download/**", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/file/download/**", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"参数类型不正确：id 应为Long\"}"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/file/download/**", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"参数类型不正确：id 应为Long\"}", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/file/download/**", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"参数类型不正确：id 应为Long\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/file/download/public/**", "st": 404, "b": ""}
+{"c": "B-normal", "m": "GET", "u": "/api/file/download/public/**", "st": 404, "b": ""}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/file/download/public/**", "st": 404, "b": "", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/file/download/public/**", "st": 404, "b": "", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/file/download/990000001", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/file/download/990000001", "st": 404, "b": ""}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/file/download/990000001", "st": 404, "b": "", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/file/download/990000001", "st": 404, "b": "", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/file/folders", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/file/folders", "st": 200, "b": "{\"code\":200,\"data\":[{\"children\":[],\"createdAt\":\"2026-06-16T11:31:45\",\"downloadable\":1,\"fileCount\":2,\"folderName\":\"公司文件\","}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/file/folders", "st": 200, "b": "{\"code\":200,\"data\":[{\"children\":[],\"createdAt\":\"2026-06-16T11:31:45\",\"downloadable\":1,\"fileCount\":2,", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/file/folders", "st": 200, "b": "{\"code\":200,\"data\":[{\"children\":[],\"createdAt\":\"2026-06-16T11:31:45\",\"downloadable\":1,\"fileCount\":2,", "expect_pass": true}
+{"c": "A-noauth", "m": "POST", "u": "/api/file/folders", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "POST", "u": "/api/file/folders", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"不支持的文件夹类型\"}"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/file/folders", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"不支持的文件夹类型\"}", "expect_pass": true}
+{"c": "C-xz", "m": "POST", "u": "/api/file/folders", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"不支持的文件夹类型\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/file/folders/acl-roles", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/file/folders/acl-roles", "st": 200, "b": "{\"code\":200,\"data\":[{\"id\":1,\"roleName\":\"系统管理员\"},{\"id\":9,\"roleName\":\"行政\"},{\"id\":10,\"roleName\":\"销售总监\"},{\"id\":11,\"roleName\""}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/file/folders/acl-roles", "st": 200, "b": "{\"code\":200,\"data\":[{\"id\":1,\"roleName\":\"系统管理员\"},{\"id\":9,\"roleName\":\"行政\"},{\"id\":10,\"roleName\":\"销售总监\"}", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/file/folders/acl-roles", "st": 200, "b": "{\"code\":200,\"data\":[{\"id\":1,\"roleName\":\"系统管理员\"},{\"id\":9,\"roleName\":\"行政\"},{\"id\":10,\"roleName\":\"销售总监\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "DELETE", "u": "/api/file/folders/990000001", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "DELETE", "u": "/api/file/folders/990000001", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"文件夹不存在\"}"}
+{"c": "C-sales_ty", "m": "DELETE", "u": "/api/file/folders/990000001", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"文件夹不存在\"}", "expect_pass": true}
+{"c": "C-xz", "m": "DELETE", "u": "/api/file/folders/990000001", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"文件夹不存在\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "PUT", "u": "/api/file/folders/990000001", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "PUT", "u": "/api/file/folders/990000001", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"文件夹名称不能为空\"}"}
+{"c": "C-sales_ty", "m": "PUT", "u": "/api/file/folders/990000001", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"文件夹名称不能为空\"}", "expect_pass": true}
+{"c": "C-xz", "m": "PUT", "u": "/api/file/folders/990000001", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"文件夹名称不能为空\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/file/folders/990000001/acl", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/file/folders/990000001/acl", "st": 200, "b": "{\"code\":200,\"data\":[],\"message\":\"success\"}"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/file/folders/990000001/acl", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"没有访问权限，请联系管理员授权 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"}", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/file/folders/990000001/acl", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"没有访问权限，请联系管理员授权 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "POST", "u": "/api/file/folders/990000001/acl", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "POST", "u": "/api/file/folders/990000001/acl", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"参数错误\"}"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/file/folders/990000001/acl", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"参数错误\"}", "expect_pass": true}
+{"c": "C-xz", "m": "POST", "u": "/api/file/folders/990000001/acl", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"参数错误\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "DELETE", "u": "/api/file/folders/990000001/acl/{roleId}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/css\">body {font-famil"}
+{"c": "B-badparam", "m": "DELETE", "u": "/api/file/folders/990000001/acl/{roleId}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/css\">body {font-famil"}
+{"c": "C-sales_ty", "m": "DELETE", "u": "/api/file/folders/990000001/acl/{roleId}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/c", "expect_pass": true}
+{"c": "C-xz", "m": "DELETE", "u": "/api/file/folders/990000001/acl/{roleId}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/c", "expect_pass": true}
+{"c": "A-noauth", "m": "PUT", "u": "/api/file/folders/990000001/download", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "PUT", "u": "/api/file/folders/990000001/download", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"非法开关值\"}"}
+{"c": "C-sales_ty", "m": "PUT", "u": "/api/file/folders/990000001/download", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"没有访问权限，请联系管理员授权 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"}", "expect_pass": true}
+{"c": "C-xz", "m": "PUT", "u": "/api/file/folders/990000001/download", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"没有访问权限，请联系管理员授权 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/file/folders/990000001/permissions", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/file/folders/990000001/permissions", "st": 200, "b": "{\"code\":200,\"data\":{\"perms\":[],\"downloadable\":1},\"message\":\"success\"}"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/file/folders/990000001/permissions", "st": 200, "b": "{\"code\":200,\"data\":{\"perms\":[],\"downloadable\":1},\"message\":\"success\"}", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/file/folders/990000001/permissions", "st": 200, "b": "{\"code\":200,\"data\":{\"perms\":[],\"downloadable\":1},\"message\":\"success\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/file/list", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/file/list", "st": 200, "b": "{\"code\":200,\"data\":{\"current\":1,\"pages\":0,\"records\":[],\"size\":10,\"total\":0},\"message\":\"success\"}"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/file/list", "st": 200, "b": "{\"code\":200,\"data\":{\"current\":1,\"pages\":0,\"records\":[],\"size\":10,\"total\":0},\"message\":\"success\"}", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/file/list", "st": 200, "b": "{\"code\":200,\"data\":{\"current\":1,\"pages\":0,\"records\":[],\"size\":10,\"total\":0},\"message\":\"success\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/file/reconciliation", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/file/reconciliation", "st": 200, "b": "{\"code\":200,\"data\":{\"totalFiles\":2433,\"presentFiles\":2433,\"missingFiles\":0,\"missingRate\":\"0.0%\",\"uploadDir\":\"/app/upload"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/file/reconciliation", "st": 200, "b": "{\"code\":200,\"data\":{\"totalFiles\":2433,\"presentFiles\":2433,\"missingFiles\":0,\"missingRate\":\"0.0%\",\"upl", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/file/reconciliation", "st": 200, "b": "{\"code\":200,\"data\":{\"totalFiles\":2433,\"presentFiles\":2433,\"missingFiles\":0,\"missingRate\":\"0.0%\",\"upl", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/file/shared-to-me", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/file/shared-to-me", "st": 200, "b": "{\"code\":200,\"data\":{\"current\":1,\"pages\":0,\"records\":[],\"size\":10,\"total\":0},\"message\":\"success\"}"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/file/shared-to-me", "st": 200, "b": "{\"code\":200,\"data\":{\"current\":1,\"pages\":0,\"records\":[],\"size\":10,\"total\":0},\"message\":\"success\"}", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/file/shared-to-me", "st": 200, "b": "{\"code\":200,\"data\":{\"current\":1,\"pages\":0,\"records\":[],\"size\":10,\"total\":0},\"message\":\"success\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/file/shared-to-me/count", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/file/shared-to-me/count", "st": 200, "b": "{\"code\":200,\"data\":0,\"message\":\"success\"}"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/file/shared-to-me/count", "st": 200, "b": "{\"code\":200,\"data\":0,\"message\":\"success\"}", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/file/shared-to-me/count", "st": 200, "b": "{\"code\":200,\"data\":0,\"message\":\"success\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/file/storage", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/file/storage", "st": 200, "b": "{\"code\":200,\"data\":{\"quotaFormatted\":\"10.0GB\",\"quota\":10737418240,\"usedFormatted\":\"797.7KB\",\"used\":816798},\"message\":\"su"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/file/storage", "st": 200, "b": "{\"code\":200,\"data\":{\"quotaFormatted\":\"10.0GB\",\"quota\":10737418240,\"usedFormatted\":\"0B\",\"used\":0},\"me", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/file/storage", "st": 200, "b": "{\"code\":200,\"data\":{\"quotaFormatted\":\"10.0GB\",\"quota\":10737418240,\"usedFormatted\":\"0B\",\"used\":0},\"me", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/file/storage/apply-info", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/file/storage/apply-info", "st": 200, "b": "{\"code\":200,\"data\":{\"used\":816798,\"quota\":10737418240,\"maxQuota\":107374182400,\"canApply\":true,\"reason\":null,\"enabled\":tr"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/file/storage/apply-info", "st": 200, "b": "{\"code\":200,\"data\":{\"used\":0,\"quota\":10737418240,\"maxQuota\":107374182400,\"canApply\":false,\"reason\":\"", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/file/storage/apply-info", "st": 200, "b": "{\"code\":200,\"data\":{\"used\":0,\"quota\":10737418240,\"maxQuota\":107374182400,\"canApply\":false,\"reason\":\"", "expect_pass": true}
+{"c": "A-noauth", "m": "POST", "u": "/api/file/upload", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "POST", "u": "/api/file/upload", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"请使用 multipart/form-data 表单提交文件\"}"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/file/upload", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"请使用 multipart/form-data 表单提交文件\"}", "expect_pass": true}
+{"c": "C-xz", "m": "POST", "u": "/api/file/upload", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"请使用 multipart/form-data 表单提交文件\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "DELETE", "u": "/api/file/990000001", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "DELETE", "u": "/api/file/990000001", "st": 200, "b": "{\"code\":200,\"data\":null,\"message\":\"success\"}"}
+{"c": "C-sales_ty", "m": "DELETE", "u": "/api/file/990000001", "st": 200, "b": "{\"code\":200,\"data\":null,\"message\":\"success\"}", "expect_pass": true}
+{"c": "C-xz", "m": "DELETE", "u": "/api/file/990000001", "st": 200, "b": "{\"code\":200,\"data\":null,\"message\":\"success\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "PUT", "u": "/api/file/990000001/rename", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "PUT", "u": "/api/file/990000001/rename", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"文件不存在\"}"}
+{"c": "C-sales_ty", "m": "PUT", "u": "/api/file/990000001/rename", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"文件不存在\"}", "expect_pass": true}
+{"c": "C-xz", "m": "PUT", "u": "/api/file/990000001/rename", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"文件不存在\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "POST", "u": "/api/file/990000001/replace", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "POST", "u": "/api/file/990000001/replace", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"请使用 multipart/form-data 表单提交文件\"}"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/file/990000001/replace", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"请使用 multipart/form-data 表单提交文件\"}", "expect_pass": true}
+{"c": "C-xz", "m": "POST", "u": "/api/file/990000001/replace", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"请使用 multipart/form-data 表单提交文件\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "POST", "u": "/api/file/990000001/share", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "POST", "u": "/api/file/990000001/share", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"文件不存在\"}"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/file/990000001/share", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"文件不存在\"}", "expect_pass": true}
+{"c": "C-xz", "m": "POST", "u": "/api/file/990000001/share", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"文件不存在\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/incentive/categories", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/incentive/categories", "st": 200, "b": "{\"code\":200,\"data\":[{\"_recordCount\":336,\"categoryCode\":\"trial\",\"categoryName\":\"产品试点\",\"children\":[{\"_recordCount\":242,\"ca"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/incentive/categories", "st": 200, "b": "{\"code\":200,\"data\":[{\"_recordCount\":305,\"categoryCode\":\"trial\",\"categoryName\":\"产品试点\",\"children\":[{\"_", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/incentive/categories", "st": 200, "b": "{\"code\":200,\"data\":[{\"_recordCount\":305,\"categoryCode\":\"trial\",\"categoryName\":\"产品试点\",\"children\":[{\"_", "expect_pass": true}
+{"c": "A-noauth", "m": "POST", "u": "/api/incentive/categories", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "POST", "u": "/api/incentive/categories", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"类别名称不能为空\"}"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/incentive/categories", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"类别名称不能为空\"}", "expect_pass": true}
+{"c": "C-xz", "m": "POST", "u": "/api/incentive/categories", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"类别名称不能为空\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "DELETE", "u": "/api/incentive/categories/990000001", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "DELETE", "u": "/api/incentive/categories/990000001", "st": 200, "b": "{\"code\":200,\"data\":null,\"message\":\"success\"}"}
+{"c": "C-sales_ty", "m": "DELETE", "u": "/api/incentive/categories/990000001", "st": 200, "b": "{\"code\":200,\"data\":null,\"message\":\"success\"}", "expect_pass": true}
+{"c": "C-xz", "m": "DELETE", "u": "/api/incentive/categories/990000001", "st": 200, "b": "{\"code\":200,\"data\":null,\"message\":\"success\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "PUT", "u": "/api/incentive/categories/990000001", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "PUT", "u": "/api/incentive/categories/990000001", "st": 200, "b": "{\"code\":200,\"data\":null,\"message\":\"success\"}"}
+{"c": "C-sales_ty", "m": "PUT", "u": "/api/incentive/categories/990000001", "st": 200, "b": "{\"code\":200,\"data\":null,\"message\":\"success\"}", "expect_pass": true}
+{"c": "C-xz", "m": "PUT", "u": "/api/incentive/categories/990000001", "st": 200, "b": "{\"code\":200,\"data\":null,\"message\":\"success\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/incentive/category-stats", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/incentive/category-stats", "st": 200, "b": "{\"code\":200,\"data\":{\"totalPost\":334,\"totalMid\":336,\"byCategory\":[{\"categoryId\":43,\"fileCount\":23,\"totalScore\":20,\"preCou"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/incentive/category-stats", "st": 200, "b": "{\"code\":200,\"data\":{\"totalPost\":0,\"totalMid\":0,\"byCategory\":[],\"totalPre\":0,\"totalFiles\":0,\"totalSco", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/incentive/category-stats", "st": 200, "b": "{\"code\":200,\"data\":{\"totalPost\":86,\"totalMid\":86,\"byCategory\":[{\"categoryId\":20,\"fileCount\":2,\"total", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/incentive/customer-records", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/incentive/customer-records", "st": 200, "b": "{\"code\":200,\"data\":[{\"customerId\":256,\"customerName\":\"邯钢集团邯宝钢铁有限公司（唐邯潇）\",\"ownerName\":null,\"ownerId\":52,\"industry\":\"冶金\",\""}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/incentive/customer-records", "st": 200, "b": "{\"code\":200,\"data\":[],\"message\":\"success\"}", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/incentive/customer-records", "st": 200, "b": "{\"code\":200,\"data\":[],\"message\":\"success\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/incentive/permission/check", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/incentive/permission/check", "st": 200, "b": "{\"code\":200,\"data\":{\"canEdit\":true,\"canViewShared\":true,\"canDelete\":true,\"canViewAll\":true},\"message\":\"success\"}"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/incentive/permission/check", "st": 200, "b": "{\"code\":200,\"data\":{\"canEdit\":false,\"canViewShared\":true,\"canDelete\":false,\"canViewAll\":false},\"mess", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/incentive/permission/check", "st": 200, "b": "{\"code\":200,\"data\":{\"canEdit\":false,\"canViewShared\":true,\"canDelete\":false,\"canViewAll\":false},\"mess", "expect_pass": true}
+{"c": "A-noauth", "m": "POST", "u": "/api/incentive/permission/grant", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "POST", "u": "/api/incentive/permission/grant", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"请选择要授权的人员或角色\"}"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/incentive/permission/grant", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「系统配置编辑(system:config:edit)」功能权限。如需访问此内容，请联系管理员在【系统设", "expect_pass": false}
+{"c": "C-xz", "m": "POST", "u": "/api/incentive/permission/grant", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「系统配置编辑(system:config:edit)」功能权限。如需访问此内容，请联系管理员在【系统设", "expect_pass": false}
+{"c": "A-noauth", "m": "GET", "u": "/api/incentive/permission/list", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/incentive/permission/list", "st": 200, "b": "{\"code\":200,\"data\":[{\"id\":1,\"userId\":1,\"username\":\"admin\",\"realName\":\"管理员\",\"canViewShared\":1,\"canViewAll\":1,\"canEdit\":0,"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/incentive/permission/list", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「系统设置(system:config:view)」功能权限。如需访问此内容，请联系管理员在【系统设置 ", "expect_pass": false}
+{"c": "C-xz", "m": "GET", "u": "/api/incentive/permission/list", "st": 200, "b": "{\"code\":200,\"data\":[{\"id\":1,\"userId\":1,\"username\":\"admin\",\"realName\":\"管理员\",\"canViewShared\":1,\"canVie", "expect_pass": true}
+{"c": "A-noauth", "m": "DELETE", "u": "/api/incentive/permission/990000001", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "DELETE", "u": "/api/incentive/permission/990000001", "st": 200, "b": "{\"code\":200,\"data\":null,\"message\":\"success\"}"}
+{"c": "C-sales_ty", "m": "DELETE", "u": "/api/incentive/permission/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「系统配置编辑(system:config:edit)」功能权限。如需访问此内容，请联系管理员在【系统设", "expect_pass": false}
+{"c": "C-xz", "m": "DELETE", "u": "/api/incentive/permission/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「系统配置编辑(system:config:edit)」功能权限。如需访问此内容，请联系管理员在【系统设", "expect_pass": false}
+{"c": "A-noauth", "m": "GET", "u": "/api/incentive/ranking", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/incentive/ranking", "st": 200, "b": "{\"code\":200,\"data\":[{\"rank\":1,\"userId\":40,\"totalScore\":81,\"recordCount\":44,\"preCount\":43,\"midCount\":19,\"postCount\":19,\"b"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/incentive/ranking", "st": 200, "b": "{\"code\":200,\"data\":[],\"message\":\"success\"}", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/incentive/ranking", "st": 200, "b": "{\"code\":200,\"data\":[{\"rank\":1,\"userId\":45,\"totalScore\":55,\"recordCount\":34,\"preCount\":34,\"midCount\":", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/incentive/read-ranking", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/incentive/read-ranking", "st": 200, "b": "{\"code\":200,\"data\":{\"period\":\"2026-11\",\"publishedTotal\":0,\"readTotal\":0,\"participantCount\":0,\"userCount\":36,\"avgReadRate"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/incentive/read-ranking", "st": 200, "b": "{\"code\":200,\"data\":{\"period\":\"2026-11\",\"publishedTotal\":0,\"readTotal\":0,\"participantCount\":0,\"userCo", "expect_pass": false}
+{"c": "C-xz", "m": "GET", "u": "/api/incentive/read-ranking", "st": 200, "b": "{\"code\":200,\"data\":{\"period\":\"2026-11\",\"publishedTotal\":0,\"readTotal\":0,\"participantCount\":0,\"userCo", "expect_pass": false}
+{"c": "A-noauth", "m": "GET", "u": "/api/incentive/read-stats", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/incentive/read-stats", "st": 200, "b": "{\"code\":200,\"data\":[{\"userId\":69,\"realName\":\"测试\",\"deptName\":\"太原办销售部\",\"publishedCount\":0,\"readCount\":0,\"unreadCount\":0},{"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/incentive/read-stats", "st": 200, "b": "{\"code\":200,\"data\":[{\"userId\":69,\"realName\":\"测试\",\"deptName\":\"太原办销售部\",\"publishedCount\":0,\"readCount\":", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/incentive/read-stats", "st": 200, "b": "{\"code\":200,\"data\":[{\"userId\":69,\"realName\":\"测试\",\"deptName\":\"太原办销售部\",\"publishedCount\":0,\"readCount\":", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/incentive/records", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/incentive/records", "st": 200, "b": "{\"code\":200,\"data\":[{\"categoryId\":44,\"categoryName\":\"润滑类\",\"createdAt\":\"2026-10-14T23:45:41\",\"customerId\":359,\"customerNa"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/incentive/records", "st": 200, "b": "{\"code\":200,\"data\":[{\"categoryId\":44,\"categoryName\":\"润滑类\",\"createdAt\":\"2026-10-14T23:45:41\",\"custome", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/incentive/records", "st": 200, "b": "{\"code\":200,\"data\":[{\"categoryId\":44,\"categoryName\":\"润滑类\",\"createdAt\":\"2026-10-14T23:45:41\",\"custome", "expect_pass": true}
+{"c": "A-noauth", "m": "POST", "u": "/api/incentive/records", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "POST", "u": "/api/incentive/records", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"请选择激励分类\"}"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/incentive/records", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"请选择激励分类\"}", "expect_pass": true}
+{"c": "C-xz", "m": "POST", "u": "/api/incentive/records", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"请选择激励分类\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "DELETE", "u": "/api/incentive/records/990000001", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "DELETE", "u": "/api/incentive/records/990000001", "st": 200, "b": "{\"code\":200,\"data\":null,\"message\":\"success\"}"}
+{"c": "C-sales_ty", "m": "DELETE", "u": "/api/incentive/records/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"无权删除他人记录 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"}", "expect_pass": true}
+{"c": "C-xz", "m": "DELETE", "u": "/api/incentive/records/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"无权删除他人记录 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "PUT", "u": "/api/incentive/records/990000001", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "PUT", "u": "/api/incentive/records/990000001", "st": 200, "b": "{\"code\":200,\"data\":null,\"message\":\"success\"}"}
+{"c": "C-sales_ty", "m": "PUT", "u": "/api/incentive/records/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"无权编辑他人记录 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"}", "expect_pass": true}
+{"c": "C-xz", "m": "PUT", "u": "/api/incentive/records/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"无权编辑他人记录 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "POST", "u": "/api/incentive/records/990000001/read", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "POST", "u": "/api/incentive/records/990000001/read", "st": 404, "b": "{\"code\":404,\"data\":null,\"message\":\"记录不存在或无权访问\"}"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/incentive/records/990000001/read", "st": 404, "b": "{\"code\":404,\"data\":null,\"message\":\"记录不存在或无权访问\"}", "expect_pass": true}
+{"c": "C-xz", "m": "POST", "u": "/api/incentive/records/990000001/read", "st": 404, "b": "{\"code\":404,\"data\":null,\"message\":\"记录不存在或无权访问\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "POST", "u": "/api/incentive/records/990000001/remove-file", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "POST", "u": "/api/incentive/records/990000001/remove-file", "st": 404, "b": "{\"code\":404,\"data\":null,\"message\":\"记录不存在\"}"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/incentive/records/990000001/remove-file", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"无权编辑他人记录 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"}", "expect_pass": true}
+{"c": "C-xz", "m": "POST", "u": "/api/incentive/records/990000001/remove-file", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"无权编辑他人记录 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/incentive/score/customer/{customerId}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/css\">body {font-famil"}
+{"c": "B-normal", "m": "GET", "u": "/api/incentive/score/customer/{customerId}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/css\">body {font-famil"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/incentive/score/customer/{customerId}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/c", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/incentive/score/customer/{customerId}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/c", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/incentive/scoreboard", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/incentive/scoreboard", "st": 200, "b": "{\"code\":200,\"data\":[{\"rank\":1,\"userId\":40,\"totalScore\":81,\"recordCount\":44,\"preCount\":43,\"midCount\":19,\"postCount\":19,\"b"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/incentive/scoreboard", "st": 200, "b": "{\"code\":200,\"data\":[],\"message\":\"success\"}", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/incentive/scoreboard", "st": 200, "b": "{\"code\":200,\"data\":[{\"rank\":1,\"userId\":45,\"totalScore\":55,\"recordCount\":34,\"preCount\":34,\"midCount\":", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/incentive/users", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/incentive/users", "st": 200, "b": "{\"code\":200,\"data\":[{\"realName\":\"余慧\",\"id\":49},{\"realName\":\"冀晓伟\",\"id\":42},{\"realName\":\"冒烟销售员\",\"id\":72},{\"realName\":\"刘振宇\","}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/incentive/users", "st": 200, "b": "{\"code\":200,\"data\":[{\"realName\":\"冀晓伟\",\"id\":42},{\"realName\":\"刘振宇\",\"id\":59},{\"realName\":\"刘月霞\",\"id\":46}", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/incentive/users", "st": 200, "b": "{\"code\":200,\"data\":[{\"realName\":\"冀晓伟\",\"id\":42},{\"realName\":\"刘振宇\",\"id\":59},{\"realName\":\"刘月霞\",\"id\":46}", "expect_pass": true}
+{"c": "A-noauth", "m": "POST", "u": "/api/reminder/ensure-expiring", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "POST", "u": "/api/reminder/ensure-expiring", "st": 200, "b": "{\"code\":200,\"data\":null,\"message\":\"success\"}"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/reminder/ensure-expiring", "st": 200, "b": "{\"code\":403,\"data\":null,\"message\":\"仅管理员可批量生成到期提醒\"}", "expect_pass": true}
+{"c": "C-xz", "m": "POST", "u": "/api/reminder/ensure-expiring", "st": 200, "b": "{\"code\":403,\"data\":null,\"message\":\"仅管理员可批量生成到期提醒\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/reminder/expiring-list", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/reminder/expiring-list", "st": 200, "b": "{\"code\":200,\"data\":{\"current\":1,\"pages\":1,\"records\":[{\"officeName\":\"内蒙办销售部\",\"ownerName\":\"刘月霞\",\"reminderId\":599,\"customer"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/reminder/expiring-list", "st": 200, "b": "{\"code\":200,\"data\":{\"current\":1,\"pages\":0,\"records\":[],\"size\":15,\"total\":0},\"message\":\"success\"}", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/reminder/expiring-list", "st": 200, "b": "{\"code\":200,\"data\":{\"current\":1,\"pages\":0,\"records\":[],\"size\":15,\"total\":0},\"message\":\"success\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/reminder/list", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/reminder/list", "st": 200, "b": "{\"code\":200,\"data\":{\"current\":1,\"pages\":11,\"records\":[{\"createdAt\":\"2026-11-08T02:00:00\",\"customerId\":554,\"customerName\""}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/reminder/list", "st": 200, "b": "{\"code\":200,\"data\":{\"current\":1,\"pages\":0,\"records\":[],\"size\":15,\"total\":0},\"message\":\"success\"}", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/reminder/list", "st": 200, "b": "{\"code\":200,\"data\":{\"current\":1,\"pages\":1,\"records\":[{\"createdAt\":\"2026-07-22T11:51:52\",\"customerId\"", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/reminder/pending-count", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/reminder/pending-count", "st": 200, "b": "{\"code\":200,\"data\":15,\"message\":\"success\"}"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/reminder/pending-count", "st": 200, "b": "{\"code\":200,\"data\":0,\"message\":\"success\"}", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/reminder/pending-count", "st": 200, "b": "{\"code\":200,\"data\":0,\"message\":\"success\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/reminder/990000001", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/reminder/990000001", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"提醒不存在\"}"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/reminder/990000001", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"提醒不存在\"}", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/reminder/990000001", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"提醒不存在\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "POST", "u": "/api/reminder/990000001/process", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "POST", "u": "/api/reminder/990000001/process", "st": 200, "b": "{\"code\":200,\"data\":null,\"message\":\"success\"}"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/reminder/990000001/process", "st": 200, "b": "{\"code\":200,\"data\":null,\"message\":\"success\"}", "expect_pass": true}
+{"c": "C-xz", "m": "POST", "u": "/api/reminder/990000001/process", "st": 200, "b": "{\"code\":200,\"data\":null,\"message\":\"success\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "POST", "u": "/api/score/entries/batch", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "POST", "u": "/api/score/entries/batch", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"评分周期不能为空\"}"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/score/entries/batch", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「学分录入(score:entry)」功能权限。如需访问此内容，请联系管理员在【系统设置 → 权限中心 ", "expect_pass": false}
+{"c": "C-xz", "m": "POST", "u": "/api/score/entries/batch", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"评分周期不能为空\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/score/export/grid", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/score/export/grid", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"缺少必要参数：period\"}"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/score/export/grid", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"缺少必要参数：period\"}", "expect_pass": false}
+{"c": "C-xz", "m": "GET", "u": "/api/score/export/grid", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"缺少必要参数：period\"}", "expect_pass": false}
+{"c": "A-noauth", "m": "GET", "u": "/api/score/grid", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/score/grid", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"缺少必要参数：period\"}"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/score/grid", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"缺少必要参数：period\"}", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/score/grid", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"缺少必要参数：period\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "POST", "u": "/api/score/items", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "POST", "u": "/api/score/items", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"学分类别不能为空\"}"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/score/items", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「学分管理(score:manage)」功能权限。如需访问此内容，请联系管理员在【系统设置 → 权限中心", "expect_pass": false}
+{"c": "C-xz", "m": "POST", "u": "/api/score/items", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「学分管理(score:manage)」功能权限。如需访问此内容，请联系管理员在【系统设置 → 权限中心", "expect_pass": false}
+{"c": "A-noauth", "m": "DELETE", "u": "/api/score/items/990000001", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "DELETE", "u": "/api/score/items/990000001", "st": 200, "b": "{\"code\":200,\"data\":null,\"message\":\"success\"}"}
+{"c": "C-sales_ty", "m": "DELETE", "u": "/api/score/items/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「学分管理(score:manage)」功能权限。如需访问此内容，请联系管理员在【系统设置 → 权限中心", "expect_pass": false}
+{"c": "C-xz", "m": "DELETE", "u": "/api/score/items/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「学分管理(score:manage)」功能权限。如需访问此内容，请联系管理员在【系统设置 → 权限中心", "expect_pass": false}
+{"c": "A-noauth", "m": "PUT", "u": "/api/score/items/990000001", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "PUT", "u": "/api/score/items/990000001", "st": 200, "b": "{\"code\":200,\"data\":null,\"message\":\"success\"}"}
+{"c": "C-sales_ty", "m": "PUT", "u": "/api/score/items/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「学分管理(score:manage)」功能权限。如需访问此内容，请联系管理员在【系统设置 → 权限中心", "expect_pass": false}
+{"c": "C-xz", "m": "PUT", "u": "/api/score/items/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「学分管理(score:manage)」功能权限。如需访问此内容，请联系管理员在【系统设置 → 权限中心", "expect_pass": false}
+{"c": "A-noauth", "m": "GET", "u": "/api/score/ranking", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/score/ranking", "st": 200, "b": "{\"code\":200,\"data\":[{\"rank\":1,\"userId\":60,\"realName\":\"董泽宇\",\"officeName\":\"河北团队销售部\",\"totalScore\":16,\"itemCount\":3,\"trend\":"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/score/ranking", "st": 200, "b": "{\"code\":200,\"data\":[{\"rank\":1,\"userId\":60,\"realName\":\"董泽宇\",\"officeName\":\"河北团队销售部\",\"totalScore\":16,\"i", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/score/ranking", "st": 200, "b": "{\"code\":200,\"data\":[{\"rank\":1,\"userId\":60,\"realName\":\"董泽宇\",\"officeName\":\"河北团队销售部\",\"totalScore\":16,\"i", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/score/ranking/dept-members", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/score/ranking/dept-members", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"缺少必要参数：deptName\"}"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/score/ranking/dept-members", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"缺少必要参数：deptName\"}", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/score/ranking/dept-members", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"缺少必要参数：deptName\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/score/ranking/stats", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/score/ranking/stats", "st": 200, "b": "{\"code\":200,\"data\":{\"participantCount\":12,\"topScore\":16,\"topScoreName\":\"董泽宇\",\"deptCount\":3,\"topItemCount\":3,\"totalItemCo"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/score/ranking/stats", "st": 200, "b": "{\"code\":200,\"data\":{\"participantCount\":12,\"topScore\":16,\"topScoreName\":\"董泽宇\",\"deptCount\":3,\"topItemC", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/score/ranking/stats", "st": 200, "b": "{\"code\":200,\"data\":{\"participantCount\":12,\"topScore\":16,\"topScoreName\":\"董泽宇\",\"deptCount\":3,\"topItemC", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/sea/claim-records", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/sea/claim-records", "st": 200, "b": "{\"code\":200,\"data\":{\"total\":3,\"records\":[{\"industry\":null,\"id\":110,\"applicantName\":\"管理员\",\"applyDate\":\"2026-11-08T22:02:5"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/sea/claim-records", "st": 200, "b": "{\"code\":200,\"data\":{\"total\":0,\"records\":[],\"stats\":{\"pending\":0,\"approved\":0,\"rejected\":0,\"total\":0}", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/sea/claim-records", "st": 200, "b": "{\"code\":200,\"data\":{\"total\":0,\"records\":[],\"stats\":{\"pending\":0,\"approved\":0,\"rejected\":0,\"total\":0}", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/sea/configs", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/sea/configs", "st": 200, "b": "{\"code\":200,\"data\":[{\"claimDeptIds\":null,\"claimNames\":\"\",\"claimRoleIds\":null,\"claimUserIds\":null,\"createdAt\":\"2026-11-08"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/sea/configs", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「公海配置查看(sea:config:view)」功能权限。如需访问此内容，请联系管理员在【系统设置 →", "expect_pass": false}
+{"c": "C-xz", "m": "GET", "u": "/api/sea/configs", "st": 200, "b": "{\"code\":200,\"data\":[{\"claimDeptIds\":null,\"claimNames\":\"\",\"claimRoleIds\":null,\"claimUserIds\":null,\"cr", "expect_pass": true}
+{"c": "A-noauth", "m": "POST", "u": "/api/sea/configs", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "POST", "u": "/api/sea/configs", "st": 200, "b": "{\"code\":200,\"data\":null,\"message\":\"success\"}"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/sea/configs", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「公海配置编辑(sea:config:edit)」功能权限。如需访问此内容，请联系管理员在【系统设置 →", "expect_pass": false}
+{"c": "C-xz", "m": "POST", "u": "/api/sea/configs", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「公海配置编辑(sea:config:edit)」功能权限。如需访问此内容，请联系管理员在【系统设置 →", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/sea/configs/visible", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/sea/configs/visible", "st": 200, "b": "{\"code\":200,\"data\":[{\"claimDeptIds\":null,\"claimNames\":\"\",\"claimRoleIds\":null,\"claimUserIds\":null,\"createdAt\":\"2026-11-08"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/sea/configs/visible", "st": 200, "b": "{\"code\":200,\"data\":[{\"claimDeptIds\":\"4,5\",\"claimNames\":\"太原办销售部, 太原办行政部, 李帮文, 梁文生, 朱莉莉, 梁慧栋, 武磊, 刘振宇,", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/sea/configs/visible", "st": 200, "b": "{\"code\":200,\"data\":[{\"claimDeptIds\":\"4,5\",\"claimNames\":\"太原办销售部, 太原办行政部, 李帮文, 梁文生, 朱莉莉, 梁慧栋, 武磊, 刘振宇,", "expect_pass": true}
+{"c": "A-noauth", "m": "DELETE", "u": "/api/sea/configs/990000001", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "DELETE", "u": "/api/sea/configs/990000001", "st": 200, "b": "{\"code\":200,\"data\":null,\"message\":\"success\"}"}
+{"c": "C-sales_ty", "m": "DELETE", "u": "/api/sea/configs/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「公海配置编辑(sea:config:edit)」功能权限。如需访问此内容，请联系管理员在【系统设置 →", "expect_pass": false}
+{"c": "C-xz", "m": "DELETE", "u": "/api/sea/configs/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「公海配置编辑(sea:config:edit)」功能权限。如需访问此内容，请联系管理员在【系统设置 →", "expect_pass": true}
+{"c": "A-noauth", "m": "PUT", "u": "/api/sea/configs/990000001", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "PUT", "u": "/api/sea/configs/990000001", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"公海池名称不能为空\"}"}
+{"c": "C-sales_ty", "m": "PUT", "u": "/api/sea/configs/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「公海配置编辑(sea:config:edit)」功能权限。如需访问此内容，请联系管理员在【系统设置 →", "expect_pass": false}
+{"c": "C-xz", "m": "PUT", "u": "/api/sea/configs/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「公海配置编辑(sea:config:edit)」功能权限。如需访问此内容，请联系管理员在【系统设置 →", "expect_pass": true}
+{"c": "A-noauth", "m": "POST", "u": "/api/sea/import", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "POST", "u": "/api/sea/import", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"请使用 multipart/form-data 表单提交文件\"}"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/sea/import", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"请使用 multipart/form-data 表单提交文件\"}", "expect_pass": false}
+{"c": "C-xz", "m": "POST", "u": "/api/sea/import", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"请使用 multipart/form-data 表单提交文件\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/sea/list", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/sea/list", "st": 200, "b": "{\"code\":200,\"data\":{\"current\":1,\"pages\":2,\"records\":[{\"canClaim\":true,\"canDelete\":true,\"canEdit\":true,\"claimDate\":\"2026-"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/sea/list", "st": 200, "b": "{\"code\":200,\"data\":{\"current\":1,\"pages\":1,\"records\":[{\"canClaim\":true,\"canDelete\":false,\"canEdit\":fa", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/sea/list", "st": 200, "b": "{\"code\":200,\"data\":{\"current\":1,\"pages\":1,\"records\":[{\"canClaim\":true,\"canDelete\":false,\"canEdit\":fa", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/sea/org-tree", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/sea/org-tree", "st": 200, "b": "{\"code\":200,\"data\":[{\"id\":\"d_1\",\"label\":\"艾志（南京）环保管接技术股份有限公司\",\"disabled\":true,\"children\":[{\"id\":\"d_2\",\"label\":\"山西大区\",\"dis"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/sea/org-tree", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「公海配置查看(sea:config:view)」功能权限。如需访问此内容，请联系管理员在【系统设置 →", "expect_pass": false}
+{"c": "C-xz", "m": "GET", "u": "/api/sea/org-tree", "st": 200, "b": "{\"code\":200,\"data\":[{\"id\":\"d_1\",\"label\":\"艾志（南京）环保管接技术股份有限公司\",\"disabled\":true,\"children\":[{\"id\":\"d_2\"", "expect_pass": true}
+{"c": "A-noauth", "m": "DELETE", "u": "/api/sea/pool/990000001", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "DELETE", "u": "/api/sea/pool/990000001", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"资源不存在或无权访问\"}"}
+{"c": "C-sales_ty", "m": "DELETE", "u": "/api/sea/pool/990000001", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"资源不存在或无权访问\"}", "expect_pass": true}
+{"c": "C-xz", "m": "DELETE", "u": "/api/sea/pool/990000001", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"资源不存在或无权访问\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/sea/statistics", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/sea/statistics", "st": 200, "b": "{\"code\":200,\"data\":{\"total\":29,\"newThisMonth\":2,\"claimedThisMonth\":0,\"pendingApproval\":1},\"message\":\"success\"}"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/sea/statistics", "st": 200, "b": "{\"code\":200,\"data\":{\"total\":10,\"newThisMonth\":1,\"claimedThisMonth\":0,\"pendingApproval\":0},\"message\":", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/sea/statistics", "st": 200, "b": "{\"code\":200,\"data\":{\"total\":10,\"newThisMonth\":1,\"claimedThisMonth\":0,\"pendingApproval\":0},\"message\":", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/statistics/analysis", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/statistics/analysis", "st": 200, "b": "{\"code\":200,\"data\":{\"expiring\":14,\"totalCustomers\":296,\"expired\":0,\"officeComparison\":[{\"officeName\":\"太原办销售部\",\"customerC"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/statistics/analysis", "st": 200, "b": "{\"code\":200,\"data\":{\"expiring\":0,\"totalCustomers\":1,\"expired\":0,\"officeComparison\":[{\"officeName\":\"太", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/statistics/analysis", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「统计分析(statistics:view)」功能权限。如需访问此内容，请联系管理员在【系统设置 → 权", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/statistics/customer-rankings", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/statistics/customer-rankings", "st": 200, "b": "{\"code\":200,\"data\":{\"period\":null,\"incentiveParents\":[{\"id\":4,\"categoryName\":\"产品试点\"},{\"id\":2,\"categoryName\":\"交流拜访\"},{\"id"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/statistics/customer-rankings", "st": 200, "b": "{\"code\":200,\"data\":{\"period\":null,\"incentiveParents\":[{\"id\":4,\"categoryName\":\"产品试点\"},{\"id\":2,\"catego", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/statistics/customer-rankings", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「统计分析(statistics:view)」功能权限。如需访问此内容，请联系管理员在【系统设置 → 权", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/statistics/daily-stats", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/statistics/daily-stats", "st": 200, "b": "{\"code\":200,\"data\":{\"fileDays\":[{\"date\":\"2026-11-01\",\"day\":1,\"value\":0},{\"date\":\"2026-11-02\",\"day\":2,\"value\":0},{\"date\":"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/statistics/daily-stats", "st": 200, "b": "{\"code\":200,\"data\":{\"fileDays\":[{\"date\":\"2026-11-01\",\"day\":1,\"value\":0},{\"date\":\"2026-11-02\",\"day\":2", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/statistics/daily-stats", "st": 200, "b": "{\"code\":200,\"data\":{\"fileDays\":[{\"date\":\"2026-11-01\",\"day\":1,\"value\":0},{\"date\":\"2026-11-02\",\"day\":2", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/statistics/dashboard", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/statistics/dashboard", "st": 200, "b": "{\"code\":200,\"data\":{\"expiring\":14,\"expired\":0,\"expiringDetails\":[{\"officeName\":\"内蒙办销售部\",\"daysLeft\":2,\"customerName\":\"中国石"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/statistics/dashboard", "st": 200, "b": "{\"code\":200,\"data\":{\"expiring\":0,\"expired\":0,\"expiringDetails\":[],\"inProtection\":1,\"approvalStats\":{", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/statistics/dashboard", "st": 200, "b": "{\"code\":200,\"data\":{\"expiring\":0,\"expired\":0,\"expiringDetails\":[],\"inProtection\":0,\"approvalStats\":{", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/statistics/indicator-stats", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/statistics/indicator-stats", "st": 200, "b": "{\"code\":200,\"data\":{\"coreMajorWan\":100,\"qualifyRate\":0.0,\"coreMinorWan\":50,\"coveredCount\":24,\"customerRanking\":[{\"custom"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/statistics/indicator-stats", "st": 200, "b": "{\"code\":200,\"data\":{\"coreMajorWan\":100,\"qualifyRate\":0.0,\"coreMinorWan\":50,\"coveredCount\":0,\"custome", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/statistics/indicator-stats", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「统计分析(statistics:view)」功能权限。如需访问此内容，请联系管理员在【系统设置 → 权", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/statistics/team-activities", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/statistics/team-activities", "st": 200, "b": "{\"code\":200,\"data\":[{\"title\":\"客户 · 删除\",\"user\":\"自动化行政\",\"dept\":\"太原办行政部\",\"time\":\"2026-11-09T01:22:50\"},{\"title\":\"客户 · 删除\",\""}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/statistics/team-activities", "st": 200, "b": "{\"code\":200,\"data\":[{\"title\":\"客户 · 删除\",\"user\":\"自动化太原销售2\",\"dept\":\"太原办销售部\",\"time\":\"2026-11-09T01:22:50", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/statistics/team-activities", "st": 200, "b": "{\"code\":200,\"data\":[{\"title\":\"客户 · 删除\",\"user\":\"自动化行政\",\"dept\":\"太原办行政部\",\"time\":\"2026-11-09T01:22:50\"},", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/statistics/weekly-stats", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/statistics/weekly-stats", "st": 200, "b": "{\"code\":200,\"data\":{\"fileWeeks\":[{\"label\":\"W1\",\"value\":2},{\"label\":\"本周\",\"value\":0}],\"customerWeeks\":[{\"label\":\"W1\",\"valu"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/statistics/weekly-stats", "st": 200, "b": "{\"code\":200,\"data\":{\"fileWeeks\":[{\"label\":\"W1\",\"value\":0},{\"label\":\"本周\",\"value\":0}],\"customerWeeks\":", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/statistics/weekly-stats", "st": 200, "b": "{\"code\":200,\"data\":{\"fileWeeks\":[{\"label\":\"W1\",\"value\":0},{\"label\":\"本周\",\"value\":0}],\"customerWeeks\":", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/system/audit-logs", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/system/audit-logs", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「日志查看(system:log:view)」功能权限。如需访问此内容，请联系管理员在【系统设置 → 权限中心 → 功能与范围】开启「日志查看」"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/system/audit-logs", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「日志查看(system:log:view)」功能权限。如需访问此内容，请联系管理员在【系统设置 → 权", "expect_pass": false}
+{"c": "C-xz", "m": "GET", "u": "/api/system/audit-logs", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「日志查看(system:log:view)」功能权限。如需访问此内容，请联系管理员在【系统设置 → 权", "expect_pass": false}
+{"c": "A-noauth", "m": "GET", "u": "/api/system/configs", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/system/configs", "st": 200, "b": "{\"code\":200,\"data\":[{\"configKey\":\"customer.protection.days\",\"configValue\":\"365\",\"description\":\"客户保护期天数\",\"id\":1,\"updatedA"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/system/configs", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「系统设置(system:config:view)」功能权限。如需访问此内容，请联系管理员在【系统设置 ", "expect_pass": false}
+{"c": "C-xz", "m": "GET", "u": "/api/system/configs", "st": 200, "b": "{\"code\":200,\"data\":[{\"configKey\":\"customer.protection.days\",\"configValue\":\"365\",\"description\":\"客户保护期", "expect_pass": true}
+{"c": "A-noauth", "m": "PUT", "u": "/api/system/configs", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "PUT", "u": "/api/system/configs", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"请求体格式不正确，请检查JSON格式\"}"}
+{"c": "C-sales_ty", "m": "PUT", "u": "/api/system/configs", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"请求体格式不正确，请检查JSON格式\"}", "expect_pass": false}
+{"c": "C-xz", "m": "PUT", "u": "/api/system/configs", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"请求体格式不正确，请检查JSON格式\"}", "expect_pass": false}
+{"c": "A-noauth", "m": "GET", "u": "/api/system/configs/logo", "st": 200, "b": "����\u0016�Exif\u0000\u0000MM\u0000*\u0000\u0000\u0000\b\u0000\n\u0001\u0000\u0000\u0003\u0000\u0000\u0000\u0001\u0001�\u0000\u0000\u0001\u0001\u0000\u0003\u0000\u0000\u0000\u0001\u0001�\u0000\u0000\u0001\u0002\u0000\u0003\u0000\u0000\u0000\u0003\u0000\u0000\u0000�\u0001\u0006\u0000\u0003\u0000\u0000\u0000\u0001\u0000\u0002\u0000\u0000\u0001\u0012\u0000\u0003\u0000\u0000\u0000\u0001\u0000\u0001\u0000\u0000\u0001\u0015\u0000\u0003\u0000\u0000\u0000\u0001\u0000\u0003\u0000\u0000\u0001\u001a\u0000\u0005\u0000\u0000\u0000\u0001\u0000\u0000\u0000�\u0001\u001b\u0000\u0005\u0000\u0000\u0000\u0001\u0000\u0000\u0000�\u0001("}
+{"c": "B-normal", "m": "GET", "u": "/api/system/configs/logo", "st": 200, "b": "����\u0016�Exif\u0000\u0000MM\u0000*\u0000\u0000\u0000\b\u0000\n\u0001\u0000\u0000\u0003\u0000\u0000\u0000\u0001\u0001�\u0000\u0000\u0001\u0001\u0000\u0003\u0000\u0000\u0000\u0001\u0001�\u0000\u0000\u0001\u0002\u0000\u0003\u0000\u0000\u0000\u0003\u0000\u0000\u0000�\u0001\u0006\u0000\u0003\u0000\u0000\u0000\u0001\u0000\u0002\u0000\u0000\u0001\u0012\u0000\u0003\u0000\u0000\u0000\u0001\u0000\u0001\u0000\u0000\u0001\u0015\u0000\u0003\u0000\u0000\u0000\u0001\u0000\u0003\u0000\u0000\u0001\u001a\u0000\u0005\u0000\u0000\u0000\u0001\u0000\u0000\u0000�\u0001\u001b\u0000\u0005\u0000\u0000\u0000\u0001\u0000\u0000\u0000�\u0001("}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/system/configs/logo", "st": 200, "b": "����\u0016�Exif\u0000\u0000MM\u0000*\u0000\u0000\u0000\b\u0000\n\u0001\u0000\u0000\u0003\u0000\u0000\u0000\u0001\u0001�\u0000\u0000\u0001\u0001\u0000\u0003\u0000\u0000\u0000\u0001\u0001�\u0000\u0000\u0001\u0002\u0000\u0003\u0000\u0000\u0000\u0003\u0000\u0000\u0000�\u0001\u0006\u0000\u0003\u0000\u0000\u0000\u0001\u0000\u0002\u0000\u0000\u0001\u0012\u0000\u0003\u0000\u0000\u0000\u0001\u0000\u0001\u0000\u0000\u0001\u0015\u0000\u0003\u0000\u0000\u0000\u0001\u0000\u0003\u0000\u0000\u0001\u001a\u0000\u0005\u0000\u0000", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/system/configs/logo", "st": 200, "b": "����\u0016�Exif\u0000\u0000MM\u0000*\u0000\u0000\u0000\b\u0000\n\u0001\u0000\u0000\u0003\u0000\u0000\u0000\u0001\u0001�\u0000\u0000\u0001\u0001\u0000\u0003\u0000\u0000\u0000\u0001\u0001�\u0000\u0000\u0001\u0002\u0000\u0003\u0000\u0000\u0000\u0003\u0000\u0000\u0000�\u0001\u0006\u0000\u0003\u0000\u0000\u0000\u0001\u0000\u0002\u0000\u0000\u0001\u0012\u0000\u0003\u0000\u0000\u0000\u0001\u0000\u0001\u0000\u0000\u0001\u0015\u0000\u0003\u0000\u0000\u0000\u0001\u0000\u0003\u0000\u0000\u0001\u001a\u0000\u0005\u0000\u0000", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/system/configs/public", "st": 200, "b": "{\"code\":200,\"data\":{\"system.name\":\"AIGICRM\",\"system.logo\":\"/api/file/download/public/1/logo.jpg\",\"customer.adjust.days\":"}
+{"c": "B-normal", "m": "GET", "u": "/api/system/configs/public", "st": 200, "b": "{\"code\":200,\"data\":{\"system.name\":\"AIGICRM\",\"system.logo\":\"/api/file/download/public/1/logo.jpg\",\"customer.adjust.days\":"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/system/configs/public", "st": 200, "b": "{\"code\":200,\"data\":{\"system.name\":\"AIGICRM\",\"system.logo\":\"/api/file/download/public/1/logo.jpg\",\"cu", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/system/configs/public", "st": 200, "b": "{\"code\":200,\"data\":{\"system.name\":\"AIGICRM\",\"system.logo\":\"/api/file/download/public/1/logo.jpg\",\"cu", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/system/depts", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/system/depts", "st": 200, "b": "{\"code\":200,\"data\":[{\"children\":null,\"createdAt\":\"2026-06-10T09:44:24\",\"deptCode\":null,\"deptName\":\"艾志（南京）环保管接技术股份有限公司\",\""}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/system/depts", "st": 200, "b": "{\"code\":200,\"data\":[{\"children\":null,\"createdAt\":\"2026-06-10T09:44:24\",\"deptCode\":null,\"deptName\":\"艾", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/system/depts", "st": 200, "b": "{\"code\":200,\"data\":[{\"children\":null,\"createdAt\":\"2026-06-10T09:44:24\",\"deptCode\":null,\"deptName\":\"艾", "expect_pass": true}
+{"c": "A-noauth", "m": "POST", "u": "/api/system/depts", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "POST", "u": "/api/system/depts", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"部门名称不能为空\"}"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/system/depts", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「部门编辑(system:dept:edit)」功能权限。如需访问此内容，请联系管理员在【系统设置 → ", "expect_pass": false}
+{"c": "C-xz", "m": "POST", "u": "/api/system/depts", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「部门编辑(system:dept:edit)」功能权限。如需访问此内容，请联系管理员在【系统设置 → ", "expect_pass": false}
+{"c": "A-noauth", "m": "GET", "u": "/api/system/depts/tree", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/system/depts/tree", "st": 200, "b": "{\"code\":200,\"data\":[{\"children\":[{\"children\":[{\"children\":[],\"createdAt\":\"2026-06-10T09:44:24\",\"deptCode\":\"\",\"deptName\":"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/system/depts/tree", "st": 200, "b": "{\"code\":200,\"data\":[{\"children\":[{\"children\":[{\"children\":[],\"createdAt\":\"2026-06-10T09:44:24\",\"dept", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/system/depts/tree", "st": 200, "b": "{\"code\":200,\"data\":[{\"children\":[{\"children\":[{\"children\":[],\"createdAt\":\"2026-06-10T09:44:24\",\"dept", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/system/depts/{deptId}/admins", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/css\">body {font-famil"}
+{"c": "B-normal", "m": "GET", "u": "/api/system/depts/{deptId}/admins", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/css\">body {font-famil"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/system/depts/{deptId}/admins", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/c", "expect_pass": false}
+{"c": "C-xz", "m": "GET", "u": "/api/system/depts/{deptId}/admins", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/c", "expect_pass": true}
+{"c": "A-noauth", "m": "POST", "u": "/api/system/depts/{deptId}/admins", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/css\">body {font-famil"}
+{"c": "B-badparam", "m": "POST", "u": "/api/system/depts/{deptId}/admins", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/css\">body {font-famil"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/system/depts/{deptId}/admins", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/c", "expect_pass": false}
+{"c": "C-xz", "m": "POST", "u": "/api/system/depts/{deptId}/admins", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/c", "expect_pass": false}
+{"c": "A-noauth", "m": "DELETE", "u": "/api/system/depts/{deptId}/admins/990000001", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/css\">body {font-famil"}
+{"c": "B-badparam", "m": "DELETE", "u": "/api/system/depts/{deptId}/admins/990000001", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/css\">body {font-famil"}
+{"c": "C-sales_ty", "m": "DELETE", "u": "/api/system/depts/{deptId}/admins/990000001", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/c", "expect_pass": false}
+{"c": "C-xz", "m": "DELETE", "u": "/api/system/depts/{deptId}/admins/990000001", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/c", "expect_pass": false}
+{"c": "A-noauth", "m": "DELETE", "u": "/api/system/depts/990000001", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "DELETE", "u": "/api/system/depts/990000001", "st": 200, "b": "{\"code\":200,\"data\":null,\"message\":\"success\"}"}
+{"c": "C-sales_ty", "m": "DELETE", "u": "/api/system/depts/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「部门编辑(system:dept:edit)」功能权限。如需访问此内容，请联系管理员在【系统设置 → ", "expect_pass": false}
+{"c": "C-xz", "m": "DELETE", "u": "/api/system/depts/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「部门编辑(system:dept:edit)」功能权限。如需访问此内容，请联系管理员在【系统设置 → ", "expect_pass": false}
+{"c": "A-noauth", "m": "PUT", "u": "/api/system/depts/990000001", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "PUT", "u": "/api/system/depts/990000001", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"部门名称不能为空\"}"}
+{"c": "C-sales_ty", "m": "PUT", "u": "/api/system/depts/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「部门编辑(system:dept:edit)」功能权限。如需访问此内容，请联系管理员在【系统设置 → ", "expect_pass": false}
+{"c": "C-xz", "m": "PUT", "u": "/api/system/depts/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「部门编辑(system:dept:edit)」功能权限。如需访问此内容，请联系管理员在【系统设置 → ", "expect_pass": false}
+{"c": "A-noauth", "m": "POST", "u": "/api/system/dict/data", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "POST", "u": "/api/system/dict/data", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"所属字典类型不能为空\"}"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/system/dict/data", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「系统配置编辑(system:config:edit)」功能权限。如需访问此内容，请联系管理员在【系统设", "expect_pass": false}
+{"c": "C-xz", "m": "POST", "u": "/api/system/dict/data", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「系统配置编辑(system:config:edit)」功能权限。如需访问此内容，请联系管理员在【系统设", "expect_pass": false}
+{"c": "A-noauth", "m": "GET", "u": "/api/system/dict/data/type/{typeId}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/css\">body {font-famil"}
+{"c": "B-normal", "m": "GET", "u": "/api/system/dict/data/type/{typeId}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/css\">body {font-famil"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/system/dict/data/type/{typeId}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/c", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/system/dict/data/type/{typeId}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/c", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/system/dict/data/{dictCode}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/css\">body {font-famil"}
+{"c": "B-normal", "m": "GET", "u": "/api/system/dict/data/{dictCode}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/css\">body {font-famil"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/system/dict/data/{dictCode}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/c", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/system/dict/data/{dictCode}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/c", "expect_pass": true}
+{"c": "A-noauth", "m": "DELETE", "u": "/api/system/dict/data/990000001", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "DELETE", "u": "/api/system/dict/data/990000001", "st": 200, "b": "{\"code\":200,\"data\":null,\"message\":\"success\"}"}
+{"c": "C-sales_ty", "m": "DELETE", "u": "/api/system/dict/data/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「系统配置编辑(system:config:edit)」功能权限。如需访问此内容，请联系管理员在【系统设", "expect_pass": false}
+{"c": "C-xz", "m": "DELETE", "u": "/api/system/dict/data/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「系统配置编辑(system:config:edit)」功能权限。如需访问此内容，请联系管理员在【系统设", "expect_pass": false}
+{"c": "A-noauth", "m": "PUT", "u": "/api/system/dict/data/990000001", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "PUT", "u": "/api/system/dict/data/990000001", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"字典标签不能为空\"}"}
+{"c": "C-sales_ty", "m": "PUT", "u": "/api/system/dict/data/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「系统配置编辑(system:config:edit)」功能权限。如需访问此内容，请联系管理员在【系统设", "expect_pass": false}
+{"c": "C-xz", "m": "PUT", "u": "/api/system/dict/data/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「系统配置编辑(system:config:edit)」功能权限。如需访问此内容，请联系管理员在【系统设", "expect_pass": false}
+{"c": "A-noauth", "m": "GET", "u": "/api/system/dict/types", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/system/dict/types", "st": 200, "b": "{\"code\":200,\"data\":[{\"builtIn\":1,\"createdAt\":\"2026-06-12T16:39:57\",\"dictCode\":\"dev_type\",\"dictName\":\"开发类型\",\"id\":2,\"remar"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/system/dict/types", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「系统设置(system:config:view)」功能权限。如需访问此内容，请联系管理员在【系统设置 ", "expect_pass": false}
+{"c": "C-xz", "m": "GET", "u": "/api/system/dict/types", "st": 200, "b": "{\"code\":200,\"data\":[{\"builtIn\":1,\"createdAt\":\"2026-06-12T16:39:57\",\"dictCode\":\"dev_type\",\"dictName\":", "expect_pass": true}
+{"c": "A-noauth", "m": "POST", "u": "/api/system/dict/types", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "POST", "u": "/api/system/dict/types", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"字典名称不能为空\"}"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/system/dict/types", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「系统配置编辑(system:config:edit)」功能权限。如需访问此内容，请联系管理员在【系统设", "expect_pass": false}
+{"c": "C-xz", "m": "POST", "u": "/api/system/dict/types", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「系统配置编辑(system:config:edit)」功能权限。如需访问此内容，请联系管理员在【系统设", "expect_pass": false}
+{"c": "A-noauth", "m": "DELETE", "u": "/api/system/dict/types/990000001", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "DELETE", "u": "/api/system/dict/types/990000001", "st": 200, "b": "{\"code\":200,\"data\":null,\"message\":\"success\"}"}
+{"c": "C-sales_ty", "m": "DELETE", "u": "/api/system/dict/types/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「系统配置编辑(system:config:edit)」功能权限。如需访问此内容，请联系管理员在【系统设", "expect_pass": false}
+{"c": "C-xz", "m": "DELETE", "u": "/api/system/dict/types/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「系统配置编辑(system:config:edit)」功能权限。如需访问此内容，请联系管理员在【系统设", "expect_pass": false}
+{"c": "A-noauth", "m": "PUT", "u": "/api/system/dict/types/990000001", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "PUT", "u": "/api/system/dict/types/990000001", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"字典名称不能为空\"}"}
+{"c": "C-sales_ty", "m": "PUT", "u": "/api/system/dict/types/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「系统配置编辑(system:config:edit)」功能权限。如需访问此内容，请联系管理员在【系统设", "expect_pass": false}
+{"c": "C-xz", "m": "PUT", "u": "/api/system/dict/types/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「系统配置编辑(system:config:edit)」功能权限。如需访问此内容，请联系管理员在【系统设", "expect_pass": false}
+{"c": "A-noauth", "m": "GET", "u": "/api/system/groups", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/system/groups", "st": 200, "b": "{\"code\":200,\"data\":[{\"createdAt\":\"2026-08-01T03:08:39\",\"description\":\"艾志（南京）环保管接技术股份有限公司\",\"groupCode\":\"aig\",\"groupName\":"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/system/groups", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「集团管理(system:group:view)」功能权限。如需访问此内容，请联系管理员在【系统设置 →", "expect_pass": false}
+{"c": "C-xz", "m": "GET", "u": "/api/system/groups", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「集团管理(system:group:view)」功能权限。如需访问此内容，请联系管理员在【系统设置 →", "expect_pass": false}
+{"c": "A-noauth", "m": "POST", "u": "/api/system/groups", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "POST", "u": "/api/system/groups", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"集团名称不能为空\"}"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/system/groups", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「集团新增(system:group:add)」功能权限。如需访问此内容，请联系管理员在【系统设置 → ", "expect_pass": false}
+{"c": "C-xz", "m": "POST", "u": "/api/system/groups", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「集团新增(system:group:add)」功能权限。如需访问此内容，请联系管理员在【系统设置 → ", "expect_pass": false}
+{"c": "A-noauth", "m": "DELETE", "u": "/api/system/groups/990000001", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "DELETE", "u": "/api/system/groups/990000001", "st": 200, "b": "{\"code\":200,\"data\":null,\"message\":\"success\"}"}
+{"c": "C-sales_ty", "m": "DELETE", "u": "/api/system/groups/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「删除集团(system:group:delete)」功能权限。如需访问此内容，请联系管理员在【系统设置", "expect_pass": false}
+{"c": "C-xz", "m": "DELETE", "u": "/api/system/groups/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「删除集团(system:group:delete)」功能权限。如需访问此内容，请联系管理员在【系统设置", "expect_pass": false}
+{"c": "A-noauth", "m": "PUT", "u": "/api/system/groups/990000001", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "PUT", "u": "/api/system/groups/990000001", "st": 200, "b": "{\"code\":200,\"data\":null,\"message\":\"success\"}"}
+{"c": "C-sales_ty", "m": "PUT", "u": "/api/system/groups/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「集团编辑(system:group:edit)」功能权限。如需访问此内容，请联系管理员在【系统设置 →", "expect_pass": false}
+{"c": "C-xz", "m": "PUT", "u": "/api/system/groups/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「集团编辑(system:group:edit)」功能权限。如需访问此内容，请联系管理员在【系统设置 →", "expect_pass": false}
+{"c": "A-noauth", "m": "GET", "u": "/api/system/logs", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/system/logs", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「日志查看(system:log:view)」功能权限。如需访问此内容，请联系管理员在【系统设置 → 权限中心 → 功能与范围】开启「日志查看」"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/system/logs", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「日志查看(system:log:view)」功能权限。如需访问此内容，请联系管理员在【系统设置 → 权", "expect_pass": false}
+{"c": "C-xz", "m": "GET", "u": "/api/system/logs", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「日志查看(system:log:view)」功能权限。如需访问此内容，请联系管理员在【系统设置 → 权", "expect_pass": false}
+{"c": "A-noauth", "m": "GET", "u": "/api/system/logs/counts", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/system/logs/counts", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「日志查看(system:log:view)」功能权限。如需访问此内容，请联系管理员在【系统设置 → 权限中心 → 功能与范围】开启「日志查看」"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/system/logs/counts", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「日志查看(system:log:view)」功能权限。如需访问此内容，请联系管理员在【系统设置 → 权", "expect_pass": false}
+{"c": "C-xz", "m": "GET", "u": "/api/system/logs/counts", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「日志查看(system:log:view)」功能权限。如需访问此内容，请联系管理员在【系统设置 → 权", "expect_pass": false}
+{"c": "A-noauth", "m": "GET", "u": "/api/system/menus/tree", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/system/menus/tree", "st": 200, "b": "{\"code\":200,\"data\":[{\"children\":[{\"children\":[],\"component\":\"dashboard/index\",\"createdAt\":\"2026-06-10T09:44:24\",\"icon\":\""}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/system/menus/tree", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「菜单查看(system:menu:view)」功能权限。如需访问此内容，请联系管理员在【系统设置 → ", "expect_pass": false}
+{"c": "C-xz", "m": "GET", "u": "/api/system/menus/tree", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「菜单查看(system:menu:view)」功能权限。如需访问此内容，请联系管理员在【系统设置 → ", "expect_pass": false}
+{"c": "A-noauth", "m": "GET", "u": "/api/system/perm-center/preview", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/system/perm-center/preview", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"缺少必要参数：userId\"}"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/system/perm-center/preview", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"缺少必要参数：userId\"}", "expect_pass": false}
+{"c": "C-xz", "m": "GET", "u": "/api/system/perm-center/preview", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"缺少必要参数：userId\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/system/perm-scopes/assignee/{type}/{key}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/css\">body {font-famil"}
+{"c": "B-normal", "m": "GET", "u": "/api/system/perm-scopes/assignee/{type}/{key}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/css\">body {font-famil"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/system/perm-scopes/assignee/{type}/{key}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/c", "expect_pass": false}
+{"c": "C-xz", "m": "GET", "u": "/api/system/perm-scopes/assignee/{type}/{key}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/c", "expect_pass": true}
+{"c": "A-noauth", "m": "PUT", "u": "/api/system/perm-scopes/assignee/{type}/{key}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/css\">body {font-famil"}
+{"c": "B-badparam", "m": "PUT", "u": "/api/system/perm-scopes/assignee/{type}/{key}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/css\">body {font-famil"}
+{"c": "C-sales_ty", "m": "PUT", "u": "/api/system/perm-scopes/assignee/{type}/{key}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/c", "expect_pass": false}
+{"c": "C-xz", "m": "PUT", "u": "/api/system/perm-scopes/assignee/{type}/{key}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/c", "expect_pass": false}
+{"c": "A-noauth", "m": "GET", "u": "/api/system/perm-scopes/{roleCode}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/css\">body {font-famil"}
+{"c": "B-normal", "m": "GET", "u": "/api/system/perm-scopes/{roleCode}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/css\">body {font-famil"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/system/perm-scopes/{roleCode}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/c", "expect_pass": false}
+{"c": "C-xz", "m": "GET", "u": "/api/system/perm-scopes/{roleCode}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/c", "expect_pass": true}
+{"c": "A-noauth", "m": "PUT", "u": "/api/system/perm-scopes/{roleCode}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/css\">body {font-famil"}
+{"c": "B-badparam", "m": "PUT", "u": "/api/system/perm-scopes/{roleCode}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/css\">body {font-famil"}
+{"c": "C-sales_ty", "m": "PUT", "u": "/api/system/perm-scopes/{roleCode}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/c", "expect_pass": false}
+{"c": "C-xz", "m": "PUT", "u": "/api/system/perm-scopes/{roleCode}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/c", "expect_pass": false}
+{"c": "A-noauth", "m": "GET", "u": "/api/system/positions", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/system/positions", "st": 200, "b": "{\"code\":200,\"data\":[{\"code\":\"admin\",\"createTime\":\"2026-07-31T23:08:03\",\"description\":\"超级管理员岗位\",\"groupId\":1,\"id\":1,\"name\""}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/system/positions", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「岗位管理(system:position:view)」功能权限。如需访问此内容，请联系管理员在【系统设", "expect_pass": false}
+{"c": "C-xz", "m": "GET", "u": "/api/system/positions", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「岗位管理(system:position:view)」功能权限。如需访问此内容，请联系管理员在【系统设", "expect_pass": false}
+{"c": "A-noauth", "m": "POST", "u": "/api/system/positions", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "POST", "u": "/api/system/positions", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"岗位名称不能为空\"}"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/system/positions", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「岗位新增(system:position:add)」功能权限。如需访问此内容，请联系管理员在【系统设置", "expect_pass": false}
+{"c": "C-xz", "m": "POST", "u": "/api/system/positions", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「岗位新增(system:position:add)」功能权限。如需访问此内容，请联系管理员在【系统设置", "expect_pass": false}
+{"c": "A-noauth", "m": "GET", "u": "/api/system/positions/users/{userId}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/css\">body {font-famil"}
+{"c": "B-normal", "m": "GET", "u": "/api/system/positions/users/{userId}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/css\">body {font-famil"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/system/positions/users/{userId}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/c", "expect_pass": false}
+{"c": "C-xz", "m": "GET", "u": "/api/system/positions/users/{userId}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/c", "expect_pass": true}
+{"c": "A-noauth", "m": "PUT", "u": "/api/system/positions/users/{userId}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/css\">body {font-famil"}
+{"c": "B-badparam", "m": "PUT", "u": "/api/system/positions/users/{userId}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/css\">body {font-famil"}
+{"c": "C-sales_ty", "m": "PUT", "u": "/api/system/positions/users/{userId}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/c", "expect_pass": false}
+{"c": "C-xz", "m": "PUT", "u": "/api/system/positions/users/{userId}", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/c", "expect_pass": true}
+{"c": "A-noauth", "m": "DELETE", "u": "/api/system/positions/990000001", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "DELETE", "u": "/api/system/positions/990000001", "st": 200, "b": "{\"code\":200,\"data\":null,\"message\":\"success\"}"}
+{"c": "C-sales_ty", "m": "DELETE", "u": "/api/system/positions/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「删除岗位(system:position:delete)」功能权限。如需访问此内容，请联系管理员在【系", "expect_pass": false}
+{"c": "C-xz", "m": "DELETE", "u": "/api/system/positions/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「删除岗位(system:position:delete)」功能权限。如需访问此内容，请联系管理员在【系", "expect_pass": false}
+{"c": "A-noauth", "m": "PUT", "u": "/api/system/positions/990000001", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "PUT", "u": "/api/system/positions/990000001", "st": 200, "b": "{\"code\":200,\"data\":null,\"message\":\"success\"}"}
+{"c": "C-sales_ty", "m": "PUT", "u": "/api/system/positions/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「岗位编辑(system:position:edit)」功能权限。如需访问此内容，请联系管理员在【系统设", "expect_pass": false}
+{"c": "C-xz", "m": "PUT", "u": "/api/system/positions/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「岗位编辑(system:position:edit)」功能权限。如需访问此内容，请联系管理员在【系统设", "expect_pass": false}
+{"c": "A-noauth", "m": "GET", "u": "/api/system/positions/{positionId}/rules", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/css\">body {font-famil"}
+{"c": "B-normal", "m": "GET", "u": "/api/system/positions/{positionId}/rules", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/css\">body {font-famil"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/system/positions/{positionId}/rules", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/c", "expect_pass": false}
+{"c": "C-xz", "m": "GET", "u": "/api/system/positions/{positionId}/rules", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/c", "expect_pass": false}
+{"c": "A-noauth", "m": "PUT", "u": "/api/system/positions/{positionId}/rules", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/css\">body {font-famil"}
+{"c": "B-badparam", "m": "PUT", "u": "/api/system/positions/{positionId}/rules", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/css\">body {font-famil"}
+{"c": "C-sales_ty", "m": "PUT", "u": "/api/system/positions/{positionId}/rules", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/c", "expect_pass": false}
+{"c": "C-xz", "m": "PUT", "u": "/api/system/positions/{positionId}/rules", "st": 400, "b": "<!doctype html><html lang=\"en\"><head><title>HTTP Status 400 – Bad Request</title><style type=\"text/c", "expect_pass": false}
+{"c": "A-noauth", "m": "GET", "u": "/api/system/recycle/customers", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/system/recycle/customers", "st": 200, "b": "{\"code\":200,\"data\":{\"records\":[{\"id\":633,\"customerCode\":\"SX-202611-002\",\"customerName\":\"六层验收客户A1108185031改\",\"ownerId\":89"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/system/recycle/customers", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「回收站(system:recycle:view)」功能权限。如需访问此内容，请联系管理员在【系统设置 ", "expect_pass": false}
+{"c": "C-xz", "m": "GET", "u": "/api/system/recycle/customers", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「回收站(system:recycle:view)」功能权限。如需访问此内容，请联系管理员在【系统设置 ", "expect_pass": false}
+{"c": "A-noauth", "m": "GET", "u": "/api/system/recycle/customers/990000001", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/system/recycle/customers/990000001", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"该客户不在回收站（可能已被恢复或已被彻底删除）\"}"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/system/recycle/customers/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「回收站(system:recycle:view)」功能权限。如需访问此内容，请联系管理员在【系统设置 ", "expect_pass": false}
+{"c": "C-xz", "m": "GET", "u": "/api/system/recycle/customers/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「回收站(system:recycle:view)」功能权限。如需访问此内容，请联系管理员在【系统设置 ", "expect_pass": false}
+{"c": "A-noauth", "m": "POST", "u": "/api/system/recycle/customers/990000001/purge", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "POST", "u": "/api/system/recycle/customers/990000001/purge", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"该客户不在回收站（可能已被恢复或已被彻底删除）\"}"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/system/recycle/customers/990000001/purge", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「清空文件回收站(system:recycle:purge)」功能权限。如需访问此内容，请联系管理员在【", "expect_pass": false}
+{"c": "C-xz", "m": "POST", "u": "/api/system/recycle/customers/990000001/purge", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「清空文件回收站(system:recycle:purge)」功能权限。如需访问此内容，请联系管理员在【", "expect_pass": false}
+{"c": "A-noauth", "m": "POST", "u": "/api/system/recycle/customers/990000001/restore", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "POST", "u": "/api/system/recycle/customers/990000001/restore", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"该客户不在回收站（可能已被恢复或已被彻底删除）\"}"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/system/recycle/customers/990000001/restore", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「恢复已删除数据(system:recycle:restore)」功能权限。如需访问此内容，请联系管理员", "expect_pass": false}
+{"c": "C-xz", "m": "POST", "u": "/api/system/recycle/customers/990000001/restore", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「恢复已删除数据(system:recycle:restore)」功能权限。如需访问此内容，请联系管理员", "expect_pass": false}
+{"c": "A-noauth", "m": "GET", "u": "/api/system/recycle/files", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/system/recycle/files", "st": 200, "b": "{\"code\":200,\"data\":{\"records\":[],\"total\":0},\"message\":\"success\"}"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/system/recycle/files", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「回收站(system:recycle:view)」功能权限。如需访问此内容，请联系管理员在【系统设置 ", "expect_pass": false}
+{"c": "C-xz", "m": "GET", "u": "/api/system/recycle/files", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「回收站(system:recycle:view)」功能权限。如需访问此内容，请联系管理员在【系统设置 ", "expect_pass": false}
+{"c": "A-noauth", "m": "POST", "u": "/api/system/recycle/files/purge", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "POST", "u": "/api/system/recycle/files/purge", "st": 200, "b": "{\"code\":200,\"data\":{\"message\":\"已清空文件回收站：清理 0 个，跳过 0 个，失败 0 个\",\"purged\":0,\"skipped\":0,\"failed\":0},\"message\":\"success\"}"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/system/recycle/files/purge", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「清空文件回收站(system:recycle:purge)」功能权限。如需访问此内容，请联系管理员在【", "expect_pass": false}
+{"c": "C-xz", "m": "POST", "u": "/api/system/recycle/files/purge", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「清空文件回收站(system:recycle:purge)」功能权限。如需访问此内容，请联系管理员在【", "expect_pass": false}
+{"c": "A-noauth", "m": "GET", "u": "/api/system/recycle/files/990000001", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/system/recycle/files/990000001", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"该文件不在回收站（可能已被恢复或已被彻底删除）\"}"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/system/recycle/files/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「回收站(system:recycle:view)」功能权限。如需访问此内容，请联系管理员在【系统设置 ", "expect_pass": false}
+{"c": "C-xz", "m": "GET", "u": "/api/system/recycle/files/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「回收站(system:recycle:view)」功能权限。如需访问此内容，请联系管理员在【系统设置 ", "expect_pass": false}
+{"c": "A-noauth", "m": "GET", "u": "/api/system/recycle/files/990000001/content", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/system/recycle/files/990000001/content", "st": 404, "b": ""}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/system/recycle/files/990000001/content", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「回收站(system:recycle:view)」功能权限。如需访问此内容，请联系管理员在【系统设置 ", "expect_pass": false}
+{"c": "C-xz", "m": "GET", "u": "/api/system/recycle/files/990000001/content", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「回收站(system:recycle:view)」功能权限。如需访问此内容，请联系管理员在【系统设置 ", "expect_pass": false}
+{"c": "A-noauth", "m": "POST", "u": "/api/system/recycle/files/990000001/purge", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "POST", "u": "/api/system/recycle/files/990000001/purge", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"该文件不在回收站（可能已被恢复或已被彻底删除）\"}"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/system/recycle/files/990000001/purge", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「清空文件回收站(system:recycle:purge)」功能权限。如需访问此内容，请联系管理员在【", "expect_pass": false}
+{"c": "C-xz", "m": "POST", "u": "/api/system/recycle/files/990000001/purge", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「清空文件回收站(system:recycle:purge)」功能权限。如需访问此内容，请联系管理员在【", "expect_pass": false}
+{"c": "A-noauth", "m": "POST", "u": "/api/system/recycle/files/990000001/restore", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "POST", "u": "/api/system/recycle/files/990000001/restore", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"该文件不在回收站（可能已被恢复或已被彻底删除）\"}"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/system/recycle/files/990000001/restore", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「恢复已删除数据(system:recycle:restore)」功能权限。如需访问此内容，请联系管理员", "expect_pass": false}
+{"c": "C-xz", "m": "POST", "u": "/api/system/recycle/files/990000001/restore", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「恢复已删除数据(system:recycle:restore)」功能权限。如需访问此内容，请联系管理员", "expect_pass": false}
+{"c": "A-noauth", "m": "GET", "u": "/api/system/recycle/users", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/system/recycle/users", "st": 200, "b": "{\"code\":200,\"data\":{\"records\":[{\"id\":14,\"username\":\"NO004\",\"realName\":\"陈晓彬\",\"deptId\":4,\"deptName\":\"太原办销售部\",\"phone\":\"1503"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/system/recycle/users", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「回收站(system:recycle:view)」功能权限。如需访问此内容，请联系管理员在【系统设置 ", "expect_pass": false}
+{"c": "C-xz", "m": "GET", "u": "/api/system/recycle/users", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「回收站(system:recycle:view)」功能权限。如需访问此内容，请联系管理员在【系统设置 ", "expect_pass": false}
+{"c": "A-noauth", "m": "GET", "u": "/api/system/recycle/users/990000001", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/system/recycle/users/990000001", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"该人员不在回收站（可能已被恢复或已被彻底删除）\"}"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/system/recycle/users/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「回收站(system:recycle:view)」功能权限。如需访问此内容，请联系管理员在【系统设置 ", "expect_pass": false}
+{"c": "C-xz", "m": "GET", "u": "/api/system/recycle/users/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「回收站(system:recycle:view)」功能权限。如需访问此内容，请联系管理员在【系统设置 ", "expect_pass": false}
+{"c": "A-noauth", "m": "POST", "u": "/api/system/recycle/users/990000001/purge", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "POST", "u": "/api/system/recycle/users/990000001/purge", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"该人员不在回收站（可能已被恢复或已被彻底删除）\"}"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/system/recycle/users/990000001/purge", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「清空文件回收站(system:recycle:purge)」功能权限。如需访问此内容，请联系管理员在【", "expect_pass": false}
+{"c": "C-xz", "m": "POST", "u": "/api/system/recycle/users/990000001/purge", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「清空文件回收站(system:recycle:purge)」功能权限。如需访问此内容，请联系管理员在【", "expect_pass": false}
+{"c": "A-noauth", "m": "POST", "u": "/api/system/recycle/users/990000001/restore", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "POST", "u": "/api/system/recycle/users/990000001/restore", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"该人员不在回收站（可能已被恢复或已被彻底删除）\"}"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/system/recycle/users/990000001/restore", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「恢复已删除数据(system:recycle:restore)」功能权限。如需访问此内容，请联系管理员", "expect_pass": false}
+{"c": "C-xz", "m": "POST", "u": "/api/system/recycle/users/990000001/restore", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「恢复已删除数据(system:recycle:restore)」功能权限。如需访问此内容，请联系管理员", "expect_pass": false}
+{"c": "A-noauth", "m": "GET", "u": "/api/system/roles", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/system/roles", "st": 200, "b": "{\"code\":200,\"data\":[{\"createdAt\":\"2026-06-29T14:09:01\",\"dataScope\":\"team\",\"description\":\"\",\"groupId\":1,\"id\":11,\"menuIds\""}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/system/roles", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「角色管理(system:role:view)」功能权限。如需访问此内容，请联系管理员在【系统设置 → ", "expect_pass": false}
+{"c": "C-xz", "m": "GET", "u": "/api/system/roles", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「角色管理(system:role:view)」功能权限。如需访问此内容，请联系管理员在【系统设置 → ", "expect_pass": false}
+{"c": "A-noauth", "m": "POST", "u": "/api/system/roles", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "POST", "u": "/api/system/roles", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"角色名称不能为空\"}"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/system/roles", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「角色新增(system:role:add)」功能权限。如需访问此内容，请联系管理员在【系统设置 → 权", "expect_pass": false}
+{"c": "C-xz", "m": "POST", "u": "/api/system/roles", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「角色新增(system:role:add)」功能权限。如需访问此内容，请联系管理员在【系统设置 → 权", "expect_pass": false}
+{"c": "A-noauth", "m": "DELETE", "u": "/api/system/roles/990000001", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "DELETE", "u": "/api/system/roles/990000001", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"角色不存在\"}"}
+{"c": "C-sales_ty", "m": "DELETE", "u": "/api/system/roles/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「删除角色(system:role:delete)」功能权限。如需访问此内容，请联系管理员在【系统设置 ", "expect_pass": false}
+{"c": "C-xz", "m": "DELETE", "u": "/api/system/roles/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「删除角色(system:role:delete)」功能权限。如需访问此内容，请联系管理员在【系统设置 ", "expect_pass": false}
+{"c": "A-noauth", "m": "GET", "u": "/api/system/roles/990000001", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/system/roles/990000001", "st": 200, "b": "{\"code\":200,\"data\":null,\"message\":\"success\"}"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/system/roles/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「角色管理(system:role:view)」功能权限。如需访问此内容，请联系管理员在【系统设置 → ", "expect_pass": false}
+{"c": "C-xz", "m": "GET", "u": "/api/system/roles/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「角色管理(system:role:view)」功能权限。如需访问此内容，请联系管理员在【系统设置 → ", "expect_pass": false}
+{"c": "A-noauth", "m": "PUT", "u": "/api/system/roles/990000001", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "PUT", "u": "/api/system/roles/990000001", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"角色不存在\"}"}
+{"c": "C-sales_ty", "m": "PUT", "u": "/api/system/roles/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「角色编辑(system:role:edit)」功能权限。如需访问此内容，请联系管理员在【系统设置 → ", "expect_pass": false}
+{"c": "C-xz", "m": "PUT", "u": "/api/system/roles/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「角色编辑(system:role:edit)」功能权限。如需访问此内容，请联系管理员在【系统设置 → ", "expect_pass": false}
+{"c": "A-noauth", "m": "GET", "u": "/api/system/roles/990000001/orgs", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/system/roles/990000001/orgs", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"角色不存在\"}"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/system/roles/990000001/orgs", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「角色管理(system:role:view)」功能权限。如需访问此内容，请联系管理员在【系统设置 → ", "expect_pass": false}
+{"c": "C-xz", "m": "GET", "u": "/api/system/roles/990000001/orgs", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「角色管理(system:role:view)」功能权限。如需访问此内容，请联系管理员在【系统设置 → ", "expect_pass": false}
+{"c": "A-noauth", "m": "PUT", "u": "/api/system/roles/990000001/orgs", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "PUT", "u": "/api/system/roles/990000001/orgs", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"请求体格式不正确，请检查JSON格式\"}"}
+{"c": "C-sales_ty", "m": "PUT", "u": "/api/system/roles/990000001/orgs", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"请求体格式不正确，请检查JSON格式\"}", "expect_pass": false}
+{"c": "C-xz", "m": "PUT", "u": "/api/system/roles/990000001/orgs", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"请求体格式不正确，请检查JSON格式\"}", "expect_pass": false}
+{"c": "A-noauth", "m": "GET", "u": "/api/system/rule-versions", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/system/rule-versions", "st": 200, "b": "{\"code\":200,\"data\":{\"current\":1,\"pages\":3,\"records\":[{\"id\":54,\"ruleKey\":\"perm_scope:ROLE:06:incentive:stats_view\",\"oldVa"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/system/rule-versions", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「系统设置(system:config:view)」功能权限。如需访问此内容，请联系管理员在【系统设置 ", "expect_pass": false}
+{"c": "C-xz", "m": "GET", "u": "/api/system/rule-versions", "st": 200, "b": "{\"code\":200,\"data\":{\"current\":1,\"pages\":3,\"records\":[{\"id\":54,\"ruleKey\":\"perm_scope:ROLE:06:incentiv", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/system/rules", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/system/rules", "st": 200, "b": "{\"code\":200,\"data\":[{\"code\":\"org_and_children\",\"createTime\":\"2026-07-31T23:08:03\",\"description\":\"查看本组织及所有下级组织的客户\",\"extra"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/system/rules", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「权限规则(system:rule:view)」功能权限。如需访问此内容，请联系管理员在【系统设置 → ", "expect_pass": false}
+{"c": "C-xz", "m": "GET", "u": "/api/system/rules", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「权限规则(system:rule:view)」功能权限。如需访问此内容，请联系管理员在【系统设置 → ", "expect_pass": false}
+{"c": "A-noauth", "m": "POST", "u": "/api/system/rules", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "POST", "u": "/api/system/rules", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"规则名称不能为空\"}"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/system/rules", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「规则新增(system:rule:add)」功能权限。如需访问此内容，请联系管理员在【系统设置 → 权", "expect_pass": false}
+{"c": "C-xz", "m": "POST", "u": "/api/system/rules", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「规则新增(system:rule:add)」功能权限。如需访问此内容，请联系管理员在【系统设置 → 权", "expect_pass": false}
+{"c": "A-noauth", "m": "DELETE", "u": "/api/system/rules/990000001", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "DELETE", "u": "/api/system/rules/990000001", "st": 200, "b": "{\"code\":200,\"data\":null,\"message\":\"success\"}"}
+{"c": "C-sales_ty", "m": "DELETE", "u": "/api/system/rules/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「删除规则(system:rule:delete)」功能权限。如需访问此内容，请联系管理员在【系统设置 ", "expect_pass": false}
+{"c": "C-xz", "m": "DELETE", "u": "/api/system/rules/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「删除规则(system:rule:delete)」功能权限。如需访问此内容，请联系管理员在【系统设置 ", "expect_pass": false}
+{"c": "A-noauth", "m": "PUT", "u": "/api/system/rules/990000001", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "PUT", "u": "/api/system/rules/990000001", "st": 200, "b": "{\"code\":200,\"data\":null,\"message\":\"success\"}"}
+{"c": "C-sales_ty", "m": "PUT", "u": "/api/system/rules/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「规则编辑(system:rule:edit)」功能权限。如需访问此内容，请联系管理员在【系统设置 → ", "expect_pass": false}
+{"c": "C-xz", "m": "PUT", "u": "/api/system/rules/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「规则编辑(system:rule:edit)」功能权限。如需访问此内容，请联系管理员在【系统设置 → ", "expect_pass": false}
+{"c": "A-noauth", "m": "POST", "u": "/api/system/task/check-expire", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "POST", "u": "/api/system/task/check-expire", "st": 200, "b": "{\"code\":200,\"data\":\"客户保护期检查完成\",\"message\":\"success\"}"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/system/task/check-expire", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"仅系统管理员可触发该任务 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"}", "expect_pass": false}
+{"c": "C-xz", "m": "POST", "u": "/api/system/task/check-expire", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"仅系统管理员可触发该任务 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"}", "expect_pass": false}
+{"c": "A-noauth", "m": "GET", "u": "/api/system/users", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/system/users", "st": 200, "b": "{\"code\":200,\"data\":{\"current\":1,\"pages\":3,\"records\":[{\"avatar\":null,\"createdAt\":\"2026-06-24T04:14:14\",\"dataScopeOverride"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/system/users", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「人员管理(system:user:view)」、「组织管理员(system:org:admin)」功能", "expect_pass": false}
+{"c": "C-xz", "m": "GET", "u": "/api/system/users", "st": 200, "b": "{\"code\":200,\"data\":{\"current\":1,\"pages\":1,\"records\":[{\"avatar\":null,\"createdAt\":\"2026-06-24T16:11:41", "expect_pass": true}
+{"c": "A-noauth", "m": "POST", "u": "/api/system/users", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "POST", "u": "/api/system/users", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"账号不能为空\"}"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/system/users", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「用户新增(system:user:add)」、「组织管理员(system:org:admin)」功能权", "expect_pass": false}
+{"c": "C-xz", "m": "POST", "u": "/api/system/users", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"账号不能为空\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "POST", "u": "/api/system/users/change-password", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "POST", "u": "/api/system/users/change-password", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"原密码错误\"}"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/system/users/change-password", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"原密码错误\"}", "expect_pass": true}
+{"c": "C-xz", "m": "POST", "u": "/api/system/users/change-password", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"原密码错误\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "DELETE", "u": "/api/system/users/990000001", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "DELETE", "u": "/api/system/users/990000001", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"用户不存在\"}"}
+{"c": "C-sales_ty", "m": "DELETE", "u": "/api/system/users/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「删除用户(system:user:delete)」、「组织管理员(system:org:admin)」", "expect_pass": false}
+{"c": "C-xz", "m": "DELETE", "u": "/api/system/users/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「删除用户(system:user:delete)」、「组织管理员(system:org:admin)」", "expect_pass": false}
+{"c": "A-noauth", "m": "GET", "u": "/api/system/users/990000001", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/system/users/990000001", "st": 200, "b": "{\"code\":200,\"data\":null,\"message\":\"success\"}"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/system/users/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「人员管理(system:user:view)」、「组织管理员(system:org:admin)」功能", "expect_pass": false}
+{"c": "C-xz", "m": "GET", "u": "/api/system/users/990000001", "st": 200, "b": "{\"code\":200,\"data\":null,\"message\":\"success\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "PUT", "u": "/api/system/users/990000001", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "PUT", "u": "/api/system/users/990000001", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"用户不存在\"}"}
+{"c": "C-sales_ty", "m": "PUT", "u": "/api/system/users/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「用户编辑(system:user:edit)」、「组织管理员(system:org:admin)」功能", "expect_pass": false}
+{"c": "C-xz", "m": "PUT", "u": "/api/system/users/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"无权操作该用户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "POST", "u": "/api/system/users/990000001/reset-password", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "POST", "u": "/api/system/users/990000001/reset-password", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"用户不存在\"}"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/system/users/990000001/reset-password", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「用户编辑(system:user:edit)」、「组织管理员(system:org:admin)」功能", "expect_pass": false}
+{"c": "C-xz", "m": "POST", "u": "/api/system/users/990000001/reset-password", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"无权操作该用户 如需访问此内容，请联系管理员在【系统设置 → 权限中心】开启相应功能或调整数据范围。\"}", "expect_pass": true}
+{"c": "A-noauth", "m": "POST", "u": "/api/task", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "POST", "u": "/api/task", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"任务标题不能为空\"}"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/task", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"任务标题不能为空\"}", "expect_pass": true}
+{"c": "C-xz", "m": "POST", "u": "/api/task", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「任务管理(task:manage)」功能权限。如需访问此内容，请联系管理员在【系统设置 → 权限中心 ", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/task/list", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/task/list", "st": 200, "b": "{\"code\":200,\"data\":{\"current\":1,\"pages\":0,\"records\":[],\"size\":20,\"total\":0},\"message\":\"success\"}"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/task/list", "st": 200, "b": "{\"code\":200,\"data\":{\"current\":1,\"pages\":0,\"records\":[],\"size\":20,\"total\":0},\"message\":\"success\"}", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/task/list", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「任务查看(task:view)」功能权限。如需访问此内容，请联系管理员在【系统设置 → 权限中心 → ", "expect_pass": true}
+{"c": "A-noauth", "m": "GET", "u": "/api/task/statistics", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-normal", "m": "GET", "u": "/api/task/statistics", "st": 200, "b": "{\"code\":200,\"data\":{\"overdue\":0,\"completedThisMonth\":0,\"pending\":0,\"todayDue\":0},\"message\":\"success\"}"}
+{"c": "C-sales_ty", "m": "GET", "u": "/api/task/statistics", "st": 200, "b": "{\"code\":200,\"data\":{\"overdue\":0,\"completedThisMonth\":0,\"pending\":0,\"todayDue\":0},\"message\":\"success\"", "expect_pass": true}
+{"c": "C-xz", "m": "GET", "u": "/api/task/statistics", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「任务查看(task:view)」功能权限。如需访问此内容，请联系管理员在【系统设置 → 权限中心 → ", "expect_pass": true}
+{"c": "A-noauth", "m": "PUT", "u": "/api/task/990000001", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "PUT", "u": "/api/task/990000001", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"任务不存在\"}"}
+{"c": "C-sales_ty", "m": "PUT", "u": "/api/task/990000001", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"任务不存在\"}", "expect_pass": true}
+{"c": "C-xz", "m": "PUT", "u": "/api/task/990000001", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「任务管理(task:manage)」功能权限。如需访问此内容，请联系管理员在【系统设置 → 权限中心 ", "expect_pass": true}
+{"c": "A-noauth", "m": "POST", "u": "/api/task/990000001/cancel", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "POST", "u": "/api/task/990000001/cancel", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"取消任务必须填写原因\"}"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/task/990000001/cancel", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"取消任务必须填写原因\"}", "expect_pass": true}
+{"c": "C-xz", "m": "POST", "u": "/api/task/990000001/cancel", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「任务管理(task:manage)」功能权限。如需访问此内容，请联系管理员在【系统设置 → 权限中心 ", "expect_pass": true}
+{"c": "A-noauth", "m": "POST", "u": "/api/task/990000001/complete", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "POST", "u": "/api/task/990000001/complete", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"完成时必须记录结果(不是简单勾掉)\"}"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/task/990000001/complete", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"完成时必须记录结果(不是简单勾掉)\"}", "expect_pass": true}
+{"c": "C-xz", "m": "POST", "u": "/api/task/990000001/complete", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「任务管理(task:manage)」功能权限。如需访问此内容，请联系管理员在【系统设置 → 权限中心 ", "expect_pass": true}
+{"c": "A-noauth", "m": "POST", "u": "/api/task/990000001/transfer", "st": 401, "b": "{\"code\":401,\"message\":\"登录已过期，请重新登录\"}"}
+{"c": "B-badparam", "m": "POST", "u": "/api/task/990000001/transfer", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"任务不存在\"}"}
+{"c": "C-sales_ty", "m": "POST", "u": "/api/task/990000001/transfer", "st": 400, "b": "{\"code\":400,\"data\":null,\"message\":\"任务不存在\"}", "expect_pass": true}
+{"c": "C-xz", "m": "POST", "u": "/api/task/990000001/transfer", "st": 403, "b": "{\"code\":403,\"data\":null,\"message\":\"您的权限不支持此访问：缺少「任务管理(task:manage)」功能权限。如需访问此内容，请联系管理员在【系统设置 → 权限中心 ", "expect_pass": true}

@@ -57,6 +57,13 @@
   .mobile-tabs { display:grid; grid-template-columns:repeat(5,1fr); gap:5px; margin:9px 0 11px; }
   .mobile-tab { height:32px; border-radius:9px; background:#f1f5f9; color:#52657f; font-size:12px; font-weight:750; display:flex; align-items:center; justify-content:center; }
   .mobile-tab.active { background:#2563eb; color:#fff; box-shadow:0 5px 12px rgba(37,99,235,.18); }
+  /* 生产 11-03 单行细条 hero（workbench-hero 同款，与 ap-hero 同语言） */
+  .workbench-hero { display:flex; align-items:center; justify-content:space-between; padding:10px 12px; border-radius:13px; background:linear-gradient(135deg,#0d1733 0%,#16337a 58%,#1d4ed8 100%); box-shadow:0 9px 19px rgba(13,23,51,.22); }
+  .workbench-hero-title { font-size:16px; font-weight:800; letter-spacing:1px; color:#fff; }
+  .workbench-hero-actions { display:flex; align-items:center; gap:7px; }
+  .hero-bar-btn { padding:0 11px; height:26px; line-height:24px; font-size:11px; border-radius:999px; display:inline-flex; align-items:center; justify-content:center; }
+  .hero-bar-btn.ghost { background:rgba(255,255,255,.16); color:#fff; border:1px solid rgba(255,255,255,.55); }
+  .hero-bar-btn.solid { background:#fff; color:#1d4ed8; font-weight:700; }
   .incentive-search-card { margin-bottom:9px; padding:9px; }
   .incentive-search-row { display:flex; align-items:center; gap:5px; }
   .incentive-search-input { flex:1; min-width:0; height:29px; padding:0 9px; border:1px solid #dbe7f5; border-radius:8px; background:#f8fbff; color:#172033; font-size:12px; display:flex; align-items:center; }
@@ -224,18 +231,9 @@
       <div class="statusbar"><span>9:41</span><span></span><span class="sicons"><span class="sig">▂▄▆</span><span class="batt"></span></span></div>
       <div class="nav"><span class="nav-back">‹</span><div class="nav-title">法布施</div></div>
       <div class="body">
-        <div class="hero">
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-            <div><div class="hero-title">法布施</div><div class="hero-sub">共读 · 诵读 · 正能量 · 团队共修</div></div>
-            <span class="ghost-btn">刷新</span>
-          </div>
-          <div class="upload-entry-row"><span class="upload-entry-btn">＋ 上传正能量</span><span class="upload-entry-hint">心得 / 诵读 / 美图，与 PC 同口径</span></div>
-        </div>
-        <div class="summary-grid">
-          <div class="summary-cell"><b>26</b><span>书目</span></div>
-          <div class="summary-cell"><b>109</b><span>心得</span></div>
-          <div class="summary-cell"><b>86</b><span>诵读</span></div>
-          <div class="summary-cell"><b>32</b><span>今日已读</span></div>
+        <div class="workbench-hero">
+          <div class="workbench-hero-title">法布施</div>
+          <div class="workbench-hero-actions"><span class="hero-bar-btn ghost">刷新</span><span class="hero-bar-btn solid">＋ 上传</span></div>
         </div>
         <div class="mobile-tabs">
           <div class="mobile-tab active">书库</div><div class="mobile-tab">正能量</div><div class="mobile-tab">书架</div><div class="mobile-tab">记录</div><div class="mobile-tab">统计</div>
@@ -564,11 +562,9 @@
       <div class="statusbar"><span>9:41</span><span></span><span class="sicons"><span class="sig">▂▄▆</span><span class="batt"></span></span></div>
       <div class="nav"><span class="nav-back">‹</span><div class="nav-title">阅读统计</div><span class="nav-act">10月 ▾</span></div>
       <div class="body">
-        <div class="stats-hero">
-          <div class="stats-kicker">READING STATS</div>
-          <div class="stats-title">团队阅读统计</div>
-          <div class="stats-sub">10月 · 艾志集团 · 58 人</div>
-          <div class="stats-hero-metrics"><span>今日已读 32 人</span><span>作品 109</span><span>时长 214h</span></div>
+        <div class="workbench-hero">
+          <div class="workbench-hero-title">团队阅读统计 · 10月</div>
+          <div class="workbench-hero-actions"><span class="hero-bar-btn ghost">艾志集团 · 58 人</span></div>
         </div>
         <div class="stats-tabs"><span class="stats-tab active">团队</span><span class="stats-tab">个人</span></div>
         <div class="card stats-list-card">
@@ -595,11 +591,9 @@
       <div class="statusbar"><span>9:41</span><span></span><span class="sicons"><span class="sig">▂▄▆</span><span class="batt"></span></span></div>
       <div class="nav"><span class="nav-back">‹</span><div class="nav-title">阅读统计</div><span class="nav-act">10月 ▾</span></div>
       <div class="body">
-        <div class="stats-hero">
-          <div class="stats-kicker">MY READING</div>
-          <div class="stats-title">我的十月</div>
-          <div class="stats-sub">张东来 · 销售部 · 部门第 3</div>
-          <div class="stats-hero-metrics"><span>时长 42h</span><span>连续 5 天</span><span>完读 3 本</span></div>
+        <div class="workbench-hero">
+          <div class="workbench-hero-title">我的十月 · 张东来</div>
+          <div class="workbench-hero-actions"><span class="hero-bar-btn ghost">时长 42h · 部门第 3</span></div>
         </div>
         <div class="stats-tabs"><span class="stats-tab">团队</span><span class="stats-tab active">个人</span></div>
         <div class="stats-grid">

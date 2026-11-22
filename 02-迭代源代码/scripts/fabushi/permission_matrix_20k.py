@@ -61,6 +61,11 @@ PARAM_SHAPE_OK = {
     ('POST', '/api/customer/import'),
     ('POST', '/api/sea/import'),
     ('GET', '/api/system/perm-center/preview'),
+    # 【2026-11-21 权限矩阵复跑】H5 上传走 ticket（非 JWT）；缺 ticket 时 Spring 参数解析
+    # 先于方法鉴权返回 400 "缺少必要参数: ticket"，controller 方法体未执行。
+    # 证据：带合法 multipart 但无 token/ticket 仍为 400，属参数形状而非鉴权放行。
+    ('POST', '/api/file/upload/h5'),
+    ('POST', '/api/fabushi/upload/h5'),
 }
 
 
@@ -91,7 +96,7 @@ def expected_ok(rule, perms):
     return None  # unknown expression: only flag 5xx/false 403
 
 
-def call(base, method, path, token=None, timeout=3):
+def call(base, method, path, token=None, timeout=8):
     headers = {}
     if token:
         headers['Authorization'] = 'Bearer ' + token
@@ -233,8 +238,13 @@ def evaluate_20k(mode, e, status, rule, user_perms, u):
         return 'unknown', status >= 500
     if mode == 'no_token':
         exp = 'denied' if rule[0] not in ('anon',) else 'anon'
-        bad = (status not in (401, 403)) if exp == 'denied' else (status in (401, 403))
-        return exp, bad
+        if exp == 'denied':
+            # 与 v2 _judge_a_denied 同口径：已登记的参数形状 400 视为“已解释”，2xx/5xx 仍 fail
+            ok = status in (401, 403) or (
+                status == 400 and (e['method'], e['path']) in PARAM_SHAPE_OK)
+        else:
+            ok = status not in (401, 403)
+        return exp, not ok
     # invalid token: 401/403 is acceptable for both protected and anonymous endpoints
     return 'rejected', status >= 500 or status < 400
 

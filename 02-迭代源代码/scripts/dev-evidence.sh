@@ -6,7 +6,7 @@ set -euo pipefail
 SOURCE_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 CODE_ROOT="$SOURCE_ROOT/02-迭代源代码"
 PROJECT_ID="802fad80-8665-4b11-9f9d-04b92bda4666"
-CENTRAL_ROOT="/Users/dongjun/东来/Agent/00-管理/项目执行/$PROJECT_ID"
+CENTRAL_ROOT="/Users/dongjun/东来/Agent/00-治理/项目执行/$PROJECT_ID"
 ENGINEERING_SYSTEM="/Users/dongjun/东来/Agent/04-共享能力/engineering-system"
 MODE="${1:-quick}"
 RUN_ID="${AIGICRM_EVIDENCE_RUN_ID:-$(date +%Y%m%d-%H%M%S)-dev-evidence-$MODE}"

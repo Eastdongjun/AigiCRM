@@ -1,0 +1,124 @@
+== role ==
+10	销售总监	0	all	1
+== scopes ==
+customer	add	all	OWNER
+customer	date	all	OWNER
+customer	delete	all	ORG
+customer	edit	all	ORG
+customer	export	all	OWNER
+customer	finance_edit	all	ORG
+customer	import	all	OWNER
+customer	view	all	ORG
+dashboard	view	all	OWNER
+fabushi	file_delete	self	OWNER
+fabushi	file_view	all	OWNER
+fabushi	stats_view	all	OWNER
+file	delete	self	OWNER
+file	manage	dept	OWNER
+file	version_rollback	self	OWNER
+file	view	all	OWNER
+incentive	add	self	ORG
+incentive	delete	all	OWNER
+incentive	edit	all	OWNER
+incentive	manage	all	OWNER
+incentive	stats_view	all	OWNER
+incentive	view	all	OWNER
+incentive	view-all	all	OWNER
+incentive	view-shared	all	OWNER
+score	entry	all	OWNER
+score	manage	all	OWNER
+score	ranking	all	OWNER
+score	view	all	OWNER
+sea	config	all	OWNER
+sea	pool	all	OWNER
+sea	view	all	OWNER
+system	dept	all	OWNER
+== users ==
+11	NO001	马吉亮	1	0
+== menu perms ==
+审批通过	approval:approve
+审批驳回	approval:reject
+审批管理	approval:view
+客户联系人查看	contact:view
+新增客户	customer:add
+客户新增	customer:add
+客户删除	customer:delete
+客户编辑	customer:edit
+客户导出	customer:export
+开票回款编辑	customer:finance:edit
+客户导入	customer:import
+客户列表	customer:view
+客户管理	customer:view
+客户详情	customer:view
+法布施发布互动	fabushi:create
+统计看板	fabushi:stats:view
+分享广场	fabushi:view
+法布施内容浏览	fabushi:view
+书目浏览	fabushi:view
+我的阅读	fabushi:view
+文件删除	file:delete
+文件下载	file:download
+文件编辑	file:edit
+新建文件夹	file:folder:create
+删除文件夹	file:folder:delete
+文件夹管理	file:folder:manage
+文件夹改名	file:folder:rename
+恢复文件夹	file:folder:restore
+文件对账	file:reconcile
+文件分享	file:share
+文件上传	file:upload
+文件管理	file:view
+客户财务管理	finance:manage
+客户财务查看	finance:view
+激励上传	incentive:add
+激励编辑	incentive:edit
+个人排行导出	incentive:person-rank:export
+激励排行查看	incentive:rank:view
+激励查询阅读统计	incentive:read-stats
+激励统计查看	incentive:stats:view
+激励统计	incentive:stats:view
+四项激励	incentive:view
+案例库	incentive:view
+激励查询	incentive:view
+提醒管理	reminder:view
+学分录入	score:entry
+学分管理	score:manage
+学分排行	score:view
+公海捞取	sea:claim
+公海配置编辑	sea:config:edit
+公海配置查看	sea:config:view
+公海导入	sea:import
+公海管理	sea:view
+公海池	sea:view
+捞取记录	sea:view
+统计分析	statistics:view
+客户排行	statistics:view
+核心客户六项指标	statistics:view
+系统配置编辑	system:config:edit
+系统设置	system:config:view
+系统设置	system:config:view
+部门编辑	system:dept:edit
+部门管理	system:dept:view
+组织架构	system:dept:view
+集团管理	system:group:view
+日志查看	system:log:view
+菜单查看	system:menu:view
+组织管理员	system:org:admin
+岗位新增	system:position:add
+删除岗位	system:position:delete
+岗位编辑	system:position:edit
+岗位管理	system:position:view
+角色新增	system:role:add
+删除角色	system:role:delete
+角色编辑	system:role:edit
+角色管理	system:role:view
+规则新增	system:rule:add
+删除规则	system:rule:delete
+规则编辑	system:rule:edit
+权限规则	system:rule:view
+用户新增	system:user:add
+删除用户	system:user:delete
+用户编辑	system:user:edit
+人员管理	system:user:view
+任务管理	task:manage
+我的任务	task:view
