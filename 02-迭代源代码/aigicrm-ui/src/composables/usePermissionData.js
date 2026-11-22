@@ -153,14 +153,23 @@ const togglePerm = async (role, item) => {
     return false
   }
   const had = set.has(item.id)
+  // 【BUG-20261122-008 修复】OFF 方向按权限码整码撤除: 同码多菜单行(如 customer:view
+  // = 客户管理/客户详情/客户列表 三个 menu 节点)只删一行时, 提交集仍含兄弟行 →
+  // 后端 H-1 码级收敛保存时自动补回, 单行取消静默无效(界面报"已保存并生效"但权限仍在)。
+  // ON 方向无需处理(H-1 会自动补全); removed 记录整码名单供失败回滚。
+  const removed = []
   if (had) {
-    set.delete(item.id)
+    const sameCode = permModules.value.flatMap(g => g.items)
+      .filter(i => i.permission === item.permission).map(i => i.id)
+    for (const id of sameCode) {
+      if (set.delete(id)) removed.push(id)
+    }
   } else {
     set.add(item.id)
   }
   // 【M-1 2026-11-12 外部审计修复】串行化: 前一个保存未完成时不提交下一次(防乱序覆盖丢勾选)
   if (permSaving.value) {
-    if (had) set.add(item.id); else set.delete(item.id)
+    for (const id of removed) set.add(id)
     ElMessage.warning('上一次保存仍在进行中，请稍候')
     return false
   }
@@ -179,7 +188,7 @@ const togglePerm = async (role, item) => {
     return true
   } catch (e) {
     // 保存失败:回滚本地勾选状态,避免"界面已改、数据库没变"的假成功
-    if (had) set.add(item.id); else set.delete(item.id)
+    for (const id of removed) set.add(id)
     ElMessage.error(e?.response?.data?.message || '权限保存失败,已还原勾选')
     return false
   } finally {
