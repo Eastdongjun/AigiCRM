@@ -18,9 +18,11 @@
 
 | 资产 | 位置 | 内容 |
 |---|---|---|
+| **测试机制（执行入口）** | `docs/test-mechanism-20261122.md` | 方法·内容·结果三合一绑定：场景→命令路由表、矩阵填表分工、问题闭环状态机、域闭环判据、与领域层关系 |
 | 严格测试门禁模板 v1 | `docs/test-gate-template-20261122.md` | G0–G7 分层门禁 + H1–H10 硬规则；收口既有 gate.sh/quality-gate.sh/契约脚本，补齐 G6 内容级核验与 G7 上线后门禁；待建 A/B/C 见其 §5 |
 | 全系统测试矩阵模板 v1 | `../AIGICRM全系统测试矩阵模板-20261122.xlsx`（14 sheet） | 01 七档定义/02 组织树fixture/03 测试账号/04 权限测试记录主表/05 问题闭环/06–13 审批链·消息·日志·数据库·表结构·安全·性能·兼容；核心断言=配置态 vs 生效态 ID 集合级对账 |
 | 权限矩阵自动化 | `scripts/verify-perm-matrix.sh` 第 8 段 | 七档 ID 集合 diff 全量回归（`AIGI_MATRIX=1` 挂 gate.sh 可选档）；实测 28/0 全绿 |
+| （方法论单一源在工程领域层） | `东来/Agent/05-领域/01-工程/06-测试/01-技能/test-system/` | 跨项目通用方法论+可参数化工具（verify-kernel-compat / verify-deployed-content）；中央登记 GATE-ENG-TEST-001/002/003 |
 
 > 使用规则：代码交付走门禁模板 G0–G7；权限/数据范围改动必跑 `verify-perm-matrix.sh`；其余域按迭代填矩阵对应 sheet，问题一律开 05 表单闭环。
 
