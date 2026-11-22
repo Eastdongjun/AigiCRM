@@ -375,6 +375,12 @@ public class FolderPermissionService {
      * 仅做“是否社区内容”的事实查询，功能码 fabushi:view 已在调用方前置。
      */
     boolean isFabushiCommunityFile(Long fileId) {
+        // native-sql-audit: 社区内容事实查询(R2-FABUSHI-SCOPE-001)——按 fileId 主键定位, 只判
+        // "该文件是否已发布为社区内容", 不返回业务数据行; fileId 在调用方已过功能码+数据范围门。
+        // 不加 tenant 限定的理由: ①R2 语义即"已发布社区内容跨组织放行", 加过滤反而破坏放行语义;
+        // ②被查四表 biz_fabushi_book/post/post_attachment/comment 无 tenant_id 列(2026-11-22
+        // 实测 schema, 仅 reading_progress/section/shelf/user_setting 有); ③单集团部署
+        // tenant_id 恒 1(同 FileChunkUploadService/RecycleBinService 豁免口径)。
         if (fileId == null || jdbc == null) return false;
         Integer n = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM ("
