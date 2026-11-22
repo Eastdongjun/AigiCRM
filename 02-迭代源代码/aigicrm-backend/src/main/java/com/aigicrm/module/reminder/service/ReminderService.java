@@ -647,7 +647,9 @@ public class ReminderService {
     private void assertVisible(BizReminder reminder, String message) {
         List<Long> visible = scopeResolver.resolveModuleUsers(SecurityUtils.getCurrentUser(), LIT_REMINDER);
         if (visible != null && (reminder.getOwnerId() == null || !visible.contains(reminder.getOwnerId()))) {
-            throw new BusinessException(message);
+            // 【PM-API-001 2026-11-22】越权拒绝语义改为 403（原默认 400），与全站权限拒绝口径一致，
+            // 便于客户端/监控按 4xx 权限类分流；拒绝结果与响应体提示不变。
+            throw new BusinessException(403, "PERM_DENIED", message);
         }
     }
 

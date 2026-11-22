@@ -144,6 +144,10 @@ const thumbUrlOf = (row) => {
 watch(files, async () => {
   if ((files.value || []).some(isImageRow)) {
     try { await refreshDownloadToken() } catch (e) { /* 缩略退化类型徽标 */ }
+    // 【PM-UI-001 2026-11-22】首屏渲染早于 download-token 就绪时，缩略图会先 401 并落入
+    // thumbFailedMap 且不再重试。token 刷新完成后清空失败标记，让 img 用带 token 的 URL 重试一次；
+    // 若 token 仍不可用，重试再次失败后仍退化类型徽标，不产生循环。
+    Object.keys(thumbFailedMap).forEach((k) => { delete thumbFailedMap[k] })
   }
 }, { immediate: true })
 

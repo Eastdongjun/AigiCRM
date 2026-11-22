@@ -276,7 +276,9 @@ class ReminderServiceTest {
         reminder.setOwnerId(2L);
         when(reminderMapper.selectById(22L)).thenReturn(reminder);
 
-        assertThrows(BusinessException.class, () -> service.detail(22L));
+        BusinessException ex = assertThrows(BusinessException.class, () -> service.detail(22L));
+        assertEquals(403, ex.getCode(), "越权拒绝应为 403（PM-API-001）");
+        assertEquals("PERM_DENIED", ex.getErrorCode());
         verify(customerMapper, never()).selectById(any());
     }
 

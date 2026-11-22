@@ -1049,8 +1049,8 @@ public class PermissionMatrixTest {
         assertTrue(serviceBody.contains("private void assertVisible")
                         && !serviceBody.contains("if (SecurityUtils.isAdmin())")
                         && serviceBody.contains("reminder.getOwnerId() == null || !visible.contains(reminder.getOwnerId())")
-                        && serviceBody.contains("throw new BusinessException(message)"),
-                "ReminderService.assertVisible 必须对所有角色保留负责人范围校验");
+                        && serviceBody.contains("throw new BusinessException(403, \"PERM_DENIED\", message)"),
+                "ReminderService.assertVisible 必须对所有角色保留负责人范围校验（越权 403 PERM_DENIED）");
     }
 
     /** 激励记录编辑/删除必须保留方法内归属与专项授权守卫，不能误回退成粗粒度方法权限。 */

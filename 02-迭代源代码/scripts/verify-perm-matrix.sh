@@ -38,6 +38,7 @@ cleanup() {
   db "DELETE FROM sys_role_org WHERE role_id IN (SELECT id FROM sys_role WHERE role_code IN ('perm_matrix_tmp','pmx7_stack'));
       DELETE FROM biz_customer WHERE customer_name LIKE 'pmx7-c-%';
       DELETE FROM sys_user_role WHERE user_id IN (SELECT id FROM sys_user WHERE username LIKE 'pmx7\_%');
+      DELETE FROM role_perm_scope WHERE assignee_type='USER' AND CAST(assignee_key AS UNSIGNED) IN (SELECT id FROM sys_user WHERE username LIKE 'pmx7\_%');
       DELETE FROM sys_user WHERE username LIKE 'pmx7\_%';
       DELETE FROM sys_role_menu WHERE role_id IN (SELECT id FROM sys_role WHERE role_code='pmx7_stack');
       DELETE FROM sys_role WHERE role_code='pmx7_stack';
@@ -287,11 +288,11 @@ mkcust d3   "$(uidof pmx7_u_d3)"
 mkcust b2 "$(uidof pmx7_b2)"; mkcust b3 "$(uidof pmx7_b3)"; mkcust b4 "$(uidof pmx7_b4)"
 mkcust b5 "$(uidof pmx7_b5)"; mkcust b6 "$(uidof pmx7_b6)"; mkcust b7 "$(uidof pmx7_b7)"
 
-# tier_check <标签> <档位> <bot所在dept> <期望客户名csv(不带前缀)> [custom行sql]
+# tier_check <标签> <档位> <bot所在dept> <期望客户名csv(不带前缀)> [custom行sql] [角色data_scope覆盖]
 tier_check() {
-  local label="$1" scope="$2" botdept="$3" expected="$4" custom_sql="${5:-}"
+  local label="$1" scope="$2" botdept="$3" expected="$4" custom_sql="${5:-}" role_scope="${6:-$2}"
   db "DELETE FROM sys_role_org WHERE role_id=$BOT_RID;
-      UPDATE sys_role SET data_scope='$scope' WHERE id=$BOT_RID;
+      UPDATE sys_role SET data_scope='$role_scope' WHERE id=$BOT_RID;
       UPDATE sys_user SET dept_id=$botdept, org_id=$botdept, manager_id=NULL WHERE id=$BOT_UID;" >/dev/null
   [ -n "$custom_sql" ] && db "$custom_sql" >/dev/null
   db "UPDATE sys_user SET perm_version=perm_version+1 WHERE id=$BOT_UID;" >/dev/null
@@ -329,6 +330,12 @@ db "DELETE FROM sys_user_role WHERE user_id=$BOT_UID AND role_id=$R2;" >/dev/nul
 # team 档: 临时把 b2 挂到 bot(其余链不变) → bot 下级=b2..b6(1..5层, ≤5层递归可见), b7=第6层不可见
 db "UPDATE sys_user SET manager_id=$BOT_UID WHERE username='pmx7_b2';" >/dev/null
 tier_check "team 档(5层链,第6层b7不可见)" team "$D_D21" "bot,b2,b3,b4,b5,b6"
+# 【BUG-20261122-001 回归】用户级通配 team（R2-FABUSHI-SCOPE-001 同型配置）：
+# 角色 data_scope=self + USER */*=team，用户级覆盖路径仍须 5 层截断（b7 第6层不可见）。
+db "INSERT INTO role_perm_scope (role_code,assignee_type,assignee_key,module,action,scope_level,anchor)
+    VALUES ('','USER','$BOT_UID','*','*','team','OWNER');" >/dev/null
+tier_check "USER 通配 team(5层链,第6层b7不可见)" team "$D_D21" "bot,b2,b3,b4,b5,b6" "" self
+db "DELETE FROM role_perm_scope WHERE assignee_type='USER' AND assignee_key='$BOT_UID' AND module='*' AND action='*';" >/dev/null
 db "UPDATE sys_user SET manager_id=NULL WHERE username='pmx7_b2';" >/dev/null
 tier_check "all 档(全量fixture可见)" all "$D_D21" "bot,d2,d21,d3,b2,b3,b4,b5,b6,b7"
 
