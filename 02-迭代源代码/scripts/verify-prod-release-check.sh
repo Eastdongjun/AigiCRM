@@ -94,7 +94,7 @@ while stack:
 print(len(out))
 PYEOF
 )
-[ "${LEFT:-99}" = "0" ] && ok "BUG-008 生产活体: UI 单行取消后 customer:view 权限码零残留(menuIds $N1->$N2, 余为无码父目录节点)" || bad "取消后 customer:view 残留 ${LEFT_CV} 条 (menuIds $N1->$N2)"
+[ "${LEFT_CV:-99}" = "0" ] && ok "BUG-008 生产活体: UI 单行取消后 customer:view 权限码零残留(menuIds $N1->$N2, 余为无码父目录节点)" || bad "取消后 customer:view 残留 ${LEFT_CV} 条 (menuIds $N1->$N2)"
 
 # ---- 清理(删角色) ----
 C=$(curl -s -o /dev/null -w '%{http_code}' -X DELETE "$BASE/api/system/roles/$RID" -H "$H1" -H "$H2")
