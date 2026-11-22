@@ -31,9 +31,12 @@ import java.util.concurrent.ThreadLocalRandom;
 public class GlobalExceptionHandler {
 
     private final com.aigicrm.security.PermissionHintService permissionHintService;
+    private final com.aigicrm.security.SecurityAuditService securityAudit;
 
-    public GlobalExceptionHandler(com.aigicrm.security.PermissionHintService permissionHintService) {
+    public GlobalExceptionHandler(com.aigicrm.security.PermissionHintService permissionHintService,
+                                  com.aigicrm.security.SecurityAuditService securityAudit) {
         this.permissionHintService = permissionHintService;
+        this.securityAudit = securityAudit;
     }
 
     // ==================== 【PR-24 首批 2026-09-19】异常支持编号 ====================
@@ -101,6 +104,16 @@ public class GlobalExceptionHandler {
     public Result<Void> handleAccessDeniedException(AccessDeniedException e, jakarta.servlet.http.HttpServletRequest request) {
         // 【2026-11-08 权限报错中文化】方法级 @PreAuthorize 拒绝走本分支(非 HTTP 层 accessDeniedHandler),
         // 同样接 PermissionHintService 生成"缺少「XX(码)」→去【系统设置 → 权限中心】开启"自助指引。
+        // 【BUG-20261122-006 修复】此前本分支只出提示不留痕——filter 链 auditAccessDenied 仅覆盖
+        // URL 级拒绝, 导致全库 sys_audit_log ACCESS_DENIED 恒 0, 系统绝大多数越权 403 不可审计。
+        // 补审计(uri+userId+ip, 口径同 SecurityConfig.auditAccessDenied); 审计旁路失败不得改变拒绝语义。
+        try {
+            securityAudit.accessDenied(request.getRequestURI(),
+                    com.aigicrm.security.SecurityUtils.getCurrentUserId(),
+                    com.aigicrm.common.util.ClientIpUtils.getClientIp(request));
+        } catch (Exception auditEx) {
+            log.warn("ACCESS_DENIED 审计旁路失败(不影响拒绝语义): {}", auditEx.getMessage());
+        }
         String hint = permissionHintService.hint(request, com.aigicrm.security.PermissionHintService.FALLBACK_HINT);
         return Result.error(403, hint, "PERM_DENIED");
     }

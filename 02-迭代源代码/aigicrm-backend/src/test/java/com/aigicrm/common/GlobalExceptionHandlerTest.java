@@ -15,8 +15,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class GlobalExceptionHandlerTest {
 
     // hint 服务传 null 依赖: hint() 全链路 try-catch 降级 → 恒返回 fallback, 供单测无需 MVC/DB
+    // 【BUG-20261122-006】securityAudit 用 mock: 拒绝分支必须调审计且不改拒绝语义
+    private final com.aigicrm.security.SecurityAuditService audit =
+            org.mockito.Mockito.mock(com.aigicrm.security.SecurityAuditService.class);
     private final GlobalExceptionHandler handler = new GlobalExceptionHandler(
-            new com.aigicrm.security.PermissionHintService(null, null));
+            new com.aigicrm.security.PermissionHintService(null, null), audit);
 
     @Test
     void businessException_403_mapsToForbidden() {
@@ -169,5 +172,28 @@ class GlobalExceptionHandlerTest {
         assertEquals(400, result.getCode());
         assertTrue(result.getMessage() != null && result.getMessage().contains("file"),
                 "提示须指明缺失的 part 名: " + result.getMessage());
+    }
+
+    /** 【BUG-20261122-006】方法级 @PreAuthorize 拒绝必须留痕: 调 securityAudit.accessDenied(uri,userId,ip),
+     *  且拒绝语义不变(403 + PERM_DENIED + 指引); 审计抛异常也不得改变返回。 */
+    @org.junit.jupiter.api.Test
+    void accessDenied_auditsAndKeepsDenialSemantics() {
+        var req = new org.springframework.mock.web.MockHttpServletRequest();
+        var r1 = handler.handleAccessDeniedException(
+                new org.springframework.security.access.AccessDeniedException("denied"), req);
+        org.junit.jupiter.api.Assertions.assertEquals(403, r1.getCode());
+        org.junit.jupiter.api.Assertions.assertEquals("PERM_DENIED", r1.getErrorCode());
+        org.mockito.Mockito.verify(audit).accessDenied(
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.isNull(),
+                org.mockito.ArgumentMatchers.anyString());
+        // 审计旁路失败不改拒绝语义
+        org.mockito.Mockito.doThrow(new RuntimeException("audit down"))
+                .when(audit).accessDenied(org.mockito.ArgumentMatchers.anyString(),
+                        org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+        var r2 = handler.handleAccessDeniedException(
+                new org.springframework.security.access.AccessDeniedException("denied"), req);
+        org.junit.jupiter.api.Assertions.assertEquals(403, r2.getCode());
+        org.junit.jupiter.api.Assertions.assertEquals("PERM_DENIED", r2.getErrorCode());
     }
 }
