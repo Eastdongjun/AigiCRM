@@ -247,3 +247,12 @@ ssh_prod "
 echo "=== [6/6] 部署记录 ==="
 ssh_prod "echo \"$(date +%Y-%m-%d\ %H:%M:%S) frontend deploy commit=$COMMIT entry=$ENTRY\" >> $DEPLOY_DIR/deploy.log"
 echo "✅ 前端部署完成 (commit: $COMMIT, backup: $BACKUP_DIR)"
+
+# 【G6 内容级核验 2026-11-22】测试门禁模板待建B: 线上 assets 与本地 dist 逐文件 sha256 对账。
+# 之前只验 HTTP 200/入口可达, 不验"修复真的在线上"(K-ENG-FE-001 靠人工 curl 比对落位)。
+if bash "$SCRIPT_DIR/verify-deployed-content.sh"; then
+  echo "✅ 内容级核验通过"
+else
+  echo "❌ 内容级核验失败——按门禁 G6 人工裁决回滚(备份: $BACKUP_DIR)" >&2
+  exit 1
+fi

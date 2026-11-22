@@ -6,6 +6,9 @@
 # 可选: AIGI_MATRIX=1 追加权限矩阵回归(需测试环境账号, 见 verify-perm-matrix.sh)
 # 可选: AIGI_MP_WALK=1 追加小程序真机渲染走查(需打开微信开发者工具+自动化端口 9424, 见 scripts/miniprogram/verify-nested-alias-render.mjs)
 # 退出码: 0=全过, 1=任一必需项失败。CI/交付前必须跑完整档。
+# 【双门禁分工 2026-11-22 收口】本脚本=交付全集唯一裁决; 单任务 P0 验证报告表出口用
+#   scripts/quality-gate.sh(修改范围→三端→VSCode诊断→报告表), 两者互不替代——
+#   详见 docs/test-gate-template-20261122.md §0 与待建C。
 # 【F2 2026-10-21】补齐门禁覆盖:
 #   [2b] 由内联 node --check 收敛为 dev-verify.sh miniprogram(含绑定/类名/JSON/app.json 契约);
 #   [5b] 新增 dev-verify.sh contracts(70+ 本地契约脚本全集 + F1 全量 secret 扫描);
@@ -65,6 +68,15 @@ if [ "$QUICK" != "--quick" ]; then
   else
     bad "前端构建失败:"; tail -5 /tmp/gate-build.log
   fi
+fi
+
+# [3b] web-view 内核兼容【测试门禁模板待建A 2026-11-22 转正, K-ENG-FE-001 事故沉淀】
+#      产物级默认跑(三类 chunk+双线程注入证据); AIGI_KERNEL_RUNTIME=1 追加内核模拟运行级
+echo "--- [3b] web-view 内核兼容(产物级) ---"
+if bash "$SCRIPT_DIR/verify-webview-kernel-compat.sh" > /tmp/gate-kernel.log 2>&1; then
+  ok "web-view 内核兼容(产物级)"; grep '^PASS' /tmp/gate-kernel.log | sed 's/^/    /'
+else
+  bad "web-view 内核兼容失败:"; tail -8 /tmp/gate-kernel.log
 fi
 
 # [4] 人工文档新鲜度(防崩溃关键: 上线周零回流的根因是人工文档无新鲜度检查)

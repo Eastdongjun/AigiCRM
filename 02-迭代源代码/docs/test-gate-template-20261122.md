@@ -110,13 +110,13 @@ gate.sh 完整档 0 →  deploy-db.sh(如有迁移)  →  deploy-backend.sh(md5�
 - `device-regression.md`：真机回归清单 + 用户确认结果 + 日期
 - 禁止含密钥；逃逸门使用记录（H6）同目录
 
-## 5. 待建项（本模板转正后立项，各挂事故/守则编号）
+## 5. 待建项（2026-11-22 已全部建成转正）
 
-| # | 待建 | 内容 | 来源 |
-|---|---|---|---|
-| A | `verify-webview-kernel-compat.sh` | 产物级 grep 关键 API polyfill 标记 + Playwright 删除 `Map.prototype.getOrInsert*`/`toHex` 等模拟最低内核，跑 PDF 打开正例。**自带负例自证**（H10：删 API 后检查必须先红一次） | K-ENG-FE-001（本次手工专项固化） |
-| B | `verify-deployed-content.sh` | 部署后自动比对线上 chunk 与本地 dist 的标记计数 + 入口 sha256 | K-ENG-FE-001（本次手工比对固化） |
-| C | 双一键门禁收口 | quality-gate.sh 头注仍写「后端 mvn verify(JDK17)」已过期（现 JDK21）；且与 gate.sh 互不调用、职责重叠——建议 quality-gate.sh 收敛为 gate.sh 的报告表层（或头注注明分工） | 2026-11-22 盘点核实 |
+| # | 交付物 | 状态与接入点 |
+|---|---|---|
+| A | `scripts/verify-webview-kernel-compat.sh` | ✅ 已建成并接入 **gate.sh [3b]**（产物级默认跑；`AIGI_KERNEL_RUNTIME=1` 追加 Playwright 内核模拟运行级；`--self-test` 负例自证）。首验：产物级 PASS + 运行级 PASS（chromium 删 8 API→import 产物→全部自愈）+ 负例红 |
+| B | `scripts/verify-deployed-content.sh` | ✅ 已建成并接入 **deploy-frontend.sh 尾部**（部署即对账，失败提示回滚）。首验：线上 241/241 assets 与本地 sha256 一致 + 篡改自证红 |
+| C | 双一键门禁收口 | ✅ quality-gate.sh 头注 JDK17→JDK21 纠偏 + 双向分工注明（gate.sh=交付全集唯一裁决 / quality-gate.sh=P0 单任务报告表出口，互不替代） |
 
 ## 6. 角色分工
 

@@ -1,9 +1,14 @@
 #!/usr/bin/env bash
 # AIGICRM 质量门禁一键执行（P0，2026-08-12）
 # 用法: bash scripts/quality-gate.sh
-# 覆盖: 修改范围检查 → 前端 test/build → 后端 mvn verify(JDK17) → 变更文件 VSCode 诊断 → 报告表
+# 覆盖: 修改范围检查 → 前端 test/build → 后端 mvn verify(JDK21) → 变更文件 VSCode 诊断 → 报告表
 # 退出码: 0=全部强制门禁 PASS；1=存在 FAIL；2=环境/依赖缺失导致 BLOCKED
 # 原则: lint/type-check 未配置如实标 N/A；缺验证条件标 BLOCKED；不虚报 PASS。
+# 【双门禁分工 2026-11-22 收口(测试门禁模板待建C, 详见 docs/test-gate-template-20261122.md)】
+#   gate.sh        = 交付全集唯一裁决(后端全量+前端+小程序契约+文档新鲜度+INV+契约全集+类型基线)
+#   本脚本         = P0 单任务验证报告表出口(修改范围→三端→VSCode 诊断→CLAUDE.md 第五节报告表)
+#   两者互不替代: 交付/合并前 gate.sh 必须完整档 0; 单任务收尾用本脚本出报告表。
+#   (原头注"JDK17"为历史漂移, 2026-09-22 起后端基线 JDK21, 本次一并纠正)
 set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO="$(cd "$SCRIPT_DIR/.." && pwd)"
