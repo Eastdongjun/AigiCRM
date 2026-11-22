@@ -16,6 +16,7 @@ import com.aigicrm.module.system.mapper.SysRoleMapper;
 import com.aigicrm.module.system.mapper.SysUserMapper;
 import com.aigicrm.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -75,6 +76,10 @@ public class FolderPermissionService {
     /** 【2026-11-17 阶段二】统一授权引擎；单测/旧上下文可缺省（缺省=只走旧链）。 */
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private FileGrantService fileGrantService;
+
+    /** 【R2-FABUSHI-SCOPE-001 2026-11-22】社区型法布施文件识别；单测/旧上下文可缺省（缺省=不启用社区放行）。 */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private JdbcTemplate jdbc;
 
     // ==================== 判定入口 ====================
 
@@ -342,7 +347,13 @@ public class FolderPermissionService {
         return ids == null ? null : new HashSet<>(ids);
     }
 
-    /** 法布施单文件可见：功能码 fabushi:view + 上传人 ∈ fabushi|file_view 范围。 */
+    /**
+     * 法布施单文件可见：功能码 fabushi:view + 上传人 ∈ fabushi|file_view 范围。
+     * 【R2-FABUSHI-SCOPE-001 根因修复 2026-11-22】社区型内容（已审核书籍 PDF、已发布心得/诵读/正能量附件、
+     * 已发布语音评论音频）是全员内容，持 fabushi:view 即放行——不再受上传人数据范围约束。
+     * 否则 USER 级通配（module=*、action=*）会遮蔽角色级 fabushi|file_view=all，新账号出现“书可见、PDF 403”。
+     * 授权引擎 DENY 仍优先；普通法布施上传（未挂到已发布内容）继续走上传人范围。
+     */
     public boolean canViewFabushiFile(BizFile file, Long userId) {
         if (file == null || !SecurityUtils.hasAuthority(LIT_FABUSHI_VIEW)) return false;
         if (SecurityUtils.isAdmin()) return true;
@@ -351,7 +362,34 @@ public class FolderPermissionService {
             if (d == FileGrantService.Decision.DENY) return false;
             if (d == FileGrantService.Decision.ALLOW) return true;
         }
+        if (isFabushiCommunityFile(file.getId())) return true;
         return moduleOwnerVisible(file.getUploaderId(), LIT_FABUSHI, "file_view");
+    }
+
+    /**
+     * 社区型法布施文件（社区内容流，全员可见，不设数据范围）：
+     * ① 已审核书籍挂载的 PDF（biz_fabushi_book.status=approved 且未删）；
+     * ② 已发布内容（心得/诵读/正能量）的附件（biz_fabushi_post.status=published 且未删）；
+     * ③ 已发布内容下已发布语音评论的音频。
+     * 动态判定：书籍停用/内容下架后立即回落到上传人数据范围通道。
+     * 仅做“是否社区内容”的事实查询，功能码 fabushi:view 已在调用方前置。
+     */
+    boolean isFabushiCommunityFile(Long fileId) {
+        if (fileId == null || jdbc == null) return false;
+        Integer n = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM ("
+                        + "SELECT 1 FROM biz_fabushi_book b WHERE b.pdf_file_id = ? AND b.status = 'approved' AND b.deleted = 0 "
+                        + "UNION ALL "
+                        + "SELECT 1 FROM biz_fabushi_post_attachment a "
+                        + "JOIN biz_fabushi_post p ON p.id = a.post_id "
+                        + "WHERE a.file_id = ? AND p.status = 'published' AND p.deleted = 0 "
+                        + "UNION ALL "
+                        + "SELECT 1 FROM biz_fabushi_comment c "
+                        + "JOIN biz_fabushi_post p2 ON p2.id = c.post_id "
+                        + "WHERE c.audio_file_id = ? AND c.status = 'published' AND p2.status = 'published' AND p2.deleted = 0"
+                        + ") t",
+                Integer.class, fileId, fileId, fileId);
+        return n != null && n > 0;
     }
 
     /**

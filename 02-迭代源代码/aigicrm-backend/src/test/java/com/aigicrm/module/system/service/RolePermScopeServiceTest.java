@@ -197,4 +197,39 @@ class RolePermScopeServiceTest {
         org.junit.jupiter.api.Assertions.assertEquals(400, ex.getCode());
         org.junit.jupiter.api.Assertions.assertTrue(String.valueOf(ex.getMessage()).contains("大区"));
     }
+
+    /**
+     * 【R2-FABUSHI-SCOPE-001 防复发 2026-11-22】USER/POSITION 级通配（module=*、action=*）会遮蔽角色模块级
+     * 范围（历史导致法布施书籍 PDF 403），写入面必须显式拒绝并给出可操作原因。
+     */
+    @Test
+    void updateScopes_userWildcardRejectedWithSpecificReason() {
+        JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        RolePermScopeService svc = new RolePermScopeService(jdbc, mock(com.aigicrm.security.PermissionCacheService.class),
+                mock(com.aigicrm.module.system.mapper.SysRuleVersionMapper.class),
+                mock(com.aigicrm.common.auth.PermActionRegistry.class));
+        com.aigicrm.common.BusinessException ex = org.junit.jupiter.api.Assertions.assertThrows(
+                com.aigicrm.common.BusinessException.class, () -> svc.updateScopes(
+                        com.aigicrm.common.scope.ScopeConfig.ASSIGNEE_USER, "40",
+                        List.of(Map.of("module", "*", "action", "*", "scopeLevel", "team"))));
+        org.junit.jupiter.api.Assertions.assertEquals(400, ex.getCode());
+        org.junit.jupiter.api.Assertions.assertEquals("SCOPE_WILDCARD_FORBIDDEN", ex.getErrorCode());
+        org.junit.jupiter.api.Assertions.assertTrue(String.valueOf(ex.getMessage()).contains("遮蔽角色模块级范围"));
+        org.mockito.Mockito.verifyNoInteractions(jdbc);
+    }
+
+    /** POSITION 级与 USER 同权（USER>POSITION>ROLE），同样拒绝通配。 */
+    @Test
+    void updateScopes_positionWildcardRejectedWithSpecificReason() {
+        JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        RolePermScopeService svc = new RolePermScopeService(jdbc, mock(com.aigicrm.security.PermissionCacheService.class),
+                mock(com.aigicrm.module.system.mapper.SysRuleVersionMapper.class),
+                mock(com.aigicrm.common.auth.PermActionRegistry.class));
+        com.aigicrm.common.BusinessException ex = org.junit.jupiter.api.Assertions.assertThrows(
+                com.aigicrm.common.BusinessException.class, () -> svc.updateScopes(
+                        com.aigicrm.common.scope.ScopeConfig.ASSIGNEE_POSITION, "7",
+                        List.of(Map.of("module", "*", "action", "*", "scopeLevel", "self"))));
+        org.junit.jupiter.api.Assertions.assertEquals("SCOPE_WILDCARD_FORBIDDEN", ex.getErrorCode());
+        org.mockito.Mockito.verifyNoInteractions(jdbc);
+    }
 }

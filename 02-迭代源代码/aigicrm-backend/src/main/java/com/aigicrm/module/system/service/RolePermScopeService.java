@@ -32,6 +32,7 @@ public class RolePermScopeService {
     private static final String LIT_MODULE = "module";
     private static final String LIT_ACTION = "action";
     private static final String LIT_X = "权限范围配置读取失败，暂不可用";
+    private static final String LIT_WILDCARD = "*";
 
 
     /** 合法范围级别(与 DataScopeType 主码一致; dept_and_children 为 V7 注释遗留值, 解析器按 dept 语义降级) */
@@ -388,6 +389,7 @@ public class RolePermScopeService {
             clearScopes(assigneeType, assigneeKey);
             return;
         }
+        rejectUserPositionWildcard(assigneeType, configs);
         for (Map<String, Object> cfg : configs) {
             saveScopeConfig(assigneeType, assigneeKey, cfg);
         }
@@ -395,6 +397,26 @@ public class RolePermScopeService {
         // （循环内会 N 次 UPDATE sys_user 全表行锁）
         permissionCacheService.evictAll();
         bumpAllPermVersions();
+    }
+
+    /**
+     * 【R2-FABUSHI-SCOPE-001 防复发 2026-11-22】USER/POSITION 级通配（module=*、action=*）会整体遮蔽
+     * ROLE 级模块精确配置（优先级 USER>POSITION>ROLE，同层精确>通配）：历史上 7 个账号的通配
+     * 行遮蔽了角色 06 的 fabushi/file_view=all，造成“书可见、PDF 403”。
+     * T7 白名单（CONSUMED_AXIS）已禁写通配档；此处补一条针对性显式拒绝，避免调用方只拿到
+     * “该档位后端未消费”的泛化提示后改用 SQL 直写绕过。ROLE 级不拦：同层精确本就优先于通配。
+     */
+    private void rejectUserPositionWildcard(String assigneeType, List<Map<String, Object>> configs) {
+        if (ScopeConfig.ASSIGNEE_ROLE.equals(assigneeType)) return;
+        for (Map<String, Object> cfg : configs) {
+            String m = cfg.get(LIT_MODULE) != null ? cfg.get(LIT_MODULE).toString() : "";
+            String a = cfg.get(LIT_ACTION) != null ? cfg.get(LIT_ACTION).toString() : "";
+            if (LIT_WILDCARD.equals(m) && LIT_WILDCARD.equals(a)) {
+                throw new BusinessException(400, "SCOPE_WILDCARD_FORBIDDEN",
+                        "用户/岗位级通配范围(*/*)未开放配置：它会整体遮蔽角色模块级范围"
+                                + "（历史曾导致法布施书籍 PDF 403），请按模块分别配置");
+            }
+        }
     }
 
     /** 空列表=删除该主体全部配置（恢复"未配置"默认语义）并清理授予表。 */
