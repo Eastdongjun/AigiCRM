@@ -277,7 +277,10 @@
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
-                <version>0.8.12</version>
+                <!-- 【2026-11-22 环境故障修复】0.8.12 的 ASM 读不了 Mockito 5.17 javaagent
+                     预挂载生成的辅助类(class file major 69) → fork 必死, mvn test 全量在
+                     本环境不可执行。升 0.8.16(支持新 class file)恢复覆盖链 AR-AIGI-01。 -->
+                <version>0.8.16</version>
                 <executions>
                     <execution>
                         <id>prepare-agent</id>

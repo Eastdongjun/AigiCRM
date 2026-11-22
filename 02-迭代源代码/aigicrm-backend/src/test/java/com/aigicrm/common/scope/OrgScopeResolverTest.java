@@ -241,6 +241,27 @@ class OrgScopeResolverTest {
         assertEquals(Set.of(1L), new HashSet<>(r.resolve(su(1L, "self", 11L))));
     }
 
+    /**
+     * 【T-self 疑点用例 2026-11-22 · 全系统测试矩阵 04表/01档位定义】ORG 锚点 self 表征测试。
+     *
+     * 现状(钉住): resolveDeptScope("self") → {本部门}（OrgScopeResolver case "self" -> resolveOwnDept）。
+     * 这是 ORG 锚点在部门维上对「仅本人」的最近似表达,**不是仅本人语义**——与 OWNER 锚
+     * selfReturnsOnlySelf 的 {userId} 形成对照。
+     *
+     * 现行安全前提: 两个消费方(FileGrantService.relativeCovers / FolderPermissionService.scopeCovers)
+     * 都在进入本方法前把 self 短路为「上传人==本人」,故线上行为正确。任何未来调用方若直接拿本结果
+     * 按部门过滤,self 档将放大为全部门可见——地雷在此钉牌。行为若变化(收紧或放宽)必须显式改本断言
+     * 并同步矩阵 01 档位定义,不得静默漂移。
+     */
+    @Test
+    void selfOnOrgAnchorCharacterizedAsOwnDept() {
+        OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService,
+                mock(com.aigicrm.module.system.mapper.SysRoleOrgMapper.class), null, null);
+        // userId=7 属部门11: OWNER 锚 self→{7}(仅本人); ORG 锚 self→{11}(本部门全体) —— 两条锚点语义对照
+        assertEquals(Set.of(11L), new HashSet<>(r.resolveDeptScope(su(7L, "self", 11L), "self")));
+        assertEquals(Set.of(7L), new HashSet<>(r.resolveScope(su(7L, "self", 11L), "self")));
+    }
+
     // ---- 多角色并集（设计 §4.2）----
 
     private SecurityUser suMulti(Long userId, List<String> scopes, Long deptId) {
