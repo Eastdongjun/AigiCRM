@@ -43,8 +43,26 @@
 
 | 层 | 职责 | 文件 |
 |---|---|---|
-| 工程领域（单一源） | 方法论 G0–G7/硬规则/五层内容/通用工具 | `05-领域/01-工程/06-测试/01-技能/test-system/` + `03-标准模板/` |
+| 工程领域（单一源） | 方法论 G0–G7/硬规则/五层内容/通用工具/**工作协议/禁区** | `05-领域/01-工程/06-测试/01-技能/test-system/` + `03-标准模板/`（含交接提示词） |
 | 本项目（实例化） | 真实命令绑定 + 矩阵 + 证据目录 | 本文 + `test-gate-template-20261122.md` + 矩阵 xlsx + scripts/ |
-| 中央登记 | 门禁 SSOT | `08-控制面/registry/gates.yaml` GATE-ENG-TEST-001/002/003 |
+| 治理侧 | 整体标准/计划模板/阶段资产/门禁登记 | `00-治理/standards/testing/`（STANDARD.md + TEST-PLAN.template.md）；项目 `03-阶段/06-测试/`（TEST-SUMMARY / RELEASE-READINESS / K-AIGICRM-TEST-001 / TEST-METHODOLOGY / TEST-MATRIX.yaml）；`08-控制面/registry/gates.yaml` **GATE-AIGICRM-TEST-001 / GATE-AIGICRM-WEBVIEW-001** + GATE-ENG-TEST-001/002/003 |
+| 中央登记 | 门禁 SSOT | 同上 registry |
 
 规则漂移处理：方法论变更改领域层再向下同步；本项目命令变化只改本文与项目模板，不回写领域层。
+
+## 六、执行 Agent 工作协议（项目版，源自交接提示词 2026-11-22 整理）
+
+1. **先读后动手**：读本机制 + `git status`，5 行内复述「现状 + 要动什么」；职责是执行/补位/留证，不是重新设计
+2. **留痕三件套**：每步「命令 → 输出 → 退出码」；改脚本前后都要能复现失败
+3. **结论三态 + 锚点**：PASS/FAIL/BLOCKED；结论附 file:line 与可复现命令
+4. **提交纪律**：feat(test)/fix(test)/docs(test) 前缀，一个提交一件事
+5. **收尾附验证报告表**：门禁项/命令/退出码/结果/未验证内容/剩余风险
+
+## 七、禁区（项目版）
+
+- 不另立第二套规则；冲突以领域层 SKILL.md 为准
+- 证据进治理 `runs/<run-id>/evidence/`，不进业务仓；凭据只经 `~/.aigicrm-deploy.env` 注入
+- 提交被 Mimosa git gate 拦截 → 停下等用户授权，不绕过
+- 测试环境（111.229.37.220）写数据的夹具：`pmx*` 前缀 + trap 清理；**永不在生产库（39.99.35.218）跑写操作**
+- 权限中心 UI 断言以**权限码粒度**为准（同码多菜单行有 H-1 码级展开语义，BUG-008 教训）
+- 不动 `02-运行环境/`、`03-工具链/`（vendored）；不碰其他项目在飞改动
