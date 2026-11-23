@@ -167,25 +167,16 @@ class StorageQuotaApplyServiceTest {
         }
     }
 
-    @Test
-    void applyInfo_invalidMaxQuota_fallsBackTo100GB() {
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource({
+            "abc,107374182400",
+            "2199023255552,1099511627776",
+            "1024,1073741824"
+    })
+    void applyInfo_maxQuotaConfigNormalized(String configured, long expected) {
         when(userMapper.selectById(7L)).thenReturn(user(7L, 100L, 1, 0));
-        when(configService.getValue(SysUserService.STORAGE_MAX_QUOTA_KEY)).thenReturn("abc");
-        assertEquals(107374182400L, service.storageApplyInfo(7L).get("maxQuota"));
-    }
-
-    @Test
-    void applyInfo_maxQuotaAbove1TB_clampedTo1TB() {
-        when(userMapper.selectById(7L)).thenReturn(user(7L, 100L, 1, 0));
-        when(configService.getValue(SysUserService.STORAGE_MAX_QUOTA_KEY)).thenReturn("2199023255552"); // 2TB
-        assertEquals(1099511627776L, service.storageApplyInfo(7L).get("maxQuota"));
-    }
-
-    @Test
-    void applyInfo_maxQuotaBelow1GB_clampedTo1GB() {
-        when(userMapper.selectById(7L)).thenReturn(user(7L, 100L, 1, 0));
-        when(configService.getValue(SysUserService.STORAGE_MAX_QUOTA_KEY)).thenReturn("1024");
-        assertEquals(1073741824L, service.storageApplyInfo(7L).get("maxQuota"));
+        when(configService.getValue(SysUserService.STORAGE_MAX_QUOTA_KEY)).thenReturn(configured);
+        assertEquals(expected, service.storageApplyInfo(7L).get("maxQuota"));
     }
 
     @Test

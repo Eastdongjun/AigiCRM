@@ -112,31 +112,22 @@ class MybatisPlusConfigTest {
 
     // ---- 真实 SQL 重写（parserSingle 直调，走真实 jsqlparser 重写链） ----
 
-    @Test
-    void whitelistQueryGetsTenantCondition() {
+    @ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource({
+            "biz_customer,true",
+            "sys_user,false",
+            "biz_customer_stage_amount,true"
+    })
+    void tenantConditionFollowsWhitelist(String table, boolean expectTenant) {
+        // 【体检 H4 2026-10-12】阶段总额表必须在租户白名单；sys_user 非租户表不得附加条件。
         authAs(List.of(7L));
         String out = MybatisPlusConfig.buildTenantInterceptor().parserSingle(
-                "SELECT * FROM biz_customer WHERE id = 1", null);
-        assertTrue(out.contains("tenant_id = 7"), "单集团应附加 tenant_id = 7，实际: " + out);
-    }
-
-    @Test
-    void nonWhitelistTableIsIgnored() {
-        authAs(List.of(7L));
-        String out = MybatisPlusConfig.buildTenantInterceptor().parserSingle(
-                "SELECT * FROM sys_user WHERE id = 1", null);
-        assertFalse(out.contains("tenant_id"), "非白名单表不应附加租户条件，实际: " + out);
-    }
-
-    @Test
-    void stageAmountTableIsTenantIsolated() {
-        // 【体检 H4 2026-10-12】biz_customer_stage_amount 必须在租户白名单: 此前漏配致
-        // 新录行走 MP insert 不自动补 tenant_id 恒落默认 1, 集团≠1 的阶段金额被排行子查询滤为 0
-        // 且污染核心客户判定金额源(2026-10-12 生产摸底 0 行受害, 单集团)。契约钉防再漏配
-        authAs(List.of(7L));
-        String out = MybatisPlusConfig.buildTenantInterceptor().parserSingle(
-                "SELECT * FROM biz_customer_stage_amount WHERE customer_id = 1", null);
-        assertTrue(out.contains("tenant_id = 7"), "阶段总额表应附加租户条件，实际: " + out);
+                "SELECT * FROM " + table + " WHERE id = 1", null);
+        if (expectTenant) {
+            assertTrue(out.contains("tenant_id = 7"), table + " 应附加 tenant_id = 7，实际: " + out);
+        } else {
+            assertFalse(out.contains("tenant_id"), table + " 非白名单表不应附加租户条件，实际: " + out);
+        }
     }
 
     /**
