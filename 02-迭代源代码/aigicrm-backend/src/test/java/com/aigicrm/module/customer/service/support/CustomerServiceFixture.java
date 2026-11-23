@@ -13,6 +13,7 @@ import com.aigicrm.module.customer.mapper.BizInvoiceMapper;
 import com.aigicrm.module.customer.mapper.BizPaymentMapper;
 import com.aigicrm.module.customer.service.CustomerContactShareService;
 import com.aigicrm.module.customer.service.CustomerEventService;
+import com.aigicrm.module.customer.service.CustomerQueryService;
 import com.aigicrm.module.customer.service.CustomerScopeService;
 import com.aigicrm.module.customer.service.CustomerService;
 import com.aigicrm.module.customer.service.CustomerVisibilityService;
@@ -65,10 +66,12 @@ public final class CustomerServiceFixture {
                 shareMapper, reminderMapper, contactMapper, userMapper, jdbc);
         CustomerScopeService scopeService = new CustomerScopeService(configService, rolePermScopeService,
                 scopeResolver, userMapper, deptMapper, customerVisibilityService);
-        return new CustomerService(customerMapper, customerLogMapper, invoiceMapper, shareMapper, indicatorMapper,
+        CustomerQueryService queryService = new CustomerQueryService(customerMapper, shareMapper, userMapper,
+                deptMapper, scopeService);
+        return new CustomerService(customerMapper, customerLogMapper, invoiceMapper, indicatorMapper,
                 paymentMapper, stageAmountMapper, seaPoolMapper, userMapper, deptMapper, jdbc, configService,
                 customerAccessService, approvalMapper, financeAuditLogMapper, customerEventService,
-                contactShareService, scopeService);
+                contactShareService, scopeService, queryService);
     }
 
     /** 测试需要反射 auto_share 私有方法时，拿到真实的数据范围 bean。 */

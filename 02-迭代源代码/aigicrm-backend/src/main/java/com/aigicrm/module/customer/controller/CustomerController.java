@@ -7,6 +7,7 @@ import com.aigicrm.common.Result;
 import com.aigicrm.module.customer.dto.CustomerImportDTO;
 import com.aigicrm.module.customer.dto.CustomerImportResult;
 import com.aigicrm.module.customer.entity.*;
+import com.aigicrm.module.customer.service.CustomerListFilter;
 import com.aigicrm.module.customer.service.CustomerService;
 import com.aigicrm.module.sea.service.SeaService;
 import com.aigicrm.common.engine.CustomerAccessService;
@@ -105,14 +106,14 @@ public class CustomerController {
     }
 
     /** /list 与 /list/counts-by-filter 共用的条件组装(含 csv 长整型解析) */
-    private CustomerService.ListFilter buildListFilter(String keyword, String industry, Long officeId, Long regionId,
+    private CustomerListFilter buildListFilter(String keyword, String industry, Long officeId, Long regionId,
                                                         String status, Long ownerId, String scope, String devType,
                                                         String groupName, Long deptId, String protectionStatus,
                                                         String province, String city,
                                                         java.time.LocalDate rs, java.time.LocalDate re,
                                                         java.time.LocalDate es, java.time.LocalDate ee,
                                                         String userIds, String officeIds, String ownerName) {
-        return new CustomerService.ListFilter(keyword, industry, officeId, regionId, deptId, status, ownerId, scope,
+        return new CustomerListFilter(keyword, industry, officeId, regionId, deptId, status, ownerId, scope,
                 devType, groupName, protectionStatus, province, city, rs, re, es, ee,
                 parseLongCsv(userIds), parseLongCsv(officeIds), ownerName);
     }

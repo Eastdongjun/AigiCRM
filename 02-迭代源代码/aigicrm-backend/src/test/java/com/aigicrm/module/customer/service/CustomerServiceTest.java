@@ -577,7 +577,7 @@ class CustomerServiceTest {
         try (MockedStatic<SecurityUtils> security = mockStatic(SecurityUtils.class)) {
             security.when(SecurityUtils::getCurrentUser).thenReturn(null); // applyDataScope 走拒绝分支, 与本断言无关
 
-            var exported = svc.exportList(new CustomerService.ListFilter(
+            var exported = svc.exportList(new CustomerListFilter(
                     null, null, null, null, null, null, null, null, null, null,
                     null, null, null, null, null, null, null, null, null, null));
 
@@ -606,7 +606,7 @@ class CustomerServiceTest {
         try (MockedStatic<SecurityUtils> security = mockStatic(SecurityUtils.class)) {
             security.when(SecurityUtils::getCurrentUser).thenReturn(null); // applyDataScope 走拒绝分支, 与本断言无关
 
-            var exported = svc.exportList(new CustomerService.ListFilter(
+            var exported = svc.exportList(new CustomerListFilter(
                     null, null, null, null, null, null, null, null, null, null,
                     null, null, null, null, null, null, null, null, null, null));
 
@@ -2231,7 +2231,7 @@ class CustomerServiceTest {
             sec.when(SecurityUtils::getCurrentOrgId).thenReturn(1L);
             com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<BizCustomer> w =
                     new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
-            ReflectionTestUtils.invokeMethod(service, "applyDataScopeAndAutoShare", w);
+            ReflectionTestUtils.invokeMethod(com.aigicrm.module.customer.service.support.CustomerServiceFixture.scopeOf(service), "applyDataScopeAndAutoShare", w);
             Map<String, List<Long>> cols = columnValues(w);
             assertFalse(cols.containsKey("owner_id"),
                     "dataScope=all 用户不应被 auto_share roles 收窄到组织, 实际: " + cols);
@@ -2282,7 +2282,7 @@ class CustomerServiceTest {
             sec.when(SecurityUtils::getCurrentOrgId).thenReturn(1L);
             com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<BizCustomer> w =
                     new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
-            ReflectionTestUtils.invokeMethod(service, "applyDataScopeAndAutoShare", w);
+            ReflectionTestUtils.invokeMethod(com.aigicrm.module.customer.service.support.CustomerServiceFixture.scopeOf(service), "applyDataScopeAndAutoShare", w);
             Map<String, List<Long>> cols = columnValues(w);
             assertEquals(List.of(11L, 1L), cols.get("owner_id"),
                     "非 all 用户 roles 命中应收窄到组织成员(本人+同组织用户), 实际: " + cols);
@@ -2336,7 +2336,7 @@ class CustomerServiceTest {
             sec.when(SecurityUtils::getCurrentOrgId).thenReturn(1L);
             com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<BizCustomer> w =
                     new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
-            ReflectionTestUtils.invokeMethod(service, "applyDataScopeAndAutoShare", w);
+            ReflectionTestUtils.invokeMethod(com.aigicrm.module.customer.service.support.CustomerServiceFixture.scopeOf(service), "applyDataScopeAndAutoShare", w);
             Map<String, List<Long>> cols = columnValues(w);
             assertEquals(List.of(11L), cols.get("owner_id"),
                     "office 档应保留基础范围 11，不被 auto_share 扩/缩, 实际: " + cols);
@@ -2370,7 +2370,7 @@ class CustomerServiceTest {
             sec.when(SecurityUtils::getCurrentOrgId).thenReturn(1L);
             com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<BizCustomer> w =
                     new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
-            ReflectionTestUtils.invokeMethod(service, "applyDataScopeAndAutoShare", w);
+            ReflectionTestUtils.invokeMethod(com.aigicrm.module.customer.service.support.CustomerServiceFixture.scopeOf(service), "applyDataScopeAndAutoShare", w);
             Map<String, List<Long>> cols = columnValues(w);
             assertEquals(List.of(10L), cols.get("dept_id"), "ORG 基础范围应保留, 实际: " + cols);
             assertEquals(List.of(1L), cols.get("owner_id"), "auto_share 扩展 owner 应以 OR 追加, 实际: " + cols);
@@ -2400,7 +2400,7 @@ class CustomerServiceTest {
             sec.when(SecurityUtils::getCurrentOrgId).thenReturn(1L);
             com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<BizCustomer> w =
                     new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
-            ReflectionTestUtils.invokeMethod(service, "applyDataScopeAndAutoShare", w);
+            ReflectionTestUtils.invokeMethod(com.aigicrm.module.customer.service.support.CustomerServiceFixture.scopeOf(service), "applyDataScopeAndAutoShare", w);
             Map<String, List<Long>> cols = columnValues(w);
             assertEquals(List.of(10L), cols.get("dept_id"), "ORG 基础范围应保留, 实际: " + cols);
             assertFalse(cols.containsKey("owner_id"), "无扩展时不得追加 owner 条件, 实际: " + cols);
@@ -2428,7 +2428,7 @@ class CustomerServiceTest {
             sec.when(SecurityUtils::getCurrentOrgId).thenReturn(1L);
             com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<BizCustomer> w =
                     new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
-            ReflectionTestUtils.invokeMethod(service, "applyDataScopeAndAutoShare", w);
+            ReflectionTestUtils.invokeMethod(com.aigicrm.module.customer.service.support.CustomerServiceFixture.scopeOf(service), "applyDataScopeAndAutoShare", w);
             Map<String, List<Long>> cols = columnValues(w);
             assertEquals(List.of(-1L), cols.get("owner_id"), "空基础范围应 fail-closed, 实际: " + cols);
         }
