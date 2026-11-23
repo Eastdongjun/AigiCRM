@@ -27,8 +27,10 @@ import java.util.Set;
 public class MybatisPlusConfig {
 
     /**
-     * 租户白名单：全部 25 张业务表(V9 迁移后全部含 tenant_id 列; 5 张 *_bak_* 快照表
-     * 与废弃空表 biz_stats_permission/biz_file_permission 排除, 后者 2026-08-13 由 V15 迁移删除)。
+     * 租户白名单：承载集团业务数据且以 tenant_id 列隔离的全部 biz_* 表
+     * （*_bak_* 快照表与已 DROP 的死表排除）。规模不再在本注释里写死——权威口径是
+     * {@code scripts/check-tenant-table-registry.sh} 的解析结果，本注释此前写「25 张」
+     * 已随迁移增长而失真（CODE-REVIEW-20261123 R2-01 一并更正）。
      * 启动自检 {@link #verifyTenantColumns} 保证白名单每张表都有 tenant_id 列, 缺失即 fail-fast——
      * 防止漏配迁移导致 SQL 报错。⚠️ V15 删除表后必须先于旧 jar 重启用新代码, 否则自检失败。
      */
@@ -54,7 +56,22 @@ public class MybatisPlusConfig {
             // biz_fabushi_recitation 原本连 tenant_id 列都没有, 由 V2026.11.23.5 补齐(否则本处登记会让生产启动失败)。
             // ⚠️ 多集团前置阻断项见 docs/TECH_DEBT.md「单集团假设」: 开通第二集团前必须先处理
             //    biz_fabushi_shelf_group 的 user_id=0 共享模板行与 uk(user_id,name) 唯一键。
-            "biz_fabushi_recitation", "biz_fabushi_shelf_group", "biz_fabushi_bookmark");
+            "biz_fabushi_recitation", "biz_fabushi_shelf_group", "biz_fabushi_bookmark",
+            // 【CODE-REVIEW-20261123 R2-01 收口 2026-11-23】既有漂移 10 张表补登记。
+            // 逐表取证（迁移块级判定 + 测试库 information_schema + 行数据分布）：
+            //   1) 迁移内 CREATE/ALTER 均显式定义 tenant_id，且库中实为 NOT NULL DEFAULT 1；
+            //   2) 存量数据 tenant_id 取值集合恒为 {1}，无 NULL、无其他集团
+            //      （行数：file_grant 178 / folder_type_default 62 / recycle_bin 29 /
+            //        sea_config_scope 175 / sea_config_region 4 / 其余 4 张 0 行）；
+            //   3) 单集团前提下插件追加 tenant_id=1 不改变结果集 ⇒ 无数据可见性变化。
+            // 其中 biz_file_link / biz_sea_config_region / biz_sea_config_scope 当前无任何代码引用
+            // （sea 的两个已被带 JSON 列的 biz_sea_config 取代），登记属"防下一个人照抄错范式"，
+            // 同时纳入 verifyTenantColumns 自检；确需清理应走 DROP 迁移而非留在灰区。
+            // 注：biz_file_grant 业务层另有显式 tenantId 过滤（FileGrantService:273/355/478），
+            //     登记后为冗余双保险，不冲突。
+            "biz_file_grant", "biz_file_link", "biz_file_version", "biz_folder_type_default",
+            "biz_lifecycle_item", "biz_lifecycle_request", "biz_recycle_bin",
+            "biz_sea_config_region", "biz_sea_config_scope", "biz_upload_session");
     // 【体检 H4 2026-10-12】biz_customer_stage_amount(V2026.10.10.1 新表, tenant_id NOT NULL DEFAULT '1')
     // 此前漏白名单: 新录行走 MP insert 不自动补租户恒落默认 1, 而排行子查询手动按租户过滤——
     // 集团≠1 的阶段金额被滤为 0 且污染核心客户判定金额源(2026-10-12 生产摸底: 单集团 16 行全对, 0 行受害)。

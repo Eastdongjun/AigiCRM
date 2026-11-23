@@ -7,6 +7,8 @@ import com.aigicrm.security.SecurityUser;
 import net.sf.jsqlparser.expression.LongValue;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -135,6 +137,28 @@ class MybatisPlusConfigTest {
         String out = MybatisPlusConfig.buildTenantInterceptor().parserSingle(
                 "SELECT * FROM biz_customer_stage_amount WHERE customer_id = 1", null);
         assertTrue(out.contains("tenant_id = 7"), "阶段总额表应附加租户条件，实际: " + out);
+    }
+
+    /**
+     * 【CODE-REVIEW-20261123 R2-01 收口 2026-11-23】10 张既有漂移表补登记后的契约钉。
+     * 这些表此前既不在白名单、也无待修单之外的去处，属"写入靠 DEFAULT 1 兜底、查询完全不过滤"
+     * 的隐式契约。此处逐表断言 SELECT 会被追加租户条件，防止后续有人把它们从白名单删掉
+     * 却仍留着脚本里的注释（脚本只能证明"已归类"，证明不了"归类正确"）。
+     * 注：biz_file_link / biz_sea_config_region / biz_sea_config_scope 当前无代码引用，
+     * 仍纳入断言——它们将来一旦被实体接入，隔离条件必须已经在。
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "biz_file_grant", "biz_file_link", "biz_file_version", "biz_folder_type_default",
+            "biz_lifecycle_item", "biz_lifecycle_request", "biz_recycle_bin",
+            "biz_sea_config_region", "biz_sea_config_scope", "biz_upload_session"
+    })
+    void r201DriftTablesAreTenantIsolated(String table) {
+        authAs(List.of(7L));
+        String out = MybatisPlusConfig.buildTenantInterceptor().parserSingle(
+                "SELECT * FROM " + table + " WHERE id = 1", null);
+        assertTrue(out.contains("tenant_id = 7"),
+                table + " 应附加租户条件（R2-01 已补登记），实际: " + out);
     }
 
     @Test

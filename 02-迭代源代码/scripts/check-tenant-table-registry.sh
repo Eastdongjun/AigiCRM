@@ -32,23 +32,30 @@ PENDING_FIX=(
   # 【已修 2026-11-23】R1-01 三张新表已全部登记白名单，biz_fabushi_recitation 由 V2026.11.23.5 补 tenant_id 列。
   #   处置依据：单集团模式（tenant_id 恒 1）⇒ 登记后过滤条件不改变结果集，无副作用。
   #   多集团前置阻断项见 docs/TECH_DEBT.md「单集团假设」。
-  # 【既有漂移基线】2026-11-23 盘点，非本次引入；需逐表决策（部分表确带 tenant_id 列，说明当初意图是按集团隔离）
-  "biz_file_grant|既有漂移；表内已有 tenant_id 列|CODE-REVIEW-20261123 R2-01"
-  "biz_file_link|既有漂移|CODE-REVIEW-20261123 R2-01"
-  "biz_file_version|既有漂移|CODE-REVIEW-20261123 R2-01"
-  "biz_folder_type_default|既有漂移|CODE-REVIEW-20261123 R2-01"
-  "biz_form_draft|既有漂移；表内无 tenant_id 列|CODE-REVIEW-20261123 R2-01"
-  "biz_incentive_read|既有漂移|CODE-REVIEW-20261123 R2-01"
-  "biz_lifecycle_item|既有漂移；表内已有 tenant_id 列|CODE-REVIEW-20261123 R2-01"
-  "biz_lifecycle_request|既有漂移|CODE-REVIEW-20261123 R2-01"
-  "biz_recycle_bin|既有漂移；表内已有 tenant_id 列|CODE-REVIEW-20261123 R2-01"
-  "biz_sea_config_region|既有漂移|CODE-REVIEW-20261123 R2-01"
-  "biz_sea_config_scope|既有漂移|CODE-REVIEW-20261123 R2-01"
-  "biz_upload_session|既有漂移；表内已有 tenant_id 列|CODE-REVIEW-20261123 R2-01"
+  # 【已修 2026-11-23】R2-01 既有漂移 12 张已全部收口（10 张进白名单 + 2 张进 EXEMPT），
+  #   逐表取证过程见 docs/TECH_DEBT.md「租户白名单漂移 R2-01 收口」。
 )
 
-# ── 确不属租户维度（不 WARN）：须写清理由 ──
+# ── 不适用 MP 租户插件（不 WARN）：须写清理由与证据 ──
+# 两类可进：① 确不属租户维度；② 属租户维度但隔离由其它机制覆盖（列名非 tenant_id /
+# 无 MyBatis-Plus 访问路径）。注意 MP 插件的列名是全局固定的 getTenantIdColumn()="tenant_id"，
+# 无法按表指定列名——所以「用 group_id 隔离」的表只能走本清单，不能进白名单。
 EXEMPT=(
+  # 【R2-01 2026-11-23】租户维度列是 group_id，不是 tenant_id。
+  #   证据：实体 BizFormDraft.groupId；FormDraftService:39/61/104/119 四处读写全部 .eq(getGroupId, groupId)，
+  #   保存时 :92 setGroupId；FormDraftController:32/40/57/67 的 groupId 取自
+  #   GroupScopeUtil.currentGroupOrNull()（会话），不取客户端入参 ⇒ 无越权入口。
+  #   不进白名单的原因：MP 3.5.6 的 TenantLineHandler#getTenantIdColumn 全局单值，无法按表切换列名；
+  #   硬加一个平行 tenant_id 列会造出两个租户真相源，比现状更差。
+  "biz_form_draft|租户列名为 group_id 且业务层已显式按会话集团过滤，MP 插件无法按表指定列名|CODE-REVIEW-20261123 R2-01"
+  # 【R2-01 2026-11-23】无 tenant_id 列，也无任何 MyBatis-Plus 访问路径。
+  #   证据：无 @TableName 实体、无 Mapper、无 XML、无 @Select 注解 SQL；
+  #   全部 6 处访问都在 JdbcTemplate 原生 SQL（IncentiveService:462/465/1675/1687/1807、
+  #   RecycleService:290/729/1007/1017），按 user_id / record_id 归属过滤，
+  #   两者均来自已被租户隔离的上下文（biz_incentive_record 在白名单）。
+  #   ⚠️ 诚实说明：check-native-sql-tenant-scope.sh 是文件级判定（文件内出现一次 tenant_id 即整文件合格），
+  #   IncentiveService 通过该门禁并不等于上面几条语句被逐条限定；此处豁免的依据是上一条的归属链路，不是那个脚本。
+  "biz_incentive_read|无 tenant_id 列且无 MP 访问路径，全部走 JdbcTemplate 按 user_id/record_id 归属过滤|CODE-REVIEW-20261123 R2-01"
 )
 
 [ -f "$CONFIG" ] || { echo "❌ 找不到 MybatisPlusConfig.java: $CONFIG"; exit 1; }
@@ -85,8 +92,9 @@ UNREGISTERED=(); WARNED=()
 while read -r t; do
   [ -n "$t" ] || continue
   grep -qx "$t" <<<"$WHITELIST" && continue
-  if is_in "$t" "${PENDING_FIX[@]}"; then WARNED+=("$t"); continue; fi
-  # 注：bash 3.2 + set -u 下空数组展开会报 unbound，故先判长度
+  # 注：bash 3.2 + set -u 下空数组的 "${arr[@]}" 展开会报 unbound（${#arr[@]} 不报），
+  #     故两处都必须先判长度。PENDING_FIX 清空后（R2-01 收口完成）曾在此炸过一次。
+  if [ "${#PENDING_FIX[@]}" -gt 0 ] && is_in "$t" "${PENDING_FIX[@]}"; then WARNED+=("$t"); continue; fi
   if [ "${#EXEMPT[@]}" -gt 0 ] && is_in "$t" "${EXEMPT[@]}"; then continue; fi
   UNREGISTERED+=("$t")
 done <<<"$LIVE"
