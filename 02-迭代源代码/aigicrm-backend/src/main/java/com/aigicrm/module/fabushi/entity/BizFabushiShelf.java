@@ -12,6 +12,10 @@ public class BizFabushiShelf {
     private Long userId;
     private Long bookId;
     private String status;
+    private Integer pinned;
+    private Integer sortNo;
+    private Long groupId;
+    private LocalDateTime finishedAt;
     private Long lastSectionId;
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;

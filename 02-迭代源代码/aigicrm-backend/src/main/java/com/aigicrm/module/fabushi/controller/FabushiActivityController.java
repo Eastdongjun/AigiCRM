@@ -8,6 +8,14 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
+/**
+ * 【D22 2026-11-22 裁决】共读活动（组队读书）双端入口已下线，本控制器**冻结不再投入**。
+ * 保留接口仅为：存量活动数据可查、旧客户端请求不 500、避免权限中心/矩阵联动改动。
+ * 不新增能力、不修 UI；表与权限码保留（删表需单独审批）。
+ *
+ * @deprecated D22：组队读书已下线，请勿在新功能中依赖本控制器。
+ */
+@Deprecated
 @RestController
 @RequestMapping("/api/fabushi/activities")
 @RequiredArgsConstructor
