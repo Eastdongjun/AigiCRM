@@ -31,6 +31,8 @@ import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -460,9 +462,9 @@ public class PermissionMatrixTest {
                 "hasAuthority('system:config:view')");
         assertPreAuthorize(controller.getDeclaredMethod("batchUpdate", List.class),
                 "hasAuthority('system:config:edit')");
-        assertTrue(controller.getDeclaredMethod("publicConfig").getAnnotation(PreAuthorize.class) == null,
+        assertNull(controller.getDeclaredMethod("publicConfig").getAnnotation(PreAuthorize.class),
                 "publicConfig 是登录页公开配置入口，不应绑定后台配置权限");
-        assertTrue(controller.getDeclaredMethod("logo").getAnnotation(PreAuthorize.class) == null,
+        assertNull(controller.getDeclaredMethod("logo").getAnnotation(PreAuthorize.class),
                 "logo 是登录页品牌资源入口，不应绑定后台配置权限");
 
         Path src = Paths.get("src/main/java/com/aigicrm/module/system/controller/SysConfigController.java")
@@ -661,7 +663,7 @@ public class PermissionMatrixTest {
                 "FileController.downloadToken 必须保留 GET 入口");
         assertEquals("/download-token", downloadToken.getAnnotation(org.springframework.web.bind.annotation.GetMapping.class).value()[0],
                 "file.download-token 路径不能漂移");
-        assertTrue(downloadToken.getAnnotation(PreAuthorize.class) != null,
+        assertNotNull(downloadToken.getAnnotation(PreAuthorize.class),
                 "download-token 必须绑定文件下载权限码");
         assertEquals("hasAuthority('file:download')", downloadToken.getAnnotation(PreAuthorize.class).value(),
                 "download-token 应绑定 file:download");
@@ -728,7 +730,7 @@ public class PermissionMatrixTest {
                 "FileController.downloadPublic 必须保留 GET 入口");
         assertEquals("/download/public/**", downloadPublic.getAnnotation(org.springframework.web.bind.annotation.GetMapping.class).value()[0],
                 "file.item/public 下载路径不能漂移");
-        assertTrue(downloadPublic.getAnnotation(PreAuthorize.class) == null,
+        assertNull(downloadPublic.getAnnotation(PreAuthorize.class),
                 "public 下载入口必须保持匿名可访问，但在方法体内限制 public 子树");
 
         Path controllerSrc = Paths.get("src/main/java/com/aigicrm/module/file/controller/FileController.java")
@@ -1308,12 +1310,12 @@ public class PermissionMatrixTest {
 
     private static void assertPreAuthorize(Method method, String expected) {
         PreAuthorize pa = method.getAnnotation(PreAuthorize.class);
-        assertTrue(pa != null, method.getName() + " 必须保留 @PreAuthorize");
+        assertNotNull(pa, method.getName() + " 必须保留 @PreAuthorize");
         assertEquals(expected, pa.value(), method.getName() + " 权限口径被意外改变");
     }
 
     private static void assertNoPreAuthorize(Method method, String reason) {
-        assertTrue(method.getAnnotation(PreAuthorize.class) == null,
+        assertNull(method.getAnnotation(PreAuthorize.class),
                 method.getName() + " 不应挂 @PreAuthorize: " + reason);
     }
 

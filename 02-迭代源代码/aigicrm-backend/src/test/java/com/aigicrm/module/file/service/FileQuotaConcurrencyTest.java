@@ -120,7 +120,7 @@ class FileQuotaConcurrencyTest {
         when(userMapper.tryConsumeQuota(7L, 50L)).thenReturn(1);
         when(fileMapper.insert(any(BizFile.class))).thenThrow(new RuntimeException("db down"));
         assertThrows(BusinessException.class, () -> uploadAs(file(50L), null, 7L));
-        verify(userMapper).adjustStorageUsed(eq(7L), eq(-50L));
+        verify(userMapper).adjustStorageUsed(7L, -50L);
     }
 
     @Test
@@ -139,7 +139,7 @@ class FileQuotaConcurrencyTest {
             m.when(com.aigicrm.security.SecurityUtils::isAdmin).thenReturn(false);
             svc.deleteFile(1L);
         }
-        verify(userMapper).adjustStorageUsed(eq(7L), eq(-80L));
+        verify(userMapper).adjustStorageUsed(7L, -80L);
         verify(userMapper, never()).updateById(any(SysUser.class));
     }
 
@@ -165,7 +165,7 @@ class FileQuotaConcurrencyTest {
             svc.deleteFile(1L);
         }
         verify(fileMapper, org.mockito.Mockito.times(1)).deleteById(1L);
-        verify(userMapper, org.mockito.Mockito.times(1)).adjustStorageUsed(eq(7L), eq(-80L));
+        verify(userMapper, org.mockito.Mockito.times(1)).adjustStorageUsed(7L, -80L);
     }
 
     /**
@@ -208,7 +208,7 @@ class FileQuotaConcurrencyTest {
             svc.replaceFile(1L, file(120L));
         }
         // delta = 120 - 80 = +40, 数据库端原子增
-        verify(userMapper).adjustStorageUsed(eq(7L), eq(40L));
+        verify(userMapper).adjustStorageUsed(7L, 40L);
         verify(userMapper, never()).updateById(any(SysUser.class));
     }
 }

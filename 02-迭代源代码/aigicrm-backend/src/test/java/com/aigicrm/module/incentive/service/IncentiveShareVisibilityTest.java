@@ -30,6 +30,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -113,11 +114,11 @@ class IncentiveShareVisibilityTest {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
 
             IncentiveService svc = newService();
-            assertTrue(Boolean.TRUE.equals((Boolean) ReflectionTestUtils.invokeMethod(svc, "canSeeAllIncentive")),
+            assertEquals(Boolean.TRUE, (Boolean) ReflectionTestUtils.invokeMethod(svc, "canSeeAllIncentive"),
                     "admin 无授权行也应看全部");
-            assertTrue(Boolean.TRUE.equals((Boolean) ReflectionTestUtils.invokeMethod(svc, "canEdit")),
+            assertEquals(Boolean.TRUE, (Boolean) ReflectionTestUtils.invokeMethod(svc, "canEdit"),
                     "admin 默认可编辑他人记录");
-            assertTrue(Boolean.TRUE.equals((Boolean) ReflectionTestUtils.invokeMethod(svc, "canDelete")),
+            assertEquals(Boolean.TRUE, (Boolean) ReflectionTestUtils.invokeMethod(svc, "canDelete"),
                     "admin 默认可删除他人记录");
 
             LambdaQueryWrapper<BizIncentiveRecord> wrapper = new LambdaQueryWrapper<>();
@@ -136,7 +137,7 @@ class IncentiveShareVisibilityTest {
             stubGrantRow(1L, null, null, true, false);
 
             IncentiveService svc = newService();
-            assertTrue(Boolean.TRUE.equals((Boolean) ReflectionTestUtils.invokeMethod(svc, "canSeeAllIncentive")),
+            assertEquals(Boolean.TRUE, (Boolean) ReflectionTestUtils.invokeMethod(svc, "canSeeAllIncentive"),
                     "can_edit=1 必须 canSeeAllIncentive（能编辑他人隐含看全部）");
         }
     }
@@ -150,11 +151,11 @@ class IncentiveShareVisibilityTest {
             stubGrantRow(1L, null, true, false, false);
 
             IncentiveService svc = newService();
-            assertTrue(Boolean.TRUE.equals((Boolean) ReflectionTestUtils.invokeMethod(svc, "canSeeAllIncentive")),
+            assertEquals(Boolean.TRUE, (Boolean) ReflectionTestUtils.invokeMethod(svc, "canSeeAllIncentive"),
                     "仅 can_view_all=1 必须 canSeeAllIncentive");
-            assertFalse(Boolean.TRUE.equals((Boolean) ReflectionTestUtils.invokeMethod(svc, "canEdit")),
+            assertNotEquals(Boolean.TRUE, (Boolean) ReflectionTestUtils.invokeMethod(svc, "canEdit"),
                     "仅看全部不隐含编辑他人");
-            assertFalse(Boolean.TRUE.equals((Boolean) ReflectionTestUtils.invokeMethod(svc, "canDelete")),
+            assertNotEquals(Boolean.TRUE, (Boolean) ReflectionTestUtils.invokeMethod(svc, "canDelete"),
                     "仅看全部不隐含删除他人");
         }
     }
@@ -193,7 +194,7 @@ class IncentiveShareVisibilityTest {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
 
             IncentiveService svc = newService();
-            assertTrue(Boolean.TRUE.equals((Boolean) ReflectionTestUtils.invokeMethod(svc, "canViewIncentiveUser", 999L)),
+            assertEquals(Boolean.TRUE, (Boolean) ReflectionTestUtils.invokeMethod(svc, "canViewIncentiveUser", 999L),
                     "admin 默认拥有全部权限，无需授权行");
         }
     }
@@ -206,7 +207,7 @@ class IncentiveShareVisibilityTest {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
 
             IncentiveService svc = newService();
-            assertTrue(Boolean.TRUE.equals((Boolean) ReflectionTestUtils.invokeMethod(svc, "canViewIncentiveUser", 1L)),
+            assertEquals(Boolean.TRUE, (Boolean) ReflectionTestUtils.invokeMethod(svc, "canViewIncentiveUser", 1L),
                     "本人必须可见");
         }
     }
@@ -220,9 +221,9 @@ class IncentiveShareVisibilityTest {
             when(recordMapper.selectCount(any())).thenReturn(1L, 0L);
 
             IncentiveService svc = newService();
-            assertTrue(Boolean.TRUE.equals((Boolean) ReflectionTestUtils.invokeMethod(svc, "canViewIncentiveUser", 2L)),
+            assertEquals(Boolean.TRUE, (Boolean) ReflectionTestUtils.invokeMethod(svc, "canViewIncentiveUser", 2L),
                     "他人存在 shared=1 记录时应可查看");
-            assertFalse(Boolean.TRUE.equals((Boolean) ReflectionTestUtils.invokeMethod(svc, "canViewIncentiveUser", 3L)),
+            assertNotEquals(Boolean.TRUE, (Boolean) ReflectionTestUtils.invokeMethod(svc, "canViewIncentiveUser", 3L),
                     "他人无 shared=1 记录时应拒绝");
         }
     }

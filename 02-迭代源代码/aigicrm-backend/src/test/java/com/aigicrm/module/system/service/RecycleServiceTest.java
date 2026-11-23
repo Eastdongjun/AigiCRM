@@ -393,7 +393,7 @@ class RecycleServiceTest {
         stubPurgeExpiredIds(List.of(11L));
         stubLockedFile(deletedFile(11L, "public", null, 9L, 1024));
         when(fileService.contentExists("public/1/测试文件.pdf")).thenReturn(false);
-        when(jdbc.update(eq("DELETE FROM biz_file WHERE id = ? AND deleted = 1"), eq(11L))).thenReturn(1);
+        when(jdbc.update("DELETE FROM biz_file WHERE id = ? AND deleted = 1", 11L)).thenReturn(1);
 
         RecycleService.PurgeFilesResult result = service.purgeExpiredFilesWithStats(30);
 
@@ -414,8 +414,8 @@ class RecycleServiceTest {
         stubLockedFile(deletedFile(11L, "public", null, 9L, 1024));
         stubLockedFile(second);
         when(fileService.contentExists(anyString())).thenReturn(false);
-        when(jdbc.update(eq("DELETE FROM biz_file WHERE id = ? AND deleted = 1"), eq(11L))).thenReturn(1);
-        when(jdbc.update(eq("DELETE FROM biz_file WHERE id = ? AND deleted = 1"), eq(12L))).thenReturn(1);
+        when(jdbc.update("DELETE FROM biz_file WHERE id = ? AND deleted = 1", 11L)).thenReturn(1);
+        when(jdbc.update("DELETE FROM biz_file WHERE id = ? AND deleted = 1", 12L)).thenReturn(1);
 
         RecycleService.PurgeFilesResult result = service.purgeAllDeletedFiles();
 
@@ -439,8 +439,8 @@ class RecycleServiceTest {
         assertEquals(1, result.skipped());
         assertEquals(0, result.failed());
         verify(fileService, never()).deleteStoredContent(anyString());
-        verify(jdbc, never()).update(eq("DELETE FROM biz_file_share WHERE file_id = ?"), eq(11L));
-        verify(jdbc, never()).update(eq("DELETE FROM biz_file WHERE id = ? AND deleted = 1"), eq(11L));
+        verify(jdbc, never()).update("DELETE FROM biz_file_share WHERE file_id = ?", 11L);
+        verify(jdbc, never()).update("DELETE FROM biz_file WHERE id = ? AND deleted = 1", 11L);
     }
 
     @Test
@@ -465,7 +465,7 @@ class RecycleServiceTest {
         stubLockedFile(deletedFile(11L, "public", null, 9L, 1024));
         when(jdbc.queryForObject(contains("oss_key = ?"), eq(Long.class), any(Object[].class)))
                 .thenReturn(1L);
-        when(jdbc.update(eq("DELETE FROM biz_file WHERE id = ? AND deleted = 1"), eq(11L))).thenReturn(1);
+        when(jdbc.update("DELETE FROM biz_file WHERE id = ? AND deleted = 1", 11L)).thenReturn(1);
 
         RecycleService.PurgeFilesResult result = service.purgeAllDeletedFiles();
 
@@ -490,8 +490,8 @@ class RecycleServiceTest {
         assertEquals(0, result.skipped());
         assertEquals(1, result.failed());
         verify(fileService).deleteStoredContent("public/1/测试文件.pdf");
-        verify(jdbc, never()).update(eq("DELETE FROM biz_file_share WHERE file_id = ?"), eq(11L));
-        verify(jdbc, never()).update(eq("DELETE FROM biz_file WHERE id = ? AND deleted = 1"), eq(11L));
+        verify(jdbc, never()).update("DELETE FROM biz_file_share WHERE file_id = ?", 11L);
+        verify(jdbc, never()).update("DELETE FROM biz_file WHERE id = ? AND deleted = 1", 11L);
     }
 
     @Test
@@ -628,7 +628,7 @@ class RecycleServiceTest {
 
         assertTrue(ex.getMessage().contains("激励记录"), "实际: " + ex.getMessage());
         verify(fileService, never()).deleteStoredContent(anyString());
-        verify(jdbc, never()).update(eq("DELETE FROM biz_file WHERE id = ? AND deleted = 1"), eq(11L));
+        verify(jdbc, never()).update("DELETE FROM biz_file WHERE id = ? AND deleted = 1", 11L);
     }
 
     @Test
@@ -636,7 +636,7 @@ class RecycleServiceTest {
         stubLockedFile(deletedFile(11L, "public", null, 9L, 1024));
         when(fileService.isIncentiveEvidence(11L)).thenReturn(false);
         when(fileService.contentExists("public/1/测试文件.pdf")).thenReturn(false);
-        when(jdbc.update(eq("DELETE FROM biz_file WHERE id = ? AND deleted = 1"), eq(11L))).thenReturn(1);
+        when(jdbc.update("DELETE FROM biz_file WHERE id = ? AND deleted = 1", 11L)).thenReturn(1);
 
         String message = service.hardDeleteFile(11L);
 
@@ -656,8 +656,8 @@ class RecycleServiceTest {
         BusinessException ex = assertThrows(BusinessException.class, () -> service.hardDeleteFile(11L));
 
         assertTrue(ex.getMessage().contains("物理删除失败"), "实际: " + ex.getMessage());
-        verify(jdbc, never()).update(eq("DELETE FROM biz_file_share WHERE file_id = ?"), eq(11L));
-        verify(jdbc, never()).update(eq("DELETE FROM biz_file WHERE id = ? AND deleted = 1"), eq(11L));
+        verify(jdbc, never()).update("DELETE FROM biz_file_share WHERE file_id = ?", 11L);
+        verify(jdbc, never()).update("DELETE FROM biz_file WHERE id = ? AND deleted = 1", 11L);
     }
 
     @Test
@@ -666,7 +666,7 @@ class RecycleServiceTest {
         when(fileService.isIncentiveEvidence(11L)).thenReturn(false);
         when(jdbc.queryForObject(contains("oss_key = ?"), eq(Long.class), any(Object[].class)))
                 .thenReturn(1L);
-        when(jdbc.update(eq("DELETE FROM biz_file WHERE id = ? AND deleted = 1"), eq(11L))).thenReturn(1);
+        when(jdbc.update("DELETE FROM biz_file WHERE id = ? AND deleted = 1", 11L)).thenReturn(1);
 
         service.hardDeleteFile(11L);
 

@@ -717,7 +717,7 @@ class FileServicePermissionTest {
             assertNotEquals("private/1/old.txt", fileCap.getValue().getOssKey());
             assertTrue(fileCap.getValue().getOssKey().startsWith("private/1/"));
             // 【2026-10-09 配额原子化】存储差额改 DB 端原子增减: delta = 25 - 10 = +15
-            verify(userMapper).adjustStorageUsed(eq(1L), eq(15L));
+            verify(userMapper).adjustStorageUsed(1L, 15L);
             verify(userMapper, never()).updateById(any(SysUser.class));
         }
     }
@@ -1465,13 +1465,13 @@ class FileServicePermissionTest {
             SysUser me = new SysUser();
             me.setOfficeId(10L);
             when(userMapper.selectById(1L)).thenReturn(me);
-            when(userMapper.tryConsumeQuota(eq(1L), eq((long) bytes.length))).thenReturn(1);
+            when(userMapper.tryConsumeQuota(1L, (long) bytes.length)).thenReturn(1);
             when(fileMapper.insert(any(BizFile.class))).thenReturn(1);
 
             BizFile saved = svc.upload(mf, null, "incentive");
 
             // 【T2】incentive scope 也必须过配额门(此前仅 private, 激励空间无限上传)
-            verify(userMapper).tryConsumeQuota(eq(1L), eq((long) bytes.length));
+            verify(userMapper).tryConsumeQuota(1L, (long) bytes.length);
             assertEquals("incentive", saved.getFileScope());
             java.nio.file.Files.deleteIfExists(img);
         }
@@ -1492,12 +1492,12 @@ class FileServicePermissionTest {
             SysUser me = new SysUser();
             me.setOfficeId(10L);
             when(userMapper.selectById(1L)).thenReturn(me);
-            when(userMapper.tryConsumeQuota(eq(1L), eq((long) bytes.length))).thenReturn(1);
+            when(userMapper.tryConsumeQuota(1L, (long) bytes.length)).thenReturn(1);
             when(fileMapper.insert(any(BizFile.class))).thenReturn(1);
 
             svc.upload(mf, null, "public");
 
-            verify(userMapper).tryConsumeQuota(eq(1L), eq((long) bytes.length));
+            verify(userMapper).tryConsumeQuota(1L, (long) bytes.length);
             java.nio.file.Files.deleteIfExists(img);
         }
     }

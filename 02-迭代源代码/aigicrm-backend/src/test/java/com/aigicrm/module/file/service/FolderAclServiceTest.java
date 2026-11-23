@@ -76,7 +76,7 @@ class FolderAclServiceTest {
             assertThrows(BusinessException.class, () -> svc.saveAcl(FOLDER_ID, 3L, List.of(FolderPermissionService.P_VIEW)));
             assertThrows(BusinessException.class, () -> svc.removeAcl(FOLDER_ID, 3L));
             assertThrows(BusinessException.class, () -> svc.setDownloadable(FOLDER_ID, 0));
-            verify(permissionService, times(4)).check(eq(FOLDER_ID), eq(FolderPermissionService.P_EDIT), eq(USER_ID));
+            verify(permissionService, times(4)).check(FOLDER_ID, FolderPermissionService.P_EDIT, USER_ID);
             verifyNoInteractions(aclMapper, folderMapper, roleMapper);
         }
     }

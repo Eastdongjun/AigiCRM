@@ -20,6 +20,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -83,8 +85,8 @@ class FabushiPostNewFlagTest {
 
         svc.page(null, null, null, false, null, null, 1, 10);
 
-        assertTrue(Boolean.TRUE.equals(fresh.getIsNew()), "30 天内应标 NEW");
-        assertFalse(Boolean.TRUE.equals(old.getIsNew()), "30 天外不应标 NEW");
-        assertFalse(Boolean.TRUE.equals(noTime.getIsNew()), "createdAt=null 不标 NEW(且不抛 NPE)");
+        assertEquals(Boolean.TRUE, fresh.getIsNew(), "30 天内应标 NEW");
+        assertNotEquals(Boolean.TRUE, old.getIsNew(), "30 天外不应标 NEW");
+        assertNotEquals(Boolean.TRUE, noTime.getIsNew(), "createdAt=null 不标 NEW(且不抛 NPE)");
     }
 }

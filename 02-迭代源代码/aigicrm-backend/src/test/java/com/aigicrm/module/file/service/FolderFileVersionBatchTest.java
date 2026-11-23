@@ -123,7 +123,7 @@ class FolderFileVersionBatchTest {
         file.setFileType("application/vnd.openxmlformats-officedocument.wordprocessingml.document");
         file.setVersion(1);
         when(fileMapper.selectById(11L)).thenReturn(file);
-        when(folderPermissionService.checkFile(eq(11L), eq(FolderPermissionService.P_REPLACE), eq(7L))).thenReturn(true);
+        when(folderPermissionService.checkFile(11L, FolderPermissionService.P_REPLACE, 7L)).thenReturn(true);
 
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(7L);
@@ -158,7 +158,7 @@ class FolderFileVersionBatchTest {
         file.setFileSize(300L);
         file.setVersion(2);
         when(fileMapper.selectById(11L)).thenReturn(file);
-        when(folderPermissionService.checkFile(eq(11L), eq(FolderPermissionService.P_REPLACE), eq(7L))).thenReturn(true);
+        when(folderPermissionService.checkFile(11L, FolderPermissionService.P_REPLACE, 7L)).thenReturn(true);
         // 【2026-11-17 阶段二】回滚改为独立码+数据范围；单测直接放行判定口。
         when(folderPermissionService.canRollbackVersion(file, 7L)).thenReturn(true);
         BizFileVersion v1 = new BizFileVersion();
@@ -196,7 +196,7 @@ class FolderFileVersionBatchTest {
         when(folderMapper.selectById(30L)).thenReturn(folder);
         when(fileMapper.selectCount(any())).thenReturn(0L); // 夹内无文件
         when(folderMapper.selectCount(any())).thenReturn(0L); // 无子夹
-        when(folderPermissionService.check(eq(30L), eq(FolderPermissionService.P_DELETE), eq(7L))).thenReturn(true);
+        when(folderPermissionService.check(30L, FolderPermissionService.P_DELETE, 7L)).thenReturn(true);
 
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(7L);
@@ -233,7 +233,7 @@ class FolderFileVersionBatchTest {
     @Test
     void listVersions_deniedWithoutViewPermission() {
         when(fileMapper.selectById(11L)).thenReturn(new BizFile());
-        when(folderPermissionService.checkFile(eq(11L), eq(FolderPermissionService.P_VIEW), eq(99L))).thenReturn(false);
+        when(folderPermissionService.checkFile(11L, FolderPermissionService.P_VIEW, 99L)).thenReturn(false);
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(99L);
             m.when(SecurityUtils::isAdmin).thenReturn(false);

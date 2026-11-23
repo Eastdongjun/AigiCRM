@@ -15,6 +15,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -81,9 +82,9 @@ class SecurityAuditServiceTest {
         long alerts = messages().stream()
                 .filter(m -> m.contains("event=SECURITY_ALERT") && m.contains("alert=ANON_PROBE_IP_BURST"))
                 .count();
-        assertTrue(alerts == 1, "阈值告警恰好一次,实际 " + alerts + ": " + messages());
+        assertEquals(1, alerts, "阈值告警恰好一次,实际 " + alerts + ": " + messages());
         // 每次探测本身都有留痕(枚举检测的数据源)
-        assertTrue(messages().stream().filter(m -> m.startsWith("event=ANON_PROBE")).count() == 3);
+        assertEquals(3, messages().stream().filter(m -> m.startsWith("event=ANON_PROBE")).count());
     }
 
     @Test

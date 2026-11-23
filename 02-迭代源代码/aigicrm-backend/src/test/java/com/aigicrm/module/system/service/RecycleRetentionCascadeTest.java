@@ -130,7 +130,7 @@ class RecycleRetentionCascadeTest {
         when(fileService.contentExists("shared-key")).thenReturn(true);
         when(jdbc.queryForObject(org.mockito.ArgumentMatchers.contains("biz_file WHERE oss_key"),
                 eq(Long.class), anyString())).thenReturn(1L); // 活跃主行仍引用
-        when(jdbc.update(eq("DELETE FROM biz_file_version WHERE id = ?"), eq(1L))).thenReturn(1);
+        when(jdbc.update("DELETE FROM biz_file_version WHERE id = ?", 1L)).thenReturn(1);
 
         assertEquals(1, svc.purgeExpiredVersions(180));
         verify(fileService, org.mockito.Mockito.never()).deleteStoredContent("shared-key");
@@ -151,7 +151,7 @@ class RecycleRetentionCascadeTest {
                 eq(Long.class), anyString())).thenReturn(0L);
         when(jdbc.queryForObject(org.mockito.ArgumentMatchers.contains("biz_file_version WHERE oss_key"),
                 eq(Long.class), anyString(), org.mockito.ArgumentMatchers.anyLong())).thenReturn(0L);
-        when(jdbc.update(eq("DELETE FROM biz_file_version WHERE id = ?"), eq(2L))).thenReturn(1);
+        when(jdbc.update("DELETE FROM biz_file_version WHERE id = ?", 2L)).thenReturn(1);
 
         assertEquals(1, svc.purgeExpiredVersions(180));
         verify(fileService).deleteStoredContent("solo-key");

@@ -17,6 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -318,7 +319,7 @@ class StorageQuotaApplyServiceTest {
                 () -> service.applyStorageQuota(7L, 200L, 55L));
         assertTrue(ex.getMessage().contains("不存在"));
         verify(userMapper, never()).updateById((SysUser) any());
-        assertFalse(ex.getCode() == 403);
+        assertNotEquals(403, ex.getCode());
     }
 
     @Test
@@ -334,7 +335,7 @@ class StorageQuotaApplyServiceTest {
 
     @Test
     void apply_missingUser_rejectedBeforeAnyWrite() {
-        when(userMapper.selectByIdForUpdate(eq(404L))).thenReturn(null);
+        when(userMapper.selectByIdForUpdate(404L)).thenReturn(null);
         assertThrows(BusinessException.class, () -> service.applyStorageQuota(404L, 200L, 55L));
         verify(userMapper, never()).updateById((SysUser) any());
     }

@@ -55,7 +55,7 @@ class CustomerFullIdempotencyTest {
     void sameKeyRetry_reusesFirstResult_doesNotCreateTwice() {
         Svc s = build();
         when(s.idempotency().isValidKey("key-12345678")).thenReturn(true);
-        when(s.idempotency().scope(eq("customer:full"), eq(9L), eq("key-12345678"))).thenReturn("scoped");
+        when(s.idempotency().scope("customer:full", 9L, "key-12345678")).thenReturn("scoped");
         // 首次: 无结果 → 抢占成功 → 落库 501 → finish
         when(s.idempotency().awaitResult("scoped", 0)).thenReturn(null);
         when(s.idempotency().tryBegin("scoped")).thenReturn(true);
