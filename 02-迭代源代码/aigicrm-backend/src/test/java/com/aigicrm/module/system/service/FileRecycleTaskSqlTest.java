@@ -7,7 +7,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
+
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -33,7 +33,7 @@ class FileRecycleTaskSqlTest {
         java.util.Set<String> columns = new java.util.TreeSet<>(String.CASE_INSENSITIVE_ORDER);
         for (String dir : MIGRATION_DIRS) {
             try (var files = Files.list(Path.of(dir))) {
-                for (Path p : files.filter(f -> f.toString().endsWith(".sql")).collect(Collectors.toList())) {
+                for (Path p : files.filter(f -> f.toString().endsWith(".sql")).toList()) {
                     String sql = Files.readString(p);
                     Matcher m = createBlock.matcher(sql);
                     if (m.find()) {

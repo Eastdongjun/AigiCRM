@@ -108,8 +108,8 @@ public class RecycleService {
     // ==================== 已删除客户 ====================
 
     public PageResult<DeletedCustomerRow> deletedCustomers(int current, int size, String keyword) {
-        int safeSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
-        int safeCurrent = Math.max(current, 1);
+        int safeSize = Math.clamp(size, 1, MAX_PAGE_SIZE);
+        int safeCurrent = current;
         String pattern = "%" + (keyword == null ? "" : keyword.trim()) + "%";
         List<BizCustomer> rows = customerMapper.selectDeletedPage(pattern, (safeCurrent - 1) * safeSize, safeSize);
         long total = customerMapper.countDeleted(pattern);
@@ -154,8 +154,8 @@ public class RecycleService {
     // ==================== 已删除人员 ====================
 
     public PageResult<DeletedUserRow> deletedUsers(int current, int size, String keyword) {
-        int safeSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
-        int safeCurrent = Math.max(current, 1);
+        int safeSize = Math.clamp(size, 1, MAX_PAGE_SIZE);
+        int safeCurrent = current;
         String pattern = "%" + (keyword == null ? "" : keyword.trim()) + "%";
         List<SysUser> rows = userMapper.selectDeletedPage(pattern, (safeCurrent - 1) * safeSize, safeSize);
         long total = userMapper.countDeleted(pattern);
@@ -342,8 +342,8 @@ public class RecycleService {
     // ==================== 已删除文件 ====================
 
     public PageResult<DeletedFileRow> deletedFiles(int current, int size, String keyword) {
-        int safeSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
-        int safeCurrent = Math.max(current, 1);
+        int safeSize = Math.clamp(size, 1, MAX_PAGE_SIZE);
+        int safeCurrent = current;
         String pattern = "%" + (keyword == null ? "" : keyword.trim()) + "%";
         List<BizFile> rows = fileMapper.selectDeletedPage(pattern, (safeCurrent - 1) * safeSize, safeSize);
         long total = fileMapper.countDeleted(pattern);
@@ -819,7 +819,7 @@ public class RecycleService {
 
     /** admin 全量夹回收站分页(与 deletedFiles 同口径; system/recycle 页用) */
     public PageResult<DeletedFolderRow> deletedFolders(int current, int size, String keyword) {
-        int pageSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
+        int pageSize = Math.clamp(size, 1, MAX_PAGE_SIZE);
         int offset = (Math.max(current, 1) - 1) * pageSize;
         String pattern = "%" + (keyword == null ? "" : keyword.trim()) + "%";
         List<DeletedFolderRow> rows = jdbc.query(
@@ -844,7 +844,7 @@ public class RecycleService {
 
     /** 我的回收站·夹(非 admin 视角): 只列本人删除的(deleted_by 归属口径); admin 全量走 system/recycle 页 */
     public PageResult<DeletedFolderRow> deletedFoldersBy(Long userId, int current, int size, String keyword) {
-        int pageSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
+        int pageSize = Math.clamp(size, 1, MAX_PAGE_SIZE);
         int offset = (Math.max(current, 1) - 1) * pageSize;
         String pattern = "%" + (keyword == null ? "" : keyword.trim()) + "%";
         List<DeletedFolderRow> rows = jdbc.query(
@@ -894,7 +894,7 @@ public class RecycleService {
     // ==================== 【2026-11-17 阶段三】任务/激励统一回收站 ====================
 
     public PageResult<DeletedTaskRow> deletedTasks(int current, int size, String keyword) {
-        int pageSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
+        int pageSize = Math.clamp(size, 1, MAX_PAGE_SIZE);
         int offset = (Math.max(current, 1) - 1) * pageSize;
         String pattern = "%" + (keyword == null ? "" : keyword.trim()) + "%";
         List<DeletedTaskRow> rows = jdbc.query(
@@ -938,7 +938,7 @@ public class RecycleService {
     }
 
     public PageResult<DeletedIncentiveRow> deletedIncentives(int current, int size, String keyword) {
-        int pageSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
+        int pageSize = Math.clamp(size, 1, MAX_PAGE_SIZE);
         int offset = (Math.max(current, 1) - 1) * pageSize;
         String pattern = "%" + (keyword == null ? "" : keyword.trim()) + "%";
         List<DeletedIncentiveRow> rows = jdbc.query(
@@ -1019,7 +1019,7 @@ public class RecycleService {
     }
 
     public PageResult<DeletedReminderRow> deletedReminders(int current, int size, String keyword) {
-        int pageSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
+        int pageSize = Math.clamp(size, 1, MAX_PAGE_SIZE);
         int offset = (Math.max(current, 1) - 1) * pageSize;
         String pattern = "%" + (keyword == null ? "" : keyword.trim()) + "%";
         List<DeletedReminderRow> rows = jdbc.query(
@@ -1163,7 +1163,7 @@ public class RecycleService {
 
     /** 我的回收站·文件(非 admin 视角): 只列本人删除的(deleted_by 归属口径; V2026.11.14.1 补列) */
     public PageResult<DeletedFileRow> deletedFilesBy(Long userId, int current, int size, String keyword) {
-        int pageSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
+        int pageSize = Math.clamp(size, 1, MAX_PAGE_SIZE);
         int offset = (Math.max(current, 1) - 1) * pageSize;
         String pattern = "%" + (keyword == null ? "" : keyword.trim()) + "%";
         List<DeletedFileRow> rows = jdbc.query(

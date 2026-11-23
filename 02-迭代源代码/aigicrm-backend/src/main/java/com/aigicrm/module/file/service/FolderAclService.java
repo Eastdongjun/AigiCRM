@@ -18,7 +18,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
+
 
 @Service
 @RequiredArgsConstructor
@@ -51,7 +51,7 @@ public class FolderAclService {
             row.put("roleName", role != null ? role.getRoleName() : "未知角色");
             row.put(LIT_PERMS, Arrays.asList(acl.getPerms().split(",")));
             return row;
-        }).collect(Collectors.toList());
+        }).toList();
     }
 
     /**
@@ -68,7 +68,7 @@ public class FolderAclService {
                     row.put("id", r.getId());
                     row.put("roleName", r.getRoleName());
                     return row;
-                }).collect(Collectors.toList());
+                }).toList();
     }
 
     /**
@@ -90,7 +90,7 @@ public class FolderAclService {
         if (!(rawPerms instanceof List)) {
             throw new BusinessException("参数错误");
         }
-        List<String> perms = ((List<?>) rawPerms).stream().map(String::valueOf).collect(Collectors.toList());
+        List<String> perms = ((List<?>) rawPerms).stream().map(String::valueOf).toList();
         saveAcl(folderId, roleId, perms);
     }
 

@@ -319,7 +319,7 @@ public class FabushiPostService {
             m.put("fileName", file == null ? null : file.getFileName());
             m.put("fileSize", file == null ? null : file.getFileSize());
             return m;
-        }).collect(Collectors.toList());
+        }).toList();
     }
 
     /**
@@ -575,7 +575,7 @@ public class FabushiPostService {
         return listComments(postId).stream()
                 .<Map<String, Object>>map(c -> om.convertValue(c,
                         new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {}))
-                .collect(Collectors.toList());
+                .toList();
     }
 
     /** 木鱼点赞 toggle(fabushi:create 门; 唯一键幂等: 存在即取消, 不存在即点赞)。 */

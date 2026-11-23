@@ -10,7 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.stream.Collectors;
+
 
 @Service
 @RequiredArgsConstructor
@@ -66,7 +66,7 @@ public class SysPositionService {
             }
             List<SysPositionRule> rules = positionRuleMapper.selectList(
                     new LambdaQueryWrapper<SysPositionRule>().eq(SysPositionRule::getPositionId, id));
-            pos.setRuleIds(rules.stream().map(SysPositionRule::getRuleId).collect(Collectors.toList()));
+            pos.setRuleIds(rules.stream().map(SysPositionRule::getRuleId).toList());
         }
         return pos;
     }

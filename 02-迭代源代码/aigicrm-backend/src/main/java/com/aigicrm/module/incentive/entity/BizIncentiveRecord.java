@@ -76,7 +76,7 @@ public class BizIncentiveRecord {
                 .map(String::trim)
                 .filter(s -> !s.isEmpty())
                 .map(Long::parseLong)
-                .collect(java.util.stream.Collectors.toList());
+                .toList();
         } catch (Exception e) {
             return List.of();
         }

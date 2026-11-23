@@ -116,7 +116,7 @@ public class ScopeService {
             keep.add(cur);
             cur = byId.get(cur).getParentId();
         }
-        return all.stream().filter(d -> keep.contains(d.getId())).collect(Collectors.toList());
+        return all.stream().filter(d -> keep.contains(d.getId())).toList();
     }
 
     /** 部分集合树组装：parent 不可见的节点提升为顶层；入参已按 sortOrder 排序，挂接顺序即层级顺序 */

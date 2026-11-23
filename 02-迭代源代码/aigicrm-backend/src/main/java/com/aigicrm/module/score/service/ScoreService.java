@@ -26,7 +26,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.util.stream.Collectors;
+
 
 @Service
 @RequiredArgsConstructor
@@ -98,7 +98,7 @@ public class ScoreService {
         // 全部启用用户（用于"添加同事"下拉的候选池）【2026-08-08 按账号数据范围过滤】
         List<Long> visible = visibleUserIds();
         List<SysUser> activeUsers = activeUsers(visible);
-        result.put("pool", activeUsers.stream().map(this::toUserMap).collect(Collectors.toList()));
+        result.put("pool", activeUsers.stream().map(this::toUserMap).toList());
 
         // 该周期已保存的参与同事名单
         List<BizScoreParticipant> participants = participants(period, visible);
@@ -145,7 +145,7 @@ public class ScoreService {
         if (visible != null) {
             participants = participants.stream()
                     .filter(p -> visible.contains(p.getUserId()))
-                    .collect(Collectors.toList());
+                    .toList();
         }
         return participants;
     }
@@ -153,7 +153,7 @@ public class ScoreService {
     private List<Map<String, Object>> usersForGrid(List<BizScoreParticipant> participants, List<SysUser> activeUsers) {
         if (participants.isEmpty()) {
             // 首次打开（无名单）：默认全体启用用户
-            return activeUsers.stream().map(this::toUserMap).collect(Collectors.toList());
+            return activeUsers.stream().map(this::toUserMap).toList();
         }
         // 已保存过名单：严格按名单顺序还原这些列（即使同事后来被停用也保留，保证数量一致）
         List<Map<String, Object>> users = new ArrayList<>();

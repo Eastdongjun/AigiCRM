@@ -14,7 +14,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
+
 
 /**
  * 组织管理员服务（sys_org_admin）。
@@ -138,6 +138,6 @@ public class OrgAdminService {
                         .in(SysUser::getOrgId, orgIds)
                         .eq(SysUser::getStatus, 1)
                         .eq(SysUser::getDeleted, 0)
-        ).stream().map(SysUser::getId).collect(Collectors.toList());
+        ).stream().map(SysUser::getId).toList();
     }
 }

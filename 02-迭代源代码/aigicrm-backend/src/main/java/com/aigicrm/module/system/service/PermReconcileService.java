@@ -71,7 +71,7 @@ public class PermReconcileService {
         } else {
             targets = jdbc.queryForList(
                     "SELECT id FROM sys_user WHERE deleted = 0 AND status = 1 ORDER BY id LIMIT ?",
-                    Long.class, Math.max(1, Math.min(sample, 200)));
+                    Long.class, Math.clamp(sample, 1, 200));
         }
         List<Map<String, Object>> rows = new ArrayList<>();
         int diff = 0;

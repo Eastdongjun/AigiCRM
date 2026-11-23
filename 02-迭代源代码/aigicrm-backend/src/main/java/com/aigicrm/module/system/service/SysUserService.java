@@ -220,7 +220,7 @@ public class SysUserService {
                         new LambdaQueryWrapper<com.aigicrm.module.system.entity.SysDept>()
                                 .in(com.aigicrm.module.system.entity.SysDept::getGroupId, groupIds))
                 .stream().map(com.aigicrm.module.system.entity.SysDept::getId)
-                .collect(java.util.stream.Collectors.toList());
+                .toList();
         if (allowedDeptIds.isEmpty()) return null;
         if (!StringUtils.hasText(deptIds)) {
             return allowedDeptIds.stream().map(String::valueOf)
@@ -775,7 +775,7 @@ public class SysUserService {
         if (configured <= 0) {
             configured = DEFAULT_STORAGE_MAX_QUOTA;
         }
-        return Math.max(MIN_STORAGE_MAX_QUOTA, Math.min(MAX_STORAGE_MAX_QUOTA, configured));
+        return Math.clamp(configured, MIN_STORAGE_MAX_QUOTA, MAX_STORAGE_MAX_QUOTA);
     }
 
     private boolean isStorageApplyEnabled() {

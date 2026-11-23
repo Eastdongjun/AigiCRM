@@ -96,7 +96,7 @@ class FabushiStatsRedesignTest {
         sec.when(SecurityUtils::getCurrentUser).thenReturn(su);
         lenient().when(statsService.visibleUserIdsOrNull(any())).thenReturn(null); // 全部档
         lenient().when(dictService.listDataByCode(anyString())).thenReturn(DICT.entrySet().stream()
-                .map(e -> dict(e.getKey(), e.getValue())).collect(java.util.stream.Collectors.toList()));
+                .map(e -> dict(e.getKey(), e.getValue())).toList());
         lenient().when(postMapper.selectList(any())).thenReturn(List.<BizFabushiPost>of());
         lenient().when(likeMapper.selectList(any())).thenReturn(List.of());
         lenient().when(commentMapper.selectList(any())).thenReturn(List.of());

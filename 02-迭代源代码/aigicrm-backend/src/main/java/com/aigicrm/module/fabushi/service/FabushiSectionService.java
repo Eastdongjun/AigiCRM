@@ -45,7 +45,7 @@ public class FabushiSectionService {
             m.put(LIT_LEVELCODE, s.getLevelCode()); m.put(LIT_TITLE, s.getTitle()); m.put(LIT_SORTORDER, s.getSortOrder());
             m.put("children", build(children, s.getId()));
             return m;
-        }).collect(Collectors.toList());
+        }).toList();
     }
 
     @Transactional

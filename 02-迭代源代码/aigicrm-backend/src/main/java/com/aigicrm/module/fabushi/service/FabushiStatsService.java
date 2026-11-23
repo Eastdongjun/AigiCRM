@@ -105,7 +105,7 @@ public class FabushiStatsService {
                     .map(com.aigicrm.module.fabushi.entity.BizFabushiReadStatus::getUserId)
                     .filter(uid -> visible == null || visible.contains(uid))
                     .distinct()
-                    .collect(Collectors.toList());
+                    .toList();
             todayReadUsers = todayReaders.size();
         }
 
@@ -156,7 +156,7 @@ public class FabushiStatsService {
         List<Long> myPostIds = postMapper.selectList(new LambdaQueryWrapper<BizFabushiPost>()
                         .eq(BizFabushiPost::getUserId, uid).eq(BizFabushiPost::getStatus, LIT_PUBLISHED)
                         .select(BizFabushiPost::getId))
-                .stream().map(BizFabushiPost::getId).collect(Collectors.toList());
+                .stream().map(BizFabushiPost::getId).toList();
         data.put("myLikesReceived", myPostIds.isEmpty() ? 0
                 : likeMapper.selectCount(new LambdaQueryWrapper<com.aigicrm.module.fabushi.entity.BizFabushiLike>()
                         .in(com.aigicrm.module.fabushi.entity.BizFabushiLike::getPostId, myPostIds)));

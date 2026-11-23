@@ -34,7 +34,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
+
 
 @Service
 @RequiredArgsConstructor
@@ -63,7 +63,7 @@ public class SeaService {
      * all 用户 = 全部启用池(保留其全量可见性,但排除禁用池); 非 all 用户 = 可见且启用池。
      */
     private List<Long> visiblePoolIds() {
-        return seaConfigService.listVisible().stream().map(BizSeaConfig::getId).collect(Collectors.toList());
+        return seaConfigService.listVisible().stream().map(BizSeaConfig::getId).toList();
     }
 
     // 【死码清理 2026-11-08】officeId 参数已删(函数体从未使用, 全库无调用方传它, 随 /sea/list 端点同批清理)

@@ -1443,7 +1443,7 @@ public class PermissionMatrixTest {
                 .filter(jc -> jc.isAnnotatedWith(RestController.class))
                 .filter(jc -> jc.getPackageName().contains("controller"))
                 .map(JavaClass::reflect)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     /** 扫描所有 controller 类的写方法 */

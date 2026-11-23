@@ -194,7 +194,7 @@ class PermissionCacheServiceTest {
         rule.setId(9L);
         rule.setCode("dept_visible");
         rule.setRuleType("column_filter");
-        ctx.setPermissionRules(java.util.List.of(rule).stream().collect(java.util.stream.Collectors.toUnmodifiableList()));
+        ctx.setPermissionRules(java.util.List.of(rule).stream().toList());
 
         byte[] bytes = ser.serialize(ctx);
         Object roundTripped = ser.deserialize(bytes);

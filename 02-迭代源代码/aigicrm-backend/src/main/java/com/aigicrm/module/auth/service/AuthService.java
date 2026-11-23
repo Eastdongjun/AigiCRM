@@ -25,7 +25,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import java.util.*;
 import java.security.SecureRandom;
 import java.time.Duration;
-import java.util.stream.Collectors;
+
 
 @Slf4j
 @Service
@@ -243,7 +243,7 @@ public class AuthService {
         response.setAvatar(user.getAvatar());
         response.setDeptName(deptName);
         response.setOfficeName(officeName);
-        response.setRoles(roles.stream().map(SysRole::getRoleCode).collect(Collectors.toList()));
+        response.setRoles(roles.stream().map(SysRole::getRoleCode).toList());
         response.setRoleName(roles.isEmpty() ? "" : roles.get(0).getRoleName());
         // 【修复 登录响应 dataScope 展示错误】此前取 roles.get(0)（数据库返回顺序的第一个角色），
         // 与多角色实际生效的"并集/用户级覆盖"后有效范围不一致，仅影响前端展示文案，不影响后端
@@ -294,7 +294,7 @@ public class AuthService {
                     if (m.getMenuType() == null || m.getMenuType() != 2 || m.getPath() == null) return true;
                     return seen.add(m.getPath());
                 })
-                .collect(Collectors.toList());
+                .toList();
     }
 
     /**
@@ -317,7 +317,7 @@ public class AuthService {
                 // (五个 *-group 锚点在路由表无对应路由)。真正的叶子菜单(menu_type=2 带 path)不受影响。
                 .filter(m -> m.getMenuType() == 2 || (m.getChildren() != null && !m.getChildren().isEmpty()))
                 .sorted(Comparator.comparingInt(m -> m.getSortOrder() != null ? m.getSortOrder() : 0))
-                .collect(Collectors.toList());
+                .toList();
     }
 
     // ── 忘记密码 ──

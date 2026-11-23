@@ -114,7 +114,7 @@ public class FabushiDashboardService {
 
         // 【UI-STATS-REDESIGN-001】阅读优先 KPI: 周期已读人数(distinct user, 可见集收口)与周期覆盖率
         List<BizFabushiReadStatus> visibleReads = periodReads.stream()
-                .filter(r -> visible == null || visible.contains(r.getUserId())).collect(Collectors.toList());
+                .filter(r -> visible == null || visible.contains(r.getUserId())).toList();
         long periodReadUsers = visibleReads.stream().map(BizFabushiReadStatus::getUserId).distinct().count();
         data.put("periodReadUsers", periodReadUsers);
         data.put("periodCoveragePct", visible == null ? null
@@ -218,7 +218,7 @@ public class FabushiDashboardService {
                 })
                 .sorted((a, b) -> Long.compare((Long) b.get(LIT_READCOUNT), (Long) a.get(LIT_READCOUNT)))
                 .limit(10)
-                .collect(Collectors.toList());
+                .toList();
         return new BookReadRollup(rows, resolved);
     }
 
@@ -241,7 +241,7 @@ public class FabushiDashboardService {
                     return bookId == null ? null : new ResolvedRead(r.getUserId(), bookId, r.getReadAt());
                 })
                 .filter(Objects::nonNull)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     /** 类别已读口径(§二-3): 书目 rollup 按 category 再聚合已读人次; 行: categoryCode/categoryName/readCount。 */
@@ -264,7 +264,7 @@ public class FabushiDashboardService {
                     row.put(LIT_CATEGORYNAME, catNames.getOrDefault(e.getKey(), e.getKey()));
                     row.put(LIT_READCOUNT, e.getValue());
                     return row;
-                }).collect(Collectors.toList());
+                }).toList();
     }
 
     private Map<String, String> categoryNames() {
@@ -335,7 +335,7 @@ public class FabushiDashboardService {
             row.put("label", e.getKey().getMonthValue() + "-" + String.format("%02d", e.getKey().getDayOfMonth()));
             row.put(LIT_COUNT, e.getValue().size());
             return row;
-        }).collect(Collectors.toList());
+        }).toList();
     }
 
     /**
@@ -383,17 +383,17 @@ public class FabushiDashboardService {
         List<BizFabushiPost> posts = postMapper.selectList(new LambdaQueryWrapper<BizFabushiPost>()
                 .eq(BizFabushiPost::getStatus, LIT_PUBLISHED)
                 .ge(BizFabushiPost::getCreatedAt, startAt).lt(BizFabushiPost::getCreatedAt, endAt));
-        if (visible != null) posts = posts.stream().filter(p -> visible.contains(p.getUserId())).collect(Collectors.toList());
+        if (visible != null) posts = posts.stream().filter(p -> visible.contains(p.getUserId())).toList();
         List<BizFabushiLike> likes = likeMapper.selectList(new LambdaQueryWrapper<BizFabushiLike>()
                 .ge(BizFabushiLike::getCreatedAt, startAt).lt(BizFabushiLike::getCreatedAt, endAt));
-        if (visible != null) likes = likes.stream().filter(l -> visible.contains(l.getUserId())).collect(Collectors.toList());
+        if (visible != null) likes = likes.stream().filter(l -> visible.contains(l.getUserId())).toList();
         List<BizFabushiComment> comments = commentMapper.selectList(new LambdaQueryWrapper<BizFabushiComment>()
                 .eq(BizFabushiComment::getStatus, LIT_PUBLISHED)
                 .ge(BizFabushiComment::getCreatedAt, startAt).lt(BizFabushiComment::getCreatedAt, endAt));
-        if (visible != null) comments = comments.stream().filter(c -> visible.contains(c.getUserId())).collect(Collectors.toList());
+        if (visible != null) comments = comments.stream().filter(c -> visible.contains(c.getUserId())).toList();
         List<BizFabushiReadStatus> reads = readStatusMapper.selectList(new LambdaQueryWrapper<BizFabushiReadStatus>()
                 .ge(BizFabushiReadStatus::getReadAt, startAt).lt(BizFabushiReadStatus::getReadAt, endAt));
-        if (visible != null) reads = reads.stream().filter(r -> visible.contains(r.getUserId())).collect(Collectors.toList());
+        if (visible != null) reads = reads.stream().filter(r -> visible.contains(r.getUserId())).toList();
         return new MonthlyRecords(posts, likes, comments, reads);
     }
 
@@ -477,7 +477,7 @@ public class FabushiDashboardService {
             row.put("label", String.format("%02d-%02d", e.getKey().getMonthValue(), e.getKey().getDayOfMonth()));
             row.put(LIT_COUNT, e.getValue().size());
             return row;
-        }).collect(Collectors.toList());
+        }).toList();
         data.put(LIT_TREND, trend);
 
         data.put(LIT_DEPTPROGRESS, buildDeptProgress(visible, posts, likes, comments, reads));

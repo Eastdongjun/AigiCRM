@@ -50,7 +50,7 @@ public class FabushiActivityService {
             m.put("joined", joined.contains(a.getId()));
             m.put("joinCount", joinMapper.selectCount(new LambdaQueryWrapper<BizFabushiActivityJoin>().eq(BizFabushiActivityJoin::getActivityId, a.getId())));
             return m;
-        }).collect(Collectors.toList());
+        }).toList();
         return Map.of("records", records);
     }
 

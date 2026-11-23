@@ -61,7 +61,7 @@ public class SeaConfigService {
         return list().stream()
                 .filter(c -> c.getStatus() != null && c.getStatus() == 1)
                 .filter(c -> isVisibleTo(c, user))
-                .collect(Collectors.toList());
+                .toList();
     }
 
     public void create(BizSeaConfig config) {
@@ -371,6 +371,6 @@ public class SeaConfigService {
         if (!StringUtils.hasText(csv)) return Collections.emptyList();
         return Arrays.stream(csv.split(","))
                 .map(String::trim).filter(s -> !s.isEmpty())
-                .map(Long::parseLong).collect(Collectors.toList());
+                .map(Long::parseLong).toList();
     }
 }

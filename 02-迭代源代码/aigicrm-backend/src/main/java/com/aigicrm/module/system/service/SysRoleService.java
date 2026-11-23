@@ -72,7 +72,7 @@ public class SysRoleService {
             if (DataScopeType.CUSTOM.getCode().equals(role.getDataScope())) {
                 role.setOrgIds(roleOrgMapper.selectByRoleId(id).stream()
                         .map(SysRoleOrg::getOrgId)
-                        .collect(java.util.stream.Collectors.toList()));
+                        .toList());
             }
         }
         return role;

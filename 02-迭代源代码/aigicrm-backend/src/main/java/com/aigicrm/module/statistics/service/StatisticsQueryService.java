@@ -530,7 +530,7 @@ public class StatisticsQueryService {
         // 【G2 2026-09-21】指标随客户可见性同步收口——coveredCount/avgScore/排行均以指标为口径
         indicators = indicators.stream()
                 .filter(ind -> ind.getCustomerId() != null && customerMap.containsKey(ind.getCustomerId()))
-                .collect(java.util.stream.Collectors.toList());
+                .toList();
 
         // 【裁决 2026-10-10】核心判定金额源换阶段总额年度口径(纯金额三态, 五项评分不再参与)
         Map<Long, java.math.BigDecimal[]> annualAmounts = annualAmountsByCustomer(
@@ -832,7 +832,7 @@ public class StatisticsQueryService {
         if (!customerMap.isEmpty()) fillCustomerOwnerNames(customerMap.values());
         List<BizIncentiveRecord> records = incentiveRecordMapper.selectList(recordWrapper).stream()
                 .filter(r -> r.getCustomerId() != null && customerMap.containsKey(r.getCustomerId()))
-                .collect(java.util.stream.Collectors.toList());
+                .toList();
         Map<Long, Map<String, Object>> incentiveRows = new LinkedHashMap<>();
         for (BizIncentiveRecord record : records) {
             BizCustomer customer = customerMap.get(record.getCustomerId());

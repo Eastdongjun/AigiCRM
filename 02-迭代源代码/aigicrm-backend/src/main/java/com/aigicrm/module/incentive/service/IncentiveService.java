@@ -298,7 +298,7 @@ public class IncentiveService {
         // 【DeepSeek四审 P1 修复 2026-09-22】update 新增文件槽时与 create 同口径核对归属:
         // 旧代码只赋值不校验, 填他人/不存在文件 ID 也能保住上传材料分。核对对象=新引入的文件 ID
         List<Long> newFileIds = collectFileIds(existing).stream()
-                .filter(fid -> !beforeFileIds.contains(fid)).collect(Collectors.toList());
+                .filter(fid -> !beforeFileIds.contains(fid)).toList();
         if (newFileIds.isEmpty()) return;
         Long currentUserId = SecurityUtils.getCurrentUserId();
         Long existCount = fileMapper.selectCount(new LambdaQueryWrapper<BizFile>()

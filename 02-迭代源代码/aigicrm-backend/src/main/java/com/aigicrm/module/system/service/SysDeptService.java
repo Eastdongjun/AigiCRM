@@ -66,7 +66,7 @@ public class SysDeptService {
             if (groups == null || groups.isEmpty()) return all;
             Set<Long> groupSet = new HashSet<>(groups);
             return all.stream().filter(d -> d.getGroupId() != null && groupSet.contains(d.getGroupId()))
-                    .collect(Collectors.toList());
+                    .toList();
         }
         Long myDeptId = SecurityUtils.getCurrentDeptId();
         if (myDeptId == null) {
@@ -76,7 +76,7 @@ public class SysDeptService {
         if (groupIds != null && !groupIds.isEmpty()) {
             Set<Long> groups = new HashSet<>(groupIds);
             all = all.stream().filter(d -> d.getGroupId() != null && groups.contains(d.getGroupId()))
-                    .collect(Collectors.toList());
+                    .toList();
         } else {
             // 无集团归属:fail-closed,不退回任何部门
             return Collections.emptyList();
@@ -89,7 +89,7 @@ public class SysDeptService {
             keep.add(cur);
             cur = byId.get(cur).getParentId();
         }
-        return all.stream().filter(d -> keep.contains(d.getId())).collect(Collectors.toList());
+        return all.stream().filter(d -> keep.contains(d.getId())).toList();
     }
 
     public void create(SysDept dept) {
@@ -175,6 +175,6 @@ public class SysDeptService {
         return list.stream()
                 .filter(d -> Objects.equals(d.getParentId(), parentId))
                 .peek(d -> d.setChildren(buildTree(list, d.getId())))
-                .collect(Collectors.toList());
+                .toList();
     }
 }

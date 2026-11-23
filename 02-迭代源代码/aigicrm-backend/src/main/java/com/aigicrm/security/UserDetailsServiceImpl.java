@@ -125,7 +125,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         Set<String> permissions = menuMapper.selectPermissionsByUserId(user.getId());
         List<SimpleGrantedAuthority> authorities = permissions.stream()
                 .map(SimpleGrantedAuthority::new)
-                .collect(Collectors.toList());
+                .toList();
 
         SecurityUser securityUser = new SecurityUser();
         securityUser.setUserId(user.getId());
@@ -149,13 +149,13 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         List<String> roleCodes = roles.stream()
                 .map(SysRole::getRoleCode)
                 .filter(Objects::nonNull)
-                .collect(Collectors.toList());
+                .toList();
         securityUser.setRoleCodes(roleCodes);
 
         List<String> scopeCodes = roles.stream()
                 .map(SysRole::getDataScope)
                 .filter(Objects::nonNull)
-                .collect(Collectors.toList());
+                .toList();
         securityUser.setDataScopes(scopeCodes);
 
         DataScopeType bestScope = roles.stream()
@@ -390,7 +390,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         su.setScopeConfigs(ctx.getScopeConfigs() != null ? ctx.getScopeConfigs() : new java.util.ArrayList<>());
         su.setAuthorities(ctx.getPermissions().stream()
                 .map(SimpleGrantedAuthority::new)
-                .collect(Collectors.toList()));
+                .toList());
         return su;
     }
 }

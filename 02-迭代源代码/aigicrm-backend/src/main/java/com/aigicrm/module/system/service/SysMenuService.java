@@ -8,7 +8,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Objects;
-import java.util.stream.Collectors;
+
 
 /**
  * 菜单服务(2026-08-13 起只读): 菜单 CRUD 端点已随孤儿端点清理移除,
@@ -31,6 +31,6 @@ public class SysMenuService {
         return list.stream()
                 .filter(m -> Objects.equals(m.getParentId(), parentId))
                 .peek(m -> m.setChildren(buildTree(list, m.getId())))
-                .collect(Collectors.toList());
+                .toList();
     }
 }
