@@ -27,7 +27,10 @@
             <!-- 学分管理/法布施：参考客户管理，收成可折叠分组，避免侧栏过长 -->
             <el-sub-menu v-if="isCollapsibleGroup(group)" :index="'group-' + group.id" class="menu-group-sub">
               <template #title>
-                <span class="menu-group-title">{{ group.menuName }}</span>
+                <el-icon v-if="groupIcon(group)"><component :is="groupIcon(group)" /></el-icon>
+                <span class="menu-title-row">
+                  <span>{{ group.menuName }}</span>
+                </span>
               </template>
               <template v-for="item in group.children" :key="item.id">
                 <el-sub-menu v-if="item.subChildren.length" :index="item.path">
@@ -279,6 +282,8 @@ const menuGroups = computed(() => {
   return groups
 })
 const COLLAPSIBLE_GROUP_NAMES = new Set(['学分管理', '法布施'])
+const GROUP_ICON_FALLBACK = { 学分管理: 'Medal', 法布施: 'Reading' }
+const groupIcon = (group) => group.icon || GROUP_ICON_FALLBACK[group.menuName] || ''
 const isCollapsibleGroup = (group) => COLLAPSIBLE_GROUP_NAMES.has(group.menuName)
 const collapsibleGroupIndexes = computed(() => menuGroups.value
   .filter(isCollapsibleGroup)
@@ -486,9 +491,9 @@ const handleCommand = (command) => {
 }
 /* 【2026-10-08 UI 整改①】侧栏当前态配色接线到 :root 令牌（与上方 el-menu prop 同值，令牌为唯一来源） */
 .sidebar :deep(.el-menu-item.is-active) { color: var(--sidebar-active); }
-.menu-group-sub :deep(.el-sub-menu__title) { color: var(--sidebar-text); font-size: 12px; opacity: .75; }
-.menu-group-sub :deep(.el-sub-menu__title:hover) { opacity: 1; }
-.menu-group-title { letter-spacing: 1px; }
+.menu-group-sub :deep(.el-sub-menu__title) { color: var(--sidebar-text); font-size: 14px; opacity: 1; }
+.menu-group-sub :deep(.el-sub-menu__title:hover) { color: var(--sidebar-text); }
+.menu-group-sub :deep(.el-sub-menu__title .el-icon) { margin-right: 10px; }
 .menu-group-label {
   padding: 16px 20px 6px;
   font-size: 12px;
