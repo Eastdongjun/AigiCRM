@@ -15,6 +15,7 @@ REDIS_PORT=16379
 FRONTEND=1
 SEED_DEMO=0
 MONITORING=0
+BACKUP=1
 SKIP_SMOKE=0
 NODE_EXPORTER_PORT=19100
 PROMETHEUS_PORT=19090
@@ -45,6 +46,7 @@ usage() {
   --seed-demo         导入 3 条演示客户（仅空库/无同名演示客户时）
   --monitoring        启动 node-exporter + Prometheus（可选 S6.4）
   --skip-smoke        跳过登录冒烟（升级时 admin 口令已改；health 仍校验）
+  --no-backup         迁移前不备份（默认备份已有库；不推荐）
   --mysql-port N      MySQL 宿主机端口（默认 13306）
   --redis-port N      Redis 宿主机端口（默认 16379）
   --jar PATH          后端 jar 路径（默认 target/aigicrm-backend-1.0.0.jar）
@@ -66,6 +68,7 @@ while [ $# -gt 0 ]; do
     --seed-demo) SEED_DEMO=1; shift ;;
     --monitoring) MONITORING=1; shift ;;
     --skip-smoke) SKIP_SMOKE=1; shift ;;
+    --no-backup) BACKUP=0; shift ;;
     --mysql-port) [ $# -ge 2 ] || { echo "--mysql-port 缺值" >&2; exit 2; }; MYSQL_PORT="$2"; shift 2 ;;
     --redis-port) [ $# -ge 2 ] || { echo "--redis-port 缺值" >&2; exit 2; }; REDIS_PORT="$2"; shift 2 ;;
     --jar) [ $# -ge 2 ] || { echo "--jar 缺路径" >&2; exit 2; }; JAR_PATH="$2"; shift 2 ;;
@@ -207,6 +210,26 @@ wait_mysql() {
   die "MySQL 60 次探测仍未 ready"
 }
 
+backup_if_needed() {
+  [ "$BACKUP" = "1" ] || { echo "SKIP: --no-backup"; return 0; }
+  local tables
+  tables="$(dc exec -T mysql mysql -uroot -p"$DB_PASSWORD" -N -B -e \
+    "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${DB_NAME:-aigicrm}'" 2>/dev/null | tr -d '[:space:]')"
+  if [ -z "$tables" ] || [ "$tables" = "0" ]; then
+    echo "备份: 空库，跳过"
+    return 0
+  fi
+  local dir="$RUNTIME_DIR/backups" file
+  mkdir -p "$dir"
+  file="$dir/${PROJECT}-pre-migrate-$(date +%Y%m%d-%H%M%S).sql"
+  echo "== 迁移前备份: $file =="
+  dc exec -T mysql mysqldump -uroot -p"$DB_PASSWORD" --single-transaction --routines --triggers \
+    "${DB_NAME:-aigicrm}" > "$file" 2>/dev/null || die "备份失败，已中止（未迁移）"
+  [ -s "$file" ] || die "备份文件为空，已中止（未迁移）"
+  chmod 600 "$file"
+  echo "备份完成: $(wc -c < "$file" | tr -d ' ') bytes"
+}
+
 migrate() {
   local net mig
   net="$(docker network ls --format '{{.Name}}' | grep -E "(^|_)${PROJECT}_default$" | head -1)"
@@ -345,15 +368,16 @@ if [ "$APPLY" = "0" ]; then
   echo "DRY-RUN：未创建容器。将执行："
   echo "  1) preflight"
   echo "  2) docker compose up -d mysql redis"
-  echo "  3) Flyway migrate"
-  echo "  4) 组织/admin 种子"
-  echo "  5) docker compose up -d backend"
-  echo "  6) health + admin 登录冒烟"
+  echo "  3) 迁移前备份（已有库）"
+  echo "  4) Flyway migrate"
+  echo "  5) 组织/admin 种子"
+  echo "  6) docker compose up -d backend"
+  echo "  7) health + admin 登录冒烟"
   if [ "$SEED_DEMO" = "1" ]; then echo "  * 演示客户种子（--seed-demo）"; fi
   if [ "$MONITORING" = "1" ]; then echo "  * 监控：node-exporter + Prometheus + 首次探针"; fi
   if [ "$FRONTEND" = "1" ]; then
-    echo "  7) docker compose up -d --build frontend"
-    echo "  8) 前端首页 + 经 /api 代理登录冒烟"
+    echo "  8) docker compose up -d --build frontend"
+    echo "  9) 前端首页 + 经 /api 代理登录冒烟"
   fi
   echo "  数据卷保留；失败 down 保留卷。确认后加 --apply。"
   exit 0
@@ -364,6 +388,7 @@ build_jar
 APPLIED=1
 dc up -d mysql redis || die "mysql/redis 启动失败"
 wait_mysql
+backup_if_needed
 migrate
 seed
 seed_demo

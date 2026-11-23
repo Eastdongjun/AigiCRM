@@ -55,6 +55,8 @@ bash scripts/product/test-install.sh              # 离线语法/preflight/dry-r
   --env-file .../\.env down -v`。
 - 升级 jar：`--build` 重新 package（或 `--jar` 指向新 jar）后重跑 `--apply`；
   admin 口令已改时加 `--skip-smoke`；Flyway 只增量迁移。
+- **迁移前备份**：已有库默认 `mysqldump` 到 `runtime/<project>/backups/`，
+  空库跳过；失败即中止（未迁移）；`--no-backup` 仅限明确不需要时。
 - 安装器会拒绝比后端源码旧的 jar，避免“代码改了但装的是旧包”。
 
 ## 6. 已知限制

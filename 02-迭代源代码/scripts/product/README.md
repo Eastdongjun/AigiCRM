@@ -58,6 +58,9 @@ bash scripts/product/install.sh --apply --monitoring ...
 # 源码有改动时先重新打包（否则安装器拒绝旧 jar）；升级时 admin 口令可能已改
 bash scripts/product/install.sh --apply --build --skip-smoke ...
 
+# 升级/重跑默认先备份已有库到 runtime/<project>/backups/；--no-backup 可关闭
+bash scripts/product/install.sh --apply --skip-smoke ...
+
 # 停止（保留数据卷）
 bash scripts/product/install.sh --project aigicrm-b1-test --down
 ```
@@ -71,6 +74,7 @@ bash scripts/product/install.sh --project aigicrm-b1-test --down
 - `--seed-demo`：`DEMO001..003` 3 条、`onboarding.demoSeeded=true`，重跑不重复；
 - `--monitoring`：Prometheus 抓到 `aigicrm_api_up=1`，3 条告警规则加载；
 - `--build` 重新打包 jar；`--skip-smoke` 供升级（admin 口令已改）跳过登录冒烟；
+- 默认迁移前 `mysqldump` 备份已有库；空库跳过；`--no-backup` 关闭；
 - 失败回滚：`down` 保留数据卷；测试栈已 `down -v` 清理。
 
 架构注意：MySQL 默认 `mysql:8.0`（多架构）；Flyway 在 arm64 自动用 `9.22.3-alpine`。
