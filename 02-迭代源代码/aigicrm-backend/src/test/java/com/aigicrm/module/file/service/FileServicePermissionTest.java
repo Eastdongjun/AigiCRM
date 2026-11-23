@@ -1255,7 +1255,9 @@ class FileServicePermissionTest {
     @Test
     void incentiveVisibility_ttlExpiry_forcesReloadEvenWithSameFingerprint() {
         java.util.concurrent.atomic.AtomicLong now = new java.util.concurrent.atomic.AtomicLong(1_000_000_000L);
-        ReflectionTestUtils.setField(svc, "incentiveCacheClock", (java.util.function.LongSupplier) now::get);
+        ReflectionTestUtils.setField(com.aigicrm.module.file.service.support.FileServiceFixture.queryOf(svc),
+                "incentiveCacheClock",
+                new java.util.concurrent.atomic.AtomicReference<java.util.function.LongSupplier>(now::get));
         when(incentiveRecordMapper.selectSharedVisibilityFingerprint(2L)).thenReturn("2:10:1700000000");
         BizIncentiveRecord shared = new BizIncentiveRecord();
         shared.setUserId(3L);

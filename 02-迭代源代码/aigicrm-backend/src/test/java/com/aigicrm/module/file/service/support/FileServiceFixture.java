@@ -9,6 +9,7 @@ import com.aigicrm.module.file.service.FileBatchDownloadService;
 import com.aigicrm.module.file.service.FileEvidenceGuard;
 import com.aigicrm.module.file.service.FileFolderService;
 import com.aigicrm.module.file.service.FileMutationService;
+import com.aigicrm.module.file.service.FileQueryService;
 import com.aigicrm.module.file.service.FileService;
 import com.aigicrm.module.file.service.FileShareService;
 import com.aigicrm.module.file.service.FileStorageService;
@@ -61,9 +62,10 @@ public final class FileServiceFixture {
                 securityAudit, incentiveService, null, fileThumbnailService, userMapper);
         FileBatchDownloadService fileBatchDownloadService = new FileBatchDownloadService(fileMapper,
                 folderPermissionService, fileStorageService);
-        return new FileService(fileMapper, folderMapper, fileShareMapper, fileVersionMapper,
-                incentiveRecordMapper, userMapper, folderPermissionService, jdbc,
-                fileShareService, fileFolderService, fileStorageService, fileThumbnailService,
+        FileQueryService fileQueryService = new FileQueryService(fileMapper, folderMapper, fileShareMapper,
+                userMapper, folderPermissionService, incentiveRecordMapper, jdbc);
+        return new FileService(fileMapper, fileVersionMapper, userMapper, folderPermissionService,
+                fileQueryService, fileShareService, fileFolderService, fileStorageService, fileThumbnailService,
                 fileEvidenceGuard, fileVersionService, fileMutationService, fileBatchDownloadService);
     }
 
@@ -77,5 +79,11 @@ public final class FileServiceFixture {
     public static FileThumbnailService thumbnailOf(FileService service) {
         return (FileThumbnailService) org.springframework.test.util.ReflectionTestUtils
                 .getField(service, "fileThumbnailService");
+    }
+
+    /** 测试需要控制激励可见缓存时钟时，拿到真实的查询 bean。 */
+    public static FileQueryService queryOf(FileService service) {
+        return (FileQueryService) org.springframework.test.util.ReflectionTestUtils
+                .getField(service, "fileQueryService");
     }
 }

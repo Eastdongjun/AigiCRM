@@ -16,9 +16,9 @@ class FabushiFolderQueryTest {
     @Test
     void folderFilterNoLongerShortCircuitsEmpty() throws Exception {
         String src = java.nio.file.Files.readString(java.nio.file.Path.of(
-                "src/main/java/com/aigicrm/module/file/service/FileService.java"));
+                "src/main/java/com/aigicrm/module/file/service/FileQueryService.java"));
         int at = src.indexOf("private boolean applyFabushiVisibility");
-        assertFalse(at == -1, "applyFabushiVisibility 方法应存在");
+        assertFalse(at == -1, "FileQueryService.applyFabushiVisibility 方法应存在");
         String method = src.substring(at, Math.min(src.length(), at + 900));
         assertFalse(method.contains("if (folderId != null) return false"),
                 "分夹后不得再有'带 folderId 即空'旧假设(FILE-FABU-FOLDER-003)");

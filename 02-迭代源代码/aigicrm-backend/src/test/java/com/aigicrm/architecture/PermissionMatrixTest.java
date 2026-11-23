@@ -624,9 +624,18 @@ public class PermissionMatrixTest {
                 "FileMutationService.renameFile 必须保留文件 P_RENAME 权限守卫(【文件权限 v2】动作细分)");
         assertTrue(body.contains("folderPermissionService.checkFile(fileId, FolderPermissionService.P_REPLACE"),
                 "FileService.replaceFile 必须保留文件 P_REPLACE 权限守卫(【文件权限 v2】动作细分)");
-        assertTrue(body.contains("folderPermissionService.checkFile(file.getId(), FolderPermissionService.P_DOWNLOAD")
-                        || body.contains("folderPermissionService.checkFile(fileId, FolderPermissionService.P_DOWNLOAD"),
-                "FileService 下载链路必须保留文件 P_DOWNLOAD 权限守卫");
+        Path querySrc = Paths.get("src/main/java/com/aigicrm/module/file/service/FileQueryService.java")
+                .toAbsolutePath().normalize();
+        assertTrue(Files.exists(querySrc), "FileQueryService 源文件不存在: " + querySrc);
+        String queryBody;
+        try {
+            queryBody = SourceNormalizer.read(querySrc);
+        } catch (IOException e) {
+            throw new IllegalStateException("读取 FileQueryService 源码失败", e);
+        }
+        assertTrue(queryBody.contains("folderPermissionService.checkFile(file.getId(), FolderPermissionService.P_DOWNLOAD")
+                        || queryBody.contains("folderPermissionService.checkFile(fileId, FolderPermissionService.P_DOWNLOAD"),
+                "FileQueryService 下载链路必须保留文件 P_DOWNLOAD 权限守卫");
         Path shareSrc = Paths.get("src/main/java/com/aigicrm/module/file/service/FileShareService.java")
                 .toAbsolutePath().normalize();
         assertTrue(Files.exists(shareSrc), "FileShareService 源文件不存在: " + shareSrc);
