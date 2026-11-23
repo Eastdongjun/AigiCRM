@@ -52,13 +52,14 @@
     </view>
 
     <view class="fb-card">
-      <view class="fb-section-title">评论（{{comments.length}}）</view>
+      <view class="fb-section-title">评论（{{commentsTotal}}）</view>
       <view wx:if="{{!comments.length}}" class="fb-empty">还没有评论</view>
       <view wx:for="{{comments}}" wx:key="id" class="fb-comment {{item.type === 'highlight' ? 'highlight' : ''}}">
         <view class="fb-comment-name">{{item.userName || '同事'}}<text wx:if="{{item.type === 'highlight'}}" class="fb-comment-badge">重点</text></view>
         <view wx:if="{{item.content}}" class="fb-comment-content">{{item.content}}</view>
         <audio wx:if="{{item.type === 'audio' && item.audioUrl}}" class="fb-comment-audio" src="{{item.audioUrl}}" controls />
       </view>
+      <view wx:if="{{hasMoreComments}}" class="fb-more" bindtap="loadMoreComments">加载更多评论（{{comments.length}}/{{commentsTotal}}）</view>
       <view wx:if="{{canCreate && !voiceMode}}" class="fb-comment-form">
         <input class="fb-input" value="{{commentText}}" placeholder="写评论..." bindinput="onCommentInput" />
         <view class="fb-chip {{highlightChecked ? 'on' : ''}}" bindtap="toggleHighlight">重点</view>

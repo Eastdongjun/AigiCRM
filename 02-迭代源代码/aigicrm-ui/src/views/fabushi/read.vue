@@ -45,11 +45,13 @@
               {{ searchHits.length ? `命中 ${searchHits.length} 处` : '没有找到匹配内容' }}
             </p>
             <div v-if="searchHits.length" class="rs-hits">
-              <button v-for="(hit, i) in searchHits.slice(0, 60)" :key="i" type="button" class="rs-hit" @click="jumpToHit(hit)">
+              <button v-for="(hit, i) in pagedSearchHits" :key="i" type="button" class="rs-hit" @click="jumpToHit(hit)">
                 <span class="rs-page">第 {{ hit.page }} 页</span>
                 <span class="rs-snippet">{{ hit.snippet }}</span>
               </button>
-              <p v-if="searchHits.length > 60" class="rs-note">仅显示前 60 处，请输入更具体的关键词。</p>
+              <div v-if="searchTotalPages > 1" class="rail-pager">
+                <el-pagination v-model:current-page="searchPage" :page-size="searchSize" :total="searchTotal" layout="prev, pager, next" small />
+              </div>
             </div>
           </div>
 
@@ -251,6 +253,7 @@ const searchKeyword = ref('')
 const searchState = ref('idle') // idle | indexing | done | notext
 const indexDone = ref(0)
 const searchHits = ref([])
+const { current: searchPage, size: searchSize, total: searchTotal, totalPages: searchTotalPages, paged: pagedSearchHits, reset: resetSearchPage } = usePagedList(searchHits, { pageSize: 20 })
 let allTextPages = null
 
 /** 检测文本层：有则允许重排与搜索；无则明确告知不做 OCR。 */
@@ -318,7 +321,7 @@ function onReflowScroll() {
 /** 书内搜索：首次触发时建全文索引（逐页提取，带进度），之后走内存缓存。 */
 async function runSearch() {
   const kw = searchKeyword.value.trim()
-  if (!kw) { searchHits.value = []; return }
+  if (!kw) { searchHits.value = []; resetSearchPage(); return }
   if (textLayerState.value === 'none') { searchState.value = 'notext'; return }
   if (textLayerState.value === 'probing') return
   if (!allTextPages) {
@@ -327,6 +330,7 @@ async function runSearch() {
     allTextPages = await extractAllText((done) => { indexDone.value = done })
   }
   searchHits.value = searchInPages(allTextPages, kw)
+  resetSearchPage()
   searchState.value = 'done'
 }
 

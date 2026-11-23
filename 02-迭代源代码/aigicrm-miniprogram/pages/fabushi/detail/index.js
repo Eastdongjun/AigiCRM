@@ -9,6 +9,8 @@ Page({
     post: {},
     attachments: [],
     comments: [],
+    commentsTotal: 0,
+    hasMoreComments: false,
     likeCount: 0,
     liked: false,
     canCreate: false,
@@ -96,16 +98,35 @@ Page({
       const comments = res || []
       // 【F2】audio 评论补可播 URL(与附件同 download-token 通道)
       const needUrl = comments.some((c) => c.type === 'audio' && c.audioFileId)
-      if (!needUrl) { this.setData({ comments }); return }
+      if (!needUrl) { this._allComments = comments; this.showFirstComments(comments); return }
       getDownloadToken().then((r) => {
         const token = r && (r.token || (r.data && r.data.token)) || ''
-        this.setData({
-          comments: comments.map((c) => (c.type === 'audio' && c.audioFileId
-            ? { ...c, audioUrl: getDownloadUrl({ id: c.audioFileId }) + (token ? '?token=' + encodeURIComponent(token) : '') }
-            : c))
-        })
-      }).catch(() => this.setData({ comments }))
+        const rows = comments.map((c) => (c.type === 'audio' && c.audioFileId
+          ? { ...c, audioUrl: getDownloadUrl({ id: c.audioFileId }) + (token ? '?token=' + encodeURIComponent(token) : '') }
+          : c))
+        this._allComments = rows
+        this.showFirstComments(rows)
+      }).catch(() => { this._allComments = comments; this.showFirstComments(comments) })
     }).catch(() => {})
+  },
+
+  showFirstComments(rows) {
+    const pageSize = 10
+    this._commentPage = 1
+    this.setData({
+      comments: rows.slice(0, pageSize),
+      commentsTotal: rows.length,
+      hasMoreComments: rows.length > pageSize
+    })
+  },
+
+  loadMoreComments() {
+    const all = this._allComments || []
+    const pageSize = 10
+    const page = (this._commentPage || 1) + 1
+    this._commentPage = page
+    const shown = all.slice(0, page * pageSize)
+    this.setData({ comments: shown, hasMoreComments: shown.length < all.length })
   },
 
   toggleLike() {

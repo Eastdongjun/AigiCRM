@@ -41,3 +41,4 @@ page { background: #f7f3ec; }
 .fb-recite-row { display: flex; align-items: center; gap: 12rpx; padding: 12rpx 0; border-top: 1rpx solid #efe7d8; }
 .fb-recite-name { font-size: 24rpx; font-weight: 700; color: #2e2a24; flex-shrink: 0; }
 .fb-recite-dur { font-size: 20rpx; color: #a89a80; flex-shrink: 0; }
+.fb-more { padding: 10px 0; color: #8a6a45; font-size: 12px; text-align: center; }
