@@ -44,17 +44,17 @@ class FolderTypeDefaultServiceTest {
     @Test
     void saveGrant_rejectsBadInput() {
         LocalDateTime exp = LocalDateTime.now().plusDays(30);
-        assertThrows(BusinessException.class, () -> svc.saveGrant("company", "FILE", null, null, null, "ROLE", 9L, List.of("view"), exp));
-        assertThrows(BusinessException.class, () -> svc.saveGrant("public", "TEAM", null, null, null, "ROLE", 9L, List.of("view"), exp));
-        assertThrows(BusinessException.class, () -> svc.saveGrant("public", "FOLDER", null, null, null, "ROLE", 9L, List.of("view"), exp)); // FOLDER 词表不含 view
-        assertThrows(BusinessException.class, () -> svc.saveGrant("public", "FILE", null, null, null, "ROLE", 9L, List.of("create"), exp)); // FILE 词表不含 create
-        assertThrows(BusinessException.class, () -> svc.saveGrant("public", "FILE", null, null, null, "ROLE", 9L, List.of(), exp));
+        saveGrantRejected("company", "FILE", null, null, null, "ROLE", 9L, List.of("view"), exp);
+        saveGrantRejected("public", "TEAM", null, null, null, "ROLE", 9L, List.of("view"), exp);
+        saveGrantRejected("public", "FOLDER", null, null, null, "ROLE", 9L, List.of("view"), exp); // FOLDER 词表不含 view
+        saveGrantRejected("public", "FILE", null, null, null, "ROLE", 9L, List.of("create"), exp); // FILE 词表不含 create
+        saveGrantRejected("public", "FILE", null, null, null, "ROLE", 9L, List.of(), exp);
         // 【2026-11-10 用户令】到期可选: NULL=永久不再拒绝; 填过去时间仍拒绝
-        assertThrows(BusinessException.class, () -> svc.saveGrant("public", "FILE", null, null, null, "ROLE", 9L, List.of("view"), LocalDateTime.now().minusDays(1)));
+        saveGrantRejected("public", "FILE", null, null, null, "ROLE", 9L, List.of("view"), LocalDateTime.now().minusDays(1));
         when(roleMapper.selectById(9L)).thenReturn(role(9L, "05", 0));
-        assertThrows(BusinessException.class, () -> svc.saveGrant("public", "FILE", null, null, null, "ROLE", 9L, List.of("view"), exp)); // 停用角色
+        saveGrantRejected("public", "FILE", null, null, null, "ROLE", 9L, List.of("view"), exp); // 停用角色
         when(folderMapper.selectById(500L)).thenReturn(null);
-        assertThrows(BusinessException.class, () -> svc.saveGrant("public", "FILE", 500L, null, null, "ROLE", 9L, List.of("view"), exp)); // 定向夹不存在
+        saveGrantRejected("public", "FILE", 500L, null, null, "ROLE", 9L, List.of("view"), exp); // 定向夹不存在
     }
 
     @Test
@@ -101,5 +101,13 @@ class FolderTypeDefaultServiceTest {
         verify(grantMapper).deleteById(5L);
         // 【A2 §2.5】删除必须清空新表 ftd:<id>: 双写行
         verify(legacySync).syncDelete(5L);
+    }
+
+    private BusinessException saveGrantRejected(String folderType, String objectType, Long folderId,
+                                                Long scopeOrgId, String scopeLevel, String subjectType,
+                                                Long subjectId, List<String> perms, LocalDateTime expiresAt) {
+        return assertThrows(BusinessException.class,
+                () -> svc.saveGrant(folderType, objectType, folderId, scopeOrgId, scopeLevel,
+                        subjectType, subjectId, perms, expiresAt));
     }
 }
