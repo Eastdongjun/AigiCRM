@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>法布施 · 小程序完整原型 · v7</title>
+<!-- 2026-11-22 v7（定稿候选）：整合六轮拍板（D1-D24）。承接 REQUIREMENT-DELTA-20261122（客户"20261122法布施完善"）。
+     核心变化：①类型体系 每日诵读/每日随施/再读一本 替代 心得/诵读/正能量；
+     ②工作台与导航「我的觉醒」最前、「认知广场」第二（先自己后别人）；
+     ③三个上传页（诵读双通道/随施朋友圈式/再读选书选章节）；④认知广场三分区+按书罗列下钻；
+     ⑤复诵/本人修改删除/服务端搜索/图片放大裁剪/闹钟提醒/版本链+扫码；
+     ⑥书架·阅读记录·提醒设置·PDF阅读器·附件 已于 11-16 上线，屏内如实转正（v5 的二期标注已过期）。
+     状态：待用户评审；Q1-Q12 待裁处以屏注标出。单屏 390×844；图标 inline SVG 零 emoji；令牌收敛 :root。 -->
+<style>
+  :root {
+    /* ── 板面 ── */
+    --board-bg:#dde5f0; --bezel-dark:#172033; --bezel-ring:#31435f;
+    --board-title:#172033; --board-sub:#5b6b84; --board-tag-line:#c9d3e0; --board-tag:#64748b;
+    --row-label:#24344f; --row-line:#c3cfe2; --row-no-bg:#1d4ed8;
+    --phone-label:#2a3a55; --phone-note:#7c8ba1; --island:#101a2e;
+    /* ── 品牌与通用（与 PC v7 同源） ── */
+    --primary:#1d4ed8; --accent:#2563eb; --navy:#16337a;
+    --hero-gradient:linear-gradient(135deg,#16337a 0%,#1d4ed8 58%,#2563eb 100%);
+    --hero-bar:linear-gradient(135deg,#0d1733 0%,#16337a 58%,#1d4ed8 100%);
+    --text-1:#1f2329; --text-2:#4e5969;
+    --green:#179050; --green-bg:#e8f7ef; --orange:#c8761c; --orange-bg:#fdf3e8;
+    --amber:#fbbf24; --amber-deep:#b45309; --amber-bg:#fffbeb; --amber-line:#fde9c0;
+    --cyan:#0e7490; --cyan-bg:#ecfeff; --danger:#f56c6c; --danger-bg:#fde2e2;
+    --r-lg:16px; --r-md:10px; --r-sm:8px; --r-pill:999px;
+    --shadow-card:0 6px 16px rgba(35,57,96,.07);
+    --shadow-pop:0 8px 24px rgba(15,23,42,.12);
+    --shadow-frame:0 18px 44px rgba(23,38,68,.22);
+    /* ── MP 骨架 ── */
+    --mp-bg:#f5f7fb; --mp-card:#fff; --mp-card-line:#dbe4f0; --mp-card-line-soft:#eef2f7;
+    --mp-ink:#172033; --mp-ink2:#52627a; --mp-ink3:#7c8ba1; --mp-ink4:#94a3b8;
+    --mp-nav-bg:#f4f8ff; --mp-nav-line:#e6ecf5; --mp-tabbar:#fff; --mp-tabbar-line:#e6ecf5; --mp-tab-idle:#8ea3c0;
+    --mp-tile:#f8fbff; --mp-tile-line:#e7effa; --mp-track:#eef3f9; --mp-chip-bg:#f1f5f9;
+    --mp-blue-bg:#eff6ff; --mp-blue-line:#bfdbfe;
+    --mp-hero2:linear-gradient(135deg,#2348bf,#4285f4);
+    --cover-navy:linear-gradient(150deg,#1d4ed8,#3e8df3);
+    --cover-amber:linear-gradient(150deg,#b45309,var(--amber));
+    --cover-cyan:linear-gradient(150deg,#0e7490,#12b8cf);
+    --cover-teal:linear-gradient(150deg,#14b8a6,#10b981);
+    --cover-gray:linear-gradient(150deg,#64748b,#475569);
+    --cover-violet:linear-gradient(150deg,#6d28d9,#8ea7ec);
+    --sunset3:linear-gradient(180deg,#5b7bd5 0%,#f2886b 55%,#f5b971 100%);
+    --sunset2:linear-gradient(180deg,#7a6bd0 0%,#e9628f 100%);
+    --sunset1:linear-gradient(180deg,#31406f 0%,#b46a9e 55%,#f2a06b 100%);
+    /* ── 阅读器 ── */
+    --reader-bar:#1c2b45; --reader-text:#d8e1ef; --reader-muted:#8fa1bd;
+    --reader-btn:rgba(255,255,255,.14); --reader-btn-line:rgba(255,255,255,.3);
+    --reader-good:#9fd8bd;
+    --paper:#fffdf6; --paper-title:#3a2f1e; --paper-text:#43371f; --paper-note:#b9ad8e; --paper-spine:#e05252;
+    --prog-fill:linear-gradient(90deg,#2364d8,#10b981);
+    /* ── 木鱼 ── */
+    --muyu-stage:radial-gradient(circle at 50% 42%,#f7e9c9 0%,#f2dfb4 46%,#e9d196 100%);
+    --muyu-fill:radial-gradient(ellipse at 32% 26%,#d99c66 0%,#b0703a 46%,#7d4e22 100%);
+    --muyu-cushion:radial-gradient(ellipse at 50% 40%,#9c4141,#702828);
+    --muyu-mallet:linear-gradient(#caa06a,#9a7444);
+    --muyu-glow:radial-gradient(circle,rgba(255,214,120,.55),rgba(255,214,120,0) 65%);
+    --muyu-line:#5c3a17; --muyu-ink:#7d4e22; --muyu-plus:#c2410c; --muyu-ring:rgba(146,100,40,.4);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--board-bg); font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Helvetica Neue",Arial,sans-serif; color:var(--mp-ink); }
+  .canvas { padding:30px 34px 40px; }
+  .board-head { margin-bottom:20px; }
+  .board-title { font-size:22px; font-weight:800; color:var(--board-title); }
+  .board-tag { display:inline-block; margin-left:10px; padding:2px 8px; border-radius:6px; border:1px solid var(--board-tag-line); color:var(--board-tag); font-size:11px; font-weight:500; vertical-align:3px; }
+  .board-tag.pending { border-color:var(--amber-line); color:var(--amber-deep); background:var(--amber-bg); }
+  .board-sub { margin-top:8px; font-size:13px; color:var(--board-sub); line-height:1.7; }
+  .row-label { display:flex; align-items:center; gap:10px; margin:24px 2px 14px; font-size:15px; font-weight:800; color:var(--row-label); }
+  .row-label .ln { flex:1; height:1px; background:var(--row-line); }
+  .row-label .no { color:#fff; background:var(--row-no-bg); border-radius:6px; padding:2px 8px; font-size:11px; font-weight:800; }
+  .phones { display:flex; gap:26px; align-items:flex-start; flex-wrap:wrap; }
+  .phone-wrap { text-align:center; }
+  .phone { width:390px; height:844px; background:var(--mp-bg); border-radius:46px; box-shadow:var(--shadow-frame),0 0 0 10px var(--bezel-dark),0 0 0 12px var(--bezel-ring); overflow:hidden; position:relative; flex-shrink:0; }
+  .phone:before { content:""; position:absolute; top:11px; left:50%; transform:translateX(-50%); width:100px; height:26px; border-radius:var(--r-pill); background:var(--island); z-index:10; }
+  .phone-label { margin-top:12px; font-size:13px; font-weight:800; color:var(--phone-label); display:flex; align-items:center; justify-content:center; gap:6px; }
+  .phone-note { margin-top:4px; font-size:11px; color:var(--phone-note); line-height:1.55; }
+  .statusbar { position:absolute; top:0; left:0; right:0; height:40px; display:flex; justify-content:space-between; align-items:center; padding:0 24px; font-size:12px; font-weight:700; color:var(--mp-ink); z-index:9; }
+  .statusbar.on-dark { color:#fff; z-index:12; }
+  .sicons { display:flex; align-items:center; gap:5px; }
+  .sicons svg { width:15px; height:11px; fill:currentColor; }
+  .nav { position:absolute; top:40px; left:0; right:0; height:44px; background:var(--mp-nav-bg); border-bottom:.5px solid var(--mp-nav-line); display:flex; align-items:center; justify-content:center; z-index:8; }
+  .nav-back { position:absolute; left:12px; display:flex; color:var(--mp-ink); }
+  .nav-back svg { width:20px; height:20px; fill:var(--mp-ink); }
+  .nav-title { font-size:16px; font-weight:700; }
+  .nav-act { position:absolute; left:44px; font-size:12px; color:var(--accent); font-weight:700; display:flex; align-items:center; gap:3px; }
+  .nav-act.r { left:auto; right:112px; }
+  .nav:after { content:""; position:absolute; right:7px; top:6px; width:87px; height:32px; border-radius:var(--r-pill); background-color:var(--mp-card); border:1px solid rgba(78,90,113,.28); background-image:radial-gradient(circle 3px at 26px 15px,var(--text-2) 99%,transparent),radial-gradient(circle 3px at 44px 15px,var(--text-2) 99%,transparent),linear-gradient(var(--text-2),var(--text-2)); background-size:87px 30px,87px 30px,20px 3px; background-position:0 0,0 0,58px 13.5px; background-repeat:no-repeat; box-shadow:0 1px 3px rgba(23,38,68,.08); }
+  .nav.on-dark { background:var(--reader-bar); border-bottom:0; }
+  .nav.on-dark .nav-title { color:var(--reader-text); }
+  .nav.on-dark .nav-back svg { fill:var(--reader-text); }
+  .nav.on-dark:after { opacity:.85; }
+  .body { position:absolute; top:84px; left:0; right:0; bottom:0; overflow:hidden; padding:12px 14px; }
+  .body.with-tab { bottom:76px; }
+  .tabbar { position:absolute; left:0; right:0; bottom:0; height:76px; background:var(--mp-tabbar); border-top:.5px solid var(--mp-tabbar-line); display:flex; padding:7px 6px 24px; z-index:9; }
+  .tab-item { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; font-size:10px; color:var(--mp-tab-idle); font-weight:600; }
+  .tab-item svg { width:22px; height:22px; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+  .tab-item.active { color:var(--accent); font-weight:800; }
+
+  /* ── 通用组件 ── */
+  .card { background:var(--mp-card); border:1px solid var(--mp-card-line); border-radius:12px; box-shadow:var(--shadow-card); }
+  .workbench-hero { display:flex; align-items:center; justify-content:space-between; padding:10px 12px; border-radius:13px; background:var(--hero-bar); box-shadow:0 9px 19px rgba(13,23,51,.22); }
+  .workbench-hero-title { font-size:16px; font-weight:800; letter-spacing:1px; color:#fff; }
+  .workbench-hero-actions { display:flex; align-items:center; gap:7px; }
+  .hero-bar-btn { padding:0 11px; height:26px; line-height:24px; font-size:11px; border-radius:var(--r-pill); display:inline-flex; align-items:center; }
+  .hero-bar-btn.ghost { background:rgba(255,255,255,.16); color:#fff; border:1px solid rgba(255,255,255,.55); }
+  .hero-bar-btn.solid { background:#fff; color:var(--primary); font-weight:700; }
+  .me-strip { margin-top:9px; display:flex; gap:6px; }
+  .me-cell { flex:1; background:var(--mp-card); border:1px solid var(--mp-card-line); border-radius:10px; padding:8px 0 7px; text-align:center; box-shadow:var(--shadow-card); }
+  .me-cell b { display:block; font-size:16px; font-weight:800; font-variant-numeric:tabular-nums; }
+  .me-cell span { display:block; margin-top:2px; font-size:9.5px; color:var(--mp-ink3); }
+  .mobile-tabs { display:grid; grid-template-columns:repeat(5,1fr); gap:5px; margin:9px 0 11px; }
+  .mobile-tab { height:32px; border-radius:9px; background:var(--mp-chip-bg); color:var(--mp-ink2); font-size:12px; font-weight:750; display:flex; align-items:center; justify-content:center; gap:4px; cursor:pointer; user-select:none; }
+  .mobile-tab.active { background:var(--accent); color:#fff; box-shadow:0 5px 12px rgba(37,99,235,.18); }
+  .chip2 { display:inline-flex; align-items:center; padding:1px 6px; border-radius:4px; font-size:9px; font-weight:800; background:var(--amber-bg); color:var(--amber-deep); border:1px solid var(--amber-line); }
+  .chip2.blue { background:var(--mp-blue-bg); color:var(--accent); border-color:transparent; }
+  .chip2.green { background:var(--green-bg); color:var(--green); border-color:transparent; }
+  .search-card { padding:9px; margin-bottom:9px; }
+  .search-row { display:flex; align-items:center; gap:5px; }
+  .search-input { flex:1; min-width:0; height:29px; padding:0 9px; border:1px solid var(--mp-card-line); border-radius:8px; background:var(--mp-tile); color:var(--mp-ink4); font-size:12px; display:flex; align-items:center; gap:5px; }
+  .search-input svg { width:12px; height:12px; fill:var(--mp-ink4); }
+  .mini-action { height:24px; line-height:22px; padding:0 8px; border:1px solid var(--mp-blue-line); border-radius:var(--r-pill); background:var(--mp-blue-bg); color:var(--accent); font-size:10.5px; font-weight:650; display:inline-flex; align-items:center; gap:3px; cursor:pointer; user-select:none; }
+  .mini-action svg { width:11px; height:11px; fill:currentColor; }
+  .mini-action.secondary { border-color:var(--mp-card-line); background:var(--mp-card); color:var(--mp-ink2); }
+  .mini-action.warn { border-color:var(--amber-line); background:var(--amber-bg); color:var(--amber-deep); }
+  .filter-chips { display:flex; flex-wrap:wrap; gap:5px; margin-top:7px; }
+  .filter-chip { height:25px; line-height:23px; padding:0 8px; border:1px solid var(--mp-card-line); border-radius:var(--r-pill); background:var(--mp-card); color:var(--mp-ink2); font-size:11px; font-weight:750; cursor:pointer; user-select:none; }
+  .filter-chip.active { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .feed-card { padding:11px 13px; margin-bottom:9px; }
+  .feed-head { display:flex; align-items:flex-start; justify-content:space-between; gap:8px; }
+  .feed-title { color:var(--mp-ink); font-size:12.5px; font-weight:800; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+  .badge-new { background:var(--amber-bg); color:var(--amber-deep); border-radius:4px; padding:1px 5px; font-size:9px; font-weight:800; }
+  .feed-meta { margin-top:3px; color:var(--mp-ink3); font-size:10.5px; line-height:1.5; }
+  .feed-summary { margin-top:7px; color:var(--mp-ink2); font-size:11.5px; line-height:1.65; }
+  .feed-acts { display:flex; gap:8px; margin-top:9px; align-items:center; flex-wrap:wrap; }
+  .feed-acts .read { margin-left:auto; font-size:10px; color:var(--mp-ink3); display:inline-flex; align-items:center; gap:4px; }
+  .feed-acts .read.unread { color:#e11d48; font-weight:800; }
+  .type-tag { display:inline-block; border-radius:var(--r-pill); padding:1.5px 7px; font-size:9.5px; font-weight:800; }
+  .t-song { background:var(--mp-blue-bg); color:var(--primary); }
+  .t-sui { background:var(--orange-bg); color:var(--orange); }
+  .t-zai { background:var(--green-bg); color:var(--green); }
+  .section-heading { display:flex; justify-content:space-between; align-items:center; margin:12px 2px 8px; font-size:14.5px; font-weight:800; }
+  .section-heading .more { font-size:11px; color:var(--mp-ink3); font-weight:400; }
+  .book-row { display:flex; align-items:center; gap:7px; padding:8px 7px; border-top:1px solid var(--mp-card-line-soft); }
+  .book-row:first-child { border-top:0; }
+  .book-ico { width:30px; height:30px; border-radius:8px; background:var(--cover-navy); color:#fff; font-size:9px; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .book-ico.plain { background:var(--mp-tile); border:1px solid var(--mp-card-line); color:var(--mp-ink2); }
+  .book-main { flex:1; min-width:0; }
+  .book-name { color:var(--mp-ink); font-size:12px; font-weight:800; display:flex; align-items:center; gap:5px; flex-wrap:wrap; }
+  .book-meta { margin-top:2px; color:var(--mp-ink3); font-size:10.5px; }
+  .arrow { color:var(--mp-ink4); font-weight:600; font-size:13px; }
+  .cover { width:44px; height:60px; border-radius:6px; color:#fff; display:flex; align-items:flex-end; justify-content:center; padding-bottom:5px; font-size:9px; font-weight:700; margin-right:11px; flex-shrink:0; box-shadow:0 5px 10px rgba(35,57,96,.2); position:relative; overflow:hidden; }
+  .cover:before { content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:rgba(255,255,255,.3); }
+  .prog { height:5px; border-radius:var(--r-pill); background:var(--mp-track); margin-top:7px; overflow:hidden; }
+  .prog i { display:block; height:100%; border-radius:var(--r-pill); background:var(--prog-fill); }
+  .pbtn { display:inline-block; background:var(--mp-tile); border:1px solid var(--mp-tile-line); color:var(--accent); border-radius:var(--r-pill); padding:2px 8px; font-size:9.5px; font-weight:700; }
+  .stats-tabs { display:flex; gap:8px; margin:10px 1px 9px; }
+  .stats-tab { flex:1; text-align:center; background:var(--mp-card); color:var(--mp-ink3); border-radius:11px; padding:9px 0; font-size:12.5px; box-shadow:var(--shadow-card); cursor:pointer; user-select:none; }
+  .stats-tab.active { background:var(--accent); color:#fff; font-weight:700; }
+  .form-section-title { position:relative; margin:12px 0 10px; padding-left:9px; font-size:14px; font-weight:800; display:flex; align-items:center; gap:6px; }
+  .form-section-title:before { content:""; position:absolute; left:0; top:4px; width:3px; height:13px; border-radius:var(--r-pill); background:#2364d8; }
+  .form-section-title .hint { font-size:9.5px; color:var(--mp-ink3); font-weight:400; }
+  .polished-select { display:flex; align-items:center; justify-content:space-between; height:39px; padding:0 11px; border:1px solid var(--mp-card-line); border-radius:9px; background:var(--mp-tile); font-size:13px; font-weight:650; color:var(--mp-ink); }
+  .polished-select .go { color:#2364d8; font-size:11px; font-weight:700; }
+  .detail-primary-action { width:100%; height:38px; border-radius:11px; background:linear-gradient(135deg,#2364d8,#3e8df3); box-shadow:0 7px 13px rgba(35,100,216,.22); font-weight:800; color:#fff; font-size:14px; display:flex; align-items:center; justify-content:center; cursor:pointer; user-select:none; }
+  .secondary-btn { height:38px; border-radius:11px; border:1px solid var(--mp-card-line); background:var(--mp-tile); color:var(--mp-ink2); font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center; cursor:pointer; user-select:none; }
+  .note-box { margin-top:10px; padding:9px 11px; border-radius:10px; background:var(--amber-bg); border:1px solid var(--amber-line); color:#a16207; font-size:10px; line-height:1.65; display:flex; gap:6px; }
+  .note-box svg { width:13px; height:13px; fill:#a16207; flex-shrink:0; margin-top:1px; }
+  .note-box.blue { background:var(--mp-blue-bg); border-color:var(--mp-blue-line); color:var(--navy); }
+  .note-box.blue svg { fill:var(--accent); }
+  .ghost-panel { margin-top:10px; padding:11px 12px; border:1px dashed var(--mp-card-line); border-radius:10px; background:var(--mp-tile); text-align:center; }
+  .ghost-panel .gp-title { font-size:11.5px; font-weight:800; color:var(--mp-ink2); display:flex; align-items:center; justify-content:center; gap:5px; }
+  .ghost-panel .gp-sub { margin-top:4px; font-size:9.5px; color:var(--mp-ink4); line-height:1.6; }
+  .aw-block { display:flex; align-items:center; gap:9px; padding:11px 12px; border-radius:12px; background:var(--mp-card); border:1px solid var(--mp-card-line); box-shadow:var(--shadow-card); margin-bottom:8px; }
+  .aw-ico { width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .aw-ico svg { width:18px; height:18px; fill:#fff; }
+  .aw-main { flex:1; min-width:0; }
+  .aw-name { font-size:13px; font-weight:800; color:var(--mp-ink); display:flex; align-items:center; gap:5px; }
+  .aw-sub { margin-top:2px; font-size:10px; color:var(--mp-ink3); line-height:1.5; }
+  .aw-state { font-size:9.5px; font-weight:800; border-radius:var(--r-pill); padding:2px 8px; flex-shrink:0; }
+  .aw-state.done { background:var(--green-bg); color:var(--green); }
+  .aw-state.todo { background:var(--amber-bg); color:var(--amber-deep); }
+  /* ── 阅读器（B1） ── */
+  .reader { position:absolute; top:0; left:0; right:0; bottom:0; display:flex; flex-direction:column; background:var(--reader-bar); }
+  .reader-head { background:var(--reader-bar); color:var(--reader-text); padding:44px 14px 10px; display:flex; align-items:center; gap:9px; }
+  .reader-head .rh-back { display:flex; color:var(--reader-text); }
+  .reader-head .rh-back svg { width:18px; height:18px; fill:var(--reader-text); }
+  .reader-head .rh-main { flex:1; text-align:center; }
+  .reader-head .rh-name { font-size:13px; font-weight:800; color:#fff; }
+  .reader-head .rh-sub { font-size:9px; color:var(--reader-muted); margin-top:2px; }
+  .reader-head .rh-btn { font-size:10.5px; background:var(--reader-btn); border:1px solid var(--reader-btn-line); border-radius:var(--r-pill); padding:4px 10px; color:var(--reader-text); display:inline-flex; align-items:center; gap:3px; }
+  .reader-head .rh-btn svg { width:11px; height:11px; fill:var(--reader-text); }
+  .reader-page { flex:1; background:#e9e4d8; padding:10px 12px 0; overflow:hidden; }
+  .paper { background:var(--paper); border-radius:4px; box-shadow:0 4px 12px rgba(60,50,20,.18), inset 0 0 20px rgba(120,100,60,.09); height:100%; padding:14px 16px; font-family:"Songti SC","STSong",serif; overflow:hidden; position:relative; }
+  .paper:before { content:""; position:absolute; right:16px; top:0; width:12px; height:42px; background:linear-gradient(180deg,var(--paper-spine),#c23a3a); clip-path:polygon(0 0,100% 0,100% 100%,50% 80%,0 100%); }
+  .paper h4 { text-align:center; font-size:13.5px; letter-spacing:2px; color:var(--paper-title); margin-bottom:10px; }
+  .paper p { font-size:11px; line-height:1.95; color:var(--paper-text); text-indent:2em; margin-bottom:7px; }
+  .paper .note-line { text-align:center; font-size:9px; color:var(--paper-note); margin-top:8px; }
+  .reader-foot { background:var(--reader-bar); padding:8px 14px 16px; color:#fff; }
+  .reader-ctl { display:flex; align-items:center; gap:10px; }
+  .pg-btn { width:34px; height:30px; border-radius:8px; background:var(--reader-btn); border:1px solid var(--reader-btn-line); color:#fff; font-size:13px; display:flex; align-items:center; justify-content:center; cursor:pointer; }
+  .rprog { flex:1; height:5px; border-radius:var(--r-pill); background:rgba(255,255,255,.2); position:relative; }
+  .rprog i { position:absolute; left:0; top:0; height:100%; width:34%; border-radius:var(--r-pill); background:var(--prog-fill); }
+  .r-page { font-size:11px; font-weight:700; font-variant-numeric:tabular-nums; }
+  .reader-tip { margin-top:8px; text-align:center; font-size:10px; color:var(--reader-good); display:flex; align-items:center; justify-content:center; gap:4px; }
+  .reader-tip svg { width:11px; height:11px; fill:var(--reader-good); }
+  /* ── 木鱼（B5） ── */
+  .muyu-stage { position:relative; height:238px; background:var(--muyu-stage); border-radius:16px; overflow:hidden; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+  .muyu-glow { position:absolute; width:200px; height:200px; border-radius:50%; background:var(--muyu-glow); top:8px; left:50%; transform:translateX(-50%); opacity:0; }
+  .muyu { width:120px; height:86px; border-radius:50% 50% 46% 46%/62% 62% 40% 40%; background:var(--muyu-fill); box-shadow:0 14px 26px rgba(93,58,20,.4), inset 0 -8px 14px rgba(0,0,0,.18); position:relative; z-index:2; }
+  .muyu:before { content:""; position:absolute; left:14%; right:14%; top:40%; height:8px; border-radius:var(--r-pill); background:var(--muyu-line); box-shadow:inset 0 2px 3px rgba(0,0,0,.5); }
+  .muyu:after { content:""; position:absolute; left:24%; top:22%; width:28px; height:11px; border-radius:50%; background:rgba(255,255,255,.28); filter:blur(1px); }
+  .muyu-cushion { width:158px; height:22px; border-radius:50%; background:var(--muyu-cushion); box-shadow:0 10px 16px rgba(60,20,20,.35); margin-top:-8px; z-index:1; }
+  .mallet { position:absolute; width:80px; height:9px; border-radius:6px; background:var(--muyu-mallet); transform:rotate(-38deg); top:96px; right:66px; z-index:3; }
+  .mallet:before { content:""; position:absolute; right:-11px; top:-8px; width:26px; height:26px; border-radius:50%; background:radial-gradient(circle at 35% 30%,#e8c197,#b3834e 70%); }
+  .ripple { position:absolute; width:130px; height:130px; border-radius:50%; border:2px solid var(--muyu-ring); top:62px; left:50%; margin-left:-65px; opacity:0; z-index:1; }
+  .plus-one { position:absolute; top:44px; right:80px; font-size:21px; font-weight:800; color:var(--muyu-plus); text-shadow:0 2px 6px rgba(255,255,255,.6); opacity:0; z-index:4; }
+  .sfx { margin-top:12px; font-size:13px; font-weight:800; color:var(--muyu-ink); letter-spacing:3px; z-index:2; }
+  .merit { z-index:2; }
+  .merit span { display:inline-block; background:var(--mp-card); border:1px solid #e6cf9a; color:#a16207; border-radius:var(--r-pill); padding:5px 13px; font-size:12px; font-weight:800; }
+  .muyu-stage.go .muyu { animation:muk .7s ease-out; }
+  .muyu-stage.go .muyu-glow { animation:glow .7s ease-out; }
+  .muyu-stage.go .ripple { animation:ring .7s ease-out; }
+  .muyu-stage.go .plus-one { animation:flyup .8s ease-out; }
+  @keyframes muk { 0%{transform:scale(1);} 30%{transform:scale(.93) translateY(2px);} 60%{transform:scale(1.04);} 100%{transform:scale(1);} }
+  @keyframes glow { 0%{opacity:0;} 30%{opacity:1;} 100%{opacity:0;} }
+  @keyframes ring { 0%{opacity:.9; transform:scale(.5);} 100%{opacity:0; transform:scale(1.5);} }
+  @keyframes flyup { 0%{opacity:0; transform:translateY(6px);} 25%{opacity:1;} 100%{opacity:0; transform:translateY(-16px);} }
+  /* ── 统计族 ── */
+  .stats-tile { padding:11px; border-radius:11px; background:var(--mp-tile); border:1px solid var(--mp-card-line); }
+  .stats-tile b { font-size:19px; font-weight:800; line-height:1; background:linear-gradient(135deg,#16337a,#2563eb); -webkit-background-clip:text; background-clip:text; color:transparent; font-variant-numeric:tabular-nums; }
+  .stats-tile .trend { font-size:9px; font-weight:800; color:var(--green); background:var(--green-bg); border-radius:var(--r-pill); padding:1px 6px; margin-top:5px; display:inline-block; }
+  .stats-tile b i { font-style:normal; font-size:10px; color:var(--mp-ink3); font-weight:600; margin-left:1px; }
+  .stats-tile span { display:block; margin-top:6px; color:var(--mp-ink3); font-size:10.5px; }
+  .stats-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
+  .stats-list-card { padding:11px 12px; }
+  .stats-card-title { position:relative; margin-bottom:6px; padding-left:9px; font-size:13.5px; font-weight:800; display:flex; align-items:center; gap:6px; }
+  .stats-card-title:before { content:""; position:absolute; left:0; top:3px; width:3px; height:12px; border-radius:var(--r-pill); background:#2364d8; }
+  .stats-list-row { display:flex; align-items:center; justify-content:space-between; min-height:40px; border-bottom:1px solid var(--mp-card-line-soft); color:var(--mp-ink2); font-size:12.5px; gap:8px; }
+  .stats-list-row:last-child { border-bottom:0; }
+  .stats-list-row b { color:var(--mp-ink); font-size:13.5px; font-weight:800; white-space:nowrap; }
+  .rank-no { width:20px; height:20px; border-radius:6px; background:var(--mp-blue-bg); color:var(--mp-ink2); font-size:10.5px; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .rank-no.top { background:var(--primary); color:#fff; }
+  .rr2 .rank-no.top { background:#3e8df3; } .rr3 .rank-no.top { background:#12b8cf; }
+  .rank-bar { height:5px; border-radius:var(--r-pill); background:var(--mp-track); flex:1; overflow:hidden; }
+  .rank-bar i { display:block; height:100%; background:linear-gradient(90deg,#3e8df3,#2364d8); }
+  .hbar-row { display:flex; align-items:center; gap:8px; padding:6px 0; }
+  .hbar-lbl { width:62px; font-size:10.5px; color:var(--mp-ink2); font-weight:650; text-align:right; }
+  .hbar-track { flex:1; height:9px; border-radius:var(--r-pill); background:var(--mp-track); overflow:hidden; }
+  .hbar-track i { display:block; height:100%; border-radius:var(--r-pill); background:linear-gradient(90deg,#2364d8,#12b8cf); }
+  .hbar-val { width:24px; font-size:10.5px; color:#2364d8; font-weight:800; }
+  /* ── 打卡日历 ── */
+  .cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:5px; }
+  .cal-cell { height:26px; border-radius:8px; background:var(--mp-tile); display:flex; align-items:center; justify-content:center; font-size:9.5px; color:var(--mp-ink4); }
+  .cal-cell.hd { background:transparent; color:var(--mp-ink3); font-size:9px; }
+  .cal-cell.done { background:var(--green-bg); color:var(--green); font-weight:800; }
+  .cal-cell.today { background:var(--primary); color:#fff; font-weight:800; box-shadow:0 0 0 2px var(--mp-tile),0 0 0 4px var(--primary); }
+  .cal-cell.out { opacity:.45; }
+  /* ── 设置行 ── */
+  .set-row { display:flex; align-items:center; justify-content:space-between; gap:9px; min-height:38px; border-top:1px solid var(--mp-card-line-soft); color:var(--mp-ink2); font-size:12px; }
+  .set-row:first-of-type { border-top:0; }
+  .switch { width:42px; height:24px; border-radius:var(--r-pill); background:#2364d8; position:relative; flex-shrink:0; }
+  .switch i { position:absolute; right:2.5px; top:2.5px; width:19px; height:19px; border-radius:50%; background:#fff; box-shadow:0 2px 4px rgba(0,0,0,.2); }
+  /* ── 应用中心 ── */
+  .ap-hero { position:relative; overflow:hidden; border-radius:13px; padding:10px 12px; color:#fff; background:var(--hero-bar); box-shadow:0 9px 19px rgba(13,23,51,.22); display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .ap-hero-title { font-size:16px; font-weight:800; letter-spacing:.5px; }
+  .ap-hero-meta { font-size:9.5px; color:rgba(255,255,255,.6); }
+  .ap-module { margin-top:10px; padding:11px 11px 11px; border-radius:12px; background:var(--mp-card); border:1px solid var(--mp-card-line); box-shadow:var(--shadow-card); }
+  .ap-module-head { display:flex; align-items:center; gap:8px; }
+  .ap-module-index { width:25px; height:25px; flex-shrink:0; border-radius:7px; background:var(--mp-blue-bg); color:var(--primary); font-size:10px; font-weight:700; display:flex; align-items:center; justify-content:center; }
+  .ap-module-title { font-size:12.5px; font-weight:800; color:var(--mp-ink); display:flex; align-items:center; gap:5px; }
+  .ap-module-sub { margin-top:2px; font-size:9px; color:var(--mp-ink4); }
+  .ap-module-count { margin-left:auto; flex-shrink:0; font-size:9px; color:var(--mp-ink4); }
+  .ap-grid { display:flex; flex-wrap:wrap; justify-content:space-between; gap:6px; margin-top:8px; }
+  .ap-tile { width:48.4%; display:flex; align-items:center; gap:6px; padding:7px 7px; border-radius:9px; background:var(--mp-tile); border:1px solid var(--mp-tile-line); }
+  .ap-icon { width:24px; height:24px; flex-shrink:0; border-radius:7px; background:var(--mp-blue-bg); color:var(--primary); font-size:10px; font-weight:700; display:flex; align-items:center; justify-content:center; }
+  .ap-tile-main { flex:1; min-width:0; }
+  .ap-tile-title { font-size:11px; font-weight:700; color:var(--mp-ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .ap-tile-sub { margin-top:1px; font-size:8.5px; color:var(--mp-ink4); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .ap-arrow { flex-shrink:0; font-size:11px; color:var(--mp-ink4); font-weight:600; }
+  /* ── 复诵条 ── */
+  .recite-strip { display:flex; align-items:center; gap:8px; padding:8px 10px; border-radius:10px; background:var(--mp-blue-bg); border:1px solid var(--mp-blue-line); }
+  .recite-wave { display:flex; align-items:flex-end; gap:2px; height:14px; }
+  .recite-wave i { width:3px; border-radius:2px; background:var(--primary); opacity:.75; }
+  /* ── 书架（C1/C2 · 对标微信读书） ── */
+  .shelf-grid-m { display:grid; grid-template-columns:repeat(3,1fr); gap:14px 8px; margin-top:10px; }
+  .scell-m { text-align:center; position:relative; }
+  .scell-m .cover { width:100%; max-width:64px; height:86px; margin:0 auto; font-size:9px; }
+  .sname-m { margin-top:5px; font-size:10px; font-weight:800; color:var(--mp-ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .ssub-m { margin-top:1px; font-size:9px; color:var(--mp-ink3); }
+  .ptop-m { position:absolute; top:-6px; right:2px; width:16px; height:16px; border-radius:50%; background:var(--amber); color:#fff; font-size:9px; font-weight:800; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 5px rgba(180,83,9,.4); z-index:2; }
+  .chk-m { position:absolute; top:4px; left:4px; width:16px; height:16px; border-radius:50%; background:var(--accent); color:#fff; font-size:10px; font-weight:800; display:flex; align-items:center; justify-content:center; z-index:2; }
+  .scell-m.checked .cover { outline:2px solid var(--accent); outline-offset:2px; }
+  /* ── 朋友圈式（D21） ── */
+  .mom-card { padding:11px 12px; margin-bottom:9px; }
+  .mom-head { display:flex; gap:9px; }
+  .mom-ava { width:38px; height:38px; border-radius:7px; color:#fff; font-size:15px; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0; background:var(--cover-navy); }
+  .mom-main { flex:1; min-width:0; }
+  .mom-name { font-size:12.5px; font-weight:800; color:var(--navy); display:flex; align-items:center; gap:5px; flex-wrap:wrap; }
+  .mom-text { margin-top:3px; font-size:11.5px; color:var(--mp-ink); line-height:1.7; }
+  .mom-grid { display:grid; grid-template-columns:repeat(3,66px); gap:4px; margin-top:7px; }
+  .mimg { height:66px; border-radius:6px; position:relative; }
+  .mom-audio { display:flex; align-items:center; gap:7px; margin-top:7px; padding:6px 9px; background:var(--mp-tile); border-radius:8px; font-size:10.5px; color:var(--mp-ink2); }
+  .mom-meta { margin-top:6px; font-size:10px; color:var(--mp-ink4); display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
+  .mom-meta .src { color:var(--accent); }
+  .mom-acts { display:flex; align-items:center; justify-content:space-between; margin-top:7px; background:var(--mp-tile); border-radius:8px; padding:5px 9px; font-size:10.5px; color:var(--mp-ink2); }
+  .mom-acts .more { letter-spacing:2px; color:var(--mp-ink3); font-weight:800; cursor:pointer; }
+  .mom-inter { margin-top:6px; background:var(--mp-tile); border-radius:8px; padding:6px 9px; font-size:10.5px; color:var(--mp-ink2); line-height:1.7; }
+  .mom-inter .likers { color:var(--navy); font-weight:700; }
+  .mom-cmt { border-top:1px dashed var(--mp-card-line); margin-top:4px; padding-top:4px; }
+  .mom-cmt b { color:var(--navy); }
+  .composer-grid-m { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:9px; }
+  .composer-cell-m { height:86px; border-radius:8px; position:relative; }
+  .composer-cell-m.add { border:1px dashed var(--mp-card-line); background:var(--mp-tile); display:flex; align-items:center; justify-content:center; color:var(--mp-ink4); font-size:26px; font-weight:300; }
+  .composer-foot-m { display:flex; align-items:center; gap:12px; margin-top:10px; font-size:10.5px; color:var(--mp-ink3); }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="board-head">
+    <div class="board-title">法布施 · 小程序完整原型 · v7<span class="board-tag pending">定稿候选 · D1–D24 全量落图 · 2026-11-22</span></div>
+        <div class="board-sub">16 屏 = 工作台与发现 5 屏（A1 工作台·我的觉醒优先 / A2 认知广场·朋友圈式 / A3 按书浏览 / A4 作品详情+互动 / A5 书目·版本链）＋
+      阅读与上传 5 屏（B1 PDF 阅读器·版式/书签/书内搜索 / B2 诵读 / B3 随施·朋友圈发布器 / B4 再读一本 / B5 木鱼成功）＋ 个人中心 6 屏（C1 书架·微信读书式 / C2 书架管理 / C3 阅读记录 / C4 提醒 / C5 统计 / C6 应用中心）。<br>
+      <b>定稿候选（D1–D24 全量落图）</b>：类型三分类 · 觉醒最前 · 朋友圈式分享与发布 · 书架三态（想读/在读/已读完）· 我的书摘 · 阅读器扩充；<b>二维码与组队读书已移除</b>。</div>
+  </div>
+
+  <div class="row-label"><span class="no">A</span>工作台与发现（先自己 · 后别人）<span class="ln"></span></div>
+  <div class="phones">
+
+    <!-- A1 工作台（我的觉醒优先） -->
+    <div class="phone-wrap"><div class="phone">
+      <div class="statusbar"><span>9:41</span><span class="sicons"><svg viewBox="0 0 24 12"><path d="M2 8h3v3H2zM7 5h3v6H7zM12 2h3v9h-12z"/></svg><svg viewBox="0 0 26 12"><rect x="1" y="1.5" width="20" height="9" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><rect x="3" y="3.5" width="13" height="5" rx="1.2"/></svg></span></div>
+      <div class="nav"><div class="nav-title">法布施</div></div>
+      <div class="body with-tab">
+        <div class="workbench-hero">
+          <div class="workbench-hero-title">我的觉醒</div>
+          <div class="workbench-hero-actions"><span class="hero-bar-btn ghost">今日 2/3</span><span class="hero-bar-btn solid j-mp" data-msg="去随施（B3，演示）">去随施</span></div>
+        </div>
+        <div style="margin-top:9px;">
+          <div class="aw-block">
+            <div class="aw-ico" style="background:linear-gradient(135deg,#16337a,#2563eb);"><svg viewBox="0 0 1024 1024"><path d="M512 320a192 192 0 1 0 0 384 192 192 0 0 0 0-384zm0 64a128 128 0 1 1 0 256 128 128 0 0 1 0-256zm32-320h-64v128h64V64zm0 768h-64v128h64V832zM64 480v64h128v-64H64zm768 0v64h128v-64H832zM231 155l-45 45 90 91 45-45-90-91zm566 567l-45 45 90 91 46-46-91-90zM231 804l90-90-45-46-90 91 45 45zm562-567l-91 90 45 46 91-91-45-45z"/></svg></div>
+            <div class="aw-main"><div class="aw-name">每日诵读</div><div class="aw-sub">今天 08:02 已诵《论语》学而第一 · 连续 4 天</div></div>
+            <span class="aw-state done">已完成</span>
+          </div>
+          <div class="aw-block">
+            <div class="aw-ico" style="background:linear-gradient(135deg,#b45309,#f59e0b);"><svg viewBox="0 0 1024 1024"><path d="M512 96c-176 0-320 96-320 224 0 68 44 128 112 168l-24 132c-2 12 10 20 20 14l148-84c20 4 42 6 64 6 176 0 320-96 320-224S688 96 512 96z"/></svg></div>
+            <div class="aw-main"><div class="aw-name">每日随施</div><div class="aw-sub">随手传点儿东西 · 一句话/一页书/一张照片</div></div>
+            <span class="aw-state todo">待施</span>
+          </div>
+          <div class="aw-block">
+            <div class="aw-ico" style="background:linear-gradient(135deg,#047857,#10b981);"><svg viewBox="0 0 1024 1024"><path d="M552 224c-56-40-144-64-232-64H96v640h240c72 0 144 16 200 44 8 4 24 4 32 0 56-28 128-44 200-44h160V160H664c-40 0-80 5-112 16zm-72 96v400c-56-24-136-32-208-32H160V224h160c88 0 136 40 160 96zm64 0c24-56 72-96 160-96h160v464H680c-72 0-152 8-136 32z"/></svg></div>
+            <div class="aw-main"><div class="aw-name">再读一本</div><div class="aw-sub">《道德经》陈鼓应注 · 第 8/81 章 · 精读第 6 天</div></div>
+            <span class="aw-state done">今日已读</span>
+          </div>
+        </div>
+        <div class="mobile-tabs" id="a1Tabs">
+          <div class="mobile-tab active" data-p="awaken">觉醒</div>
+          <div class="mobile-tab" data-p="plaza">广场</div>
+          <div class="mobile-tab" data-p="lib">书库</div>
+          <div class="mobile-tab" data-p="shelf">书架</div>
+          <div class="mobile-tab" data-p="stats">统计</div>
+        </div>
+        <div id="a1pAwaken">
+          <div class="me-strip">
+            <div class="me-cell"><b>12 天</b><span>本月诵读</span></div>
+            <div class="me-cell"><b>14 次</b><span>本月随施</span></div>
+            <div class="me-cell"><b>47</b><span>获木鱼</span></div>
+            <div class="me-cell"><b>9</b><span>被复诵</span></div>
+          </div>
+          <div class="card" style="padding:10px 12px;margin-top:9px;">
+            <div class="feed-title" style="font-size:12px;">提醒 · 每天 20:00<span class="chip2 green" style="margin-left:4px;">已开</span></div>
+            <div class="book-meta" style="margin-top:3px;">当日已上传不打扰 · 可改时间可关（闹钟式，非强制）</div>
+          </div>
+          <div class="card" style="padding:10px 12px;margin-top:8px;">
+            <div class="feed-title" style="font-size:12px;">当前精读</div>
+            <div style="display:flex;align-items:center;gap:9px;margin-top:6px;">
+              <div class="cover" style="width:36px;height:48px;background:var(--cover-cyan);">道德经</div>
+              <div style="flex:1;min-width:0;"><div class="book-name">《道德经》陈鼓应注</div><div class="book-meta">第 8/81 章 · 36/512 页</div><div class="prog"><i style="width:10%;"></i></div></div>
+              <span class="mini-action j-mp" data-msg="继续精读（B1/B4，演示）">续读</span>
+            </div>
+          </div>
+        </div>
+        <div id="a1pPlaza" style="display:none;">
+          <div class="card feed-card" style="margin-bottom:8px;">
+            <div class="feed-head"><div><div class="feed-title"><span class="type-tag t-song">每日诵读</span>李长青 · 立命之学晨读<span class="badge-new">NEW</span></div><div class="feed-meta">《了凡四训》› 第一部分 · 今天 09:30</div></div><span class="read unread">未读</span></div>
+            <div class="feed-summary">"从前种种，譬如昨日死；从后种种，譬如今日生。"固定晨读第 12 天。</div>
+            <div class="feed-acts"><span class="mini-action">木鱼 12</span><span class="mini-action secondary">评论 5</span><span class="mini-action secondary">复诵 3</span></div>
+          </div>
+          <div class="card feed-card" style="margin-bottom:0;">
+            <div class="feed-head"><div><div class="feed-title"><span class="type-tag t-sui">每日随施</span>陈慧 · 下班路上的晚霞<span class="badge-new">NEW</span></div><div class="feed-meta">随手施 · 昨天 18:40</div></div><span class="read unread">未读</span></div>
+            <div style="display:flex;gap:6px;margin-top:7px;"><div style="width:52px;height:52px;border-radius:8px;background:var(--sunset3);"></div><div style="width:52px;height:52px;border-radius:8px;background:var(--sunset2);"></div><div style="width:52px;height:52px;border-radius:8px;background:var(--sunset1);"></div></div>
+            <div class="feed-acts"><span class="mini-action">木鱼 9</span><span class="mini-action secondary">评论 2</span></div>
+          </div>
+        </div>
+        <div id="a1pLib" style="display:none;">
+          <div class="card" style="padding:4px;">
+            <div class="book-row"><div class="book-ico" style="background:var(--cover-cyan);">道德经</div><div class="book-main"><div class="book-name">《道德经》<span class="type-tag t-song">3 版本</span></div><div class="book-meta">国学建议 · 陈鼓应注/王弼注/白话</div></div><span class="arrow">›</span></div>
+            <div class="book-row"><div class="book-ico">了凡</div><div class="book-main"><div class="book-name">《了凡四训》<span class="type-tag t-song">电子书</span></div><div class="book-meta">团队必读 · 中华书局 2016 · 288 页</div></div><span class="arrow">›</span></div>
+            <div class="book-row"><div class="book-ico plain">书</div><div class="book-main"><div class="book-name">《活法》</div><div class="book-meta">团队必读 · 东方出版社 · 232 页</div></div><span class="arrow">›</span></div>
+          </div>
+          <div style="margin-top:9px;display:flex;align-items:center;justify-content:space-between;">
+            <span style="font-size:10.5px;color:var(--mp-ink3);">人人可提交书目 · 管理员审核后展示</span>
+            <span class="mini-action j-mp" data-msg="提交书目待审核（fabushi:create）— 演示">＋ 提交书目</span>
+          </div>
+        </div>
+        <div id="a1pShelf" style="display:none;">
+          <div class="card" style="padding:10px 12px;display:flex;align-items:center;">
+            <div class="cover" style="background:var(--cover-cyan);">道德经</div>
+            <div style="flex:1;min-width:0;"><div class="book-name">《道德经》陈鼓应注<span class="type-tag t-song">电子书</span></div><div class="book-meta">今天 08:10 · 第八章</div><div class="prog"><i style="width:10%;"></i></div><div style="font-size:9.5px;color:#2364d8;font-weight:800;margin-top:3px;">8/81 章 · 第 36/512 页（进度记忆）</div></div>
+            <span class="mini-action">继续读</span>
+          </div>
+          <div class="card" style="padding:10px 12px;margin-top:8px;display:flex;align-items:center;">
+            <div class="cover" style="background:var(--cover-amber);">了凡</div>
+            <div style="flex:1;min-width:0;"><div class="book-name">《了凡四训》</div><div class="book-meta">昨天 09:30 · 立命之学</div><div class="prog"><i style="width:35%;"></i></div></div>
+            <span class="mini-action">继续读</span>
+          </div>
+        </div>
+        <div id="a1pStats" style="display:none;">
+          <div class="stats-grid">
+            <div class="stats-tile"><b>12<i>天</i></b><span>本月诵读</span></div>
+            <div class="stats-tile"><b>14<i>次</i></b><span>本月随施</span></div>
+            <div class="stats-tile"><b>47</b><span>收获木鱼</span></div>
+            <div class="stats-tile"><b>11<i>天</i></b><span>本月已读</span></div>
+          </div>
+          <div class="card stats-list-card" style="margin-top:9px;">
+            <div class="stats-card-title">团队榜 · 本周</div>
+            <div class="stats-list-row"><span style="display:flex;align-items:center;gap:8px;flex:1;"><span class="rank-no top">1</span>王晓兰</span><span class="rank-bar"><i style="width:93%;"></i></span><b>28</b></div>
+            <div class="stats-list-row rr2"><span style="display:flex;align-items:center;gap:8px;flex:1;"><span class="rank-no top">2</span>李长青</span><span class="rank-bar"><i style="width:80%;"></i></span><b>24</b></div>
+            <div class="stats-list-row rr3"><span style="display:flex;align-items:center;gap:8px;flex:1;"><span class="rank-no top">3</span>周文静</span><span class="rank-bar"><i style="width:66%;"></i></span><b>19</b></div>
+          </div>
+        </div>
+      </div>
+      <div class="tabbar">
+        <div class="tab-item"><svg viewBox="0 0 24 24"><path d="M3.5 11L12 4l8.5 7"/><path d="M6 10v9.5h12V10"/><path d="M10 19.5v-5h4v5"/></svg>首页</div>
+        <div class="tab-item"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></svg>四项服务</div>
+        <div class="tab-item active"><svg viewBox="0 0 24 24"><path d="M12 6.5C10 4.8 7.5 4 4.5 4v14c3 0 5.5.8 7.5 2 2-1.2 4.5-2 7.5-2V4c-3 0-5.5.8-7.5 2.5z"/><path d="M12 6.5V20"/></svg>法布施</div>
+        <div class="tab-item"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="4.6" height="4.6" rx="1.2"/><rect x="9.7" y="4" width="4.6" height="4.6" rx="1.2"/><rect x="15.4" y="4" width="4.6" height="4.6" rx="1.2"/><rect x="4" y="9.7" width="4.6" height="4.6" rx="1.2"/><rect x="9.7" y="9.7" width="4.6" height="4.6" rx="1.2"/><rect x="15.4" y="9.7" width="4.6" height="4.6" rx="1.2"/><rect x="4" y="15.4" width="4.6" height="4.6" rx="1.2"/><rect x="9.7" y="15.4" width="4.6" height="4.6" rx="1.2"/><rect x="15.4" y="15.4" width="4.6" height="4.6" rx="1.2"/></svg>应用</div>
+        <div class="tab-item"><svg viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="3.6"/><path d="M5 20c1.2-3.6 4-5.2 7-5.2s5.8 1.6 7 5.2"/></svg>我的</div>
+      </div>
+    </div>
+    <div class="phone-label">A1 · 法布施工作台（tabBar 页 · 我的觉醒优先）</div>
+    <div class="phone-note">首屏=我的觉醒三板块（诵读✓/随施○/再读进行中，D6/D7）；五页签=觉醒/广场/书库/书架/统计（觉醒最前）<br>底栏=首页/四项服务/法布施(active)/应用/我的（不变）；提醒卡=闹钟式（D11/Q8）</div></div>
+
+    <!-- A2 认知广场 -->
+    <div class="phone-wrap"><div class="phone">
+      <div class="statusbar"><span>9:41</span><span class="sicons"><svg viewBox="0 0 24 12"><path d="M2 8h3v3H2zM7 5h3v6H7zM12 2h3v9h-12z"/></svg><svg viewBox="0 0 26 12"><rect x="1" y="1.5" width="20" height="9" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><rect x="3" y="3.5" width="13" height="5" rx="1.2"/></svg></span></div>
+      <div class="nav"><span class="nav-back"><svg viewBox="0 0 1024 1024"><path d="M658 176l-288 288a32 32 0 0 0 0 45l288 288 45-45-265-265 265-266z"/></svg></span><div class="nav-title">认知广场</div><span class="nav-act r j-mp" data-msg="三个发布入口（B2/B3/B4，演示）">＋ 发布</span></div>
+      <div class="body">
+        <div class="search-card card">
+          <div class="search-row"><div class="search-input"><svg viewBox="0 0 1024 1024"><path d="M448 704a256 256 0 1 1 0-512 256 256 0 0 1 0 512zm0 64a320 320 0 1 0 0-640 320 320 0 0 0 0 640z"/><path d="M640 608l192 192-45 45-192-192z"/></svg>搜人名 / 书籍 / 具体文字（服务端）</div><span class="mini-action j-mp" data-msg="服务端检索（D16）— 演示">搜索</span></div>
+          <div class="filter-chips"><span class="filter-chip active">全部</span><span class="filter-chip">每日诵读</span><span class="filter-chip">每日随施</span><span class="filter-chip">再读一本</span><span class="filter-chip">只看未读</span></div>
+        </div>
+        <div class="card mom-card">
+          <div class="mom-head"><div class="mom-ava" style="background:var(--cover-cyan);">李</div>
+            <div class="mom-main">
+              <div class="mom-name">李长青<span class="type-tag t-song">每日诵读</span></div>
+              <div class="mom-text">"从前种种，譬如昨日死；从后种种，譬如今日生。"固定晨读第 12 天，今日跟语音再诵一遍。</div>
+              <div class="mom-audio"><div class="recite-wave"><i style="height:5px;"></i><i style="height:10px;"></i><i style="height:7px;"></i><i style="height:12px;"></i><i style="height:9px;"></i><i style="height:13px;"></i><i style="height:6px;"></i></div><span>语音 2 段 · 42s / 58s</span></div>
+              <div class="mom-meta"><span>今天 09:30</span><span class="src">《了凡四训》› 第一部分</span><span class="badge-new">NEW</span><span class="read unread" style="margin-left:auto;">未读</span></div>
+            </div></div>
+          <div class="mom-acts"><span>木鱼 12 · 评论 5 · 复诵 3</span><span class="more j-mp" data-msg="操作：木鱼 / 评论 / 复诵（朋友圈式 ⋯ 菜单，D21）— 演示">⋯</span></div>
+          <div class="mom-inter"><div><span class="likers">木鱼：</span>王晓兰、陈慧、周文静 等 12 人</div><div class="mom-cmt"><b>陈慧</b>：下周晨会想请你带读一段。</div></div>
+        </div>
+        <div class="card mom-card">
+          <div class="mom-head"><div class="mom-ava" style="background:linear-gradient(135deg,#b45309,#f59e0b);">陈</div>
+            <div class="mom-main">
+              <div class="mom-name">陈慧<span class="type-tag t-sui">每日随施</span></div>
+              <div class="mom-text">下班路上的晚霞。想起"一切福田，不离方寸"——先把自己的心照顾好。</div>
+              <div class="mom-grid"><div class="mimg" style="background:var(--sunset3);"></div><div class="mimg" style="background:var(--sunset2);"></div><div class="mimg" style="background:var(--sunset1);"></div></div>
+              <div class="mom-meta"><span>昨天 18:40</span><span>随手施 · 不关联书目</span><span class="badge-new">NEW</span></div>
+            </div></div>
+          <div class="mom-acts"><span>木鱼 9 · 评论 2</span><span class="more j-mp" data-msg="操作（演示）">⋯</span></div>
+        </div>
+        <div class="card mom-card">
+          <div class="mom-head"><div class="mom-ava">王</div>
+            <div class="mom-main">
+              <div class="mom-name">王晓兰<span class="type-tag t-zai">再读一本</span></div>
+              <div class="mom-text">"上善若水，水善利万物而不争。"——抄了三遍，把"不争"用在谈判让步策略上。</div>
+              <div class="mom-grid"><div class="mimg" style="background:var(--sunset3);"></div><div class="mimg" style="background:var(--sunset2);"></div><div class="mimg" style="background:var(--sunset1);"></div></div>
+              <div class="mom-meta"><span>昨天 07:50</span><span class="src">《道德经》陈鼓应注 › 第八章</span><span>书页 3 张</span></div>
+            </div></div>
+          <div class="mom-acts"><span>木鱼 21 · 评论 8 · 复诵 2</span><span class="more j-mp" data-msg="操作（演示）">⋯</span></div>
+        </div>
+        <div class="card" style="padding:9px 12px;display:flex;align-items:center;gap:7px;">
+          <span class="type-tag t-zai">再读一本</span>
+          <span style="flex:1;font-size:10.5px;color:var(--mp-ink2);">按书罗列 → 每本书看每个人上传的内容</span>
+          <span class="mini-action j-mp" data-msg="进入按书浏览（A3，演示）">按书浏览 ›</span>
+        </div>
+      </div>
+    </div>
+    <div class="phone-label">A2 · 认知广场（朋友圈式信息流）</div>
+    <div class="phone-note">D21：头像+昵称+正文+图片网格+语音条+时间·来源+灰底操作行（木鱼/评论/复诵+⋯）+互动折叠（谁点了木鱼/评论）<br>分区=诵读/随施/再读（D1）；搜索=服务端（D16）；再读分区入口→A3</div></div>
+
+    <!-- A3 按书浏览 -->
+    <div class="phone-wrap"><div class="phone">
+      <div class="statusbar"><span>9:41</span><span class="sicons"><svg viewBox="0 0 24 12"><path d="M2 8h3v3H2zM7 5h3v6H7zM12 2h3v9h-12z"/></svg><svg viewBox="0 0 26 12"><rect x="1" y="1.5" width="20" height="9" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><rect x="3" y="3.5" width="13" height="5" rx="1.2"/></svg></span></div>
+      <div class="nav"><span class="nav-back"><svg viewBox="0 0 1024 1024"><path d="M658 176l-288 288a32 32 0 0 0 0 45l288 288 45-45-265-265 265-266z"/></svg></span><div class="nav-title">按书浏览 · 道德经</div></div>
+      <div class="body">
+        <div class="card" style="padding:11px 13px;">
+          <div style="display:flex;gap:10px;align-items:center;">
+            <div class="cover" style="background:var(--cover-cyan);">道德经</div>
+            <div style="flex:1;min-width:0;">
+              <div class="feed-title" style="font-size:13.5px;">《道德经》<span class="type-tag t-song">电子书</span></div>
+              <div class="book-meta">陈鼓应 · 中华书局 2009 · 注释本 · 512 页</div>
+              <div class="book-meta" style="margin-top:3px;">参与 <b style="color:var(--mp-ink);">8 人</b> · 内容 <b style="color:var(--mp-ink);">36 条</b> · 另有 2 版本</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:7px;margin-top:9px;"><div class="detail-primary-action" style="flex:1;height:34px;font-size:12.5px;" >在线阅读</div><div class="secondary-btn" style="flex:1;height:34px;font-size:12.5px;" >我也传</div></div>
+        </div>
+        <div class="filter-chips" style="margin-top:10px;"><span class="filter-chip active">按时间</span><span class="filter-chip">按章节</span><span class="filter-chip">按成员</span></div>
+        <div class="card" style="padding:4px;margin-top:8px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 9px;background:var(--mp-tile);border-radius:8px 8px 0 0;font-size:10px;font-weight:800;color:var(--mp-ink2);"><span>第八章 · 上善若水</span><span>3 条</span></div>
+          <div class="book-row"><div class="book-ico" style="background:var(--cover-violet);">王</div><div class="book-main"><div class="book-name">王晓兰 · 书页 3 张 + 语音<span class="badge-new">NEW</span></div><div class="book-meta">昨天 07:50 · 木鱼 21 · 复诵 2</div></div><span class="mini-action">详情</span></div>
+          <div class="book-row"><div class="book-ico" style="background:var(--cover-teal);">陈</div><div class="book-main"><div class="book-name">陈慧 · 跟读打卡</div><div class="book-meta">11-18 07:58 · 语音 · 木鱼 6</div></div><span class="mini-action secondary">详情</span></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 9px;background:var(--mp-tile);font-size:10px;font-weight:800;color:var(--mp-ink2);border-top:1px solid var(--mp-card-line-soft);"><span>序</span><span>1 条</span></div>
+          <div class="book-row"><div class="book-ico" style="background:var(--cover-navy);">李</div><div class="book-main"><div class="book-name">李长青 · 序言通读</div><div class="book-meta">11-21 21:10 · 木鱼 14 · 复诵 1</div></div><span class="mini-action secondary">详情</span></div>
+        </div>
+        <div style="margin-top:9px;font-size:9.5px;color:var(--mp-ink4);text-align:center;line-height:1.6;">书=书名+作者+版本唯一确定（D2）；不同版本各自成册；<br>按时间/章节/成员三种排列，如同四项激励按客户下钻。</div>
+      </div>
+    </div>
+    <div class="phone-label">A3 · 按书浏览（再读一本 · 按书下钻）</div>
+    <div class="phone-note">D15 新视图：认知广场「再读一本」分区按书罗列→书内成员内容流<br>（章节分组，时间/章节/成员可切）</div></div>
+
+    <!-- A4 作品详情+互动 -->
+    <div class="phone-wrap"><div class="phone">
+      <div class="statusbar"><span>9:41</span><span class="sicons"><svg viewBox="0 0 24 12"><path d="M2 8h3v3H2zM7 5h3v6H7zM12 2h3v9h-12z"/></svg><svg viewBox="0 0 26 12"><rect x="1" y="1.5" width="20" height="9" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><rect x="3" y="3.5" width="13" height="5" rx="1.2"/></svg></span></div>
+      <div class="nav"><span class="nav-back"><svg viewBox="0 0 1024 1024"><path d="M658 176l-288 288a32 32 0 0 0 0 45l288 288 45-45-265-265 265-266z"/></svg></span><div class="nav-title">再读作品</div><span class="nav-act r j-mp" data-msg="作者本人：修改/删除（D13，仅本人可见）— 演示">管理</span></div>
+      <div class="body">
+        <div style="display:flex;align-items:center;gap:6px;font-size:10px;color:var(--mp-ink2);background:var(--mp-tile);border:1px solid var(--mp-card-line);border-radius:9px;padding:7px 10px;"><span class="type-tag t-zai">再读一本</span>《道德经》陈鼓应注<em style="font-style:normal;color:#2364d8;font-weight:700;">› 第八章 · 上善若水</em></div>
+        <div class="card" style="padding:10px 12px;margin-top:8px;">
+          <div class="feed-head"><div><div class="feed-title">王晓兰<span class="badge-new">NEW</span></div><div class="feed-meta">昨天 07:50 · 销售一部 · 木鱼 21 · 评论 8</div></div><span class="pbtn">本人</span></div>
+          <div style="display:flex;gap:6px;margin-top:8px;padding-top:8px;border-top:1px dashed var(--mp-card-line);"><span class="mini-action j-mp" data-msg="修改本人内容（正文/附件），留痕（D13）— 演示">修改</span><span class="mini-action secondary j-mp" data-msg="删除本人内容（软删留痕+二次确认；D13）— 演示">删除</span><span style="font-size:9px;color:var(--mp-ink4);align-self:center;">仅作者可见 · 治理下架另走内容治理</span></div>
+        </div>
+        <div class="card" style="padding:4px;margin-top:8px;">
+          <div style="padding:8px 10px;font-size:11px;line-height:1.8;color:var(--mp-ink);">"上善若水，水善利万物而不争。"抄了三遍，把"不争"两个字用在今天和供应链的谈判让步策略上。</div>
+          <div style="display:flex;gap:6px;padding:0 10px 9px;"><div style="width:86px;height:60px;border-radius:8px;background:linear-gradient(160deg,#5b7bd5,#f2886b 70%,#f5b971);position:relative;"><span style="position:absolute;right:4px;bottom:4px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;"><svg viewBox="0 0 1024 1024" style="width:10px;height:10px;fill:#fff;"><path d="M640 128h192a64 64 0 0 1 64 64v192h-64V224l-236 236-45-45 236-236H640z"/></svg></span></div><div style="width:86px;height:60px;border-radius:8px;background:linear-gradient(160deg,#7a6bd0,#e9628f);position:relative;"><span style="position:absolute;left:5px;top:4px;font-size:8px;color:#fff;background:rgba(0,0,0,.35);border-radius:3px;padding:1px 4px;">已划线</span></div></div>
+          <div style="padding:0 10px 9px;font-size:9px;color:var(--mp-ink4);">书页点击放大查看（D12）；上传时可裁剪/标注</div>
+        </div>
+        <div class="recite-strip" style="margin-top:8px;">
+          <div class="recite-wave"><i style="height:5px;"></i><i style="height:10px;"></i><i style="height:7px;"></i><i style="height:12px;"></i><i style="height:9px;"></i><i style="height:13px;"></i><i style="height:6px;"></i></div>
+          <div style="flex:1;"><div style="font-size:11px;font-weight:800;color:var(--mp-ink);">复诵 2 次</div><div style="font-size:9.5px;color:var(--mp-ink3);margin-top:1px;">李长青 58s · 陈慧 62s——他人可直接诵读本段</div></div>
+          <span class="mini-action j-mp" data-msg="我要复诵：录一段语音挂到本作品下（D14，Q6）— 演示">我要复诵</span>
+        </div>
+        <div class="section-heading">评论 · 8</div>
+        <div class="card" style="padding:4px;">
+          <div class="book-row" style="align-items:flex-start;"><div class="book-ico" style="width:26px;height:26px;background:var(--cyan-bg);color:var(--cyan);">陈</div><div class="book-main"><div class="book-name" style="font-size:11px;">陈慧<span class="type-tag" style="background:var(--cyan-bg);color:var(--cyan);margin-left:4px;">重点描述</span></div><div class="feed-meta" style="color:var(--mp-ink2);">"不争"这段重点：不争之争，是先把方案做厚。</div></div></div>
+          <div class="book-row" style="align-items:flex-start;"><div class="book-ico" style="width:26px;height:26px;background:var(--mp-blue-bg);color:var(--primary);">李</div><div class="book-main"><div class="book-name" style="font-size:11px;">李长青<span class="type-tag t-song" style="margin-left:4px;">语音诵读</span></div><div class="feed-meta" style="color:var(--mp-ink2);">语音评论 45 秒：跟读一遍第八章。</div></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="phone-label">A4 · 作品详情 + 互动（复诵/管理）</div>
+    <div class="phone-note">新增：复诵条+计数（D14）；作者本人「管理」=修改/删除（D13）；图片放大（D12）<br>评论三类=文字/重点描述/语音诵读（现网已有）</div></div>
+
+    <!-- A5 书目·版本链 -->
+    <div class="phone-wrap"><div class="phone">
+      <div class="statusbar"><span>9:41</span><span class="sicons"><svg viewBox="0 0 24 12"><path d="M2 8h3v3H2zM7 5h3v6H7zM12 2h3v9h-12z"/></svg><svg viewBox="0 0 26 12"><rect x="1" y="1.5" width="20" height="9" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><rect x="3" y="3.5" width="13" height="5" rx="1.2"/></svg></span></div>
+      <div class="nav"><span class="nav-back"><svg viewBox="0 0 1024 1024"><path d="M658 176l-288 288a32 32 0 0 0 0 45l288 288 45-45-265-265 265-266z"/></svg></span><div class="nav-title">书目 · 国学建议</div></div>
+      <div class="body">
+        <div class="card search-card">
+          <div class="search-row"><div class="search-input"><svg viewBox="0 0 1024 1024"><path d="M448 704a256 256 0 1 1 0-512 256 256 0 0 1 0 512zm0 64a320 320 0 1 0 0-640 320 320 0 0 0 0 640z"/><path d="M640 608l192 192-45 45-192-192z"/></svg>书名 / 作者 / 版本</div><span class="mini-action j-mp" data-msg="搜索书目（服务端，D16）— 演示">搜索</span></div>
+          <div class="filter-chips"><span class="filter-chip active">全部</span><span class="filter-chip">有电子书</span><span class="filter-chip">有精读内容</span></div>
+        </div>
+        <div class="card" style="padding:4px;">
+          <div class="book-row"><div class="book-ico" style="background:var(--cover-cyan);">道德经</div><div class="book-main"><div class="book-name">《道德经》<span class="badge-new">NEW</span><span class="type-tag t-song">电子书</span></div><div class="book-meta">3 个版本 · 点开展开选择</div></div><span class="arrow">›</span></div>
+          <div style="padding:0 7px 9px;">
+            <div style="border:1px solid var(--mp-blue-line);background:var(--mp-blue-bg);border-radius:10px;padding:8px 10px;">
+              <div style="display:flex;align-items:center;gap:6px;"><span class="filter-chip active" style="height:22px;line-height:20px;">陈鼓应注</span><span class="filter-chip" style="height:22px;line-height:20px;">王弼注·原版</span><span class="filter-chip" style="height:22px;line-height:20px;">岳麓·白话</span></div>
+              <div class="book-meta" style="margin-top:5px;">选定：陈鼓应 · 中华书局 2009 · 注释本 · 512 页</div>
+              <div style="display:flex;gap:6px;margin-top:7px;"><span class="mini-action j-mp" data-msg="在线阅读（B1）— 演示">在线阅读</span><span class="mini-action secondary j-mp" data-msg="去诵读（B2 通道B 已选书）— 演示">去诵读</span><span class="mini-action secondary j-mp" data-msg="加入书架 — 演示">加书架</span></div>
+            </div>
+          </div>
+          <div class="book-row"><div class="book-ico">论语</div><div class="book-main"><div class="book-name">《论语》<span class="type-tag t-song">2 版本</span></div><div class="book-meta">杨伯峻·译本 / 钱穆·新解</div></div><span class="arrow">›</span></div>
+          <div class="book-row"><div class="book-ico plain">书</div><div class="book-main"><div class="book-name">《易经》</div><div class="book-meta">1 个版本</div></div><span class="arrow">›</span></div>
+          <div class="book-row"><div class="book-ico plain">书</div><div class="book-main"><div class="book-name">《心经》</div><div class="book-meta">1 个版本</div></div><span class="arrow">›</span></div>
+        </div>
+        <div style="margin-top:10px;display:flex;align-items:center;justify-content:space-between;">
+          <span style="font-size:10.5px;color:var(--mp-ink3);">人人可提交书目 · 管理员审核后展示</span>
+          <span class="mini-action j-mp" data-msg="提交书目（书名/作者/版本/页数）— 演示">＋ 提交书目</span>
+        </div>
+        <div class="note-box blue" style="margin-top:9px;"><svg viewBox="0 0 1024 1024"><path d="M512 64a448 448 0 1 0 0 896 448 448 0 0 0 0-896zm-32 192h64v256h-64zm0 320h64v64h-64z"/></svg>类别按客户 10 大类型（团队必读/国学建议/小说/管理/实用/诗歌/传记/国外/健康/其他）；现网字典为占位名，落地需迁移（D18）。</div>
+      </div>
+    </div>
+    <div class="phone-label">A5 · 书目浏览（类别 → 书目 → 版本）</div>
+    <div class="phone-note">版本链三级确定（D2）：选版本后阅读/诵读/按书浏览/书架都挂该版本<br>提交书目人人可（fabushi:create）；二维码/扫码已按 2026-11-22 拍板移除（D3 否决）</div></div>
+  </div>
+
+  <div class="row-label"><span class="no">B</span>阅读与三个上传界面<span class="ln"></span></div>
+  <div class="phones">
+
+    <!-- B1 在线阅读（已上线） -->
+    <div class="phone-wrap"><div class="phone">
+      <div class="statusbar on-dark"><span>9:41</span><span class="sicons"><svg viewBox="0 0 24 12"><path d="M2 8h3v3H2zM7 5h3v6H7zM12 2h3v9h-12z"/></svg><svg viewBox="0 0 26 12"><rect x="1" y="1.5" width="20" height="9" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><rect x="3" y="3.5" width="13" height="5" rx="1.2"/></svg></span></div>
+      <div class="reader">
+        <div class="reader-head">
+          <span class="rh-back"><svg viewBox="0 0 1024 1024"><path d="M658 176l-288 288a32 32 0 0 0 0 45l288 288 45-45-265-265 265-266z"/></svg></span>
+          <div class="rh-main"><div class="rh-name">道德经 · 陈鼓应注</div><div class="rh-sub">第八章 · 上善若水 · 文本版</div></div>
+          <span class="rh-btn j-mp" data-msg="版式设置（D19）：重排/原样、背景三档、对比度增强、裁白边 — 演示">版式</span>
+          <span class="rh-btn j-mp" data-msg="结构化目录（已上线）— 演示"><svg viewBox="0 0 1024 1024"><path d="M128 224h768v64H128zm0 256h768v64H128zm0 256h768v64H128z"/></svg>目录</span>
+        </div>
+        <div class="reader-page"><div class="paper">
+          <span style="position:absolute;left:-7px;top:12px;width:18px;height:26px;background:var(--amber);clip-path:polygon(0 0,100% 0,100% 100%,50% 78%,0 100%);box-shadow:0 2px 5px rgba(0,0,0,.3);z-index:3;"></span>
+          <h4>第八章 · 上善若水</h4>
+          <p>上善若水。水善利万物而不争，处众人之所恶，故几于道。</p>
+          <p>居善地，心善渊，与善仁，言善信，政善治，事善能，动善时。</p>
+          <p>夫唯不争，故无尤。</p>
+          <p>陈鼓应注：水具有柔弱、处下、利他而不争的品格，最接近"道"的精神。</p>
+          <div class="note-line">— 第 36 页 · 共 512 页 —</div>
+        </div></div>
+        <div style="margin:0 12px 8px;background:var(--mp-card);border-radius:12px;padding:9px 11px;box-shadow:0 -6px 18px rgba(13,23,51,.25);">
+          <div style="display:flex;align-items:center;justify-content:space-between;"><b style="font-size:11.5px;color:var(--mp-ink);">版式设置</b><span class="chip2 blue">本书 · 文本版</span></div>
+          <div class="filter-chips" style="margin-top:6px;">
+            <span class="filter-chip active">重排</span><span class="filter-chip">原样</span><span class="filter-chip">护眼</span><span class="filter-chip">夜间</span><span class="filter-chip">对比度＋</span><span class="filter-chip">裁白边</span><span class="filter-chip j-mp" data-msg="字号 A± / 行距（重排模式生效，D19 扩充）— 演示">字号A±</span><span class="filter-chip j-mp" data-msg="书签：标记/跳转/管理（D19 扩充）— 演示">书签</span><span class="filter-chip j-mp" data-msg="书内搜索（文本版支持；影印版如实提示不可搜）— 演示">书内搜索</span>
+          </div>
+          <div style="font-size:9px;color:var(--mp-ink4);margin-top:5px;line-height:1.6;">排版差的 PDF：文本版→重排（字号/行距/背景随调）；影印版→原样+对比度增强（去灰底）+裁白边。划线/想法→「我的书摘」（D23）。默认版式随管理端书目标记（D19）。</div>
+        </div>
+        <div class="reader-foot">
+          <div class="reader-ctl"><span class="pg-btn">‹</span><div class="rprog"><i></i></div><span class="r-page">36 / 512 · 7%</span><span class="pg-btn">›</span></div>
+          <div class="reader-tip"><svg viewBox="0 0 1024 1024"><path d="M512 64a448 448 0 1 0 0 896 448 448 0 0 0 0-896zm-32 192h64v256h-64zm0 320h64v64h-64z"/></svg>页码级进度回传 · 续读（已上线）· 书签/划线进我的书摘</div>
+        </div>
+      </div>
+    </div>
+    <div class="phone-label">B1 · 在线阅读 PDF<span class="chip2 green">已上线</span> + 版式设置<span class="chip2 blue">新增 D19</span></div>
+    <div class="phone-note">v5 曾标「MP 二期」——实际 H5 PDF.js 页码级阅读器已于 11-16 上线（web-view + 翻页自动回传 + 续读定位），本版如实转正<br>排版差的 PDF：文本版→重排调字号；影印版→原样+对比度增强+裁白边（默认版式随书目标记）</div></div>
+
+    <!-- B2 上传·每日诵读 -->
+    <div class="phone-wrap"><div class="phone">
+      <div class="statusbar"><span>9:41</span><span class="sicons"><svg viewBox="0 0 24 12"><path d="M2 8h3v3H2zM7 5h3v6H7zM12 2h3v9h-12z"/></svg><svg viewBox="0 0 26 12"><rect x="1" y="1.5" width="20" height="9" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><rect x="3" y="3.5" width="13" height="5" rx="1.2"/></svg></span></div>
+      <div class="nav"><span class="nav-back"><svg viewBox="0 0 1024 1024"><path d="M658 176l-288 288a32 32 0 0 0 0 45l288 288 45-45-265-265 265-266z"/></svg></span><div class="nav-title">发布 · 每日诵读</div></div>
+      <div class="body" style="padding-bottom:60px;">
+        <div class="stats-tabs" style="margin-top:2px;"><span class="stats-tab active" id="b2a">A · 直接传</span><span class="stats-tab" id="b2b">B · 选书选段</span></div>
+        <div id="b2paneA">
+          <div class="form-section-title" style="margin-top:8px;">诵读素材（文字或图片）<span class="hint">必填其一</span></div>
+          <div class="card" style="padding:9px 11px;"><div style="font-size:11.5px;line-height:1.8;color:var(--mp-ink);">"学而时习之，不亦说乎？"——今日晨读《论语》学而第一，先抄一遍再诵。</div></div>
+          <div class="filter-chips" style="margin-top:7px;"><span class="filter-chip j-mp" data-msg="拍纸页上传（1-5页，可裁剪）— 演示">＋ 拍纸页</span><span class="filter-chip j-mp" data-msg="从相册选图 — 演示">＋ 相册</span></div>
+        </div>
+        <div id="b2paneB" style="display:none;">
+          <div class="form-section-title" style="margin-top:8px;">选择具体书<span class="hint">类别→书目→版本</span></div>
+          <div class="polished-select"><span>国学建议 ·《道德经》· 陈鼓应注</span><span class="go">更换 ›</span></div>
+          <div class="form-section-title">具体段落<span class="hint">来自《再读一本》内容</span></div>
+          <div class="filter-chips"><span class="filter-chip">上篇·道经</span><span class="filter-chip active">第八章</span><span class="filter-chip">第 1 节</span></div>
+          <div class="card" style="padding:9px 11px;margin-top:8px;"><div style="font-size:11px;line-height:1.8;color:var(--mp-ink2);">上善若水。水善利万物而不争，处众人之所恶，故几于道。（自动带出）</div></div>
+        </div>
+        <div class="form-section-title">诵读语音（朗读/背诵）<span class="hint">1-10 段 × ≤60s · 必填</span></div>
+        <div class="card" style="padding:9px 11px;display:flex;align-items:center;gap:8px;">
+          <div class="recite-wave"><i style="height:6px;"></i><i style="height:12px;"></i><i style="height:8px;"></i><i style="height:13px;"></i><i style="height:10px;"></i><i style="height:14px;"></i><i style="height:7px;"></i></div>
+          <span style="flex:1;font-size:11px;color:var(--mp-ink2);">已录 2 段 · 42s / 58s</span>
+          <span class="mini-action j-mp" data-msg="再录一段（≤60s）— 演示">＋ 录一段</span>
+        </div>
+        <div class="note-box" style="margin-top:9px;"><svg viewBox="0 0 1024 1024"><path d="M512 64a448 448 0 1 0 0 896 448 448 0 0 0 0-896zm-32 192h64v256h-64zm0 320h64v64h-64z"/></svg>人人、天天对经典的小而短的读和诵（推荐固定时点晨 08:00）；A 通道不关联书目、不设标题（Q4），B 通道书+段落必填。</div>
+        <div class="detail-primary-action" style="position:absolute;left:14px;right:14px;bottom:12px;" >提交每日诵读</div>
+      </div>
+    </div>
+    <div class="phone-label">B2 · 上传一：每日诵读（双通道 A/B）</div>
+    <div class="phone-note">D8：A=文字/图片+语音直接传；B=选书（三级）选段落再诵（日积月累）<br>演示交互：A/B 页签切换</div></div>
+
+    <!-- B3 上传·每日随施 -->
+    <div class="phone-wrap"><div class="phone">
+      <div class="statusbar"><span>9:41</span><span class="sicons"><svg viewBox="0 0 24 12"><path d="M2 8h3v3H2zM7 5h3v6H7zM12 2h3v9h-12z"/></svg><svg viewBox="0 0 26 12"><rect x="1" y="1.5" width="20" height="9" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><rect x="3" y="3.5" width="13" height="5" rx="1.2"/></svg></span></div>
+      <div class="nav"><span class="nav-back"><svg viewBox="0 0 1024 1024"><path d="M658 176l-288 288a32 32 0 0 0 0 45l288 288 45-45-265-265 265-266z"/></svg></span><div class="nav-title">发布 · 每日随施</div></div>
+      <div class="body" style="padding-bottom:60px;">
+        <div class="card" style="padding:12px;">
+          <div style="min-height:92px;font-size:12px;line-height:1.8;color:var(--mp-ink);">这一刻的想法…<span style="color:var(--mp-ink4);">（下班路上又看见这片晚霞。想起"一切福田，不离方寸"）</span></div>
+          <div class="composer-grid-m">
+            <div class="composer-cell-m" style="background:var(--sunset3);"></div>
+            <div class="composer-cell-m add j-mp" data-msg="相册选图 / 拍照（D21 朋友圈式选图；上限待裁 Q14：沿用 1-5 张/次 或对齐 9 张）— 演示">＋</div>
+            <div class="composer-cell-m add j-mp" data-msg="选图（演示）">＋</div>
+            <div class="composer-cell-m add j-mp" data-msg="选图（演示）">＋</div>
+            <div class="composer-cell-m add j-mp" data-msg="选图（演示）">＋</div>
+            <div class="composer-cell-m add j-mp" data-msg="选图（演示）">＋</div>
+          </div>
+          <div class="filter-chips" style="margin-top:9px;"><span class="filter-chip j-mp" data-msg="裁剪（D12，MP 先放大+裁剪 Q9）— 演示">裁剪</span><span class="filter-chip j-mp" data-msg="放大预览 — 演示">放大</span><span class="filter-chip j-mp warn" data-msg="划线/圈/框标注：MP 端范围待裁（Q9）">标注<span class="chip2" style="margin-left:3px;">待裁</span></span></div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:9px;">
+            <div class="card j-mp" style="padding:10px 4px;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:10px;color:var(--mp-ink2);" data-msg="相册选图（上限 Q14）— 演示"><svg viewBox="0 0 1024 1024" style="width:16px;height:16px;fill:var(--mp-ink3);"><path d="M672 128l192 192v576H160V128zm-32 64H224v640h576V352H640zm-352 96h192v64H288zm0 128h192v64H288zm0 128h416v64H288z"/></svg>图片</div>
+            <div class="card j-mp" style="padding:10px 4px;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:10px;color:var(--mp-ink2);" data-msg="拍摄照片/视频 — 演示"><svg viewBox="0 0 1024 1024" style="width:16px;height:16px;fill:var(--mp-ink3);"><path d="M896 128h-84l-44-64H256l-44 64H128a64 64 0 0 0-64 64v576a64 64 0 0 0 64 64h768a64 64 0 0 0 64-64V192a64 64 0 0 0-64-64zM512 704a192 192 0 1 1 0-384 192 192 0 0 1 0 384z"/></svg>拍摄</div>
+            <div class="card j-mp" style="padding:10px 4px;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:10px;color:var(--mp-ink2);" data-msg="说话：录语音（≤60s/段）— 演示"><svg viewBox="0 0 1024 1024" style="width:16px;height:16px;fill:var(--mp-ink3);"><path d="M512 96a416 416 0 1 0 0 832 416 416 0 0 0 0-832zm-64 208l256 160-256 160z"/></svg>说话</div>
+            <div class="card j-mp" style="padding:10px 4px;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:10px;color:var(--mp-ink2);" data-msg="选文件 — 演示"><svg viewBox="0 0 1024 1024" style="width:16px;height:16px;fill:var(--mp-ink3);"><path d="M832 512a32 32 0 1 1 64 0v352a32 32 0 0 1-32 32H160a32 32 0 0 1-32-32V160a32 32 0 0 1 32-32h352a32 32 0 0 1 0 64H192v640h640z"/></svg>文件</div>
+          </div>
+          <div style="margin-top:9px;background:var(--mp-blue-bg);border:1px solid var(--mp-blue-line);border-radius:9px;padding:7px 10px;font-size:9.5px;color:var(--navy);line-height:1.6;">📎 附件自动归档至 <b>文件中心›法布施</b> 空间 · 可见性走社区判定链（D27，不新增权限码）</div>
+          <div class="composer-foot-m"><span class="j-mp" data-msg="所在位置（选填）— 演示">所在位置</span><span class="j-mp" data-msg="谁可以看：全员 — 演示">谁可以看：全员</span></div>
+        </div>
+        <div class="note-box blue" style="margin-top:10px;"><svg viewBox="0 0 1024 1024"><path d="M512 64a448 448 0 1 0 0 896 448 448 0 0 0 0-896zm-32 192h64v256h-64zm0 320h64v64h-64z"/></svg>朋友圈式发布（D21）：不关联书目 · 不设标题 · 纯文字也能发（后端负例：带标题/书目即 400）。图片上限待裁（Q14）：沿用 1-5 张/次 或对齐朋友圈 9 张。</div>
+        <div class="detail-primary-action" style="position:absolute;left:14px;right:14px;bottom:12px;" >发表</div>
+      </div>
+    </div>
+    <div class="phone-label">B3 · 上传二：每日随施（朋友圈发布器）</div>
+    <div class="phone-note">D21+D26+D27：这一刻的想法 + 九宫格选图 + 裁剪/放大/标注 + 工具行（图片/拍摄/**说话**/文件）+ 归档「文件中心›法布施」<br>免标题免关联、纯文字可发；图片上限待裁（Q14）；MP 标注待裁（Q9）</div></div>
+
+    <!-- B4 上传·再读一本 -->
+    <div class="phone-wrap"><div class="phone">
+      <div class="statusbar"><span>9:41</span><span class="sicons"><svg viewBox="0 0 24 12"><path d="M2 8h3v3H2zM7 5h3v6H7zM12 2h3v9h-12z"/></svg><svg viewBox="0 0 26 12"><rect x="1" y="1.5" width="20" height="9" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><rect x="3" y="3.5" width="13" height="5" rx="1.2"/></svg></span></div>
+      <div class="nav"><span class="nav-back"><svg viewBox="0 0 1024 1024"><path d="M658 176l-288 288a32 32 0 0 0 0 45l288 288 45-45-265-265 265-266z"/></svg></span><div class="nav-title">发布 · 再读一本</div></div>
+      <div class="body" style="padding-bottom:60px;">
+        <div class="form-section-title" style="margin-top:2px;">① 选书<span class="hint">类别→书目→版本</span></div>
+        <div class="polished-select"><span>国学建议 ·《道德经》· 陈鼓应注</span><span class="go j-mp" data-msg="切换版本：王弼注/岳麓白话（D2）— 演示">换版本 ›</span></div>
+        <div class="form-section-title">② 章节<span class="hint">选择或自录</span></div>
+        <div class="stats-tabs" style="margin:0 0 8px;"><span class="stats-tab active" id="b4p">选已有</span><span class="stats-tab" id="b4n">自录章节</span></div>
+        <div id="b4paneP"><div class="filter-chips" style="margin-top:0;"><span class="filter-chip">上篇·道经</span><span class="filter-chip active">第九章</span><span class="filter-chip">第 1 节</span><span class="filter-chip j-mp" data-msg="四级：序/部分/章/节 — 演示">更多层级</span></div></div>
+        <div id="b4paneN" style="display:none;">
+          <div style="display:flex;gap:6px;"><div class="polished-select" style="flex:1;">层级：章</div><div class="polished-select" style="flex:1.2;">第九章 · 持而盈之</div><span class="mini-action j-mp" data-msg="自录章节入库（fabushi:create，Q11；治理可下架）— 演示">＋ 录入</span></div>
+        </div>
+        <div class="form-section-title">③ 内容<span class="hint">文字/书页/语音</span></div>
+        <div class="card" style="padding:9px 11px;"><div style="font-size:11.5px;line-height:1.8;color:var(--mp-ink);">"持而盈之，不如其已。"今天把第九章完整读了一遍，"功遂身退"写进周复盘。</div></div>
+        <div class="filter-chips" style="margin-top:7px;"><span class="filter-chip j-mp" data-msg="书页图片 1-5 页 — 演示">＋ 书页图片</span><span class="filter-chip j-mp" data-msg="语音 1-10 段 — 演示">＋ 语音</span><span class="filter-chip j-mp" data-msg="文件/视频 — 演示">＋ 文件</span></div>
+        <div class="note-box" style="margin-top:9px;"><svg viewBox="0 0 1024 1024"><path d="M512 64a448 448 0 1 0 0 896 448 448 0 0 0 0-896zm-32 192h64v256h-64zm0 320h64v64h-64z"/></svg>按章节日日上传，整本上传整理=精读记录；如同四项激励"先选客户再上传"——先定书、定章节、再传内容。</div>
+        <div class="detail-primary-action" style="position:absolute;left:14px;right:14px;bottom:12px;background:linear-gradient(135deg,#047857,#10b981);">发布再读一本</div>
+      </div>
+    </div>
+    <div class="phone-label">B4 · 上传三：再读一本（选书→章节→内容）</div>
+    <div class="phone-note">D10：章节可<b>选择或自我录入</b>（自录开放 fabushi:create，Q11）<br>演示交互：选已有/自录切换；日积月累进「按书浏览」</div></div>
+
+    <!-- B5 提交成功·木鱼 -->
+    <div class="phone-wrap"><div class="phone">
+      <div class="statusbar"><span>9:41</span><span class="sicons"><svg viewBox="0 0 24 12"><path d="M2 8h3v3H2zM7 5h3v6H7zM12 2h3v9h-12z"/></svg><svg viewBox="0 0 26 12"><rect x="1" y="1.5" width="20" height="9" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><rect x="3" y="3.5" width="13" height="5" rx="1.2"/></svg></span></div>
+      <div class="nav"><span class="nav-back"><svg viewBox="0 0 1024 1024"><path d="M658 176l-288 288a32 32 0 0 0 0 45l288 288 45-45-265-265 265-266z"/></svg></span><div class="nav-title">提交成功</div></div>
+      <div class="body">
+        <div class="muyu-stage go" id="muyuStage">
+          <div class="muyu-glow"></div>
+          <div class="ripple"></div>
+          <div class="muyu"></div>
+          <div class="muyu-cushion"></div>
+          <div class="mallet"></div>
+          <div class="plus-one">+1</div>
+          <div class="sfx">笃——</div>
+          <div class="merit" style="margin-top:10px;"><span>功德 +1 · 今日已敲 3 次</span></div>
+        </div>
+        <div class="card" style="margin-top:11px;padding:11px 13px;">
+          <div class="feed-title">每日诵读已发布</div>
+          <div class="feed-summary">《论语》学而第一 · 语音 2 段，已进认知广场，等书友来复诵你的声音吧。</div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:11px;"><div class="secondary-btn" style="flex:1;" id="muyuReplay">再敲一下</div><div class="detail-primary-action" style="flex:1;">查看作品</div></div>
+        <div style="margin-top:10px;text-align:center;font-size:10px;color:var(--mp-ink3);line-height:1.7;">点赞别人的作品也是敲木鱼（同一资产两用）<br>木鱼音效可在提醒设置里关闭</div>
+      </div>
+    </div>
+    <div class="phone-label">B5 · 提交成功 · 木鱼动画（保留）</div>
+    <div class="phone-note">敲击动画 + "+1" + 音效；点击「再敲一下」重播（沿 v5 行为）<br>文案随三类型更新（原"诵读已发布"→"每日诵读已发布"）</div></div>
+  </div>
+
+  <div class="row-label"><span class="no">C</span>我的觉醒 · 个人中心与统计<span class="ln"></span></div>
+  <div class="phones">
+
+    <!-- C1 我的书架（微信读书式） -->
+    <div class="phone-wrap"><div class="phone">
+      <div class="statusbar"><span>9:41</span><span class="sicons"><svg viewBox="0 0 24 12"><path d="M2 8h3v3H2zM7 5h3v6H7zM12 2h3v9h-12z"/></svg><svg viewBox="0 0 26 12"><rect x="1" y="1.5" width="20" height="9" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><rect x="3" y="3.5" width="13" height="5" rx="1.2"/></svg></span></div>
+      <div class="nav"><span class="nav-back"><svg viewBox="0 0 1024 1024"><path d="M658 176l-288 288a32 32 0 0 0 0 45l288 288 45-45-265-265 265-266z"/></svg></span><div class="nav-title">我的书架</div><span class="nav-act r j-mp" data-msg="书架管理/编辑模式（C2）— 演示">管理</span></div>
+      <div class="body">
+        <div class="card" style="padding:11px 12px;display:flex;gap:10px;align-items:center;">
+          <div class="cover" style="width:48px;height:64px;background:var(--cover-cyan);margin-right:0;">道德经</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:9px;color:var(--mp-ink4);font-weight:800;letter-spacing:1px;">继续阅读</div>
+            <div style="font-size:13px;font-weight:800;color:var(--mp-ink);margin-top:1px;">《道德经》陈鼓应注</div>
+            <div class="book-meta">今天 08:10 · 第八章 · 上善若水 · 第 36/512 页</div>
+            <div class="prog"><i style="width:10%;"></i></div>
+          </div>
+          <span class="mini-action j-mp" data-msg="一键续读上次位置（B1 阅读器）— 演示">续读</span>
+        </div>
+        <div class="filter-chips" style="margin-top:10px;">
+          <span class="filter-chip active">全部 12</span><span class="filter-chip">想读 2</span><span class="filter-chip">在读 6</span><span class="filter-chip">读完 2</span><span class="filter-chip">收藏 2</span><span class="filter-chip j-mp" data-msg="排序：最近阅读 / 加入时间 / 手动拖拽（D20）— 演示">最近阅读 ▾</span>
+        </div>
+        <div class="shelf-grid-m">
+          <div class="scell-m"><span class="ptop-m">顶</span><div class="cover" style="background:var(--cover-cyan);">道德经</div><div class="sname-m">道德经·陈鼓应</div><div class="ssub-m">8/81 章 · 10%</div></div>
+          <div class="scell-m"><div class="cover" style="background:var(--cover-navy);">了凡四训</div><div class="sname-m">了凡四训</div><div class="ssub-m">第一部分 · 35%</div></div>
+          <div class="scell-m"><div class="cover" style="background:var(--cover-teal);">活法</div><div class="sname-m">活法</div><div class="ssub-m">第四章 · 12%</div></div>
+          <div class="scell-m"><div class="cover" style="background:var(--cover-amber);">论语</div><div class="sname-m">论语译注</div><div class="ssub-m" style="color:var(--amber-deep);font-weight:800;">NEW · 刚加入</div></div>
+          <div class="scell-m"><div class="cover" style="background:var(--cover-amber);">弟子规</div><div class="sname-m">弟子规</div><div class="ssub-m">总叙 · 62%</div></div>
+          <div class="scell-m"><div class="cover" style="background:var(--cover-gray);">孝经</div><div class="sname-m">孝经</div><div class="ssub-m" style="color:var(--green);font-weight:800;">读完 ✓</div></div>
+        </div>
+        <div class="note-box blue" style="margin-top:11px;"><svg viewBox="0 0 1024 1024"><path d="M512 64a448 448 0 1 0 0 896 448 448 0 0 0 0-896zm-32 192h64v256h-64zm0 320h64v64h-64z"/></svg>对标微信读书书架（D20）：继续阅读置顶 + 封面网格（章/进度/读完/NEW）+ 置顶星标；分组沿 10 大类型自动归类、可自建；点右上「管理」或长按封面进入编辑模式（下一屏）。</div>
+      </div>
+    </div>
+    <div class="phone-label">C1 · 我的书架（微信读书式）</div>
+    <div class="phone-note">继续阅读大卡（上次的书+页码+一键续读）+ 状态/排序 chips + 封面网格 3 列<br>进度口径=结构章数+页码双轨（fb_shelf/fb_reading_progress 已上线，本屏为升级形态）</div></div>
+
+    <!-- C2 书架管理（编辑模式） -->
+    <div class="phone-wrap"><div class="phone">
+      <div class="statusbar"><span>9:41</span><span class="sicons"><svg viewBox="0 0 24 12"><path d="M2 8h3v3H2zM7 5h3v6H7zM12 2h3v9h-12z"/></svg><svg viewBox="0 0 26 12"><rect x="1" y="1.5" width="20" height="9" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><rect x="3" y="3.5" width="13" height="5" rx="1.2"/></svg></span></div>
+      <div class="nav"><span class="nav-back"><svg viewBox="0 0 1024 1024"><path d="M658 176l-288 288a32 32 0 0 0 0 45l288 288 45-45-265-265 265-266z"/></svg></span><div class="nav-title">书架管理</div><span class="nav-act r j-mp" data-msg="全选 / 取消全选（演示）">全选</span></div>
+      <div class="body">
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span style="font-size:11px;color:var(--mp-ink2);font-weight:700;">已选 2 本</span>
+          <span style="flex:1;"></span>
+          <span style="font-size:9.5px;color:var(--mp-ink4);">排序</span>
+          <span class="filter-chip active" style="height:22px;line-height:20px;">最近阅读</span><span class="filter-chip" style="height:22px;line-height:20px;">加入时间</span><span class="filter-chip" style="height:22px;line-height:20px;">手动拖拽</span>
+        </div>
+        <div class="card" style="margin-top:9px;padding:9px 11px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+          <b style="font-size:11px;color:var(--mp-ink);">批量操作</b>
+          <span class="mini-action j-mp" data-msg="置顶 2 本：固定书架首位（演示）">置顶 (2)</span>
+          <span class="mini-action secondary j-mp" data-msg="移出书架：保留阅读进度与上传内容，可随时再加回（D20）— 演示">移出书架 (2)</span>
+          <span class="mini-action secondary j-mp" data-msg="加入分组：团队必读/国学建议/自建组（演示）">加入分组 (2)</span>
+        </div>
+        <div class="shelf-grid-m" id="shelfGridM">
+          <div class="scell-m"><span class="ptop-m">顶</span><div class="cover" style="background:var(--cover-cyan);">道德经</div><div class="sname-m">道德经·陈鼓应</div><div class="ssub-m">8/81 章</div></div>
+          <div class="scell-m checked"><span class="chk-m">✓</span><div class="cover" style="background:var(--cover-navy);">了凡四训</div><div class="sname-m">了凡四训</div><div class="ssub-m">35%</div></div>
+          <div class="scell-m checked"><span class="chk-m">✓</span><div class="cover" style="background:var(--cover-teal);">活法</div><div class="sname-m">活法</div><div class="ssub-m">12%</div></div>
+          <div class="scell-m"><div class="cover" style="background:var(--cover-amber);">论语</div><div class="sname-m">论语译注</div><div class="ssub-m">NEW</div></div>
+          <div class="scell-m"><div class="cover" style="background:var(--cover-amber);">弟子规</div><div class="sname-m">弟子规</div><div class="ssub-m">62%</div></div>
+          <div class="scell-m"><div class="cover" style="background:var(--cover-gray);">孝经</div><div class="sname-m">孝经</div><div class="ssub-m">读完</div></div>
+        </div>
+        <div class="card stats-list-card" style="margin-top:11px;">
+          <div class="stats-card-title">分组管理</div>
+          <div class="stats-list-row"><span>全部书目</span><b>10</b></div>
+          <div class="stats-list-row"><span>团队必读（按 10 大类型自动）</span><b>4</b></div>
+          <div class="stats-list-row"><span>国学建议（自动）</span><b>4</b></div>
+          <div class="stats-list-row"><span>我的晨读（自建）</span><b>2</b></div>
+          <div class="stats-list-row j-mp" data-msg="新建分组：自选书组成书单（对标微信读书分组，D20）— 演示"><span style="color:var(--accent);font-weight:700;">＋ 新建分组</span></div>
+        </div>
+        <div class="note-box" style="margin-top:10px;"><svg viewBox="0 0 1024 1024"><path d="M512 64a448 448 0 1 0 0 896 448 448 0 0 0 0-896zm-32 192h64v256h-64zm0 320h64v64h-64z"/></svg>移出书架不删除阅读进度与上传内容（可随时再加回）；微信读书的「私密书架 / 听书」与法布施社区场景不符，不做（如实标注）。</div>
+      </div>
+    </div>
+    <div class="phone-label">C2 · 书架管理（编辑模式）</div>
+    <div class="phone-note">对标微信读书：多选→置顶/移出（保留进度）/加入分组；排序三档（最近阅读/加入时间/手动拖拽）<br>点封面即勾选（演示交互）；分组=10 大类型自动 + 自建书单</div></div>
+
+    <!-- C2 阅读记录 -->
+    <div class="phone-wrap"><div class="phone">
+      <div class="statusbar"><span>9:41</span><span class="sicons"><svg viewBox="0 0 24 12"><path d="M2 8h3v3H2zM7 5h3v6H7zM12 2h3v9h-12z"/></svg><svg viewBox="0 0 26 12"><rect x="1" y="1.5" width="20" height="9" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><rect x="3" y="3.5" width="13" height="5" rx="1.2"/></svg></span></div>
+      <div class="nav"><span class="nav-back"><svg viewBox="0 0 1024 1024"><path d="M658 176l-288 288a32 32 0 0 0 0 45l288 288 45-45-265-265 265-266z"/></svg></span><div class="nav-title">我的觉醒 · 阅读记录</div><span class="chip2 green" style="position:absolute;right:112px;">已上线</span></div>
+      <div class="body">
+        <div class="card" style="padding:11px 12px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><span style="font-size:12.5px;font-weight:800;">2026年11月 · 已读 11/16 天</span><span class="pbtn">每日一读</span></div>
+          <div class="cal-grid">
+            <span class="cal-cell hd">一</span><span class="cal-cell hd">二</span><span class="cal-cell hd">三</span><span class="cal-cell hd">四</span><span class="cal-cell hd">五</span><span class="cal-cell hd">六</span><span class="cal-cell hd">日</span>
+            <span class="cal-cell out">27</span><span class="cal-cell out">28</span><span class="cal-cell out">29</span><span class="cal-cell out">30</span><span class="cal-cell out">31</span><span class="cal-cell done">1</span><span class="cal-cell done">2</span>
+            <span class="cal-cell done">3</span><span class="cal-cell done">4</span><span class="cal-cell">5</span><span class="cal-cell done">6</span><span class="cal-cell done">7</span><span class="cal-cell">8</span><span class="cal-cell done">9</span>
+            <span class="cal-cell done">10</span><span class="cal-cell done">11</span><span class="cal-cell today">12</span><span class="cal-cell">13</span><span class="cal-cell">14</span><span class="cal-cell">15</span><span class="cal-cell">16</span>
+            <span class="cal-cell">17</span><span class="cal-cell">18</span><span class="cal-cell">19</span><span class="cal-cell">20</span><span class="cal-cell">21</span><span class="cal-cell">22</span><span class="cal-cell">23</span>
+          </div>
+        </div>
+        <div class="stats-grid">
+          <div class="stats-tile"><b>4 天</b><span>连续阅读</span></div>
+          <div class="stats-tile"><b>26 天</b><span>累计打卡</span></div>
+          <div class="stats-tile"><b>12<i>天</i></b><span>本月诵读</span></div>
+          <div class="stats-tile"><b>14<i>次</i></b><span>本月随施</span></div>
+        </div>
+        <div class="card stats-list-card" style="margin-top:10px;">
+          <div class="stats-card-title">近三日时间线</div>
+          <div class="stats-list-row"><span>今天 · 诵读 + 随施 1</span><b>三件套 2/3</b></div>
+          <div class="stats-list-row"><span>昨天 · 再读《道德经》P36</span><b>精读第 6 天</b></div>
+          <div class="stats-list-row"><span>11-20 · 复诵李长青 1 次</span><b>获木鱼 7</b></div>
+          <div class="stats-list-row j-mp" data-msg="我的书摘：划线/想法按书汇总（D23）— 演示"><span style="color:var(--accent);font-weight:700;">我的书摘 12 条 ›</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="phone-label">C3 · 我的觉醒 · 阅读记录<span class="chip2 green">已上线</span></div>
+    <div class="phone-note">打卡日历 + 四格 + 时间线；口径随三类型更新（诵读/随施/再读）<br>时长类指标无数据源，不画假数字（沿 v5 原则）</div></div>
+
+    <!-- C3 阅读提醒（闹钟式） -->
+    <div class="phone-wrap"><div class="phone">
+      <div class="statusbar"><span>9:41</span><span class="sicons"><svg viewBox="0 0 24 12"><path d="M2 8h3v3H2zM7 5h3v6H7zM12 2h3v9h-12z"/></svg><svg viewBox="0 0 26 12"><rect x="1" y="1.5" width="20" height="9" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><rect x="3" y="3.5" width="13" height="5" rx="1.2"/></svg></span></div>
+      <div class="nav"><span class="nav-back"><svg viewBox="0 0 1024 1024"><path d="M658 176l-288 288a32 32 0 0 0 0 45l288 288 45-45-265-265 265-266z"/></svg></span><div class="nav-title">每日提醒</div></div>
+      <div class="body">
+        <div class="card" style="padding:12px;">
+          <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin:4px 0 10px;">
+            <span style="font-size:38px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--mp-ink);">20:00</span>
+            <span class="mini-action j-mp" data-msg="修改提醒时间（可改可关，如闹钟）— 演示">修改 ›</span>
+          </div>
+          <div class="set-row"><span>提醒开关（闹钟式）</span><span class="switch j-sw" id="c3sw"><i></i></span></div>
+          <div class="set-row"><span>频率</span><span style="display:flex;gap:5px;"><span class="filter-chip active">每天</span><span class="filter-chip">工作日</span><span class="filter-chip">休息日</span></span></div>
+          <div class="set-row"><span>提醒什么</span><span style="font-size:11px;color:var(--mp-ink2);">诵读 / 随施 / 再读 当日未完成项</span></div>
+          <div class="set-row"><span>当日已完成</span><b style="color:var(--green);font-size:12px;">不打扰</b></div>
+          <div class="set-row"><span>木鱼音效</span><span class="switch j-sw"><i></i></span></div>
+        </div>
+        <div class="note-box" style="margin-top:10px;"><svg viewBox="0 0 1024 1024"><path d="M512 64a448 448 0 1 0 0 896 448 448 0 0 0 0-896zm-32 192h64v256h-64zm0 320h64v64h-64z"/></svg><b>微信平台限制（Q8）</b>：小程序做不到真闹钟推送。触达=应用内提醒（角标/红点）+ 每日一条订阅消息（需本人授权、额度用尽自动降级为应用内）。设置页如实说明，不承诺无条件推送。</div>
+        <div class="card" style="margin-top:10px;padding:11px 12px;">
+          <div class="stats-card-title">预览 · 提醒样式</div>
+          <div style="padding:9px 11px;background:var(--mp-tile);border:1px solid var(--mp-card-line);border-radius:10px;">
+            <div style="font-size:11px;font-weight:800;">法布施 · 我的觉醒</div>
+            <div style="font-size:10px;color:var(--mp-ink2);margin-top:4px;line-height:1.6;">今天的随施还没发哦～一张照片、一句话都算。20:00 前完成，今天就是完整的一天。</div>
+            <div style="font-size:9px;color:var(--mp-ink4);margin-top:5px;">今天 20:00 · 订阅消息 / 应用内</div>
+          </div>
+        </div>
+        <div class="card" style="margin-top:9px;padding:11px 12px;">
+          <div class="stats-card-title">最近提醒 · 已完成不打扰</div>
+          <div class="stats-list-row"><span>11-21 20:00 · 随施未发 → 已提醒</span><b style="font-size:11px;">已推送</b></div>
+          <div class="stats-list-row"><span>11-20 20:00 · 三件套完成</span><b style="font-size:11px;">未打扰</b></div>
+        </div>
+      </div>
+    </div>
+    <div class="phone-label">C4 · 每日提醒（闹钟式 · 可改可关非强制）</div>
+    <div class="phone-note">D11：时间可修改、可关闭、当日可不上传（非强制）；<br>触达降级方案与授权边界如实标注（Q8）；音效开关沿用</div></div>
+
+    <!-- C4 统计 -->
+    <div class="phone-wrap"><div class="phone">
+      <div class="statusbar"><span>9:41</span><span class="sicons"><svg viewBox="0 0 24 12"><path d="M2 8h3v3H2zM7 5h3v6H7zM12 2h3v9h-12z"/></svg><svg viewBox="0 0 26 12"><rect x="1" y="1.5" width="20" height="9" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><rect x="3" y="3.5" width="13" height="5" rx="1.2"/></svg></span></div>
+      <div class="nav"><span class="nav-back"><svg viewBox="0 0 1024 1024"><path d="M658 176l-288 288a32 32 0 0 0 0 45l288 288 45-45-265-265 265-266z"/></svg></span><div class="nav-title">阅读统计</div></div>
+      <div class="body">
+        <div class="workbench-hero">
+          <div class="workbench-hero-title">团队统计 · 11月</div>
+          <div class="workbench-hero-actions"><span class="hero-bar-btn ghost">艾志集团 · 58 人</span></div>
+        </div>
+        <div class="stats-tabs"><span class="stats-tab active">团队</span><span class="stats-tab">个人</span></div>
+        <div class="stats-grid">
+          <div class="stats-tile"><b>96<i>条</i></b><span>本月每日诵读</span><span class="trend">↑ 12%</span></div>
+          <div class="stats-tile"><b>118<i>条</i></b><span>本月每日随施</span><span class="trend">↑ 8%</span></div>
+          <div class="stats-tile"><b>28<i>条</i></b><span>本月再读一本</span><span class="trend">↑ 18%</span></div>
+          <div class="stats-tile"><b>63</b><span>本月复诵</span><span class="trend">↑ 22%</span></div>
+        </div>
+        <div class="card stats-list-card" style="margin-top:9px;">
+          <div class="stats-card-title">成员榜 · 本月（三类合计）</div>
+          <div class="stats-list-row"><span style="display:flex;align-items:center;gap:8px;flex:1;"><span class="rank-no top">1</span>王晓兰</span><span class="rank-bar"><i style="width:93%;"></i></span><b>28</b></div>
+          <div class="stats-list-row rr2"><span style="display:flex;align-items:center;gap:8px;flex:1;"><span class="rank-no top">2</span>李长青</span><span class="rank-bar"><i style="width:80%;"></i></span><b>24</b></div>
+          <div class="stats-list-row rr3"><span style="display:flex;align-items:center;gap:8px;flex:1;"><span class="rank-no top">3</span>周文静</span><span class="rank-bar"><i style="width:66%;"></i></span><b>19</b></div>
+          <div class="stats-list-row"><span style="display:flex;align-items:center;gap:8px;flex:1;"><span class="rank-no">4</span>陈慧</span><span class="rank-bar"><i style="width:50%;"></i></span><b>15</b></div>
+        </div>
+        <div class="card stats-list-card" style="margin-top:9px;">
+          <div class="stats-card-title">类别热度 · 10 大类型</div>
+          <div class="hbar-row"><span class="hbar-lbl">国学建议</span><div class="hbar-track"><i style="width:84%;"></i></div><span class="hbar-val">34</span></div>
+          <div class="hbar-row"><span class="hbar-lbl">团队必读</span><div class="hbar-track"><i style="width:70%;"></i></div><span class="hbar-val">28</span></div>
+          <div class="hbar-row"><span class="hbar-lbl">管理类</span><div class="hbar-track"><i style="width:38%;"></i></div><span class="hbar-val">15</span></div>
+          <div class="hbar-row"><span class="hbar-lbl">小说类</span><div class="hbar-track"><i style="width:24%;"></i></div><span class="hbar-val">10</span></div>
+        </div>
+        <div style="margin-top:9px;font-size:9.5px;color:var(--mp-ink4);text-align:center;line-height:1.6;">部门进度/月度报告已于 11-16 上线（MP 统计页签）；<br>口径随三类型重构（D1）；数据走 fabushi:stats:view 范围档。</div>
+      </div>
+    </div>
+    <div class="phone-label">C5 · 统计（团队 / 个人）</div>
+    <div class="phone-note">三类型分列 + 复诵指标（D1/D14）；类别热度按 10 大类型（D18）<br>v5「MP 二期」标注已过期——统计页签已接真实接口</div></div>
+
+    <!-- C5 应用中心 -->
+    <div class="phone-wrap"><div class="phone">
+      <div class="statusbar"><span>9:41</span><span class="sicons"><svg viewBox="0 0 24 12"><path d="M2 8h3v3H2zM7 5h3v6H7zM12 2h3v9h-12z"/></svg><svg viewBox="0 0 26 12"><rect x="1" y="1.5" width="20" height="9" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><rect x="3" y="3.5" width="13" height="5" rx="1.2"/></svg></span></div>
+      <div class="nav"><div class="nav-title">应用</div></div>
+      <div class="body with-tab">
+        <div class="ap-hero"><div class="ap-hero-title">应用中心</div><div class="ap-hero-meta">已开通 13 个应用 · 艾志集团</div></div>
+        <div class="ap-module">
+          <div class="ap-module-head"><div class="ap-module-index">01</div><div style="flex:1;min-width:0;"><div class="ap-module-title">客户经营</div><div class="ap-module-sub">客户列表、排行与指标</div></div><div class="ap-module-count">4 个</div></div>
+          <div class="ap-grid">
+            <div class="ap-tile"><div class="ap-icon">客</div><div class="ap-tile-main"><div class="ap-tile-title">客户列表</div><div class="ap-tile-sub">列表、详情与新增</div></div><span class="ap-arrow">›</span></div>
+            <div class="ap-tile"><div class="ap-icon">排</div><div class="ap-tile-main"><div class="ap-tile-title">客户排行</div><div class="ap-tile-sub">客户四项排行</div></div><span class="ap-arrow">›</span></div>
+          </div>
+        </div>
+        <div class="ap-module">
+          <div class="ap-module-head"><div class="ap-module-index">04</div><div style="flex:1;min-width:0;"><div class="ap-module-title">法布施<span class="badge-new">改版</span></div><div class="ap-module-sub">我的觉醒 · 认知广场 · 书目</div></div><div class="ap-module-count">3 个</div></div>
+          <div class="ap-grid">
+            <div class="ap-tile"><div class="ap-icon">醒</div><div class="ap-tile-main"><div class="ap-tile-title">我的觉醒</div><div class="ap-tile-sub">诵读 · 随施 · 再读</div></div><span class="ap-arrow">›</span></div>
+            <div class="ap-tile"><div class="ap-icon">广</div><div class="ap-tile-main"><div class="ap-tile-title">认知广场</div><div class="ap-tile-sub">大家的分享与上传</div></div><span class="ap-arrow">›</span></div>
+          </div>
+          <div class="ap-grid" style="margin-top:6px;">
+            <div class="ap-tile"><div class="ap-icon">书</div><div class="ap-tile-main"><div class="ap-tile-title">书目浏览</div><div class="ap-tile-sub">类别 · 书目 · 版本</div></div><span class="ap-arrow">›</span></div>
+          </div>
+        </div>
+        <div class="ap-module">
+          <div class="ap-module-head"><div class="ap-module-index">05</div><div style="flex:1;min-width:0;"><div class="ap-module-title">学分管理</div><div class="ap-module-sub">学分排行与录入</div></div><div class="ap-module-count">2 个</div></div>
+          <div class="ap-grid">
+            <div class="ap-tile"><div class="ap-icon">榜</div><div class="ap-tile-main"><div class="ap-tile-title">学分排行</div><div class="ap-tile-sub">个人 / 部门学分榜</div></div><span class="ap-arrow">›</span></div>
+            <div class="ap-tile"><div class="ap-icon">录</div><div class="ap-tile-main"><div class="ap-tile-title">学分录入</div><div class="ap-tile-sub">四项服务记录录入</div></div><span class="ap-arrow">›</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="tabbar">
+        <div class="tab-item"><svg viewBox="0 0 24 24"><path d="M3.5 11L12 4l8.5 7"/><path d="M6 10v9.5h12V10"/><path d="M10 19.5v-5h4v5"/></svg>首页</div>
+        <div class="tab-item"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></svg>四项服务</div>
+        <div class="tab-item"><svg viewBox="0 0 24 24"><path d="M12 6.5C10 4.8 7.5 4 4.5 4v14c3 0 5.5.8 7.5 2 2-1.2 4.5-2 7.5-2V4c-3 0-5.5.8-7.5 2.5z"/><path d="M12 6.5V20"/></svg>法布施</div>
+        <div class="tab-item active"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="4.6" height="4.6" rx="1.2"/><rect x="9.7" y="4" width="4.6" height="4.6" rx="1.2"/><rect x="15.4" y="4" width="4.6" height="4.6" rx="1.2"/><rect x="4" y="9.7" width="4.6" height="4.6" rx="1.2"/><rect x="9.7" y="9.7" width="4.6" height="4.6" rx="1.2"/><rect x="15.4" y="9.7" width="4.6" height="4.6" rx="1.2"/><rect x="4" y="15.4" width="4.6" height="4.6" rx="1.2"/><rect x="9.7" y="15.4" width="4.6" height="4.6" rx="1.2"/><rect x="15.4" y="15.4" width="4.6" height="4.6" rx="1.2"/></svg>应用</div>
+        <div class="tab-item"><svg viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="3.6"/><path d="M5 20c1.2-3.6 4-5.2 7-5.2s5.8 1.6 7 5.2"/></svg>我的</div>
+      </div>
+    </div>
+    <div class="phone-label">C6 · 应用中心（法布施组文案随改版更新）</div>
+    <div class="phone-note">法布施组 = 我的觉醒 / 认知广场 / 书目浏览（替代旧"法布施+正能量"两入口）<br>顺序=客户经营→文件管理→四项激励→法布施→学分管理→…（现网口径不变）</div></div>
+  </div>
+</div>
+
+<script>
+/* A1 五页签切换（觉醒/广场/书库/书架/统计 全部有内容——对应能力均已或将要上线） */
+(function(){
+  const tabs = document.getElementById('a1Tabs'); if (!tabs) return;
+  const panes = ['a1pAwaken','a1pPlaza','a1pLib','a1pShelf','a1pStats'];
+  const map = { awaken:'a1pAwaken', plaza:'a1pPlaza', lib:'a1pLib', shelf:'a1pShelf', stats:'a1pStats' };
+  tabs.addEventListener('click', e => {
+    const tab = e.target.closest('.mobile-tab'); if (!tab) return;
+    tabs.querySelectorAll('.mobile-tab').forEach(x => x.classList.toggle('active', x === tab));
+    panes.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = (map[tab.dataset.p] === id) ? '' : 'none'; });
+  });
+})();
+/* B2 通道 A/B 切换 */
+(function(){
+  const a = document.getElementById('b2a'), b = document.getElementById('b2b'); if (!a) return;
+  a.addEventListener('click', () => { a.classList.add('active'); b.classList.remove('active'); document.getElementById('b2paneA').style.display=''; document.getElementById('b2paneB').style.display='none'; });
+  b.addEventListener('click', () => { b.classList.add('active'); a.classList.remove('active'); document.getElementById('b2paneA').style.display='none'; document.getElementById('b2paneB').style.display=''; });
+})();
+/* B4 章节 选择/自录 切换 */
+(function(){
+  const p = document.getElementById('b4p'), n = document.getElementById('b4n'); if (!p) return;
+  p.addEventListener('click', () => { p.classList.add('active'); n.classList.remove('active'); document.getElementById('b4paneP').style.display=''; document.getElementById('b4paneN').style.display='none'; });
+  n.addEventListener('click', () => { n.classList.add('active'); p.classList.remove('active'); document.getElementById('b4paneP').style.display='none'; document.getElementById('b4paneN').style.display=''; });
+})();
+/* C2 书架管理：点封面勾选/取消 */
+(function(){
+  const grid = document.getElementById('shelfGridM'); if (!grid) return;
+  grid.addEventListener('click', e => { const c = e.target.closest('.scell-m'); if (!c) return;
+    const on = c.classList.toggle('checked');
+    if (!c.querySelector('.chk-m')) { const s = document.createElement('span'); s.className = 'chk-m'; s.textContent = '✓'; c.prepend(s); }
+    c.querySelector('.chk-m').style.display = on ? '' : 'none';
+  });
+})();
+/* B5 木鱼动画重播 */
+(function(){
+  const btn = document.getElementById('muyuReplay'); if (!btn) return;
+  const stage = document.getElementById('muyuStage');
+  btn.addEventListener('click', () => { stage.classList.remove('go'); void stage.offsetWidth; stage.classList.add('go'); });
+})();
+/* C3 开关演示 */
+document.querySelectorAll('.j-sw').forEach(sw => sw.addEventListener('click', () => {
+  sw.style.background = sw.style.background ? '' : 'var(--mp-track)';
+}));
+/* 通用演示提示（无 alert，页面内浮动） */
+(function(){
+  let tip = document.createElement('div');
+  tip.style.cssText = 'position:fixed;left:50%;top:18px;transform:translateX(-50%);background:#172033;color:#fff;font-size:12px;padding:8px 16px;border-radius:999px;box-shadow:0 8px 24px rgba(15,23,42,.25);opacity:0;transition:opacity .25s;pointer-events:none;z-index:99;max-width:520px;text-align:center;';
+  document.body.appendChild(tip);
+  document.querySelectorAll('.j-mp').forEach(el => el.addEventListener('click', () => {
+    tip.textContent = el.dataset.msg || '演示操作';
+    tip.style.opacity = 1;
+    clearTimeout(tip._h); tip._h = setTimeout(() => tip.style.opacity = 0, 1900);
+  }));
+})();
+</script>
+</body>
+</html>
