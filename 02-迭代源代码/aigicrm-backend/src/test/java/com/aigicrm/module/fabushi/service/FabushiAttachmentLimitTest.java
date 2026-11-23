@@ -173,7 +173,7 @@ class FabushiAttachmentLimitTest {
             mockExistingImages(8);
             assertDoesNotThrow(() -> svc.addAttachment(7L, body("image", null)));
             mockExistingImages(9);
-            BusinessException ex = assertThrows(BusinessException.class, () -> svc.addAttachment(7L, body("image", null)));
+            BusinessException ex = addAttachmentRejected(body("image", null));
             assertEquals("图片已达上限9张", ex.getMessage());
         }
     }
@@ -186,7 +186,7 @@ class FabushiAttachmentLimitTest {
         try (MockedStatic<SecurityUtils> sec = org.mockito.Mockito.mockStatic(SecurityUtils.class)) {
             sec.when(SecurityUtils::getCurrentUserId).thenReturn(5L);
             mockExistingImages(5);
-            BusinessException ex = assertThrows(BusinessException.class, () -> svc.addAttachment(7L, body("image", null)));
+            BusinessException ex = addAttachmentRejected(body("image", null));
             assertEquals("图片已达上限5张", ex.getMessage());
         }
     }
@@ -221,5 +221,9 @@ class FabushiAttachmentLimitTest {
         // 旧路径(聊天选文件)无时长——暂放行; F2 录音上线后改必填
         allow("audio", null, 0, 0, 9);
         assertTrue(true);
+    }
+
+    private BusinessException addAttachmentRejected(Map<String, Object> body) {
+        return assertThrows(BusinessException.class, () -> svc.addAttachment(7L, body));
     }
 }

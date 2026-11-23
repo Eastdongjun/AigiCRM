@@ -275,7 +275,8 @@ class StorageQuotaApplyServiceTest {
     void reason_trimmedAndLengthValidated() {
         assertEquals("扩容 100GB", service.validateStorageApplyReason("  扩容 100GB  "));
         assertThrows(BusinessException.class, () -> service.validateStorageApplyReason("   "));
-        assertThrows(BusinessException.class, () -> service.validateStorageApplyReason("x".repeat(201)));
+        String longReason = "x".repeat(201);
+        assertThrows(BusinessException.class, () -> service.validateStorageApplyReason(longReason));
     }
 
     @Test

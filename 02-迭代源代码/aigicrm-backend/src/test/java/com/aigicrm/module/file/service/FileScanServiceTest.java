@@ -29,7 +29,8 @@ class FileScanServiceTest {
         System.arraycopy(prefix, 0, content, 0, prefix.length);
         System.arraycopy(EICAR, 0, content, prefix.length, EICAR.length);
         Files.write(f, content);
-        assertThrows(BusinessException.class, () -> new FileScanService().scan(f));
+        FileScanService scanner = new FileScanService();
+        assertThrows(BusinessException.class, () -> scanner.scan(f));
     }
 
     @Test

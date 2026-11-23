@@ -10,10 +10,14 @@ import com.aigicrm.module.system.mapper.SysUserMapper;
 import com.aigicrm.module.system.service.SysConfigService;
 import com.aigicrm.common.scope.OrgScopeResolver;
 import com.aigicrm.common.engine.CustomerAccessService;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentCaptor;
+import org.apache.ibatis.builder.MapperBuilderAssistant;
+import com.baomidou.mybatisplus.core.MybatisConfiguration;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -48,6 +52,11 @@ class FileQuotaConcurrencyTest {
     private final com.aigicrm.module.file.service.FolderPermissionService folderPermissionService =
             mock(com.aigicrm.module.file.service.FolderPermissionService.class);
     private FileService svc;
+
+    @BeforeAll
+    static void initLambdaCache() {
+        TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), BizFile.class);
+    }
 
     @BeforeEach
     void setUp() {
@@ -109,7 +118,8 @@ class FileQuotaConcurrencyTest {
         u.setStorageUsed(999999L);
         u.setStorageQuota(1000000L);
         when(userMapper.selectById(7L)).thenReturn(u);
-        BusinessException ex = assertThrows(BusinessException.class, () -> uploadAs(file(100L), null, 7L));
+        MockMultipartFile quotaFile = file(100L);
+        BusinessException ex = assertThrows(BusinessException.class, () -> uploadAs(quotaFile, null, 7L));
         assertEquals(true, ex.getMessage().contains("存储空间不足"), ex.getMessage());
         verify(fileMapper, never()).insert(any(BizFile.class));
     }
@@ -119,7 +129,8 @@ class FileQuotaConcurrencyTest {
         // 扣减成功后存储写失败 → 补偿归还(delta 负数, GREATEST 守护不越界)
         when(userMapper.tryConsumeQuota(7L, 50L)).thenReturn(1);
         when(fileMapper.insert(any(BizFile.class))).thenThrow(new RuntimeException("db down"));
-        assertThrows(BusinessException.class, () -> uploadAs(file(50L), null, 7L));
+        MockMultipartFile overQuotaFile = file(50L);
+        assertThrows(BusinessException.class, () -> uploadAs(overQuotaFile, null, 7L));
         verify(userMapper).adjustStorageUsed(7L, -50L);
     }
 

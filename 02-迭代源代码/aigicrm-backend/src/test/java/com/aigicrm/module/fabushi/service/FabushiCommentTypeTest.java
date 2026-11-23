@@ -124,8 +124,7 @@ class FabushiCommentTypeTest {
     @Test
     void audio_requiresFileId() {
         mockPost(null, null);
-        BusinessException ex = assertThrows(BusinessException.class,
-                () -> submit(body(null, "audio", null)));
+        BusinessException ex = submitRejected(body(null, "audio", null));
         assertEquals("语音评论缺少音频文件", ex.getMessage());
     }
 
@@ -141,8 +140,7 @@ class FabushiCommentTypeTest {
     @Test
     void audio_wrongScope_rejected() {
         mockPost(2696L, "other");
-        BusinessException ex = assertThrows(BusinessException.class,
-                () -> submit(body("标题", "audio", 2696L)));
+        BusinessException ex = submitRejected(body("标题", "audio", 2696L));
         assertEquals("附件须上传到法布施空间", ex.getMessage());
     }
 
@@ -150,8 +148,12 @@ class FabushiCommentTypeTest {
     void invalidType_rejected_textStillRequiresContent() {
         mockPost(null, null);
         assertEquals("评论类型不合法",
-                assertThrows(BusinessException.class, () -> submit(body("x", "pic", null))).getMessage());
+                submitRejected(body("x", "pic", null)).getMessage());
         assertEquals("评论内容不能为空",
-                assertThrows(BusinessException.class, () -> submit(body(" ", "highlight", null))).getMessage());
+                submitRejected(body(" ", "highlight", null)).getMessage());
+    }
+
+    private BusinessException submitRejected(Map<String, Object> body) {
+        return assertThrows(BusinessException.class, () -> submit(body));
     }
 }

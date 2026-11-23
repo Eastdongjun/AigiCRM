@@ -77,7 +77,8 @@ class FolderTypeDefaultServiceTest {
 
     @Test
     void renewGrant_validatesAndUpdates() {
-        assertThrows(BusinessException.class, () -> svc.renewGrant(1L, LocalDateTime.now().minusDays(1)));
+        LocalDateTime past = LocalDateTime.now().minusDays(1);
+        assertThrows(BusinessException.class, () -> svc.renewGrant(1L, past));
         assertThrows(BusinessException.class, () -> svc.renewGrant(1L, null));
         BizFolderTypeDefault g = new BizFolderTypeDefault();
         g.setId(1L); g.setPerms("view"); g.setExpiresAt(LocalDateTime.now().plusDays(1));

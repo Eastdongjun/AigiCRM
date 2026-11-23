@@ -1549,8 +1549,7 @@ class CustomerServiceTest {
             group.when(com.aigicrm.common.scope.GroupScopeUtil::currentGroupOrNull).thenReturn(1L);
             group.when(() -> com.aigicrm.common.scope.GroupScopeUtil.userIdsInGroup(jdbc, 1L))
                     .thenReturn(java.util.List.of(7L));
-            BusinessException ex = assertThrows(BusinessException.class,
-                    () -> svc.addShares(501L, java.util.List.of(66L)));
+            BusinessException ex = addSharesRejected(svc, 501L, java.util.List.of(66L));
             assertTrue(ex.getMessage().contains("其他集团"), "实际: " + ex.getMessage());
         }
     }
@@ -2627,7 +2626,7 @@ class CustomerServiceTest {
                 mock(BizCustomerMapper.class), mock(OrgScopeResolver.class),
                 mock(BizContactMapper.class), accessService);
 
-        assertThrows(BusinessException.class, () -> svc.addInvoice(501L, new BizInvoice()));
+        addInvoiceRejected(svc, 501L, new BizInvoice());
         verify(accessService).assertFinanceCustomerWritable(501L);
         verify(invoiceMapper, never()).insert(any(BizInvoice.class));
     }
@@ -2642,7 +2641,7 @@ class CustomerServiceTest {
                 mock(BizCustomerMapper.class), mock(OrgScopeResolver.class),
                 mock(BizContactMapper.class), accessService);
 
-        assertThrows(BusinessException.class, () -> svc.addPayment(501L, new BizPayment()));
+        addPaymentRejected(svc, 501L, new BizPayment());
         verify(accessService).assertFinanceCustomerWritable(501L);
         verify(paymentMapper, never()).insert(any(BizPayment.class));
     }
@@ -3331,5 +3330,17 @@ class CustomerServiceTest {
             verify(dm, times(1)).selectByIds(any());
             verify(dm, never()).selectById(any());
         }
+    }
+
+    private BusinessException addSharesRejected(CustomerService svc, Long customerId, java.util.List<Long> userIds) {
+        return assertThrows(BusinessException.class, () -> svc.addShares(customerId, userIds));
+    }
+
+    private BusinessException addInvoiceRejected(CustomerService svc, Long customerId, BizInvoice invoice) {
+        return assertThrows(BusinessException.class, () -> svc.addInvoice(customerId, invoice));
+    }
+
+    private BusinessException addPaymentRejected(CustomerService svc, Long customerId, BizPayment payment) {
+        return assertThrows(BusinessException.class, () -> svc.addPayment(customerId, payment));
     }
 }

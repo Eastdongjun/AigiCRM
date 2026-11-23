@@ -49,7 +49,8 @@ class PdfMagicValidationTest {
     void pdfMagic_plainTextDisguise_throws400() {
         byte[] fake = "this is NOT a pdf, just plain text disguise\n".repeat(40)
                 .getBytes(java.nio.charset.StandardCharsets.UTF_8);
-        BusinessException e = assertThrows(BusinessException.class, () -> assertPdfMagic(file("fake.pdf", fake)));
+        MockMultipartFile fakePdf = file("fake.pdf", fake);
+        BusinessException e = assertThrows(BusinessException.class, () -> assertPdfMagic(fakePdf));
         assertEquals(400, e.getCode());
         assertTrue(e.getMessage().contains("%PDF-"));
     }
@@ -60,12 +61,14 @@ class PdfMagicValidationTest {
         byte[] all = new byte[1100];
         byte[] magic = "%PDF-".getBytes(java.nio.charset.StandardCharsets.ISO_8859_1);
         System.arraycopy(magic, 0, all, 1024, magic.length);
-        assertThrows(BusinessException.class, () -> assertPdfMagic(file("d.pdf", all)));
+        MockMultipartFile displacedPdf = file("d.pdf", all);
+        assertThrows(BusinessException.class, () -> assertPdfMagic(displacedPdf));
     }
 
     /** 边界负例: 空文件——拒绝。 */
     @Test
     void pdfMagic_emptyFile_throws400() {
-        assertThrows(BusinessException.class, () -> assertPdfMagic(file("e.pdf", new byte[0])));
+        MockMultipartFile emptyPdf = file("e.pdf", new byte[0]);
+        assertThrows(BusinessException.class, () -> assertPdfMagic(emptyPdf));
     }
 }

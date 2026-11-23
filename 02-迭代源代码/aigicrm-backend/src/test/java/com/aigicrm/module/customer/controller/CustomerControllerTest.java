@@ -31,7 +31,7 @@ class CustomerControllerTest {
             security.when(SecurityUtils::getCurrentUserId).thenReturn(100L);
             security.when(SecurityUtils::getCurrentDataScope).thenReturn("self");
 
-            assertThrows(BusinessException.class, () -> controller.release(11L, Map.of("reason", "放弃客户")));
+            releaseRejected(controller, Map.of("reason", "放弃客户"));
         }
         verifyNoInteractions(seaService);
         verify(customerService, never()).removeAllShares(11L);
@@ -52,7 +52,7 @@ class CustomerControllerTest {
             security.when(SecurityUtils::getCurrentUserId).thenReturn(100L);
             security.when(SecurityUtils::getCurrentDataScope).thenReturn("self");
 
-            assertThrows(BusinessException.class, () -> controller.release(11L, Map.of()));
+            releaseRejected(controller, Map.of());
         }
         verify(seaService, never()).addToSea(anyLong(), anyString());
         verify(customerService, never()).removeAllShares(11L);
@@ -182,7 +182,7 @@ class CustomerControllerTest {
                 mock(com.aigicrm.common.idempotency.IdempotencyService.class), accessService,
                 mock(com.aigicrm.module.customer.service.CustomerEventService.class));
 
-        assertThrows(BusinessException.class, () -> controller.saveStageAmount(11L, stageAmountRequest()));
+        stageAmountRejected(controller, stageAmountRequest());
         verify(customerService, never())
                 .saveStageAmount(anyLong(), any(com.aigicrm.module.customer.dto.StageAmountRequest.class));
     }
@@ -191,5 +191,14 @@ class CustomerControllerTest {
         return new com.aigicrm.module.customer.dto.StageAmountRequest(
                 java.time.LocalDate.now().getYear(), "H1",
                 new java.math.BigDecimal("12.5"), null);
+    }
+
+    private BusinessException releaseRejected(CustomerController controller, Map<String, String> body) {
+        return assertThrows(BusinessException.class, () -> controller.release(11L, body));
+    }
+
+    private BusinessException stageAmountRejected(CustomerController controller,
+                                                   com.aigicrm.module.customer.dto.StageAmountRequest req) {
+        return assertThrows(BusinessException.class, () -> controller.saveStageAmount(11L, req));
     }
 }

@@ -270,7 +270,8 @@ class SysPositionServiceTest {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
             m.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of(1L));
 
-            assertThrows(BusinessException.class, () -> service.assignUserPositions(9L, List.of(5L)));
+            List<Long> positionIds = List.of(5L);
+        assertThrows(BusinessException.class, () -> service.assignUserPositions(9L, positionIds));
         }
         verify(userService).assertCanManageUser(9L);
         verify(userPositionMapper, never()).delete(any(LambdaQueryWrapper.class));
