@@ -3271,7 +3271,8 @@ class CustomerServiceTest {
         customer.setLastInvoiceDate(null); // 捞取置空后
 
         Object advanced = org.springframework.test.util.ReflectionTestUtils.invokeMethod(
-                service, "advanceLastInvoiceDate", customer, java.time.LocalDate.of(2024, 3, 1));
+                com.aigicrm.module.customer.service.support.CustomerServiceFixture.financeOf(service),
+                "advanceLastInvoiceDate", customer, java.time.LocalDate.of(2024, 3, 1));
 
         assertEquals(Boolean.FALSE, advanced, "早于捞取日的老票不得回填");
         assertNull(customer.getLastInvoiceDate(), "最近开票日保持置空");

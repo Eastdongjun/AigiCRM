@@ -13,6 +13,9 @@ import com.aigicrm.module.customer.mapper.BizInvoiceMapper;
 import com.aigicrm.module.customer.mapper.BizPaymentMapper;
 import com.aigicrm.module.customer.service.CustomerContactShareService;
 import com.aigicrm.module.customer.service.CustomerEventService;
+import com.aigicrm.module.customer.service.CustomerLifecycleService;
+import com.aigicrm.module.customer.service.CustomerFinanceService;
+import com.aigicrm.module.customer.service.CustomerAuditService;
 import com.aigicrm.module.customer.service.CustomerIndicatorService;
 import com.aigicrm.module.customer.service.CustomerQueryService;
 import com.aigicrm.module.customer.service.CustomerScopeService;
@@ -71,10 +74,16 @@ public final class CustomerServiceFixture {
                 deptMapper, scopeService);
         CustomerIndicatorService indicatorService = new CustomerIndicatorService(indicatorMapper,
                 stageAmountMapper, configService);
+        CustomerLifecycleService lifecycleService = new CustomerLifecycleService(configService);
+        CustomerAuditService auditService = new CustomerAuditService(financeAuditLogMapper);
+        CustomerFinanceService financeService = new CustomerFinanceService(invoiceMapper, paymentMapper,
+                customerMapper, userMapper, customerAccessService, indicatorService, contactShareService,
+                customerEventService, lifecycleService, auditService);
         return new CustomerService(customerMapper, customerLogMapper, invoiceMapper,
                 paymentMapper, stageAmountMapper, seaPoolMapper, userMapper, deptMapper, jdbc, configService,
-                customerAccessService, approvalMapper, financeAuditLogMapper, customerEventService,
-                contactShareService, scopeService, queryService, indicatorService);
+                customerAccessService, approvalMapper, customerEventService,
+                contactShareService, scopeService, queryService, indicatorService,
+                lifecycleService, financeService, auditService);
     }
 
     /** 测试需要反射 auto_share 私有方法时，拿到真实的数据范围 bean。 */
@@ -87,5 +96,11 @@ public final class CustomerServiceFixture {
     public static CustomerIndicatorService indicatorOf(CustomerService service) {
         return (CustomerIndicatorService) org.springframework.test.util.ReflectionTestUtils
                 .getField(service, "customerIndicatorService");
+    }
+
+    /** 测试需要反射财务私有方法时，拿到真实的财务 bean。 */
+    public static CustomerFinanceService financeOf(CustomerService service) {
+        return (CustomerFinanceService) org.springframework.test.util.ReflectionTestUtils
+                .getField(service, "customerFinanceService");
     }
 }

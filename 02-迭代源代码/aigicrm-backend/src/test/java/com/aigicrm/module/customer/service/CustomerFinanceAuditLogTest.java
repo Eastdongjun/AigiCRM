@@ -92,7 +92,7 @@ class CustomerFinanceAuditLogTest {
                 com.aigicrm.module.system.entity.SysLog.class));
         CustomerService service = newService();
 
-        Logger logger = (Logger) LoggerFactory.getLogger(CustomerService.class);
+        Logger logger = (Logger) LoggerFactory.getLogger(CustomerAuditService.class);
         ListAppender<ILoggingEvent> appender = new ListAppender<>();
         appender.start();
         logger.addAppender(appender);
@@ -111,7 +111,7 @@ class CustomerFinanceAuditLogTest {
         // 可见性: 失败必须落 WARN(空吞=审计丢失不可察觉)
         boolean warned = appender.list.stream()
                 .anyMatch(e -> e.getLevel() == Level.WARN
-                        && e.getFormattedMessage().contains("财务删除审计"));
+                        && e.getFormattedMessage().contains("审计落库失败"));
         assertTrue(warned, "审计 insert 失败应产生含\"财务删除审计\"的 WARN 日志, 实际: "
                 + appender.list.stream().map(ILoggingEvent::getFormattedMessage).toList());
     }
@@ -125,7 +125,7 @@ class CustomerFinanceAuditLogTest {
         when(customerMapper.selectById(9L)).thenReturn(null);
         CustomerService service = newService();
 
-        Logger logger = (Logger) LoggerFactory.getLogger(CustomerService.class);
+        Logger logger = (Logger) LoggerFactory.getLogger(CustomerAuditService.class);
         ListAppender<ILoggingEvent> appender = new ListAppender<>();
         appender.start();
         logger.addAppender(appender);

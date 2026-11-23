@@ -72,7 +72,7 @@ class LedgerVoidedStatsContractTest {
     @Test
     void latestInvoiceQueriesExcludeVoidedForProtectionPeriod() {
         String body = readSource(
-                "src/main/java/com/aigicrm/module/customer/service/CustomerService.java", "CustomerService");
+                "src/main/java/com/aigicrm/module/customer/service/CustomerFinanceService.java", "CustomerFinanceService");
         // 摘要最近开票 + 作废/删票回算最近开票, 两处都不得由 voided 驱动保护期
         assertTrue(body.contains(".ne(BizInvoice::getStatus, \"voided\")"),
                 "最近开票日查询必须排除 voided(保护期不受作废票驱动)");

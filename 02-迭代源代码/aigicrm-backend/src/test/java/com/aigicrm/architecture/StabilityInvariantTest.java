@@ -135,9 +135,11 @@ class StabilityInvariantTest {
     @Test
     void deletions_leaveAuditTrail() {
         String src = readSource("com/aigicrm/module/customer/service/CustomerService.java", "CustomerService");
+        String finance = readSource("com/aigicrm/module/customer/service/CustomerFinanceService.java",
+                "CustomerFinanceService");
         assertTrue(src.contains("logRecordDeletion(\"客户\", \"删除客户\""), "客户删除留痕");
-        assertTrue(src.contains("logFinanceDeletion(\"发票\""), "发票删除留痕");
-        assertTrue(src.contains("logFinanceDeletion(\"回款\""), "回款删除留痕");
+        assertTrue(finance.contains("logFinanceDeletion(\"发票\""), "发票删除留痕");
+        assertTrue(finance.contains("logFinanceDeletion(\"回款\""), "回款删除留痕");
     }
 
     /**
@@ -152,9 +154,12 @@ class StabilityInvariantTest {
     @Test
     void lastInvoiceDate_singleWriterInService() {
         String service = readSource("com/aigicrm/module/customer/service/CustomerService.java", "CustomerService");
+        String finance = readSource("com/aigicrm/module/customer/service/CustomerFinanceService.java",
+                "CustomerFinanceService");
         String controller = readSource("com/aigicrm/module/customer/controller/CustomerController.java", "CustomerController");
-        assertEquals(5, countOccurrences(service, "setLastInvoiceDate"),
-                "INV-FINANCE-001: CustomerService 内写点应恰为 5(create 清空/protect 回填/refresh 推导/阶段总额接力/捞取重置置空),多了=出现绕过推导的写入");
+        assertEquals(5, countOccurrences(service, "setLastInvoiceDate") + countOccurrences(finance, "setLastInvoiceDate"),
+                "INV-FINANCE-001: CustomerService + CustomerFinanceService 内写点应恰为 5"
+                        + "(create 清空/protect 回填/refresh 推导/阶段总额接力/捞取重置置空),多了=出现绕过推导的写入");
         assertEquals(1, countOccurrences(controller, "setLastInvoiceDate"));
         assertEquals(1, countOccurrences(controller, "sample.setLastInvoiceDate"),
                 "Controller 唯一出现必须是导入模板样例行");
