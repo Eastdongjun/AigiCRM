@@ -514,6 +514,10 @@ local_contracts() {
   run "$ROOT/scripts/check-perm-center-contract.sh"
   # 【2026-11-05 产品化批】接口守卫全量覆盖(此前只抽查, 新端点漏挂守卫无人知晓)
   run "$ROOT/scripts/check-endpoint-guard-coverage.sh"
+  # 【CODE-REVIEW-20261123 R1-01 防复发】租户白名单登记契约——迁移新建的 biz_* 表必须显式归类
+  # (白名单/待修/豁免)。补盲区: check-native-sql-tenant-scope.sh 只覆盖 JdbcTemplate 原生 SQL,
+  # MP 访问路径不在其范围, 导致新表漏登记 TENANT_TABLES 无人发现(2026-11-23 实测 15 张漂移)。
+  run "$ROOT/scripts/check-tenant-table-registry.sh"
   # 【2026-11-05 权限审计】按钮级敏感动作门禁覆盖(四项激励 G1/G2 审计的扫描器固化)
   run python3 "$ROOT/scripts/check-action-gate-coverage.py"
   # 【2026-11-04 双端权限绑定一致性】注册表对账(零死码)+MP排行注册码并集归位+接口守卫=注册码 契约

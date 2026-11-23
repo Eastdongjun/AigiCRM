@@ -89,6 +89,10 @@ aigicrm-backend/.settings/org.eclipse.m2e.core.prefs
 # 2026-09-20 曾把未跟踪清单撑到 95KB 触发 dev-verify 契约管道 SIGPIPE 误报)
 .mimosa/
 
+# WorkBuddy 本机工作记录(工作日志/计划草稿,属本机产物,非项目资产)
+# 2026-11-23:此前未忽略,导致 117 项未提交清单里混入 .workbuddy-ai/memory/2026-11-23.md
+.workbuddy-ai/
+
 # .audit 审计体系:配置/规则/脚本入库,产物本地留存
 .audit/findings/
 .audit/reports/

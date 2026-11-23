@@ -1,10 +1,10 @@
 # AIGICRM API 清单(自动生成)
 
-> 生成时间: 2026-11-22 | 来源: 后端 controller 源码扫描
+> 生成时间: 2026-11-23 | 来源: 后端 controller 源码扫描
 > 本文件由 scripts/gen-api.py 自动生成,**禁止手改**;接口变更后重新运行。
 > 权限码与 docs/permission/permission-dict.md 对应。
 
-## 接口清单(328 个)
+## 接口清单(347 个)
 
 | 方法 | 路径 | 权限码 | 方法名 | 文件 |
 |---|---|---|---|---|
@@ -76,6 +76,10 @@
 | POST | `/api/fabushi/activities` | `hasAuthority('fabushi:activity:manage')` | create | FabushiActivityController.java |
 | PUT | `/api/fabushi/activities/{id}/end` | `hasAuthority('fabushi:activity:manage')` | end | FabushiActivityController.java |
 | POST | `/api/fabushi/activities/{id}/join` | `hasAuthority('fabushi:view')` | join | FabushiActivityController.java |
+| GET | `/api/fabushi/awaken/status` | `hasAuthority('fabushi:view')` | awakenStatus | FabushiReadingController.java |
+| GET | `/api/fabushi/bookmarks` | `hasAuthority('fabushi:view')` | list | FabushiBookmarkController.java |
+| POST | `/api/fabushi/bookmarks` | `hasAuthority('fabushi:view')` | add | FabushiBookmarkController.java |
+| DELETE | `/api/fabushi/bookmarks/{id}` | `hasAuthority('fabushi:view')` | remove | FabushiBookmarkController.java |
 | GET | `/api/fabushi/books` | `hasAuthority('fabushi:view')` | page | FabushiBookController.java |
 | POST | `/api/fabushi/books` | `hasAuthority('fabushi:create')` | submit | FabushiBookController.java |
 | GET | `/api/fabushi/books/pending` | `hasAuthority('fabushi:book:manage')` | pending | FabushiBookController.java |
@@ -87,17 +91,24 @@
 | GET | `/api/fabushi/books/{id}` | `hasAuthority('fabushi:view')` | detail | FabushiBookController.java |
 | PUT | `/api/fabushi/books/{id}/approve` | `hasAuthority('fabushi:book:manage')` | approve | FabushiBookController.java |
 | PUT | `/api/fabushi/books/{id}/disable` | `hasAuthority('fabushi:book:manage')` | disable | FabushiBookController.java |
+| PUT | `/api/fabushi/books/{id}/layout` | `hasAuthority('fabushi:book:manage')` | updateLayout | FabushiBookController.java |
 | POST | `/api/fabushi/books/{id}/pdf` | `hasAuthority('fabushi:book:manage')` | attachPdf | FabushiBookController.java |
 | PUT | `/api/fabushi/books/{id}/reject` | `hasAuthority('fabushi:book:manage')` | reject | FabushiBookController.java |
 | GET | `/api/fabushi/posts` | `hasAuthority('fabushi:view')` | page | FabushiPostController.java |
 | POST | `/api/fabushi/posts` | `hasAuthority('fabushi:create')` | create | FabushiPostController.java |
+| GET | `/api/fabushi/posts/deleted` | `hasAuthority('fabushi:content:manage')` | deletedPage | FabushiPostController.java |
+| DELETE | `/api/fabushi/posts/{id}` | `hasAuthority('fabushi:create')` | deleteOwn | FabushiPostController.java |
 | GET | `/api/fabushi/posts/{id}` | `hasAuthority('fabushi:view')` | detail | FabushiPostController.java |
+| PUT | `/api/fabushi/posts/{id}` | `hasAuthority('fabushi:create')` | updateOwn | FabushiPostController.java |
 | POST | `/api/fabushi/posts/{id}/attachments` | `hasAuthority('fabushi:create')` | addAttachment | FabushiPostController.java |
 | GET | `/api/fabushi/posts/{id}/comments` | `hasAuthority('fabushi:view')` | listComments | FabushiPostController.java |
 | POST | `/api/fabushi/posts/{id}/comments` | `hasAuthority('fabushi:create')` | addComment | FabushiPostController.java |
 | POST | `/api/fabushi/posts/{id}/like` | `hasAuthority('fabushi:create')` | toggleLike | FabushiPostController.java |
 | PUT | `/api/fabushi/posts/{id}/offline` | `hasAuthority('fabushi:content:manage')` | offline | FabushiPostController.java |
+| GET | `/api/fabushi/posts/{id}/recitations` | `hasAuthority('fabushi:view')` | list | FabushiRecitationController.java |
+| POST | `/api/fabushi/posts/{id}/recitations` | `hasAuthority('fabushi:create')` | create | FabushiRecitationController.java |
 | PUT | `/api/fabushi/posts/{id}/restore` | `hasAuthority('fabushi:content:manage')` | restore | FabushiPostController.java |
+| PUT | `/api/fabushi/posts/{id}/restore-deleted` | `hasAuthority('fabushi:content:manage')` | restoreDeleted | FabushiPostController.java |
 | DELETE | `/api/fabushi/posts/{postId}/attachments/{attachmentId}` | `hasAuthority('fabushi:create')` | removeAttachment | FabushiPostController.java |
 | GET | `/api/fabushi/progress/{bookId}` | `hasAuthority('fabushi:view')` | progress | FabushiReadingController.java |
 | PUT | `/api/fabushi/progress/{bookId}` | `hasAuthority('fabushi:view')` | saveProgress | FabushiReadingController.java |
@@ -109,6 +120,11 @@
 | PUT | `/api/fabushi/settings` | `hasAuthority('fabushi:view')` | saveSettings | FabushiReadingController.java |
 | GET | `/api/fabushi/shelf` | `hasAuthority('fabushi:view')` | shelf | FabushiReadingController.java |
 | POST | `/api/fabushi/shelf` | `hasAuthority('fabushi:view')` | addShelf | FabushiReadingController.java |
+| POST | `/api/fabushi/shelf/batch` | `hasAuthority('fabushi:view')` | batchShelf | FabushiReadingController.java |
+| GET | `/api/fabushi/shelf/groups` | `hasAuthority('fabushi:view')` | groups | FabushiReadingController.java |
+| POST | `/api/fabushi/shelf/groups` | `hasAuthority('fabushi:view')` | createGroup | FabushiReadingController.java |
+| DELETE | `/api/fabushi/shelf/groups/{id}` | `hasAuthority('fabushi:view')` | deleteGroup | FabushiReadingController.java |
+| PUT | `/api/fabushi/shelf/groups/{id}` | `hasAuthority('fabushi:view')` | renameGroup | FabushiReadingController.java |
 | DELETE | `/api/fabushi/shelf/{id}` | `hasAuthority('fabushi:view')` | removeShelf | FabushiReadingController.java |
 | PUT | `/api/fabushi/shelf/{id}` | `hasAuthority('fabushi:view')` | updateShelf | FabushiReadingController.java |
 | GET | `/api/fabushi/stats/dashboard` | `hasAuthority('fabushi:stats:view')` | dashboard | FabushiStatsController.java |
@@ -278,6 +294,9 @@
 | PUT | `/api/system/positions/{id}` | `hasAuthority('system:position:edit')` | update | SysPositionController.java |
 | GET | `/api/system/positions/{positionId}/rules` | `hasAuthority('system:position:view')` | getRules | SysPositionController.java |
 | PUT | `/api/system/positions/{positionId}/rules` | `hasAuthority('system:position:rule:edit')` | updateRules | SysPositionController.java |
+| GET | `/api/system/recycle/books` | `hasAuthority('system:recycle:view')` | deletedBooks | RecycleController.java |
+| POST | `/api/system/recycle/books/{id}/purge` | `hasAuthority('system:recycle:purge')` | hardDeleteBook | RecycleController.java |
+| POST | `/api/system/recycle/books/{id}/restore` | `hasAuthority('system:recycle:restore')` | restoreBook | RecycleController.java |
 | GET | `/api/system/recycle/customers` | `hasAuthority('system:recycle:view')` | deletedCustomers | RecycleController.java |
 | GET | `/api/system/recycle/customers/{id}` | `hasAuthority('system:recycle:view')` | deletedCustomerDetail | RecycleController.java |
 | POST | `/api/system/recycle/customers/{id}/purge` | `hasAuthority('system:recycle:purge')` | hardDeleteCustomer | RecycleController.java |

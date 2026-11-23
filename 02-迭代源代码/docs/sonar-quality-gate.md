@@ -47,3 +47,24 @@ bash 02-迭代源代码/scripts/sonar-quality-gate.sh
   250 条 S1192 常量行与存量代码拉低，且未覆盖行多为行为分支，需独立补测。
 - `new_major_violations=0` 覆盖 MAJOR+ 新增问题（含 S1192/S3358 等）；Blocker/Critical/
   Bug/Vulnerability 仍为零容忍；INFO/MINOR 只记录不阻断，保持发布门禁的实质严格性。
+
+## 本地实例的历史项目（读 issue 时必须过滤）
+
+本地 Docker SonarQube（`127.0.0.1:19000`）上除门禁项目外，还残留一个早期临时分析的项目：
+
+| key | 说明 |
+|---|---|
+| `Eastdongjun_AigiCRM-local` | **门禁项目**，本地分析的唯一权威 |
+| `aigicrm-backend-local` | 早期临时分析遗留，**文件路径与门禁项目重叠** |
+
+`/api/issues/search` 不按项目过滤时，两项目的同名文件问题会合并返回，导致「问题数虚高」；
+且该接口默认同时返回 `CLOSED` / `FIXED` 状态的历史问题。
+
+**正确读法**：先按 `status == 'OPEN'` 且 `project == 'Eastdongjun_AigiCRM-local'` 过滤，
+再谈「新增/存量」。2026-11-23 复核时若未过滤，会把 17 条历史问题误判为本次引入。
+
+`sonar-project.properties`（仓库根）指向 SonarCloud 的 `Eastdongjun_AigiCRM`，与本地 key 不同名是
+**有意为之**（避免本地实验污染云端项目），不是配置错误。命令行扫描本地实例时需显式传
+`-Dsonar.projectKey=Eastdongjun_AigiCRM-local`，并带上 `sonar-project.properties` 里的
+`sonar.issue.ignore.multicriteria` e1/e2/e3（`java:S1068` 实体/DTO/security 豁免），否则会让
+已豁免的实体字段问题重新以 OPEN 出现。

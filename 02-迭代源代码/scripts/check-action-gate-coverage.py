@@ -52,8 +52,19 @@ ALLOW = {
          ("doImport", "同上")],
         "客户批量导入对话框"),
     'fabushi/book.vue': (
-        [("doReject", "驳回确认弹窗footer按钮: 操作列入口行已按 fabushi:book:manage 门禁, 弹窗仅从入口可达+后端 book:manage 守卫兜底(照 approval 注记#1 取舍, 2026-11-15)")],
+        [("doReject", "驳回确认弹窗footer按钮: 操作列入口行已按 fabushi:book:manage 门禁, 弹窗仅从入口可达+后端 book:manage 守卫兜底(照 approval 注记#1 取舍, 2026-11-15)"),
+         ("doDelete(row)", "书目删除: 操作列入口行已按 fabushi:book:manage 门禁+后端 book:manage 守卫兜底(CODE-REVIEW-20261123 R1-02 分诊, 照注记#1)")],
         "法布施书目管理: 驳回弹窗确认步骤"),
+    'fabushi/detail.vue': (
+        [("removePost", "本人删除内容: 服务端 FabushiPostService.deleteOwn 校验'作者本人或 admin', 前端隐藏非授权边界(CODE-REVIEW-20261123 R1-02 分诊)")],
+        "法布施详情: 作者自助删除"),
+    'fabushi/read.vue': (
+        [("bm-del", "删除页码书签: 书签为本人私有数据, 服务端 FabushiBookmarkService.remove 校验 userId 归属(CODE-REVIEW-20261123 R1-02 分诊)"),
+         ("resetSettings", "恢复本版式默认: 纯前端重置 localStorage 阅读设置, 无任何请求, 无破坏面(CODE-REVIEW-20261123 R1-02 分诊)")],
+        "法布施阅读器: 书签与版式本地设置"),
+    'fabushi/shelf.vue': (
+        [("removeGroup(g)", "删除自建分组: 服务端 requireCustomGroup 校验分组归属当前用户, 且事务内先把成员 group_id 置空(CODE-REVIEW-20261123 R1-02 分诊)")],
+        "法布施书架: 自建分组管理"),
     'customer/MainTable.vue': (
         [("hasActiveFilter", CLEAR_FILTER_VIEW_OP)],
         "客户列表"),

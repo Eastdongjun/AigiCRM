@@ -1,6 +1,6 @@
 {
- "generated_at": "2026-11-22",
- "count": 328,
+ "generated_at": "2026-11-23",
+ "count": 347,
  "endpoints": [
   {
    "method": "POST",
@@ -412,6 +412,30 @@
   },
   {
    "method": "GET",
+   "path": "/api/fabushi/awaken/status",
+   "permission": "hasAuthority('fabushi:view')",
+   "handler": "awakenStatus"
+  },
+  {
+   "method": "GET",
+   "path": "/api/fabushi/bookmarks",
+   "permission": "hasAuthority('fabushi:view')",
+   "handler": "list"
+  },
+  {
+   "method": "POST",
+   "path": "/api/fabushi/bookmarks",
+   "permission": "hasAuthority('fabushi:view')",
+   "handler": "add"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/fabushi/bookmarks/{id}",
+   "permission": "hasAuthority('fabushi:view')",
+   "handler": "remove"
+  },
+  {
+   "method": "GET",
    "path": "/api/fabushi/books",
    "permission": "hasAuthority('fabushi:view')",
    "handler": "page"
@@ -477,6 +501,12 @@
    "handler": "disable"
   },
   {
+   "method": "PUT",
+   "path": "/api/fabushi/books/{id}/layout",
+   "permission": "hasAuthority('fabushi:book:manage')",
+   "handler": "updateLayout"
+  },
+  {
    "method": "POST",
    "path": "/api/fabushi/books/{id}/pdf",
    "permission": "hasAuthority('fabushi:book:manage')",
@@ -502,9 +532,27 @@
   },
   {
    "method": "GET",
+   "path": "/api/fabushi/posts/deleted",
+   "permission": "hasAuthority('fabushi:content:manage')",
+   "handler": "deletedPage"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/fabushi/posts/{id}",
+   "permission": "hasAuthority('fabushi:create')",
+   "handler": "deleteOwn"
+  },
+  {
+   "method": "GET",
    "path": "/api/fabushi/posts/{id}",
    "permission": "hasAuthority('fabushi:view')",
    "handler": "detail"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/fabushi/posts/{id}",
+   "permission": "hasAuthority('fabushi:create')",
+   "handler": "updateOwn"
   },
   {
    "method": "POST",
@@ -537,10 +585,28 @@
    "handler": "offline"
   },
   {
+   "method": "GET",
+   "path": "/api/fabushi/posts/{id}/recitations",
+   "permission": "hasAuthority('fabushi:view')",
+   "handler": "list"
+  },
+  {
+   "method": "POST",
+   "path": "/api/fabushi/posts/{id}/recitations",
+   "permission": "hasAuthority('fabushi:create')",
+   "handler": "create"
+  },
+  {
    "method": "PUT",
    "path": "/api/fabushi/posts/{id}/restore",
    "permission": "hasAuthority('fabushi:content:manage')",
    "handler": "restore"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/fabushi/posts/{id}/restore-deleted",
+   "permission": "hasAuthority('fabushi:content:manage')",
+   "handler": "restoreDeleted"
   },
   {
    "method": "DELETE",
@@ -607,6 +673,36 @@
    "path": "/api/fabushi/shelf",
    "permission": "hasAuthority('fabushi:view')",
    "handler": "addShelf"
+  },
+  {
+   "method": "POST",
+   "path": "/api/fabushi/shelf/batch",
+   "permission": "hasAuthority('fabushi:view')",
+   "handler": "batchShelf"
+  },
+  {
+   "method": "GET",
+   "path": "/api/fabushi/shelf/groups",
+   "permission": "hasAuthority('fabushi:view')",
+   "handler": "groups"
+  },
+  {
+   "method": "POST",
+   "path": "/api/fabushi/shelf/groups",
+   "permission": "hasAuthority('fabushi:view')",
+   "handler": "createGroup"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/fabushi/shelf/groups/{id}",
+   "permission": "hasAuthority('fabushi:view')",
+   "handler": "deleteGroup"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/fabushi/shelf/groups/{id}",
+   "permission": "hasAuthority('fabushi:view')",
+   "handler": "renameGroup"
   },
   {
    "method": "DELETE",
@@ -1621,6 +1717,24 @@
    "path": "/api/system/positions/{positionId}/rules",
    "permission": "hasAuthority('system:position:rule:edit')",
    "handler": "updateRules"
+  },
+  {
+   "method": "GET",
+   "path": "/api/system/recycle/books",
+   "permission": "hasAuthority('system:recycle:view')",
+   "handler": "deletedBooks"
+  },
+  {
+   "method": "POST",
+   "path": "/api/system/recycle/books/{id}/purge",
+   "permission": "hasAuthority('system:recycle:purge')",
+   "handler": "hardDeleteBook"
+  },
+  {
+   "method": "POST",
+   "path": "/api/system/recycle/books/{id}/restore",
+   "permission": "hasAuthority('system:recycle:restore')",
+   "handler": "restoreBook"
   },
   {
    "method": "GET",

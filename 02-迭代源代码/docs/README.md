@@ -26,6 +26,18 @@
 
 > 使用规则：代码交付走门禁模板 G0–G7；权限/数据范围改动必跑 `verify-perm-matrix.sh`；其余域按迭代填矩阵对应 sheet，问题一律开 05 表单闭环。
 
+## 代码评审机制（2026-11-23 建立）
+
+| 资产 | 位置 | 内容 |
+|---|---|---|
+| **评审标准 v1** | `docs/code-review-standard-20261123.md` | 严重度 R0–R3、评审维度 D1–D8、一致性基线（可机械扫）、反模式清单、一票否决红线；明确与 113 契约/Sonar/ArchUnit 的分工（L1 机器判 / L2 半可判 / L3 人工判） |
+| **评审流程 v1** | `docs/code-review-process-20261123.md` | 状态机 CR0–CR6、单人仓库适配（机械自检/结构化自审/独立评审三动作）、按规模分档 S/M/L/X、SLA 与争议升级、与 gate.sh/CI/TEST-MATRIX 接线 |
+| PR 模板 | `.github/pull_request_template.md` | 档位选择 + CR1 贴结果 + D1–D8 逐项结论 + 一致性扫描命令 |
+| 归属路由 | `.github/CODEOWNERS` | 高风险路径（迁移/权限内核/门禁脚本）优先路由 |
+| 租户登记契约 | `scripts/check-tenant-table-registry.sh` | 迁移新建 `biz_*` 表必须显式归类（白名单/待修/豁免），补 MP 访问路径盲区 |
+
+> 使用规则：交付前 **只跑 `bash scripts/gate.sh`**（不要自选检查项——自选会导致假绿，见 `CODE-REVIEW-20261123` 的过程发现）；PR 描述按模板填完才进入独立评审。
+
 ## 阶段衔接规则(强制)
 
 ```

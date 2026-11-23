@@ -24,12 +24,17 @@ trap 'rm -rf "$TMP"' EXIT
 : > "$TMP/backend.txt"
 while IFS= read -r f; do
   base="$(grep -oE '@RequestMapping\("[^"]+"\)' "$f" | head -1 | sed -E 's/@RequestMapping\("(.*)"\)/\1/' || true)"
-  # 注: BSD grep ERE 不支持「可选嵌套转义组」, 带路径与裸注解两条分开抓再合并
+  # 注: BSD grep ERE 不支持「可选嵌套转义组」, 带路径/空括号/裸注解三条分开抓再合并
   {
     grep -oE '@(Get|Post|Put|Delete|Patch)Mapping\("[^"]*"\)' "$f" 2>/dev/null \
       | sed -E 's/@(Get|Post|Put|Delete|Patch)Mapping\("([^"]*)"\)/\1 \2/' || true
     grep -oE '@(Get|Post|Put|Delete|Patch)Mapping\)' "$f" 2>/dev/null \
       | sed -E 's/@(Get|Post|Put|Delete|Patch)Mapping\)/\1 /' || true
+    # 【CODE-REVIEW-20261123 R2-04】裸注解形态 @GetMapping(无括号, Spring 合法写法)此前完全不匹配:
+    #   上一条正则要求 'Mapping)' 结尾, 裸注解没有括号 ⇒ 该端点整体缺失 ⇒ 误报"前端调用后端不存在路径"。
+    #   匹配"注解后紧跟空白/行尾"以排除已带括号的形态, 输出方法与空路径。
+    grep -oE '@(Get|Post|Put|Delete|Patch)Mapping([[:space:]]|$)' "$f" 2>/dev/null \
+      | sed -E 's/@(Get|Post|Put|Delete|Patch)Mapping.*/\1 /' || true
   } > "$TMP/seg.txt"
   while IFS=' ' read -r m p; do
     path="${base}${p:-}"

@@ -29,7 +29,11 @@ repo = subprocess.run(['git', '-C', root, 'rev-parse', '--show-toplevel'],
                       capture_output=True, text=True).stdout.strip()
 if not repo:
     print('FAIL: 不在 git 仓库中'); sys.exit(1)
-rel = os.path.relpath(os.path.join(root, 'docs/api/api-list.json'), repo)
+# 【CODE-REVIEW-20261123 R2-02】工作目录可能是符号链接(实测 01-AIGICRM -> Agent/.../aigicrm/source),
+# 而 rev-parse 返回真实路径 → 未 realpath 时两者无公共前缀, relpath 得到 "../../../../.." 垃圾,
+# git show 必然失败并误报"不在版本控制中", 导致从符号链接入口跑时权威门禁恒红。两侧统一取 realpath。
+committed_abs = os.path.realpath(os.path.join(root, 'docs/api/api-list.json'))
+rel = os.path.relpath(committed_abs, os.path.realpath(repo))
 def committed_text():
     for ref in ('HEAD:' + rel, ':' + rel):
         r = subprocess.run(['git', '-C', repo, 'show', ref], capture_output=True, text=True)

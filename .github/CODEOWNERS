@@ -1,0 +1,46 @@
+# AIGICRM 代码归属（评审路由）
+#
+# 用途：让 PR 自动路由到领域责任人，并在分支保护里对高风险路径强制评审。
+# 现状：仓库为单人维护（@Eastdongjun），本文件的作用是**风险分级路由**，不是形式化双人评审。
+#       独立评审由 Agent/外部评审者承担，见 docs/code-review-process-20261123.md §0。
+#
+# 语法：<路径模式>  <owner...>
+# 注意：后面的规则覆盖前面的规则。
+
+# ── 默认 ──
+*                                   @Eastdongjun
+
+# ── R0 高风险：任何改动都必须按 L 档走完整评审 ──
+# 数据库迁移：历史事故 V2026.09.21.1（按硬编码 id 删权限行 → 全员 403）
+/02-迭代源代码/aigicrm-backend/src/main/resources/db/migration/    @Eastdongjun
+/sql/                                                               @Eastdongjun
+
+# 权限内核与安全：越权代价最高
+/02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/security/  @Eastdongjun
+/02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/auth/      @Eastdongjun
+/02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/engine/    @Eastdongjun
+/02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/common/scope/     @Eastdongjun
+
+# 门禁与契约脚本：改这里等于改判定标准，必须单独评审
+/02-迭代源代码/scripts/                                             @Eastdongjun
+/.audit/                                                            @Eastdongjun
+/.github/                                                           @Eastdongjun
+
+# ── 领域模块 ──
+/02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/    @Eastdongjun
+/02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/file/       @Eastdongjun
+/02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/customer/   @Eastdongjun
+/02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/system/     @Eastdongjun
+/02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/incentive/  @Eastdongjun
+/02-迭代源代码/aigicrm-backend/src/main/java/com/aigicrm/module/statistics/ @Eastdongjun
+
+# ── 三端 ──
+/02-迭代源代码/aigicrm-ui/src/              @Eastdongjun
+/02-迭代源代码/aigicrm-miniprogram/         @Eastdongjun
+
+# ── 生成物：禁止手改（改了会被 check-doc-freshness 拦） ──
+# docs/database/data-dictionary.md     由 scripts/gen-data-dictionary.sh 生成
+# docs/api/api-list.md|json            由 scripts/gen-api.py 生成
+/02-迭代源代码/docs/database/data-dictionary.md   @Eastdongjun
+/02-迭代源代码/docs/api/api-list.md               @Eastdongjun
+/02-迭代源代码/docs/api/api-list.json             @Eastdongjun
