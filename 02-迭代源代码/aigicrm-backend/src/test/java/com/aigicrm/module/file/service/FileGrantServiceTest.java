@@ -143,8 +143,8 @@ class FileGrantServiceTest {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
             m.when(SecurityUtils::getCurrentUser).thenReturn(user(2L));
-            assertThrows(BusinessException.class, () -> svc.save(new FileGrantService.Command(
-                    null, "USER", 2L, "FILE", 10L, null, "download", "ALLOW", 1, null, null, null, null)));
+            saveRejected(new FileGrantService.Command(
+                    null, "USER", 2L, "FILE", 10L, null, "download", "ALLOW", 1, null, null, null, null));
         }
     }
 
@@ -236,13 +236,12 @@ class FileGrantServiceTest {
             m.when(SecurityUtils::isAdmin).thenReturn(true);
             m.when(SecurityUtils::getCurrentUser).thenReturn(user(1L));
             m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
-            assertThrows(BusinessException.class, () -> svc.save(new FileGrantService.Command(
-                    null, "USER", 2L, "SPACE", null, null, "view", "ALLOW", 0, null, null, null, null)));
-            assertThrows(BusinessException.class, () -> svc.save(new FileGrantService.Command(
-                    null, "USER", 2L, "SPACE", null, "foo", "view", "ALLOW", 0, null, null, null, null)));
-            assertThrows(BusinessException.class, () -> svc.save(new FileGrantService.Command(
-                    null, "USER", 2L, "FOLDER", 7L, "public", "view", "ALLOW", 1, null, null, null, null)),
-                    "非 SPACE 行不得携带 spaceType");
+            saveRejected(new FileGrantService.Command(
+                    null, "USER", 2L, "SPACE", null, null, "view", "ALLOW", 0, null, null, null, null));
+            saveRejected(new FileGrantService.Command(
+                    null, "USER", 2L, "SPACE", null, "foo", "view", "ALLOW", 0, null, null, null, null));
+            saveRejected(new FileGrantService.Command(
+                    null, "USER", 2L, "FOLDER", 7L, "public", "view", "ALLOW", 1, null, null, null, null), "非 SPACE 行不得携带 spaceType");
         }
     }
 
@@ -385,9 +384,9 @@ class FileGrantServiceTest {
         // Set.of(...).contains(null) 的 NPE（HTTP 500），应返回 400 业务异常。
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(true);
-            BusinessException e = assertThrows(BusinessException.class, () -> svc.save(
+            BusinessException e = saveRejected(
                     new FileGrantService.Command(null, null, 2L, "FILE", 10L, null,
-                            "view", "ALLOW", 1, null, null, null, null)));
+                            "view", "ALLOW", 1, null, null, null, null));
             assertEquals(400, e.getCode());
             assertTrue(e.getMessage().contains("主体类型"));
         }
@@ -398,11 +397,19 @@ class FileGrantServiceTest {
         // 【2026-11-21 PM-D1】subjectType 合法但 objectType=null 同样要 400，不是 NPE 500。
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(true);
-            BusinessException e = assertThrows(BusinessException.class, () -> svc.save(
+            BusinessException e = saveRejected(
                     new FileGrantService.Command(null, "USER", 2L, null, null, null,
-                            "view", "ALLOW", 1, null, null, null, null)));
+                            "view", "ALLOW", 1, null, null, null, null));
             assertEquals(400, e.getCode());
             assertTrue(e.getMessage().contains("对象类型"));
         }
+    }
+
+    private BusinessException saveRejected(FileGrantService.Command cmd) {
+        return assertThrows(BusinessException.class, () -> svc.save(cmd));
+    }
+
+    private BusinessException saveRejected(FileGrantService.Command cmd, String message) {
+        return assertThrows(BusinessException.class, () -> svc.save(cmd), message);
     }
 }

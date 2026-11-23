@@ -152,8 +152,7 @@ class IncentiveRemoveFileTest {
             r.setFileMidId(null);
             when(recordMapper.selectByIdForUpdate(5L)).thenReturn(r);
 
-            BusinessException ex = assertThrows(BusinessException.class,
-                    () -> newService().removeFile(5L, "pre", 100L));
+            BusinessException ex = removeFileRejected(5L, "pre", 100L);
             assertTrue(ex.getMessage().contains("至少须保留一份文件"), ex.getMessage());
             verify(recordMapper, never()).update(any(), any());
         }
@@ -165,8 +164,7 @@ class IncentiveRemoveFileTest {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             stubUser(m);
             when(recordMapper.selectByIdForUpdate(5L)).thenReturn(recordWithFiles());
-            BusinessException ex = assertThrows(BusinessException.class,
-                    () -> newService().removeFile(5L, "main", 100L));
+            BusinessException ex = removeFileRejected(5L, "main", 100L);
             assertTrue(ex.getMessage().contains("无效槽位"), ex.getMessage());
         }
     }
@@ -177,8 +175,7 @@ class IncentiveRemoveFileTest {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             stubUser(m);
             when(recordMapper.selectByIdForUpdate(5L)).thenReturn(recordWithFiles());
-            BusinessException ex = assertThrows(BusinessException.class,
-                    () -> newService().removeFile(5L, "pre", 999L));
+            BusinessException ex = removeFileRejected(5L, "pre", 999L);
             assertTrue(ex.getMessage().contains("不在此记录的该槽位"), ex.getMessage());
         }
     }
@@ -189,8 +186,7 @@ class IncentiveRemoveFileTest {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             stubUser(m);
             when(recordMapper.selectByIdForUpdate(404L)).thenReturn(null);
-            BusinessException ex = assertThrows(BusinessException.class,
-                    () -> newService().removeFile(404L, "pre", 100L));
+            BusinessException ex = removeFileRejected(404L, "pre", 100L);
             assertEquals(404, ex.getCode());
         }
     }
@@ -226,8 +222,7 @@ class IncentiveRemoveFileTest {
             when(recordMapper.selectByIdForUpdate(5L)).thenReturn(recordWithFiles());
             BizIncentiveRecord update = new BizIncentiveRecord();
             update.setFilePreId("[99999999999999999999]");
-            BusinessException ex = assertThrows(BusinessException.class,
-                    () -> newService().updateRecord(5L, update));
+            BusinessException ex = updateRecordRejected(5L, update);
             assertTrue(ex.getMessage().contains("槽位格式非法"), ex.getMessage());
         }
     }
@@ -243,8 +238,7 @@ class IncentiveRemoveFileTest {
             sb.append("]");
             BizIncentiveRecord update = new BizIncentiveRecord();
             update.setFilePreId(sb.toString());
-            BusinessException ex = assertThrows(BusinessException.class,
-                    () -> newService().updateRecord(5L, update));
+            BusinessException ex = updateRecordRejected(5L, update);
             assertTrue(ex.getMessage().contains("超出上限"), ex.getMessage());
         }
     }
@@ -259,10 +253,19 @@ class IncentiveRemoveFileTest {
             BizIncentiveRecord update = new BizIncentiveRecord();
             update.setFilePreId("abc");
 
-            BusinessException ex = assertThrows(BusinessException.class,
-                    () -> newService().updateRecord(5L, update));
+            BusinessException ex = updateRecordRejected(5L, update);
             assertTrue(ex.getMessage().contains("槽位格式非法"), ex.getMessage());
             verify(recordMapper, never()).updateById(any(BizIncentiveRecord.class));
         }
+    }
+
+    private BusinessException removeFileRejected(Long id, String slot, Long fileId) {
+        IncentiveService svc = newService();
+        return assertThrows(BusinessException.class, () -> svc.removeFile(id, slot, fileId));
+    }
+
+    private BusinessException updateRecordRejected(Long id, BizIncentiveRecord update) {
+        IncentiveService svc = newService();
+        return assertThrows(BusinessException.class, () -> svc.updateRecord(id, update));
     }
 }

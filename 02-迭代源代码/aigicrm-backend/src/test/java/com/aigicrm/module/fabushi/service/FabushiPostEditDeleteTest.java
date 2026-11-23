@@ -104,8 +104,7 @@ class FabushiPostEditDeleteTest {
     void update_byOther_rejected() {
         loginAs(OTHER_ID, false);
         when(postMapper.selectById(77L)).thenReturn(post(AUTHOR_ID, "published", "songdu"));
-        BusinessException ex = assertThrows(BusinessException.class,
-                () -> svc.updateOwn(77L, body("改标题", "改内容")));
+        BusinessException ex = updateOwnRejected(77L, body("改标题", "改内容"));
         assertEquals("只能编辑自己发布的内容", ex.getMessage());
     }
 
@@ -113,8 +112,7 @@ class FabushiPostEditDeleteTest {
     void update_byAdmin_rejected() {
         loginAs(OTHER_ID, true);
         when(postMapper.selectById(77L)).thenReturn(post(AUTHOR_ID, "published", "songdu"));
-        BusinessException ex = assertThrows(BusinessException.class,
-                () -> svc.updateOwn(77L, body("管理员代改", "不该发生")));
+        BusinessException ex = updateOwnRejected(77L, body("管理员代改", "不该发生"));
         assertEquals("只能编辑自己发布的内容", ex.getMessage());
     }
 
@@ -131,8 +129,7 @@ class FabushiPostEditDeleteTest {
     void update_offlinePost_rejected() {
         loginAs(AUTHOR_ID, false);
         when(postMapper.selectById(77L)).thenReturn(post(AUTHOR_ID, "offline", "songdu"));
-        BusinessException ex = assertThrows(BusinessException.class,
-                () -> svc.updateOwn(77L, body("改", "改")));
+        BusinessException ex = updateOwnRejected(77L, body("改", "改"));
         assertEquals("已下架内容不可编辑", ex.getMessage());
     }
 
@@ -140,8 +137,7 @@ class FabushiPostEditDeleteTest {
     void update_suishi_withTitle_rejected() {
         loginAs(AUTHOR_ID, false);
         when(postMapper.selectById(77L)).thenReturn(post(AUTHOR_ID, "published", "suishi"));
-        BusinessException ex = assertThrows(BusinessException.class,
-                () -> svc.updateOwn(77L, body("随施不该有标题", null)));
+        BusinessException ex = updateOwnRejected(77L, body("随施不该有标题", null));
         assertEquals("每日随施不设置标题", ex.getMessage());
     }
 
@@ -152,8 +148,7 @@ class FabushiPostEditDeleteTest {
         blank.setTitle(null);
         blank.setContent(null);
         when(postMapper.selectById(77L)).thenReturn(blank);
-        BusinessException ex = assertThrows(BusinessException.class,
-                () -> svc.updateOwn(77L, body(null, "  ")));
+        BusinessException ex = updateOwnRejected(77L, body(null, "  "));
         assertEquals("内容不能为空", ex.getMessage());
     }
 
@@ -195,5 +190,9 @@ class FabushiPostEditDeleteTest {
         when(postMapper.restoreDeleted(77L)).thenReturn(1);
         assertDoesNotThrow(() -> svc.restoreDeleted(77L));
         verify(auditService).permissionChange("fabushi_post_restore_deleted", "post:77");
+    }
+
+    private BusinessException updateOwnRejected(Long id, Map<String, Object> body) {
+        return assertThrows(BusinessException.class, () -> svc.updateOwn(id, body));
     }
 }

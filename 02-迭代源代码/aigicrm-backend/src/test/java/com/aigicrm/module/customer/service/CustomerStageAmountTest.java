@@ -114,24 +114,16 @@ class CustomerStageAmountTest {
         when(customerMapper.selectById(501L)).thenReturn(customerWith(null));
         when(stageAmountMapper.selectByPeriodForUpdate(501L, 2026, "H1")).thenReturn(null);
 
-        assertThrows(BusinessException.class, () ->
-                service.saveStageAmount(501L, new StageAmountRequest(2026, "H3", bd("1"), bd("1"))), "非法周期类型必须拒");
-        assertThrows(BusinessException.class, () ->
-                service.saveStageAmount(501L, new StageAmountRequest(null, "FY", bd("1"), bd("1"))), "缺年份必须拒");
-        assertThrows(BusinessException.class, () ->
-                service.saveStageAmount(501L, new StageAmountRequest(1999, "FY", bd("1"), bd("1"))), "1999 年越界必须拒");
-        assertThrows(BusinessException.class, () ->
-                service.saveStageAmount(501L, new StageAmountRequest(LocalDate.now().getYear() + 2, "FY", bd("1"), bd("1"))), "远未来年份必须拒");
-        assertThrows(BusinessException.class, () ->
-                service.saveStageAmount(501L, new StageAmountRequest(2026, "FY", bd("-1"), bd("1"))), "负金额必须拒");
-        assertThrows(BusinessException.class, () ->
-                service.saveStageAmount(501L, new StageAmountRequest(2026, "FY", bd("0"), bd("0"))), "两项全 0 必须拒(不算数据)");
-        assertThrows(BusinessException.class, () ->
-                service.saveStageAmount(501L, new StageAmountRequest(2026, "FY", null, null)), "两项全空必须拒");
+        stageRejected(501L, new StageAmountRequest(2026, "H3", bd("1"), bd("1")), "非法周期类型必须拒");
+        stageRejected(501L, new StageAmountRequest(null, "FY", bd("1"), bd("1")), "缺年份必须拒");
+        stageRejected(501L, new StageAmountRequest(1999, "FY", bd("1"), bd("1")), "1999 年越界必须拒");
+        stageRejected(501L, new StageAmountRequest(LocalDate.now().getYear() + 2, "FY", bd("1"), bd("1")), "远未来年份必须拒");
+        stageRejected(501L, new StageAmountRequest(2026, "FY", bd("-1"), bd("1")), "负金额必须拒");
+        stageRejected(501L, new StageAmountRequest(2026, "FY", bd("0"), bd("0")), "两项全 0 必须拒(不算数据)");
+        stageRejected(501L, new StageAmountRequest(2026, "FY", null, null), "两项全空必须拒");
         // 客户不存在
         when(customerMapper.selectById(999L)).thenReturn(null);
-        assertThrows(BusinessException.class, () ->
-                service.saveStageAmount(999L, new StageAmountRequest(2026, "FY", bd("1"), bd("1"))));
+        stageRejected(999L, new StageAmountRequest(2026, "FY", bd("1"), bd("1")));
         verify(stageAmountMapper, never()).insert(any(BizCustomerStageAmount.class));
     }
 
@@ -528,4 +520,12 @@ class CustomerStageAmountTest {
     }
 
     private static BigDecimal bd(String v) { return new BigDecimal(v); }
+
+    private BusinessException stageRejected(long customerId, StageAmountRequest req) {
+        return assertThrows(BusinessException.class, () -> service.saveStageAmount(customerId, req));
+    }
+
+    private BusinessException stageRejected(long customerId, StageAmountRequest req, String message) {
+        return assertThrows(BusinessException.class, () -> service.saveStageAmount(customerId, req), message);
+    }
 }
