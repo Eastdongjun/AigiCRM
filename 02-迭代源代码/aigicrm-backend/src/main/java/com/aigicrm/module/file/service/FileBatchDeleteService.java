@@ -32,7 +32,7 @@ public class FileBatchDeleteService {
      * 权限/佐证守卫/配额归还在 {@link FileService#deleteFile(Long)} 的单条事务内完成。
      */
     public Map<Long, String> batchDeleteFiles(List<Long> fileIds) {
-        FileService.requireBatchLimit(fileIds);
+        FileBatchSupport.requireBatchLimit(fileIds);
         Map<Long, String> out = new LinkedHashMap<>();
         for (Long id : fileIds == null ? List.<Long>of() : fileIds) {
             try {

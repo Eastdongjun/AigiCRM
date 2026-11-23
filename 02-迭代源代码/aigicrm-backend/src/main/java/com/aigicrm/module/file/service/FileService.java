@@ -88,6 +88,8 @@ public class FileService {
     private final FileVersionService fileVersionService;
     /** S5.3 删除/改名独立 bean；本类保留公共委托。 */
     private final FileMutationService fileMutationService;
+    /** S5.3 批量下载/zip 独立 bean；本类保留公共委托。 */
+    private final FileBatchDownloadService fileBatchDownloadService;
 
     /** 【2026-11-17 阶段三】视频 5 秒预览：ffmpeg 路径/开关（默认开，失败回退 503，不泄露原文件）。 */
     @Value("${file.video-preview-enabled:true}")
@@ -624,78 +626,10 @@ public class FileService {
         return fileVersionService.rollbackToVersion(fileId, versionNo);
     }
 
-    // ==================== 【V2026.11.14.1 批量操作】(用户拍板 2026-11-14) ====================
+    // ====== 批量下载（S5.3 语义已移到 FileBatchDownloadService，本类保留公共委托） ======
 
-    /** 【V2026.11.14.3 P2】zip 条目名清洗: 路径穿越(..)/分隔符/控制字符 → '_'; 空名回退 file-{id} */
-    private String sanitizeZipEntryName(String name, Long fallbackId) {
-        String n = name == null || name.isBlank() ? ("file-" + fallbackId) : name;
-        n = n.replaceAll("\\p{Cntrl}", "_").replace("..", "_").replace("/", "_").replace("\\", "_").trim();
-        return n.isBlank() ? ("file-" + fallbackId) : n;
-    }
-
-    /** 【V2026.11.14.3 P2】批量上限(防误操作与超大请求), 超出直接 400；批量服务共用 */
-    static void requireBatchLimit(List<Long> ids) {
-        if (ids != null && ids.size() > 100) {
-            throw new BusinessException("批量操作一次最多 100 项，请分批进行");
-        }
-    }
-
-    /**
-     * 批量下载(zip 流式打包): 逐个过 checkFile download 校验+内容存在性, 无权限/缺内容的静默剔除;
-     * 同名文件 zip 内自动加序号后缀。全被剔除 → 400。
-     */
     public void batchDownload(List<Long> fileIds, jakarta.servlet.http.HttpServletResponse response) {
-        requireBatchLimit(fileIds);
-        List<BizFile> allowed = collectDownloadable(fileIds, SecurityUtils.getCurrentUserId());
-        if (allowed.isEmpty()) throw new BusinessException("无可下载文件（不存在或无下载权限）");
-        try {
-            writeZip(allowed, response);
-        } catch (BusinessException e) {
-            throw e;
-        } catch (Exception e) {
-            log.warn("批量下载打包失败: {}", e.getMessage());
-            throw new BusinessException("批量下载失败，请重试");
-        }
-    }
-
-    private List<BizFile> collectDownloadable(List<Long> fileIds, Long userId) {
-        List<BizFile> allowed = new ArrayList<>();
-        for (Long id : fileIds == null ? List.<Long>of() : fileIds) {
-            BizFile f = fileMapper.selectById(id);
-            if (f == null) continue;
-            if (!folderPermissionService.checkFile(id, FolderPermissionService.P_DOWNLOAD, userId)) continue;
-            if (!contentExists(f.getOssKey())) continue;
-            allowed.add(f);
-        }
-        return allowed;
-    }
-
-    private void writeZip(List<BizFile> allowed, jakarta.servlet.http.HttpServletResponse response) throws java.io.IOException {
-        response.setContentType("application/zip");
-        String zipName = "files-" + java.time.LocalDate.now() + ".zip";
-        String encoded = java.net.URLEncoder.encode(zipName, java.nio.charset.StandardCharsets.UTF_8).replace("+", "%20");
-        response.setHeader("Content-Disposition", "attachment; filename*=UTF-8''" + encoded);
-        java.util.Set<String> used = new java.util.HashSet<>();
-        try (java.util.zip.ZipOutputStream zos = new java.util.zip.ZipOutputStream(response.getOutputStream())) {
-            for (BizFile f : allowed) {
-                // 【V2026.11.14.3 P2】条目名清洗: 路径穿越(..)/分隔符/控制字符 → '_'(zip slip 防线)
-                String unique = uniqueEntryName(sanitizeZipEntryName(f.getFileName(), f.getId()), used);
-                zos.putNextEntry(new java.util.zip.ZipEntry(unique));
-                writeStoredContentTo(f.getOssKey(), zos);
-                zos.closeEntry();
-            }
-        }
-    }
-
-    private String uniqueEntryName(String base, java.util.Set<String> used) {
-        String unique = base;
-        int i = 1;
-        while (!used.add(unique)) {
-            unique = base.replaceFirst("(\\.[^.]+)?$",
-                    base.matches(".*\\.[^.]+") ? "-" + i + "$1" : "-" + i);
-            i++;
-        }
-        return unique;
+        fileBatchDownloadService.batchDownload(fileIds, response);
     }
 
     /**
