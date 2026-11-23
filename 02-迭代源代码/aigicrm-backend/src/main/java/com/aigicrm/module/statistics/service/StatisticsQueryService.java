@@ -1053,19 +1053,18 @@ public class StatisticsQueryService {
         List<Map<String, Object>> officeComparison = new ArrayList<>();
         for (var dept : allDepts) {
             if (visibleOfficeIds == null || visibleOfficeIds.contains(dept.getId())) {
-                Map<String, Object> row = buildOfficeRow(dept.getId(), dept.getDeptName());
-                if (row != null) officeComparison.add(row);
+                buildOfficeRow(dept.getId(), dept.getDeptName()).ifPresent(officeComparison::add);
             }
         }
         officeComparison.sort((a, b) -> Long.compare((long) b.get(LIT_CUSTOMERCOUNT), (long) a.get(LIT_CUSTOMERCOUNT)));
         return officeComparison;
     }
 
-    private Map<String, Object> buildOfficeRow(Long deptId, String deptName) {
+    private java.util.Optional<Map<String, Object>> buildOfficeRow(Long deptId, String deptName) {
         LambdaQueryWrapper<BizCustomer> w = baseCustomerQuery().eq(BizCustomer::getOfficeId, deptId);
         applyCustomerScope(w);
         long total = customerMapper.selectCount(w);
-        if (total == 0) return null;
+        if (total == 0) return java.util.Optional.empty();
 
         long active = countActive(deptId);
         long monthNew = countMonthNew(deptId);
@@ -1077,7 +1076,7 @@ public class StatisticsQueryService {
         row.put("monthNew", monthNew);
         row.put("activeRate", Math.round(active * 1000.0 / total) / 10.0);
         row.put("recent5", recent5);
-        return row;
+        return java.util.Optional.of(row);
     }
 
     private long countActive(Long deptId) {

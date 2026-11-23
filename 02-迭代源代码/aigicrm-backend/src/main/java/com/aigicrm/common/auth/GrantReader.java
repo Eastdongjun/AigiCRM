@@ -56,9 +56,7 @@ public class GrantReader {
 
     /** 按动作码取该用户全部有效授权; 空=无授权(fail-closed 语义由调用方决定) */
     public List<GrantRow> grantsOf(SecurityUser user, String actionCode) {
-        Map<String, List<GrantRow>> byAction = byAction(user);
-        if (byAction == null) return List.of();
-        return byAction.getOrDefault(actionCode, List.of());
+        return byAction(user).getOrDefault(actionCode, List.of());
     }
 
     /** 失效(授权写点/epoch bump) */
@@ -71,7 +69,7 @@ public class GrantReader {
     }
 
     private Map<String, List<GrantRow>> byAction(SecurityUser user) {
-        if (user == null || user.getUserId() == null) return null;
+        if (user == null || user.getUserId() == null) return Map.of();
         CacheEntry e = cache.get(user.getUserId());
         if (e != null && !e.expired()) return e.byAction();
         synchronized (this) {

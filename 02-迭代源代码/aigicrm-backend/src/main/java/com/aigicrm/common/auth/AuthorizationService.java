@@ -366,7 +366,7 @@ public class AuthorizationService {
      */
     private List<GrantReader.GrantRow> grantsForSlot(SecurityUser user, String actionCode) {
         String[] slot = registry.slotOf(actionCode);
-        if (slot == null) return grantReader.grantsOf(user, actionCode);
+        if (slot == null || slot.length == 0) return grantReader.grantsOf(user, actionCode);
         List<GrantReader.GrantRow> out = new ArrayList<>();
         Set<String> seen = new HashSet<>();
         for (String c : registry.codesOf(slot[0], slot[1])) {

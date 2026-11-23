@@ -262,8 +262,9 @@ public class RecycleExportService {
             for (Map<String, Object> f : files) {
                 long fid = ((Number) f.get("id")).longValue();
                 String safe = sanitizeZipEntryName(String.valueOf(f.get("file_name")), fid);
-                byte[] content = readContent(String.valueOf(f.get(LIT_OSS_KEY)));
-                if (content == null) continue; // contentMissing: 清单已含行, 不打包内容
+                java.util.Optional<byte[]> contentOpt = readContent(String.valueOf(f.get(LIT_OSS_KEY)));
+                if (contentOpt.isEmpty()) continue; // contentMissing: 清单已含行, 不打包内容
+                byte[] content = contentOpt.get();
                 total += content.length;
                 if (total > MAX_FILE_BYTES) {
                     throw new BusinessException("导出文件总量超过 20GB 上限，请缩小范围（去掉文件内容或分批导出）");
@@ -423,14 +424,14 @@ public class RecycleExportService {
     }
 
     /** 读已删文件内容（本地存储按 oss_key 路径；不存在→null=contentMissing）。 */
-    private byte[] readContent(String ossKey) {
-        if (ossKey == null || ossKey.isBlank()) return null;
+    private java.util.Optional<byte[]> readContent(String ossKey) {
+        if (ossKey == null || ossKey.isBlank()) return java.util.Optional.empty();
         try {
             Path p = Paths.get(ossKey.startsWith("/") ? ossKey : Paths.get(exportDir, ossKey).toString());
             if (!p.isAbsolute()) p = Paths.get(ossKey);
-            return Files.readAllBytes(p);
+            return java.util.Optional.of(Files.readAllBytes(p));
         } catch (Exception e) {
-            return null; // 内容已物理清除(被 purge) → 清单行保留, contentMissing
+            return java.util.Optional.empty(); // 内容已物理清除(被 purge) → 清单行保留, contentMissing
         }
     }
 

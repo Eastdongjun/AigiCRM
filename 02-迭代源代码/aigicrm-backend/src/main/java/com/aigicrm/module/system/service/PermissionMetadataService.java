@@ -144,16 +144,15 @@ public class PermissionMetadataService {
         }
         List<Map<String, Object>> out = new ArrayList<>();
         for (SysMenu m : all) {
-            Map<String, Object> meta = menuMeta(m, byId);
-            if (meta != null) out.add(meta);
+            menuMeta(m, byId).ifPresent(out::add);
         }
         return out;
     }
 
     /** 单条菜单 → 权限元数据；无权限码返回 null（S3776 拆分，语义原样）。 */
-    private Map<String, Object> menuMeta(SysMenu m, Map<Long, SysMenu> byId) {
+    private java.util.Optional<Map<String, Object>> menuMeta(SysMenu m, Map<Long, SysMenu> byId) {
         String code = m.getPermission();
-        if (code == null || code.isBlank()) return null;
+        if (code == null || code.isBlank()) return java.util.Optional.empty();
         String prefix = code.contains(":") ? code.substring(0, code.indexOf(':')) : code;
         String parentCode = parentPermission(m, byId);
         String type = resolveType(m, code);
@@ -175,7 +174,7 @@ public class PermissionMetadataService {
         meta.put(LIT_DEPRECATED, m.getStatus() != null && m.getStatus() == 0);
         meta.put("noEndpoint", NO_ENDPOINT.contains(code));
         meta.put("dependsOn", dependsOn);
-        return meta;
+        return java.util.Optional.of(meta);
     }
 
     private String parentPermission(SysMenu m, Map<Long, SysMenu> byId) {

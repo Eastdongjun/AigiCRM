@@ -604,13 +604,17 @@ public class RolePermScopeService {
      * 【P1-2 四轮修复】codes 为空(取消**全部**勾选)不再 early return——照样全量剪枝,
      * 否则 sys_role_menu 清空后 sys_perm_grant 留下幽灵授权(动作轴迁移后会变成真权限)。
      */
+    private boolean isSlotEmpty(String[] slot) {
+        return slot == null || slot.length == 0;
+    }
+
     public void dualUpsertRoleSlotGrants(String roleCode, String dataScope, java.util.Collection<String> codes) {
         try {
             java.util.Set<String> kept = codes == null ? java.util.Set.of() : new java.util.HashSet<>(codes);
             java.util.List<String> allSlotCodes = permActionRegistry.allSlotCodes();
             for (String code : kept) {
                 String[] slot = permActionRegistry.slotOf(code);
-                if (slot == null) continue; // 非槽码(入口/路由)无范围语义, 无需授权行
+                if (isSlotEmpty(slot)) continue; // 非槽码(入口/路由)无范围语义, 无需授权行
                 String scopeLevel = null;
                 String anchor = LIT_OWNER;
                 for (var row : jdbc.queryForList(

@@ -60,7 +60,7 @@ public class PermActionRegistry {
     /** 【P0-5 方案二】码 → [module, slotAction](槽码判定/范围匹配用; 非槽码返回 null) */
     public String[] slotOf(String code) {
         ActionDef def = of(code);
-        if (def == null || !def.isScopeRequired()) return null;
+        if (def == null || !def.isScopeRequired()) return new String[0];
         return new String[]{def.getModule(), slotActionOf(code)};
     }
 
