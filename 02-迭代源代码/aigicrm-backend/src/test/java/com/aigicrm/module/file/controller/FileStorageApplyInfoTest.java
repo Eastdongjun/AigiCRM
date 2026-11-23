@@ -33,7 +33,9 @@ class FileStorageApplyInfoTest {
 
     @BeforeEach
     void setUp() {
-        controller = new FileController(fileService, mock(JwtTokenProvider.class), userService, approvalService,
+        controller = new FileController(fileService,
+                mock(com.aigicrm.module.file.service.FileBatchDeleteService.class),
+                mock(JwtTokenProvider.class), userService, approvalService,
                 mock(com.aigicrm.module.file.service.FabushiFolderService.class));
     }
 

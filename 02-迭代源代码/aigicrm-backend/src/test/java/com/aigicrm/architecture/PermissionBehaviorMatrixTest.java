@@ -100,6 +100,8 @@ class PermissionBehaviorMatrixTest {
     @MockitoBean com.aigicrm.module.approval.service.ApprovalService approvalService;
     // 【FILE-FABU-FOLDER-001】FileController 构造注入新增参数(瘦上下文 Mock 供给)
     @MockitoBean com.aigicrm.module.file.service.FabushiFolderService fabushiFolderService;
+    // 【S2229 2026-11-23】批量删除拆出独立 bean 后, FileController 构造注入新增参数
+    @MockitoBean com.aigicrm.module.file.service.FileBatchDeleteService fileBatchDeleteService;
     // Statistics 组
     @MockitoBean com.aigicrm.module.statistics.service.StatisticsQueryService statisticsQueryService;
     // Task 组

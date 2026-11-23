@@ -84,8 +84,6 @@ public class FileService {
     private final BizFileShareMapper fileShareMapper;
     /** 【V2026.11.14.1 版本历史】replace 归档/版本列表/回滚 */
     private final com.aigicrm.module.file.mapper.BizFileVersionMapper fileVersionMapper;
-    /** 【V2026.11.14.3 P1】批量删除逐条事务(内部 this 调用绕过 @Transactional 代理, 须显式模板) */
-    private final org.springframework.transaction.support.TransactionTemplate transactionTemplate;
     /** 【V2026.11.14.3 P1】版本上限/保留期配置读取 */
     private final com.aigicrm.module.system.service.SysConfigService configService;
     private final BizIncentiveRecordMapper incentiveRecordMapper;
@@ -1268,36 +1266,11 @@ public class FileService {
         return n.isBlank() ? ("file-" + fallbackId) : n;
     }
 
-    /** 【V2026.11.14.3 P2】批量上限(防误操作与超大请求), 超出直接 400 */
-    private void requireBatchLimit(List<Long> ids) {
+    /** 【V2026.11.14.3 P2】批量上限(防误操作与超大请求), 超出直接 400；批量服务共用 */
+    static void requireBatchLimit(List<Long> ids) {
         if (ids != null && ids.size() > 100) {
             throw new BusinessException("批量操作一次最多 100 项，请分批进行");
         }
-    }
-
-    /**
-     * 批量删除: 逐条走 deleteFile(权限/佐证守卫/配额归还全部单条同链), 部分成功不回滚已成功项——
-     * 返回逐条结果 {id: "OK"|"失败原因"}, 前端逐行展示。激励佐证文件按单条守卫报 400 跳过。
-     */
-    public java.util.Map<Long, String> batchDeleteFiles(List<Long> fileIds) {
-        requireBatchLimit(fileIds);
-        java.util.Map<Long, String> out = new java.util.LinkedHashMap<>();
-        for (Long id : fileIds == null ? List.<Long>of() : fileIds) {
-            try {
-                if (fileMapper.selectById(id) == null) {
-                    out.put(id, LIT_X_2);
-                    continue;
-                }
-                // 【V2026.11.14.3 P1】逐条事务: 内部 this 调用不走 @Transactional 代理(自调用失效),
-                // 原"每条自动提交"会在配额更新失败时留下'文件已删未退款'的半删态——
-                // TransactionTemplate 保证单条内部原子; 不包整批=保留"部分成功不回滚已成功项"。
-                transactionTemplate.executeWithoutResult(status -> deleteFile(id));
-                out.put(id, "OK");
-            } catch (Exception e) {
-                out.put(id, e.getMessage() == null ? "删除失败" : e.getMessage());
-            }
-        }
-        return out;
     }
 
     /**

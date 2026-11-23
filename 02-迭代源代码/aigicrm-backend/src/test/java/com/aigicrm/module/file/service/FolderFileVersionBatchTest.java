@@ -60,9 +60,8 @@ class FolderFileVersionBatchTest {
             mock(com.aigicrm.module.system.service.SysConfigService.class);
     private final org.springframework.jdbc.core.JdbcTemplate jdbc =
             mock(org.springframework.jdbc.core.JdbcTemplate.class);
-    private final org.springframework.transaction.support.TransactionTemplate transactionTemplate =
-            mock(org.springframework.transaction.support.TransactionTemplate.class);
     private FileService svc;
+    private FileBatchDeleteService batchDeleteService;
 
     @BeforeEach
     void setUp() throws Exception {
@@ -84,7 +83,7 @@ class FolderFileVersionBatchTest {
         };
         svc = new FileService(fileMapper, folderMapper, mock(com.aigicrm.module.file.mapper.BizFileShareMapper.class),
                 fileVersionMapper,
-                transactionTemplate, configService,
+                configService,
                 incentiveRecordMapper,
                 userMapper, provider, null /* ossConfig 本地模式不触 */, folderPermissionService,
                 mock(com.aigicrm.security.SecurityAuditService.class),
@@ -93,11 +92,7 @@ class FolderFileVersionBatchTest {
         org.springframework.test.util.ReflectionTestUtils.setField(svc, "storageType", "local");
         org.springframework.test.util.ReflectionTestUtils.setField(svc, "uploadDir", root.toString());
         when(incentiveRecordMapper.selectList(any())).thenReturn(List.of()); // 非激励佐证
-        // TransactionTemplate mock 默认不执行回调——直通执行(与真实逐条事务语义一致)
-        org.mockito.Mockito.doAnswer(inv -> {
-            ((java.util.function.Consumer<org.springframework.transaction.TransactionStatus>) inv.getArgument(0)).accept(null);
-            return null;
-        }).when(transactionTemplate).executeWithoutResult(any());
+        batchDeleteService = new FileBatchDeleteService(svc, fileMapper);
     }
 
     private SecurityUser su(Long id) {
@@ -223,10 +218,12 @@ class FolderFileVersionBatchTest {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(7L);
             m.when(SecurityUtils::isAdmin).thenReturn(false);
             m.when(SecurityUtils::getCurrentUsername).thenReturn("u7");
-            Map<Long, String> out = svc.batchDeleteFiles(List.of(1L, 2L, 999L));
+            Map<Long, String> out = batchDeleteService.batchDeleteFiles(List.of(1L, 2L, 999L));
             assertEquals("OK", out.get(1L), "有权删除项成功");
             assertTrue(out.get(2L) != null && !"OK".equals(out.get(2L)), "无权项逐条报原因(激励他人文件)");
-            assertTrue(out.containsKey(999L) && !"OK".equals(out.get(999L)), "不存在项报失败不抛整批异常");
+            assertEquals("文件不存在", out.get(999L), "不存在项报失败不抛整批异常");
+            // 【S2229 2026-11-23】证明批量删除确实进入了单条删除链，而不是只返回了 OK
+            verify(fileMapper, times(1)).deleteById(1L);
         }
     }
 

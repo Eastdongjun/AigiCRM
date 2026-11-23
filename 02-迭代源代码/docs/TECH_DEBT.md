@@ -198,15 +198,18 @@ cd aigicrm-backend && mvn -q -Dtest=ArchitectureTest test
 
 > 完整证据：`03-阶段/06-测试/02-证据/STAGE5-DEBT-20261123.md`
 > 门禁项目：本地 SonarQube `127.0.0.1:19000`，key `Eastdongjun_AigiCRM-local`，门 `AIGICRM-P0-5`
-> 现状：**ERROR**（`new_blocker_violations=1`、`new_bugs=3`、`new_major_violations=290`、
-> `new_security_hotspots_reviewed=0.0`）。本轮已把 BLOCKER 5→1、CRITICAL 15→0、BUG 10→3。
+> 现状（2026-11-23 18:27 复扫）：**ERROR**（`new_blocker_violations=0`、`new_bugs=2`、
+> `new_major_violations=289`、`new_security_hotspots_reviewed=0.0`）。
+> 阶段 5 首轮把 BLOCKER 5→1、CRITICAL 15→0、BUG 10→3；18:27 拆出
+> `FileBatchDeleteService` 后 BLOCKER 1→0、S6809 11→10、new_bugs 3→2、new_major 290→289。
+> 剩余 2 条 BUG 是 `FileController:316/373` 的明确 404（R3-06，不为消红改 HTTP 语义）。
 
 | 单号 | 规则 | 数量 | 为什么不能批量修 |
 |---|---|---|---|
 | R3-01 | `java:S5778` | 129 | 测试 lambda 内多次可能抛异常的调用；需逐例判断哪一次才是被测目标，批量改会把断言目标改错 |
 | R3-02 | `java:S6204` | 54 | `Stream.toList()` 返回**不可变**列表，下游有 `add/remove/sort` 会抛 `UnsupportedOperationException`，须逐处确认可变性 |
 | R3-03 | `java:S1168` | 36 | null→空集合是**契约变更**，调用方现有 null 判断变死代码，须先确认每个调用方语义 |
-| R3-04 | `java:S6809` + `S2229 FileService:1294` | 11+1 | 与 S5.3 God class 拆分同一件事（都要把单文件删除抽成独立 bean）；单独做等于把 `FileService` 改两遍 |
+| R3-04 | `java:S6809` | 10 | 分布在 ApprovalService / CustomerService(×4) / RecycleService / RolePermScopeService / SysPositionService / TaskService(×2)；与 God class 拆分同源但**不是同一处**。`FileService:1294` 的 S2229+S6809 已随 `FileBatchDeleteService` 拆分修复（2026-11-23 18:27）；剩余 10 处需逐类抽 bean，不能靠一次 FileService 拆分全消 |
 | R3-05 | `java:S112` | 7 | 需定义专用异常类型并改调用方捕获，属 API 设计变更 |
 | R3-06 | `java:S6863` | 2 | 命中点 `FileController:316/373` 是 `ResponseEntity.notFound().build()`——**明确 404，规则与语义不符**，为消红改 HTTP 语义会伤前端 |
 | R3-07 | 项目 key 收敛 / 新增代码基线 | — | 三处 key 并存（`Eastdongjun_AigiCRM` @SonarCloud、`Eastdongjun_AigiCRM-local` @本地、`aigicrm-backend-local` 陈旧）；且 `new_code_period=PREVIOUS_VERSION` 却从未设 `sonar.projectVersion`，导致全项目存量被算作「新增」 |
@@ -216,6 +219,9 @@ cd aigicrm-backend && mvn -q -Dtest=ArchitectureTest test
 
 **已修不登记（供对照）**：`S3252`×7、`S3516`、`S2447`×3、`S1948`×3、`S2229`×2（`TaskService` 自调用）、
 `S6857`、`S1452`、`S2259`×4、`S3776`、`S2699`、`S1192`×2，共 26 处，明细见证据文档 §2.3。
+**2026-11-23 18:27 追加**：`S2229 FileService:1294` + `S6809`×1 随批量删除拆出
+`FileBatchDeleteService` 修复（批量删除改为经注入代理调用 `deleteFile`，单条事务语义不变）；
+BLOCKER 1→0、S6809 11→10、new_bugs 3→2、new_major 290→289。
 
 **环境噪声（非缺陷）**：JaCoCo 0.8.16 对 `net.sf.jsqlparser.parser.CCJSqlParserTokenManager#jjMoveNfa_0`
 报 `MethodTooLargeException`（第三方生成代码方法体超限），插桩跳过该类，影响覆盖率统计完整性。

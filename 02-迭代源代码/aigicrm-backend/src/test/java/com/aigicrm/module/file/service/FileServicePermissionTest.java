@@ -61,7 +61,6 @@ class FileServicePermissionTest {
             mock(com.aigicrm.module.file.mapper.BizFileVersionMapper.class);
     private final FileService svc = new FileService(fileMapper, folderMapper, fileShareMapper,
                 fileVersionMapper,
-                mock(org.springframework.transaction.support.TransactionTemplate.class),
                 configService,
             incentiveRecordMapper, userMapper, providerOf(ossClient), ossConfig, folderPermissionService,
             mock(com.aigicrm.security.SecurityAuditService.class),

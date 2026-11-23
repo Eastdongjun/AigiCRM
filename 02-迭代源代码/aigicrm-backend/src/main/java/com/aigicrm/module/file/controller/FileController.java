@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.aigicrm.common.Result;
 import com.aigicrm.module.file.entity.BizFile;
 import com.aigicrm.module.file.entity.BizFileFolder;
+import com.aigicrm.module.file.service.FileBatchDeleteService;
 import com.aigicrm.module.file.service.FileService;
 import com.aigicrm.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +31,8 @@ public class FileController {
 
 
     private final FileService fileService;
+    /** 批量删除编排（S2229/S6809：逐条经 FileService 代理调用 deleteFile） */
+    private final FileBatchDeleteService fileBatchDeleteService;
     private final com.aigicrm.security.JwtTokenProvider jwtTokenProvider;
     /** 【D1=A 2026-10-18】存储空间申请资格/上限信息(复用用户服务配置读取) */
     private final com.aigicrm.module.system.service.SysUserService userService;
@@ -177,7 +180,7 @@ public class FileController {
     @PreAuthorize("hasAnyAuthority('file:delete','fabushi:file:delete')")
     @PostMapping("/batch-delete")
     public Result<java.util.Map<Long, String>> batchDelete(@RequestBody Map<String, List<Long>> body) {
-        return Result.ok(fileService.batchDeleteFiles(body == null ? null : body.get("ids")));
+        return Result.ok(fileBatchDeleteService.batchDeleteFiles(body == null ? null : body.get("ids")));
     }
 
     /** 批量下载(zip 流式打包, 逐个过下载权限, 无权限项静默剔除) */
