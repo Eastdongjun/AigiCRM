@@ -185,8 +185,9 @@ class PermissionRuleEngineTest {
     void evaluateForEntity_unsupportedVariableThrows() {
         List<SysPermissionRule> rules = Collections.singletonList(
                 rule("customer", "column_filter", "owner_id", "eq", "${user.officeId}", 1));
+        var u = user();
         assertThrows(BusinessException.class,
-                () -> PermissionRuleEngine.evaluateForEntity(rules, user(), "customer"));
+                () -> PermissionRuleEngine.evaluateForEntity(rules, u, "customer"));
     }
 
     /** 全链路：规则值含反斜杠+引号载荷时被安全转义，无法逃逸字符串 */

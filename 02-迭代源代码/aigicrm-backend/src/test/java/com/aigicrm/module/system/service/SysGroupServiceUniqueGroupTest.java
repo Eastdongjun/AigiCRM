@@ -57,7 +57,7 @@ class SysGroupServiceUniqueGroupTest {
     void create_whenGroupExists_rejected400() {
         when(groupMapper.selectCount(isNull())).thenReturn(1L);
         try (MockedStatic<SecurityUtils> sec = admin()) {
-            BusinessException ex = assertThrows(BusinessException.class, () -> service.create(group(9L, 1)));
+            BusinessException ex = createRejected(group(9L, 1));
             assertEquals(400, ex.getCode());
             assertEquals("单集团部署仅允许一个集团", ex.getMessage());
             assertEquals("SINGLE_GROUP_ONLY", ex.getErrorCode());
@@ -69,7 +69,7 @@ class SysGroupServiceUniqueGroupTest {
     void create_nonAdmin_rejected403() {
         try (MockedStatic<SecurityUtils> sec = mockStatic(SecurityUtils.class)) {
             sec.when(SecurityUtils::isAdmin).thenReturn(false);
-            BusinessException ex = assertThrows(BusinessException.class, () -> service.create(group(9L, 1)));
+            BusinessException ex = createRejected(group(9L, 1));
             assertEquals(403, ex.getCode());
             assertEquals("ADMIN_ONLY", ex.getErrorCode());
         }
@@ -104,7 +104,7 @@ class SysGroupServiceUniqueGroupTest {
     void update_nonAdmin_rejected403() {
         try (MockedStatic<SecurityUtils> sec = mockStatic(SecurityUtils.class)) {
             sec.when(SecurityUtils::isAdmin).thenReturn(false);
-            BusinessException ex = assertThrows(BusinessException.class, () -> service.update(group(1L, 1)));
+            BusinessException ex = updateRejected(group(1L, 1));
             assertEquals(403, ex.getCode());
         }
     }
@@ -143,5 +143,13 @@ class SysGroupServiceUniqueGroupTest {
             assertEquals(403, ex.getCode());
         }
         verify(groupMapper, never()).updateById(any(SysGroup.class));
+    }
+
+    private BusinessException createRejected(SysGroup group) {
+        return assertThrows(BusinessException.class, () -> service.create(group));
+    }
+
+    private BusinessException updateRejected(SysGroup group) {
+        return assertThrows(BusinessException.class, () -> service.update(group));
     }
 }

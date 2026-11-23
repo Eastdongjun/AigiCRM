@@ -111,8 +111,11 @@ class CustomerFullIdempotencyTest {
         try (MockedStatic<SecurityUtils> security = mockStatic(SecurityUtils.class)) {
             security.when(() -> SecurityUtils.hasAuthority("customer:edit")).thenReturn(true);
             security.when(SecurityUtils::getCurrentUserId).thenReturn(9L);
+            var controller = s.controller();
+            var reqBody = body();
+            var resp = response();
             assertThrows(BusinessException.class,
-                    () -> s.controller().createFull(body(), "key-fail0001", response()));
+                    () -> controller.createFull(reqBody, "key-fail0001", resp));
         }
         verify(s.idempotency()).abort("scoped3");
         verify(s.idempotency(), never()).finish(anyString(), anyString());

@@ -73,8 +73,7 @@ class IncentiveControllerPermissionTest {
             when(incentiveService.canEdit()).thenReturn(false);
             when(incentiveService.getRecordById(79L)).thenReturn(recordOf(79L, 1L));
 
-            BusinessException ex = assertThrows(BusinessException.class,
-                    () -> controller.updateRecord(79L, new BizIncentiveRecord()));
+            BusinessException ex = updateRecordRejected(new BizIncentiveRecord());
 
             assertEquals(403, ex.getCode());
             assertEquals("无权编辑他人记录", ex.getMessage());
@@ -92,8 +91,7 @@ class IncentiveControllerPermissionTest {
             when(incentiveService.canEdit()).thenReturn(false);
             when(incentiveService.getRecordById(79L)).thenReturn(null);
 
-            BusinessException ex = assertThrows(BusinessException.class,
-                    () -> controller.updateRecord(79L, new BizIncentiveRecord()));
+            BusinessException ex = updateRecordRejected(new BizIncentiveRecord());
 
             assertEquals(403, ex.getCode());
             verify(incentiveService, never()).updateRecord(79L, new BizIncentiveRecord());
@@ -144,8 +142,7 @@ class IncentiveControllerPermissionTest {
             when(incentiveService.canEdit()).thenReturn(false);
             when(incentiveService.getRecordById(79L)).thenReturn(recordOf(79L, 1L));
 
-            BusinessException ex = assertThrows(BusinessException.class,
-                    () -> controller.updateRecord(79L, new BizIncentiveRecord()));
+            BusinessException ex = updateRecordRejected(new BizIncentiveRecord());
 
             assertEquals(403, ex.getCode());
             verify(incentiveService, never()).updateRecord(79L, new BizIncentiveRecord());
@@ -297,5 +294,9 @@ class IncentiveControllerPermissionTest {
             verify(incentiveService).deleteRecord(79L);
             verify(incentiveService, never()).getRecordById(79L);
         }
+    }
+
+    private BusinessException updateRecordRejected(BizIncentiveRecord rec) {
+        return assertThrows(BusinessException.class, () -> controller.updateRecord(79L, rec));
     }
 }

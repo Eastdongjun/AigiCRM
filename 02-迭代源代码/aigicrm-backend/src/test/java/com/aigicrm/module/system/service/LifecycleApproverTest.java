@@ -212,8 +212,8 @@ class LifecycleApproverTest {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(U_A);
             m.when(SecurityUtils::isAdmin).thenReturn(false);
             m.when(() -> SecurityUtils.hasAuthority("system:user:edit")).thenReturn(true);
-            BusinessException ex = assertThrows(BusinessException.class, () -> svc.approve(
-                    jdbc.queryForObject("SELECT id FROM biz_lifecycle_request", Long.class), "ok"));
+            Long requestId = jdbc.queryForObject("SELECT id FROM biz_lifecycle_request", Long.class);
+            BusinessException ex = assertThrows(BusinessException.class, () -> svc.approve(requestId, "ok"));
             assertEquals(403, ex.getCode());
             assertTrue(ex.getMessage().contains("转交"));
         }

@@ -219,8 +219,9 @@ class FabushiH5UploadServiceTest {
     void fileTicket_crossScene_rejected() {
         // fabushi 票不能走 files 通道(scene 校验双向)
         validTicketStubs("T");
+        MultipartFile f = file("a.jpg", 1L);
         assertEquals(403, assertThrows(BusinessException.class,
-                () -> svc.consumeFileUpload("T", file("a.jpg", 1L), null, "private")).getCode());
+                () -> svc.consumeFileUpload("T", f, null, "private")).getCode());
         verify(fileService, never()).upload(any(), any(), anyString());
     }
 

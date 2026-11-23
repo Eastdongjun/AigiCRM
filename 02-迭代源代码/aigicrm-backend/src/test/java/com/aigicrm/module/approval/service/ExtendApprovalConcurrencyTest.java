@@ -146,8 +146,9 @@ class ExtendApprovalConcurrencyTest {
             sec.when(SecurityUtils::getCurrentUserId).thenReturn(7L);
             sec.when(SecurityUtils::isAdmin).thenReturn(false);
 
+            var svc = service();
             BusinessException ex = assertThrows(BusinessException.class,
-                    () -> service().submit("extend", 501L, null, null));
+                    () -> svc.submit("extend", 501L, null, null));
             assertTrue(ex.getMessage().contains("进行中的保护期延期审批"), "实际: " + ex.getMessage());
             verify(approvalMapper, never()).insert(any(BizApproval.class));
         }

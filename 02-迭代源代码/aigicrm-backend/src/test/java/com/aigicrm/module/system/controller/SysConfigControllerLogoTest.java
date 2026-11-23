@@ -104,8 +104,7 @@ class SysConfigControllerLogoTest {
         SysConfig logo = logo("/api/file/download/public/1/logo.png");
         try (MockedStatic<SecurityUtils> security = mockStatic(SecurityUtils.class)) {
             security.when(SecurityUtils::isAdmin).thenReturn(false);
-            BusinessException ex = assertThrows(BusinessException.class,
-                    () -> controller.batchUpdate(List.of(logo)));
+            BusinessException ex = batchUpdateRejected(List.of(logo));
             assertEquals(403, ex.getCode());
         }
         verify(configService, never()).batchUpdate(anyList());
@@ -116,7 +115,7 @@ class SysConfigControllerLogoTest {
         SysConfig logo = logo("/api/file/download/public/../private/secret.png");
         try (MockedStatic<SecurityUtils> security = mockStatic(SecurityUtils.class)) {
             security.when(SecurityUtils::isAdmin).thenReturn(true);
-            assertThrows(BusinessException.class, () -> controller.batchUpdate(List.of(logo)));
+            batchUpdateRejected(List.of(logo));
         }
         verify(configService, never()).batchUpdate(anyList());
     }
@@ -137,11 +136,9 @@ class SysConfigControllerLogoTest {
     void batchUpdate_logoWithExternalOrNonPublicUrl_rejected() {
         try (MockedStatic<SecurityUtils> security = mockStatic(SecurityUtils.class)) {
             security.when(SecurityUtils::isAdmin).thenReturn(true);
-            assertThrows(BusinessException.class,
-                    () -> controller.batchUpdate(List.of(logo("https://evil.example/logo.png"))));
-            assertThrows(BusinessException.class,
-                    () -> controller.batchUpdate(List.of(
-                            logo("/api/file/download/private/1/logo.png"))));
+            batchUpdateRejected(List.of(logo("https://evil.example/logo.png")));
+            batchUpdateRejected(List.of(
+                    logo("/api/file/download/private/1/logo.png")));
         }
         verify(configService, never()).batchUpdate(anyList());
     }
@@ -151,5 +148,9 @@ class SysConfigControllerLogoTest {
         config.setConfigKey("system.logo");
         config.setConfigValue(value);
         return config;
+    }
+
+    private BusinessException batchUpdateRejected(List<SysConfig> configs) {
+        return assertThrows(BusinessException.class, () -> controller.batchUpdate(configs));
     }
 }

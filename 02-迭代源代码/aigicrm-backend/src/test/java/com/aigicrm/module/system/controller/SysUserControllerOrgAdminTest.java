@@ -39,7 +39,7 @@ class SysUserControllerOrgAdminTest {
         try (MockedStatic<SecurityUtils> security = mockStatic(SecurityUtils.class)) {
             security.when(SecurityUtils::isOrgAdmin).thenReturn(true);
 
-            assertThrows(BusinessException.class, () -> controller.update(7L, new SysUser()));
+            updateRejected(new SysUser());
         }
 
         verifyNoInteractions(userService);
@@ -65,7 +65,7 @@ class SysUserControllerOrgAdminTest {
             security.when(SecurityUtils::isAdmin).thenReturn(false);
             security.when(SecurityUtils::isOrgAdmin).thenReturn(false);
 
-            assertThrows(BusinessException.class, () -> controller.create(new SysUser()));
+            createRejected(new SysUser());
         }
 
         verifyNoInteractions(userService);
@@ -82,5 +82,13 @@ class SysUserControllerOrgAdminTest {
         }
 
         verify(userService).create(any(SysUser.class));
+    }
+
+    private BusinessException updateRejected(SysUser user) {
+        return assertThrows(BusinessException.class, () -> controller.update(7L, user));
+    }
+
+    private BusinessException createRejected(SysUser user) {
+        return assertThrows(BusinessException.class, () -> controller.create(user));
     }
 }

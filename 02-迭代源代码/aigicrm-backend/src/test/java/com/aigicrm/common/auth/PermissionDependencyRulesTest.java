@@ -28,8 +28,10 @@ class PermissionDependencyRulesTest {
     void childWithoutParent_isRejected() {
         Set<String> codes = new HashSet<>(Set.of("customer:date:edit"));
         Set<Long> ids = new HashSet<>(Set.of(128L));
+        var codeMap = codeById();
+        Set<String> noExtra = Set.of();
         BusinessException ex = assertThrows(BusinessException.class,
-                () -> PermissionDependencyRules.resolve(codes, ids, Set.of(), codeById()));
+                () -> PermissionDependencyRules.resolve(codes, ids, noExtra, codeMap));
         assertEquals(400, ex.getCode());
         assertEquals("FIELD_PERM_REQUIRED", ex.getErrorCode());
         assertTrue(ex.getMessage().contains("customer:edit"));
@@ -57,8 +59,11 @@ class PermissionDependencyRulesTest {
     @Test
     void contactViewRequiresCustomerView() {
         Set<String> codes = new HashSet<>(Set.of("contact:view"));
+        var codeMap = codeById();
+        Set<Long> noIds = Set.of();
+        Set<String> noExtra = Set.of();
         BusinessException ex = assertThrows(BusinessException.class,
-                () -> PermissionDependencyRules.resolve(codes, Set.of(), Set.of(), codeById()));
+                () -> PermissionDependencyRules.resolve(codes, noIds, noExtra, codeMap));
         assertEquals(400, ex.getCode());
     }
 }

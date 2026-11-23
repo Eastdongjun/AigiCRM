@@ -120,8 +120,7 @@ class SysUserOrgBoundaryTest {
             sec.when(SecurityUtils::getCurrentManagedOrgIds).thenReturn(List.of());
             sec.when(SecurityUtils::getCurrentDataScope).thenReturn("self");
 
-            assertThrows(BusinessException.class,
-                    () -> service.create(createPayload(200L, null, 11L)),
+            createRejected(createPayload(200L, null, 11L),
                     "目标部门不在调用者可见范围内应拒绝");
         }
         verify(userMapper, never()).insert(any(SysUser.class));
@@ -139,8 +138,7 @@ class SysUserOrgBoundaryTest {
             sec.when(SecurityUtils::getCurrentManagedOrgIds).thenReturn(List.of());
             sec.when(SecurityUtils::getCurrentDataScope).thenReturn("self");
 
-            assertThrows(BusinessException.class,
-                    () -> service.create(createPayload(100L, 300L, 11L)),
+            createRejected(createPayload(100L, 300L, 11L),
                     "目标办事处不在调用者可见范围内应拒绝");
         }
         verify(userMapper, never()).insert(any(SysUser.class));
@@ -177,8 +175,7 @@ class SysUserOrgBoundaryTest {
             sec.when(SecurityUtils::getCurrentManagedOrgIds).thenReturn(List.of());
             sec.when(SecurityUtils::getCurrentDataScope).thenReturn("self");
 
-            BusinessException ex = assertThrows(BusinessException.class,
-                    () -> service.create(createPayload(100L, 100L, 11L)));
+            BusinessException ex = createRejected(createPayload(100L, 100L, 11L));
             assertEquals("无权授予权限: system:role:edit", ex.getMessage());
         }
         verify(userMapper, never()).insert(any(SysUser.class));
@@ -258,5 +255,13 @@ class SysUserOrgBoundaryTest {
             assertDoesNotThrow(() -> service.update(payload));
         }
         verify(userMapper).updateById(any(SysUser.class));
+    }
+
+    private BusinessException createRejected(SysUser user) {
+        return assertThrows(BusinessException.class, () -> service.create(user));
+    }
+
+    private BusinessException createRejected(SysUser user, String message) {
+        return assertThrows(BusinessException.class, () -> service.create(user), message);
     }
 }

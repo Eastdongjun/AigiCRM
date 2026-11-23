@@ -23,7 +23,8 @@ class ImportGuardTest {
 
     @Test
     void checkFile_empty_rejected() {
-        assertThrows(BusinessException.class, () -> ImportGuard.checkFile(xlsxOfSize(0)),
+        var empty = xlsxOfSize(0);
+        assertThrows(BusinessException.class, () -> ImportGuard.checkFile(empty),
                 "空文件拒绝(与原口径一致)");
     }
 
@@ -35,8 +36,9 @@ class ImportGuardTest {
 
     @Test
     void checkFile_overSize_rejected() {
+        var oversized = xlsxOfSize(ImportGuard.MAX_IMPORT_FILE_BYTES + 1);
         BusinessException ex = assertThrows(BusinessException.class,
-                () -> ImportGuard.checkFile(xlsxOfSize(ImportGuard.MAX_IMPORT_FILE_BYTES + 1)));
+                () -> ImportGuard.checkFile(oversized));
         assertTrue(ex.getMessage().contains("5MB"), "超限提示须含上限说明: " + ex.getMessage());
     }
 

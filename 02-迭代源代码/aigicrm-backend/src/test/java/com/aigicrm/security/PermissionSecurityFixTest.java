@@ -118,9 +118,7 @@ class PermissionSecurityFixTest {
         RolePermScopeService svc = new RolePermScopeService(jdbc, mock(com.aigicrm.security.PermissionCacheService.class),
                 mock(com.aigicrm.module.system.mapper.SysRuleVersionMapper.class),
                 mock(com.aigicrm.common.auth.PermActionRegistry.class));
-        assertThrows(BusinessException.class,
-                () -> svc.updateScopes(com.aigicrm.common.scope.ScopeConfig.ASSIGNEE_ROLE, "06", List.of(Map.of("module", "customer", "action", "view", "scopeLevel", "xxx"))),
-                "非法范围值必须拒绝, 不得静默降级 self");
+        updateScopesRejected(svc, List.of(Map.of("module", "customer", "action", "view", "scopeLevel", "xxx")));
     }
 
     @Test
@@ -516,5 +514,11 @@ class PermissionSecurityFixTest {
             assertEquals("view", detailReq.getValue().getAction());
             assertEquals(com.aigicrm.common.scope.ScopeRequest.AnchorType.OWNER, detailReq.getValue().getAnchor());
         }
+    }
+
+    private BusinessException updateScopesRejected(RolePermScopeService svc, List<Map<String, Object>> scopes) {
+        return assertThrows(BusinessException.class,
+                () -> svc.updateScopes(com.aigicrm.common.scope.ScopeConfig.ASSIGNEE_ROLE, "06", scopes),
+                "非法范围值必须拒绝, 不得静默降级 self");
     }
 }

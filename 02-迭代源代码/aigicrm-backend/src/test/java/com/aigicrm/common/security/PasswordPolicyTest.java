@@ -17,7 +17,8 @@ class PasswordPolicyTest {
     @Test
     void rejectsTooShortOrTooLong() {
         assertThrows(BusinessException.class, () -> PasswordPolicy.validate("Abc1234"));
-        assertThrows(BusinessException.class, () -> PasswordPolicy.validate("A1" + "x".repeat(29)));
+        String tooLong = "A1" + "x".repeat(29);
+        assertThrows(BusinessException.class, () -> PasswordPolicy.validate(tooLong));
     }
 
     @Test

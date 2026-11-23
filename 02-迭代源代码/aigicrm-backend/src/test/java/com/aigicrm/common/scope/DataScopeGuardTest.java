@@ -98,8 +98,9 @@ class DataScopeGuardTest {
     void injectedCheckOwnerRejectsOutOfOverrideAndResolver() {
         // C1 回归：owner 既不在 resolver 范围也不在 override → 必须拒绝（旧实现 fail-open 恒放行）
         DataScopeGuard guard = guardWithScope(List.of(1L, 2L));
+        List<Long> override = List.of(5L);
         BusinessException ex = assertThrows(BusinessException.class,
-                () -> guard.checkOwner(9L, List.of(5L)));
+                () -> guard.checkOwner(9L, override));
         assertEquals(403, ex.getCode());
     }
 

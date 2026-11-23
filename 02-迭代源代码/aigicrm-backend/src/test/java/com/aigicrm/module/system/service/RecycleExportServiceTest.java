@@ -224,10 +224,9 @@ CREATE TABLE IF NOT EXISTS biz_recycle_export (id BIGINT AUTO_INCREMENT PRIMARY 
             m.when(SecurityUtils::isAdmin).thenReturn(true);
             m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
             m.when(SecurityUtils::getCurrentUser).thenReturn(null);
-            BusinessException e1 = assertThrows(BusinessException.class, () -> svc.create(List.of(), null));
+            BusinessException e1 = createRejected(List.of());
             assertTrue(e1.getMessage().contains("不能为空"));
-            BusinessException e2 = assertThrows(BusinessException.class,
-                    () -> svc.create(List.of("customer", "boss"), null));
+            BusinessException e2 = createRejected(List.of("customer", "boss"));
             assertTrue(e2.getMessage().contains("非法"));
         }
     }
@@ -292,5 +291,9 @@ CREATE TABLE IF NOT EXISTS biz_recycle_export (id BIGINT AUTO_INCREMENT PRIMARY 
             assertEquals(404, x.getCode());
             assertTrue(x.getMessage().contains("导出记录不存在"));
         }
+    }
+
+    private BusinessException createRejected(List<String> types) {
+        return assertThrows(BusinessException.class, () -> svc.create(types, null));
     }
 }
