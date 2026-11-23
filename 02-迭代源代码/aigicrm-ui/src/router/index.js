@@ -191,7 +191,7 @@ const routes = [
         path: 'fabushi/content',
         name: 'FabushiContent',
         component: () => import('@/views/fabushi/content.vue'),
-        meta: { title: '内容治理', parentTitle: '法布施', icon: 'Document', permission: 'fabushi:content:view' }
+        meta: { title: '内容管理', parentTitle: '法布施', icon: 'Document', permission: 'fabushi:content:view' }
       },
       {
         path: 'fabushi/stats',

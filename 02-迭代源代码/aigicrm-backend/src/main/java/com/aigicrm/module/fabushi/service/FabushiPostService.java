@@ -103,7 +103,7 @@ public class FabushiPostService {
 
     /**
      * 内容分页(fabushi:view 门): 默认 published 按时间倒序 + 联显/互动计数。
-     * status 传参仅治理门生效: 持 fabushi:content:manage 者可查 offline 记录(内容治理页),
+     * status 传参仅治理门生效: 持 fabushi:content:manage 者可查 offline 记录(内容管理页),
      * 其余调用方一律强制 published——防越权翻看下架内容。
      */
     public Page<BizFabushiPost> page(PageQuery q) {

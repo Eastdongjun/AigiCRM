@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
 /**
  * 法布施统一内容(一期 2026-11-15; D1 2026-11-23 类型重构): 每日诵读songdu/每日随施suishi/再读一本zaidu 共用一张表,
  * scope_type 区分(V2026.11.16.1 建表; V2026.11.23.1 迁移; 单源枚举 FabushiScopeType)。
- * 下架留痕: status=offline 时 offline_by/at/reason 必填(内容治理 fabushi:content:manage)。
+ * 下架留痕: status=offline 时 offline_by/at/reason 必填(内容管理 fabushi:content:manage)。
  */
 @Data
 @TableName("biz_fabushi_post")

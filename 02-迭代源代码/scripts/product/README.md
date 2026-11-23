@@ -67,7 +67,7 @@ bash scripts/product/install.sh --project aigicrm-b1-test --down
 
 实测（2026-11-23，本机 aarch64 Docker）：
 
-- 全新卷：Flyway `165/165`（schema `2026.11.23.5`）、`sys_group=1`、`admin=1`；
+- 全新卷：Flyway `166/166`（schema `2026.11.23.5`）、`sys_group=1`、`admin=1`；
 - health `UP`、admin 登录成功；
 - frontend 首页 HTTP 200（含 `<div id="app">`）、入口 JS 200、经 `/api/auth/login` 代理登录成功；
 - 同项目幂等重跑：Flyway `No migration necessary`，health/登录仍通过；

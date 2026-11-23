@@ -103,7 +103,7 @@ if [ -n "$MYSQL_C" ]; then
      SELECT COUNT(*) FROM ${DB_NAME:-aigicrm}.sys_dict_data d JOIN ${DB_NAME:-aigicrm}.sys_dict_type t ON d.dict_type_id=t.id WHERE t.dict_code='industry'; \
      SELECT COUNT(*) FROM ${DB_NAME:-aigicrm}.biz_customer WHERE customer_code LIKE 'DEMO%';" 2>/dev/null | tr '\n' ' ')"
   set -- $Q
-  [ "${1:-}" = "165" ] && pass "Flyway 165" || fail "Flyway=${1:-?}"
+  [ "${1:-}" = "166" ] && pass "Flyway 166" || fail "Flyway=${1:-?}"
   [ "${2:-}" = "10" ] && pass "industry 字典 10" || fail "industry=${2:-?}"
   [ "${3:-}" = "3" ] && pass "演示客户 3" || fail "demo=${3:-?}"
 else

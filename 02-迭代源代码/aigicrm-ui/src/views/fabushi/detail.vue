@@ -234,7 +234,7 @@ const saveEdit = async () => {
 
 const removePost = async () => {
   try {
-    await ElMessageBox.confirm('删除后可在内容治理（已删除）中找回，附件保留在文件中心。确认删除？', '删除内容', { type: 'warning' })
+    await ElMessageBox.confirm('删除后可在内容管理（已删除）中找回，附件保留在文件中心。确认删除？', '删除内容', { type: 'warning' })
   } catch (e) {
     return
   }
