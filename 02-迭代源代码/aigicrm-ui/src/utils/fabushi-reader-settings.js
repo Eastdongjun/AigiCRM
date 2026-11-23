@@ -47,7 +47,12 @@ const clamp = (value, min, max, fallback) => {
 
 /**
  * 按书目版式标记给保守默认值：文本版纸白原色，影印版米黄 + 轻度对比增强。
- * @returns {{backdrop: string, zoom: number, contrast: number, crop: number, continuous: boolean}}
+ * 【S4 2026-11-23】返回类型必须列全 D24 新增的 reflow/fontSize/lineHeight：
+ * 此前 JSDoc 只写了 5 个字段，TS 会以 JSDoc 为准把返回值收窄成 5 键，
+ * 导致 read.vue / FabushiReader.vue 里 settings.reflow/fontSize/lineHeight 全部报
+ * 「Property does not exist」（实测 35 处连带错误）。运行时对象本来就是全的。
+ * @returns {{backdrop: string, zoom: number, contrast: number, crop: number, continuous: boolean,
+ *   reflow: boolean, fontSize: number, lineHeight: number}}
  */
 export function resolveReaderDefaults(layoutType) {
   const text = layoutType === 'text'
@@ -60,7 +65,9 @@ export function resolveReaderDefaults(layoutType) {
 
 /**
  * 合并本地记忆与默认值；越界/脏值一律回落，不允许把 CSS filter 弄成非法值。
- * @returns {{backdrop: string, zoom: number, contrast: number, crop: number, continuous: boolean}}
+ * 【S4 2026-11-23】返回类型同 resolveReaderDefaults，必须含 D24 的 reflow/fontSize/lineHeight。
+ * @returns {{backdrop: string, zoom: number, contrast: number, crop: number, continuous: boolean,
+ *   reflow: boolean, fontSize: number, lineHeight: number}}
  */
 export function normalizeReaderSettings(raw, layoutType) {
   const base = resolveReaderDefaults(layoutType)

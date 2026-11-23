@@ -313,7 +313,8 @@ const current = ref(1)
 const size = 10
 const loading = ref(false)
 // 【P1 2026-11-23】右栏「我的觉醒」三板块状态 + 每日提醒设置（后端早已提供，此前未接）
-const awaken = ref({ todayRecitations: 0, todayGifts: 0, todayPosts: 0, rereadingBooks: 0 })
+// 【S4 2026-11-23】初值必须带 currentBook，否则 TS 按字面量收窄后 awaken.currentBook 报不存在
+const awaken = ref({ todayRecitations: 0, todayGifts: 0, todayPosts: 0, rereadingBooks: 0, currentBook: null })
 const currentBook = computed(() => (awaken.value.currentBook && awaken.value.currentBook.bookId ? awaken.value.currentBook : null))
 const awakenDone = computed(() =>
   (awaken.value.todayRecitations > 0 ? 1 : 0)
@@ -476,8 +477,9 @@ const loadAwaken = async () => {
   try {
     awaken.value = (await getFabushiAwakenStatus()).data || {}
   } catch (e) {
-    // 右栏状态卡属辅助信息，拉取失败不阻断信息流
-    awaken.value = {}
+    // 右栏状态卡属辅助信息，拉取失败不阻断信息流；回落零值而不是空对象，
+    // 避免模板里 undefined 参与运算（也是 TS 报 {} 不可赋值的根因）
+    awaken.value = { todayRecitations: 0, todayGifts: 0, todayPosts: 0, rereadingBooks: 0, currentBook: null }
   }
 }
 

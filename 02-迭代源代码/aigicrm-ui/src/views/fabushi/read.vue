@@ -174,7 +174,9 @@
 // 进度 + 打开时按 lastPage 续读。渲染/进度逻辑与 MP 共用 useFabushiPdfReader（口径单源）。
 // 鉴权：PDF 走主 JWT 的 Authorization 头，token 不再拼进 URL（防落到访问日志/Referer）。
 // 【D19/D24 切片 7 批1】新增：版式面板（背景/缩放/对比度/裁边/单连续页/百分比）+ 页码书签存库；
-// 重排/字号行距/书内搜索按变更单留批 2，UI 已如实标注，不做假功能。
+// 【2026-11-23 批2 已落地】重排、字号行距、书内搜索三项已实现（影印件无文本层时如实禁用，
+// 不做 OCR）；此注释原写「留批 2、UI 已如实标注」，与现状不符，已更正。
+// 仍属批 2：D12 图片裁剪/标注（双端都还没有编辑器，只有放大查看）。
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
@@ -395,6 +397,12 @@ async function loadBook() {
       return
     }
     await load(() => canvasEl.value)
+    // 【P9B 2026-11-23】支持从「我的书摘」带页码跳转：/fabushi/read/:bookId?page=N。
+    // 必须在 load() 之后——load 会按书记忆恢复上次进度，跳转要覆盖它。
+    const jumpPage = Number(route.query.page)
+    if (state.value === 'ready' && Number.isFinite(jumpPage) && jumpPage > 0) {
+      turnTo(Math.min(jumpPage, totalPages.value || jumpPage))
+    }
     // 【D24】PDF 就绪后探测文本层：决定「重排 / 书内搜索」是否可用（影印件如实禁用）
     if (state.value === 'ready') probeTextLayer()
   } catch (e) {

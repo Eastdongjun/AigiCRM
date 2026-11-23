@@ -166,6 +166,7 @@ import {
   getFabushiSections, createFabushiSection, deleteFabushiSection, updateFabushiBookLayout,
 } from '@/api/fabushi'
 import { FABUSHI_LAYOUT_TYPES, layoutLabel } from '@/utils/fabushi-reader-settings'
+import { inspectPdfFile } from '@/utils/pdf-inspect'
 
 const userStore = useUserStore()
 const loading = ref(false)
@@ -308,6 +309,41 @@ const doSaveLayout = async () => {
 
 const openPdf = (row) => { pdfVisible.value = row }
 const pickPdf = () => pdfInputRef.value?.click()
+
+/**
+ * 【S4.4 2026-11-23】挂载质检。只在真有问题时才弹窗：
+ * 无文本层（影印件 → 重排/书内搜索不可用）、页面尺寸不一（翻页跳动）。
+ * 质检本身失败（加密/损坏/解析异常）直接放行，不让质检成为新的失败点。
+ * @returns {Promise<boolean>} true=继续上传
+ */
+const confirmQuality = async (file) => {
+  const report = await inspectPdfFile(file)
+  if (!report) return true
+  const issues = []
+  if (!report.hasTextLayer) {
+    issues.push('· 抽查的 ' + report.sampled + ' 页里没有文本层（影印件）：阅读器的「重排 / 字号行距 / 书内搜索」将不可用')
+  }
+  if (!report.uniformPageSize) {
+    issues.push('· 页面尺寸不一致（抽查到 ' + report.distinctSizes + ' 种尺寸）：阅读器翻页会有跳动')
+  }
+  if (!issues.length) return true
+  const message = '这份 PDF 共 ' + report.pages + ' 页，检测到：\n'
+    + issues.join('\n')
+    + '\n\n建议换一个带文本层、页面尺寸统一的版本。仍要挂载请点「仍然挂载」。'
+  try {
+    await ElMessageBox.confirm(message, '挂载质检提示', {
+      type: 'warning',
+      confirmButtonText: '仍然挂载',
+      cancelButtonText: '换一个 PDF',
+      // 保留换行，长文本可读
+      customStyle: { whiteSpace: 'pre-line' },
+    })
+    return true
+  } catch (e) {
+    return false
+  }
+}
+
 const handlePdfChosen = async (evt) => {
   const file = evt.target.files && evt.target.files[0]
   if (!file) return
@@ -320,6 +356,12 @@ const handlePdfChosen = async (evt) => {
   }
   if (file.size > 100 * 1024 * 1024) {
     ElMessage.error('PDF 不能超过 100MB')
+    evt.target.value = ''
+    return
+  }
+  // 【S4.4 2026-11-23】挂载前质检：无文本层 / 页尺寸不一 → 先提示，再让管理员决定
+  const okToUpload = await confirmQuality(file)
+  if (!okToUpload) {
     evt.target.value = ''
     return
   }

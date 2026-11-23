@@ -146,11 +146,27 @@
           <el-button size="small" @click="clearRec">重录</el-button>
         </div>
         <FabushiAudioList :items="audioAttachments" @remove="(item) => removeAttachment(attachments.indexOf(item))" />
-        <p class="pub-hint">
-          位置 / 谁可以看：后端暂无地理位置与可见范围字段，本轮未做（已登记在
-          <code>docs/prototypes/README.md</code> 已知差距），不放空按钮占位。
-        </p>
       </div>
+      <!-- 【S4.3 2026-11-23】P7 工具行的「谁可以看 / 文件归档」按裁决做成静态标注：
+           谁可以看=D21 全员共享（不做选择器）；归档位置=D27 文件中心›法布施（后端既有行为，仅显性化）。
+           「位置」后端无地理字段，仍不做按钮。 -->
+      <div class="pub-row">
+        <label class="pub-label">谁可以看</label>
+        <div class="pub-static">
+          <span class="pub-static-chip">全员可见</span>
+          <span class="pub-static-note">社区内容对全员共享；「部分可见 / 不给谁看」按 D21 裁决暂不做。</span>
+        </div>
+      </div>
+      <div class="pub-row">
+        <label class="pub-label">附件归档</label>
+        <div class="pub-static">
+          <span class="pub-static-chip">文件中心 › 法布施</span>
+          <span class="pub-static-note">附件统一落在文件中心的法布施空间；内容下架或书目停用后，可见范围回落到上传人。</span>
+        </div>
+      </div>
+      <p class="pub-hint">
+        位置：后端暂无地理字段，未做（已登记 <code>docs/prototypes/README.md</code>），不放空按钮占位。
+      </p>
       <div v-if="nonImages.length" class="pub-row">
         <label class="pub-label">已选附件</label>
         <div class="file-chips">
@@ -594,6 +610,10 @@ onBeforeUnmount(() => {
 .pub-cap.active { border-color: var(--el-color-primary); background: var(--el-color-primary-light-9); color: var(--el-color-primary); font-weight: 700; }
 .pub-hint { margin: 6px 0 0; font-size: 12px; color: var(--text-muted); line-height: 1.6; }
 .pub-hint.warn { color: var(--el-color-warning); }
+/* 【S4.3】静态标注行（谁可以看 / 附件归档）：只展示事实，不做成可点按钮 */
+.pub-static { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pub-static-chip { padding: 3px 10px; border: 1px solid var(--border-light); border-radius: 999px; color: var(--text-secondary); background: var(--el-fill-color-lighter); font-size: 12px; font-weight: 600; }
+.pub-static-note { color: var(--text-muted); font-size: 12px; line-height: 1.6; }
 .triple { display: grid; grid-template-columns: 1fr 1fr 1.2fr; gap: 8px; }
 .edition-chips { display: flex; align-items: center; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
 .ec-label { font-size: 12px; color: var(--text-muted); }

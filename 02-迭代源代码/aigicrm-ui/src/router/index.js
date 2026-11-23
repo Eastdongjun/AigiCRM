@@ -162,6 +162,13 @@ const routes = [
         meta: { title: '我的觉醒', parentTitle: '法布施', icon: 'Reading', permission: 'fabushi:view' }
       },
       {
+        // 【P9B 2026-11-23】原型是独立屏，此前只是 shelf 里的弹窗
+        path: 'fabushi/highlights',
+        name: 'FabushiHighlights',
+        component: () => import('@/views/fabushi/highlights.vue'),
+        meta: { title: '我的书摘', parentTitle: '我的觉醒', activeMenu: '/fabushi/shelf', icon: 'Notebook', permission: 'fabushi:view' }
+      },
+      {
         path: 'fabushi/read/:bookId',
         name: 'FabushiRead',
         component: () => import('@/views/fabushi/read.vue'),

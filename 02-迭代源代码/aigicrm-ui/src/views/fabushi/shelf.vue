@@ -46,7 +46,7 @@
           <div><b>{{ personal.monthSuishi || 0 }}</b><span>随施</span></div>
           <div><b>{{ personal.monthZaidu || 0 }}</b><span>再读</span></div>
         </div>
-        <el-button size="small" @click="openHighlights">我的书摘（{{ highlights.length }}）</el-button>
+        <el-button size="small" @click="router.push('/fabushi/highlights')">我的书摘（{{ highlightCount }}）</el-button>
       </div>
       <div class="awaken-links">
         <el-button link type="primary" @click="active = 'shelf'">进入我的书架 ›</el-button>
@@ -185,17 +185,7 @@
       </div>
       <template #footer><el-button @click="groupDialogVisible = false">关闭</el-button></template>
     </el-dialog>
-    <!-- D23 我的书摘 -->
-    <el-dialog v-model="highlightsVisible" title="我的书摘" width="560px">
-      <div v-if="!highlights.length" class="empty">还没有书摘。在阅读器里「加书签」并写一句备注，就会沉淀到这里。</div>
-      <ul v-else class="hl-list">
-        <li v-for="h in highlights" :key="h.id">
-          <div class="hl-book">{{ h.bookTitle }} <span class="hl-page">第 {{ h.page }} 页</span></div>
-          <div class="hl-note">{{ h.note || '（无备注）' }}</div>
-          <div class="hl-time">{{ formatDate(h.createdAt) }}</div>
-        </li>
-      </ul>
-    </el-dialog>
+    <!-- 【P9B 2026-11-23】书摘已迁到独立页 /fabushi/highlights，此处弹窗下架 -->
   </div>
 </template>
 
@@ -227,22 +217,20 @@ const shelf = ref([])
 const groups = ref([])
 const summary = ref({ total: 0, currentBook: null })
 const awaken = ref({ todayRecitations: 0, todayGifts: 0, rereadingBooks: 0, finishedThisMonth: 0, totalReadDays: 0 })
-// 【PROTO-AUDIT-20261123 P9】我的本月（三类型拆分）+ 我的书摘
+// 【PROTO-AUDIT-20261123 P9】我的本月（三类型拆分）+ 我的书摘计数
 const personal = ref({ monthSongdu: 0, monthSuishi: 0, monthZaidu: 0, monthPosts: 0 })
-const highlights = ref([])
-const highlightsVisible = ref(false)
+/** 【P9B 2026-11-23】只取条数用于按钮徽标，书摘列表在独立页 /fabushi/highlights */
+const highlightCount = ref(0)
 const currentMonthLabel = computed(() => {
   const d = new Date()
   return `${d.getFullYear()} 年 ${d.getMonth() + 1} 月`
 })
-const formatDate = (value) => (value ? String(value).replace('T', ' ').slice(0, 16) : '')
-const openHighlights = async () => {
-  highlightsVisible.value = true
+const loadHighlightCount = async () => {
   try {
     const { data } = await getMyFabushiBookmarks()
-    highlights.value = data || []
+    highlightCount.value = (data || []).length
   } catch (e) {
-    highlights.value = []
+    highlightCount.value = 0
   }
 }
 const month = ref(new Date().toISOString().slice(0, 7))
@@ -376,7 +364,7 @@ const saveSettings = async () => {
 }
 
 onMounted(async () => {
-  await Promise.all([loadShelf(), loadAwaken(), loadRecords(), loadSettings(), loadPersonal()])
+  await Promise.all([loadShelf(), loadAwaken(), loadRecords(), loadSettings(), loadPersonal(), loadHighlightCount()])
 })
 </script>
 
@@ -410,12 +398,6 @@ onMounted(async () => {
 .mc-cells div { text-align: center; }
 .mc-cells b { display: block; font-size: 20px; color: var(--primary-color); }
 .mc-cells span { font-size: 11px; color: var(--text-muted); }
-.hl-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; max-height: 420px; overflow: auto; }
-.hl-list li { padding: 10px 12px; border-radius: 8px; background: var(--el-fill-color-light); }
-.hl-book { font-weight: 700; font-size: 13px; }
-.hl-page { font-weight: 400; color: var(--text-muted); font-size: 12px; }
-.hl-note { margin-top: 4px; font-size: 13px; color: var(--text-secondary); }
-.hl-time { margin-top: 4px; font-size: 11px; color: var(--text-muted); }
 .awaken-links { display: flex; gap: 12px; margin-top: 14px; }
 .continue-card { display: flex; align-items: center; gap: 14px; padding: 12px; margin-bottom: 12px; border-radius: var(--radius-md); background: var(--hero-gradient); color: #fff; }
 .continue-cover { display: flex; align-items: center; justify-content: center; width: 48px; height: 64px; flex: none; border-radius: 6px; background: rgba(255,255,255,.22); font-size: 11px; }
