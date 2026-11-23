@@ -1,6 +1,6 @@
 {
  "generated_at": "2026-11-23",
- "count": 347,
+ "count": 349,
  "endpoints": [
   {
    "method": "POST",
@@ -429,6 +429,12 @@
    "handler": "add"
   },
   {
+   "method": "GET",
+   "path": "/api/fabushi/bookmarks/mine",
+   "permission": "hasAuthority('fabushi:view')",
+   "handler": "mine"
+  },
+  {
    "method": "DELETE",
    "path": "/api/fabushi/bookmarks/{id}",
    "permission": "hasAuthority('fabushi:view')",
@@ -463,6 +469,12 @@
    "path": "/api/fabushi/books/{bookId}/sections",
    "permission": "hasAuthority('fabushi:book:manage')",
    "handler": "create"
+  },
+  {
+   "method": "POST",
+   "path": "/api/fabushi/books/{bookId}/sections/self",
+   "permission": "hasAuthority('fabushi:create')",
+   "handler": "selfCreate"
   },
   {
    "method": "DELETE",

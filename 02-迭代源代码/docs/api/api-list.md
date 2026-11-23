@@ -4,7 +4,7 @@
 > 本文件由 scripts/gen-api.py 自动生成,**禁止手改**;接口变更后重新运行。
 > 权限码与 docs/permission/permission-dict.md 对应。
 
-## 接口清单(347 个)
+## 接口清单(349 个)
 
 | 方法 | 路径 | 权限码 | 方法名 | 文件 |
 |---|---|---|---|---|
@@ -79,12 +79,14 @@
 | GET | `/api/fabushi/awaken/status` | `hasAuthority('fabushi:view')` | awakenStatus | FabushiReadingController.java |
 | GET | `/api/fabushi/bookmarks` | `hasAuthority('fabushi:view')` | list | FabushiBookmarkController.java |
 | POST | `/api/fabushi/bookmarks` | `hasAuthority('fabushi:view')` | add | FabushiBookmarkController.java |
+| GET | `/api/fabushi/bookmarks/mine` | `hasAuthority('fabushi:view')` | mine | FabushiBookmarkController.java |
 | DELETE | `/api/fabushi/bookmarks/{id}` | `hasAuthority('fabushi:view')` | remove | FabushiBookmarkController.java |
 | GET | `/api/fabushi/books` | `hasAuthority('fabushi:view')` | page | FabushiBookController.java |
 | POST | `/api/fabushi/books` | `hasAuthority('fabushi:create')` | submit | FabushiBookController.java |
 | GET | `/api/fabushi/books/pending` | `hasAuthority('fabushi:book:manage')` | pending | FabushiBookController.java |
 | GET | `/api/fabushi/books/{bookId}/sections` | `hasAuthority('fabushi:view')` | tree | FabushiSectionController.java |
 | POST | `/api/fabushi/books/{bookId}/sections` | `hasAuthority('fabushi:book:manage')` | create | FabushiSectionController.java |
+| POST | `/api/fabushi/books/{bookId}/sections/self` | `hasAuthority('fabushi:create')` | selfCreate | FabushiSectionController.java |
 | DELETE | `/api/fabushi/books/{bookId}/sections/{id}` | `hasAuthority('fabushi:book:manage')` | delete | FabushiSectionController.java |
 | PUT | `/api/fabushi/books/{bookId}/sections/{id}` | `hasAuthority('fabushi:book:manage')` | update | FabushiSectionController.java |
 | DELETE | `/api/fabushi/books/{id}` | `hasAuthority('fabushi:book:manage')` | deleteBook | FabushiBookController.java |
