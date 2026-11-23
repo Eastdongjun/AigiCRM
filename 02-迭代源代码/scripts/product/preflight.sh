@@ -8,6 +8,7 @@ set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 ENV_FILE=""
 PORTS="18080,13306,16379"
+SKIP_PORTS=0
 FAIL=0
 PASS=0
 
@@ -24,6 +25,7 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --env-file) [ $# -ge 2 ] || { echo "--env-file 缺路径" >&2; exit 2; }; ENV_FILE="$2"; shift 2 ;;
     --ports) [ $# -ge 2 ] || { echo "--ports 缺值" >&2; exit 2; }; PORTS="$2"; shift 2 ;;
+    --skip-ports) SKIP_PORTS=1; shift ;;
     -h|--help) usage ;;
     *) echo "未知参数: $1" >&2; exit 2 ;;
   esac
@@ -69,6 +71,9 @@ else
 fi
 
 # 端口：默认 18080/13306/16379，避开生产 80/443/3306/8080
+if [ "$SKIP_PORTS" = "1" ]; then
+  warn "跳过端口检查（安装器检测到同项目容器已存在，按幂等重跑处理）"
+else
 IFS=',' read -r -a PORT_ARR <<< "$PORTS"
 for p in "${PORT_ARR[@]}"; do
   case "$p" in ''|*[!0-9]*) bad "非法端口: $p"; continue ;; esac
@@ -80,6 +85,7 @@ for p in "${PORT_ARR[@]}"; do
     warn "无 lsof/nc，跳过端口检查: $p"
   fi
 done
+fi
 
 # 可选：env 文件必需键（不打印值）
 if [ -n "$ENV_FILE" ]; then

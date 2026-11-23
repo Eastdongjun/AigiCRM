@@ -1,0 +1,67 @@
+# B1 最小交付栈：mysql + redis + backend（前端在 S6.1c 接入）。
+# 由 scripts/product/install.sh 调用；不要直接用于生产，生产仍走 deploy/ 脚本与审批。
+services:
+  mysql:
+    image: ${MYSQL_IMAGE:-mysql:8.0}
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD 未设置}
+      MYSQL_DATABASE: ${DB_NAME:-aigicrm}
+      TZ: Asia/Shanghai
+    command: >
+      --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci
+      --max-connections=300
+      --innodb-buffer-pool-size=536870912
+    ports:
+      - "127.0.0.1:${MYSQL_PORT:-13306}:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ${RUNTIME_DIR:?RUNTIME_DIR 未设置}/build/01-app-user.sql:/docker-entrypoint-initdb.d/01-app-user.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${DB_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-16379}:6379"
+    volumes:
+      - redis-data:/data
+
+  backend:
+    image: eclipse-temurin:21-jre
+    restart: unless-stopped
+    command: ["java", "-jar", "/app/app.jar"]
+    ports:
+      - "127.0.0.1:${HTTP_PORT:-18080}:8080"
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: ${DB_NAME:-aigicrm}
+      DB_USER: ${APP_DB_USER:?APP_DB_USER 未设置}
+      DB_PASSWORD: ${APP_DB_PASSWORD:?APP_DB_PASSWORD 未设置}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET 未设置}
+      SPRING_PROFILES_ACTIVE: prod
+      TENANT_ENABLE: "true"
+      STORAGE_TYPE: local
+      UPLOAD_DIR: /app/uploads
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:18080,http://127.0.0.1:18080}
+      TZ: Asia/Shanghai
+    volumes:
+      - ${JAR_PATH:?JAR_PATH 未设置}:/app/app.jar:ro
+      - uploads:/app/uploads
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+volumes:
+  mysql-data:
+  redis-data:
+  uploads:
