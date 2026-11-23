@@ -4,6 +4,7 @@ import { mount, flushPromises } from '@vue/test-utils'
 vi.mock('@/api/system', () => ({
   getConfigList: vi.fn(),
   updateConfigs: vi.fn(),
+  seedOnboardingDemo: vi.fn(),
   getDictData: vi.fn(),
   getDictTypes: vi.fn(),
   createDictData: vi.fn()
@@ -12,7 +13,7 @@ vi.mock('vue-router', () => ({ useRouter: () => ({ replace: vi.fn() }) }))
 vi.mock('element-plus', () => ({ ElMessage: { success: vi.fn(), warning: vi.fn(), error: vi.fn() } }))
 
 import Onboarding from './index.vue'
-import { getConfigList, updateConfigs, getDictData, getDictTypes, createDictData } from '@/api/system'
+import { getConfigList, updateConfigs, getDictData, getDictTypes, createDictData, seedOnboardingDemo } from '@/api/system'
 
 const stubs = {
   'el-card': { template: '<div><slot name="header" /><slot /></div>' },
@@ -46,6 +47,7 @@ describe('Onboarding wizard', () => {
     getDictTypes.mockResolvedValue({ data: [{ id: 9, dictCode: 'industry' }] })
     updateConfigs.mockResolvedValue({})
     createDictData.mockResolvedValue({})
+    seedOnboardingDemo.mockResolvedValue({ data: { inserted: 3, demoSeeded: true } })
   })
 
   it('企业信息保存后进入行业步；完成写入 onboarding.completed', async () => {
@@ -73,6 +75,16 @@ describe('Onboarding wizard', () => {
     expect(allRows).toEqual(expect.arrayContaining([
       expect.objectContaining({ configKey: 'onboarding.completed', configValue: 'true' })
     ]))
+  })
+
+  it('演示数据按钮调用 seedOnboardingDemo 并置标记', async () => {
+    const wrapper = mountOnboarding()
+    await flushPromises()
+    expect(wrapper.vm.demoSeeded).toBe(false)
+    await wrapper.vm.seedDemoData()
+    await flushPromises()
+    expect(seedOnboardingDemo).toHaveBeenCalled()
+    expect(wrapper.vm.demoSeeded).toBe(true)
   })
 
   it('系统名称为空时停在第一步并提示', async () => {

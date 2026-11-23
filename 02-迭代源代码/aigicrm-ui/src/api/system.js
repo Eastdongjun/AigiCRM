@@ -87,6 +87,11 @@ export function updateConfigs(data) {
   return request.put('/system/configs', data)
 }
 
+// B1 首启：显式导入 3 条演示客户（仅 system:config:edit；幂等）
+export function seedOnboardingDemo() {
+  return request.post('/onboarding/seed-demo')
+}
+
 // 字典管理
 export function getDictTypes() {
   return request.get('/system/dict/types')

@@ -1,6 +1,6 @@
 {
  "generated_at": "2026-11-23",
- "count": 349,
+ "count": 350,
  "endpoints": [
   {
    "method": "POST",
@@ -1201,6 +1201,12 @@
    "path": "/api/incentive/users",
    "permission": "hasAuthority('incentive:view')",
    "handler": "userList"
+  },
+  {
+   "method": "POST",
+   "path": "/api/onboarding/seed-demo",
+   "permission": "hasAuthority('system:config:edit')",
+   "handler": "seedDemo"
   },
   {
    "method": "POST",

@@ -4,7 +4,7 @@
 > 本文件由 scripts/gen-api.py 自动生成,**禁止手改**;接口变更后重新运行。
 > 权限码与 docs/permission/permission-dict.md 对应。
 
-## 接口清单(349 个)
+## 接口清单(350 个)
 
 | 方法 | 路径 | 权限码 | 方法名 | 文件 |
 |---|---|---|---|---|
@@ -208,6 +208,7 @@
 | GET | `/api/incentive/score/customer/{customerId}` | `hasAuthority('incentive:view')` | getScoreByCustomer | IncentiveController.java |
 | GET | `/api/incentive/scoreboard` | `hasAnyAuthority('incentive:stats:view','incentive:rank:view')` | scoreboard | IncentiveController.java |
 | GET | `/api/incentive/users` | `hasAuthority('incentive:view')` | userList | IncentiveController.java |
+| POST | `/api/onboarding/seed-demo` | `hasAuthority('system:config:edit')` | seedDemo | OnboardingController.java |
 | POST | `/api/reminder/ensure-expiring` | `hasAuthority('reminder:ensure')` | ensureExpiring | ReminderController.java |
 | GET | `/api/reminder/expiring-list` | `hasAuthority('reminder:view')` | expiringList | ReminderController.java |
 | GET | `/api/reminder/list` | `hasAuthority('reminder:view')` | page | ReminderController.java |

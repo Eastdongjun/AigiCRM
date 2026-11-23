@@ -61,6 +61,13 @@
               </div>
             </template>
           </el-result>
+          <div class="demo-row">
+            <el-button v-if="!demoSeeded" type="primary" plain :loading="seeding" @click="seedDemoData">
+              导入演示客户
+            </el-button>
+            <el-tag v-else type="success">演示数据已导入</el-tag>
+            <span class="hint">仅写入 DEMO001..003，不覆盖真实客户；可跳过。</span>
+          </div>
           <el-alert type="info" :closable="false" show-icon
             title="点击「进入系统」后向导不再出现；需要改词表可去「系统设置 → 字典管理」。" />
         </template>
@@ -80,7 +87,7 @@
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { createDictData, getConfigList, getDictData, getDictTypes, updateConfigs } from '@/api/system'
+import { createDictData, getConfigList, getDictData, getDictTypes, seedOnboardingDemo, updateConfigs } from '@/api/system'
 
 const router = useRouter()
 const loading = ref(true)
@@ -95,6 +102,7 @@ const selectedIndustries = ref([])
 const customIndustry = ref('')
 const industryTypeId = ref(null)
 const demoSeeded = ref(false)
+const seeding = ref(false)
 
 function configValue(key, fallback = '') {
   const row = configRows.value.find(c => c.configKey === key)
@@ -203,6 +211,20 @@ async function next() {
   }
 }
 
+async function seedDemoData() {
+  if (demoSeeded.value) return
+  seeding.value = true
+  try {
+    const res = await seedOnboardingDemo()
+    demoSeeded.value = true
+    ElMessage.success(`已导入 ${res?.data?.inserted ?? 0} 条演示客户`)
+  } catch (e) {
+    ElMessage.error('导入演示数据失败')
+  } finally {
+    seeding.value = false
+  }
+}
+
 async function finish() {
   saving.value = true
   try {
@@ -221,7 +243,7 @@ async function finish() {
 
 onMounted(load)
 
-defineExpose({ next, finish, step, companyName, selectedIndustries, industryOptions, demoSeeded })
+defineExpose({ next, finish, seedDemoData, step, companyName, selectedIndustries, industryOptions, demoSeeded })
 </script>
 
 <style scoped>
@@ -238,4 +260,5 @@ defineExpose({ next, finish, step, companyName, selectedIndustries, industryOpti
 .onboarding-actions { display: flex; align-items: center; gap: 8px; padding-top: 16px; border-top: 1px solid #ebeef5; }
 .spacer { flex: 1; }
 .summary { text-align: left; line-height: 1.9; color: #374151; }
+.demo-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 12px 0; }
 </style>
