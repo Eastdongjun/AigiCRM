@@ -2,7 +2,6 @@
   <view class="login-orb login-orb-one"></view>
   <view class="login-orb login-orb-two"></view>
   <view class="login-panel">
-    <view class="login-brand-mark">AI</view>
     <view class="login-kicker">智能客户运营工作台</view>
     <view class="hero-title login-title">AIGICRM</view>
     <view class="login-copy">{{loginView.copyText}}</view>
