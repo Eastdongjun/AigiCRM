@@ -45,7 +45,7 @@ sonar_gate() {
   local body
   body="$(curl -fsS -m 10 -u "${SONAR_USER:-admin}:${SONAR_PASSWORD:-admin}" \
     "$url/api/qualitygates/project_status?projectKey=$key" 2>/dev/null)" || {
-    echo "SKIP: 本地 Sonar 不可用（$url）"; return 0; }
+    echo "SKIP: 本地 Sonar 不可用（${url}）"; return 0; }
   python3 -c 'import json,sys; d=json.load(sys.stdin)["projectStatus"]; print("status="+d["status"]); [print(c["metricKey"], c["status"], c.get("actualValue")) for c in d["conditions"] if c["status"] != "OK"]; sys.exit(0 if d["status"] == "OK" else 1)' <<<"$body"
 }
 
