@@ -42,7 +42,7 @@ page { background: #f7f3ec; }
 .attach-head { display: flex; justify-content: space-between; color: #2e2a24; font-size: 24rpx; font-weight: 700; }
 .attach-count { color: #9c9184; font-size: 20rpx; font-weight: 400; }
 .attach-btns { display: flex; flex-wrap: wrap; gap: 12rpx; margin-top: 14rpx; }
-.attach-btn { flex: 0 0 auto; padding: 12rpx 18rpx; border-radius: 12rpx; color: #2d5a4a; background: #eef3ee; font-size: 21rpx; }
+.attach-btn { flex: 0 0 auto; display: inline-flex; align-items: center; min-height: 72rpx; padding: 10rpx 20rpx; border-radius: 12rpx; color: #2d5a4a; background: #eef3ee; font-size: 24rpx; }
 .attach-item { display: flex; justify-content: space-between; padding: 12rpx 0; border-bottom: 1rpx dashed #e8e0d3; color: #6b6257; font-size: 21rpx; }
 .attach-remove { color: #b5543a; }
 .attach-hint { margin-top: 10rpx; color: #9c9184; font-size: 19rpx; }
