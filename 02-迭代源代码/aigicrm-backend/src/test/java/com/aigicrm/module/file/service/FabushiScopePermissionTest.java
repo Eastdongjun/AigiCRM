@@ -86,7 +86,7 @@ class FabushiScopePermissionTest {
             when(scopeResolver.resolveModuleUsers(any(), eq("fabushi"), eq("file_view")))
                     .thenReturn(List.of(2L, 3L));
 
-            assertEquals(Set.of(2L, 3L), svc.fabushiVisibleUploaderIds(2L));
+            assertEquals(java.util.Optional.of(Set.of(2L, 3L)), svc.fabushiVisibleUploaderIds(2L));
             when(scopeResolver.canAccess(any())).thenReturn(true);
             assertTrue(svc.canViewFabushiFile(fabushiFile(10L, 3L), 2L));
             when(scopeResolver.canAccess(any())).thenReturn(false);

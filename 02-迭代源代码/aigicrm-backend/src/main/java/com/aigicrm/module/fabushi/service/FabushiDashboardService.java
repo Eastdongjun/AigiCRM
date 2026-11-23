@@ -87,7 +87,7 @@ public class FabushiDashboardService {
         LocalDate today = LocalDate.now();
         LocalDate start = month ? today.withDayOfMonth(1) : today.with(DayOfWeek.MONDAY);
         LocalDateTime startAt = start.atStartOfDay();
-        Set<Long> visible = statsService.visibleUserIdsOrNull(com.aigicrm.security.SecurityUtils.getCurrentUser());
+        Set<Long> visible = statsService.visibleUserIdsOrNull(com.aigicrm.security.SecurityUtils.getCurrentUser()).orElse(null);
 
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("period", month ? LIT_MONTH : "week");
@@ -403,7 +403,7 @@ public class FabushiDashboardService {
         LocalDate nextMonthStart = ym.plusMonths(1).atDay(1);
         LocalDateTime startAt = start.atStartOfDay();
         LocalDateTime endAt = nextMonthStart.atStartOfDay();
-        Set<Long> visible = statsService.visibleUserIdsOrNull(com.aigicrm.security.SecurityUtils.getCurrentUser());
+        Set<Long> visible = statsService.visibleUserIdsOrNull(com.aigicrm.security.SecurityUtils.getCurrentUser()).orElse(null);
 
         Map<String, Object> data = baseMonthlyData(ym, start, nextMonthStart, visible);
         if (visible != null && visible.isEmpty()) {

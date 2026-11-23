@@ -94,7 +94,7 @@ class FabushiStatsRedesignTest {
         su.setUserId(1L);
         su.setUsername("admin");
         sec.when(SecurityUtils::getCurrentUser).thenReturn(su);
-        lenient().when(statsService.visibleUserIdsOrNull(any())).thenReturn(null); // 全部档
+        lenient().when(statsService.visibleUserIdsOrNull(any())).thenReturn(java.util.Optional.empty()); // 全部档
         lenient().when(dictService.listDataByCode(anyString())).thenReturn(DICT.entrySet().stream()
                 .map(e -> dict(e.getKey(), e.getValue())).toList());
         lenient().when(postMapper.selectList(any())).thenReturn(List.<BizFabushiPost>of());

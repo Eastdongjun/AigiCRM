@@ -648,11 +648,10 @@ public class CustomerController {
         java.util.Map<String, Object> result = new java.util.HashMap<>();
         result.put("exists", exists);
         if (exists) {
-            var info = customerService.getDuplicateInfo(name);
-            if (info != null) {
+            customerService.getDuplicateInfo(name).ifPresent(info -> {
                 result.put("createdBy", info.getOrDefault("createdBy", ""));
                 result.put(LIT_CREATEDAT, info.getOrDefault(LIT_CREATEDAT, ""));
-            }
+            });
         }
         return Result.ok(result);
     }

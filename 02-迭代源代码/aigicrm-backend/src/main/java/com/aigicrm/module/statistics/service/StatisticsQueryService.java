@@ -1028,11 +1028,11 @@ public class StatisticsQueryService {
     }
 
     /** 【WP1.5 2026-11-13】对比列表可见办事处集；null=全量（范围外办事处靠 total==0 跳过）。 */
-    private java.util.Set<Long> visibleOfficeIdsForCompare() {
+    private java.util.Optional<java.util.Set<Long>> visibleOfficeIdsForCompare() {
         List<Long> visOwners = customerVisibilityService.visibleOwnerIds();
-        if (visOwners == null) return null;
+        if (visOwners == null) return java.util.Optional.empty();
         java.util.Set<Long> visibleOfficeIds = new java.util.HashSet<>();
-        if (visOwners.isEmpty()) return visibleOfficeIds;
+        if (visOwners.isEmpty()) return java.util.Optional.of(visibleOfficeIds);
         LambdaQueryWrapper<BizCustomer> vwc = new LambdaQueryWrapper<>();
         vwc.eq(BizCustomer::getDeleted, 0)
            .notIn(BizCustomer::getStatus, "sea", LIT_ARCHIVED)
@@ -1041,10 +1041,10 @@ public class StatisticsQueryService {
         for (BizCustomer vc : customerMapper.selectList(vwc)) {
             visibleOfficeIds.add(vc.getOfficeId());
         }
-        return visibleOfficeIds;
+        return java.util.Optional.of(visibleOfficeIds);
     }
 
-    private List<Map<String, Object>> buildOfficeComparison(java.util.Set<Long> visibleOfficeIds) {
+    private List<Map<String, Object>> buildOfficeComparison(java.util.Optional<java.util.Set<Long>> visibleOfficeIds) {
         var allDepts = deptMapper.selectList(
                 new LambdaQueryWrapper<SysDept>()
                         .eq(SysDept::getDeptType, 3));
@@ -1052,7 +1052,7 @@ public class StatisticsQueryService {
         // (此前靠 total==0 跳过, 范围外每处白跑 3 条 count; 输出口径不变, 只列有可见客户的办事处)
         List<Map<String, Object>> officeComparison = new ArrayList<>();
         for (var dept : allDepts) {
-            if (visibleOfficeIds == null || visibleOfficeIds.contains(dept.getId())) {
+            if (visibleOfficeIds.isEmpty() || visibleOfficeIds.get().contains(dept.getId())) {
                 buildOfficeRow(dept.getId(), dept.getDeptName()).ifPresent(officeComparison::add);
             }
         }

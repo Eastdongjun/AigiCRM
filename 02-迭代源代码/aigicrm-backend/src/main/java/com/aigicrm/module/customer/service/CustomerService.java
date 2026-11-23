@@ -738,7 +738,7 @@ public class CustomerService {
         customerFinanceService.deletePayment(customerId, paymentId, reason);
     }
 
-    public java.util.Map<String, Object> getDuplicateInfo(String customerName) {
+    public java.util.Optional<java.util.Map<String, Object>> getDuplicateInfo(String customerName) {
         // 【议题五.1】先按主名查,未命中再按别名查(裁决:查重仅提示,不自动合并)
         // 【修复 2026-08-10 P2-01】创建人/创建时间信息同样限定在数据范围内(与 existsByName 同口径)
         // 【PR-01 N-02 2026-09-18】原生 SQL 绕过租户拦截器：补 c.tenant_id 条件（biz_customer 在
@@ -748,7 +748,7 @@ public class CustomerService {
             String tenantFrag;
             java.util.List<Object> tenantArgs = new java.util.ArrayList<>();
             Long g = com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull();
-            if (g == null) return null;
+            if (g == null) return java.util.Optional.empty();
             tenantFrag = " AND c.tenant_id = ?";
             tenantArgs.add(g);
             java.util.List<java.util.Map<String, Object>> rows;
@@ -774,9 +774,9 @@ public class CustomerService {
                     ") ORDER BY c.created_at DESC LIMIT 1",
                     args.toArray());
             }
-            return rows.isEmpty() ? null : rows.get(0);
+            return rows.isEmpty() ? java.util.Optional.empty() : java.util.Optional.of(rows.get(0));
         } catch (Exception e) {
-            return null;
+            return java.util.Optional.empty();
         }
     }
 }

@@ -44,23 +44,24 @@ public class FabushiStatsService {
      * 团队统计可见人员集。admin → null(全量); 非 admin → 双轨解析:
      * null=全部档(契约), 空集=不可见(fail-closed→零数据), 非空=收口过滤。
      */
-    Set<Long> visibleUserIdsOrNull(com.aigicrm.security.SecurityUser user) {
+    java.util.Optional<Set<Long>> visibleUserIdsOrNull(com.aigicrm.security.SecurityUser user) {
         if (user == null) {
-            return Collections.emptySet(); // fail-closed: 无会话宁可零数据也不放行全量(R2 教训)
+            // fail-closed: 无会话宁可零数据也不放行全量(R2 教训)
+            return java.util.Optional.of(Collections.emptySet());
         }
         if (com.aigicrm.security.SecurityUtils.isAdmin()) {
-            return null;
+            return java.util.Optional.empty(); // 全部档
         }
         List<Long> visible = scopeResolver.resolveModuleUsers(user, "fabushi", "stats_view");
         if (visible == null) {
-            return null; // 双轨解析=全部档(WP7 契约语义, 非 fail-open: 该用户范围档本就是 all)
+            return java.util.Optional.empty(); // 双轨解析=全部档(WP7 契约语义)
         }
-        return new HashSet<>(visible);
+        return java.util.Optional.of(new HashSet<>(visible));
     }
 
     /** 团队统计(fabushi:stats:view 门): 今日已读人数/覆盖率/内容量/木鱼量/评论量。 */
     public Map<String, Object> team() {
-        Set<Long> visible = visibleUserIdsOrNull(com.aigicrm.security.SecurityUtils.getCurrentUser());
+        Set<Long> visible = visibleUserIdsOrNull(com.aigicrm.security.SecurityUtils.getCurrentUser()).orElse(null);
 
         Map<String, Object> data = new LinkedHashMap<>();
         // 可见人数: null=全部(标记 -1, 前端显示"全部"); 空集=0(不可见, 全指标零)

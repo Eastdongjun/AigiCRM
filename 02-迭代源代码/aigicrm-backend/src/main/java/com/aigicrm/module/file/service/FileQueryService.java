@@ -207,10 +207,10 @@ public class FileQueryService {
         // 大区/办事处/部门/self；按上传人 ∈ fabushi|file_view 范围过滤。
         // 【003 修复】上传人可见集过滤与 folderId 过滤叠加生效(L224-226 已按 folderId eq),
         // 夹内文件仍受可见集约束(非系统夹探测空集)。
-        Set<Long> visibleUploaders = folderPermissionService.fabushiVisibleUploaderIds(userId);
-        if (visibleUploaders != null) {
-            if (visibleUploaders.isEmpty()) return false;
-            wrapper.in(BizFile::getUploaderId, visibleUploaders);
+        java.util.Optional<Set<Long>> visibleUploaders = folderPermissionService.fabushiVisibleUploaderIds(userId);
+        if (visibleUploaders.isPresent()) {
+            if (visibleUploaders.get().isEmpty()) return false;
+            wrapper.in(BizFile::getUploaderId, visibleUploaders.get());
         }
         return true;
     }

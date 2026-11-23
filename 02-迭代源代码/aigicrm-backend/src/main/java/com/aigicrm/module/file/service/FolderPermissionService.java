@@ -352,13 +352,13 @@ public class FolderPermissionService {
      * 【2026-11-17 阶段二】法布施文件可见范围(carrier 锚=上传人)：默认 all（公司级），
      * 管理员可在权限中心按角色/人员配置大区/办事处/部门/self。null=全部。
      */
-    public Set<Long> fabushiVisibleUploaderIds(Long userId) {
-        if (!SecurityUtils.hasAuthority(LIT_FABUSHI_VIEW)) return Set.of();
-        if (SecurityUtils.isAdmin()) return null;
+    public java.util.Optional<Set<Long>> fabushiVisibleUploaderIds(Long userId) {
+        if (!SecurityUtils.hasAuthority(LIT_FABUSHI_VIEW)) return java.util.Optional.of(Set.of());
+        if (SecurityUtils.isAdmin()) return java.util.Optional.empty();
         com.aigicrm.security.SecurityUser user = SecurityUtils.getCurrentUser();
-        if (user == null) return Set.of();
+        if (user == null) return java.util.Optional.of(Set.of());
         List<Long> ids = scopeResolver.resolveModuleUsers(user, LIT_FABUSHI, "file_view");
-        return ids == null ? null : new HashSet<>(ids);
+        return ids == null ? java.util.Optional.empty() : java.util.Optional.of(new HashSet<>(ids));
     }
 
     /**

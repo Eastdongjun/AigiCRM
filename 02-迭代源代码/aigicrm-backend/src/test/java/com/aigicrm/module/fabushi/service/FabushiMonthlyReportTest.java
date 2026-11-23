@@ -76,7 +76,7 @@ class FabushiMonthlyReportTest {
     @Test
     void monthly_emptyVisibleSet_returnsAllZero_failClosed() {
         when(statsService.visibleUserIdsOrNull(any(SecurityUser.class)))
-                .thenReturn(Collections.emptySet());
+                .thenReturn(java.util.Optional.of(Collections.emptySet()));
         try (MockedStatic<SecurityUtils> sec = mockStatic(SecurityUtils.class)) {
             sec.when(SecurityUtils::getCurrentUser).thenReturn(new SecurityUser());
             sec.when(SecurityUtils::isAdmin).thenReturn(false);
@@ -100,7 +100,7 @@ class FabushiMonthlyReportTest {
     /** 会话缺席(定时任务误用场景)同样零数据——宁可零也不放行全量。 */
     @Test
     void monthly_noSession_returnsAllZero_failClosed() {
-        when(statsService.visibleUserIdsOrNull(any())).thenReturn(Collections.emptySet());
+        when(statsService.visibleUserIdsOrNull(any())).thenReturn(java.util.Optional.of(Collections.emptySet()));
         try (MockedStatic<SecurityUtils> sec = mockStatic(SecurityUtils.class)) {
             sec.when(SecurityUtils::getCurrentUser).thenReturn(null);
 
@@ -115,7 +115,7 @@ class FabushiMonthlyReportTest {
     /** month 参数: 非法值回落当月(不抛 500); trend 按自然日补零整月。 */
     @Test
     void monthly_illegMonth_fallsBackToCurrentMonth_andTrendIsFullMonth() {
-        when(statsService.visibleUserIdsOrNull(any())).thenReturn(null); // admin 全量档
+        when(statsService.visibleUserIdsOrNull(any())).thenReturn(java.util.Optional.empty()); // admin 全量档
         try (MockedStatic<SecurityUtils> sec = mockStatic(SecurityUtils.class)) {
             sec.when(SecurityUtils::getCurrentUser).thenReturn(new SecurityUser());
             sec.when(SecurityUtils::isAdmin).thenReturn(true);
@@ -141,7 +141,7 @@ class FabushiMonthlyReportTest {
     /** 部门分组: 两部门聚合各自成员的读/发/赞; 无部门成员归"未分配"独立行, 不并入任何部门。 */
     @Test
     void monthly_deptProgress_groupsByDept_andNoDeptBecomesOwnRow() {
-        when(statsService.visibleUserIdsOrNull(any())).thenReturn(null); // admin 全量
+        when(statsService.visibleUserIdsOrNull(any())).thenReturn(java.util.Optional.empty()); // admin 全量
         try (MockedStatic<SecurityUtils> sec = mockStatic(SecurityUtils.class)) {
             sec.when(SecurityUtils::getCurrentUser).thenReturn(new SecurityUser());
             sec.when(SecurityUtils::isAdmin).thenReturn(true);
