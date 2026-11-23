@@ -402,7 +402,8 @@ public class SysUserService {
         if (!StringUtils.hasText(user.getRealName())) {
             throw new BusinessException("姓名不能为空");
         }
-        if (effectiveRoleIds(user) == null || effectiveRoleIds(user).isEmpty()) {
+        java.util.List<Long> effectiveRoles = effectiveRoleIds(user);
+        if (effectiveRoles == null || effectiveRoles.isEmpty()) {
             throw new BusinessException("角色不能为空");
         }
         if (!StringUtils.hasText(user.getPhone())) {
@@ -411,7 +412,7 @@ public class SysUserService {
         // 【WP1.1 2026-11-13】"数据范围不能为空"强制校验退役: 空覆盖=跟随角色并集(合法配置),
         // 并集模型下角色各自携带范围, 用户级覆盖只是"额外范围"(只能加)
         validateDataScopeOverride(user.getDataScopeOverride());
-        for (Long rid : effectiveRoleIds(user)) {
+        for (Long rid : effectiveRoles) {
             validateGrantableRoleAndScope(rid, user.getDataScopeOverride());
         }
         // 检查用户名唯一性
@@ -449,7 +450,7 @@ public class SysUserService {
         userMapper.insert(user);
 
         // 【WP1.1】分配角色(多角色并集, 去重顺序保留): roleIds 优先, 空时回退单值 roleId
-        for (Long rid : effectiveRoleIds(user)) {
+        for (Long rid : effectiveRoles) {
             SysUserRole ur = new SysUserRole();
             ur.setUserId(user.getId());
             ur.setRoleId(rid);
@@ -475,7 +476,7 @@ public class SysUserService {
             return new java.util.ArrayList<>(new java.util.LinkedHashSet<>(user.getRoleIds()));
         }
         if (user.getRoleId() != null) return java.util.List.of(user.getRoleId());
-        return null;
+        return java.util.List.of();
     }
 
     @Transactional
@@ -507,12 +508,12 @@ public class SysUserService {
     }
 
     private void validateUpdateRoles(SysUser user, java.util.List<Long> targetRoleIds) {
-        if (targetRoleIds != null) {
+        if (targetRoleIds == null || targetRoleIds.isEmpty()) {
+            validateGrantableRoleAndScope(user.getRoleId(), user.getDataScopeOverride());
+        } else {
             for (Long rid : targetRoleIds) {
                 validateGrantableRoleAndScope(rid, user.getDataScopeOverride());
             }
-        } else {
-            validateGrantableRoleAndScope(user.getRoleId(), user.getDataScopeOverride());
         }
     }
 

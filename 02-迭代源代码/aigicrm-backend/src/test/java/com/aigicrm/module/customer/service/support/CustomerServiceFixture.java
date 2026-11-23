@@ -13,6 +13,7 @@ import com.aigicrm.module.customer.mapper.BizInvoiceMapper;
 import com.aigicrm.module.customer.mapper.BizPaymentMapper;
 import com.aigicrm.module.customer.service.CustomerContactShareService;
 import com.aigicrm.module.customer.service.CustomerEventService;
+import com.aigicrm.module.customer.service.CustomerIndicatorService;
 import com.aigicrm.module.customer.service.CustomerQueryService;
 import com.aigicrm.module.customer.service.CustomerScopeService;
 import com.aigicrm.module.customer.service.CustomerService;
@@ -68,15 +69,23 @@ public final class CustomerServiceFixture {
                 scopeResolver, userMapper, deptMapper, customerVisibilityService);
         CustomerQueryService queryService = new CustomerQueryService(customerMapper, shareMapper, userMapper,
                 deptMapper, scopeService);
-        return new CustomerService(customerMapper, customerLogMapper, invoiceMapper, indicatorMapper,
+        CustomerIndicatorService indicatorService = new CustomerIndicatorService(indicatorMapper,
+                stageAmountMapper, configService);
+        return new CustomerService(customerMapper, customerLogMapper, invoiceMapper,
                 paymentMapper, stageAmountMapper, seaPoolMapper, userMapper, deptMapper, jdbc, configService,
                 customerAccessService, approvalMapper, financeAuditLogMapper, customerEventService,
-                contactShareService, scopeService, queryService);
+                contactShareService, scopeService, queryService, indicatorService);
     }
 
     /** 测试需要反射 auto_share 私有方法时，拿到真实的数据范围 bean。 */
     public static CustomerScopeService scopeOf(CustomerService service) {
         return (CustomerScopeService) org.springframework.test.util.ReflectionTestUtils
                 .getField(service, "customerScopeService");
+    }
+
+    /** 测试需要反射核心判定私有方法时，拿到真实的指标 bean。 */
+    public static CustomerIndicatorService indicatorOf(CustomerService service) {
+        return (CustomerIndicatorService) org.springframework.test.util.ReflectionTestUtils
+                .getField(service, "customerIndicatorService");
     }
 }

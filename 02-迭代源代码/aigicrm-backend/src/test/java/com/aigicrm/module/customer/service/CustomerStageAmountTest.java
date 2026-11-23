@@ -321,37 +321,37 @@ class CustomerStageAmountTest {
     void coreTypePureAmountMatrix() {
         // 无任何有数据行 → ''(非核心)
         when(stageAmountMapper.selectList(any())).thenReturn(List.of());
-        assertEquals("", ReflectionTestUtils.invokeMethod(service, "computeCoreType", 501L));
+        assertEquals("", ReflectionTestUtils.invokeMethod(com.aigicrm.module.customer.service.support.CustomerServiceFixture.indicatorOf(service), "computeCoreType", 501L));
 
         // H1+H2 合计双达标 → core
         when(stageAmountMapper.selectList(any())).thenReturn(List.of(
                 row(2026, "H1", "60", "50"), row(2026, "H2", "80", "70")));
-        assertEquals("core", ReflectionTestUtils.invokeMethod(service, "computeCoreType", 501L));
+        assertEquals("core", ReflectionTestUtils.invokeMethod(com.aigicrm.module.customer.service.support.CustomerServiceFixture.indicatorOf(service), "computeCoreType", 501L));
 
         // 有数据未双达标 → quasi(哪怕单项很高)
         when(stageAmountMapper.selectList(any())).thenReturn(List.of(row(2026, "H1", "500", "80")));
-        assertEquals("quasi", ReflectionTestUtils.invokeMethod(service, "computeCoreType", 501L));
+        assertEquals("quasi", ReflectionTestUtils.invokeMethod(com.aigicrm.module.customer.service.support.CustomerServiceFixture.indicatorOf(service), "computeCoreType", 501L));
 
         // 全年行有数据 → 优先于 H1+H2(H1+H2 双达标但全年行汇总未达标 → quasi)
         when(stageAmountMapper.selectList(any())).thenReturn(List.of(
                 row(2026, "H1", "60", "50"), row(2026, "H2", "80", "70"),
                 row(2026, "FY", "90", "120")));
-        assertEquals("quasi", ReflectionTestUtils.invokeMethod(service, "computeCoreType", 501L));
+        assertEquals("quasi", ReflectionTestUtils.invokeMethod(com.aigicrm.module.customer.service.support.CustomerServiceFixture.indicatorOf(service), "computeCoreType", 501L));
 
         // 基准年=最近有数据年: 2025 双达标, 2026 只有少量数据 → 基准年前移按 2026 判;
         // 2026 双值均低于争核心门槛(30/20 < 50) → ''(2026-11-03 双门槛起"有数据"不再自动 quasi)
         when(stageAmountMapper.selectList(any())).thenReturn(List.of(
                 row(2025, "FY", "500", "500"), row(2026, "H1", "30", "20")));
-        assertEquals("", ReflectionTestUtils.invokeMethod(service, "computeCoreType", 501L));
+        assertEquals("", ReflectionTestUtils.invokeMethod(com.aigicrm.module.customer.service.support.CustomerServiceFixture.indicatorOf(service), "computeCoreType", 501L));
 
         // 两值均 0 的行不算数据, 不得抬基准年(2026 全 0 行不遮蔽 2025 真数据)
         when(stageAmountMapper.selectList(any())).thenReturn(List.of(
                 row(2025, "FY", "500", "500"), row(2026, "H1", "0", "0")));
-        assertEquals("core", ReflectionTestUtils.invokeMethod(service, "computeCoreType", 501L));
+        assertEquals("core", ReflectionTestUtils.invokeMethod(com.aigicrm.module.customer.service.support.CustomerServiceFixture.indicatorOf(service), "computeCoreType", 501L));
 
         // 边界: 恰好 100/100 → core(≥ 门槛)
         when(stageAmountMapper.selectList(any())).thenReturn(List.of(row(2026, "FY", "100", "100")));
-        assertEquals("core", ReflectionTestUtils.invokeMethod(service, "computeCoreType", 501L));
+        assertEquals("core", ReflectionTestUtils.invokeMethod(com.aigicrm.module.customer.service.support.CustomerServiceFixture.indicatorOf(service), "computeCoreType", 501L));
     }
 
     @Test
@@ -394,12 +394,12 @@ class CustomerStageAmountTest {
         when(configService.getValue(CustomerService.CORE_MAJOR_WAN_KEY)).thenReturn("200");
         when(stageAmountMapper.selectList(any())).thenReturn(List.of(row(2026, "FY", "150", "150")));
         // 双>=80 且未双>=200 → quasi(默认口径下此例是 core, 证明判定读的是配置而非死值)
-        assertEquals("quasi", ReflectionTestUtils.invokeMethod(service, "computeCoreType", 501L));
+        assertEquals("quasi", ReflectionTestUtils.invokeMethod(com.aigicrm.module.customer.service.support.CustomerServiceFixture.indicatorOf(service), "computeCoreType", 501L));
 
         // 脏值/非正数回退默认 50/100: 双>=100 → core
         when(configService.getValue(CustomerService.CORE_MINOR_WAN_KEY)).thenReturn("abc");
         when(configService.getValue(CustomerService.CORE_MAJOR_WAN_KEY)).thenReturn("-1");
-        assertEquals("core", ReflectionTestUtils.invokeMethod(service, "computeCoreType", 501L));
+        assertEquals("core", ReflectionTestUtils.invokeMethod(com.aigicrm.module.customer.service.support.CustomerServiceFixture.indicatorOf(service), "computeCoreType", 501L));
     }
 
     /** 【2026-11-03 用户令"改门槛后自动刷新"】全量刷新: 按当前配置门槛重落 core_type/is_core,

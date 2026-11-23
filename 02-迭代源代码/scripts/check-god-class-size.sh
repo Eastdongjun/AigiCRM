@@ -30,7 +30,7 @@ check() {
 check FileService \
   "$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/file/service/FileService.java" 800 800
 check CustomerService \
-  "$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/customer/service/CustomerService.java" 800 1828
+  "$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/customer/service/CustomerService.java" 800 1633
 check IncentiveService \
   "$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/incentive/service/IncentiveService.java" 800 1836
 
