@@ -56,6 +56,8 @@ Page({
         'title=' + encodeURIComponent(options.title || '')
       ]
       if (lastPage) q.push('lastPage=' + lastPage)
+      // 【MP-PARITY 2026-11-23】把书目版式标记带给 H5：文本版默认纸白、影印版默认米黄增强
+      if (options.layoutType) q.push('layoutType=' + encodeURIComponent(options.layoutType))
       this.setData({ src: globalData.apiBaseUrl + '/mp-fabushi-reader?' + q.join('&') })
     }).catch((err) => {
       showError(err, '在线阅读打开失败')

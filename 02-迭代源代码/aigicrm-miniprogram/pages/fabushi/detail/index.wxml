@@ -1,6 +1,21 @@
 <view class="fb-detail">
   <view wx:if="{{loading}}" class="fb-loading">加载中...</view>
   <block wx:else>
+    <view wx:if="{{isOwner}}" class="fb-owner-bar">
+      <view wx:if="{{!editing}}">
+        <view class="fb-owner-btn" bindtap="startEdit">修改</view>
+        <view class="fb-owner-btn danger" bindtap="removePost">删除</view>
+        <text class="fb-owner-note">仅作者可见 · 删除后可在 PC 内容治理找回</text>
+      </view>
+      <block wx:else>
+        <textarea class="fb-edit-area" value="{{editContent}}" maxlength="2000" bindinput="onEditInput" placeholder="编辑正文…" />
+        <view class="fb-owner-actions">
+          <view class="fb-owner-btn" bindtap="cancelEdit">取消</view>
+          <view class="fb-owner-btn primary" bindtap="saveEdit">保存</view>
+        </view>
+      </block>
+    </view>
+
     <view class="fb-card">
       <view class="fb-title">{{post.title || '无标题'}}</view>
       <view class="fb-content">{{post.content}}</view>
@@ -11,6 +26,18 @@
       <view class="fb-actions">
         <view class="fb-action {{liked ? 'active' : ''}}" bindtap="toggleLike">🐟 {{likeCount}}</view>
         <text class="fb-action">💬 {{comments.length}}</text>
+        <view class="fb-action recite {{reciteMode ? 'reciting' : ''}}" bindtap="toggleRecite">
+          {{reciteMode ? '⏹ 停止复诵' : '🎤 我要复诵'}} · {{recitationCount}}
+        </view>
+      </view>
+    </view>
+
+    <view wx:if="{{recitations.length}}" class="fb-card">
+      <view class="fb-section-title">复诵 · {{recitationCount}}（他人对本段也进行朗读/背诵）</view>
+      <view wx:for="{{recitations}}" wx:key="id" class="fb-recite-row">
+        <text class="fb-recite-name">{{item.userName || '同事'}}</text>
+        <text wx:if="{{item.durationSeconds}}" class="fb-recite-dur">{{item.durationSeconds}}s</text>
+        <audio wx:if="{{item.url}}" src="{{item.url}}" style="flex:1; height:40px;" />
       </view>
     </view>
 

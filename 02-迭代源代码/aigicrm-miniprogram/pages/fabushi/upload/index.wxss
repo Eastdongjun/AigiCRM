@@ -52,3 +52,11 @@ page { background: #f7f3ec; }
 .attach-sub { margin-top: 10rpx; color: #9c9184; font-size: 20rpx; text-align: center; }
 .attach-name.playable { color: #2d5a4a; }
 .attach-name.playing { font-weight: 700; }
+/* 【计划切片 4】三类型分型提示 */
+.form-tip { margin-top: 10rpx; color: #9c9184; font-size: 20rpx; line-height: 1.6; }
+.suishi-tip { margin-top: 14rpx; padding: 14rpx 18rpx; border-radius: 10rpx; background: #eef3fb; border: 1rpx solid #c9d9ef; color: #16337a; font-size: 22rpx; line-height: 1.6; }
+
+/* 【PROTO-AUDIT-20261123 P7】已选图片九宫格预览 */
+.img-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12rpx; padding: 20rpx 30rpx 0; }
+.img-cell { position: relative; width: 100%; padding-top: 100%; border-radius: 12rpx; overflow: hidden; background: #f2f3f5; }
+.img-thumb { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }

@@ -147,7 +147,9 @@ Page({
     if (!book || !book.pdfFileId) return
     wx.navigateTo({
       url: `/pages/fabushi/reader/index?bookId=${book.id}&pdfFileId=${book.pdfFileId}` +
-        `&title=${encodeURIComponent(book.title || '法布施书目')}`
+        `&title=${encodeURIComponent(book.title || '法布施书目')}` +
+        // 【MP-PARITY 2026-11-23】版式标记带给 H5（文本版/影印版默认底色与重排可用性不同）
+        (book.layoutType ? `&layoutType=${book.layoutType}` : '')
     })
   }
 })

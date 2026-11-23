@@ -5,20 +5,73 @@
           data-value="{{item.value}}" bindtap="onScope">{{item.label}}</view>
   </view>
 
-  <view class="form-card">
-    <picker mode="selector" range="{{books}}" range-key="title" value="{{bookIndex}}" bindchange="onBookChange">
-      <view class="form-row">
-        <text class="form-label">关联书目</text>
-        <text class="form-value">{{bookIndex >= 0 && books[bookIndex] ? books[bookIndex].title : '可选'}}</text>
-      </view>
-    </picker>
-    <input class="form-input" placeholder="标题（可选）" value="{{title}}" bindinput="onTitle" />
-    <textarea class="form-textarea" placeholder="写点什么…" value="{{content}}" bindinput="onContent" maxlength="2000" />
+  <!-- 【PROTO-AUDIT-20261123 P6】每日诵读双通道：A 先写后读 / B 按书诵一段 -->
+  <view wx:if="{{scopeType === 'songdu'}}" class="scope-row">
+    <view class="scope-chip {{channel === 'A' ? 'active' : ''}}" data-value="A" bindtap="onChannel">A · 先写后读</view>
+    <view class="scope-chip {{channel === 'B' ? 'active' : ''}}" data-value="B" bindtap="onChannel">B · 按书诵一段</view>
   </view>
 
-  <view class="submit-btn {{submitting || (!title && !content) ? 'disabled' : ''}}" bindtap="submit">
-    {{submitting ? '发布中…' : '发布'}}
+  <view class="form-card">
+    <!-- 【PROTO-AUDIT-20261123 P8】三级选书：类别 → 书目 → 版本 -->
+    <block wx:if="{{scopeType !== 'suishi'}}">
+      <picker mode="selector" range="{{categories}}" range-key="name" value="{{categoryIndex}}" bindchange="onCategoryChange">
+        <view class="form-row">
+          <text class="form-label">① 类别</text>
+          <text class="form-value">{{categoryIndex >= 0 ? categories[categoryIndex].name : '全部类别'}}</text>
+        </view>
+      </picker>
+      <picker mode="selector" range="{{titles}}" value="{{titleIndex}}" bindchange="onTitleChange">
+        <view class="form-row">
+          <text class="form-label">② 书目 *</text>
+          <text class="form-value">{{titleIndex >= 0 ? titles[titleIndex] : '请选择书目'}}</text>
+        </view>
+      </picker>
+      <picker mode="selector" range="{{editions}}" range-key="editionName" value="{{editionIndex}}" bindchange="onEditionChange">
+        <view class="form-row">
+          <text class="form-label">③ 版本</text>
+          <text class="form-value">{{editionIndex >= 0 ? editions[editionIndex].editionName : '请选择版本'}}</text>
+        </view>
+      </picker>
+    </block>
+
+    <!-- 再读一本：② 确定章节（选择已有 / 自我录入） -->
+    <block wx:if="{{scopeType === 'zaidu'}}">
+      <view class="scope-row" style="margin: 4px 0 8px">
+        <view class="scope-chip {{!useManualSection ? 'active' : ''}}" bindtap="toggleManualSection">选择已有章节</view>
+        <view class="scope-chip {{useManualSection ? 'active' : ''}}" bindtap="toggleManualSection">自我录入章节</view>
+      </view>
+      <picker wx:if="{{!useManualSection}}" mode="selector" range="{{sectionNames}}" value="{{sectionIndex}}" bindchange="onSectionChange">
+        <view class="form-row">
+          <text class="form-label">章节 *</text>
+          <text class="form-value">{{sectionIndex >= 0 ? sectionNames[sectionIndex] : (sectionNames.length ? '请选择章节' : '本书暂无章节，请切到「自我录入章节」')}}</text>
+        </view>
+      </picker>
+      <input wx:else class="form-input" placeholder="例如：第八章 · 上善若水" value="{{manualSection}}" bindinput="onManualSection" />
+    </block>
+
+    <!-- 每日诵读 B 通道：具体段落 -->
+    <picker wx:if="{{scopeType === 'songdu' && channel === 'B'}}" mode="selector" range="{{sectionNames}}" value="{{sectionIndex}}" bindchange="onSectionChange">
+      <view class="form-row">
+        <text class="form-label">具体段落 *</text>
+        <text class="form-value">{{sectionIndex >= 0 ? sectionNames[sectionIndex] : (sectionNames.length ? '请选择段落' : '本书暂无章节')}}</text>
+      </view>
+    </picker>
+
+    <input wx:if="{{scopeType === 'zaidu'}}" class="form-input" placeholder="标题（可选）" value="{{title}}" bindinput="onTitle" />
+    <textarea class="form-textarea" placeholder="{{scopeType === 'suishi' ? '随手施：一句话/一页书/一张照片都行…' : scopeType === 'songdu' ? '今日诵读内容（可留空，以语音为主）…' : '写下本章节的精读记录…'}}" value="{{content}}" bindinput="onContent" maxlength="2000" />
+    <view wx:if="{{scopeType === 'suishi'}}" class="suishi-tip">不关联书目 · 不设标题 · 直接上传，像发朋友圈一样简单</view>
   </view>
+
+  <view class="submit-btn {{submitting ? 'disabled' : ''}}" bindtap="submit">
+    {{submitting ? '发布中…' : (scopeType === 'suishi' ? '随手一发' : scopeType === 'songdu' ? '提交每日诵读' : '发布再读一本')}}
+  </view>
+  <!-- 【PROTO-AUDIT-20261123 P7】已选图片九宫格预览 -->
+  <view wx:if="{{imageAttachments.length}}" class="img-grid">
+    <view wx:for="{{imageAttachments}}" wx:key="fileId" class="img-cell">
+      <image class="img-thumb" src="{{item.preview}}" mode="aspectFill" data-index="{{index}}" bindtap="previewImage" />
+    </view>
+  </view>
+
   <view class="attach-card">
     <view class="attach-head"><text>附件</text><text class="attach-count">{{attachHint}}</text></view>
     <view class="attach-btns">

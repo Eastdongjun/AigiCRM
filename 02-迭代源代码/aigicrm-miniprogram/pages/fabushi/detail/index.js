@@ -1,5 +1,5 @@
 const { hasPermission, requireLogin } = require('../../../utils/auth')
-const { getFabushiPostDetail, getFabushiComments, addFabushiComment, toggleFabushiLike, markFabushiRead } = require('../../../api/fabushi')
+const { getFabushiPostDetail, getFabushiComments, addFabushiComment, toggleFabushiLike, markFabushiRead, updateFabushiPost, deleteFabushiPost, getFabushiRecitations, addFabushiRecitation } = require('../../../api/fabushi')
 const { getDownloadToken, getDownloadUrl, uploadFile } = require('../../../api/file')
 const { showError } = require('../../../utils/feedback')
 
@@ -17,6 +17,12 @@ Page({
     highlightChecked: false,
     voiceMode: false,
     recSeconds: 0,
+    isOwner: false,
+    editing: false,
+    editContent: '',
+    reciteMode: false,
+    recitations: [],
+    recitationCount: 0,
     loading: true,
     dlToken: ''
   },
@@ -56,9 +62,13 @@ Page({
         attachments: data.attachments || [],
         likeCount: Number(data.likeCount) || 0,
         liked: Boolean(data.likedByMe),
-        loading: false
+        loading: false,
+        // 【D13 计划切片 2】仅作者本人显示"管理"（修改/删除）；admin 不代编辑
+        isOwner: Boolean((data.post || {}).userId) && String((data.post || {}).userId) === String((getApp().globalData.currentUser || {}).userId || '')
       })
       this.loadAttachmentUrls()
+      this.setData({ editing: false, editContent: '' })
+      this.loadRecitations()
       markFabushiRead(id).then(() => {
         // 【F4a】读过了 → 清法布施 tabBar 红点
         const { setUnreadDot } = require('../../../utils/fabushi-reminder')
@@ -106,6 +116,103 @@ Page({
     }).catch((err) => showError(err, '操作失败'))
   },
 
+  // ===== D13 计划切片 2：本人修改/删除（仅作者本人；软删不断文件） =====
+  startEdit() {
+    if (!this.data.isOwner) return
+    this.setData({ editing: true, editContent: (this.data.post && this.data.post.content) || '' })
+  },
+
+  cancelEdit() {
+    this.setData({ editing: false, editContent: '' })
+  },
+
+  onEditInput(e) {
+    this.setData({ editContent: e.detail.value })
+  },
+
+  saveEdit() {
+    if (!this.data.isOwner || this.data.savingEdit) return
+    const content = (this.data.editContent || '').trim()
+    const title = (this.data.post && this.data.post.title) || null
+    if (!content && !title) {
+      wx.showToast({ title: '内容不能为空', icon: 'none' })
+      return
+    }
+    if ((this.data.post || {}).scopeType === 'suishi' && title) {
+      // suishi 无标题（后端分型校验保持）
+    }
+    this.setData({ savingEdit: true })
+    updateFabushiPost(this.data.id, { title: title, content: content || null }).then(() => {
+      this.setData({ savingEdit: false, editing: false })
+      wx.showToast({ title: '已保存', icon: 'success' })
+      this.loadDetail()
+    }).catch((err) => {
+      this.setData({ savingEdit: false })
+      showError(err, '保存失败')
+    })
+  },
+
+  removePost() {
+    if (!this.data.isOwner) return
+    wx.showModal({
+      title: '删除内容',
+      content: '删除后可在 PC 内容治理（已删除）中找回，附件保留在文件中心。确认删除？',
+      confirmColor: '#e11d48',
+      success: (res) => {
+        if (!res.confirm) return
+        deleteFabushiPost(this.data.id).then(() => {
+          wx.showToast({ title: '已删除', icon: 'success' })
+          setTimeout(() => wx.navigateBack(), 400)
+        }).catch((err) => showError(err, '删除失败'))
+      }
+    })
+  },
+
+  // ===== D14 计划切片 3：复诵（同人同帖可多次；录音复用 initRecorder，mp3 ≤60s） =====
+  loadRecitations() {
+    const id = this.data.id
+    if (!id) return
+    Promise.resolve(getDownloadToken()).then((token) => {
+      const tk = token || this.data.dlToken || ''
+      return getFabushiRecitations(id).then((res) => {
+        const rows = res || []
+        // 复诵音频回填 download-token URL（与附件同机制）
+        rows.forEach((r) => { r.url = `/api/file/download/${r.audioFileId}?token=${encodeURIComponent(tk)}` })
+        this.setData({ recitations: rows, recitationCount: rows.length })
+      })
+    }).catch(() => this.setData({ recitations: [], recitationCount: 0 }))
+  },
+
+  toggleRecite() {
+    if (!this.data.canCreate) return
+    if (this.data.reciteMode) {
+      if (this._recorder) this._recorder.stop()
+      return
+    }
+    this.initRecorder()
+    this._reciteMode = true
+    this.setData({ reciteMode: true, voiceMode: false, highlightChecked: false })
+    this._recorder.start({ format: 'mp3', duration: 60000, sampleRate: 44100, numberOfChannels: 1, encodeBitRate: 96000 })
+    wx.showToast({ title: '复诵录音中…', icon: 'none' })
+  },
+
+  submitRecitation(path, seconds) {
+    uploadFile(path, null, 'fabushi').then((res) => {
+      const fileId = res && (res.id || (res.data && res.data.id))
+      if (!fileId) throw new Error('upload no fileId')
+      return addFabushiRecitation(this.data.id, { audioFileId: fileId, durationSeconds: seconds || null })
+    }).then(() => {
+      this.setData({ reciteMode: false })
+      this._reciteMode = false
+      wx.showToast({ title: '复诵已挂到本内容下', icon: 'success' })
+      this.loadRecitations()
+    }).catch((err) => {
+      this.setData({ reciteMode: false })
+      this._reciteMode = false
+      showError(err, '复诵失败')
+    })
+  },
+
   onCommentInput(e) {
     this.setData({ commentText: e.detail.value })
   },
@@ -149,11 +256,16 @@ Page({
       if (this._recTimer) { clearInterval(this._recTimer); this._recTimer = null }
       const discard = this._discardOnStop
       this._discardOnStop = false
-      if (discard) { this.setData({ voiceMode: false }); return }
+      if (discard) { this.setData({ voiceMode: false, reciteMode: false }); this._reciteMode = false; return }
       const durationMs = (res && res.duration) || 0
       if (durationMs < 1000) {
-        this.setData({ voiceMode: false })
+        this.setData({ voiceMode: false, reciteMode: false })
+        this._reciteMode = false
         wx.showToast({ title: '时长太短，已丢弃', icon: 'none' })
+        return
+      }
+      if (this._reciteMode) {
+        this.submitRecitation(res.tempFilePath, Math.round(durationMs / 1000))
         return
       }
       this.submitVoiceComment(res.tempFilePath)
@@ -189,7 +301,7 @@ Page({
 
   discardRecording() {
     if (this._recTimer) { clearInterval(this._recTimer); this._recTimer = null }
-    if (this.data.voiceMode && this._recorder) {
+    if ((this.data.voiceMode || this.data.reciteMode) && this._recorder) {
       this._discardOnStop = true
       this._recorder.stop()
     }

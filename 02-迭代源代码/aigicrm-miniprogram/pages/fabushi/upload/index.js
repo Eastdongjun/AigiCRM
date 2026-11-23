@@ -1,22 +1,35 @@
 const { hasPermission, requireLogin } = require('../../../utils/auth')
-const { getFabushiBooks, createFabushiPost, addFabushiAttachment, getFabushiSettings, getFabushiUploadTicket } = require('../../../api/fabushi')
+const { getFabushiBooks, createFabushiPost, addFabushiAttachment, getFabushiSettings, getFabushiUploadTicket, getFabushiSections, createFabushiSectionSelf } = require('../../../api/fabushi')
 const { uploadFile, getDownloadToken, getDownloadUrl } = require('../../../api/file')
 const { showError } = require('../../../utils/feedback')
 
 // 【法布施一期 2026-11-15】发布页: 心得/诵读(文字版)/正能量; 书目可选挂靠
 // (附件图/音/视二期; 提交成功回书目列表/工作台)
 const SCOPE_OPTIONS = [
-  { value: 'heart', label: '心得' },
-  { value: 'recitation', label: '诵读' },
-  { value: 'znl', label: '正能量' }
+  { value: 'songdu', label: '每日诵读' },
+  { value: 'suishi', label: '每日随施' },
+  { value: 'zaidu', label: '再读一本' }
 ]
 
 Page({
   data: {
     scopeOptions: SCOPE_OPTIONS,
-    scopeType: 'heart',
+    scopeType: 'songdu',
+    // 【PROTO-AUDIT-20261123 P6/P8】通道 A/B + 三级选书（类别→书目→版本）+ 章节自录
+    channel: 'A',
     books: [],
+    categories: [],
+    categoryIndex: -1,
+    titles: [],
+    titleIndex: -1,
+    editions: [],
+    editionIndex: -1,
     bookIndex: -1,
+    manualSection: '',
+    useManualSection: false,
+    sections: [],
+    sectionNames: [],
+    sectionIndex: -1,
     title: '',
     content: '',
     submitting: false,
@@ -25,6 +38,7 @@ Page({
     publishedPostId: null,
     muyuAnim: false,
     attachments: [],
+    imageAttachments: [],
     uploading: false,
     soundEnabled: true,
     attachHint: '图片 0/5 · 视频 0/5 · 语音 0/10',
@@ -75,22 +89,120 @@ Page({
       return
     }
     this._presetBookId = query && query.bookId ? Number(query.bookId) : null
-    this.setData({ canCreate: true })
+    // 【D7 切片 6】觉醒三板块直达对应发布类型
+    const presetScope = query && query.scope
+    const scopeType = SCOPE_OPTIONS.some((item) => item.value === presetScope) ? presetScope : 'songdu'
+    this.setData({ canCreate: true, scopeType })
     this.loadBooks()
   },
 
   loadBooks() {
-    getFabushiBooks({ status: 'approved', current: 1, size: 100 }).then((res) => {
+    getFabushiBooks({ status: 'approved', current: 1, size: 200 }).then((res) => {
       const data = res || {}
       const books = data.records || []
       const preset = this._presetBookId
-      const bookIndex = preset ? books.findIndex((book) => Number(book.id) === preset) : -1
-      this.setData({ books, bookIndex })
+      const presetBook = preset ? books.find((book) => Number(book.id) === preset) : null
+      const categories = []
+      const seen = {}
+      books.forEach((b) => {
+        if (!b.categoryCode || seen[b.categoryCode]) return
+        seen[b.categoryCode] = true
+        categories.push({ code: b.categoryCode, name: b.categoryName || b.categoryCode })
+      })
+      const categoryIndex = presetBook ? categories.findIndex((c) => c.code === presetBook.categoryCode) : -1
+      const categoryCode = categoryIndex >= 0 ? categories[categoryIndex].code : null
+      const titles = this.titleList(books, categoryCode)
+      const titleIndex = presetBook ? titles.indexOf(presetBook.title) : -1
+      const title = titleIndex >= 0 ? titles[titleIndex] : null
+      const editions = this.editionList(books, categoryCode, title)
+      const editionIndex = presetBook ? editions.findIndex((b) => Number(b.id) === Number(presetBook.id)) : -1
+      this.setData({
+        books, categories, categoryIndex, titles, titleIndex, editions, editionIndex,
+        bookIndex: editions.length && editionIndex >= 0 ? editionIndex : -1
+      })
     })
   },
 
-  onScope(e) {
-    this.setData({ scopeType: e.currentTarget.dataset.value })
+  titleList(books, categoryCode) {
+    const out = []
+    const seen = {}
+    books.forEach((b) => {
+      if (!b.title) return
+      if (categoryCode && b.categoryCode !== categoryCode) return
+      if (seen[b.title]) return
+      seen[b.title] = true
+      out.push(b.title)
+    })
+    return out
+  },
+
+  editionList(books, categoryCode, title) {
+    return books.filter((b) => {
+      if (categoryCode && b.categoryCode !== categoryCode) return false
+      if (title && b.title !== title) return false
+      return true
+    }).map((b) => Object.assign({}, b, { editionName: this.editionLabel(b) }))
+  },
+
+  editionLabel(book) {
+    return [book.publisher, book.editionType, book.pages ? book.pages + ' 页' : ''].filter(Boolean).join(' · ') || '默认版本'
+  },
+
+  currentBookId() {
+    const { editions, editionIndex } = this.data
+    return editionIndex >= 0 && editions[editionIndex] ? editions[editionIndex].id : null
+  },
+
+  onCategoryChange(e) {
+    const categoryIndex = Number(e.detail.value)
+    const categoryCode = this.data.categories[categoryIndex] ? this.data.categories[categoryIndex].code : null
+    const titles = this.titleList(this.data.books, categoryCode)
+    this.setData({ categoryIndex, titles, titleIndex: -1, editions: [], editionIndex: -1, bookIndex: -1, sections: [], sectionNames: [], sectionIndex: -1 })
+  },
+
+  onTitleChange(e) {
+    const titleIndex = Number(e.detail.value)
+    const categoryCode = this.data.categories[this.data.categoryIndex] ? this.data.categories[this.data.categoryIndex].code : null
+    const title = this.data.titles[titleIndex] || null
+    const editions = this.editionList(this.data.books, categoryCode, title)
+    this.setData({ titleIndex, editions, editionIndex: editions.length ? 0 : -1, bookIndex: editions.length ? 0 : -1, sections: [], sectionNames: [], sectionIndex: -1 })
+    if (editions.length) this.loadSectionsFor(editions[0].id)
+  },
+
+  onEditionChange(e) {
+    const editionIndex = Number(e.detail.value)
+    this.setData({ editionIndex, bookIndex: editionIndex, sections: [], sectionNames: [], sectionIndex: -1 })
+    const book = this.data.editions[editionIndex]
+    if (book) this.loadSectionsFor(book.id)
+  },
+
+  loadSectionsFor(bookId) {
+    getFabushiSections(bookId).then((res) => {
+      const sections = (res && res.sections) || []
+      const flat = []
+      const walk = (nodes, prefix) => {
+        ;(nodes || []).forEach((n) => {
+          const label = (n.title || ('#' + n.id))
+          const path = prefix ? prefix + ' / ' + label : label
+          flat.push({ id: n.id, path })
+          if (n.children && n.children.length) walk(n.children, path)
+        })
+      }
+      walk(sections, '')
+      this.setData({ sections: flat, sectionNames: flat.map((x) => x.path), sectionIndex: -1 })
+    }).catch(() => {})
+  },
+
+  onChannel(e) {
+    this.setData({ channel: e.currentTarget.dataset.value })
+  },
+
+  onManualSection(e) {
+    this.setData({ manualSection: e.detail.value })
+  },
+
+  toggleManualSection() {
+    this.setData({ useManualSection: !this.data.useManualSection, sectionIndex: -1 })
   },
 
   // ===== 【F2 录音】getRecorderManager 分段录制: mp3/44.1k/96k, 60s 自动停, <1s 丢弃 =====
@@ -157,7 +269,7 @@ Page({
       if (!fileId) throw new Error('upload no fileId')
       const added = { fileId, fileType: 'audio', name: `录音 ${seconds}s`, durationSeconds: seconds }
       this.setData({ attachments: this.data.attachments.concat(added), uploading: false })
-      this.syncAttachHint()
+      this.syncAttachHint(); this.syncImageAttachments()
     }).catch((err) => { this.setData({ uploading: false }); showError(err, '录音上传失败') })
   },
 
@@ -214,14 +326,25 @@ Page({
     })
     if (added.length) {
       this.setData({ attachments: this.data.attachments.concat(added) })
-      this.syncAttachHint()
+      this.syncAttachHint(); this.syncImageAttachments()
     }
     if (skipped) wx.showToast({ title: skipped + ' 个文件超出分型上限未添加', icon: 'none' })
     if (pdfCount) wx.showToast({ title: 'PDF 已传至法布施空间，请在 PC 书目管理挂载', icon: 'none', duration: 2500 })
   },
 
-  onBookChange(e) {
-    this.setData({ bookIndex: Number(e.detail.value) })
+  onSectionChange(e) {
+    this.setData({ sectionIndex: Number(e.detail.value) })
+  },
+
+  onScope(e) {
+    const scopeType = e.currentTarget.dataset.value
+    // 【计划切片 4】随施=免标题免书；songdu/zaidu 换类型时拉章节（zaidu）
+    const patch = { scopeType, sections: [], sectionIndex: -1 }
+    if (scopeType === 'suishi') patch.title = ''
+    this.setData(patch)
+    const bookId = this.currentBookId()
+    if ((scopeType === 'zaidu' || scopeType === 'songdu') && bookId) this.loadSectionsFor(bookId)
+    this.syncAttachHint(); this.syncImageAttachments()
   },
 
   onTitle(e) { this.setData({ title: e.detail.value }) },
@@ -274,9 +397,30 @@ Page({
     return counts
   },
 
+  // 【PROTO-AUDIT-20261123 P7】九宫格预览数据：把图片附件映射成可直接 <image src> 的 URL
+  syncImageAttachments() {
+    const images = this.data.attachments.filter((a) => a.fileType === 'image')
+    if (!images.length) { this.setData({ imageAttachments: [] }); return }
+    getDownloadToken().then((token) => {
+      const list = images.map((a) => ({
+        fileId: a.fileId,
+        preview: getDownloadUrl({ id: a.fileId }) + (token ? '?token=' + encodeURIComponent(token) : '')
+      }))
+      this.setData({ imageAttachments: list })
+    }).catch(() => {})
+  },
+
+  previewImage(e) {
+    const index = Number(e.currentTarget.dataset.index)
+    const urls = this.data.imageAttachments.map((x) => x.preview)
+    if (urls.length) wx.previewImage({ current: urls[index] || urls[0], urls })
+  },
+
   syncAttachHint() {
     const c = this.attachmentCounts()
-    this.setData({ attachHint: `图片 ${c.image}/5 · 视频 ${c.video}/5 · 语音 ${c.audio}/10` })
+    // 【Q14】随施图片上限 9，其他类型 5
+    const imgMax = this.data.scopeType === 'suishi' ? 9 : 5
+    this.setData({ attachHint: `图片 ${c.image}/${imgMax} · 视频 ${c.video}/5 · 语音 ${c.audio}/10` })
   },
 
   uploadFiles(files) {
@@ -285,31 +429,70 @@ Page({
     Promise.all(files.map((f) => uploadFile(f.path, null, 'fabushi'))).then((results) => {
       const added = results.map((res, i) => ({ fileId: res && (res.id || (res.data && res.data.id)), fileType: files[i].type, name: files[i].name })).filter((x) => x.fileId)
       this.setData({ attachments: this.data.attachments.concat(added), uploading: false })
-      this.syncAttachHint()
+      this.syncAttachHint(); this.syncImageAttachments()
     }).catch((err) => { this.setData({ uploading: false }); showError(err, '附件上传失败') })
   },
 
   removeAttachment(e) {
     const index = Number(e.currentTarget.dataset.index)
     const attachments = this.data.attachments.slice(); attachments.splice(index, 1); this.setData({ attachments })
-    this.syncAttachHint()
+    this.syncAttachHint(); this.syncImageAttachments()
   },
 
   submit() {
-    const { scopeType, books, bookIndex, title, content, submitting } = this.data
+    // 【D8/D9/D10 计划切片 4】三类型分型提交（与后端分型校验同口径）：
+    // songdu/zaidu：书目必选（如同四项激励先选客户），songdu 免标题；zaidu 章节可选/必选=选择已有
+    // suishi：免书目免标题，纯内容/附件；songdu 语音必填（每日诵读=朗读/背诵）
+    const { scopeType, title, content, submitting, attachments, sectionIndex, sections, channel, useManualSection, manualSection } = this.data
     if (submitting) return
-    if (!title.trim() && !content.trim()) {
+    const isSuishi = scopeType === 'suishi'
+    const isZaidu = scopeType === 'zaidu'
+    const isSongduB = scopeType === 'songdu' && channel === 'B'
+    const bookId = this.currentBookId()
+    if (!isSuishi && bookId == null) {
+      wx.showToast({ title: '请先选择具体书目', icon: 'none' })
+      return
+    }
+    if (isZaidu && useManualSection && !String(manualSection || '').trim()) {
+      wx.showToast({ title: '请填写章节名称', icon: 'none' })
+      return
+    }
+    if (isZaidu && !useManualSection && sectionIndex < 0) {
+      wx.showToast({ title: '请选择章节', icon: 'none' })
+      return
+    }
+    if (isSongduB && sectionIndex < 0) {
+      wx.showToast({ title: 'B 通道请选择具体段落', icon: 'none' })
+      return
+    }
+    if (isSuishi && !content.trim()) {
+      wx.showToast({ title: '随施写点内容吧（一句话也行）', icon: 'none' })
+      return
+    }
+    if (!isSuishi && !title.trim() && !content.trim()) {
       wx.showToast({ title: '内容不能为空', icon: 'none' })
       return
     }
-    const payload = {
-      scopeType,
-      title: title.trim() || null,
-      content: content.trim() || null,
-      bookId: bookIndex >= 0 && books[bookIndex] ? books[bookIndex].id : null
+    if (scopeType === 'songdu' && !attachments.some((a) => a.fileType === 'audio')) {
+      wx.showToast({ title: '每日诵读请至少录制一段语音', icon: 'none' })
+      return
     }
     this.setData({ submitting: true })
-    createFabushiPost(payload).then(async (res) => {
+    const resolveSectionId = async () => {
+      if (isZaidu && useManualSection) {
+        const res = await createFabushiSectionSelf(bookId, String(manualSection).trim())
+        return res && res.id ? res.id : null
+      }
+      if ((isZaidu || isSongduB) && sectionIndex >= 0 && sections[sectionIndex]) return sections[sectionIndex].id
+      return null
+    }
+    resolveSectionId().catch(() => null).then((sectionId) => createFabushiPost({
+      scopeType,
+      title: isSuishi ? null : (title.trim() || null),
+      content: content.trim() || null,
+      bookId: isSuishi ? null : bookId,
+      sectionId
+    })).then(async (res) => {
       const id = res && (res.id || (res.data && res.data.id))
       if (id && this.data.attachments.length) {
         await Promise.all(this.data.attachments.map((a) => addFabushiAttachment(id, {

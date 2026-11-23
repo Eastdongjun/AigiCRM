@@ -1,23 +1,25 @@
 const { hasPermission, requireLogin } = require('../../../utils/auth')
-const { getFabushiPosts } = require('../../../api/fabushi')
+const { getFabushiPosts, getFabushiBooks } = require('../../../api/fabushi')
 const { showError } = require('../../../utils/feedback')
 
 const TABS = [
-  { value: 'heart', label: '心得' },
-  { value: 'recitation', label: '诵读' },
-  { value: 'znl', label: '正能量' }
+  { value: 'songdu', label: '每日诵读' },
+  { value: 'suishi', label: '每日随施' },
+  { value: 'zaidu', label: '再读一本' }
 ]
 
 Page({
   data: {
     tabs: TABS,
-    active: 'heart',
+    active: 'songdu',
     posts: [],
     total: 0,
     page: 1,
     pageSize: 10,
     loading: false,
-    canCreate: false
+    canCreate: false,
+    // 【D15 2026-11-23】再读一本分区：按书浏览 + 下钻
+    books: []
   },
 
   onPermissionChanged() {
@@ -28,6 +30,7 @@ Page({
       return
     }
     this.setData({ canCreate: hasPermission('fabushi:create') })
+    this.loadBooks()
     this.loadPosts()
   },
 
@@ -39,6 +42,7 @@ Page({
       return
     }
     this.setData({ canCreate: hasPermission('fabushi:create') })
+    this.loadBooks()
     this.loadPosts()
   },
 
@@ -51,6 +55,22 @@ Page({
     if (!active || active === this.data.active) return
     this.setData({ active, posts: [], page: 1, total: 0 })
     this.loadPosts()
+  },
+
+  loadBooks() {
+    getFabushiBooks({ status: 'approved', current: 1, size: 100 })
+      .then((res) => {
+        this.setData({ books: (res && res.records) || [] })
+      })
+      .catch(() => this.setData({ books: [] }))
+  },
+
+  // 【MP-PARITY 2026-11-23】按书浏览改为下钻独立页 A3（原型：再读分区入口 → A3）：
+  // 书头卡 + 按时间/章节/成员三种排列 + 分组列表，手机竖屏放得下，不再在信息流里内联筛选。
+  onBookTap(e) {
+    const id = Number(e.currentTarget.dataset.id)
+    if (!id) return
+    wx.navigateTo({ url: '/pages/fabushi/bybook/index?bookId=' + id })
   },
 
   loadPosts() {

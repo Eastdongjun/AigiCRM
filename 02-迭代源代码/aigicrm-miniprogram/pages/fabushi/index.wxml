@@ -1,9 +1,8 @@
 <view class="fb-page">
-  <!-- 【书卷改版 2026-11-16】米白纸底 · 宋体标题 · 朱砂印章 -->
   <view class="fb-hero">
     <view class="fb-hero-text">
       <view class="fb-hero-title">法布施</view>
-      <view class="fb-hero-sub">读书 · 心得 · 正能量</view>
+      <view class="fb-hero-sub">每日诵读 · 每日随施 · 再读一本</view>
     </view>
     <view class="fb-hero-right">
       <view class="fb-seal">布施</view>
@@ -14,11 +13,11 @@
     </view>
   </view>
 
-  <!-- 在读卡: 书架第一本"在读"→ 继续读直达 -->
+  <!-- 继续阅读大卡（D20） -->
   <view wx:if="{{readingBook}}" class="reading-card" bindtap="goReadReading">
     <view class="reading-spine"></view>
     <view class="reading-main">
-      <view class="reading-kicker">继续阅读</view>
+      <view class="reading-kicker">继续阅读 · 在读</view>
       <view class="reading-title">{{readingBook.title}}</view>
       <view class="reading-meta">读到第 {{readingBook.lastPage || 1}} 页<text wx:if="{{readingBook.totalPages}}"> · {{readingBook.progress || 0}}%</text></view>
       <view class="reading-progress"><view style="width: {{readingBook.progress || 0}}%;"></view></view>
@@ -35,40 +34,57 @@
 
   <view class="mobile-tabs">
     <view wx:for="{{tabs}}" wx:key="value" class="mobile-tab {{activeTab === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="onTab">
-      {{item.label}}<text wx:if="{{item.phase}}" class="phase-chip">{{item.phase}}</text>
+      {{item.label}}
     </view>
   </view>
 
-  <block wx:if="{{activeTab === 'lib' || activeTab === 'znl'}}">
+  <!-- 觉醒：三板块入口 + 个人数据聚合 -->
+  <block wx:if="{{activeTab === 'awaken'}}">
+    <view class="card">
+      <view class="awake-strip">
+        <view class="awake-cell"><b>{{awake.todayRecitations || 0}}</b><text>今日诵读</text></view>
+        <view class="awake-cell"><b>{{awake.todayGifts || 0}}</b><text>今日随施</text></view>
+        <view class="awake-cell"><b>{{awake.rereadingBooks || 0}}</b><text>再读一本</text></view>
+        <view class="awake-cell"><b>{{awake.finishedThisMonth || 0}}</b><text>本月读完</text></view>
+        <view class="awake-cell"><b>{{awake.totalReadDays || 0}}</b><text>累计阅读天</text></view>
+      </view>
+    </view>
+    <view class="board-card" data-scope="songdu" bindtap="goUpload">
+      <view class="board-icon songdu">诵</view>
+      <view class="board-main"><view class="board-title">每日诵读</view><view class="board-sub">每天朗读背诵一小段经典 · 今日 {{awake.todayRecitations || 0}} 条</view></view>
+      <view class="mini-action">诵读</view>
+    </view>
+    <view class="board-card" data-scope="suishi" bindtap="goUpload">
+      <view class="board-icon suishi">施</view>
+      <view class="board-main"><view class="board-title">每日随施</view><view class="board-sub">随手上传正能量 · 今日 {{awake.todayGifts || 0}} 条</view></view>
+      <view class="mini-action">随施</view>
+    </view>
+    <view class="board-card" data-scope="zaidu" bindtap="goUpload">
+      <view class="board-icon zaidu">读</view>
+      <view class="board-main"><view class="board-title">再读一本</view><view class="board-sub">阶段性精读书目 · 在读 {{awake.rereadingBooks || 0}} 本</view></view>
+      <view class="mini-action">精读</view>
+    </view>
+    <view class="card">
+      <view class="awake-link" bindtap="onTab" data-value="shelf">进入我的书架 ›</view>
+      <view class="awake-link" bindtap="onTab" data-value="stats">查看阅读数据 ›</view>
+      <view class="awake-link" bindtap="goSettings">提醒设置 ›</view>
+    </view>
+  </block>
+
+  <!-- 认知广场：三分区 -->
+  <block wx:if="{{activeTab === 'square'}}">
+    <view class="type-chips">
+      <view wx:for="{{scopeOptions}}" wx:key="value" class="type-chip {{feedTab === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="onFeedTab">{{item.label}}</view>
+    </view>
     <view class="card search-card">
       <view class="search-input-wrap">
-        <input class="search-input" placeholder="搜索书目 / 心得 / 关键字" value="{{searchKeyword}}" bindinput="onSearchInput" confirm-type="search" bindconfirm="onSearch" />
+        <input class="search-input" placeholder="搜索人名 / 书名 / 关键字" value="{{searchKeyword}}" bindinput="onSearchInput" confirm-type="search" bindconfirm="onSearch" />
         <view class="search-btn" bindtap="onSearch">搜索</view>
       </view>
     </view>
-
-    <view wx:if="{{activeTab === 'lib' && recommended}}" class="card recommend-card" bindtap="goBook">
-      <view class="cover">{{recommended.title}}</view>
-      <view class="recommend-main">
-        <view class="recommend-title">今日推荐 · {{recommended.title}}</view>
-        <view class="recommend-meta">{{recommended.author || '法布施书目'}}<text wx:if="{{recommended.pages}}"> · {{recommended.pages}} 页</text><text wx:if="{{recommended.pdfFileId}}"> · 电子书</text></view>
-      </view>
-      <view class="mini-action">查看</view>
-    </view>
-
-    <view wx:if="{{activeTab === 'lib' && activities.length}}" class="card">
-      <view class="stats-title">共读活动</view>
-      <view wx:for="{{activities}}" wx:key="id" class="activity-row">
-        <view><view class="shelf-title">{{item.title}}</view><view class="shelf-meta">{{item.bookTitle || '—'}} · {{item.joinCount || 0}} 人参与</view></view>
-        <text wx:if="{{item.joined}}" class="activity-joined">已参与</text>
-        <view wx:elif="{{item.status === 'active'}}" class="mini-action" data-id="{{item.id}}" bindtap="joinActivity">参与</view>
-        <text wx:else class="activity-joined">已结束</text>
-      </view>
-    </view>
-
     <view class="card feed-card" wx:for="{{posts}}" wx:key="id" data-id="{{item.id}}" bindtap="openPost">
       <view class="feed-head">
-        <view class="feed-title"><text class="type-tag {{item.scopeType}}">{{item.scopeType === 'znl' ? '正能量' : item.scopeType === 'recitation' ? '诵读' : '心得'}}</text>{{item.title || '无标题'}}</view>
+        <view class="feed-title"><text class="type-tag {{item.scopeType}}">{{scopeLabel[item.scopeType] || '内容'}}</text>{{item.title || '无标题'}}</view>
         <text class="feed-time">{{item.createdAt}}</text>
       </view>
       <view class="feed-summary">{{item.content}}</view>
@@ -82,36 +98,76 @@
     <view wx:if="{{!loading && posts.length === 0}}" class="empty">暂无法布施内容</view>
   </block>
 
-  <block wx:if="{{activeTab === 'shelf'}}">
-    <view wx:if="{{shelf.length === 0}}" class="card ghost-panel"><view class="ghost-sub">书架还是空的，去书目浏览加入一本吧。</view></view>
-    <view wx:for="{{shelf}}" wx:key="id" class="card shelf-item" data-id="{{item.bookId}}" bindtap="goShelfBook">
-      <view class="cover">{{item.title}}</view>
-      <view class="shelf-main">
-        <view class="shelf-title">{{item.title}}</view>
-        <view class="shelf-meta">{{item.author || '—'}}<text wx:if="{{item.pages}}"> · {{item.pages}} 页</text><text wx:if="{{item.lastPage}}"> · 读到第 {{item.lastPage}} 页</text></view>
-        <view class="shelf-progress"><view style="width: {{item.progress || 0}}%;"></view></view>
+  <!-- 书库 -->
+  <block wx:if="{{activeTab === 'lib'}}">
+    <view class="card search-card">
+      <view class="search-input-wrap">
+        <input class="search-input" placeholder="搜索书目 / 心得 / 关键字" value="{{searchKeyword}}" bindinput="onSearchInput" confirm-type="search" bindconfirm="onSearch" />
+        <view class="search-btn" bindtap="onSearch">搜索</view>
       </view>
-      <text class="shelf-status">{{item.status === 'finished' ? '已读完' : item.status === 'favorite' ? '收藏' : '在读'}}</text>
+    </view>
+    <view wx:if="{{recommended}}" class="card recommend-card" bindtap="goBook">
+      <view class="cover">{{recommended.title}}</view>
+      <view class="recommend-main">
+        <view class="recommend-title">今日推荐 · {{recommended.title}}</view>
+        <view class="recommend-meta">{{recommended.author || '法布施书目'}}<text wx:if="{{recommended.pages}}"> · {{recommended.pages}} 页</text><text wx:if="{{recommended.pdfFileId}}"> · 电子书</text></view>
+      </view>
+      <view class="mini-action">查看</view>
     </view>
   </block>
 
-  <block wx:if="{{activeTab === 'rec'}}">
-    <view class="card">
-      <view class="rec-head"><text>本月阅读</text><text class="rec-sum">{{records.readDays || 0}} 天 · {{records.readCount || 0}} 次</text></view>
-      <view wx:if="{{recordEmpty}}" class="ghost-sub">本月暂无阅读记录</view>
-      <view wx:for="{{records.days}}" wx:key="date" class="rec-row"><text>{{item.date}}</text><b>{{item.count}} 次</b></view>
+  <!-- 书架管理（C1/C2） -->
+  <block wx:if="{{activeTab === 'shelf'}}">
+    <view class="type-chips">
+      <view wx:for="{{statusChips}}" wx:key="value" class="type-chip {{statusFilter === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="onShelfStatusFilter">{{item.label}}</view>
+    </view>
+    <view class="group-scroll" wx:if="{{groups.length}}">
+      <view class="group-chip {{groupFilter === 'all' ? 'active' : ''}}" data-value="all" bindtap="onGroupFilter">全部</view>
+      <view wx:for="{{groups}}" wx:key="id" class="group-chip {{groupFilter === item.id ? 'active' : ''}}" data-value="{{item.id}}" bindtap="onGroupFilter">{{item.name}}<text class="group-count">{{item.bookCount || 0}}</text></view>
+    </view>
+    <view class="shelf-bar">
+      <view class="mini-action" bindtap="toggleManage">{{manageMode ? '完成' : '管理'}}</view>
+      <view wx:if="{{manageMode}}" class="mini-action ghost" bindtap="onNewGroup">＋ 分组</view>
+    </view>
+
+    <view wx:if="{{visibleShelf.length === 0}}" class="card ghost-panel"><view class="ghost-sub">当前筛选下没有书架记录，去书库加入一本吧。</view></view>
+    <view wx:for="{{visibleShelf}}" wx:key="id" class="card shelf-item" data-id="{{item.bookId}}" bindtap="onShelfTap">
+      <view class="cover-wrap">
+        <view class="cover">{{item.title}}</view>
+        <text wx:if="{{item.pinned}}" class="pin">★</text>
+        <text wx:if="{{item.status === 'finished'}}" class="done">✓</text>
+        <view wx:if="{{manageMode}}" class="pick {{item.checked ? 'on' : ''}}">{{item.checked ? '✓' : ''}}</view>
+      </view>
+      <view class="shelf-main">
+        <view class="shelf-title">{{item.title}}</view>
+        <view class="shelf-meta">{{item.author || '—'}}<text wx:if="{{item.pages}}"> · {{item.pages}} 页</text><text wx:if="{{item.lastPage}}"> · 读到第 {{item.lastPage}} 页</text></view>
+        <view class="shelf-progress"><view style="width: {{item.progressPct || 0}}%;"></view></view>
+      </view>
+      <view wx:if="{{!manageMode}}" class="shelf-status" data-id="{{item.id}}" catchtap="changeShelfStatus">{{item.statusText}}</view>
+      <view wx:else class="shelf-status" data-id="{{item.id}}" catchtap="togglePin">{{item.pinned ? '取消置顶' : '置顶'}}</view>
+    </view>
+
+    <view wx:if="{{manageMode}}" class="card batch-bar">
+      <view class="batch-title">已选 {{selected.length}} 本</view>
+      <view class="batch-actions">
+        <view class="batch-btn" data-action="pin" bindtap="onBatch">置顶</view>
+        <view class="batch-btn" data-action="unpin" bindtap="onBatch">取消置顶</view>
+        <view class="batch-btn" data-action="group" bindtap="onBatch">加入分组</view>
+        <view class="batch-btn danger" data-action="remove" bindtap="onBatch">移出（保留进度）</view>
+      </view>
+      <view wx:for="{{customGroups}}" wx:key="id" class="manage-group" data-id="{{item.id}}" data-name="{{item.name}}" bindtap="onGroupManage">{{item.name}} · {{item.bookCount || 0}} 本 ›</view>
     </view>
   </block>
 
   <block wx:if="{{activeTab === 'stats'}}">
-    <view class="card stats-panel">
+    <!-- 【D28 切片 7】C5 视觉升级：渐变数字 + 趋势角标；数据口径与接口零改动 -->
+    <view class="card stats-panel stats-hero">
       <view class="stats-title">我的法布施</view>
-      <!-- 【UI-STATS-REDESIGN-001 M1/M6】数据格改阅读四格(发布类仅留"我的内容"一格降位) -->
       <view class="stats-grid">
-        <view class="stats-cell"><text class="stats-num">{{personal.myReadCount || 0}}</text><text class="stats-label">累计阅读(人次)</text></view>
-        <view class="stats-cell"><text class="stats-num">{{personal.myStreakDays || 0}}</text><text class="stats-label">连续阅读天数</text></view>
-        <view class="stats-cell"><text class="stats-num">{{personal.myPosts || 0}}</text><text class="stats-label">我的内容</text></view>
-        <view class="stats-cell"><text class="stats-num stats-txt">{{personal.myTopCategory || '—'}}</text><text class="stats-label">最常读类别</text></view>
+        <view class="stats-cell"><text class="stats-corner">累计</text><text class="stats-num">{{personal.myReadCount || 0}}</text><text class="stats-label">累计阅读(人次)</text></view>
+        <view class="stats-cell"><text class="stats-corner">连续</text><text class="stats-num">{{personal.myStreakDays || 0}}</text><text class="stats-label">连续阅读天数</text></view>
+        <view class="stats-cell"><text class="stats-corner">累计</text><text class="stats-num">{{personal.myPosts || 0}}</text><text class="stats-label">我的内容</text></view>
+        <view class="stats-cell"><text class="stats-corner">最常</text><text class="stats-num stats-txt">{{personal.myTopCategory || '—'}}</text><text class="stats-label">最常读类别</text></view>
       </view>
       <view class="stats-link" bindtap="goSettings">提醒设置 ›</view>
     </view>
@@ -119,18 +175,16 @@
       <view class="stats-title">团队阅读 · 本周</view>
       <view class="team-sum">今日已读 {{team.todayReadUsers || 0}} 人<text wx:if="{{team.coveragePct != null}}"> · 覆盖率 {{team.coveragePct}}%</text></view>
       <view wx:for="{{teamRanking}}" wx:key="userId" class="rank-row">
-        <text class="rank-no">{{index + 1}}</text><text class="rank-name">{{item.userName}}</text><text class="rank-dept">{{item.deptName}}</text><b>{{item.postCount}}</b>
+        <text class="rank-no {{index < 3 ? 'medal' + index : ''}}">{{index + 1}}</text><text class="rank-name">{{item.userName}}</text><text class="rank-dept">{{item.deptName}}</text><b>{{item.postCount}}</b>
       </view>
       <view wx:if="{{teamRanking.length === 0}}" class="ghost-sub">本周期暂无团队数据</view>
     </view>
-    <!-- 【M4】书目阅读榜 Top5(本周, read→章节帖→book rollup; 仅书目帖计入) -->
     <view wx:if="{{bookRanking.length}}" class="card">
       <view class="stats-title">书目阅读榜 · 本周</view>
       <view wx:for="{{bookRanking}}" wx:key="bookId" class="rank-row">
-        <text class="rank-no">{{index + 1}}</text><text class="rank-name">{{item.title}}</text><text class="rank-dept">{{item.categoryName || '—'}}</text><b>{{item.readCount}}</b>
+        <text class="rank-no {{index < 3 ? 'medal' + index : ''}}">{{index + 1}}</text><text class="rank-name">{{item.title}}</text><text class="rank-dept">{{item.categoryName || '—'}}</text><b>{{item.readCount}}</b>
       </view>
     </view>
-    <!-- 【2026-11-16 P3】部门进度(前5) + 月度简报(当月) -->
     <view wx:if="{{deptProgress.length}}" class="card">
       <view class="stats-title">部门进度 · 本周</view>
       <view wx:for="{{deptProgress}}" wx:key="deptId" class="rank-row">
@@ -142,24 +196,23 @@
     <view wx:if="{{monthly.month}}" class="card">
       <view class="stats-title">月度简报 · {{monthly.month}}</view>
       <view class="stats-grid">
-        <view class="stats-cell"><text class="stats-num">{{monthly.posts || 0}}</text><text class="stats-label">新增内容</text></view>
+        <view class="stats-cell"><text wx:if="{{trendBadge}}" class="stats-corner trend">{{trendBadge}}</text><text class="stats-num">{{monthly.posts || 0}}</text><text class="stats-label">新增内容</text></view>
         <view class="stats-cell"><text class="stats-num">{{monthly.likes || 0}}</text><text class="stats-label">木鱼</text></view>
         <view class="stats-cell"><text class="stats-num">{{monthly.comments || 0}}</text><text class="stats-label">评论</text></view>
         <view class="stats-cell"><text class="stats-num">{{monthly.readUsers || 0}}</text><text class="stats-label">已读人数</text></view>
       </view>
-      <view wx:if="{{monthly.coveragePct != null}}" class="team-sum">覆盖率 {{monthly.coveragePct}}%<text wx:if="{{monthly.activeUsers}}"> · 活跃 {{monthly.activeUsers}} 人</text></view>
     </view>
   </block>
 
   <view class="fb-entries">
     <view class="fb-entry" bindtap="goFeed">
       <view class="fb-entry-icon">≡</view>
-      <view class="fb-entry-body"><view class="fb-entry-title">内容流</view><view class="fb-entry-sub">心得 · 诵读 · 正能量</view></view>
+      <view class="fb-entry-body"><view class="fb-entry-title">认知广场</view><view class="fb-entry-sub">每日诵读 · 每日随施 · 再读一本</view></view>
       <view class="fb-entry-arrow">›</view>
     </view>
     <view class="fb-entry" bindtap="goBook">
       <view class="fb-entry-icon">书</view>
-      <view class="fb-entry-body"><view class="fb-entry-title">书目浏览</view><view class="fb-entry-sub">按类别浏览书目与心得</view></view>
+      <view class="fb-entry-body"><view class="fb-entry-title">书目浏览</view><view class="fb-entry-sub">类别 · 书目 · 版本</view></view>
       <view class="fb-entry-arrow">›</view>
     </view>
   </view>

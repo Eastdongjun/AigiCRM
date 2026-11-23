@@ -8,6 +8,21 @@
   >{{item.label}}</view>
 </view>
 
+<!-- 【D15 2026-11-23】再读一本分区：按书罗列，点书下钻 A3 按书浏览页 -->
+<view wx:if="{{active === 'zaidu'}}" class="fb-book-strip">
+  <view class="fb-book-head">
+    <text class="fb-book-title">按书浏览</text>
+    <text class="fb-book-tip">点书看这本书里每个人传了什么</text>
+  </view>
+  <scroll-view scroll-x class="fb-book-scroll">
+    <view
+      wx:for="{{books}}" wx:key="id"
+      class="fb-book-chip"
+      data-id="{{item.id}}" bindtap="onBookTap"
+    >{{item.title}}<text class="fb-book-count">{{item.memberCount || 0}} 人 · {{item.postCount || 0}} 条</text></view>
+  </scroll-view>
+</view>
+
 <view class="fb-list">
   <view wx:if="{{!loading && !posts.length}}" class="fb-empty">暂无法布施内容</view>
   <view wx:for="{{posts}}" wx:key="id" class="fb-card" data-id="{{item.id}}" bindtap="goDetail">

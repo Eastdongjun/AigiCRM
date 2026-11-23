@@ -51,6 +51,7 @@
     "pages/fabushi/book/index",
     "pages/fabushi/upload/index",
     "pages/fabushi/feed/index",
+    "pages/fabushi/bybook/index",
     "pages/fabushi/detail/index",
     "pages/fabushi/settings/index",
     "pages/fabushi/reader/index",

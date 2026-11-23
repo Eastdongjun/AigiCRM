@@ -1,6 +1,14 @@
 /* 【书卷改版 2026-11-16】作品详情页: 纸色底/宋体标题/墨绿互动 */
 page { background: #f7f3ec; }
 .fb-detail { padding: 16rpx; background: #f7f3ec; min-height: 100vh; box-sizing: border-box; }
+/* 【D13 计划切片 2】作者本人管理条（修改/删除，仅作者可见） */
+.fb-owner-bar { background: #fffdf8; border: 1rpx dashed #cdbfa8; border-radius: 16rpx; padding: 18rpx 22rpx; margin-bottom: 16rpx; }
+.fb-owner-btn { display: inline-block; padding: 8rpx 26rpx; margin-right: 14rpx; border-radius: 999rpx; border: 1rpx solid #2d5a4a; color: #2d5a4a; font-size: 26rpx; font-weight: 700; }
+.fb-owner-btn.danger { border-color: #b5543a; color: #b5543a; }
+.fb-owner-btn.primary { background: #2d5a4a; color: #fff; }
+.fb-owner-note { font-size: 20rpx; color: #a89a80; }
+.fb-edit-area { width: 100%; min-height: 200rpx; margin: 12rpx 0; padding: 16rpx; box-sizing: border-box; border: 1rpx solid #e8e0d3; border-radius: 12rpx; font-size: 27rpx; color: #4a4238; }
+.fb-owner-actions { display: flex; justify-content: flex-end; }
 .fb-card { background: #fffdf8; border: 1rpx solid #e8e0d3; border-radius: 16rpx; padding: 26rpx; margin-bottom: 16rpx; }
 .fb-title { font-family: 'Songti SC', 'STSong', serif; font-size: 36rpx; font-weight: 800; color: #2e2a24; line-height: 1.5; }
 .fb-content { font-size: 29rpx; color: #4a4238; line-height: 1.9; margin-top: 18rpx; white-space: pre-wrap; }
@@ -27,3 +35,9 @@ page { background: #f7f3ec; }
 .fb-chip { padding: 8rpx 16rpx; border-radius: 999rpx; background: #efe7d8; color: #6b6257; font-size: 22rpx; flex-shrink: 0; }
 .fb-chip.on { background: #b5543a; color: #fff7ee; font-weight: 700; }
 .fb-chip.rec { background: #b5543a; color: #fff7ee; font-weight: 700; min-width: 120rpx; text-align: center; }
+/* 【D14 计划切片 3】复诵条 */
+.fb-action.recite { border: 1rpx solid #2d5a4a; border-radius: 999rpx; padding: 4rpx 18rpx; color: #2d5a4a; }
+.fb-action.recite.reciting { background: #b5543a; border-color: #b5543a; color: #fff; }
+.fb-recite-row { display: flex; align-items: center; gap: 12rpx; padding: 12rpx 0; border-top: 1rpx solid #efe7d8; }
+.fb-recite-name { font-size: 24rpx; font-weight: 700; color: #2e2a24; flex-shrink: 0; }
+.fb-recite-dur { font-size: 20rpx; color: #a89a80; flex-shrink: 0; }
