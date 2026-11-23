@@ -196,6 +196,9 @@ cd aigicrm-backend && mvn -q -Dtest=ArchitectureTest test
 
 ## Sonar 质量门未清项（2026-11-23 阶段 5 登记 · R3-01…R3-08）
 
+> **历史快照**：以下数字是 2026-11-23 18:27 的状态；21:30 的关闭记录见文末
+> 「R3 关闭记录」与证据 `STAGE5-DEBT-R3-20261123.md`。
+
 > 完整证据：`03-阶段/06-测试/02-证据/STAGE5-DEBT-20261123.md`
 > 门禁项目：本地 SonarQube `127.0.0.1:19000`，key `Eastdongjun_AigiCRM-local`，门 `AIGICRM-P0-5`
 > 现状（2026-11-23 18:27 复扫）：**ERROR**（`new_blocker_violations=0`、`new_bugs=2`、
@@ -225,3 +228,27 @@ BLOCKER 1→0、S6809 11→10、new_bugs 3→2、new_major 290→289。
 
 **环境噪声（非缺陷）**：JaCoCo 0.8.16 对 `net.sf.jsqlparser.parser.CCJSqlParserTokenManager#jjMoveNfa_0`
 报 `MethodTooLargeException`（第三方生成代码方法体超限），插桩跳过该类，影响覆盖率统计完整性。
+
+---
+
+## R3 关闭记录（2026-11-23 21:30 实测）
+
+> 证据：`03-阶段/06-测试/02-证据/STAGE5-DEBT-R3-20261123.md`
+> 门禁：`Eastdongjun_AigiCRM-local` / `AIGICRM-P0-5` → **status=OK**。
+
+| 条件 | 结果 |
+|---|---|
+| new_blocker / new_critical / new_bugs / new_vulnerabilities | **0** |
+| new_major_violations | **0** |
+| new_security_hotspots_reviewed | **100%** |
+| new_duplicated_lines_density | **0.0%** |
+
+- 本表 R3-01（S5778 129→0）、R3-02（S6204 54→0）、R3-03（S1168 36→0）、
+  R3-04（S6809 10→0，随 S5.3 抽 bean）、R3-05（S112 新代码 0）、R3-08（S1874 69→2 历史）
+  已关闭；R3-06（S6863 2 条）已按明确 404 语义处理，当前全量池无 open。
+- S107 4 / S6813 1 / S6206 1 已在本轮清零（`CustomerListQuery`/`PageQuery`/`GrantCommand` record；
+  可选 `JdbcTemplate` setter 注入；`IndicatorContext` record + 门槛 `List<BigDecimal>`）。
+- 全量 open 301 条 = 0 BLOCKER / 0 CRITICAL / 153 MAJOR / 140 MINOR / 8 INFO；
+  其中 153 MAJOR 主要是历史代码（S125 注释、旧参数签名等），不是新代码门禁对象。
+- 后端 `./mvnw -o test` → 1309 / 0 / 0；God class：545 / 782 / 782（目标 800）。
+- **未 push、未重新打 RC tag、未部署生产**；RC r2 仍冻结在 `d2026429`。
