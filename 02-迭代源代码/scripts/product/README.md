@@ -10,7 +10,7 @@
 | S6.1b 后端最小安装（DB/迁移/种子/健康/登录/回滚） | **已完成**：`install.sh`（本机实测通过） |
 | S6.1c 前端接入（构建/nginx/代理登录） | **已完成**：同一条 `--apply`，实测通过 |
 | S6.2 首启向导（企业/行业/完成） | **最小闭环已完成**：首登强制改密 + `/onboarding` 向导；演示客户用 `--seed-demo` 显式导入（不在向导内） |
-| S6.3 行业词表配置化 | **部分完成**：向导可选用/新增 industry 字典；其他行业文案配置化未做 |
+| S6.3 行业词表配置化 | **最小完成**：默认 10 项 industry 字典已入库；管理员可在字典管理维护；其他行业文案未全面清理 |
 | S6.4 监控接线 | **部分完成**：`monitoring/probe.sh` + textfile 指标 + 告警规则；外部 Prometheus/Grafana 未部署 |
 
 ## preflight.sh
@@ -58,7 +58,7 @@ bash scripts/product/install.sh --project aigicrm-b1-test --down
 
 实测（2026-11-23，本机 aarch64 Docker）：
 
-- 全新卷：Flyway `163/163`（schema `2026.11.23.5`）、`sys_group=1`、`admin=1`；
+- 全新卷：Flyway `164/164`（schema `2026.11.23.5`）、`sys_group=1`、`admin=1`；
 - health `UP`、admin 登录成功；
 - frontend 首页 HTTP 200（含 `<div id="app">`）、入口 JS 200、经 `/api/auth/login` 代理登录成功；
 - 同项目幂等重跑：Flyway `No migration necessary`，health/登录仍通过；
