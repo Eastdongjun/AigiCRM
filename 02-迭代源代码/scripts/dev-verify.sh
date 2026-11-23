@@ -518,6 +518,9 @@ local_contracts() {
   # (白名单/待修/豁免)。补盲区: check-native-sql-tenant-scope.sh 只覆盖 JdbcTemplate 原生 SQL,
   # MP 访问路径不在其范围, 导致新表漏登记 TENANT_TABLES 无人发现(2026-11-23 实测 15 张漂移)。
   run "$ROOT/scripts/check-tenant-table-registry.sh"
+  # 【S5.3 2026-11-23】God class 行数护栏：FileService 已 ≤800，禁止回涨；
+  # Customer/Incentive 冻结基线只减不增，拆分后同步下调。
+  run "$ROOT/scripts/check-god-class-size.sh"
   # 【2026-11-05 权限审计】按钮级敏感动作门禁覆盖(四项激励 G1/G2 审计的扫描器固化)
   run python3 "$ROOT/scripts/check-action-gate-coverage.py"
   # 【2026-11-04 双端权限绑定一致性】注册表对账(零死码)+MP排行注册码并集归位+接口守卫=注册码 契约
