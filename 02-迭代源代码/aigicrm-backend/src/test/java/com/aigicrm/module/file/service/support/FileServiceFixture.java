@@ -6,6 +6,7 @@ import com.aigicrm.module.file.mapper.BizFileMapper;
 import com.aigicrm.module.file.mapper.BizFileShareMapper;
 import com.aigicrm.module.file.mapper.BizFileVersionMapper;
 import com.aigicrm.module.file.service.FileService;
+import com.aigicrm.module.file.service.FileShareService;
 import com.aigicrm.module.file.service.FolderPermissionService;
 import com.aigicrm.module.incentive.mapper.BizIncentiveRecordMapper;
 import com.aigicrm.module.incentive.service.IncentiveService;
@@ -38,8 +39,10 @@ public final class FileServiceFixture {
             SecurityAuditService securityAudit,
             JdbcTemplate jdbc,
             IncentiveService incentiveService) {
+        FileShareService fileShareService = new FileShareService(fileMapper, fileShareMapper, userMapper,
+                folderPermissionService, jdbc);
         return new FileService(fileMapper, folderMapper, fileShareMapper, fileVersionMapper, configService,
                 incentiveRecordMapper, userMapper, ossClientProvider, ossConfig, folderPermissionService,
-                securityAudit, jdbc, incentiveService);
+                securityAudit, jdbc, incentiveService, fileShareService);
     }
 }

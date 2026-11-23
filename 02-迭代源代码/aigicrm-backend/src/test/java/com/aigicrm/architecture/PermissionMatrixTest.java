@@ -600,8 +600,17 @@ public class PermissionMatrixTest {
         assertTrue(body.contains("folderPermissionService.checkFile(file.getId(), FolderPermissionService.P_DOWNLOAD")
                         || body.contains("folderPermissionService.checkFile(fileId, FolderPermissionService.P_DOWNLOAD"),
                 "FileService 下载链路必须保留文件 P_DOWNLOAD 权限守卫");
-        assertTrue(body.contains("folderPermissionService.checkFile(fileId, FolderPermissionService.P_SHARE"),
-                "FileService.shareFile 必须保留文件 P_SHARE 权限守卫");
+        Path shareSrc = Paths.get("src/main/java/com/aigicrm/module/file/service/FileShareService.java")
+                .toAbsolutePath().normalize();
+        assertTrue(Files.exists(shareSrc), "FileShareService 源文件不存在: " + shareSrc);
+        String shareBody;
+        try {
+            shareBody = SourceNormalizer.read(shareSrc);
+        } catch (IOException e) {
+            throw new IllegalStateException("读取 FileShareService 源码失败", e);
+        }
+        assertTrue(shareBody.contains("folderPermissionService.checkFile(fileId, FolderPermissionService.P_SHARE"),
+                "FileShareService.shareFile 必须保留文件 P_SHARE 权限守卫");
     }
 
     /** 下载 URL 不得携带主 JWT：download-token 只能签发短时 scope=download token，并由过滤器限制到下载/导出路径。 */

@@ -98,6 +98,8 @@ public class FileService {
     private final JdbcTemplate jdbc;
     // 【BIZ-007 2026-11-13】删除激励佐证联动: 反查引用记录→剔除槽位→重算学分(与 removeFile 同不变量)
     private final com.aigicrm.module.incentive.service.IncentiveService incentiveService;
+    /** S5.3 分享语义独立 bean；本类保留公共委托，控制器/测试调用方不变。 */
+    private final FileShareService fileShareService;
 
     @Value("${file.storage-type:local}")
     private String storageType;
@@ -205,20 +207,6 @@ public class FileService {
         return buildFolderTree(folders, 0L);
     }
 
-    /**
-     * 【2026-11-06 用户令"小程序和PC都需要全局检索"】文件关键字多字段全局匹配:
-     * 文件名 ∨ 上传人姓名 ∨ 所在文件夹名——此前仅 LIKE 文件名, 与 MP 四项服务 tab 的多字段本地
-     * 筛选口径分裂(10-26 登记, 用户感知为"搜不到"); 双端 /file/list 与 shared-to-me 同走本助手。
-     * {0} 占位由 MyBatis 参数绑定, 无字符串拼接注入面; 数据范围过滤(可见文件夹/归属/分享集)
-     * 在调用方先行生效, 此处只扩匹配面不扩可见面。
-     */
-    private void applyGlobalKeyword(LambdaQueryWrapper<BizFile> wrapper, String keyword) {
-        if (keyword == null || keyword.isBlank()) return;
-        wrapper.and(w -> w.like(BizFile::getFileName, keyword)
-                .or().apply("EXISTS (SELECT 1 FROM sys_user u WHERE u.id = uploader_id AND u.real_name LIKE CONCAT('%', {0}, '%'))", keyword)
-                .or().apply("EXISTS (SELECT 1 FROM biz_file_folder f WHERE f.id = folder_id AND f.folder_name LIKE CONCAT('%', {0}, '%'))", keyword));
-    }
-
     public IPage<BizFile> pageFiles(int current, int size, Long folderId, String scope, String keyword, Long userId) {
 
         // 【安全修复 FEAT-20260804-FILE-AUTHZ】scope 白名单：缺省/空串/未知 scope 一律返回空页，
@@ -247,7 +235,7 @@ public class FileService {
             return new Page<>(current, size, 0);
         }
         if (keyword != null && !keyword.isEmpty()) {
-            applyGlobalKeyword(wrapper, keyword);
+            FileQuerySupport.applyGlobalKeyword(wrapper, keyword);
         }
         wrapper.orderByDesc(BizFile::getCreatedAt);
         return decoratePage(fileMapper.selectPage(new Page<>(current, size), wrapper), userId);
@@ -2202,84 +2190,17 @@ public class FileService {
         }
     }
 
-    // ====== 文件分享 ======
+    // ====== 文件分享（S5.3 语义已移到 FileShareService，本类保留公共委托） ======
 
     public void shareFile(Long fileId, List<Long> userIds) {
-        Long currentUserId = SecurityUtils.getCurrentUserId();
-
-        // 只有文件上传者或管理员可以分享
-        BizFile file = fileMapper.selectById(fileId);
-        if (file == null) throw new BusinessException(LIT_X_2);
-        // 【文件权限体系】夹内文件按文件夹权限判定分享（管理员/本人/上级链/ACL share）；
-        // 无文件夹文件沿用下方上传者归属校验
-        {
-            if (file.getFolderId() != null) {
-                if (!folderPermissionService.checkFile(fileId, FolderPermissionService.P_SHARE, currentUserId)) {
-                    throw new BusinessException(403, LIT_X);
-                }
-            } else if (!currentUserId.equals(file.getUploaderId())) {
-                throw new BusinessException(403, "无权分享该文件");
-            }
-        }
-        // 【2026-10-27 深度检查修复·PR-22 批次四同款】文件共享不得绕过集团边界: 此前跨集团分享
-        // 静默成功——写入乙集团用户永远看不到的死行(biz_file_share 被租户拦截器按查看者集团改写)。
-        if (!userIds.isEmpty()) {
-            Long group = com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull();
-            if (group != null) {
-                List<Long> groupMembers = com.aigicrm.common.scope.GroupScopeUtil.userIdsInGroup(jdbc, group);
-                List<Long> foreign = userIds.stream().filter(uid -> !groupMembers.contains(uid)).toList();
-                if (!foreign.isEmpty()) {
-                    throw new BusinessException("不能共享给其他集团用户（目标用户不在当前集团）");
-                }
-            } else {
-                throw new BusinessException(403, "无有效集团归属，禁止共享");
-            }
-        }
-        for (Long uid : userIds) {
-            Long count = fileShareMapper.selectCount(
-                    new LambdaQueryWrapper<BizFileShare>()
-                            .eq(BizFileShare::getFileId, fileId)
-                            .eq(BizFileShare::getSharedToUserId, uid));
-            if (count == 0) {
-                BizFileShare share = new BizFileShare();
-                share.setFileId(fileId);
-                share.setSharedToUserId(uid);
-                share.setSharedByUserId(currentUserId);
-                fileShareMapper.insert(share);
-            }
-        }
+        fileShareService.shareFile(fileId, userIds);
     }
-    public IPage<BizFile> pageSharedToMe(int current, int size, String keyword) {
-        Long userId = SecurityUtils.getCurrentUserId();
-        List<BizFileShare> shares = fileShareMapper.selectList(
-                new LambdaQueryWrapper<BizFileShare>().eq(BizFileShare::getSharedToUserId, userId));
-        List<Long> fileIds = shares.stream().map(BizFileShare::getFileId).toList();
-        if (fileIds.isEmpty()) return new Page<>(current, size, 0);
 
-        LambdaQueryWrapper<BizFile> wrapper = new LambdaQueryWrapper<>();
-        wrapper.in(BizFile::getId, fileIds).eq(BizFile::getDeleted, 0);
-        if (keyword != null && !keyword.isBlank()) {
-            applyGlobalKeyword(wrapper, keyword);
-        }
-        wrapper.orderByDesc(BizFile::getCreatedAt);
-        IPage<BizFile> page = fileMapper.selectPage(new Page<>(current, size), wrapper);
-        for (BizFile f : page.getRecords()) {
-            if (f.getUploaderId() != null) {
-                SysUser user = userMapper.selectById(f.getUploaderId());
-                if (user != null) f.setUploaderName(user.getRealName());
-            }
-        }
-        return page;
+    public IPage<BizFile> pageSharedToMe(int current, int size, String keyword) {
+        return fileShareService.pageSharedToMe(current, size, keyword);
     }
 
     public long countSharedToMe() {
-        Long userId = SecurityUtils.getCurrentUserId();
-        List<BizFileShare> shares = fileShareMapper.selectList(
-                new LambdaQueryWrapper<BizFileShare>().eq(BizFileShare::getSharedToUserId, userId));
-        if (shares.isEmpty()) return 0;
-        List<Long> fileIds = shares.stream().map(BizFileShare::getFileId).toList();
-        return fileMapper.selectCount(new LambdaQueryWrapper<BizFile>()
-                .in(BizFile::getId, fileIds)
-                .eq(BizFile::getDeleted, 0));
+        return fileShareService.countSharedToMe();
     }
 }
