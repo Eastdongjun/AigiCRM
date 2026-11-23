@@ -78,7 +78,8 @@ class FileServicePermissionTest {
         ReflectionTestUtils.setField(storage, "uploadDir", System.getProperty("java.io.tmpdir"));
         // 【性能 file-3】缩略图缓存目录隔离到本用例临时目录，避免跨用例/跨次运行串味
         thumbCacheDir = java.nio.file.Files.createTempDirectory("aigicrm-thumb-cache-test-");
-        ReflectionTestUtils.setField(svc, "thumbnailCacheDir", thumbCacheDir.toString());
+        ReflectionTestUtils.setField(com.aigicrm.module.file.service.support.FileServiceFixture.thumbnailOf(svc),
+                "thumbnailCacheDir", thumbCacheDir.toString());
         // 纯 mock 环境初始化 Lambda 缓存，使 LambdaQueryWrapper.getSqlSegment() 可用
         TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), BizFile.class);
         TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), BizFileShare.class);
@@ -1279,18 +1280,18 @@ class FileServicePermissionTest {
         writeTestImage(f, "png", 20, 20);
         BizFile file = thumbnailFile(912L, "key.png");
 
-        String baseKey = ReflectionTestUtils.invokeMethod(svc, "thumbnailCacheKey", file, f, true);
+        String baseKey = ReflectionTestUtils.invokeMethod(com.aigicrm.module.file.service.support.FileServiceFixture.thumbnailOf(svc), "thumbnailCacheKey", file, f, true);
         assertNotNull(baseKey);
 
         file.setVersion(2);
-        String versionKey = ReflectionTestUtils.invokeMethod(svc, "thumbnailCacheKey", file, f, true);
+        String versionKey = ReflectionTestUtils.invokeMethod(com.aigicrm.module.file.service.support.FileServiceFixture.thumbnailOf(svc), "thumbnailCacheKey", file, f, true);
         assertNotEquals(baseKey, versionKey, "version 变化必须换 key");
 
         file.setVersion(1);
         long mtime = java.nio.file.Files.getLastModifiedTime(f).toMillis();
         java.nio.file.Files.setLastModifiedTime(f,
                 java.nio.file.attribute.FileTime.fromMillis(mtime + 5_000L));
-        String mtimeKey = ReflectionTestUtils.invokeMethod(svc, "thumbnailCacheKey", file, f, true);
+        String mtimeKey = ReflectionTestUtils.invokeMethod(com.aigicrm.module.file.service.support.FileServiceFixture.thumbnailOf(svc), "thumbnailCacheKey", file, f, true);
         assertNotEquals(baseKey, mtimeKey, "原文件 mtime 变化必须换 key");
 
         java.nio.file.Files.deleteIfExists(f);

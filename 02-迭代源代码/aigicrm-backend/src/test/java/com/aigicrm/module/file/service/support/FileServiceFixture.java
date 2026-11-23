@@ -9,6 +9,7 @@ import com.aigicrm.module.file.service.FileFolderService;
 import com.aigicrm.module.file.service.FileService;
 import com.aigicrm.module.file.service.FileShareService;
 import com.aigicrm.module.file.service.FileStorageService;
+import com.aigicrm.module.file.service.FileThumbnailService;
 import com.aigicrm.module.file.service.FolderPermissionService;
 import com.aigicrm.module.incentive.mapper.BizIncentiveRecordMapper;
 import com.aigicrm.module.incentive.service.IncentiveService;
@@ -47,14 +48,21 @@ public final class FileServiceFixture {
                 folderPermissionService);
         FileStorageService fileStorageService = new FileStorageService(fileMapper, userMapper,
                 folderPermissionService, fileFolderService, ossClientProvider, ossConfig, null);
+        FileThumbnailService fileThumbnailService = new FileThumbnailService();
         return new FileService(fileMapper, folderMapper, fileShareMapper, fileVersionMapper, configService,
                 incentiveRecordMapper, userMapper, folderPermissionService, securityAudit, jdbc, incentiveService,
-                fileShareService, fileFolderService, fileStorageService);
+                fileShareService, fileFolderService, fileStorageService, fileThumbnailService);
     }
 
     /** 测试需要改 storageType/uploadDir 等 @Value 字段时，拿到真实的存储 bean。 */
     public static FileStorageService storageOf(FileService service) {
         return (FileStorageService) org.springframework.test.util.ReflectionTestUtils
                 .getField(service, "fileStorageService");
+    }
+
+    /** 测试需要隔离缩略图缓存目录时，拿到真实的缩略图 bean。 */
+    public static FileThumbnailService thumbnailOf(FileService service) {
+        return (FileThumbnailService) org.springframework.test.util.ReflectionTestUtils
+                .getField(service, "fileThumbnailService");
     }
 }
