@@ -92,6 +92,7 @@
             <el-button size="small" type="primary" @click="saveRec">保存语音</el-button>
             <el-button size="small" @click="clearRec">重录</el-button>
           </template>
+          <el-button size="small" @click="pickFile('audio', false)">上传录音</el-button>
           <span class="rec-count">{{ audioAttachments.length }}/{{ MAX_AUDIO }} 段</span>
         </div>
         <div v-if="audioAttachments.length" class="audio-wrap">
@@ -412,8 +413,9 @@ const startRec = async () => {
     ElMessage.warning(`语音最多 ${MAX_AUDIO} 段，请先删除不用的段`)
     return
   }
-  if (!navigator.mediaDevices || !window.MediaRecorder) {
-    ElMessage.warning('当前浏览器不支持录音，请换 Chrome / Edge')
+  if (!window.isSecureContext || !navigator.mediaDevices || !window.MediaRecorder) {
+    ElMessage.warning('当前是 HTTP 或浏览器不支持麦克风；已切换为上传录音，请用手机录音后选择文件，或改用 HTTPS 打开')
+    pickFile('audio', false)
     return
   }
   try {
@@ -424,7 +426,8 @@ const startRec = async () => {
     mediaRecorder.onstop = () => {
       const type = mediaRecorder.mimeType || 'audio/webm'
       const blob = new Blob(chunks, { type })
-      rec.file = new File([blob], `rec-${Date.now()}.webm`, { type })
+      const ext = type.includes('mp4') ? 'm4a' : type.includes('ogg') ? 'ogg' : 'webm'
+      rec.file = new File([blob], `rec-${Date.now()}.${ext}`, { type })
       if (rec.url) URL.revokeObjectURL(rec.url)
       rec.url = URL.createObjectURL(blob)
       stream.getTracks().forEach((t) => t.stop())

@@ -57,6 +57,11 @@
     "pages/fabushi/reader/index",
     "pages/fabushi/uploader/index"
   ],
+  "permission": {
+    "scope.record": {
+      "desc": "用于法布施语音诵读、复诵和语音评论录音"
+    }
+  },
   "window": {
     "navigationBarTitleText": "AIGICRM",
     "navigationBarBackgroundColor": "#f4f8ff",

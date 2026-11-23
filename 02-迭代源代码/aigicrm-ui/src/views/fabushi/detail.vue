@@ -285,7 +285,7 @@ const toggleLike = async () => {
 const recitationAudioUrl = (item) => `/api/file/download/${item.audioFileId}?token=${encodeURIComponent(fileToken.value)}`
 
 const pickReciteMime = () => {
-  if (typeof MediaRecorder === 'undefined') return null
+  if (!window.isSecureContext || !navigator.mediaDevices || typeof MediaRecorder === 'undefined') return null
   const candidates = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm']
   return candidates.find((m) => MediaRecorder.isTypeSupported(m)) || null
 }
@@ -311,7 +311,9 @@ const startRecite = async () => {
   }
   const mime = pickReciteMime()
   if (!mime) {
-    ElMessage.warning('当前浏览器不支持录音，请在微信小程序端复诵')
+    ElMessage.warning(window.isSecureContext
+      ? '当前浏览器不支持录音，请在微信小程序端复诵'
+      : '当前是 HTTP 环境，浏览器禁止麦克风；请改用 HTTPS 打开，或在微信小程序端复诵')
     return
   }
   if (reciting.value) return

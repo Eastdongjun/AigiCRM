@@ -293,7 +293,8 @@ Page({
     })
     rm.onError((err) => {
       if (this._recTimer) { clearInterval(this._recTimer); this._recTimer = null }
-      this.setData({ voiceMode: false })
+      this.setData({ voiceMode: false, reciteMode: false })
+      this._reciteMode = false
       const msg = (err && err.errMsg) || ''
       if (msg.indexOf('auth') >= 0 || msg.indexOf('deny') >= 0) {
         wx.showModal({
