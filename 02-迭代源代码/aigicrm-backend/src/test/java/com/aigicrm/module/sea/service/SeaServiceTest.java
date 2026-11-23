@@ -10,6 +10,7 @@ import com.aigicrm.common.BusinessException;
 import com.aigicrm.module.customer.entity.BizCustomer;
 import com.aigicrm.module.customer.mapper.BizCustomerMapper;
 import com.aigicrm.module.customer.service.CustomerService;
+import com.aigicrm.module.reminder.entity.BizReminder;
 import com.aigicrm.module.sea.entity.BizSeaConfig;
 import com.aigicrm.module.sea.entity.BizSeaPool;
 import com.aigicrm.module.sea.mapper.BizSeaConfigMapper;
@@ -45,6 +46,9 @@ class SeaServiceTest {
         TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), BizSeaConfig.class);
         // completeClaim 用 LambdaUpdateWrapper<BizCustomer> 显式置空开票基准(2026-10-08 修复)
         TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), BizCustomer.class);
+        // removeAllShares/cleanPendingShareReminders 走 LambdaQueryWrapper<BizReminder>；
+        // 单独跑本类时缓存未初始化会抛 "can not find lambda cache"，补上以消除测试顺序依赖。
+        TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), BizReminder.class);
     }
 
     private void setCurrentUser(SecurityUser u) {
@@ -312,7 +316,7 @@ class SeaServiceTest {
         // 【2026-11-02 裁决B 收敛】completeClaim 经 CustomerService.applyClaimReset 真公式重置
         // (捞取线=捞取日+adjust.days), 注入 spy 包裹的真实例: 公式走真逻辑, removeAllShares/
         // cleanPendingReminders 仍可 verify(末尾两断言依赖)
-        CustomerService customerService = org.mockito.Mockito.spy(new CustomerService(
+        CustomerService customerService = org.mockito.Mockito.spy(com.aigicrm.module.customer.service.support.CustomerServiceFixture.create(
                 custMapper,
                 null,
                 mock(com.aigicrm.module.customer.mapper.BizCustomerLogMapper.class),

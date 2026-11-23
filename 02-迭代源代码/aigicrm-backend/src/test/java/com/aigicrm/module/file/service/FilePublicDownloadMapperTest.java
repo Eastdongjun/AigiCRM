@@ -40,7 +40,7 @@ import static org.mockito.Mockito.when;
 class FilePublicDownloadMapperTest {
 
     private final BizFileMapper fileMapper = mock(BizFileMapper.class);
-    private final FileService svc = new FileService(
+    private final FileService svc = com.aigicrm.module.file.service.support.FileServiceFixture.create(
             fileMapper,
             mock(BizFileFolderMapper.class),
             mock(BizFileShareMapper.class),

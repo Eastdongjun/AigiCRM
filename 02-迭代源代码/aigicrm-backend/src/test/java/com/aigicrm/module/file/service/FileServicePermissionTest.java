@@ -59,7 +59,7 @@ class FileServicePermissionTest {
     private final FolderPermissionService folderPermissionService = mock(FolderPermissionService.class);
     private final com.aigicrm.module.file.mapper.BizFileVersionMapper fileVersionMapper =
             mock(com.aigicrm.module.file.mapper.BizFileVersionMapper.class);
-    private final FileService svc = new FileService(fileMapper, folderMapper, fileShareMapper,
+    private final FileService svc = com.aigicrm.module.file.service.support.FileServiceFixture.create(fileMapper, folderMapper, fileShareMapper,
                 fileVersionMapper,
                 configService,
             incentiveRecordMapper, userMapper, providerOf(ossClient), ossConfig, folderPermissionService,

@@ -64,7 +64,7 @@ class IncentiveShareVisibilityTest {
     }
 
     private IncentiveService newService() {
-        return new IncentiveService(
+        return com.aigicrm.module.incentive.service.support.IncentiveServiceFixture.create(
                 mock(BizIncentiveCategoryMapper.class),
                 recordMapper,
                 mock(SysUserMapper.class),

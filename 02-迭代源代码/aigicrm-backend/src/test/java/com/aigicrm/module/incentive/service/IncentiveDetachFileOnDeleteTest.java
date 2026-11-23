@@ -62,7 +62,7 @@ class IncentiveDetachFileOnDeleteTest {
     }
 
     private IncentiveService newService() {
-        return new IncentiveService(categoryMapper, recordMapper, userMapper,
+        return com.aigicrm.module.incentive.service.support.IncentiveServiceFixture.create(categoryMapper, recordMapper, userMapper,
                 fileMapper, customerMapper, deptMapper, scopeResolver, null, jdbc);
     }
 

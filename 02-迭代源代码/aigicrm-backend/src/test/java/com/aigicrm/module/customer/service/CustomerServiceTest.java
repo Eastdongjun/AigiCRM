@@ -112,7 +112,7 @@ class CustomerServiceTest {
     private CustomerService newService(BizInvoiceMapper invoiceMapper, BizPaymentMapper paymentMapper,
                                        BizCustomerMapper customerMapper, OrgScopeResolver resolver,
                                        BizContactMapper contactMapper, CustomerAccessService accessService) {
-        return new CustomerService(
+        return com.aigicrm.module.customer.service.support.CustomerServiceFixture.create(
                 customerMapper,
                 null,
                 mock(BizCustomerLogMapper.class),
@@ -138,7 +138,7 @@ class CustomerServiceTest {
     private CustomerService newScopeService(SysConfigService configService, OrgScopeResolver resolver,
                                             com.aigicrm.module.system.service.RolePermScopeService rolePerm,
                                             SysUserMapper userMapper) {
-        return new CustomerService(
+        return com.aigicrm.module.customer.service.support.CustomerServiceFixture.create(
                 mock(BizCustomerMapper.class),
                 null,
                 mock(BizCustomerLogMapper.class),
@@ -165,7 +165,7 @@ class CustomerServiceTest {
     private CustomerService newServiceWithAudit(BizInvoiceMapper invoiceMapper, BizPaymentMapper paymentMapper,
                                                 BizCustomerMapper customerMapper, OrgScopeResolver resolver,
                                                 com.aigicrm.module.system.mapper.SysLogMapper auditMapper) {
-        return new CustomerService(
+        return com.aigicrm.module.customer.service.support.CustomerServiceFixture.create(
                 customerMapper,
                 null,
                 mock(BizCustomerLogMapper.class),
@@ -373,7 +373,7 @@ class CustomerServiceTest {
         BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
         OrgScopeResolver resolver = mock(OrgScopeResolver.class);
         var indicatorMapper = mock(com.aigicrm.module.customer.mapper.BizCustomerIndicatorMapper.class);
-        CustomerService service = new CustomerService(
+        CustomerService service = com.aigicrm.module.customer.service.support.CustomerServiceFixture.create(
                 customerMapper,
                 null,
                 mock(com.aigicrm.module.customer.mapper.BizCustomerLogMapper.class),
@@ -557,7 +557,7 @@ class CustomerServiceTest {
         office.setDeptName("太原办事处");
         when(deptMapper.selectByIds(org.mockito.ArgumentMatchers.<java.util.Collection<? extends java.io.Serializable>>any()))
                 .thenReturn(List.of(office));
-        CustomerService svc = new CustomerService(customerMapper,
+        CustomerService svc = com.aigicrm.module.customer.service.support.CustomerServiceFixture.create(customerMapper,
                 null,
                 mock(BizCustomerLogMapper.class), mock(BizInvoiceMapper.class),
                 mock(BizCustomerShareMapper.class), mock(BizCustomerIndicatorMapper.class),
@@ -632,7 +632,7 @@ class CustomerServiceTest {
         var access = mock(com.aigicrm.common.engine.CustomerAccessService.class);
         doNothing().when(access).assertCanEdit(any());
         when(access.canDelete(anyLong())).thenReturn(true);
-        CustomerService svc = new CustomerService(
+        CustomerService svc = com.aigicrm.module.customer.service.support.CustomerServiceFixture.create(
                 customerMapper,
                 null,
                 mock(com.aigicrm.module.customer.mapper.BizCustomerLogMapper.class),
@@ -1221,7 +1221,7 @@ class CustomerServiceTest {
                         mock(com.aigicrm.module.system.service.RolePermScopeService.class),
                         mock(SysUserMapper.class),
                         null);
-        return new CustomerService(
+        return com.aigicrm.module.customer.service.support.CustomerServiceFixture.create(
                 mock(BizCustomerMapper.class),
                 visibility,
                 mock(BizCustomerLogMapper.class),
@@ -1327,7 +1327,7 @@ class CustomerServiceTest {
         owner.setId(100L); owner.setDeptId(7L);
         when(userMapper.selectById(100L)).thenReturn(owner);
 
-        CustomerService svc = new CustomerService(
+        CustomerService svc = com.aigicrm.module.customer.service.support.CustomerServiceFixture.create(
                 customerMapper, null, mock(BizCustomerLogMapper.class), mock(BizInvoiceMapper.class),
                 mock(BizCustomerShareMapper.class), mock(BizCustomerIndicatorMapper.class),
                 mock(BizContactMapper.class), mock(BizPaymentMapper.class), mock(com.aigicrm.module.customer.mapper.BizCustomerStageAmountMapper.class), mock(com.aigicrm.module.sea.mapper.BizSeaPoolMapper.class),
@@ -1358,7 +1358,7 @@ class CustomerServiceTest {
         owner.setId(100L); owner.setDeptId(null);
         when(userMapper.selectById(100L)).thenReturn(owner);
 
-        CustomerService svc = new CustomerService(
+        CustomerService svc = com.aigicrm.module.customer.service.support.CustomerServiceFixture.create(
                 customerMapper, null, mock(BizCustomerLogMapper.class), mock(BizInvoiceMapper.class),
                 mock(BizCustomerShareMapper.class), mock(BizCustomerIndicatorMapper.class),
                 mock(BizContactMapper.class), mock(BizPaymentMapper.class), mock(com.aigicrm.module.customer.mapper.BizCustomerStageAmountMapper.class), mock(com.aigicrm.module.sea.mapper.BizSeaPoolMapper.class),
@@ -1399,7 +1399,7 @@ class CustomerServiceTest {
 
         BizCustomerMapper cm = customerMapper;
         SysUserMapper um = userMapper;
-        CustomerService svc = new CustomerService(
+        CustomerService svc = com.aigicrm.module.customer.service.support.CustomerServiceFixture.create(
                 cm, null, mock(BizCustomerLogMapper.class), mock(BizInvoiceMapper.class),
                 mock(BizCustomerShareMapper.class), mock(BizCustomerIndicatorMapper.class),
                 mock(BizContactMapper.class), mock(BizPaymentMapper.class), mock(com.aigicrm.module.customer.mapper.BizCustomerStageAmountMapper.class), mock(com.aigicrm.module.sea.mapper.BizSeaPoolMapper.class),
@@ -1440,7 +1440,7 @@ class CustomerServiceTest {
         when(accessService.canEdit(1L)).thenReturn(true);
         when(accessService.isInSeaPool(1L)).thenReturn(false);
 
-        CustomerService svc = new CustomerService(
+        CustomerService svc = com.aigicrm.module.customer.service.support.CustomerServiceFixture.create(
                 customerMapper, null, mock(BizCustomerLogMapper.class), mock(BizInvoiceMapper.class),
                 mock(BizCustomerShareMapper.class), mock(BizCustomerIndicatorMapper.class),
                 mock(BizContactMapper.class), mock(BizPaymentMapper.class), mock(com.aigicrm.module.customer.mapper.BizCustomerStageAmountMapper.class), mock(com.aigicrm.module.sea.mapper.BizSeaPoolMapper.class),
@@ -1484,7 +1484,7 @@ class CustomerServiceTest {
         when(accessService.canEdit(1L)).thenReturn(true);
         when(accessService.isInSeaPool(1L)).thenReturn(false);
 
-        CustomerService svc = new CustomerService(
+        CustomerService svc = com.aigicrm.module.customer.service.support.CustomerServiceFixture.create(
                 customerMapper, null, mock(BizCustomerLogMapper.class), mock(BizInvoiceMapper.class),
                 mock(BizCustomerShareMapper.class), mock(BizCustomerIndicatorMapper.class),
                 mock(BizContactMapper.class), mock(BizPaymentMapper.class), mock(com.aigicrm.module.customer.mapper.BizCustomerStageAmountMapper.class), mock(com.aigicrm.module.sea.mapper.BizSeaPoolMapper.class),
@@ -1516,7 +1516,7 @@ class CustomerServiceTest {
         when(customerMapper.selectById(501L)).thenReturn(new com.aigicrm.module.customer.entity.BizCustomer());
         org.springframework.jdbc.core.JdbcTemplate jdbc = mock(org.springframework.jdbc.core.JdbcTemplate.class);
         // 集团成员经 GroupScopeUtil 静态 mock 返回(仅 7);目标 66 属别集团
-        CustomerService svc = new CustomerService(
+        CustomerService svc = com.aigicrm.module.customer.service.support.CustomerServiceFixture.create(
                 customerMapper, null, mock(com.aigicrm.module.customer.mapper.BizCustomerLogMapper.class),
                 mock(BizInvoiceMapper.class), mock(com.aigicrm.module.customer.mapper.BizCustomerShareMapper.class),
                 mock(com.aigicrm.module.customer.mapper.BizCustomerIndicatorMapper.class),
@@ -1555,7 +1555,7 @@ class CustomerServiceTest {
         BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
         com.aigicrm.module.customer.mapper.BizCustomerIndicatorMapper indicatorMapper =
                 mock(com.aigicrm.module.customer.mapper.BizCustomerIndicatorMapper.class);
-        CustomerService svc = new CustomerService(
+        CustomerService svc = com.aigicrm.module.customer.service.support.CustomerServiceFixture.create(
                 customerMapper, null, mock(com.aigicrm.module.customer.mapper.BizCustomerLogMapper.class),
                 mock(BizInvoiceMapper.class), mock(com.aigicrm.module.customer.mapper.BizCustomerShareMapper.class),
                 indicatorMapper, mock(BizContactMapper.class), mock(BizPaymentMapper.class), mock(com.aigicrm.module.customer.mapper.BizCustomerStageAmountMapper.class), mock(com.aigicrm.module.sea.mapper.BizSeaPoolMapper.class),
@@ -1611,7 +1611,7 @@ class CustomerServiceTest {
         when(customerMapper.insert(any(BizCustomer.class))).thenReturn(1);
         when(indicatorMapper.insert(any(com.aigicrm.module.customer.entity.BizCustomerIndicator.class)))
                 .thenThrow(new RuntimeException("DB down"));
-        CustomerService svc = new CustomerService(
+        CustomerService svc = com.aigicrm.module.customer.service.support.CustomerServiceFixture.create(
                 customerMapper, null, mock(com.aigicrm.module.customer.mapper.BizCustomerLogMapper.class),
                 mock(BizInvoiceMapper.class), mock(com.aigicrm.module.customer.mapper.BizCustomerShareMapper.class),
                 indicatorMapper, mock(BizContactMapper.class), mock(BizPaymentMapper.class), mock(com.aigicrm.module.customer.mapper.BizCustomerStageAmountMapper.class), mock(com.aigicrm.module.sea.mapper.BizSeaPoolMapper.class),
@@ -1663,7 +1663,7 @@ class CustomerServiceTest {
         BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
         when(customerMapper.selectById(501L)).thenReturn(new com.aigicrm.module.customer.entity.BizCustomer());
 
-        CustomerService svc = new CustomerService(
+        CustomerService svc = com.aigicrm.module.customer.service.support.CustomerServiceFixture.create(
                 customerMapper, null, mock(com.aigicrm.module.customer.mapper.BizCustomerLogMapper.class),
                 invoiceMapper, mock(com.aigicrm.module.customer.mapper.BizCustomerShareMapper.class),
                 indicatorMapper, mock(BizContactMapper.class), paymentMapper, mock(com.aigicrm.module.customer.mapper.BizCustomerStageAmountMapper.class), mock(com.aigicrm.module.sea.mapper.BizSeaPoolMapper.class),
@@ -1709,7 +1709,7 @@ class CustomerServiceTest {
         CustomerAccessService accessService = mock(CustomerAccessService.class);
         when(accessService.canDelete(501L)).thenReturn(true);
 
-        CustomerService svc = new CustomerService(
+        CustomerService svc = com.aigicrm.module.customer.service.support.CustomerServiceFixture.create(
                 customerMapper, null, mock(com.aigicrm.module.customer.mapper.BizCustomerLogMapper.class),
                 invoiceMapper, mock(com.aigicrm.module.customer.mapper.BizCustomerShareMapper.class),
                 mock(com.aigicrm.module.customer.mapper.BizCustomerIndicatorMapper.class),
@@ -1750,7 +1750,7 @@ class CustomerServiceTest {
         CustomerAccessService accessService = mock(CustomerAccessService.class);
         when(accessService.canDelete(601L)).thenReturn(true);
 
-        CustomerService svc = new CustomerService(
+        CustomerService svc = com.aigicrm.module.customer.service.support.CustomerServiceFixture.create(
                 customerMapper, null, mock(com.aigicrm.module.customer.mapper.BizCustomerLogMapper.class),
                 invoiceMapper, mock(com.aigicrm.module.customer.mapper.BizCustomerShareMapper.class),
                 mock(com.aigicrm.module.customer.mapper.BizCustomerIndicatorMapper.class),
@@ -1784,7 +1784,7 @@ class CustomerServiceTest {
         CustomerAccessService accessService = mock(CustomerAccessService.class);
         when(accessService.canDelete(501L)).thenReturn(true);
 
-        CustomerService svc = new CustomerService(
+        CustomerService svc = com.aigicrm.module.customer.service.support.CustomerServiceFixture.create(
                 customerMapper, null, mock(com.aigicrm.module.customer.mapper.BizCustomerLogMapper.class),
                 invoiceMapper, mock(com.aigicrm.module.customer.mapper.BizCustomerShareMapper.class),
                 mock(com.aigicrm.module.customer.mapper.BizCustomerIndicatorMapper.class),
@@ -1824,7 +1824,7 @@ class CustomerServiceTest {
         CustomerAccessService accessService = mock(CustomerAccessService.class);
         when(accessService.canDelete(501L)).thenReturn(true);
 
-        CustomerService svc = new CustomerService(
+        CustomerService svc = com.aigicrm.module.customer.service.support.CustomerServiceFixture.create(
                 customerMapper, null, mock(BizCustomerLogMapper.class),
                 invoiceMapper, mock(BizCustomerShareMapper.class),
                 mock(BizCustomerIndicatorMapper.class),
@@ -1866,7 +1866,7 @@ class CustomerServiceTest {
         CustomerAccessService accessService = mock(CustomerAccessService.class);
         when(accessService.canEdit(501L)).thenReturn(true);
 
-        CustomerService svc = new CustomerService(
+        CustomerService svc = com.aigicrm.module.customer.service.support.CustomerServiceFixture.create(
                 customerMapper, null, mock(com.aigicrm.module.customer.mapper.BizCustomerLogMapper.class),
                 mock(BizInvoiceMapper.class), mock(com.aigicrm.module.customer.mapper.BizCustomerShareMapper.class),
                 mock(com.aigicrm.module.customer.mapper.BizCustomerIndicatorMapper.class),
@@ -1907,7 +1907,7 @@ class CustomerServiceTest {
         CustomerAccessService accessService = mock(CustomerAccessService.class);
         when(accessService.canDelete(501L)).thenReturn(true);
 
-        CustomerService svc = new CustomerService(
+        CustomerService svc = com.aigicrm.module.customer.service.support.CustomerServiceFixture.create(
                 customerMapper, null, mock(BizCustomerLogMapper.class),
                 invoiceMapper, shareMapper,
                 mock(BizCustomerIndicatorMapper.class),
@@ -1951,7 +1951,7 @@ class CustomerServiceTest {
         CustomerAccessService accessService = mock(CustomerAccessService.class);
         when(accessService.canEdit(501L)).thenReturn(true);
 
-        CustomerService svc = new CustomerService(
+        CustomerService svc = com.aigicrm.module.customer.service.support.CustomerServiceFixture.create(
                 customerMapper, null, mock(BizCustomerLogMapper.class),
                 mock(BizInvoiceMapper.class), shareMapper,
                 mock(BizCustomerIndicatorMapper.class),
@@ -1981,7 +1981,7 @@ class CustomerServiceTest {
     void removeAllShares_cleansPendingShareReminders() {
         BizCustomerShareMapper shareMapper = mock(BizCustomerShareMapper.class);
         BizReminderMapper reminderMapper = mock(BizReminderMapper.class);
-        CustomerService svc = new CustomerService(
+        CustomerService svc = com.aigicrm.module.customer.service.support.CustomerServiceFixture.create(
                 mock(BizCustomerMapper.class), null, mock(BizCustomerLogMapper.class),
                 mock(BizInvoiceMapper.class), shareMapper,
                 mock(BizCustomerIndicatorMapper.class), mock(BizContactMapper.class),
@@ -2004,7 +2004,7 @@ class CustomerServiceTest {
     void removeShare_cleansOnlyTargetUserPendingShareTo() {
         BizCustomerShareMapper shareMapper = mock(BizCustomerShareMapper.class);
         BizReminderMapper reminderMapper = mock(BizReminderMapper.class);
-        CustomerService svc = new CustomerService(
+        CustomerService svc = com.aigicrm.module.customer.service.support.CustomerServiceFixture.create(
                 mock(BizCustomerMapper.class), null, mock(BizCustomerLogMapper.class),
                 mock(BizInvoiceMapper.class), shareMapper,
                 mock(BizCustomerIndicatorMapper.class), mock(BizContactMapper.class),
@@ -2090,7 +2090,7 @@ class CustomerServiceTest {
         BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
         BizCustomerIndicatorMapper indicatorMapper = mock(BizCustomerIndicatorMapper.class);
 
-        CustomerService service = new CustomerService(
+        CustomerService service = com.aigicrm.module.customer.service.support.CustomerServiceFixture.create(
                 customerMapper, null, mock(BizCustomerLogMapper.class),
                 invoiceMapper, mock(BizCustomerShareMapper.class),
                 indicatorMapper, mock(BizContactMapper.class), paymentMapper, mock(com.aigicrm.module.customer.mapper.BizCustomerStageAmountMapper.class), mock(com.aigicrm.module.sea.mapper.BizSeaPoolMapper.class),
@@ -2134,7 +2134,7 @@ class CustomerServiceTest {
     // ===== 【测试H1修复 2026-10-13】auto_share users 元素类型归一(字符串数字/非法值不再 500) =====
 
     private CustomerService newAutoShareService(SysConfigService configService) {
-        return new CustomerService(
+        return com.aigicrm.module.customer.service.support.CustomerServiceFixture.create(
                 mock(BizCustomerMapper.class),
                 null,
                 mock(BizCustomerLogMapper.class),
@@ -2202,7 +2202,7 @@ class CustomerServiceTest {
         when(userMapper.selectList(any())).thenReturn(List.of(orgMate));
         OrgScopeResolver resolver = mock(OrgScopeResolver.class);
         when(resolver.resolveScope(any())).thenReturn(com.aigicrm.common.scope.ScopeDecision.all());
-        CustomerService service = new CustomerService(
+        CustomerService service = com.aigicrm.module.customer.service.support.CustomerServiceFixture.create(
                 mock(BizCustomerMapper.class),
                 null,
                 mock(BizCustomerLogMapper.class),
@@ -2253,7 +2253,7 @@ class CustomerServiceTest {
         com.aigicrm.common.scope.ScopeDecision notAll = new com.aigicrm.common.scope.ScopeDecision();
         notAll.setVisibleUserIds(List.of(11L)); // OWNER 锚点可见集合=仅本人 → 非 all
         when(resolver.resolveScope(any())).thenReturn(notAll);
-        CustomerService service = new CustomerService(
+        CustomerService service = com.aigicrm.module.customer.service.support.CustomerServiceFixture.create(
                 mock(BizCustomerMapper.class),
                 null,
                 mock(BizCustomerLogMapper.class),
@@ -2307,7 +2307,7 @@ class CustomerServiceTest {
         com.aigicrm.module.system.service.RolePermScopeService rolePermScopeService =
                 mock(com.aigicrm.module.system.service.RolePermScopeService.class);
         when(rolePermScopeService.effectiveScopeCode(any(), any(), any())).thenReturn("office");
-        CustomerService service = new CustomerService(
+        CustomerService service = com.aigicrm.module.customer.service.support.CustomerServiceFixture.create(
                 mock(BizCustomerMapper.class),
                 null,
                 mock(BizCustomerLogMapper.class),
@@ -2476,7 +2476,7 @@ class CustomerServiceTest {
 
     /** 校验用例共用的最小 mock 组装(校验先于 mapper 访问, mapper 桩仅为防御性兜底) */
     private CustomerService newIndicatorGuardService(BizCustomerIndicatorMapper indicatorMapper) {
-        return new CustomerService(
+        return com.aigicrm.module.customer.service.support.CustomerServiceFixture.create(
                 mock(BizCustomerMapper.class), null, mock(BizCustomerLogMapper.class),
                 mock(BizInvoiceMapper.class), mock(BizCustomerShareMapper.class),
                 indicatorMapper, mock(BizContactMapper.class), mock(BizPaymentMapper.class),
@@ -2500,7 +2500,7 @@ class CustomerServiceTest {
         BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
         BizCustomerIndicatorMapper indicatorMapper = mock(BizCustomerIndicatorMapper.class);
 
-        CustomerService service = new CustomerService(
+        CustomerService service = com.aigicrm.module.customer.service.support.CustomerServiceFixture.create(
                 customerMapper, null, mock(BizCustomerLogMapper.class),
                 invoiceMapper, mock(BizCustomerShareMapper.class),
                 indicatorMapper, mock(BizContactMapper.class), paymentMapper,
@@ -2557,7 +2557,7 @@ class CustomerServiceTest {
         BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
         BizCustomerIndicatorMapper indicatorMapper = mock(BizCustomerIndicatorMapper.class);
 
-        CustomerService service = new CustomerService(
+        CustomerService service = com.aigicrm.module.customer.service.support.CustomerServiceFixture.create(
                 customerMapper, null, mock(BizCustomerLogMapper.class),
                 invoiceMapper, mock(BizCustomerShareMapper.class),
                 indicatorMapper, mock(BizContactMapper.class), paymentMapper,
@@ -2677,7 +2677,7 @@ class CustomerServiceTest {
         com.aigicrm.module.system.mapper.SysLogMapper logMapper =
                 mock(com.aigicrm.module.system.mapper.SysLogMapper.class);
 
-        CustomerService svc = new CustomerService(
+        CustomerService svc = com.aigicrm.module.customer.service.support.CustomerServiceFixture.create(
                 customerMapper, null, mock(BizCustomerLogMapper.class),
                 invoiceMapper, shareMapper, mock(BizCustomerIndicatorMapper.class),
                 mock(BizContactMapper.class), paymentMapper,
@@ -2705,7 +2705,7 @@ class CustomerServiceTest {
         BizSeaPoolMapper seaPoolMapper = mock(BizSeaPoolMapper.class);
         when(seaPoolMapper.selectCount(any())).thenReturn(1L); // 仍有活跃池行(如并发新入池)
 
-        CustomerService svc = new CustomerService(
+        CustomerService svc = com.aigicrm.module.customer.service.support.CustomerServiceFixture.create(
                 customerMapper, null, mock(BizCustomerLogMapper.class),
                 mock(BizInvoiceMapper.class), mock(BizCustomerShareMapper.class),
                 mock(BizCustomerIndicatorMapper.class), mock(BizContactMapper.class),
@@ -2941,7 +2941,7 @@ class CustomerServiceTest {
         CustomerAccessService access = mock(CustomerAccessService.class);
         when(access.canDelete(501L)).thenReturn(true);
 
-        CustomerService svc = new CustomerService(
+        CustomerService svc = com.aigicrm.module.customer.service.support.CustomerServiceFixture.create(
                 customerMapper, null, mock(BizCustomerLogMapper.class), invoiceMapper,
                 shareMapper, mock(BizCustomerIndicatorMapper.class), mock(BizContactMapper.class),
                 paymentMapper, mock(com.aigicrm.module.customer.mapper.BizCustomerStageAmountMapper.class),
@@ -2979,7 +2979,7 @@ class CustomerServiceTest {
         com.aigicrm.module.sea.mapper.BizSeaPoolMapper seaPoolMapper =
                 mock(com.aigicrm.module.sea.mapper.BizSeaPoolMapper.class);
         when(seaPoolMapper.selectCount(any())).thenReturn(0L);
-        return new CustomerService(
+        return com.aigicrm.module.customer.service.support.CustomerServiceFixture.create(
                 customerMapper, null, mock(BizCustomerLogMapper.class), invoiceMapper,
                 mock(com.aigicrm.module.customer.mapper.BizCustomerShareMapper.class),
                 mock(BizCustomerIndicatorMapper.class), mock(BizContactMapper.class),
@@ -3047,7 +3047,7 @@ class CustomerServiceTest {
         BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
         JdbcTemplate jdbc = mock(JdbcTemplate.class);
         when(customerMapper.selectMaxCodeByPrefixForUpdate(anyString(), anyInt(), eq(5L))).thenReturn(2);
-        CustomerService svc = new CustomerService(
+        CustomerService svc = com.aigicrm.module.customer.service.support.CustomerServiceFixture.create(
                 customerMapper, null, mock(BizCustomerLogMapper.class), mock(BizInvoiceMapper.class),
                 mock(BizCustomerShareMapper.class), mock(BizCustomerIndicatorMapper.class),
                 mock(BizContactMapper.class), mock(BizPaymentMapper.class),
@@ -3150,7 +3150,7 @@ class CustomerServiceTest {
     @Test
     void applyClaimReset_shortProtectionWithoutOverwritingRegister() {
         BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
-        CustomerService service = new CustomerService(
+        CustomerService service = com.aigicrm.module.customer.service.support.CustomerServiceFixture.create(
                 customerMapper,
                 null,
                 mock(BizCustomerLogMapper.class), mock(BizInvoiceMapper.class),
@@ -3188,7 +3188,7 @@ class CustomerServiceTest {
     @Test
     void expireFormula_invoiceAfterClaim_invoiceLineWins() {
         BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
-        CustomerService service = new CustomerService(
+        CustomerService service = com.aigicrm.module.customer.service.support.CustomerServiceFixture.create(
                 customerMapper, null, mock(BizCustomerLogMapper.class), mock(BizInvoiceMapper.class),
                 mock(BizCustomerShareMapper.class), mock(BizCustomerIndicatorMapper.class),
                 mock(BizContactMapper.class), mock(BizPaymentMapper.class),
@@ -3219,7 +3219,7 @@ class CustomerServiceTest {
     @Test
     void expireFormula_claimCustomer_registerLineExcluded() {
         BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
-        CustomerService service = new CustomerService(
+        CustomerService service = com.aigicrm.module.customer.service.support.CustomerServiceFixture.create(
                 customerMapper, null, mock(BizCustomerLogMapper.class), mock(BizInvoiceMapper.class),
                 mock(BizCustomerShareMapper.class), mock(BizCustomerIndicatorMapper.class),
                 mock(BizContactMapper.class), mock(BizPaymentMapper.class),
@@ -3250,7 +3250,7 @@ class CustomerServiceTest {
     @Test
     void advanceGuard_oldInvoiceBeforeClaim_notBackfilled() {
         BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
-        CustomerService service = new CustomerService(
+        CustomerService service = com.aigicrm.module.customer.service.support.CustomerServiceFixture.create(
                 customerMapper, null, mock(BizCustomerLogMapper.class), mock(BizInvoiceMapper.class),
                 mock(BizCustomerShareMapper.class), mock(BizCustomerIndicatorMapper.class),
                 mock(BizContactMapper.class), mock(BizPaymentMapper.class),
@@ -3298,7 +3298,7 @@ class CustomerServiceTest {
         com.aigicrm.module.system.entity.SysDept d5 = new com.aigicrm.module.system.entity.SysDept();
         d5.setId(5L); d5.setDeptName("Office5");
         when(dm.selectBatchIds(any())).thenReturn(List.of(d4, d5));
-        CustomerService svc = new CustomerService(
+        CustomerService svc = com.aigicrm.module.customer.service.support.CustomerServiceFixture.create(
                 cm, mock(CustomerVisibilityService.class), mock(BizCustomerLogMapper.class),
                 mock(BizInvoiceMapper.class), mock(BizCustomerShareMapper.class),
                 mock(BizCustomerIndicatorMapper.class), mock(BizContactMapper.class),

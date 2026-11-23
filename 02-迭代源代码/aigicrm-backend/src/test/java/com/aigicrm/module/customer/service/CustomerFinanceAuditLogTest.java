@@ -56,7 +56,7 @@ class CustomerFinanceAuditLogTest {
     }
 
     private CustomerService newService() {
-        return new CustomerService(
+        return com.aigicrm.module.customer.service.support.CustomerServiceFixture.create(
                 customerMapper,
                 null,
                 mock(com.aigicrm.module.customer.mapper.BizCustomerLogMapper.class),

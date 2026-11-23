@@ -54,7 +54,7 @@ class IncentiveKeywordFileNameMatchTest {
         file.setFileName("现场照片19.jpg");
         when(fileMapper.selectList(any())).thenReturn(List.of(file));
 
-        IncentiveService svc = new IncentiveService(
+        IncentiveService svc = com.aigicrm.module.incentive.service.support.IncentiveServiceFixture.create(
                 catMapper, recMapper,
                 mock(com.aigicrm.module.system.mapper.SysUserMapper.class),
                 fileMapper,

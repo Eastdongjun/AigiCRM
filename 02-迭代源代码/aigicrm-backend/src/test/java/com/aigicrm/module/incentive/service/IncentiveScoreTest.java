@@ -35,7 +35,7 @@ import static org.mockito.Mockito.when;
 class IncentiveScoreTest {
 
     private IncentiveService newService(BizIncentiveCategoryMapper categoryMapper, JdbcTemplate jdbc) {
-        return new IncentiveService(
+        return com.aigicrm.module.incentive.service.support.IncentiveServiceFixture.create(
                 categoryMapper,
                 mock(BizIncentiveRecordMapper.class),
                 mock(SysUserMapper.class),

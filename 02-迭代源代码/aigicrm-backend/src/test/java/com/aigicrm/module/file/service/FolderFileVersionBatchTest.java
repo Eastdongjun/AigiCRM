@@ -81,7 +81,7 @@ class FolderFileVersionBatchTest {
             @Override public com.aliyun.oss.OSS getIfAvailable() { return null; }
             @Override public com.aliyun.oss.OSS getIfUnique() { return null; }
         };
-        svc = new FileService(fileMapper, folderMapper, mock(com.aigicrm.module.file.mapper.BizFileShareMapper.class),
+        svc = com.aigicrm.module.file.service.support.FileServiceFixture.create(fileMapper, folderMapper, mock(com.aigicrm.module.file.mapper.BizFileShareMapper.class),
                 fileVersionMapper,
                 configService,
                 incentiveRecordMapper,

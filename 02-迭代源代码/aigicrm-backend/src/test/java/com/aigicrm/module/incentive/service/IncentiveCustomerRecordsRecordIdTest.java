@@ -27,7 +27,7 @@ import static org.mockito.Mockito.when;
 class IncentiveCustomerRecordsRecordIdTest {
 
     private IncentiveService newService(BizIncentiveRecordMapper recMapper) {
-        return new IncentiveService(
+        return com.aigicrm.module.incentive.service.support.IncentiveServiceFixture.create(
                 mock(BizIncentiveCategoryMapper.class), recMapper,
                 mock(com.aigicrm.module.system.mapper.SysUserMapper.class),
                 mock(com.aigicrm.module.file.mapper.BizFileMapper.class),

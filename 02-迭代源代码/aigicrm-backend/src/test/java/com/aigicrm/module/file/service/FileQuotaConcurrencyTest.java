@@ -57,7 +57,7 @@ class FileQuotaConcurrencyTest {
             @Override public com.aliyun.oss.OSS getIfAvailable() { return null; }
             @Override public com.aliyun.oss.OSS getIfUnique() { return null; }
         };
-        svc = new FileService(fileMapper, mock(BizFileFolderMapper.class), mock(BizFileShareMapper.class),
+        svc = com.aigicrm.module.file.service.support.FileServiceFixture.create(fileMapper, mock(BizFileFolderMapper.class), mock(BizFileShareMapper.class),
                 mock(com.aigicrm.module.file.mapper.BizFileVersionMapper.class),
                 mock(com.aigicrm.module.system.service.SysConfigService.class),
                 mock(com.aigicrm.module.incentive.mapper.BizIncentiveRecordMapper.class),

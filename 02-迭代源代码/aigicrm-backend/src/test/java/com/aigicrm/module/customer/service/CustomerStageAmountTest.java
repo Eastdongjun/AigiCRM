@@ -49,7 +49,7 @@ class CustomerStageAmountTest {
     private final SysUserMapper userMapper = mock(SysUserMapper.class);
     private final BizReminderMapper reminderMapper = mock(BizReminderMapper.class);
     private final SysConfigService configService = mock(SysConfigService.class);
-    private final CustomerService service = new CustomerService(
+    private final CustomerService service = com.aigicrm.module.customer.service.support.CustomerServiceFixture.create(
             customerMapper,
             null,
             mock(BizCustomerLogMapper.class),
