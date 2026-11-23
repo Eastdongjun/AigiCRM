@@ -135,6 +135,7 @@ import {
   getFabushiPostDetail, getFabushiComments, addFabushiComment, toggleFabushiLike, markFabushiRead, getFabushiBooks,
   updateFabushiPost, deleteFabushiPost, getFabushiRecitations, addFabushiRecitation, getFabushiSettings,
 } from '@/api/fabushi'
+import { usePagedList } from '@/composables/usePagedList'
 
 const route = useRoute()
 const router = useRouter()
