@@ -67,7 +67,10 @@ else
 fi
 
 step "MP 视图绑定" node "$ROOT/scripts/check-mp-view-bindings.mjs"
-step "API 清单新鲜度" bash "$ROOT/scripts/check-api-list-fresh.sh"
+contract_checks() {
+  bash "$ROOT/scripts/check-api-list-fresh.sh" && bash "$ROOT/scripts/check-industry-vocabulary-contract.sh"
+}
+step "API 清单/行业词表契约" contract_checks
 step "租户表白名单" bash "$ROOT/scripts/check-tenant-table-registry.sh"
 step "God class 行数护栏" bash "$ROOT/scripts/check-god-class-size.sh"
 step "Sonar 新代码门禁" sonar_gate
