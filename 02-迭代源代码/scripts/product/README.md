@@ -80,6 +80,17 @@ bash scripts/product/install.sh --project aigicrm-b1-test --down
 > 业务演示数据导入未做；S6.3 仅 industry 字典可选/新增；S6.4 监控未开始。
 > 因此 B1 整体仍未验收。
 
+## 一键验收（本机/云主机）
+
+```bash
+bash scripts/product/acceptance.sh --project b1-acc \
+  --http-port 18110 --web-port 18111 --mysql-port 13320 --redis-port 16392 \
+  --report /tmp/b1-acceptance.json
+```
+
+自动执行：安装（含监控）→ Playwright 浏览器首启 → 改密重登 → public 完成标记 →
+Flyway/行业字典/演示客户 → Prometheus/告警 → 清理。`--keep` 保留现场。
+
 ## 离线回归
 
 ```bash
