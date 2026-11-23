@@ -167,6 +167,7 @@ onMounted(async () => {
 
 <style scoped>
 .fabushi-library { display: flex; flex-direction: column; gap: 10px; }
+.page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .page-head h1 { margin: 0; color: var(--text-primary); font-size: 20px; font-weight: 800; }
 .page-head p { margin: 4px 0 0; color: var(--text-muted); font-size: 12px; }
 .filter { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; padding: 9px 12px; border: 1px solid var(--border-light); border-radius: var(--radius-md); background: var(--el-bg-color); }
@@ -182,14 +183,15 @@ onMounted(async () => {
 .rail-item.active .n { color: var(--primary-color); background: var(--el-color-primary-light-8); }
 .book-main { min-width: 0; }
 .book-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); align-items: start; gap: 10px; min-height: 160px; }
-.book-card { display: flex; flex-direction: column; min-height: 176px; padding: 13px; border: 1px solid var(--border-light); border-radius: var(--radius-md); background: var(--el-fill-color-lighter); transition: background .18s, box-shadow .18s; }
+.book-card { display: flex; flex-direction: column; min-height: 164px; padding: 13px; border: 1px solid var(--border-light); border-radius: var(--radius-md); background: var(--el-fill-color-lighter); transition: background .18s, box-shadow .18s; }
 .book-card:hover { background: var(--el-bg-color); box-shadow: var(--shadow-card-hover); }
 .book-title-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .book-title-row h3 { margin: 0; color: var(--text-primary); font-size: 14px; font-weight: 700; }
 .pdf-tag { flex-shrink: 0; padding: 1px 6px; border-radius: var(--radius-sm); color: var(--el-color-success); background: var(--el-color-success-light-9); font-size: 10px; }
 .book-sub { margin-top: 5px; color: var(--text-muted); font-size: 11px; }
 .book-desc { margin-top: 7px; color: var(--text-secondary); font-size: 11.5px; line-height: 1.6; }
-.book-foot { display: flex; align-items: center; gap: 8px; margin-top: auto; padding-top: 10px; }
-.book-meta { flex: 1; color: var(--text-muted); font-size: 10.5px; }
+.book-foot { display: flex; align-items: center; gap: 8px; margin-top: auto; padding-top: 10px; flex-wrap: wrap; }
+.book-foot .el-button { flex: 0 0 auto; margin-left: 0; }
+.book-meta { flex: 1 0 100%; color: var(--text-muted); font-size: 10.5px; }
 .library-pager { display: flex; justify-content: flex-end; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border-light); }
 </style>

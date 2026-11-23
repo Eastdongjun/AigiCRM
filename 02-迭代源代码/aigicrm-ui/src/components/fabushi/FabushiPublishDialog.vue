@@ -9,6 +9,7 @@
     :model-value="modelValue"
     :title="dialogTitle"
     :width="form.scopeType === 'suishi' ? '560px' : '720px'"
+    class="fabushi-pub-dialog"
     :close-on-click-modal="false"
     @update:model-value="(v) => emit('update:modelValue', v)"
     @closed="resetAll"
@@ -811,6 +812,7 @@ onBeforeUnmount(() => {
 .chip-x { border: 0; background: transparent; color: var(--text-muted); cursor: pointer; font-size: 14px; line-height: 1; }
 
 .pub-lead { margin: 0 0 10px; color: var(--text-muted); font-size: 12px; }
+.fabushi-pub-dialog :deep(.el-dialog__body) { max-height: calc(100vh - 270px); overflow-y: auto; }
 .suishi-grid { display: grid; grid-template-columns: repeat(3, 96px); gap: 8px; margin-top: 8px; }
 .img-empty { width: 96px; height: 96px; border: 1px dashed var(--el-border-color-lighter); border-radius: 8px; background: var(--el-fill-color-lighter); opacity: .55; }
 .img-zoom { position: absolute; left: 2px; bottom: 2px; width: 20px; height: 20px; border: 0; border-radius: 4px; background: rgba(0,0,0,.55); color: #fff; cursor: pointer; line-height: 1; font-size: 12px; }

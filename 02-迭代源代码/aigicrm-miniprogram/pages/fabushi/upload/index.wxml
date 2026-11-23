@@ -62,9 +62,6 @@
     <view wx:if="{{scopeType === 'suishi'}}" class="suishi-tip">不关联书目 · 不设标题 · 全员可见 · 附件归档「文件中心 › 法布施」，像发朋友圈一样简单</view>
   </view>
 
-  <view class="submit-btn {{submitting ? 'disabled' : ''}}" bindtap="submit">
-    {{submitting ? '发布中…' : (scopeType === 'suishi' ? '随手一发' : scopeType === 'songdu' ? '提交每日诵读' : '发布再读一本')}}
-  </view>
   <!-- 【PROTO-AUDIT-20261123 P7】已选图片九宫格预览 -->
   <view wx:if="{{imageAttachments.length}}" class="img-grid">
     <view wx:for="{{imageAttachments}}" wx:key="fileId" class="img-cell">
@@ -90,6 +87,9 @@
     <view wx:if="{{uploading}}" class="attach-hint">上传中…</view>
   </view>
   <view class="tip">附件上传到法布施空间，计入个人配额。</view>
+  <view class="submit-btn {{submitting ? 'disabled' : ''}}" bindtap="submit">
+    {{submitting ? '发布中…' : (scopeType === 'suishi' ? '随手一发' : scopeType === 'songdu' ? '提交每日诵读' : '发布再读一本')}}
+  </view>
 </block>
 
 <block wx:else>
