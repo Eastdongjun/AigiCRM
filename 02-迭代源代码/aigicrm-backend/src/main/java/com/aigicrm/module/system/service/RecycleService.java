@@ -442,11 +442,6 @@ public class RecycleService {
      * <p>保留 int 返回值供 {@code FileRecycleCleanupTask} 使用; 需要跳过/失败计数时调用
      * {@link #purgeExpiredFilesWithStats(int)}。</p>
      */
-    @Transactional
-    public int purgeExpiredFiles(int retentionDays) {
-        return purgeExpiredFilesWithStats(retentionDays).purged();
-    }
-
     /** 保留期清理的完整结果(清理/跳过/失败), 定时任务与手动清空共用同一清理内核 */
     @Transactional
     public PurgeFilesResult purgeExpiredFilesWithStats(int retentionDays) {

@@ -372,11 +372,6 @@ public class RolePermScopeService {
      * 【修复 2026-08-10 P2-07】configs 为空列表 = 删除该角色全部配置(恢复"未配置"默认语义);
      * 【修复 P2-05】scopeLevel 不在合法集合内直接拒绝。
      */
-    @Transactional
-    public void updateRoleScopes(String roleCode, List<Map<String, Object>> configs) {
-        updateScopes(ScopeConfig.ASSIGNEE_ROLE, roleCode, configs);
-    }
-
     /** 【批③ 正交配置层】通用保存(主体三级 ROLE/POSITION/USER + 锚点) */
     @Transactional
     public void updateScopes(String assigneeType, String assigneeKey, List<Map<String, Object>> configs) {

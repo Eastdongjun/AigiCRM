@@ -191,7 +191,7 @@ class ExtendApprovalConcurrencyTest {
             sec.when(SecurityUtils::getCurrentUserId).thenReturn(7L);
             sec.when(SecurityUtils::isAdmin).thenReturn(false);
 
-            service().approve(71L, "同意");
+            service().approve(71L, "同意", null);
         }
 
         InOrder order = inOrder(customerMapper);

@@ -37,7 +37,7 @@ public class FileRecycleCleanupTask {
             return;
         }
         try {
-            int purged = recycleService.purgeExpiredFiles(retentionDays);
+            int purged = recycleService.purgeExpiredFilesWithStats(retentionDays).purged();
             log.info("文件回收站自动清理完成: 保留期={}天, 清理={}个文件", retentionDays, purged);
         } catch (Exception e) {
             // 定时任务失败不影响主流程, 留痕待人工核查(下次运行会重试同一批)

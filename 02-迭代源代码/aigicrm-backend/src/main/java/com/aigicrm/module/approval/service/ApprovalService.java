@@ -630,11 +630,6 @@ public class ApprovalService {
                 approvalId, nodeId, oldApproverId, newApproverId, SecurityUtils.getCurrentUserId());
     }
 
-    @Transactional
-    public void approve(Long approvalId, String comment) {
-        approve(approvalId, comment, null);
-    }
-
     /**
      * 【延期B 2026-10-17 用户裁决】审批人可改延期天数:
      * extendDaysOverride 非 null 时仅限 extend 单,校验 1~3650 后合并进 extraData.extendDays

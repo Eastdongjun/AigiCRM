@@ -661,7 +661,7 @@ class ApprovalServiceTest {
         SeaService seaService = mock(SeaService.class);
         ApprovalService svc = newApprovalService(approvalMapper, nodeMapper, seaService, mock(BizApprovalConfigMapper.class));
 
-        assertDoesNotThrow(() -> svc.approve(11L, "同意"));
+        assertDoesNotThrow(() -> svc.approve(11L, "同意", null));
         // 同阶段兄弟待办被取消(或签完成)
         verify(nodeMapper, times(2)).update(isNull(), any()); // 1=本人条件流转 2=取消兄弟
         // 整单通过(条件更新胜出) + 业务回写恰好一次
@@ -690,7 +690,7 @@ class ApprovalServiceTest {
 
         ApprovalService svc = newApprovalService(approvalMapper, nodeMapper, mock(SeaService.class), mock(BizApprovalConfigMapper.class));
 
-        assertDoesNotThrow(() -> svc.approve(12L, "同意"));
+        assertDoesNotThrow(() -> svc.approve(12L, "同意", null));
         // 本阶段仍有 pending → 不整单通过、不取消任何节点
         verify(nodeMapper, times(1)).update(isNull(), any());
         verify(approvalMapper, never()).update(isNull(), any());
@@ -723,7 +723,7 @@ class ApprovalServiceTest {
 
         ApprovalService svc = newApprovalService(approvalMapper, nodeMapper, mock(SeaService.class), configMapper);
 
-        assertDoesNotThrow(() -> svc.approve(13L, "同意"));
+        assertDoesNotThrow(() -> svc.approve(13L, "同意", null));
         // 本人条件流转 + 激活下一阶段
         verify(nodeMapper, times(2)).update(isNull(), any());
         // 整单不通过,但 currentNode 更新到新阶段
@@ -749,7 +749,7 @@ class ApprovalServiceTest {
 
         ApprovalService svc = newApprovalService(approvalMapper, nodeMapper, mock(SeaService.class), mock(BizApprovalConfigMapper.class));
 
-        BusinessException ex = assertThrows(BusinessException.class, () -> svc.approve(14L, "同意"));
+        BusinessException ex = assertThrows(BusinessException.class, () -> svc.approve(14L, "同意", null));
         assertTrue(ex.getMessage().contains("已处理"));
         verify(approvalMapper, never()).update(isNull(), any());
     }
@@ -776,7 +776,7 @@ class ApprovalServiceTest {
         SeaService seaService = mock(SeaService.class);
         ApprovalService svc = newApprovalService(approvalMapper, nodeMapper, seaService, mock(BizApprovalConfigMapper.class));
 
-        assertDoesNotThrow(() -> svc.approve(15L, "同意"));
+        assertDoesNotThrow(() -> svc.approve(15L, "同意", null));
         // 仅本人条件流转一次;整单通过并回写业务
         verify(nodeMapper, times(1)).update(isNull(), any());
         verify(approvalMapper, times(1)).update(isNull(), any());
@@ -829,7 +829,7 @@ class ApprovalServiceTest {
                 mock(org.springframework.jdbc.core.JdbcTemplate.class),
                 mock(com.aigicrm.security.SecurityAuditService.class));
 
-        assertDoesNotThrow(() -> svc.approve(18L, "同意"));
+        assertDoesNotThrow(() -> svc.approve(18L, "同意", null));
 
         @SuppressWarnings("unchecked")
         ArgumentCaptor<com.baomidou.mybatisplus.core.conditions.Wrapper<com.aigicrm.module.customer.entity.BizCustomer>> wcap =
@@ -1074,7 +1074,7 @@ class ApprovalServiceTest {
                 mock(org.springframework.jdbc.core.JdbcTemplate.class),
                 mock(com.aigicrm.security.SecurityAuditService.class));
 
-        assertDoesNotThrow(() -> svc.approve(21L, "同意"));
+        assertDoesNotThrow(() -> svc.approve(21L, "同意", null));
 
         ArgumentCaptor<com.aigicrm.module.customer.entity.BizCustomer> cap =
                 ArgumentCaptor.forClass(com.aigicrm.module.customer.entity.BizCustomer.class);
@@ -1108,7 +1108,7 @@ class ApprovalServiceTest {
 
         ApprovalService svc = newApprovalService(approvalMapper, nodeMapper, mock(SeaService.class), mock(BizApprovalConfigMapper.class));
 
-        BusinessException ex = assertThrows(BusinessException.class, () -> svc.approve(31L, "同意"));
+        BusinessException ex = assertThrows(BusinessException.class, () -> svc.approve(31L, "同意", null));
         assertTrue(ex.getMessage().contains("自审自批"), "实际: " + ex.getMessage());
         // 节点不得被流转
         verify(nodeMapper, never()).update(isNull(), any());
@@ -1266,7 +1266,7 @@ class ApprovalServiceTest {
                 mock(org.springframework.jdbc.core.JdbcTemplate.class),
                 mock(com.aigicrm.security.SecurityAuditService.class));
 
-        assertDoesNotThrow(() -> svc.approve(31L, "同意"));
+        assertDoesNotThrow(() -> svc.approve(31L, "同意", null));
 
         ArgumentCaptor<com.aigicrm.module.customer.entity.BizCustomer> cap =
                 ArgumentCaptor.forClass(com.aigicrm.module.customer.entity.BizCustomer.class);

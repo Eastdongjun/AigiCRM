@@ -37,7 +37,7 @@ public class RolePermScopeController {
     @PutMapping("/{roleCode}")
     public Result<java.util.Map<String, Object>> updateScopes(@PathVariable String roleCode,
                                      @RequestBody List<Map<String, Object>> configs) {
-        rolePermScopeService.updateRoleScopes(roleCode, configs);
+        rolePermScopeService.updateScopes(com.aigicrm.common.scope.ScopeConfig.ASSIGNEE_ROLE, roleCode, configs);
         // 【WP5 2026-11-13】保存授权返回 {epoch, affectedUsers}(规格 WP5; 前端可提示生效人数)
         return Result.ok(saveAck());
     }

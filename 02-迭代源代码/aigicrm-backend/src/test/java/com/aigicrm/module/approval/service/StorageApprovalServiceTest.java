@@ -248,7 +248,7 @@ class StorageApprovalServiceTest {
 
         try (MockedStatic<SecurityUtils> sec = org.mockito.Mockito.mockStatic(SecurityUtils.class)) {
             sec.when(SecurityUtils::getCurrentUserId).thenReturn(7L);
-            service.approve(20L, "同意");
+            service.approve(20L, "同意", null);
         }
 
         verify(userService).applyStorageQuota(8L, 200L, 20L);
@@ -286,7 +286,7 @@ class StorageApprovalServiceTest {
             sec.when(SecurityUtils::getCurrentUserId).thenReturn(7L);
 
             BusinessException ex = assertThrows(BusinessException.class,
-                    () -> service.approve(21L, "同意"));
+                    () -> service.approve(21L, "同意", null));
             assertTrue(ex.getMessage().contains("不高于当前配额"), "业务异常必须原样透传: " + ex.getMessage());
         }
     }

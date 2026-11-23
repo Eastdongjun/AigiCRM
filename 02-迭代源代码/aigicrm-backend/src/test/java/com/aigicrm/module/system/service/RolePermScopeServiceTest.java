@@ -68,7 +68,7 @@ class RolePermScopeServiceTest {
         RolePermScopeService svc = new RolePermScopeService(jdbc, mock(com.aigicrm.security.PermissionCacheService.class),
                 mock(com.aigicrm.module.system.mapper.SysRuleVersionMapper.class),
                 mock(com.aigicrm.common.auth.PermActionRegistry.class));
-        svc.updateRoleScopes("xingzheng", List.of(
+        svc.updateScopes(com.aigicrm.common.scope.ScopeConfig.ASSIGNEE_ROLE, "xingzheng", List.of(
                 Map.of("module", "customer", "action", "delete", "scopeLevel", "dept")));
         verify(jdbc).update(contains("INSERT INTO role_perm_scope"),
                 eq("xingzheng"), eq("ROLE"), eq("xingzheng"), eq("customer"), eq("delete"), eq("dept"), eq("OWNER"));

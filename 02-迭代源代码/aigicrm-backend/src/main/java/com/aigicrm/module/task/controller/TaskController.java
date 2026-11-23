@@ -1,6 +1,7 @@
 package com.aigicrm.module.task.controller;
 
 import com.aigicrm.common.Result;
+import com.aigicrm.module.task.service.TaskCommandService;
 import com.aigicrm.module.task.service.TaskService;
 import com.aigicrm.module.task.service.TaskViewService;
 import com.baomidou.mybatisplus.core.metadata.IPage;
@@ -21,6 +22,7 @@ public class TaskController {
 
     private final TaskService taskService;
     private final TaskViewService taskViewService;
+    private final TaskCommandService taskCommandService;
 
     @GetMapping("/list")
     @PreAuthorize("hasAuthority('task:view')")
@@ -45,13 +47,13 @@ public class TaskController {
     @PostMapping
     @PreAuthorize("hasAuthority('task:manage')")
     public Result<Map<String, Object>> create(@RequestBody Map<String, Object> body) {
-        return Result.ok(taskViewService.toRow(taskService.createFromMap(body)));
+        return Result.ok(taskCommandService.createFromMap(body));
     }
 
     @PutMapping("/{id}")
     @PreAuthorize("hasAuthority('task:manage')")
     public Result<Void> update(@PathVariable Long id, @RequestBody Map<String, Object> body) {
-        taskService.updateFromMap(id, body);
+        taskCommandService.updateFromMap(id, body);
         return Result.ok();
     }
 

@@ -86,7 +86,7 @@ class ApprovalApproveRejectSecurityTest {
         when(approvalMapper.selectById(1L)).thenReturn(approval());
         when(approvalMapper.selectByIdForUpdate(1L)).thenReturn(approval());
         // nodeMapper.selectOne 返回 null（未打桩）→ 拒绝(统一文案)
-        BusinessException ex = assertThrows(BusinessException.class, () -> svc.approve(1L, "同意"));
+        BusinessException ex = assertThrows(BusinessException.class, () -> svc.approve(1L, "同意", null));
         assertEquals("资源不存在或无权访问", ex.getMessage(),
                 "非审批人/无节点必须与「不存在」统一文案, 防审批存在性探测");
     }
@@ -105,7 +105,7 @@ class ApprovalApproveRejectSecurityTest {
         setCurrentUser(1L);
         when(approvalMapper.selectById(1L)).thenReturn(null);
         when(approvalMapper.selectByIdForUpdate(1L)).thenReturn(null);
-        BusinessException ex = assertThrows(BusinessException.class, () -> svc.approve(1L, "同意"));
+        BusinessException ex = assertThrows(BusinessException.class, () -> svc.approve(1L, "同意", null));
         assertEquals("资源不存在或无权访问", ex.getMessage());
     }
 
@@ -130,7 +130,7 @@ class ApprovalApproveRejectSecurityTest {
         postDb.setStatus("approved");
         when(nodeMapper.selectList(any())).thenReturn(java.util.List.of(postDb));
 
-        assertDoesNotThrow(() -> svc.approve(1L, "同意"));
+        assertDoesNotThrow(() -> svc.approve(1L, "同意", null));
         // 审批动作经条件更新落库(pending→approved),恰好一次
         verify(nodeMapper, times(1)).update(isNull(), any());
     }
@@ -154,7 +154,7 @@ class ApprovalApproveRejectSecurityTest {
         when(nodeMapper.selectOne(any())).thenReturn(node);
         when(nodeMapper.selectCount(any())).thenReturn(1L); // 避免走"全部通过"分支，验证的是终态守卫本身
 
-        BusinessException ex = assertThrows(BusinessException.class, () -> svc.approve(1L, "同意"));
+        BusinessException ex = assertThrows(BusinessException.class, () -> svc.approve(1L, "同意", null));
         assertEquals("资源不存在或无权访问", ex.getMessage(), "终态审批(已驳回)必须与「不存在」统一文案");
         assertEquals("pending", node.getStatus());
     }

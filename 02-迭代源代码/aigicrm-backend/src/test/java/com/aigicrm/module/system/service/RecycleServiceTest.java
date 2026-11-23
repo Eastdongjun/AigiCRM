@@ -379,7 +379,7 @@ class RecycleServiceTest {
 
     @Test
     void purgeExpiredFiles_retentionDisabled_noop() {
-        assertEquals(0, service.purgeExpiredFiles(0));
+        assertEquals(0, service.purgeExpiredFilesWithStats(0).purged());
         RecycleService.PurgeFilesResult result = service.purgeExpiredFilesWithStats(-1);
         assertEquals(0, result.purged());
         assertEquals(0, result.skipped());

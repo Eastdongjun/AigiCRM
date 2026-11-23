@@ -513,9 +513,9 @@ public class CustomerService {
      */
     @Transactional
     public Long createWithIndicator(BizCustomer customer, BizCustomerIndicator indicator) {
-        create(customer);
+        customerWriteService.create(customer);
         if (indicator != null) {
-            saveIndicator(customer.getId(), indicator);
+            customerIndicatorService.saveIndicator(customer.getId(), indicator);
         }
         return customer.getId();
     }
@@ -524,9 +524,9 @@ public class CustomerService {
     @Transactional
     public void updateWithIndicator(Long id, BizCustomer customer, BizCustomerIndicator indicator) {
         customer.setId(id);
-        update(customer);
+        customerWriteService.update(customer);
         if (indicator != null) {
-            saveIndicator(id, indicator);
+            customerIndicatorService.saveIndicator(id, indicator);
         }
     }
 

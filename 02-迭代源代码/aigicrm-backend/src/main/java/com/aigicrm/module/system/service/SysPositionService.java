@@ -104,7 +104,7 @@ public class SysPositionService {
         }
         positionMapper.updateById(position);
         if (position.getRuleIds() != null) {
-            saveRules(position.getId(), position.getRuleIds());
+            saveRulesInternal(position.getId(), position.getRuleIds());
         }
         // 【Redis 权限缓存】岗位字段/规则变更影响该岗位用户，立即失效
         permissionCacheService.evictByPosition(position.getId());
@@ -140,6 +140,11 @@ public class SysPositionService {
     /** 保存岗位-规则绑定（清空重建，幂等） */
     @Transactional
     public void saveRules(Long positionId, List<Long> ruleIds) {
+        saveRulesInternal(positionId, ruleIds);
+    }
+
+    /** 非事务内核：供 update 在已有事务内直接调用，避免同类 @Transactional 自调用。 */
+    private void saveRulesInternal(Long positionId, List<Long> ruleIds) {
         positionRuleMapper.delete(new LambdaQueryWrapper<SysPositionRule>().eq(SysPositionRule::getPositionId, positionId));
         // 【2026-09-29 复审修复】清空规则也是权限变更: 缓存失效+版本递增必须在 early-return 之前
         permissionCacheService.evictByPosition(positionId);

@@ -57,29 +57,6 @@ public class TaskService {
      * create() 上的 @Transactional 实际不生效（历史上所有走 Map 入口的建单都不在事务里）。
      * 事务边界上移到本方法：控制器入口即开事务，内部自调用不再需要代理。
      */
-    @Transactional
-    public BizTask createFromMap(Map<String, Object> body) {
-        BizTask task = new BizTask();
-        if (body.get(LIT_TITLE) != null) task.setTitle(body.get(LIT_TITLE).toString());
-        if (body.get(LIT_DETAIL) != null) task.setDetail(body.get(LIT_DETAIL).toString());
-        if (body.get("assigneeId") instanceof Number n) task.setAssigneeId(n.longValue());
-        if (body.get(LIT_DUEDATE) != null) task.setDueDate(LocalDate.parse(body.get(LIT_DUEDATE).toString()));
-        if (body.get("customerId") instanceof Number n) task.setCustomerId(n.longValue());
-        if (body.get("sourceLogId") instanceof Number n) task.setSourceLogId(n.longValue());
-        return create(task);
-    }
-
-    /** 【S2229 2026-11-23】同上：this.update(task) 自调用绕过代理，事务边界上移到入口。 */
-    @Transactional
-    public void updateFromMap(Long id, Map<String, Object> body) {
-        BizTask task = new BizTask();
-        task.setId(id);
-        if (body.get(LIT_TITLE) != null) task.setTitle(body.get(LIT_TITLE).toString());
-        if (body.get(LIT_DETAIL) != null) task.setDetail(body.get(LIT_DETAIL).toString());
-        if (body.get(LIT_DUEDATE) != null) task.setDueDate(LocalDate.parse(body.get(LIT_DUEDATE).toString()));
-        update(task);
-    }
-
     /** 创建任务(跟进日志中"下一步"承诺落地) */
     @Transactional
     public BizTask create(BizTask task) {

@@ -106,6 +106,7 @@ class PermissionBehaviorMatrixTest {
     @MockitoBean com.aigicrm.module.statistics.service.StatisticsQueryService statisticsQueryService;
     // Task 组
     @MockitoBean com.aigicrm.module.task.service.TaskService taskService;
+    @MockitoBean com.aigicrm.module.task.service.TaskCommandService taskCommandService;
     @MockitoBean com.aigicrm.module.task.service.TaskViewService taskViewService;
     // 【B8 扩面】五模块依赖(SeaService/ApprovalService 已在上方既有声明)
     @MockitoBean com.aigicrm.module.incentive.service.IncentiveService incentiveService;
@@ -280,12 +281,12 @@ class PermissionBehaviorMatrixTest {
 
     @Test
     void taskCreate_withManage_200() throws Exception {
-        org.mockito.Mockito.when(taskService.createFromMap(any())).thenReturn(new com.aigicrm.module.task.entity.BizTask());
+        org.mockito.Mockito.when(taskCommandService.createFromMap(any())).thenReturn(java.util.Map.of());
         // toRow 是 static 方法(实例引用调 static), 不可 mock——真实现处理空 BizTask 安全返回
         mockMvc.perform(post("/api/task").with(csrf()).accept(MediaType.APPLICATION_JSON).with(as("task:manage"))
                         .contentType(MediaType.APPLICATION_JSON).content("{}"))
                 .andExpect(status().isOk());
-        verify(taskService).createFromMap(any());
+        verify(taskCommandService).createFromMap(any());
     }
 
     // ==================== 【B8 扩面 2026-11-12】approval / incentive / sea / reminder / system 五模块 ====================
