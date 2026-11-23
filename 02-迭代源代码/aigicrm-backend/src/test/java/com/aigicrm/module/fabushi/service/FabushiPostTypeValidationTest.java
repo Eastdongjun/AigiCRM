@@ -82,60 +82,52 @@ class FabushiPostTypeValidationTest {
 
     @Test
     void songdu_withoutBook_rejected() {
-        BusinessException ex = assertThrows(BusinessException.class,
-                () -> svc.create(post("songdu", null, null, "晨读打卡内容")));
+        BusinessException ex = createRejected(post("songdu", null, null, "晨读打卡内容"));
         assertEquals("该类型必须关联具体书目（先选书再发布）", ex.getMessage());
     }
 
     @Test
     void songdu_withUnapprovedBook_rejected() {
         when(bookMapper.selectById(5L)).thenReturn(book("pending", 0));
-        BusinessException ex = assertThrows(BusinessException.class,
-                () -> svc.create(post("songdu", 5L, null, "内容")));
+        BusinessException ex = createRejected(post("songdu", 5L, null, "内容"));
         assertEquals("关联书目不存在或未通过审核", ex.getMessage());
     }
 
     @Test
     void songdu_withDeletedBook_rejected() {
         when(bookMapper.selectById(5L)).thenReturn(book("approved", 1));
-        BusinessException ex = assertThrows(BusinessException.class,
-                () -> svc.create(post("songdu", 5L, null, "内容")));
+        BusinessException ex = createRejected(post("songdu", 5L, null, "内容"));
         assertEquals("关联书目不存在或未通过审核", ex.getMessage());
     }
 
     @Test
     void songdu_withMissingBook_rejected() {
         when(bookMapper.selectById(5L)).thenReturn(null);
-        BusinessException ex = assertThrows(BusinessException.class,
-                () -> svc.create(post("songdu", 5L, null, "内容")));
+        BusinessException ex = createRejected(post("songdu", 5L, null, "内容"));
         assertEquals("关联书目不存在或未通过审核", ex.getMessage());
     }
 
     @Test
     void zaidu_withoutBook_rejected() {
-        BusinessException ex = assertThrows(BusinessException.class,
-                () -> svc.create(post("zaidu", null, null, "精读第八章")));
+        BusinessException ex = createRejected(post("zaidu", null, null, "精读第八章"));
         assertEquals("该类型必须关联具体书目（先选书再发布）", ex.getMessage());
     }
 
     @Test
     void suishi_withTitle_rejected() {
-        BusinessException ex = assertThrows(BusinessException.class,
-                () -> svc.create(post("suishi", null, "晚霞", "随手一拍")));
+        BusinessException ex = createRejected(post("suishi", null, "晚霞", "随手一拍"));
         assertEquals("每日随施不设置标题", ex.getMessage());
     }
 
     @Test
     void suishi_withBook_rejected() {
-        BusinessException ex = assertThrows(BusinessException.class,
-                () -> svc.create(post("suishi", 5L, null, "随手一拍")));
+        BusinessException ex = createRejected(post("suishi", 5L, null, "随手一拍"));
         assertEquals("每日随施不关联书目", ex.getMessage());
     }
 
     @Test
     void legacyScopeType_rejected() {
-        BusinessException ex = assertThrows(BusinessException.class,
-                () -> svc.create(post("heart", null, "旧心得", "旧内容")));
+        BusinessException ex = createRejected(post("heart", null, "旧心得", "旧内容"));
         assertEquals("内容类型不合法", ex.getMessage());
     }
 
@@ -151,5 +143,9 @@ class FabushiPostTypeValidationTest {
     void suishi_textOnly_published() {
         BizFabushiPost created = svc.create(post("suishi", null, null, "随手一拍晚霞"));
         assertEquals("published", created.getStatus());
+    }
+
+    private BusinessException createRejected(BizFabushiPost post) {
+        return assertThrows(BusinessException.class, () -> svc.create(post));
     }
 }

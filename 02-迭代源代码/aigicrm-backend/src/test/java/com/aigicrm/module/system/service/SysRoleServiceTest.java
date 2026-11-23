@@ -177,8 +177,7 @@ class SysRoleServiceTest {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
             m.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of(1L));
 
-            assertThrows(BusinessException.class, () -> service.updateOrgs(99L, List.of(10L)),
-                    "未知 roleId 不应可写 role_org");
+            updateOrgsRejected(service, 99L, List.of(10L), "未知 roleId 不应可写 role_org");
             verify(orgMapper, never()).deleteByRoleId(any());
             verify(orgMapper, never()).insert(any(SysRoleOrg.class));
         }
@@ -531,8 +530,7 @@ class SysRoleServiceTest {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
             m.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of(1L));
 
-            assertThrows(BusinessException.class, () -> service.updateOrgs(5L, List.of(10L, 20L)),
-                    "非超管不应可写其他集团角色的组织集");
+            updateOrgsRejected(service, 5L, List.of(10L, 20L), "非超管不应可写其他集团角色的组织集");
             verify(orgMapper, never()).deleteByRoleId(any());
             verify(orgMapper, never()).insert(any(SysRoleOrg.class));
         }
@@ -570,7 +568,7 @@ class SysRoleServiceTest {
             m.when(() -> SecurityUtils.hasAuthority("system:role:grant")).thenReturn(true);
             m.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of(1L));
 
-            assertThrows(BusinessException.class, () -> service.updateOrgs(5L, List.of(10L, 20L)));
+            updateOrgsRejected(service, 5L, List.of(10L, 20L));
             verify(orgMapper, never()).deleteByRoleId(5L);
         }
     }
@@ -592,8 +590,7 @@ class SysRoleServiceTest {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
             m.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of(1L));
 
-            assertThrows(BusinessException.class, () -> service.updateOrgs(5L, List.of(20L)),
-                    "同集团角色也不应可挂其他集团组织");
+            updateOrgsRejected(service, 5L, List.of(20L), "同集团角色也不应可挂其他集团组织");
             // saveRoleOrgs 首行无条件清空(设计), 事务回滚; 核心断言=不写入任何 role_org 行
             verify(orgMapper, never()).insert(any(SysRoleOrg.class));
         }
@@ -612,8 +609,7 @@ class SysRoleServiceTest {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
             m.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of(1L));
 
-            assertThrows(BusinessException.class, () -> service.updateOrgs(5L, List.of(99L)),
-                    "查不到的 org 不应被写入");
+            updateOrgsRejected(service, 5L, List.of(99L), "查不到的 org 不应被写入");
             // saveRoleOrgs 首行无条件清空(设计), 事务回滚; 核心断言=不写入任何 role_org 行
             verify(orgMapper, never()).insert(any(SysRoleOrg.class));
         }
@@ -632,8 +628,7 @@ class SysRoleServiceTest {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
             m.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of(1L));
 
-            assertThrows(BusinessException.class, () -> service.updateOrgs(5L, List.of(20L)),
-                    "includeChildren=1 展开的子树不得含跨集团节点");
+            updateOrgsRejected(service, 5L, List.of(20L), "includeChildren=1 展开的子树不得含跨集团节点");
             verify(orgMapper, never()).insert(any(SysRoleOrg.class));
         }
     }
@@ -675,8 +670,7 @@ class SysRoleServiceTest {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
             m.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of(1L, 2L)); // 调用者可访问双集团
 
-            assertThrows(BusinessException.class, () -> service.updateOrgs(5L, List.of(20L)),
-                    "org 有效集团必须与目标角色集团一致");
+            updateOrgsRejected(service, 5L, List.of(20L), "org 有效集团必须与目标角色集团一致");
             verify(orgMapper, never()).insert(any(SysRoleOrg.class));
         }
     }
@@ -693,8 +687,7 @@ class SysRoleServiceTest {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
             m.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of(1L));
 
-            assertThrows(BusinessException.class, () -> service.updateOrgs(5L, java.util.Arrays.asList((Long) null)),
-                    "orgIds 不应含 null");
+            updateOrgsRejected(service, 5L, java.util.Arrays.asList((Long) null), "orgIds 不应含 null");
             verify(orgMapper, never()).insert(any(SysRoleOrg.class));
         }
     }
@@ -946,5 +939,13 @@ class SysRoleServiceTest {
                     org.mockito.ArgumentMatchers.anyString(),
                     org.mockito.ArgumentMatchers.eq("self"), org.mockito.ArgumentMatchers.eq("OWNER"));
         }
+    }
+
+    private BusinessException updateOrgsRejected(SysRoleService service, Long roleId, java.util.List<Long> orgIds) {
+        return assertThrows(BusinessException.class, () -> service.updateOrgs(roleId, orgIds));
+    }
+
+    private BusinessException updateOrgsRejected(SysRoleService service, Long roleId, java.util.List<Long> orgIds, String message) {
+        return assertThrows(BusinessException.class, () -> service.updateOrgs(roleId, orgIds), message);
     }
 }
