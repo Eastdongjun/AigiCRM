@@ -286,22 +286,20 @@ public class FabushiPostService {
         List<BizFabushiPostAttachment> existing = attachmentMapper.selectList(new LambdaQueryWrapper<BizFabushiPostAttachment>()
                 .eq(BizFabushiPostAttachment::getPostId, postId));
         long sameType = existing.stream().filter(a -> input.fileType().equals(a.getFileType())).count();
-        switch (input.fileType()) {
-            case "image" -> {
-                if (sameType >= maxImage) {
-                    throw new BusinessException(400, isSuishi ? "图片已达上限9张" : "图片已达上限5张");
-                }
-            }
-            case "video" -> {
-                if (sameType >= MAX_VIDEO) throw new BusinessException(400, "视频已达上限5段");
-            }
-            case TYPE_AUDIO -> {
-                if (sameType >= MAX_AUDIO) throw new BusinessException(400, "语音已达上限10段");
-                if (input.durationSeconds() != null && input.durationSeconds() > MAX_AUDIO_SECONDS)
-                    throw new BusinessException(400, "单段语音不得超过60秒");
-            }
-            default -> { /* parseAttachmentInput 已白名单 {image,audio,video}, 不可达 */ }
+        String type = input.fileType();
+        if ("image".equals(type) && sameType >= maxImage) {
+            throw new BusinessException(400, isSuishi ? "图片已达上限9张" : "图片已达上限5张");
         }
+        if ("video".equals(type) && sameType >= MAX_VIDEO) {
+            throw new BusinessException(400, "视频已达上限5段");
+        }
+        if (TYPE_AUDIO.equals(type)) {
+            if (sameType >= MAX_AUDIO) throw new BusinessException(400, "语音已达上限10段");
+            if (input.durationSeconds() != null && input.durationSeconds() > MAX_AUDIO_SECONDS) {
+                throw new BusinessException(400, "单段语音不得超过60秒");
+            }
+        }
+        // 其余类型 parseAttachmentInput 已白名单拦截，不可达。
     }
 
     private List<Map<String, Object>> attachmentData(Long postId) {

@@ -596,6 +596,11 @@ public class PermissionMatrixTest {
         } catch (IOException e) {
             throw new IllegalStateException("读取 FileMutationService 源码失败", e);
         }
+        assertStorageAndShareAclSourceContracts(body, mutationBody);
+    }
+
+
+    private void assertStorageAndShareAclSourceContracts(String body, String mutationBody) throws Exception {
         Path storageSrc = Paths.get("src/main/java/com/aigicrm/module/file/service/FileStorageService.java")
                 .toAbsolutePath().normalize();
         assertTrue(Files.exists(storageSrc), "FileStorageService 源文件不存在: " + storageSrc);
