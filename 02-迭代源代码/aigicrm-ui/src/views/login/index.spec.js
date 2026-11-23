@@ -150,4 +150,26 @@ describe('登录页 B1: 口令不落盘 localStorage', () => {
     expect(localStorage.getItem(PASS_KEY)).toBeNull()
     expectNoPasswordAnywhere(PWD_INIT)
   })
+
+  it('未完成首启向导时登录后进入 /onboarding', async () => {
+    getPublicConfig.mockResolvedValue({ data: {} })
+    login.mockResolvedValue({ data: { token: 'tk-onboard', pwdResetRequired: 0, groupIds: [], currentGroupId: null } })
+    const wrapper = mountLogin()
+    wrapper.vm.form.username = 'spec_user'
+    wrapper.vm.form.password = PWD_LOGIN
+    await wrapper.vm.handleLogin()
+    await flushPromises()
+    expect(push).toHaveBeenCalledWith('/onboarding')
+  })
+
+  it('已完成首启向导时登录后进入 /dashboard', async () => {
+    getPublicConfig.mockResolvedValue({ data: { 'onboarding.completed': 'true' } })
+    login.mockResolvedValue({ data: { token: 'tk-done', pwdResetRequired: 0, groupIds: [], currentGroupId: null } })
+    const wrapper = mountLogin()
+    wrapper.vm.form.username = 'spec_user'
+    wrapper.vm.form.password = PWD_LOGIN
+    await wrapper.vm.handleLogin()
+    await flushPromises()
+    expect(push).toHaveBeenCalledWith('/dashboard')
+  })
 })

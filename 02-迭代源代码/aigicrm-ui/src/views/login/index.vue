@@ -192,7 +192,14 @@ const handleLogin = async () => {
     if (form.rememberPassword) await saveRememberedAuth(form.username, form.password)
     else await clearRememberedAuth()
     ElMessage.success('登录成功')
-    router.push('/dashboard')
+    let target = '/dashboard'
+    try {
+      const cfg = await getPublicConfig()
+      if ((cfg?.data || {})['onboarding.completed'] !== 'true') target = '/onboarding'
+    } catch (e) {
+      // 公开配置不可用时保持默认路径，不阻断登录
+    }
+    router.push(target)
   } catch (e) {
     // 显示后端返回的具体错误（如"用户名或密码错误"）
     const msg = e?.response?.data?.message || e?.message

@@ -43,6 +43,13 @@ const routes = [
     component: () => import('@/views/mp/FabushiUploader.vue'),
     meta: { title: '手机文件上传' }
   },
+  // 【B1 S6.2】首启向导：独立全屏页，已登录即可访问；完成后写 onboarding.completed
+  {
+    path: '/onboarding',
+    name: 'Onboarding',
+    component: () => import('@/views/onboarding/index.vue'),
+    meta: { title: '首次启动向导' }
+  },
   // 【C12 2026-10-08 二轮】404 兜底：深链错误路径不再白屏（catchAll 放最后，不拦截已定义路由）
   {
     path: '/:pathMatch(.*)*',

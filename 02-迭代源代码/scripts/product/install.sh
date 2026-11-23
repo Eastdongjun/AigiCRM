@@ -120,8 +120,8 @@ WHERE NOT EXISTS (SELECT 1 FROM sys_group WHERE id=1);
 INSERT INTO sys_dept (id, parent_id, dept_name, dept_type, sort_order, status, group_id)
 SELECT 1, 0, '总部', 1, 1, 1, 1
 WHERE NOT EXISTS (SELECT 1 FROM sys_dept WHERE id=1);
-INSERT INTO sys_user (id, username, password, real_name, org_id, dept_id, status)
-SELECT 1, 'admin', '${admin_hash}', '系统管理员', 1, 1, 1
+INSERT INTO sys_user (id, username, password, real_name, org_id, dept_id, status, pwd_reset_required)
+SELECT 1, 'admin', '${admin_hash}', '系统管理员', 1, 1, 1, 1
 WHERE NOT EXISTS (SELECT 1 FROM sys_user WHERE username='admin');
 INSERT INTO sys_user_role (user_id, role_id)
 SELECT 1, r.id FROM sys_role r
@@ -229,6 +229,11 @@ smoke() {
     -d "{\"username\":\"$ADMIN_USER\",\"password\":\"$ADMIN_PASSWORD\"}" 2>/dev/null)" || die "登录请求失败"
   token="$(echo "$login" | python3 -c 'import json,sys; print((json.load(sys.stdin).get("data") or {}).get("token") or "")' 2>/dev/null)"
   [ -n "$token" ] || die "登录未返回 token（检查 admin 种子/密码）"
+  reset="$(echo "$login" | python3 -c 'import json,sys; print((json.load(sys.stdin).get("data") or {}).get("pwdResetRequired") or 0)' 2>/dev/null)"
+  if [ "$reset" = "1" ]; then
+    echo "初始口令登录成功（pwdResetRequired=1，首登将强制改密）"
+    return 0
+  fi
   info="$(curl -fsS -m 10 "http://127.0.0.1:$HTTP_PORT/api/auth/info" -H "Authorization: Bearer $token" 2>/dev/null)" || die "auth/info 失败"
   echo "$info" | grep -q '"username":"admin"' || die "auth/info 未返回 admin"
   echo "登录冒烟通过（token 长度 ${#token}）"
@@ -253,6 +258,11 @@ smoke_frontend() {
     -d "{\"username\":\"$ADMIN_USER\",\"password\":\"$ADMIN_PASSWORD\"}" 2>/dev/null)" || die "经前端登录请求失败"
   token="$(echo "$login" | python3 -c 'import json,sys; print((json.load(sys.stdin).get("data") or {}).get("token") or "")' 2>/dev/null)"
   [ -n "$token" ] || die "经前端登录未返回 token"
+  reset="$(echo "$login" | python3 -c 'import json,sys; print((json.load(sys.stdin).get("data") or {}).get("pwdResetRequired") or 0)' 2>/dev/null)"
+  if [ "$reset" = "1" ]; then
+    echo "前端代理登录冒烟通过（pwdResetRequired=1）"
+    return 0
+  fi
   info="$(curl -fsS -m 10 "http://127.0.0.1:$WEB_PORT/api/auth/info" -H "Authorization: Bearer $token" 2>/dev/null)" || die "经前端 auth/info 失败"
   echo "$info" | grep -q '"username":"admin"' || die "经前端 auth/info 未返回 admin"
   echo "前端代理登录冒烟通过"

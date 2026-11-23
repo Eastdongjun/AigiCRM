@@ -169,7 +169,7 @@ public class SysConfigController {
         java.util.Set<String> publicKeys = java.util.Set.of(
                 "system.name", LIT_SYSTEM_LOGO, "system.subtitle",
                 "customer.protection.days", "customer.warning.days", "customer.adjust.days",
-                "invoice.overdue.days");
+                "invoice.overdue.days", "onboarding.completed");
         for (SysConfig c : all) {
             if (publicKeys.contains(c.getConfigKey())) {
                 result.put(c.getConfigKey(), c.getConfigValue());
