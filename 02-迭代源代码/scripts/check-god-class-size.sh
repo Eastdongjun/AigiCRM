@@ -32,7 +32,7 @@ check FileService \
 check CustomerService \
   "$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/customer/service/CustomerService.java" 800 800
 check IncentiveService \
-  "$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/incentive/service/IncentiveService.java" 800 1836
+  "$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/incentive/service/IncentiveService.java" 800 1676
 
 if [ "$FAIL" -ne 0 ]; then
   echo "❌ God class 行数护栏未通过"

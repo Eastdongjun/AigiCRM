@@ -6,6 +6,7 @@ import com.aigicrm.module.customer.service.CustomerVisibilityService;
 import com.aigicrm.module.file.mapper.BizFileMapper;
 import com.aigicrm.module.incentive.mapper.BizIncentiveCategoryMapper;
 import com.aigicrm.module.incentive.mapper.BizIncentiveRecordMapper;
+import com.aigicrm.module.incentive.service.IncentiveAccessService;
 import com.aigicrm.module.incentive.service.IncentiveService;
 import com.aigicrm.module.system.mapper.SysDeptMapper;
 import com.aigicrm.module.system.mapper.SysUserMapper;
@@ -29,7 +30,9 @@ public final class IncentiveServiceFixture {
             OrgScopeResolver scopeResolver,
             CustomerVisibilityService customerVisibilityService,
             JdbcTemplate jdbc) {
+        IncentiveAccessService accessService = new IncentiveAccessService(recordMapper, userMapper,
+                customerMapper, customerVisibilityService, jdbc);
         return new IncentiveService(categoryMapper, recordMapper, userMapper, fileMapper, customerMapper,
-                deptMapper, scopeResolver, customerVisibilityService, jdbc);
+                deptMapper, scopeResolver, accessService, jdbc);
     }
 }

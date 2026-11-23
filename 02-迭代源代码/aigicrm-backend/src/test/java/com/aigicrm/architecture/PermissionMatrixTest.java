@@ -1156,17 +1156,20 @@ public class PermissionMatrixTest {
                         && controllerBody.contains("incentiveService.deleteRecord(id)"),
                 "IncentiveController.deleteRecord 必须保留 can_delete/本人记录删除守卫");
 
-        Path serviceSrc = Paths.get("src/main/java/com/aigicrm/module/incentive/service/IncentiveService.java")
+        Path serviceSrc = Paths.get("src/main/java/com/aigicrm/module/incentive/service/IncentiveAccessService.java")
                 .toAbsolutePath().normalize();
-        String serviceBody = readSource(serviceSrc, "IncentiveService");
+        String serviceBody = readSource(serviceSrc, "IncentiveAccessService");
+        Path incentiveSrc = Paths.get("src/main/java/com/aigicrm/module/incentive/service/IncentiveService.java")
+                .toAbsolutePath().normalize();
+        String incentiveBody = readSource(incentiveSrc, "IncentiveService");
         assertTrue(serviceBody.contains("public boolean canEdit()")
                         && serviceBody.contains("grantFlag(SecurityUtils.getCurrentUserId(), \"can_edit\", false)")
                         && serviceBody.contains("public boolean canDelete()")
                         && serviceBody.contains("grantFlag(SecurityUtils.getCurrentUserId(), \"can_delete\", false)")
                         && serviceBody.contains("SELECT can_view_shared, can_view_all, can_edit, can_delete")
-                        && serviceBody.contains("if (row == null) return defaultValue"),
-                "IncentiveService 必须继续从 biz_incentive_grant 实时读取编辑/删除专项授权，并按默认值处理缺失行");
-        assertTrue(serviceBody.contains("private boolean canSeeAllIncentive()")
+                        && serviceBody.contains("if (row.isEmpty()) return defaultValue"),
+                "IncentiveAccessService 必须继续从 biz_incentive_grant 实时读取编辑/删除专项授权，并按默认值处理缺失行");
+        assertTrue(serviceBody.contains("boolean canSeeAllIncentive()")
                         && serviceBody.contains("grantFlag(SecurityUtils.getCurrentUserId(), \"can_view_all\", false)")
                         && serviceBody.contains("grantFlag(SecurityUtils.getCurrentUserId(), \"can_edit\", false)")
                         && serviceBody.contains("grantFlag(SecurityUtils.getCurrentUserId(), \"can_delete\", false)")
@@ -1174,28 +1177,28 @@ public class PermissionMatrixTest {
                         && serviceBody.contains("w.eq(BizIncentiveRecord::getUserId, userId)")
                         && serviceBody.contains("if (canShared) w.or().eq(BizIncentiveRecord::getShared, 1)"),
                 "激励记录可见性必须保留专项授权看全量，否则只看本人和已分享记录");
-        assertTrue(serviceBody.contains("@Transactional")
-                        && serviceBody.contains("public void updateRecord(Long id, BizIncentiveRecord update)")
-                        && serviceBody.contains("if (existing == null) return")
-                        && serviceBody.contains("&& !canEdit())")
-                        && serviceBody.contains("throw new BusinessException(403, \"无权修改记录归属客户\")")
-                        && serviceBody.contains("currentUserId.equals(existing.getUserId())")
-                        && serviceBody.contains("existing.setUpdatedBy(SecurityUtils.getCurrentUserId())")
-                        && serviceBody.contains("existing.setScore(calcScore(existing, category, base))")
-                        && serviceBody.contains("recordMapper.updateById(existing)"),
+        assertTrue(incentiveBody.contains("@Transactional")
+                        && incentiveBody.contains("public void updateRecord(Long id, BizIncentiveRecord update)")
+                        && incentiveBody.contains("if (existing == null) return")
+                        && incentiveBody.contains("&& !canEdit())")
+                        && incentiveBody.contains("throw new BusinessException(403, \"无权修改记录归属客户\")")
+                        && incentiveBody.contains("currentUserId.equals(existing.getUserId())")
+                        && incentiveBody.contains("existing.setUpdatedBy(SecurityUtils.getCurrentUserId())")
+                        && incentiveBody.contains("existing.setScore(calcScore(existing, category, base))")
+                        && incentiveBody.contains("recordMapper.updateById(existing)"),
                 "IncentiveService.updateRecord 必须保持事务、客户归属变更限制、本人分享开关、审计人和积分重算落库");
         // 【死码清理 2026-11-08】recalculateAllScores 已删, updateRecord 区段右边界改锚 addRecord
-        String updateBody = serviceBody.substring(
-                serviceBody.indexOf("public void updateRecord"),
-                serviceBody.indexOf("public void addRecord"));
+        String updateBody = incentiveBody.substring(
+                incentiveBody.indexOf("public void updateRecord"),
+                incentiveBody.indexOf("public void addRecord"));
         assertFalse(updateBody.contains("setUserId("),
                 "激励记录编辑不得重置初始上传人 userId");
         assertFalse(updateBody.contains("setCreatedAt("),
                 "激励记录编辑不得重置初始上传时间 createdAt");
         assertFalse(updateBody.contains("setCategoryId("),
                 "激励记录编辑不得改写初始积分分类 categoryId");
-        assertTrue(serviceBody.contains("public void deleteRecord(Long id)")
-                        && serviceBody.contains("recordMapper.deleteById(id)"),
+        assertTrue(incentiveBody.contains("public void deleteRecord(Long id)")
+                        && incentiveBody.contains("recordMapper.deleteById(id)"),
                 "IncentiveService.deleteRecord 只执行删除动作，越权判定必须留在 Controller 方法内守卫");
     }
 

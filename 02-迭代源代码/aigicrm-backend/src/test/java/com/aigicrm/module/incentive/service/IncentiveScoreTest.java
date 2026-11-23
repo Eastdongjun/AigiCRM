@@ -205,7 +205,7 @@ class IncentiveScoreTest {
 
         IncentiveService service = newService(mock(BizIncentiveCategoryMapper.class),
                 jdbcWithRow(null, true, false, false));
-        assertTrue(service.canViewAll(5L));
+        assertTrue(service.canViewAll());
         assertFalse(service.canEdit());
         assertFalse(service.canDelete());
     }
@@ -219,7 +219,7 @@ class IncentiveScoreTest {
         setCurrentUser(u);
 
         IncentiveService service = newService(mock(BizIncentiveCategoryMapper.class), jdbcWithoutRow());
-        assertTrue(service.canViewShared(5L), "无记录应默认可查看已分享记录");
+        assertTrue(service.canViewShared(), "无记录应默认可查看已分享记录");
     }
 
     @Test
@@ -232,6 +232,6 @@ class IncentiveScoreTest {
 
         IncentiveService service = newService(mock(BizIncentiveCategoryMapper.class),
                 jdbcWithRow(false, null, null, null));
-        assertFalse(service.canViewShared(5L), "授权行 can_view_shared=0 应拒绝查看已分享");
+        assertFalse(service.canViewShared(), "授权行 can_view_shared=0 应拒绝查看已分享");
     }
 }

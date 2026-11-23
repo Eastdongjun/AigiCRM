@@ -194,8 +194,8 @@ public class IncentivePermissionController {
     @GetMapping("/check")
     public Result<Map<String, Boolean>> check() {
         Map<String, Boolean> result = new HashMap<>();
-        result.put("canViewAll", incentiveService.canViewAll(null));
-        result.put("canViewShared", incentiveService.canViewShared(null));
+        result.put("canViewAll", incentiveService.canViewAll());
+        result.put("canViewShared", incentiveService.canViewShared());
         result.put("canEdit", incentiveService.canEdit());
         result.put("canDelete", incentiveService.canDelete());
         return Result.ok(result);

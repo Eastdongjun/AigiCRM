@@ -162,10 +162,10 @@ public class PermCenterService {
     private Map<String, Object> buildIncentiveGrant(SecurityUser target) {
         Map<String, Object> grant = new LinkedHashMap<>();
         Map<String, Object> row = incentiveService.grantRow(target.getUserId());
-        grant.put("canViewShared", row == null ? Boolean.TRUE : flag(row, "can_view_shared", true));
-        grant.put("canViewAll", row == null ? Boolean.FALSE : flag(row, "can_view_all", false));
-        grant.put("canEdit", row == null ? Boolean.FALSE : flag(row, "can_edit", false));
-        grant.put("canDelete", row == null ? Boolean.FALSE : flag(row, "can_delete", false));
+        grant.put("canViewShared", row.isEmpty() ? Boolean.TRUE : flag(row, "can_view_shared", true));
+        grant.put("canViewAll", row.isEmpty() ? Boolean.FALSE : flag(row, "can_view_all", false));
+        grant.put("canEdit", row.isEmpty() ? Boolean.FALSE : flag(row, "can_edit", false));
+        grant.put("canDelete", row.isEmpty() ? Boolean.FALSE : flag(row, "can_delete", false));
         return grant;
     }
 
