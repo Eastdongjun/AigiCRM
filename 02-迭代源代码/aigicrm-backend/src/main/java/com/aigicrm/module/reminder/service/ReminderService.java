@@ -195,11 +195,11 @@ public class ReminderService {
     private List<Map<Long, ?>> loadReminderFills(RowIds ids) {
         // 三个回填查询互不依赖 → 并发执行;本页 SQL 由 3×size 条降为 ≤3 条(个位数,要求§1)
         Supplier<Map<Long, ?>> customerFill = () ->
-                batchIdMap(ids.customerIds(), () -> customerMapper.selectBatchIds(ids.customerIds()), BizCustomer::getId);
+                batchIdMap(ids.customerIds(), () -> customerMapper.selectByIds(ids.customerIds()), BizCustomer::getId);
         Supplier<Map<Long, ?>> ownerFill = () ->
-                batchIdMap(ids.ownerIds(), () -> userMapper.selectBatchIds(ids.ownerIds()), SysUser::getId);
+                batchIdMap(ids.ownerIds(), () -> userMapper.selectByIds(ids.ownerIds()), SysUser::getId);
         Supplier<Map<Long, ?>> officeFill = () ->
-                batchIdMap(ids.officeIds(), () -> deptMapper.selectBatchIds(ids.officeIds()), SysDept::getId);
+                batchIdMap(ids.officeIds(), () -> deptMapper.selectByIds(ids.officeIds()), SysDept::getId);
         return supplyConcurrently(List.of(customerFill, ownerFill, officeFill));
     }
 
@@ -393,9 +393,9 @@ public class ReminderService {
                                            LocalDate today) {
         LocalDateTime todayStart = today.atStartOfDay();
         Supplier<Object> deptFill = () ->
-                batchIdMap(officeIds, () -> deptMapper.selectBatchIds(officeIds), SysDept::getId);
+                batchIdMap(officeIds, () -> deptMapper.selectByIds(officeIds), SysDept::getId);
         Supplier<Object> userFill = () ->
-                batchIdMap(ownerIds, () -> userMapper.selectBatchIds(ownerIds), SysUser::getId);
+                batchIdMap(ownerIds, () -> userMapper.selectByIds(ownerIds), SysUser::getId);
         // 原实现逐行取"该客户下 id 最大的一条"(单行查询 + 倒序取首)；
         // 批量版一次取回后内存取每客户 max(id)，结果与逐行版一致。
         Supplier<Object> pendingFill = () -> customerIds.isEmpty() ? Map.<Long, BizReminder>of()

@@ -228,7 +228,7 @@ class CustomerExpireTaskTest {
         real.setId(62L);
         real.setDeleted(0);
         real.setExpireDate(LocalDate.now().plusDays(10));
-        when(customerMapper.selectBatchIds(any())).thenReturn(List.of(pushed, real));
+        when(customerMapper.selectByIds(any())).thenReturn(List.of(pushed, real));
 
         task.checkCustomerExpire();
 
@@ -249,7 +249,7 @@ class CustomerExpireTaskTest {
         orphan.setStatus("pending");
 
         when(reminderMapper.selectList(any())).thenReturn(List.of(orphan));
-        when(customerMapper.selectBatchIds(any())).thenReturn(List.of());
+        when(customerMapper.selectByIds(any())).thenReturn(List.of());
 
         task.checkCustomerExpire();
 

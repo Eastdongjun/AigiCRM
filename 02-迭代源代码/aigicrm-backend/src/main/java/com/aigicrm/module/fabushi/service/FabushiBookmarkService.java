@@ -64,7 +64,7 @@ public class FabushiBookmarkService {
                 .orderByDesc(BizFabushiBookmark::getCreatedAt)
                 .orderByDesc(BizFabushiBookmark::getId));
         if (rows.isEmpty()) return List.of();
-        Map<Long, String> titles = bookMapper.selectBatchIds(
+        Map<Long, String> titles = bookMapper.selectByIds(
                         rows.stream().map(BizFabushiBookmark::getBookId).distinct().toList())
                 .stream().collect(java.util.stream.Collectors.toMap(
                         com.aigicrm.module.fabushi.entity.BizFabushiBook::getId,

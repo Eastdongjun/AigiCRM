@@ -40,7 +40,7 @@ public class FabushiActivityService {
                         .eq(BizFabushiActivityJoin::getUserId, uid).in(BizFabushiActivityJoin::getActivityId, ids))
                 .stream().map(BizFabushiActivityJoin::getActivityId).collect(Collectors.toSet());
         Set<Long> bookIds = rows.stream().map(BizFabushiActivity::getBookId).collect(Collectors.toSet());
-        Map<Long, String> titles = bookIds.isEmpty() ? Collections.emptyMap() : bookMapper.selectBatchIds(bookIds).stream()
+        Map<Long, String> titles = bookIds.isEmpty() ? Collections.emptyMap() : bookMapper.selectByIds(bookIds).stream()
                 .collect(Collectors.toMap(b -> b.getId(), b -> b.getTitle()));
         List<Map<String, Object>> records = rows.stream().map(a -> {
             Map<String, Object> m = new LinkedHashMap<>();

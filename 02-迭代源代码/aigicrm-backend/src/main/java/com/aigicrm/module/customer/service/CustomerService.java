@@ -419,7 +419,7 @@ public class CustomerService {
         List<Map<String, Object>> officeList = new ArrayList<>();
         Map<Long, String> officeNames = new HashMap<>();
         if (!officeStats.isEmpty()) {
-            for (var dept : deptMapper.selectBatchIds(officeStats.keySet())) {
+            for (var dept : deptMapper.selectByIds(officeStats.keySet())) {
                 officeNames.put(dept.getId(), dept.getDeptName());
             }
         }

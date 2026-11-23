@@ -154,7 +154,7 @@ class FabushiMonthlyReportTest {
             SysDept d10 = new SysDept();
             d10.setId(10L);
             d10.setDeptName("太原一部");
-            when(deptMapper.selectBatchIds(anyCollection())).thenReturn(List.of(d10));
+            when(deptMapper.selectByIds(anyCollection())).thenReturn(List.of(d10));
 
             // 【2026-11-16 审计修复】固定时间：原 LocalDateTime.now() 在 23 点后 plusHours(1) 跨日，
             // readDays 由 2 变 3（测试时间依赖，曾在夜间随机红）。

@@ -379,7 +379,7 @@ public class ScoreService {
 
     private Map<Long, String> userNames(Set<Long> userIds) {
         Map<Long, String> userNames = new HashMap<>();
-        for (SysUser u : userMapper.selectBatchIds(userIds)) {
+        for (SysUser u : userMapper.selectByIds(userIds)) {
             userNames.put(u.getId(), u.getRealName());
         }
         return userNames;

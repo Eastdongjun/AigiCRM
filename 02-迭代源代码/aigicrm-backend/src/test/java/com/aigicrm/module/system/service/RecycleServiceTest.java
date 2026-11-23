@@ -149,7 +149,7 @@ class RecycleServiceTest {
         SysDept dept = new SysDept();
         dept.setId(30L);
         dept.setDeptName("销售一部");
-        when(deptMapper.selectBatchIds(anyCollection())).thenReturn(List.of(dept));
+        when(deptMapper.selectByIds(anyCollection())).thenReturn(List.of(dept));
 
         RecycleService.PageResult<RecycleService.DeletedUserRow> page = service.deletedUsers(1, 20, "");
 
@@ -278,7 +278,7 @@ class RecycleServiceTest {
         BizFileFolder folder = new BizFileFolder();
         folder.setId(7L);
         folder.setFolderName("公共资料");
-        when(fileFolderMapper.selectBatchIds(anyCollection())).thenReturn(List.of(folder));
+        when(fileFolderMapper.selectByIds(anyCollection())).thenReturn(List.of(folder));
         when(fileService.contentExists(anyString())).thenReturn(true);
 
         RecycleService.PageResult<RecycleService.DeletedFileRow> page = service.deletedFiles(1, 20, "");

@@ -628,7 +628,7 @@ public class RecycleService {
         Map<Long, String> names = new HashMap<>();
         Set<Long> ids = rows.stream().map(SysUser::getDeptId).filter(Objects::nonNull).collect(Collectors.toSet());
         if (ids.isEmpty()) return names;
-        for (SysDept d : deptMapper.selectBatchIds(ids)) {
+        for (SysDept d : deptMapper.selectByIds(ids)) {
             names.put(d.getId(), d.getDeptName());
         }
         return names;
@@ -639,7 +639,7 @@ public class RecycleService {
         Map<Long, String> names = new HashMap<>();
         Set<Long> ids = rows.stream().map(BizFile::getFolderId).filter(Objects::nonNull).collect(Collectors.toSet());
         if (ids.isEmpty()) return names;
-        for (BizFileFolder folder : fileFolderMapper.selectBatchIds(ids)) {
+        for (BizFileFolder folder : fileFolderMapper.selectByIds(ids)) {
             names.put(folder.getId(), folder.getFolderName());
         }
         return names;

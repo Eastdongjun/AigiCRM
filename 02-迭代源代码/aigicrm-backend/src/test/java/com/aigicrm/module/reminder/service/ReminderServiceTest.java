@@ -140,15 +140,15 @@ class ReminderServiceTest {
         customer.setId(11L);
         customer.setCustomerName("客户甲");
         customer.setLastInvoiceDate(LocalDate.now().minusDays(3));
-        when(customerMapper.selectBatchIds(any())).thenReturn(List.of(customer));
+        when(customerMapper.selectByIds(any())).thenReturn(List.of(customer));
         com.aigicrm.module.system.entity.SysUser owner = new com.aigicrm.module.system.entity.SysUser();
         owner.setId(1L);
         owner.setRealName("张销售");
-        when(userMapper.selectBatchIds(any())).thenReturn(List.of(owner));
+        when(userMapper.selectByIds(any())).thenReturn(List.of(owner));
         com.aigicrm.module.system.entity.SysDept dept = new com.aigicrm.module.system.entity.SysDept();
         dept.setId(5L);
         dept.setDeptName("山西办事处");
-        when(deptMapper.selectBatchIds(any())).thenReturn(List.of(dept));
+        when(deptMapper.selectByIds(any())).thenReturn(List.of(dept));
 
         var result = service.page(1, 15, null, null, null, null, null, null);
 
@@ -159,9 +159,9 @@ class ReminderServiceTest {
         assertEquals("张销售", result.getRecords().get(0).getOwnerName());
         assertEquals("山西办事处", result.getRecords().get(1).getOfficeName());
         // 批量化断言: 每维恰好 1 次 selectBatchIds,逐行 selectById 点查为 0(原 3×size 次)
-        verify(customerMapper, times(1)).selectBatchIds(any());
-        verify(userMapper, times(1)).selectBatchIds(any());
-        verify(deptMapper, times(1)).selectBatchIds(any());
+        verify(customerMapper, times(1)).selectByIds(any());
+        verify(userMapper, times(1)).selectByIds(any());
+        verify(deptMapper, times(1)).selectByIds(any());
         verify(customerMapper, never()).selectById(any());
         verify(userMapper, never()).selectById(any());
         verify(deptMapper, never()).selectById(any());
@@ -312,9 +312,9 @@ class ReminderServiceTest {
         BizCustomer living = new BizCustomer();
         living.setId(100L);
         living.setCustomerName("存活客户");
-        when(customerMapper.selectBatchIds(any())).thenReturn(List.of(living));
-        when(userMapper.selectBatchIds(any())).thenReturn(List.of());
-        when(deptMapper.selectBatchIds(any())).thenReturn(List.of());
+        when(customerMapper.selectByIds(any())).thenReturn(List.of(living));
+        when(userMapper.selectByIds(any())).thenReturn(List.of());
+        when(deptMapper.selectByIds(any())).thenReturn(List.of());
 
         com.baomidou.mybatisplus.core.metadata.IPage<BizReminder> result = service.page(1, 15, null, null, null, null, null, null);
         org.junit.jupiter.api.Assertions.assertEquals(1, result.getRecords().size(), "孤儿提醒应被滤除");
@@ -345,7 +345,7 @@ class ReminderServiceTest {
         p.setRecords(List.of(hit));
         when(reminderMapper.selectPage(any(), any())).thenReturn(p);
         // 回填: 客户 11 存活(避免被 F15① 孤儿过滤误伤)
-        when(customerMapper.selectBatchIds(any())).thenReturn(List.of(byName));
+        when(customerMapper.selectByIds(any())).thenReturn(List.of(byName));
 
         var result = service.page(1, 15, null, "平阳", null, null, null, null);
 

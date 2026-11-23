@@ -85,12 +85,12 @@ class FabushiPostDisplayFieldsTest {
         BizFabushiBook book = new BizFabushiBook();
         book.setId(7L);
         book.setTitle("道德经");
-        when(bookMapper.selectBatchIds(any())).thenReturn(List.of(book));
+        when(bookMapper.selectByIds(any())).thenReturn(List.of(book));
 
         BizFabushiSection section = new BizFabushiSection();
         section.setId(3L);
         section.setTitle("第八章 · 上善若水");
-        when(sectionMapper.selectBatchIds(any())).thenReturn(List.of(section));
+        when(sectionMapper.selectByIds(any())).thenReturn(List.of(section));
 
         svc.page(null, 7L, null, false, null, null, 1, 10);
 

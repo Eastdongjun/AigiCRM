@@ -350,7 +350,7 @@ public class CustomerExpireTask {
         if (pendingExpiring.isEmpty()) return;
         java.util.Set<Long> customerIds = pendingExpiring.stream()
                 .map(BizReminder::getCustomerId).collect(java.util.stream.Collectors.toSet());
-        java.util.Map<Long, BizCustomer> customerMap = customerMapper.selectBatchIds(customerIds).stream()
+        java.util.Map<Long, BizCustomer> customerMap = customerMapper.selectByIds(customerIds).stream()
                 .collect(java.util.stream.Collectors.toMap(BizCustomer::getId, c -> c));
         int recycled = 0;
         for (BizReminder reminder : pendingExpiring) {

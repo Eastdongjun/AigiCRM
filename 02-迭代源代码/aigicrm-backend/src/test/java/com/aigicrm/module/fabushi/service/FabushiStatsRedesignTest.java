@@ -103,8 +103,8 @@ class FabushiStatsRedesignTest {
         lenient().when(readStatusMapper.selectList(any())).thenReturn(List.<BizFabushiReadStatus>of());
         lenient().when(settingMapper.selectList(any())).thenReturn(List.<BizFabushiUserSetting>of());
         lenient().when(recitationMapper.selectList(any())).thenReturn(List.<BizFabushiRecitation>of());
-        lenient().when(userMapper.selectBatchIds(any())).thenReturn(List.<SysUser>of());
-        lenient().when(deptMapper.selectBatchIds(any())).thenReturn(List.of());
+        lenient().when(userMapper.selectByIds(any())).thenReturn(List.<SysUser>of());
+        lenient().when(deptMapper.selectByIds(any())).thenReturn(List.of());
         lenient().when(postMapper.selectCount(any())).thenReturn(0L);
         lenient().when(likeMapper.selectCount(any())).thenReturn(0L);
         lenient().when(commentMapper.selectCount(any())).thenReturn(0L);
@@ -145,10 +145,10 @@ class FabushiStatsRedesignTest {
     @SuppressWarnings("unchecked")
     void bookRollup_feedAndUnpublishedExcluded_distinctUsersCountLatest() {
         // 帖 10(published, section 100→book 1) / 11(feed 无 section) / 12(offline, section 101→book 2)
-        when(postMapper.selectBatchIds(any())).thenReturn(List.of(
+        when(postMapper.selectByIds(any())).thenReturn(List.of(
                 post(10L, 100L, "published"), post(11L, null, "published"), post(12L, 101L, "offline")));
-        when(sectionMapper.selectBatchIds(any())).thenReturn(List.of(section(100L, 1L)));
-        when(bookMapper.selectBatchIds(any())).thenReturn(List.of(book(1L, "了凡四训", "tuanduibidu")));
+        when(sectionMapper.selectByIds(any())).thenReturn(List.of(section(100L, 1L)));
+        when(bookMapper.selectByIds(any())).thenReturn(List.of(book(1L, "了凡四训", "tuanduibidu")));
         LocalDateTime t1 = LocalDateTime.now().minusDays(1);
         LocalDateTime t2 = LocalDateTime.now();
         when(readStatusMapper.selectList(any())).thenReturn(List.of(
@@ -157,7 +157,7 @@ class FabushiStatsRedesignTest {
                 read(12L, 5L, t2)));                                          // offline 帖: 排除
         SysUser u5 = user(5L);
         SysUser u6 = user(6L);
-        when(userMapper.selectBatchIds(any())).thenReturn(List.of(u5, u6));
+        when(userMapper.selectByIds(any())).thenReturn(List.of(u5, u6));
         Map<String, Object> data = svc.dashboard("week");
         List<Map<String, Object>> books = (List<Map<String, Object>>) data.get("bookRanking");
         assertEquals(1, books.size(), "仅章节链 PUBLISHED 帖计入(feed/offline 排除)");
@@ -204,7 +204,7 @@ class FabushiStatsRedesignTest {
         rec.setUserId(6L);
         rec.setCreatedAt(now);
         when(recitationMapper.selectList(any())).thenReturn(List.of(rec));
-        when(userMapper.selectBatchIds(any())).thenReturn(List.of(user(5L)));
+        when(userMapper.selectByIds(any())).thenReturn(List.of(user(5L)));
 
         Map<String, Object> data = svc.dashboard("week");
 
@@ -236,9 +236,9 @@ class FabushiStatsRedesignTest {
     @Test
     @SuppressWarnings("unchecked")
     void categoryReads_byReadCountNotPosts() {
-        when(postMapper.selectBatchIds(any())).thenReturn(List.of(post(10L, 100L, "published")));
-        when(sectionMapper.selectBatchIds(any())).thenReturn(List.of(section(100L, 1L)));
-        when(bookMapper.selectBatchIds(any())).thenReturn(List.of(book(1L, "大学", "guoxue")));
+        when(postMapper.selectByIds(any())).thenReturn(List.of(post(10L, 100L, "published")));
+        when(sectionMapper.selectByIds(any())).thenReturn(List.of(section(100L, 1L)));
+        when(bookMapper.selectByIds(any())).thenReturn(List.of(book(1L, "大学", "guoxue")));
         when(readStatusMapper.selectList(any())).thenReturn(List.of(
                 read(10L, 5L, LocalDateTime.now()), read(10L, 5L, LocalDateTime.now().minusDays(1))));
         Map<String, Object> data = svc.dashboard("week");
@@ -320,9 +320,9 @@ class FabushiStatsRedesignTest {
         me.setUsername("NO005");
         sec.when(SecurityUtils::getCurrentUser).thenReturn(me);
         when(postMapper.selectList(any())).thenReturn(List.<BizFabushiPost>of()); // myPosts ids 空
-        when(postMapper.selectBatchIds(any())).thenReturn(List.of(post(10L, 100L, "published"), post(11L, null, "published")));
-        when(sectionMapper.selectBatchIds(any())).thenReturn(List.of(section(100L, 1L)));
-        when(bookMapper.selectBatchIds(any())).thenReturn(List.of(book(1L, "大学", "guoxue")));
+        when(postMapper.selectByIds(any())).thenReturn(List.of(post(10L, 100L, "published"), post(11L, null, "published")));
+        when(sectionMapper.selectByIds(any())).thenReturn(List.of(section(100L, 1L)));
+        when(bookMapper.selectByIds(any())).thenReturn(List.of(book(1L, "大学", "guoxue")));
         when(readStatusMapper.selectList(any())).thenReturn(List.of(
                 read(10L, 5L, LocalDateTime.now()), read(10L, 5L, LocalDateTime.now().minusDays(1)),
                 read(11L, 5L, LocalDateTime.now())));
@@ -339,9 +339,9 @@ class FabushiStatsRedesignTest {
     @Test
     @SuppressWarnings("unchecked")
     void monthly_containsBookRollup() {
-        when(postMapper.selectBatchIds(any())).thenReturn(List.of(post(10L, 100L, "published")));
-        when(sectionMapper.selectBatchIds(any())).thenReturn(List.of(section(100L, 1L)));
-        when(bookMapper.selectBatchIds(any())).thenReturn(List.of(book(1L, "大学", "guoxue")));
+        when(postMapper.selectByIds(any())).thenReturn(List.of(post(10L, 100L, "published")));
+        when(sectionMapper.selectByIds(any())).thenReturn(List.of(section(100L, 1L)));
+        when(bookMapper.selectByIds(any())).thenReturn(List.of(book(1L, "大学", "guoxue")));
         when(readStatusMapper.selectList(any())).thenReturn(List.of(read(10L, 5L, LocalDateTime.now())));
         Map<String, Object> data = svc.monthly(null);
         List<Map<String, Object>> books = (List<Map<String, Object>>) data.get("bookRanking");

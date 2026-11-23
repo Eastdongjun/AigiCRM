@@ -890,7 +890,7 @@ public class StatisticsQueryService {
         }
         if (ownerIds.isEmpty()) return;
         Map<Long, String> nameById = new HashMap<>();
-        for (SysUser u : userMapper.selectBatchIds(ownerIds)) nameById.put(u.getId(), u.getRealName());
+        for (SysUser u : userMapper.selectByIds(ownerIds)) nameById.put(u.getId(), u.getRealName());
         for (BizCustomer c : customers) {
             if (c.getOwnerId() != null) c.setOwnerName(nameById.get(c.getOwnerId()));
         }

@@ -3307,7 +3307,7 @@ class CustomerServiceTest {
         d4.setId(4L); d4.setDeptName("Office4");
         com.aigicrm.module.system.entity.SysDept d5 = new com.aigicrm.module.system.entity.SysDept();
         d5.setId(5L); d5.setDeptName("Office5");
-        when(dm.selectBatchIds(any())).thenReturn(List.of(d4, d5));
+        when(dm.selectByIds(any())).thenReturn(List.of(d4, d5));
         CustomerService svc = com.aigicrm.module.customer.service.support.CustomerServiceFixture.create(
                 cm, mock(CustomerVisibilityService.class), mock(BizCustomerLogMapper.class),
                 mock(BizInvoiceMapper.class), mock(BizCustomerShareMapper.class),
@@ -3328,7 +3328,7 @@ class CustomerServiceTest {
             assertEquals(3, res.get("total"));
             assertEquals(2L, ((Map<?, ?>) res.get("industryStats")).get("A"));
             assertEquals(1L, ((Map<?, ?>) res.get("industryStats")).get("未填写"));
-            verify(dm, times(1)).selectBatchIds(any());
+            verify(dm, times(1)).selectByIds(any());
             verify(dm, never()).selectById(any());
         }
     }

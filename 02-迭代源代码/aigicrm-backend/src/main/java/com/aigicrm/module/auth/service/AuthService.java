@@ -151,7 +151,7 @@ public class AuthService {
     private java.util.Map<Long, String> loadGroupNames(java.util.List<Long> groupIds) {
         java.util.Map<Long, String> names = new java.util.LinkedHashMap<>();
         if (groupIds == null || groupIds.isEmpty()) return names;
-        for (SysGroup g : groupMapper.selectBatchIds(groupIds)) {
+        for (SysGroup g : groupMapper.selectByIds(groupIds)) {
             if (g != null && g.getGroupName() != null) names.put(g.getId(), g.getGroupName());
         }
         return names;

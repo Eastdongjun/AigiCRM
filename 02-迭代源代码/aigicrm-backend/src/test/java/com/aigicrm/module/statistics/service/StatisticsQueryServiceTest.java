@@ -275,7 +275,7 @@ class StatisticsQueryServiceTest {
         u7.setId(7L); u7.setRealName("张三");
         com.aigicrm.module.system.entity.SysUser u8 = new com.aigicrm.module.system.entity.SysUser();
         u8.setId(8L); u8.setRealName("李四");
-        when(userMapper.selectBatchIds(org.mockito.ArgumentMatchers.anyCollection())).thenReturn(List.of(u7, u8));
+        when(userMapper.selectByIds(org.mockito.ArgumentMatchers.anyCollection())).thenReturn(List.of(u7, u8));
 
         try (MockedStatic<SecurityUtils> security = org.mockito.Mockito.mockStatic(SecurityUtils.class)) {
             security.when(SecurityUtils::getCurrentUserId).thenReturn(7L);
@@ -322,7 +322,7 @@ class StatisticsQueryServiceTest {
         var owner = new com.aigicrm.module.system.entity.SysUser();
         owner.setId(7L);
         owner.setRealName("本人");
-        when(userMapper.selectBatchIds(org.mockito.ArgumentMatchers.<java.util.Collection<Long>>any()))
+        when(userMapper.selectByIds(org.mockito.ArgumentMatchers.<java.util.Collection<Long>>any()))
                 .thenReturn(List.of(owner));
         // 客户可见范围=仅 500(999 在范围外, 即使记录 shared=1 也不进排行)
         when(customerService.getAllActiveCustomers()).thenReturn(List.of(visibleCustomer));

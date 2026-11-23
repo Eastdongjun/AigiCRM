@@ -199,7 +199,7 @@ public class FabushiDashboardService {
         Map<Long, List<ResolvedRead>> byBook = resolved.stream()
                 .collect(Collectors.groupingBy(ResolvedRead::bookId));
         Map<Long, BizFabushiBook> books = byBook.keySet().isEmpty() ? Collections.emptyMap()
-                : bookMapper.selectBatchIds(byBook.keySet()).stream()
+                : bookMapper.selectByIds(byBook.keySet()).stream()
                 .collect(Collectors.toMap(BizFabushiBook::getId, b -> b));
         List<Map<String, Object>> rows = byBook.entrySet().stream()
                 .map(e -> {
@@ -226,11 +226,11 @@ public class FabushiDashboardService {
     private List<ResolvedRead> resolveReadsToBooks(List<BizFabushiReadStatus> reads) {
         if (reads.isEmpty()) return List.of();
         Set<Long> postIds = reads.stream().map(BizFabushiReadStatus::getPostId).collect(Collectors.toSet());
-        Map<Long, BizFabushiPost> posts = postMapper.selectBatchIds(postIds).stream()
+        Map<Long, BizFabushiPost> posts = postMapper.selectByIds(postIds).stream()
                 .filter(p -> LIT_PUBLISHED.equals(p.getStatus()) && p.getSectionId() != null)
                 .collect(Collectors.toMap(BizFabushiPost::getId, p -> p));
         if (posts.isEmpty()) return List.of();
-        Map<Long, Long> sectionBook = sectionMapper.selectBatchIds(posts.values().stream()
+        Map<Long, Long> sectionBook = sectionMapper.selectByIds(posts.values().stream()
                         .map(BizFabushiPost::getSectionId).collect(Collectors.toSet())).stream()
                 .filter(s -> s.getBookId() != null)
                 .collect(Collectors.toMap(BizFabushiSection::getId, BizFabushiSection::getBookId));
@@ -247,7 +247,7 @@ public class FabushiDashboardService {
     /** 类别已读口径(§二-3): 书目 rollup 按 category 再聚合已读人次; 行: categoryCode/categoryName/readCount。 */
     private List<Map<String, Object>> buildCategoryReads(BookReadRollup rollup) {
         Map<Long, BizFabushiBook> books = rollup.resolvedReads().isEmpty() ? Collections.emptyMap()
-                : bookMapper.selectBatchIds(rollup.resolvedReads().stream()
+                : bookMapper.selectByIds(rollup.resolvedReads().stream()
                         .map(ResolvedRead::bookId).collect(Collectors.toSet())).stream()
                 .collect(Collectors.toMap(BizFabushiBook::getId, b -> b));
         Map<String, String> catNames = categoryNames();
@@ -550,11 +550,11 @@ public class FabushiDashboardService {
         candidateIds.remove(null);
         List<Map<String, Object>> ranking = new ArrayList<>();
         if (candidateIds.isEmpty()) return ranking;
-        Map<Long, SysUser> users = userMapper.selectBatchIds(candidateIds).stream()
+        Map<Long, SysUser> users = userMapper.selectByIds(candidateIds).stream()
                 .collect(Collectors.toMap(SysUser::getId, u -> u));
         Set<Long> deptIds = users.values().stream().map(SysUser::getDeptId).filter(Objects::nonNull).collect(Collectors.toSet());
         Map<Long, String> depts = deptIds.isEmpty() ? Collections.emptyMap()
-                : deptMapper.selectBatchIds(deptIds).stream()
+                : deptMapper.selectByIds(deptIds).stream()
                 .collect(Collectors.toMap(SysDept::getId, SysDept::getDeptName));
         long maxPost = postCount.values().stream().mapToLong(Long::longValue).max().orElse(1);
         for (Long uid : candidateIds) {
@@ -615,13 +615,13 @@ public class FabushiDashboardService {
     private List<SysUser> loadDeptMembers(Set<Long> visible) {
         return (visible == null)
                 ? userMapper.selectList(new LambdaQueryWrapper<SysUser>().select(SysUser::getId, SysUser::getDeptId, SysUser::getRealName))
-                : userMapper.selectBatchIds(visible);
+                : userMapper.selectByIds(visible);
     }
 
     private Map<Long, String> deptNameMap(List<SysUser> members) {
         Set<Long> deptIds = members.stream().map(SysUser::getDeptId).filter(Objects::nonNull).collect(Collectors.toSet());
         return deptIds.isEmpty() ? Collections.emptyMap()
-                : deptMapper.selectBatchIds(deptIds).stream()
+                : deptMapper.selectByIds(deptIds).stream()
                 .collect(Collectors.toMap(SysDept::getId, SysDept::getDeptName, (a, b) -> a));
     }
 

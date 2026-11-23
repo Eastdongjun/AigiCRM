@@ -211,17 +211,17 @@ public class FabushiStatsService {
         if (reads.isEmpty()) return null;
         Set<Long> postIds = reads.stream()
                 .map(com.aigicrm.module.fabushi.entity.BizFabushiReadStatus::getPostId).collect(Collectors.toSet());
-        Map<Long, Long> postSection = postMapper.selectBatchIds(postIds).stream()
+        Map<Long, Long> postSection = postMapper.selectByIds(postIds).stream()
                 .filter(p -> LIT_PUBLISHED.equals(p.getStatus()) && p.getSectionId() != null)
                 .collect(Collectors.toMap(BizFabushiPost::getId, BizFabushiPost::getSectionId));
         if (postSection.isEmpty()) return null;
-        Map<Long, Long> sectionBook = sectionMapper.selectBatchIds(new HashSet<>(postSection.values())).stream()
+        Map<Long, Long> sectionBook = sectionMapper.selectByIds(new HashSet<>(postSection.values())).stream()
                 .filter(s -> s.getBookId() != null)
                 .collect(Collectors.toMap(com.aigicrm.module.fabushi.entity.BizFabushiSection::getId,
                         com.aigicrm.module.fabushi.entity.BizFabushiSection::getBookId));
         Set<Long> bookIds = postSection.values().stream().map(sectionBook::get).filter(Objects::nonNull).collect(Collectors.toSet());
         if (bookIds.isEmpty()) return null;
-        Map<Long, String> bookCategory = bookMapper.selectBatchIds(bookIds).stream()
+        Map<Long, String> bookCategory = bookMapper.selectByIds(bookIds).stream()
                 .filter(b -> b.getCategoryCode() != null)
                 .collect(Collectors.toMap(com.aigicrm.module.fabushi.entity.BizFabushiBook::getId,
                         com.aigicrm.module.fabushi.entity.BizFabushiBook::getCategoryCode));

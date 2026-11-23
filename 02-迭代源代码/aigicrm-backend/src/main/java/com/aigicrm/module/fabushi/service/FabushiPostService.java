@@ -310,7 +310,7 @@ public class FabushiPostService {
                 .orderByAsc(BizFabushiPostAttachment::getSortOrder));
         if (rows.isEmpty()) return List.of();
         Set<Long> fileIds = rows.stream().map(BizFabushiPostAttachment::getFileId).collect(Collectors.toSet());
-        Map<Long, BizFile> files = fileMapper.selectBatchIds(fileIds).stream().collect(Collectors.toMap(BizFile::getId, f -> f));
+        Map<Long, BizFile> files = fileMapper.selectByIds(fileIds).stream().collect(Collectors.toMap(BizFile::getId, f -> f));
         return rows.stream().map(row -> {
             BizFile file = files.get(row.getFileId());
             Map<String, Object> m = new LinkedHashMap<>();
@@ -560,7 +560,7 @@ public class FabushiPostService {
                 .orderByAsc(BizFabushiComment::getCreatedAt));
         if (!comments.isEmpty()) {
             Set<Long> uids = comments.stream().map(BizFabushiComment::getUserId).collect(Collectors.toSet());
-            Map<Long, String> names = userMapper.selectBatchIds(uids).stream()
+            Map<Long, String> names = userMapper.selectByIds(uids).stream()
                     .collect(Collectors.toMap(SysUser::getId, SysUser::getRealName, (a, b) -> a));
             comments.forEach(c -> c.setUserName(names.get(c.getUserId())));
         }
@@ -652,7 +652,7 @@ public class FabushiPostService {
         }
         Set<Long> postIds = posts.stream().map(BizFabushiPost::getId).collect(Collectors.toSet());
         Set<Long> userIds = posts.stream().map(BizFabushiPost::getUserId).collect(Collectors.toSet());
-        Map<Long, String> names = userMapper.selectBatchIds(userIds).stream()
+        Map<Long, String> names = userMapper.selectByIds(userIds).stream()
                 .collect(Collectors.toMap(SysUser::getId, SysUser::getRealName, (a, b) -> a));
 
         List<BizFabushiLike> likeRows = likeMapper.selectList(new LambdaQueryWrapper<BizFabushiLike>()
@@ -676,12 +676,12 @@ public class FabushiPostService {
         Set<Long> bookIds = posts.stream().map(BizFabushiPost::getBookId)
                 .filter(Objects::nonNull).collect(Collectors.toSet());
         Map<Long, String> bookTitles = bookIds.isEmpty() ? Collections.emptyMap()
-                : bookMapper.selectBatchIds(bookIds).stream()
+                : bookMapper.selectByIds(bookIds).stream()
                 .collect(Collectors.toMap(BizFabushiBook::getId, BizFabushiBook::getTitle, (a, b) -> a));
         Set<Long> sectionIds = posts.stream().map(BizFabushiPost::getSectionId)
                 .filter(Objects::nonNull).collect(Collectors.toSet());
         Map<Long, String> sectionTitles = sectionIds.isEmpty() ? Collections.emptyMap()
-                : sectionMapper.selectBatchIds(sectionIds).stream()
+                : sectionMapper.selectByIds(sectionIds).stream()
                 .collect(Collectors.toMap(BizFabushiSection::getId, BizFabushiSection::getTitle, (a, b) -> a));
 
         for (BizFabushiPost p : posts) {

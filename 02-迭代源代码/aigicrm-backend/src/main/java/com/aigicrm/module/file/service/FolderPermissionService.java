@@ -649,7 +649,7 @@ public class FolderPermissionService {
             if (f.getFolderId() != null) folderIds.add(f.getFolderId());
         }
         if (!folderIds.isEmpty()) {
-            for (BizFileFolder ref : folderMapper.selectBatchIds(folderIds)) refCache.put(ref.getId(), ref);
+            for (BizFileFolder ref : folderMapper.selectByIds(folderIds)) refCache.put(ref.getId(), ref);
         }
         // 【Batch-4 #1 按钮视图收口】引擎多动作批量并入：任一模式（legacy 除外）下,
         // 引擎 ALLOW 的动作亮按钮、引擎 DENY 的动作压按钮——与 checkFile 判定 parity。
