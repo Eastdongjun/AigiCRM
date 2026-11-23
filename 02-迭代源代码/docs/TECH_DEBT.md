@@ -106,7 +106,8 @@ cd aigicrm-backend && mvn -q -Dtest=ArchitectureTest test
 ## 租户白名单登记漂移（2026-11-23 评审登记 · CODE-REVIEW-20261123 R1-01 / R2-01）
 
 > 契约：`scripts/check-tenant-table-registry.sh`（2026-11-23 新增，已接入 `dev-verify.sh contracts`）
-> 现状：迁移内存活 `biz_*` 表 28 张，`MybatisPlusConfig.TENANT_TABLES` 登记 42 张，**12 张未登记**（全部为既有漂移）。
+> 现状（2026-11-23 收口后）：迁移内存活 `biz_*` 表 28 张，`MybatisPlusConfig.TENANT_TABLES` 登记 **52 张**，
+> 豁免 2 张（`biz_form_draft` / `biz_incentive_read`，理由见文末），**`PENDING_FIX` 已清空，脚本零 WARN**。
 
 **本次新增代码引入（R1-01）—— ✅ 2026-11-23 已闭合**
 
@@ -122,7 +123,7 @@ cd aigicrm-backend && mvn -q -Dtest=ArchitectureTest test
 
 **补列成本说明**：本表尚未上生产（生产实测落后 5 个迁移 / 缺 3 张新表，见部署文档 §2），此刻补列**零回填**；若等生产上线后再补，就要 ALTER 有数据的表。
 
-**验证**：163 迁移在 `utf8mb4_general_ci` 与 `utf8mb4_0900_ai_ci` 两种库下各重放一次全成功；42 张白名单表 `tenant_id` 列齐全（等价于生产 `verifyTenantColumns` 启动自检通过）。
+**验证**：163 迁移在 `utf8mb4_general_ci` 与 `utf8mb4_0900_ai_ci` 两种库下各重放一次全成功；52 张白名单表 `tenant_id` 列齐全（等价于生产 `verifyTenantColumns` 启动自检通过）。
 
 ---
 
@@ -145,13 +146,76 @@ cd aigicrm-backend && mvn -q -Dtest=ArchitectureTest test
 
 ---
 
-**既有漂移（R2-01，非本次引入，需逐表决策）**
+**既有漂移（R2-01）—— ✅ 2026-11-23 已闭合（12 张全部收口）**
 
-`biz_file_grant`（有列）、`biz_file_link`、`biz_file_version`、`biz_folder_type_default`、
-`biz_form_draft`（无列）、`biz_incentive_read`、`biz_lifecycle_item`（有列）、
-`biz_lifecycle_request`、`biz_recycle_bin`（有列）、`biz_sea_config_region`、
-`biz_sea_config_scope`、`biz_upload_session`（有列）
+12 张逐表取证后分两类处置。取证方法：迁移块级判定（`CREATE TABLE`/`ALTER TABLE` 块内是否有
+`tenant_id`）＋ 测试库 `information_schema` 列定义 ＋ 行数据 `tenant_id` 分布 ＋ 代码访问路径盘点。
 
-**风险**：生产强制 `aigicrm.tenant.enable=true`，未登记表**写入不被插件补租户、恒落默认 1**，
-隔离列失真；查询不被租户过滤。同类历史事故：H4 `biz_customer_stage_amount` 漏白名单。
-**关闭条件**：逐表给出「登记 / 豁免」结论并落代码；确认无遗漏后清空 `check-tenant-table-registry.sh` 的 `PENDING_FIX`。
+| 表 | 库中 tenant_id | 存量行数 / 取值 | 访问路径 | 处置 |
+|---|---|---|---|---|
+| `biz_file_grant` | `NOT NULL DEFAULT 1` | 178 行 / 仅 `1` | MP 实体 + 注解 SQL；业务层另显式过滤 | **登记** |
+| `biz_file_link` | `NOT NULL DEFAULT 1` | 0 行 | **代码零引用** | **登记**（防照抄） |
+| `biz_file_version` | `NOT NULL DEFAULT 1` | 0 行 | MP 实体 + 3 条平铺 `@Select` | **登记** |
+| `biz_folder_type_default` | `NOT NULL DEFAULT 1` | 62 行 / 仅 `1` | MP 实体 | **登记** |
+| `biz_lifecycle_item` | `NOT NULL DEFAULT 1` | 0 行 | JdbcTemplate（`LifecycleService`） | **登记** |
+| `biz_lifecycle_request` | `NOT NULL DEFAULT 1` | 0 行 | JdbcTemplate（`LifecycleService`） | **登记** |
+| `biz_recycle_bin` | `NOT NULL DEFAULT 1` | 29 行 / 仅 `1` | JdbcTemplate（`RecycleBinService`/`RecycleService`） | **登记** |
+| `biz_sea_config_region` | `NOT NULL DEFAULT 1` | 4 行 / 仅 `1` | **代码零引用**（已被带 JSON 列的 `biz_sea_config` 取代） | **登记**（防照抄） |
+| `biz_sea_config_scope` | `NOT NULL DEFAULT 1` | 175 行 / 仅 `1` | **代码零引用** | **登记**（防照抄） |
+| `biz_upload_session` | `NOT NULL DEFAULT 1` | 0 行 | JdbcTemplate（`FileChunkUploadService`） | **登记** |
+| `biz_form_draft` | **无此列**，租户维度是 `group_id` | 3 行 | MP 实体 + Mapper | **EXEMPT** |
+| `biz_incentive_read` | **无此列** | 1632 行 | 仅 JdbcTemplate，无 MP 实体/Mapper/XML | **EXEMPT** |
+
+**登记 10 张的安全性依据**：`tenant_id` 取值集合恒为 `{1}`，零 NULL、零其他集团 ⇒ 单集团前提下
+插件追加 `tenant_id=1` 不改变结果集，**无数据可见性变化**。同时纳入 `verifyTenantColumns` 启动自检。
+其中 3 张（`biz_file_link`、`biz_sea_config_region`、`biz_sea_config_scope`）当前无任何代码引用，
+登记属"防下一个人照抄错范式"；确需清理应走 `DROP` 迁移，而不是留在灰区。
+
+**豁免 2 张的理由（不是"不属租户维度"，而是"不适用该插件"）**：
+
+- `biz_form_draft`：租户维度列是 `group_id`。MP 3.5.6 的 `TenantLineHandler#getTenantIdColumn()`
+  是**全局单值**，无法按表切换列名，所以进不了白名单。隔离由业务层保证——
+  `FormDraftService:39/61/104/119` 四处读写全部 `.eq(getGroupId, groupId)`，保存时 `:92 setGroupId`；
+  `FormDraftController:32/40/57/67` 的 `groupId` 取自 `GroupScopeUtil.currentGroupOrNull()`（会话），
+  不取客户端入参，无越权入口。**硬加一个平行 `tenant_id` 列会造出两个租户真相源，比现状更差。**
+- `biz_incentive_read`：无 `tenant_id` 列，且**无任何 MyBatis-Plus 访问路径**（无 `@TableName` 实体、
+  无 Mapper、无 XML、无注解 SQL）。6 处访问全在 JdbcTemplate（`IncentiveService:462/465/1675/1687/1807`、
+  `RecycleService:290/729/1007/1017`），按 `user_id`/`record_id` 归属过滤，两者均来自已被租户隔离的上下文。
+  ⚠️ **诚实说明**：`check-native-sql-tenant-scope.sh` 是**文件级**判定（文件内出现一次 `tenant_id`
+  即整文件合格），`IncentiveService` 通过该门禁**不等于**上面几条语句被逐条限定；此处豁免依据是
+  上面那条归属链路，不是那个脚本。该脚本的粗粒度本身是另一笔待改进项。
+
+**验证**：`bash scripts/check-tenant-table-registry.sh` → `白名单表 52 张`，**零 WARN**，退出码 0；
+新增参数化测试 `MybatisPlusConfigTest#r201DriftTablesAreTenantIsolated`（10 个表逐个断言
+`SELECT` 会被追加 `tenant_id` 条件），防止后续被删回灰区。
+
+**关闭条件**：✅ 已达成——`PENDING_FIX` 清空，`EXEMPT` 有理由与证据，脚本零 WARN。
+
+
+---
+
+## Sonar 质量门未清项（2026-11-23 阶段 5 登记 · R3-01…R3-08）
+
+> 完整证据：`03-阶段/06-测试/02-证据/STAGE5-DEBT-20261123.md`
+> 门禁项目：本地 SonarQube `127.0.0.1:19000`，key `Eastdongjun_AigiCRM-local`，门 `AIGICRM-P0-5`
+> 现状：**ERROR**（`new_blocker_violations=1`、`new_bugs=3`、`new_major_violations=290`、
+> `new_security_hotspots_reviewed=0.0`）。本轮已把 BLOCKER 5→1、CRITICAL 15→0、BUG 10→3。
+
+| 单号 | 规则 | 数量 | 为什么不能批量修 |
+|---|---|---|---|
+| R3-01 | `java:S5778` | 129 | 测试 lambda 内多次可能抛异常的调用；需逐例判断哪一次才是被测目标，批量改会把断言目标改错 |
+| R3-02 | `java:S6204` | 54 | `Stream.toList()` 返回**不可变**列表，下游有 `add/remove/sort` 会抛 `UnsupportedOperationException`，须逐处确认可变性 |
+| R3-03 | `java:S1168` | 36 | null→空集合是**契约变更**，调用方现有 null 判断变死代码，须先确认每个调用方语义 |
+| R3-04 | `java:S6809` + `S2229 FileService:1294` | 11+1 | 与 S5.3 God class 拆分同一件事（都要把单文件删除抽成独立 bean）；单独做等于把 `FileService` 改两遍 |
+| R3-05 | `java:S112` | 7 | 需定义专用异常类型并改调用方捕获，属 API 设计变更 |
+| R3-06 | `java:S6863` | 2 | 命中点 `FileController:316/373` 是 `ResponseEntity.notFound().build()`——**明确 404，规则与语义不符**，为消红改 HTTP 语义会伤前端 |
+| R3-07 | 项目 key 收敛 / 新增代码基线 | — | 三处 key 并存（`Eastdongjun_AigiCRM` @SonarCloud、`Eastdongjun_AigiCRM-local` @本地、`aigicrm-backend-local` 陈旧）；且 `new_code_period=PREVIOUS_VERSION` 却从未设 `sonar.projectVersion`，导致全项目存量被算作「新增」 |
+| R3-08 | `java:S1874` `selectBatchIds` | 69 | 机械替换但需同步约 40 处测试 mock（否则 `when(...)` 打不中静默返回 null）；MINOR 不阻断 |
+
+**关闭条件**：逐条给出「已修 / 确认误报并写明理由 / 升为独立需求」的结论后，从本表删除。
+
+**已修不登记（供对照）**：`S3252`×7、`S3516`、`S2447`×3、`S1948`×3、`S2229`×2（`TaskService` 自调用）、
+`S6857`、`S1452`、`S2259`×4、`S3776`、`S2699`、`S1192`×2，共 26 处，明细见证据文档 §2.3。
+
+**环境噪声（非缺陷）**：JaCoCo 0.8.16 对 `net.sf.jsqlparser.parser.CCJSqlParserTokenManager#jjMoveNfa_0`
+报 `MethodTooLargeException`（第三方生成代码方法体超限），插桩跳过该类，影响覆盖率统计完整性。
