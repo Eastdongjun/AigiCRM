@@ -31,7 +31,7 @@ while [ $# -gt 0 ]; do
 done
 
 ENV_FILE="$ROOT/scripts/product/runtime/$PROJECT/.env"
-LOG="$(mktemp /tmp/aigicrm-acceptance.XXXXXX.log)"
+LOG="$(mktemp "${TMPDIR:-/tmp}/aigicrm-acceptance.XXXXXX")"
 trap 'rm -f "$LOG"' EXIT
 FAIL=0
 pass(){ echo "PASS: $1"; }
@@ -66,7 +66,7 @@ bash "$ROOT/scripts/product/install.sh" --apply --build --monitoring \
   --mysql-port "$MYSQL_PORT" --redis-port "$REDIS_PORT" >"$LOG" 2>&1
 if [ $? -ne 0 ]; then
   tail -40 "$LOG" >&2
-  fail "安装失败（日志 $LOG）"
+  fail "安装失败（日志 ${LOG}）"
   exit 1
 fi
 pass "安装（Flyway/种子/health/前端/监控）"
