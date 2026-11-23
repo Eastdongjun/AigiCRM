@@ -228,14 +228,14 @@ migrate() {
 
 seed() {
   echo "== 组织/admin 种子 =="
-  dc exec -T mysql mysql -uroot -p"$DB_PASSWORD" "${DB_NAME:-aigicrm}" < "$RUNTIME_DIR/build/02-seed-org.sql" \
+  dc exec -T mysql mysql --default-character-set=utf8mb4 -uroot -p"$DB_PASSWORD" "${DB_NAME:-aigicrm}" < "$RUNTIME_DIR/build/02-seed-org.sql" \
     || die "种子失败"
 }
 
 seed_demo() {
   [ "$SEED_DEMO" = "1" ] || return 0
   echo "== 演示客户种子（显式 --seed-demo）=="
-  dc exec -T mysql mysql -uroot -p"$DB_PASSWORD" "${DB_NAME:-aigicrm}" < "$ROOT/scripts/product/seed-demo.sql" \
+  dc exec -T mysql mysql --default-character-set=utf8mb4 -uroot -p"$DB_PASSWORD" "${DB_NAME:-aigicrm}" < "$ROOT/scripts/product/seed-demo.sql" \
     || die "演示数据种子失败"
 }
 
@@ -326,6 +326,11 @@ echo "== AIGICRM B1 最小安装 =="
 echo "project=$PROJECT runtime=$RUNTIME_DIR"
 if [ -z "${ENV_FILE:-}" ] || [ ! -r "$ENV_FILE" ]; then gen_env; fi
 load_env
+# 浏览器经 nginx 同源访问 /api 仍会带 Origin；默认按实际 Web 端口放行本机来源
+if [ -z "${CORS_ORIGINS:-}" ]; then
+  CORS_ORIGINS="http://localhost:$WEB_PORT,http://127.0.0.1:$WEB_PORT"
+fi
+export CORS_ORIGINS
 validate_env
 
 if [ "$DOWN" = "1" ]; then
