@@ -2167,7 +2167,7 @@ class CustomerServiceTest {
         try (MockedStatic<SecurityUtils> sec = mockStatic(SecurityUtils.class)) {
             sec.when(SecurityUtils::getCurrentUserId).thenReturn(11L);
             List<Long> ids = assertDoesNotThrow(() ->
-                    ReflectionTestUtils.invokeMethod(service, "getAutoShareOwnerIds"));
+                    ReflectionTestUtils.invokeMethod(com.aigicrm.module.customer.service.support.CustomerServiceFixture.scopeOf(service), "getAutoShareOwnerIds"));
             // 本人(11)命中豁免列表 → 空=不过滤
             assertTrue(ids == null || ids.isEmpty(), "本人命中 users 豁免应返回空(不加过滤), 实际: " + ids);
         }
@@ -2183,7 +2183,7 @@ class CustomerServiceTest {
         try (MockedStatic<SecurityUtils> sec = mockStatic(SecurityUtils.class)) {
             sec.when(SecurityUtils::getCurrentUserId).thenReturn(11L);
             List<Long> ids = assertDoesNotThrow(() ->
-                    ReflectionTestUtils.invokeMethod(service, "getAutoShareOwnerIds"));
+                    ReflectionTestUtils.invokeMethod(com.aigicrm.module.customer.service.support.CustomerServiceFixture.scopeOf(service), "getAutoShareOwnerIds"));
             assertNotNull(ids);
             assertEquals(List.of(11L), ids, "非豁免用户应回落到仅本人, 字符串元素被归一忽略而非抛 ClassCastException");
         }
