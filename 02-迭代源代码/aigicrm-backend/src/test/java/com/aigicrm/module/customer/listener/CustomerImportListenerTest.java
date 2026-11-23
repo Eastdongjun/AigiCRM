@@ -3,7 +3,7 @@ package com.aigicrm.module.customer.listener;
 import com.aigicrm.module.customer.dto.CustomerImportDTO;
 import com.aigicrm.module.customer.dto.CustomerImportResult;
 import com.aigicrm.module.customer.entity.BizCustomer;
-import com.aigicrm.module.customer.service.CustomerService;
+import com.aigicrm.module.customer.service.CustomerWriteService;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -22,7 +22,7 @@ class CustomerImportListenerTest {
 
     @Test
     void missingRegisterDate_importSucceedsWithWarning() {
-        CustomerService service = mock(CustomerService.class);
+        CustomerWriteService service = mock(CustomerWriteService.class);
         when(service.existsByNameGlobal("无日期客户", null)).thenReturn(false);
         doNothing().when(service).create(any(BizCustomer.class));
 
@@ -45,7 +45,7 @@ class CustomerImportListenerTest {
 
     @Test
     void providedRegisterDate_hasNoWarning() {
-        CustomerService service = mock(CustomerService.class);
+        CustomerWriteService service = mock(CustomerWriteService.class);
         when(service.existsByNameGlobal("有日期客户", null)).thenReturn(false);
         doNothing().when(service).create(any(BizCustomer.class));
 

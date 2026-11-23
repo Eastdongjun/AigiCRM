@@ -5,19 +5,19 @@ import com.alibaba.excel.read.listener.ReadListener;
 import com.aigicrm.module.customer.dto.CustomerImportDTO;
 import com.aigicrm.module.customer.dto.CustomerImportResult;
 import com.aigicrm.module.customer.entity.BizCustomer;
-import com.aigicrm.module.customer.service.CustomerService;
+import com.aigicrm.module.customer.service.CustomerWriteService;
 
 import java.time.LocalDate;
 
 public class CustomerImportListener implements ReadListener<CustomerImportDTO> {
 
-    private final CustomerService customerService;
+    private final CustomerWriteService customerService;
     private final Long currentUserId;
     private final Long currentOfficeId;
     private final CustomerImportResult result;
     private int rowNum = 1; // header is row 1
 
-    public CustomerImportListener(CustomerService customerService,
+    public CustomerImportListener(CustomerWriteService customerService,
                                   Long currentUserId, Long currentOfficeId,
                                   CustomerImportResult result) {
         this.customerService = customerService;

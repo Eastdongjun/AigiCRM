@@ -21,6 +21,7 @@ import com.aigicrm.module.customer.service.CustomerQueryService;
 import com.aigicrm.module.customer.service.CustomerScopeService;
 import com.aigicrm.module.customer.service.CustomerService;
 import com.aigicrm.module.customer.service.CustomerVisibilityService;
+import com.aigicrm.module.customer.service.CustomerWriteService;
 import com.aigicrm.module.reminder.mapper.BizReminderMapper;
 import com.aigicrm.module.sea.mapper.BizSeaPoolMapper;
 import com.aigicrm.module.system.mapper.SysDeptMapper;
@@ -71,19 +72,21 @@ public final class CustomerServiceFixture {
         CustomerScopeService scopeService = new CustomerScopeService(configService, rolePermScopeService,
                 scopeResolver, userMapper, deptMapper, customerVisibilityService);
         CustomerQueryService queryService = new CustomerQueryService(customerMapper, shareMapper, userMapper,
-                deptMapper, scopeService);
+                deptMapper, scopeService, jdbc);
         CustomerIndicatorService indicatorService = new CustomerIndicatorService(indicatorMapper,
                 stageAmountMapper, configService);
-        CustomerLifecycleService lifecycleService = new CustomerLifecycleService(configService);
+        CustomerLifecycleService lifecycleService = new CustomerLifecycleService(configService, customerMapper);
         CustomerAuditService auditService = new CustomerAuditService(financeAuditLogMapper);
         CustomerFinanceService financeService = new CustomerFinanceService(invoiceMapper, paymentMapper,
                 customerMapper, userMapper, customerAccessService, indicatorService, contactShareService,
                 customerEventService, lifecycleService, auditService);
-        return new CustomerService(customerMapper, customerLogMapper, invoiceMapper,
-                paymentMapper, stageAmountMapper, seaPoolMapper, userMapper, deptMapper, jdbc, configService,
-                customerAccessService, approvalMapper, customerEventService,
-                contactShareService, scopeService, queryService, indicatorService,
-                lifecycleService, financeService, auditService);
+        CustomerWriteService writeService = new CustomerWriteService(customerMapper, userMapper, deptMapper,
+                seaPoolMapper, approvalMapper, stageAmountMapper, invoiceMapper, paymentMapper, jdbc, configService,
+                customerAccessService, lifecycleService, auditService, contactShareService, scopeService,
+                customerEventService, null);
+        return new CustomerService(customerMapper, customerLogMapper, stageAmountMapper, userMapper,
+                deptMapper, jdbc, contactShareService, scopeService, queryService, indicatorService,
+                lifecycleService, financeService, auditService, writeService);
     }
 
     /** 测试需要反射 auto_share 私有方法时，拿到真实的数据范围 bean。 */

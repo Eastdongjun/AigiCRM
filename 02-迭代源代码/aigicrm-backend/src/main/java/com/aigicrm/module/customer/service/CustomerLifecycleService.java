@@ -1,9 +1,11 @@
 package com.aigicrm.module.customer.service;
 
 import com.aigicrm.module.customer.entity.BizCustomer;
+import com.aigicrm.module.customer.mapper.BizCustomerMapper;
 import com.aigicrm.module.system.service.SysConfigService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 
@@ -16,7 +18,11 @@ import java.time.LocalDate;
 @RequiredArgsConstructor
 public class CustomerLifecycleService {
 
+    private static final String LIT_ACTIVE = "active";
+    private static final String LIT_NORMAL = "normal";
+
     private final SysConfigService configService;
+    private final BizCustomerMapper customerMapper;
 
     /**
      * 【2026-11-02 口径批·用户裁决 A/B】三线取最晚公式:
@@ -62,5 +68,31 @@ public class CustomerLifecycleService {
             }
         }
         return defaultValue;
+    }
+
+    /** 捞取成功后的日期重置：写捞取日期、清零已批延期、按三线公式重算、最近开票日显式置空。 */
+    @Transactional
+    public void applyClaimReset(BizCustomer customer, LocalDate claimDate) {
+        customer.setClaimDate(claimDate);
+        customer.setApprovedExtendDays(0);
+        calculateExpireDates(customer);
+        customerMapper.updateById(customer);
+        customerMapper.update(null, new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<BizCustomer>()
+                .eq(BizCustomer::getId, customer.getId())
+                .set(BizCustomer::getLastInvoiceDate, null));
+    }
+
+    /** 延期审批执行：累加已批延期并按三线公式重算；三线全空时以当天起算。 */
+    @Transactional
+    public void applyExtendApproval(BizCustomer customer, int extendDays) {
+        int accumulated = customer.getApprovedExtendDays() != null ? customer.getApprovedExtendDays() : 0;
+        customer.setApprovedExtendDays(accumulated + extendDays);
+        calculateExpireDates(customer);
+        if (customer.getExpireDate() == null) {
+            customer.setExpireDate(LocalDate.now().plusDays(customer.getApprovedExtendDays()));
+        }
+        customer.setProtectionStatus(LIT_ACTIVE);
+        customer.setStatus(LIT_NORMAL);
+        customerMapper.updateById(customer);
     }
 }

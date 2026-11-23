@@ -112,9 +112,16 @@ class CustomerServiceTest {
     private CustomerService newService(BizInvoiceMapper invoiceMapper, BizPaymentMapper paymentMapper,
                                        BizCustomerMapper customerMapper, OrgScopeResolver resolver,
                                        BizContactMapper contactMapper, CustomerAccessService accessService) {
+        return newService(invoiceMapper, paymentMapper, customerMapper, resolver, contactMapper, accessService, null);
+    }
+
+    private CustomerService newService(BizInvoiceMapper invoiceMapper, BizPaymentMapper paymentMapper,
+                                       BizCustomerMapper customerMapper, OrgScopeResolver resolver,
+                                       BizContactMapper contactMapper, CustomerAccessService accessService,
+                                       CustomerVisibilityService customerVisibilityService) {
         return com.aigicrm.module.customer.service.support.CustomerServiceFixture.create(
                 customerMapper,
-                null,
+                customerVisibilityService,
                 mock(BizCustomerLogMapper.class),
                 invoiceMapper,
                 mock(BizCustomerShareMapper.class),
@@ -194,12 +201,14 @@ class CustomerServiceTest {
         // 判不重名且不触库; 非空集照常走 IN 查询(同时钉住不得借机 fail-open 略过查重)。
         BizCustomerMapper customerMapper = mock(BizCustomerMapper.class);
         when(customerMapper.selectCount(any())).thenReturn(0L);
-        CustomerService svc = spy(newService(mock(BizInvoiceMapper.class), mock(BizPaymentMapper.class),
-                customerMapper, mock(OrgScopeResolver.class)));
-        doReturn(List.of()).when(svc).getCurrentScopeUserIds();
+        CustomerVisibilityService visibility = mock(CustomerVisibilityService.class);
+        when(visibility.visibleOwnerIds()).thenReturn(List.of());
+        CustomerService svc = newService(mock(BizInvoiceMapper.class), mock(BizPaymentMapper.class),
+                customerMapper, mock(OrgScopeResolver.class),
+                mock(BizContactMapper.class), mock(CustomerAccessService.class), visibility);
         assertFalse(svc.existsByName("同名客户"));
         verify(customerMapper, never()).selectCount(any());
-        doReturn(List.of(5L)).when(svc).getCurrentScopeUserIds();
+        when(visibility.visibleOwnerIds()).thenReturn(List.of(5L));
         assertFalse(svc.existsByName("同名客户"));
         verify(customerMapper, times(1)).selectCount(any());
     }

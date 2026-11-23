@@ -4,6 +4,7 @@ import com.aigicrm.module.customer.entity.BizCustomer;
 import com.aigicrm.module.customer.entity.BizCustomerShare;
 import com.aigicrm.module.customer.mapper.BizCustomerMapper;
 import com.aigicrm.module.customer.mapper.BizCustomerShareMapper;
+import com.aigicrm.module.system.entity.SysUser;
 import com.aigicrm.module.system.mapper.SysDeptMapper;
 import com.aigicrm.module.system.mapper.SysUserMapper;
 import com.aigicrm.security.SecurityUtils;
@@ -11,9 +12,11 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -39,6 +42,7 @@ public class CustomerQueryService {
     private final SysUserMapper userMapper;
     private final SysDeptMapper deptMapper;
     private final CustomerScopeService customerScopeService;
+    private final JdbcTemplate jdbc;
 
     private void applyDataScopeAndAutoShare(LambdaQueryWrapper<BizCustomer> wrapper) {
         customerScopeService.applyDataScopeAndAutoShare(wrapper);
@@ -369,4 +373,27 @@ public class CustomerQueryService {
                 .toList();
     }
 
+
+    /** 全量用户下拉：非 admin 一律当前集团成员；无集团归属返回空集。 */
+    public List<Map<String, Object>> getSimpleUserList() {
+        LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<SysUser>()
+                .eq(SysUser::getStatus, 1)
+                .eq(SysUser::getDeleted, 0)
+                .orderByAsc(SysUser::getId);
+        Long g = com.aigicrm.common.scope.GroupScopeUtil.currentGroupOrNull();
+        List<Long> groupMembers = (g == null)
+                ? List.of()
+                : com.aigicrm.common.scope.GroupScopeUtil.userIdsInGroup(jdbc, g);
+        if (groupMembers.isEmpty()) return List.of();
+        wrapper.in(SysUser::getId, groupMembers);
+        List<SysUser> users = userMapper.selectList(wrapper);
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (SysUser u : users) {
+            Map<String, Object> m = new HashMap<>();
+            m.put("id", u.getId());
+            m.put("realName", u.getRealName());
+            result.add(m);
+        }
+        return result;
+    }
 }

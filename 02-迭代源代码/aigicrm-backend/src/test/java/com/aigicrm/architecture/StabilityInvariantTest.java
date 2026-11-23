@@ -134,10 +134,11 @@ class StabilityInvariantTest {
      */
     @Test
     void deletions_leaveAuditTrail() {
-        String src = readSource("com/aigicrm/module/customer/service/CustomerService.java", "CustomerService");
+        String write = readSource("com/aigicrm/module/customer/service/CustomerWriteService.java",
+                "CustomerWriteService");
         String finance = readSource("com/aigicrm/module/customer/service/CustomerFinanceService.java",
                 "CustomerFinanceService");
-        assertTrue(src.contains("logRecordDeletion(\"客户\", \"删除客户\""), "客户删除留痕");
+        assertTrue(write.contains("logRecordDeletion(\"客户\", \"删除客户\""), "客户删除留痕");
         assertTrue(finance.contains("logFinanceDeletion(\"发票\""), "发票删除留痕");
         assertTrue(finance.contains("logFinanceDeletion(\"回款\""), "回款删除留痕");
     }
@@ -153,12 +154,18 @@ class StabilityInvariantTest {
      */
     @Test
     void lastInvoiceDate_singleWriterInService() {
-        String service = readSource("com/aigicrm/module/customer/service/CustomerService.java", "CustomerService");
+        String write = readSource("com/aigicrm/module/customer/service/CustomerWriteService.java",
+                "CustomerWriteService");
         String finance = readSource("com/aigicrm/module/customer/service/CustomerFinanceService.java",
                 "CustomerFinanceService");
+        String lifecycle = readSource("com/aigicrm/module/customer/service/CustomerLifecycleService.java",
+                "CustomerLifecycleService");
         String controller = readSource("com/aigicrm/module/customer/controller/CustomerController.java", "CustomerController");
-        assertEquals(5, countOccurrences(service, "setLastInvoiceDate") + countOccurrences(finance, "setLastInvoiceDate"),
-                "INV-FINANCE-001: CustomerService + CustomerFinanceService 内写点应恰为 5"
+        int writes = countOccurrences(write, "setLastInvoiceDate")
+                + countOccurrences(finance, "setLastInvoiceDate")
+                + countOccurrences(lifecycle, ".set(BizCustomer::getLastInvoiceDate");
+        assertEquals(5, writes,
+                "INV-FINANCE-001: Write/Finance/Lifecycle 内最近开票日实际写点应恰为 5"
                         + "(create 清空/protect 回填/refresh 推导/阶段总额接力/捞取重置置空),多了=出现绕过推导的写入");
         assertEquals(1, countOccurrences(controller, "setLastInvoiceDate"));
         assertEquals(1, countOccurrences(controller, "sample.setLastInvoiceDate"),
