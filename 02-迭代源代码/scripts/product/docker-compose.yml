@@ -61,6 +61,20 @@ services:
       redis:
         condition: service_started
 
+  frontend:
+    build:
+      context: ../../aigicrm-ui
+      dockerfile: Dockerfile
+    image: ${PROJECT_SLUG:-aigicrm}-b1-frontend:local
+    restart: unless-stopped
+    environment:
+      BACKEND_HOST: backend
+    ports:
+      - "127.0.0.1:${WEB_PORT:-18082}:80"
+    depends_on:
+      backend:
+        condition: service_started
+
 volumes:
   mysql-data:
   redis-data:

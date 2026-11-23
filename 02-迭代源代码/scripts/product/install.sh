@@ -9,8 +9,10 @@ COMPOSE="$ROOT/scripts/product/docker-compose.yml"
 PROJECT="aigicrm-product"
 RUNTIME_ROOT="$ROOT/scripts/product/runtime"
 HTTP_PORT=18080
+WEB_PORT=18082
 MYSQL_PORT=13306
 REDIS_PORT=16379
+FRONTEND=1
 APPLY=0
 DRY_ONLY=0
 DOWN=0
@@ -33,6 +35,8 @@ usage() {
                       JWT_SECRET/TENANT_ENABLE=true/ADMIN_USER/ADMIN_PASSWORD）
   --project NAME      Compose 项目名（默认 aigicrm-product）
   --http-port N       后端宿主机端口（默认 18080）
+  --web-port N        前端宿主机端口（默认 18082）
+  --no-frontend       只装后端 API（跳过前端构建/冒烟）
   --mysql-port N      MySQL 宿主机端口（默认 13306）
   --redis-port N      Redis 宿主机端口（默认 16379）
   --jar PATH          后端 jar 路径（默认 target/aigicrm-backend-1.0.0.jar）
@@ -49,6 +53,8 @@ while [ $# -gt 0 ]; do
     --env-file) [ $# -ge 2 ] || { echo "--env-file 缺路径" >&2; exit 2; }; ENV_FILE="$2"; shift 2 ;;
     --project) [ $# -ge 2 ] || { echo "--project 缺值" >&2; exit 2; }; PROJECT="$2"; shift 2 ;;
     --http-port) [ $# -ge 2 ] || { echo "--http-port 缺值" >&2; exit 2; }; HTTP_PORT="$2"; shift 2 ;;
+    --web-port) [ $# -ge 2 ] || { echo "--web-port 缺值" >&2; exit 2; }; WEB_PORT="$2"; shift 2 ;;
+    --no-frontend) FRONTEND=0; shift ;;
     --mysql-port) [ $# -ge 2 ] || { echo "--mysql-port 缺值" >&2; exit 2; }; MYSQL_PORT="$2"; shift 2 ;;
     --redis-port) [ $# -ge 2 ] || { echo "--redis-port 缺值" >&2; exit 2; }; REDIS_PORT="$2"; shift 2 ;;
     --jar) [ $# -ge 2 ] || { echo "--jar 缺路径" >&2; exit 2; }; JAR_PATH="$2"; shift 2 ;;
@@ -63,7 +69,7 @@ RUNTIME_DIR="$RUNTIME_ROOT/$PROJECT"
 if [ -z "$ENV_FILE" ]; then
   ENV_FILE="$RUNTIME_DIR/.env"
 fi
-export RUNTIME_DIR JAR_PATH HTTP_PORT MYSQL_PORT REDIS_PORT
+export RUNTIME_DIR JAR_PATH HTTP_PORT WEB_PORT MYSQL_PORT REDIS_PORT
 
 dc() {
   docker compose -p "$PROJECT" -f "$COMPOSE" --env-file "$ENV_FILE" "$@"
@@ -97,6 +103,7 @@ TENANT_ENABLE=true
 ADMIN_USER=admin
 ADMIN_PASSWORD=$admin_pw
 HTTP_PORT=$HTTP_PORT
+WEB_PORT=$WEB_PORT
 MYSQL_PORT=$MYSQL_PORT
 REDIS_PORT=$REDIS_PORT
 ENVEOF
@@ -154,8 +161,9 @@ preflight() {
   local skip_ports=""
   if dc ps -q 2>/dev/null | grep -q .; then skip_ports="--skip-ports"; fi
   # shellcheck disable=SC2086
-  bash "$ROOT/scripts/product/preflight.sh" --env-file "$ENV_FILE" \
-    --ports "$HTTP_PORT,$MYSQL_PORT,$REDIS_PORT" $skip_ports || die "预检未通过"
+  local ports="$HTTP_PORT,$MYSQL_PORT,$REDIS_PORT"
+  [ "$FRONTEND" = "1" ] && ports="$ports,$WEB_PORT"
+  bash "$ROOT/scripts/product/preflight.sh" --env-file "$ENV_FILE"     --ports "$ports" $skip_ports || die "预检未通过"
 }
 
 build_jar() {
@@ -226,6 +234,30 @@ smoke() {
   echo "登录冒烟通过（token 长度 ${#token}）"
 }
 
+wait_frontend() {
+  local i body
+  for i in $(seq 1 120); do
+    body="$(curl -fsS -m 5 "http://127.0.0.1:$WEB_PORT/" 2>/dev/null || true)"
+    if echo "$body" | grep -q '<div id="app">'; then echo "Frontend ready"; return 0; fi
+    sleep 2
+  done
+  die "前端 120 次探测仍未就绪"
+}
+
+smoke_frontend() {
+  local login token info
+  echo "== 前端代理冒烟 =="
+  curl -fsS -m 10 "http://127.0.0.1:$WEB_PORT/" >/dev/null || die "前端首页不可访问"
+  login="$(curl -fsS -m 10 -X POST "http://127.0.0.1:$WEB_PORT/api/auth/login" \
+    -H 'Content-Type: application/json' \
+    -d "{\"username\":\"$ADMIN_USER\",\"password\":\"$ADMIN_PASSWORD\"}" 2>/dev/null)" || die "经前端登录请求失败"
+  token="$(echo "$login" | python3 -c 'import json,sys; print((json.load(sys.stdin).get("data") or {}).get("token") or "")' 2>/dev/null)"
+  [ -n "$token" ] || die "经前端登录未返回 token"
+  info="$(curl -fsS -m 10 "http://127.0.0.1:$WEB_PORT/api/auth/info" -H "Authorization: Bearer $token" 2>/dev/null)" || die "经前端 auth/info 失败"
+  echo "$info" | grep -q '"username":"admin"' || die "经前端 auth/info 未返回 admin"
+  echo "前端代理登录冒烟通过"
+}
+
 cleanup() {
   if [ "$APPLIED" = "1" ] && [ "$FAIL" != "0" ]; then
     echo "== 失败回滚：停止本次容器（保留数据卷）=="
@@ -256,6 +288,10 @@ if [ "$APPLY" = "0" ]; then
   echo "  4) 组织/admin 种子"
   echo "  5) docker compose up -d backend"
   echo "  6) health + admin 登录冒烟"
+  if [ "$FRONTEND" = "1" ]; then
+    echo "  7) docker compose up -d --build frontend"
+    echo "  8) 前端首页 + 经 /api 代理登录冒烟"
+  fi
   echo "  数据卷保留；失败 down 保留卷。确认后加 --apply。"
   exit 0
 fi
@@ -270,10 +306,16 @@ seed
 dc up -d backend || die "backend 启动失败"
 wait_health
 smoke
+if [ "$FRONTEND" = "1" ]; then
+  dc up -d --build frontend || die "frontend 启动失败"
+  wait_frontend
+  smoke_frontend
+fi
 
 echo
 echo "PASS: 安装完成"
 echo "  API: http://127.0.0.1:$HTTP_PORT"
+if [ "$FRONTEND" = "1" ]; then echo "  Web: http://127.0.0.1:$WEB_PORT"; fi
 echo "  admin: ${ADMIN_USER}（密码在 ${ENV_FILE}，不要提交）"
 echo "  停止: bash $ROOT/scripts/product/install.sh --project $PROJECT --env-file $ENV_FILE --down"
 APPLIED=0
