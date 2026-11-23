@@ -66,10 +66,8 @@ public class FileService {
     private final BizFileMapper fileMapper;
     private final BizFileFolderMapper folderMapper;
     private final BizFileShareMapper fileShareMapper;
-    /** 【V2026.11.14.1 版本历史】replace 归档/版本列表/回滚 */
+    /** 【V2026.11.14.1 版本历史】replace 归档仍在本类（版本读写/回滚在 FileVersionService） */
     private final com.aigicrm.module.file.mapper.BizFileVersionMapper fileVersionMapper;
-    /** 【V2026.11.14.3 P1】版本上限/保留期配置读取 */
-    private final com.aigicrm.module.system.service.SysConfigService configService;
     private final BizIncentiveRecordMapper incentiveRecordMapper;
     private final SysUserMapper userMapper;
     private final FolderPermissionService folderPermissionService;
@@ -88,6 +86,10 @@ public class FileService {
     private final FileStorageService fileStorageService;
     /** S5.3 缩略图生成/缓存独立 bean；本类保留公共委托。 */
     private final FileThumbnailService fileThumbnailService;
+    /** S5.3 激励佐证判定独立 bean；替换/回滚/回收站共用。 */
+    private final FileEvidenceGuard fileEvidenceGuard;
+    /** S5.3 版本列表/下载/回滚/裁剪独立 bean；本类保留公共委托。 */
+    private final FileVersionService fileVersionService;
 
     /** 【2026-11-17 阶段三】视频 5 秒预览：ffmpeg 路径/开关（默认开，失败回退 503，不泄露原文件）。 */
     @Value("${file.video-preview-enabled:true}")
@@ -609,7 +611,7 @@ public class FileService {
         // 【决策5 2026-10-18 用户裁决·佐证锁定】激励计分佐证禁替换:佐证文件(安装前三槽/跟踪槽/旧单槽)
         // 是计分依据(安装前三槽齐全即得分),同 ID 换内容会无声替换计分证据(先传A得分再换B)。
         // 需更新佐证走激励模块"删除后重传"(删除触发重算,分数随新证据重出)。记录表为百级量,全量扫可接受。
-        assertNotIncentiveEvidence(fileId);
+        fileEvidenceGuard.assertNotIncentiveEvidence(fileId);
         String scope = file.getFileScope() != null ? file.getFileScope() : LIT_PRIVATE;
         String newKey = null;
         try {
@@ -700,24 +702,9 @@ public class FileService {
         }
     }
 
-    /** 【决策5 2026-10-18 用户裁决·佐证锁定】fileId 被任一激励记录引用(五槽任一)即为计分佐证,禁替换;
-     *  槽解析与上方共享激励文件的五槽读取同源(getFileIds/Pre/Mid/Post/Track) */
-    private void assertNotIncentiveEvidence(Long fileId) {
-        if (isIncentiveEvidence(fileId)) {
-            throw new BusinessException("该文件是激励计分佐证，不能替换；请在激励模块删除后重新上传（将重新计分）");
-        }
-    }
-
-    /** 【回收站 2026-10-18】文件是否被任一激励记录五槽引用(供彻底删除守卫复用, 与替换守卫同源) */
+    /** 【回收站 2026-10-18】文件是否被任一激励记录五槽引用；判定已移到 FileEvidenceGuard。 */
     public boolean isIncentiveEvidence(Long fileId) {
-        for (BizIncentiveRecord r : incentiveRecordMapper.selectList(new LambdaQueryWrapper<>())) {
-            if (r.getFileIds().contains(fileId) || r.getFilePreIds().contains(fileId)
-                    || r.getFileMidIds().contains(fileId) || r.getFilePostIds().contains(fileId)
-                    || r.getFileTrackIds().contains(fileId)) {
-                return true;
-            }
-        }
-        return false;
+        return fileEvidenceGuard.isIncentiveEvidence(fileId);
     }
 
     // ====== 字节存储（S5.3 语义已移到 FileStorageService，本类保留公共委托） ======
@@ -741,72 +728,7 @@ public class FileService {
 
     // ==================== 【V2026.11.14.1 版本历史】(用户拍板 2026-11-14) ====================
 
-    /** 【V2026.11.14.3 P1】版本上限裁剪: 保留最新 max-per-file 条, 超出旧版删内容+行(引用计数防误删)。
-     *  止住"无限替换=无限磁盘"; 版本计入用户配额为第二版产品决策(本版不改配额口径)。
-     *
-     *  【本次修复 2026-11-14】原实现有两个数据风险:
-     *  ① 在 replace/rollback 事务内直接 deleteStoredContent: 后续配额更新失败回滚时,
-     *     版本行回来了但字节已被删, 历史版本变成坏链接; 改为"事务内只删行, afterCommit 删字节"。
-     *  ② key 等于主行 key / 被同文件其他版本引用时直接 continue, 行不删——max 上限被绕过,
-     *     回滚产生的共享 key 版本会永久堆积; 改为"行始终删, 字节按引用计数决定是否删"。
-     */
-    private void pruneVersionsIfNeeded(Long fileId) {
-        int max = resolveIntConfig("file.version.max-per-file", 20);
-        if (max <= 0) return; // 0/负 = 不限制
-        List<BizFileVersion> all = fileVersionMapper.listByFileId(fileId); // 新→旧
-        if (all.size() <= max) return;
-        BizFile main = fileMapper.selectById(fileId);
-        String mainKey = main != null ? main.getOssKey() : null;
-        for (int i = max; i < all.size(); i++) {
-            BizFileVersion v = all.get(i);
-            String key = v.getOssKey();
-            boolean contentShared = key == null || key.isBlank()
-                    || key.equals(mainKey)
-                    || versionContentReferencedElsewhere(key, fileId, v.getId());
-            // 行必须删: 否则共享 key 的旧版本会让 max-per-file 永远降不下来
-            fileVersionMapper.deleteById(v.getId());
-            if (!contentShared) deleteStoredContentAfterCommit(key);
-        }
-    }
-
-    /** 版本字节是否仍被"当前主行之外"的活跃文件/其他版本引用(含同文件其他版本、其他文件版本)。 */
-    private boolean versionContentReferencedElsewhere(String key, Long fileId, Long excludeVersionId) {
-        Long active = jdbc.queryForObject(
-                "SELECT COUNT(*) FROM biz_file WHERE oss_key = ? AND deleted = 0 AND id <> ?",
-                Long.class, key, fileId);
-        if (active != null && active > 0) return true;
-        Long otherVersion = jdbc.queryForObject(
-                "SELECT COUNT(*) FROM biz_file_version WHERE oss_key = ? AND id <> ?",
-                Long.class, key, excludeVersionId);
-        return otherVersion != null && otherVersion > 0;
-    }
-
-    /** 事务内登记 afterCommit 删除字节; 无事务(直调/单测)时立即删除。 */
-    private void deleteStoredContentAfterCommit(String key) {
-        if (key == null || key.isBlank()) return;
-        if (org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive()) {
-            org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
-                    new org.springframework.transaction.support.TransactionSynchronization() {
-                        @Override
-                        public void afterCommit() {
-                            deleteStoredContent(key);
-                        }
-                    });
-        } else {
-            deleteStoredContent(key);
-        }
-    }
-
-    private int resolveIntConfig(String key, int def) {
-        try {
-            String v = configService.getValue(key);
-            return (v == null || v.isBlank()) ? def : Integer.parseInt(v.trim());
-        } catch (Exception e) {
-            return def;
-        }
-    }
-
-    /** 版本列表行(对外 DTO, 【V2026.11.14.3 P2】不暴露 ossKey/ossUrl——存储路由面不外泄) */
+    /** 版本列表行(对外 DTO, 不暴露 ossKey/ossUrl——存储路由面不外泄) */
     public record VersionRow(Long id, Integer versionNo, Long fileSize, String fileType,
                              String fileName, Long uploadedBy, LocalDateTime createdAt) {
         static VersionRow of(BizFileVersion v) {
@@ -815,76 +737,23 @@ public class FileService {
         }
     }
 
-    /** 版本列表(新→旧)。查看权限=checkFile view; 当前主行不在列表内(它就是"现行版") */
+    // ====== 版本（S5.3 语义已移到 FileVersionService，本类保留公共委托） ======
+
+    void pruneVersionsIfNeeded(Long fileId) {
+        fileVersionService.pruneVersionsIfNeeded(fileId);
+    }
+
     public List<VersionRow> listVersions(Long fileId) {
-        if (fileMapper.selectById(fileId) == null) throw new BusinessException(LIT_X_2);
-        Long userId = SecurityUtils.getCurrentUserId();
-        if (!folderPermissionService.checkFile(fileId, FolderPermissionService.P_VIEW, userId)) {
-            throw new BusinessException(403, LIT_X);
-        }
-        return fileVersionMapper.listByFileId(fileId).stream().map(VersionRow::of).toList();
+        return fileVersionService.listVersions(fileId);
     }
 
-    /** 版本内容下载(字节来自归档行, 与回收站详情下载同一存储通道) */
-    public void downloadVersion(Long fileId, Integer versionNo, jakarta.servlet.http.HttpServletResponse response) {
-        Long userId = SecurityUtils.getCurrentUserId();
-        if (!folderPermissionService.checkFile(fileId, FolderPermissionService.P_DOWNLOAD, userId)) {
-            throw new BusinessException(403, LIT_X);
-        }
-        BizFileVersion v = fileVersionMapper.byVersionNo(fileId, versionNo);
-        if (v == null) throw new BusinessException("版本不存在");
-        if (!contentExists(v.getOssKey())) throw new BusinessException("该版本内容已过保留期清除");
-        writeStoredContent(v.getOssKey(),
-                v.getFileName() != null ? v.getFileName() : "version-" + versionNo, v.getFileType(), response);
+    public void downloadVersion(Long fileId, Integer versionNo,
+                                jakarta.servlet.http.HttpServletResponse response) {
+        fileVersionService.downloadVersion(fileId, versionNo, response);
     }
 
-    /**
-     * 回滚到指定版本(用户拍板"文件版本历史加上"的回滚面): 当前主行内容**先归档**(回滚前的样子不丢),
-     * 再把目标版本内容写回主行(version+1, 配额差额原子调整)。佐证文件禁回滚(与 replace 同一锁定裁决)。
-     */
-    @org.springframework.transaction.annotation.Transactional
     public BizFile rollbackToVersion(Long fileId, Integer versionNo) {
-        BizFile file = fileMapper.selectById(fileId);
-        if (file == null) throw new BusinessException(LIT_X_2);
-        Long userId = SecurityUtils.getCurrentUserId();
-        if (!folderPermissionService.canRollbackVersion(file, userId)) {
-            throw new BusinessException(403, LIT_X);
-        }
-        assertNotIncentiveEvidence(fileId);
-        BizFileVersion v = fileVersionMapper.byVersionNo(fileId, versionNo);
-        if (v == null) throw new BusinessException("版本不存在");
-        if (!contentExists(v.getOssKey())) throw new BusinessException("该版本内容已过保留期清除，无法回滚");
-        int curVersion = file.getVersion() == null ? 1 : file.getVersion();
-        // ① 回滚前的现行内容归档(数据不丢; 与 replace 归档同构)
-        BizFileVersion cur = new BizFileVersion();
-        cur.setTenantId(1L);
-        cur.setFileId(fileId);
-        cur.setVersionNo(curVersion);
-        cur.setOssKey(file.getOssKey());
-        cur.setOssUrl(file.getOssUrl());
-        cur.setFileSize(file.getFileSize());
-        cur.setFileType(file.getFileType());
-        cur.setFileName(file.getFileName());
-        cur.setUploadedBy(userId);
-        fileVersionMapper.insert(cur);
-        // ② 目标版本写回主行(存储对象沿用归档行的 key——它自归档起一直存活)
-        long oldSize = file.getFileSize() != null ? file.getFileSize() : 0L;
-        file.setOssKey(v.getOssKey());
-        file.setOssUrl(v.getOssUrl());
-        file.setFileSize(v.getFileSize());
-        file.setFileType(v.getFileType());
-        file.setVersion(curVersion + 1);
-        file.setReplaceBy(userId);
-        file.setReplacedAt(LocalDateTime.now());
-        fileMapper.updateById(file);
-        evictThumbnailCache(fileId);
-        // 【V2026.11.14.3 P1】回滚归档后同样按上限裁剪
-        pruneVersionsIfNeeded(fileId);
-        if (quotaBearing(file.getFileScope()) && file.getUploaderId() != null) {
-            long newSize = v.getFileSize() != null ? v.getFileSize() : 0L;
-            userMapper.adjustStorageUsed(file.getUploaderId(), newSize - oldSize);
-        }
-        return file;
+        return fileVersionService.rollbackToVersion(fileId, versionNo);
     }
 
     // ==================== 【V2026.11.14.1 批量操作】(用户拍板 2026-11-14) ====================

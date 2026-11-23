@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -243,7 +244,7 @@ class FolderFileVersionBatchTest {
 
     /** 【本次修复】版本裁剪的字节删除必须等到事务提交: 配额更新失败回滚时不能把历史版本字节删掉。 */
     @Test
-    void pruneVersions_deletesContentOnlyAfterCommit() {
+    void pruneVersions_deletesContentOnlyAfterCommit() throws Exception {
         when(configService.getValue("file.version.max-per-file")).thenReturn("1");
         BizFile main = new BizFile();
         main.setId(11L);
@@ -257,16 +258,17 @@ class FolderFileVersionBatchTest {
         when(jdbc.queryForObject(org.mockito.ArgumentMatchers.contains("biz_file_version WHERE oss_key"),
                 eq(Long.class), org.mockito.ArgumentMatchers.anyString(), anyLong())).thenReturn(0L);
 
-        FileService spy = org.mockito.Mockito.spy(svc);
+        java.nio.file.Path oldBytes = root.resolve("old-key");
+        java.nio.file.Files.writeString(oldBytes, "old");
         org.springframework.transaction.support.TransactionSynchronizationManager.initSynchronization();
         try {
-            org.springframework.test.util.ReflectionTestUtils.invokeMethod(spy, "pruneVersionsIfNeeded", 11L);
-            verify(spy, never()).deleteStoredContent("old-key");
+            svc.pruneVersionsIfNeeded(11L);
+            assertTrue(java.nio.file.Files.exists(oldBytes), "事务内不得提前删除历史版本字节");
             assertTrue(org.springframework.transaction.support.TransactionSynchronizationManager
                     .getSynchronizations().size() >= 1, "应登记 afterCommit 字节删除");
             org.springframework.transaction.support.TransactionSynchronizationManager
                     .getSynchronizations().forEach(org.springframework.transaction.support.TransactionSynchronization::afterCommit);
-            verify(spy, times(1)).deleteStoredContent("old-key");
+            assertFalse(java.nio.file.Files.exists(oldBytes), "提交后应删除历史版本字节");
         } finally {
             org.springframework.transaction.support.TransactionSynchronizationManager.clearSynchronization();
         }
@@ -274,7 +276,7 @@ class FolderFileVersionBatchTest {
 
     /** 【本次修复】共享 key 的版本行也必须删, 否则 max-per-file 被"主行/其他版本仍引用"永久绕过。 */
     @Test
-    void pruneVersions_sharedKey_deletesRowButKeepsBytes() {
+    void pruneVersions_sharedKey_deletesRowButKeepsBytes() throws Exception {
         when(configService.getValue("file.version.max-per-file")).thenReturn("1");
         BizFile main = new BizFile();
         main.setId(11L);
@@ -288,10 +290,11 @@ class FolderFileVersionBatchTest {
         when(jdbc.queryForObject(org.mockito.ArgumentMatchers.contains("biz_file_version WHERE oss_key"),
                 eq(Long.class), org.mockito.ArgumentMatchers.anyString(), anyLong())).thenReturn(1L);
 
-        FileService spy = org.mockito.Mockito.spy(svc);
-        org.springframework.test.util.ReflectionTestUtils.invokeMethod(spy, "pruneVersionsIfNeeded", 11L);
+        java.nio.file.Path sharedBytes = root.resolve("shared-key");
+        java.nio.file.Files.writeString(sharedBytes, "shared");
+        svc.pruneVersionsIfNeeded(11L);
         verify(fileVersionMapper).deleteById(1L);
-        verify(spy, never()).deleteStoredContent("shared-key");
+        assertTrue(java.nio.file.Files.exists(sharedBytes), "共享 key 仍被引用时不得删除字节");
     }
 
     private BizFileVersion version(Long id, int no, String key) {

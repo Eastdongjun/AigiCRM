@@ -5,11 +5,13 @@ import com.aigicrm.module.file.mapper.BizFileFolderMapper;
 import com.aigicrm.module.file.mapper.BizFileMapper;
 import com.aigicrm.module.file.mapper.BizFileShareMapper;
 import com.aigicrm.module.file.mapper.BizFileVersionMapper;
+import com.aigicrm.module.file.service.FileEvidenceGuard;
 import com.aigicrm.module.file.service.FileFolderService;
 import com.aigicrm.module.file.service.FileService;
 import com.aigicrm.module.file.service.FileShareService;
 import com.aigicrm.module.file.service.FileStorageService;
 import com.aigicrm.module.file.service.FileThumbnailService;
+import com.aigicrm.module.file.service.FileVersionService;
 import com.aigicrm.module.file.service.FolderPermissionService;
 import com.aigicrm.module.incentive.mapper.BizIncentiveRecordMapper;
 import com.aigicrm.module.incentive.service.IncentiveService;
@@ -49,9 +51,14 @@ public final class FileServiceFixture {
         FileStorageService fileStorageService = new FileStorageService(fileMapper, userMapper,
                 folderPermissionService, fileFolderService, ossClientProvider, ossConfig, null);
         FileThumbnailService fileThumbnailService = new FileThumbnailService();
-        return new FileService(fileMapper, folderMapper, fileShareMapper, fileVersionMapper, configService,
+        FileEvidenceGuard fileEvidenceGuard = new FileEvidenceGuard(incentiveRecordMapper);
+        FileVersionService fileVersionService = new FileVersionService(fileVersionMapper, fileMapper, configService,
+                jdbc, folderPermissionService, fileStorageService, fileThumbnailService, userMapper,
+                fileEvidenceGuard);
+        return new FileService(fileMapper, folderMapper, fileShareMapper, fileVersionMapper,
                 incentiveRecordMapper, userMapper, folderPermissionService, securityAudit, jdbc, incentiveService,
-                fileShareService, fileFolderService, fileStorageService, fileThumbnailService);
+                fileShareService, fileFolderService, fileStorageService, fileThumbnailService,
+                fileEvidenceGuard, fileVersionService);
     }
 
     /** 测试需要改 storageType/uploadDir 等 @Value 字段时，拿到真实的存储 bean。 */
