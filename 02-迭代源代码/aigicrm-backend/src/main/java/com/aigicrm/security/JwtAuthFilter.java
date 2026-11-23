@@ -58,7 +58,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     private enum AuthOutcome { AUTHENTICATED, SKIP, RESPONDED }
 
     private AuthOutcome authenticateToken(String token, HttpServletRequest request, HttpServletResponse response)
-            throws Exception {
+            throws java.io.IOException {
         // F2: 下载专用 token(scope=download)仅允许用于下载/导出路径，防泄漏后被当作会话滥用
         if (isDownloadTokenMisused(token, request)) return AuthOutcome.SKIP;
         // M2 2026-08-10: 已拉黑(注销/泄露后踢下线)的 token 立即失效, 不建立会话

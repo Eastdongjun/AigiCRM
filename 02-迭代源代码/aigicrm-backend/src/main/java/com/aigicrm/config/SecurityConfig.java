@@ -60,7 +60,7 @@ public class SecurityConfig {
     private boolean swaggerEnabled;
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http) {
         http
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -97,7 +97,11 @@ public class SecurityConfig {
                     .authenticationEntryPoint(this::unauthenticatedEntry))
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
-        return http.build();
+        try {
+            return http.build();
+        } catch (Exception e) {
+            throw new IllegalStateException("安全过滤链构建失败", e);
+        }
     }
 
     /** 未认证/凭证过期统一入口: 401+JSON(与全站 Result 口径一致; 前端拦截器按 401 清令牌回登录) */
@@ -142,7 +146,11 @@ public class SecurityConfig {
     }
 
     @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
-        return config.getAuthenticationManager();
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) {
+        try {
+            return config.getAuthenticationManager();
+        } catch (Exception e) {
+            throw new IllegalStateException("认证管理器构建失败", e);
+        }
     }
 }

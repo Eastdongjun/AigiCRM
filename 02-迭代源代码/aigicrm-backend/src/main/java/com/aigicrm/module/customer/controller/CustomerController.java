@@ -541,7 +541,7 @@ public class CustomerController {
 
     @PreAuthorize("hasAuthority('customer:import')")
     @GetMapping("/import/template")
-    public void downloadTemplate(HttpServletResponse response) throws Exception {
+    public void downloadTemplate(HttpServletResponse response) throws java.io.IOException {
         response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
         response.setHeader("Content-Disposition", "attachment;filename=" +
                 URLEncoder.encode("客户导入模板.xlsx", StandardCharsets.UTF_8));
@@ -622,7 +622,7 @@ public class CustomerController {
             @RequestParam(required = false) String userIds,
             @RequestParam(required = false) String officeIds,
             @RequestParam(required = false) String ownerName,
-            HttpServletResponse response) throws Exception {
+            HttpServletResponse response) throws java.io.IOException {
         response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
         response.setHeader("Content-Disposition", "attachment;filename=" +
                 URLEncoder.encode("客户列表.xlsx", StandardCharsets.UTF_8));

@@ -51,7 +51,6 @@ class FolderPrivateScopeTest {
                 new MapperBuilderAssistant(new MybatisConfiguration(), ""), SysUser.class);
     }
 
-    private final org.springframework.jdbc.core.JdbcTemplate jdbc = mock(org.springframework.jdbc.core.JdbcTemplate.class);
     private final com.aigicrm.module.system.service.SysConfigService configService =
             mock(com.aigicrm.module.system.service.SysConfigService.class);
     private final com.aigicrm.module.system.service.RolePermScopeService rolePermScopeService =

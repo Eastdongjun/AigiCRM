@@ -15,7 +15,7 @@ import java.util.Map;
  *
  * @deprecated D22：组队读书已下线，请勿在新功能中依赖本控制器。
  */
-@Deprecated
+@Deprecated(since = "2026-11-22", forRemoval = false)
 @RestController
 @RequestMapping("/api/fabushi/activities")
 @RequiredArgsConstructor

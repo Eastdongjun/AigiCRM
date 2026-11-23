@@ -29,7 +29,8 @@ public class FabushiSectionController {
     @PostMapping("/self")
     @PreAuthorize("hasAuthority('fabushi:create')")
     public Result<Map<String, Object>> selfCreate(@PathVariable Long bookId, @RequestBody Map<String, Object> body) {
-        return Result.ok(sectionService.selfCreate(bookId, body == null ? null : (body.get("title") == null ? null : String.valueOf(body.get("title")))));
+        String title = body == null || body.get("title") == null ? null : String.valueOf(body.get("title"));
+        return Result.ok(sectionService.selfCreate(bookId, title));
     }
 
     @PutMapping("/{id}")

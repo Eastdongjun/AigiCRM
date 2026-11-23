@@ -339,10 +339,8 @@ public class LifecycleService {
 
     /** 提醒表在 V2026.11.17.5 后已有 deleted；只迁当前数据，回收站行不动。 */
     private int moveNoDeleted(String bizType, String table, String col, long requestId, long from, long to) {
-        jdbc.update("INSERT INTO biz_lifecycle_item(request_id,biz_type,biz_id,old_ref,new_ref) " +
-                        "SELECT ?, ?, id, " + col + ", ? FROM " + table + " WHERE " + col + LIT_AND_DELETED_0,
-                requestId, bizType, to, from);
-        return jdbc.update("UPDATE " + table + " SET " + col + "=? WHERE " + col + LIT_AND_DELETED_0, to, from);
+        // 提醒表已有 deleted 列，迁移口径与 move 相同；保留入口名表达业务语义。
+        return move(bizType, table, col, requestId, from, to);
     }
 
     // ==================== 执行：组织移动 ====================

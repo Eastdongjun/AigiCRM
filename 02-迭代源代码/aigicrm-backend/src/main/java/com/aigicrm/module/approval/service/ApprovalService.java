@@ -1022,7 +1022,7 @@ public class ApprovalService {
         }
     }
 
-    private Long parseExecuteTransferOwner(String extraData) throws Exception {
+    private Long parseExecuteTransferOwner(String extraData) throws com.fasterxml.jackson.core.JsonProcessingException {
         com.fasterxml.jackson.databind.ObjectMapper om = new com.fasterxml.jackson.databind.ObjectMapper();
         @SuppressWarnings("unchecked")
         Map<String, Object> data = om.readValue(extraData, Map.class);

@@ -184,8 +184,7 @@ public class SysRoleService {
         if (hasRoleFields) {
             // 【修复 2026-08-10 P2-09】role_code 改名时同步迁移 role_perm_scope 范围配置,
             // 否则旧 code 配置成孤儿、新 code 无配置回落默认(edit/delete 意外收紧为 self)
-            if (role.getRoleCode() != null && existing != null && existing.getRoleCode() != null
-                    && !existing.getRoleCode().equals(role.getRoleCode())) {
+            if (existing.getRoleCode() != null && !existing.getRoleCode().equals(role.getRoleCode())) {
                 rolePermScopeService.renameRoleCode(existing.getRoleCode(), role.getRoleCode());
             }
             roleMapper.updateById(role);
