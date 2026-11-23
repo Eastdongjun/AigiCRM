@@ -14,6 +14,9 @@ const SORTS = [
 
 const EDITION_LABEL = { original: '原版', annotated: '注释本', translation: '译本', plain: '白话本' }
 
+// 【S4.2 2026-11-23】分页拉取。此前一次 size=100 全量拉，超过 100 条静默截断且无提示。
+const PAGE_SIZE = 20
+
 const fmtTime = (value) => {
   const s = String(value || '')
   if (!s) return ''
@@ -52,7 +55,10 @@ Page({
     statsText: '',
     groups: [],
     total: 0,
+    loadedCount: 0,
     loading: true,
+    loadingMore: false,
+    hasMore: true,
     canCreate: false
   },
 
@@ -70,11 +76,17 @@ Page({
     this.setData({ canCreate: hasPermission('fabushi:create') })
     wx.setNavigationBarTitle({ title: '按书浏览' })
     this.loadBook()
-    this.loadPosts()
+    this.loadPosts(true)
   },
 
   onPullDownRefresh() {
-    Promise.all([this.loadBook(), this.loadPosts()]).then(() => wx.stopPullDownRefresh())
+    Promise.all([this.loadBook(), this.loadPosts(true)]).then(() => wx.stopPullDownRefresh())
+  },
+
+  /** 【S4.2】触底加载下一页：不打断已有分组，追加后统一 rebuild。 */
+  onReachBottom() {
+    if (this.data.loading || this.data.loadingMore || !this.data.hasMore) return
+    this.loadPosts(false)
   },
 
   loadBook() {
@@ -102,9 +114,16 @@ Page({
       .catch((err) => showError(err, '书目信息加载失败'))
   },
 
-  loadPosts() {
-    this.setData({ loading: true })
-    return getFabushiPosts({ scopeType: 'zaidu', bookId: this._bookId, current: 1, size: 100 })
+  /**
+   * 【S4.2 2026-11-23】分页加载。
+   * reset=true 拉第 1 页并覆盖（首次进入 / 下拉刷新）；reset=false 追加下一页（触底）。
+   * hasMore 用「已加载条数 < 后端 total」判断，不用「本页是否满页」——
+   * 后端 total 是真实总数，满页判断在末页恰好整除时会多打一次空请求。
+   */
+  loadPosts(reset) {
+    const page = reset ? 1 : (this._page || 1) + 1
+    this.setData(reset ? { loading: true } : { loadingMore: true })
+    return getFabushiPosts({ scopeType: 'zaidu', bookId: this._bookId, current: page, size: PAGE_SIZE })
       .then((res) => {
         const data = res || {}
         const records = (data.records || []).map((item) => Object.assign({}, item, {
@@ -114,12 +133,21 @@ Page({
           timeText: fmtTime(item.createdAt),
           avatar: String(item.userName || '法').slice(0, 1)
         }))
-        this._records = records
-        this.setData({ total: Number(data.total) || records.length, loading: false })
+        this._page = page
+        this._records = reset ? records : (this._records || []).concat(records)
+        const total = Number(data.total) || this._records.length
+        this.setData({
+          total,
+          loadedCount: this._records.length,
+          loading: false,
+          loadingMore: false,
+          // 本页返回空 或 已够 total 都算到底，避免无限触底重试
+          hasMore: records.length > 0 && this._records.length < total
+        })
         this.rebuild()
       })
       .catch((err) => {
-        this.setData({ loading: false })
+        this.setData({ loading: false, loadingMore: false })
         showError(err, '内容加载失败')
       })
   },

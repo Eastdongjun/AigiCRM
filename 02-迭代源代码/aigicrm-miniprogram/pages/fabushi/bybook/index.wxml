@@ -22,7 +22,7 @@
       class="bb-sort {{sort === item.value ? 'active' : ''}}"
       data-value="{{item.value}}" bindtap="onSortTap"
     >{{item.label}}</view>
-    <text class="bb-count">{{total}} 条</text>
+    <text class="bb-count">{{loadedCount}}/{{total}} 条</text>
   </view>
 
   <view wx:if="{{loading}}" class="bb-loading">加载中...</view>
@@ -54,6 +54,11 @@
       <view class="bb-detail">详情</view>
     </view>
   </view>
+
+  <!-- 【S4.2】分页状态：加载中 / 可上拉 / 已全部加载 -->
+  <view wx:if="{{loadingMore}}" class="bb-more">加载中...</view>
+  <view wx:elif="{{hasMore}}" class="bb-more">上拉加载更多</view>
+  <view wx:elif="{{loadedCount}}" class="bb-more">已全部加载</view>
 
   <view class="bb-foot">书=书名+作者+版本唯一确定（D2）；不同版本各自成册</view>
 </view>
