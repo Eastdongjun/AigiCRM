@@ -1,0 +1,29 @@
+groups:
+  - name: aigicrm-b1
+    rules:
+      - alert: AigicrmApiDown
+        expr: aigicrm_api_up == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "AIGICRM API health is DOWN"
+          description: "aigicrm_api_up=0 for 2m; check backend container and /actuator/health."
+
+      - alert: AigicrmWebDown
+        expr: aigicrm_web_up == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "AIGICRM frontend is unreachable"
+          description: "aigicrm_web_up=0 for 2m; check nginx/frontend container and index page."
+
+      - alert: AigicrmProbeStale
+        expr: time() - aigicrm_last_probe_timestamp_seconds > 300
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "AIGICRM probe has not run for 5m"
+          description: "Check cron/systemd timer and /var/lib/node_exporter/textfile/aigicrm.prom."

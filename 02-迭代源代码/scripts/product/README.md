@@ -11,7 +11,7 @@
 | S6.1c 前端接入（构建/nginx/代理登录） | **已完成**：同一条 `--apply`，实测通过 |
 | S6.2 首启向导（企业/行业/完成） | **最小闭环已完成**：首登强制改密 + `/onboarding` 向导；业务演示数据导入未做 |
 | S6.3 行业词表配置化 | **部分完成**：向导可选用/新增 industry 字典；其他行业文案配置化未做 |
-| S6.4 监控接线 | 未开始 |
+| S6.4 监控接线 | **部分完成**：`monitoring/probe.sh` + textfile 指标 + 告警规则；外部 Prometheus/Grafana 未部署 |
 
 ## preflight.sh
 
@@ -75,6 +75,16 @@ bash scripts/product/test-install.sh
 ```
 
 覆盖：脚本语法、preflight 合法/非法 env、install dry-run；不启动容器。
+
+## 监控（S6.4 最小）
+
+`scripts/product/monitoring/` 提供：
+
+- `probe.sh`：只读检查 API health + 前端首页，输出 Prometheus textfile 指标；
+- `alerts.yml`：API/前端不可用、探针过旧的告警示例；
+- `README.md`：cron + node_exporter textfile + Prometheus 片段。
+
+边界：不抓取需登录的 `/actuator/prometheus`，不替代日志/错误告警，也不是完整监控栈。
 
 ## 安全边界
 
