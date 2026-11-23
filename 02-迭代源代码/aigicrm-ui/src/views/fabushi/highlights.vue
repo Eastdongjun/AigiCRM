@@ -3,7 +3,7 @@
     <div class="page-head">
       <div>
         <h1>我的书摘</h1>
-        <p>阅读器里「加书签」并写一句备注，就会沉淀到这里 · 共 {{ items.length }} 条 · {{ groups.length }} 本书</p>
+        <p>阅读器里「加书签」并写一句备注，就会沉淀到这里 · 共 {{ visibleCount }} 条 · {{ groups.length }} 本书</p>
       </div>
       <div class="head-actions">
         <el-input v-model="keyword" placeholder="搜书名或备注" clearable style="width: 200px" />
@@ -93,6 +93,9 @@ const groups = computed(() => {
   }
   return [...bucket.values()]
 })
+
+/** 副标题跟随筛选：搜索时若仍报总数（共 4 条却只列 1 本书）会让人以为漏了数据 */
+const visibleCount = computed(() => groups.value.reduce((n, g) => n + g.list.length, 0))
 
 function toggle(key) {
   collapsed[key] = !collapsed[key]
