@@ -21,34 +21,69 @@
           text-color="#bfcbd9"
           active-text-color="#6083e4"
           :collapse-transition="false"
+          :default-openeds="collapsibleGroupIndexes"
         >
           <template v-for="group in menuGroups" :key="group.id">
-            <div class="menu-group-label" v-show="!isCollapse">{{ group.menuName }}</div>
-            <!-- 按后端菜单 sort_order 原顺序渲染；不能把有子菜单的项统一提前，否则生产菜单顺序会变形。 -->
-            <template v-for="item in group.children" :key="item.id">
-              <el-sub-menu v-if="item.subChildren.length" :index="item.path">
-                <template #title>
-                  <el-icon v-if="item.icon"><component :is="item.icon" /></el-icon>
-                  <span class="menu-title-row">
-                    <span>{{ item.menuName }}</span>
-                    <span class="menu-count" v-if="badgeFor(item.path)">{{ badgeFor(item.path) }}</span>
-                  </span>
-                </template>
-                <el-menu-item v-for="sub in item.subChildren" :key="sub.id" :index="sub.path">
+            <!-- 学分管理/法布施：参考客户管理，收成可折叠分组，避免侧栏过长 -->
+            <el-sub-menu v-if="isCollapsibleGroup(group)" :index="'group-' + group.id" class="menu-group-sub">
+              <template #title>
+                <span class="menu-group-title">{{ group.menuName }}</span>
+              </template>
+              <template v-for="item in group.children" :key="item.id">
+                <el-sub-menu v-if="item.subChildren.length" :index="item.path">
                   <template #title>
-                    <span>{{ sub.menuName }}</span>
+                    <el-icon v-if="item.icon"><component :is="item.icon" /></el-icon>
+                    <span class="menu-title-row">
+                      <span>{{ item.menuName }}</span>
+                      <span class="menu-count" v-if="badgeFor(item.path)">{{ badgeFor(item.path) }}</span>
+                    </span>
+                  </template>
+                  <el-menu-item v-for="sub in item.subChildren" :key="sub.id" :index="sub.path">
+                    <template #title>
+                      <span>{{ sub.menuName }}</span>
+                    </template>
+                  </el-menu-item>
+                </el-sub-menu>
+                <el-menu-item v-else :index="item.path">
+                  <el-icon v-if="item.icon"><component :is="item.icon" /></el-icon>
+                  <template #title>
+                    <span class="menu-title-row">
+                      <span>{{ item.menuName }}</span>
+                      <span class="menu-count" v-if="badgeFor(item.path)">{{ badgeFor(item.path) }}</span>
+                    </span>
                   </template>
                 </el-menu-item>
-              </el-sub-menu>
-              <el-menu-item v-else :index="item.path">
-                <el-icon v-if="item.icon"><component :is="item.icon" /></el-icon>
-                <template #title>
-                  <span class="menu-title-row">
-                    <span>{{ item.menuName }}</span>
-                    <span class="menu-count" v-if="badgeFor(item.path)">{{ badgeFor(item.path) }}</span>
-                  </span>
-                </template>
-              </el-menu-item>
+              </template>
+            </el-sub-menu>
+
+            <template v-else>
+              <div class="menu-group-label" v-show="!isCollapse">{{ group.menuName }}</div>
+              <!-- 按后端菜单 sort_order 原顺序渲染；不能把有子菜单的项统一提前，否则生产菜单顺序会变形。 -->
+              <template v-for="item in group.children" :key="item.id">
+                <el-sub-menu v-if="item.subChildren.length" :index="item.path">
+                  <template #title>
+                    <el-icon v-if="item.icon"><component :is="item.icon" /></el-icon>
+                    <span class="menu-title-row">
+                      <span>{{ item.menuName }}</span>
+                      <span class="menu-count" v-if="badgeFor(item.path)">{{ badgeFor(item.path) }}</span>
+                    </span>
+                  </template>
+                  <el-menu-item v-for="sub in item.subChildren" :key="sub.id" :index="sub.path">
+                    <template #title>
+                      <span>{{ sub.menuName }}</span>
+                    </template>
+                  </el-menu-item>
+                </el-sub-menu>
+                <el-menu-item v-else :index="item.path">
+                  <el-icon v-if="item.icon"><component :is="item.icon" /></el-icon>
+                  <template #title>
+                    <span class="menu-title-row">
+                      <span>{{ item.menuName }}</span>
+                      <span class="menu-count" v-if="badgeFor(item.path)">{{ badgeFor(item.path) }}</span>
+                    </span>
+                  </template>
+                </el-menu-item>
+              </template>
             </template>
           </template>
         </el-menu>
@@ -243,6 +278,11 @@ const menuGroups = computed(() => {
   // 不再前端注入；无 task:view 的角色由后端菜单树/权限自然过滤。
   return groups
 })
+const COLLAPSIBLE_GROUP_NAMES = new Set(['学分管理', '法布施'])
+const isCollapsibleGroup = (group) => COLLAPSIBLE_GROUP_NAMES.has(group.menuName)
+const collapsibleGroupIndexes = computed(() => menuGroups.value
+  .filter(isCollapsibleGroup)
+  .map((group) => `group-${group.id}`))
 // 提醒/审批两个菜单项的角标数量走独立的未读计数接口，不属于菜单树本身的数据
 const badgeFor = (path) => {
   if (path === '/reminder') return userStore.badgeReminder > 0 ? userStore.badgeReminder : 0
@@ -446,6 +486,9 @@ const handleCommand = (command) => {
 }
 /* 【2026-10-08 UI 整改①】侧栏当前态配色接线到 :root 令牌（与上方 el-menu prop 同值，令牌为唯一来源） */
 .sidebar :deep(.el-menu-item.is-active) { color: var(--sidebar-active); }
+.menu-group-sub :deep(.el-sub-menu__title) { color: var(--sidebar-text); font-size: 12px; opacity: .75; }
+.menu-group-sub :deep(.el-sub-menu__title:hover) { opacity: 1; }
+.menu-group-title { letter-spacing: 1px; }
 .menu-group-label {
   padding: 16px 20px 6px;
   font-size: 12px;
