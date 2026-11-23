@@ -8,13 +8,15 @@
   <el-dialog
     :model-value="modelValue"
     :title="dialogTitle"
-    width="720px"
+    :width="form.scopeType === 'suishi' ? '560px' : '720px'"
     :close-on-click-modal="false"
     @update:model-value="(v) => emit('update:modelValue', v)"
     @closed="resetAll"
   >
-    <!-- 类型 -->
-    <div class="pub-row">
+    <p v-if="form.scopeType === 'suishi'" class="pub-lead">随手施 · 像发朋友圈一样简单</p>
+
+    <!-- 类型（P7 随施是独立朋友圈发布器，不显示类型切换；由广场入口决定） -->
+    <div v-if="form.scopeType !== 'suishi'" class="pub-row">
       <label class="pub-label">类型</label>
       <div class="pub-caps">
         <button
@@ -119,14 +121,22 @@
       </div>
       <div class="pub-row">
         <label class="pub-label">图片</label>
-        <div class="img-grid">
-          <div v-for="img in images" :key="img.key" class="img-cell">
+        <div class="suishi-grid">
+          <div v-for="(img, idx) in images" :key="img.key" class="img-cell">
             <img :src="img.previewUrl" :alt="img.name" />
             <button type="button" class="img-x" @click="removeAttachment(attachments.indexOf(img))">×</button>
+            <button type="button" class="img-zoom" title="放大" @click="openViewer(idx)">⤢</button>
           </div>
           <button v-if="images.length < imageLimit" type="button" class="img-add" @click="pickFile('image', false)">
             ＋<span>{{ images.length }}/{{ imageLimit }}</span>
           </button>
+          <div v-for="n in emptyImageSlots" :key="'e'+n" class="img-empty" />
+        </div>
+        <div v-if="images.length" class="edit-tools">
+          <span class="edit-tools-label">已选图片可：</span>
+          <button v-for="(img, idx) in images" :key="'e'+img.key" type="button" class="edit-tool" @click="openEditor(idx, 'crop')">裁剪</button>
+          <button v-for="(img, idx) in images" :key="'m'+img.key" type="button" class="edit-tool" @click="openEditor(idx, 'mark')">标注</button>
+          <button v-for="(img, idx) in images" :key="'z'+img.key" type="button" class="edit-tool" @click="openViewer(idx)">放大</button>
         </div>
       </div>
       <div class="pub-row">
@@ -253,6 +263,25 @@
 
     <!-- 统一文件选择器：capture=true 走相机 -->
     <input ref="fileInputRef" type="file" style="display:none" @change="onFileChosen" />
+
+    <!-- P7 图片编辑：裁剪 / 标注（Canvas，不伪造按钮） -->
+    <el-dialog v-model="editor.visible" title="编辑图片" width="720px" append-to-body @closed="resetEditor">
+      <div class="editor-stage" @mousedown="onEditorDown" @mousemove="onEditorMove" @mouseup="onEditorUp" @mouseleave="onEditorUp">
+        <canvas ref="editorCanvasRef" />
+      </div>
+      <div class="edit-tools" style="margin-top:10px">
+        <span class="edit-tools-label">模式：</span>
+        <button type="button" class="edit-tool" :class="{ on: editor.mode === 'crop' }" @click="setEditorMode('crop')">裁剪</button>
+        <button type="button" class="edit-tool" :class="{ on: editor.mode === 'mark' }" @click="setEditorMode('mark')">标注</button>
+        <span class="pub-hint" style="margin-left:8px">{{ editor.mode === 'crop' ? '拖拽选择裁剪区域，点“应用”' : '拖拽画红框，点“应用”' }}</span>
+      </div>
+      <template #footer>
+        <el-button @click="editor.visible = false">取消</el-button>
+        <el-button type="primary" :loading="editor.saving" @click="applyEditor">应用</el-button>
+      </template>
+    </el-dialog>
+
+    <el-image-viewer v-if="viewer.visible" :url-list="images.map(i => i.previewUrl)" :initial-index="viewer.index" @close="viewer.visible = false" />
   </el-dialog>
 </template>
 
@@ -265,8 +294,8 @@
  * - 章节「自我录入」走后端 `/sections/self`（fabushi:create 权限 + 同名幂等），不是只在前端拼字符串。
  * - 录音用 MediaRecorder 真录，上传走 `/file/upload`（scope=fabushi），与图片同一条链路。
  */
-import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
-import { ElMessage } from 'element-plus'
+import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue'
+import { ElImageViewer, ElMessage } from 'element-plus'
 import request from '@/utils/request'
 import { addFabushiAttachment, createFabushiPost, getFabushiBooks, getFabushiSections } from '@/api/fabushi'
 import FabushiAudioList from './FabushiAudioList.vue'
@@ -467,12 +496,152 @@ const uploadOne = async (file, fileType) => {
 }
 
 const imageLimit = computed(() => (form.scopeType === 'suishi' ? 9 : 5))
+const emptyImageSlots = computed(() => Math.max(0, 9 - images.value.length - (images.value.length < imageLimit.value ? 1 : 0)))
 const images = computed(() => attachments.value.filter((a) => a.fileType === 'image'))
 // 语音有独立可播放列表（FabushiAudioList），文件胶囊只列其余非图片附件，避免同一段出现两次
 const nonImages = computed(() => attachments.value.filter((a) => a.fileType !== 'image' && a.fileType !== 'audio'))
 // 【P6 2026-11-23】原型「语音 1-10 段 × ≤60s」：已保存段可逐条试听/删除，超限与超时前端先挡
 const MAX_AUDIO = 10
 const MAX_AUDIO_SECONDS = 60
+
+/* ---------------- P7 图片编辑：九宫格放大 / 裁剪 / 标注 ---------------- */
+const editorCanvasRef = ref(null)
+const editor = reactive({ visible: false, index: -1, mode: 'crop', saving: false })
+const viewer = reactive({ visible: false, index: 0 })
+let editorImage = null
+let editorScale = 1
+let dragStart = null
+let dragEnd = null
+let editorMarks = []
+let cropRect = null
+
+const openViewer = (idx) => { viewer.index = idx; viewer.visible = true }
+const setEditorMode = (mode) => { editor.mode = mode; dragStart = null; dragEnd = null; cropRect = null; drawEditor() }
+const resetEditor = () => {
+  editorImage = null; dragStart = null; dragEnd = null; editorMarks = []; cropRect = null
+  editor.index = -1; editor.saving = false
+}
+const openEditor = (idx, mode) => {
+  const item = images.value[idx]
+  if (!item) return
+  const img = new Image()
+  img.onload = () => {
+    editorImage = img
+    editor.index = idx
+    editor.mode = mode || 'crop'
+    dragStart = null; dragEnd = null; editorMarks = []; cropRect = null
+    editor.visible = true
+    nextTick(() => {
+      const canvas = editorCanvasRef.value
+      if (!canvas) return
+      const maxW = 640; const maxH = 420
+      const scale = Math.min(1, maxW / img.naturalWidth, maxH / img.naturalHeight)
+      editorScale = scale
+      canvas.width = Math.max(1, Math.round(img.naturalWidth * scale))
+      canvas.height = Math.max(1, Math.round(img.naturalHeight * scale))
+      drawEditor()
+    })
+  }
+  img.onerror = () => ElMessage.error('图片加载失败')
+  img.src = item.previewUrl
+}
+
+const drawEditor = () => {
+  const canvas = editorCanvasRef.value
+  if (!canvas || !editorImage) return
+  const ctx = canvas.getContext('2d')
+  ctx.clearRect(0, 0, canvas.width, canvas.height)
+  ctx.drawImage(editorImage, 0, 0, canvas.width, canvas.height)
+  ctx.save()
+  ctx.strokeStyle = '#e6a23c'
+  ctx.lineWidth = 2
+  ctx.setLineDash([6, 4])
+  if (dragStart && dragEnd) {
+    ctx.strokeRect(dragStart.x, dragStart.y, dragEnd.x - dragStart.x, dragEnd.y - dragStart.y)
+  } else if (cropRect && editor.mode === 'crop') {
+    ctx.strokeRect(cropRect.x, cropRect.y, cropRect.w, cropRect.h)
+  }
+  ctx.setLineDash([])
+  ctx.strokeStyle = '#f56c6c'
+  ctx.lineWidth = 3
+  editorMarks.forEach((m) => ctx.strokeRect(m.x, m.y, m.w, m.h))
+  ctx.restore()
+}
+
+const editorPoint = (e) => {
+  const canvas = editorCanvasRef.value
+  const rect = canvas.getBoundingClientRect()
+  return {
+    x: (e.clientX - rect.left) * canvas.width / rect.width,
+    y: (e.clientY - rect.top) * canvas.height / rect.height,
+  }
+}
+const onEditorDown = (e) => {
+  if (editor.mode !== 'crop' && editor.mode !== 'mark') return
+  if (editor.mode === 'crop') cropRect = null
+  dragStart = editorPoint(e); dragEnd = { ...dragStart }; drawEditor()
+}
+const onEditorMove = (e) => {
+  if (!dragStart) return
+  dragEnd = editorPoint(e); drawEditor()
+}
+const onEditorUp = () => {
+  if (!dragStart || !dragEnd) return
+  const x = Math.min(dragStart.x, dragEnd.x)
+  const y = Math.min(dragStart.y, dragEnd.y)
+  const w = Math.abs(dragEnd.x - dragStart.x)
+  const h = Math.abs(dragEnd.y - dragStart.y)
+  if (w > 4 && h > 4) {
+    if (editor.mode === 'crop') cropRect = { x, y, w, h }
+    if (editor.mode === 'mark') editorMarks.push({ x, y, w, h })
+  }
+  dragStart = null; dragEnd = null; drawEditor()
+}
+
+const applyEditor = async () => {
+  const canvas = editorCanvasRef.value
+  if (!canvas || !editorImage) return
+  let out
+  if (editor.mode === 'crop') {
+    // 裁剪区域在 onEditorUp 保存到 cropRect
+    if (!cropRect) { ElMessage.warning('请先拖拽选择裁剪区域'); return }
+    const sx = cropRect.x / editorScale
+    const sy = cropRect.y / editorScale
+    const sw = cropRect.w / editorScale
+    const sh = cropRect.h / editorScale
+    if (sw < 8 || sh < 8) { ElMessage.warning('裁剪区域太小'); return }
+    out = document.createElement('canvas')
+    out.width = Math.max(1, Math.round(sw)); out.height = Math.max(1, Math.round(sh))
+    out.getContext('2d').drawImage(editorImage, sx, sy, sw, sh, 0, 0, out.width, out.height)
+  } else {
+    out = document.createElement('canvas')
+    out.width = canvas.width; out.height = canvas.height
+    const ctx = out.getContext('2d')
+    ctx.drawImage(editorImage, 0, 0, out.width, out.height)
+    ctx.strokeStyle = '#f56c6c'; ctx.lineWidth = 3
+    editorMarks.forEach((m) => ctx.strokeRect(m.x, m.y, m.w, m.h))
+  }
+  editor.saving = true
+  try {
+    const blob = await new Promise((resolve) => out.toBlob(resolve, 'image/png'))
+    if (!blob) throw new Error('导出图片失败')
+    const file = new File([blob], `edited-${Date.now()}.png`, { type: 'image/png' })
+    const item = await uploadOne(file, 'image')
+    if (!item) throw new Error('上传失败')
+    const old = images.value[editor.index]
+    const oldIndex = attachments.value.indexOf(old)
+    if (oldIndex >= 0) attachments.value.splice(oldIndex, 1, item)
+    else attachments.value.push(item)
+    if (old && old.previewUrl) URL.revokeObjectURL(old.previewUrl)
+    editor.visible = false
+    ElMessage.success('图片已更新')
+  } catch (e) {
+    ElMessage.error(e.message || '图片编辑失败')
+  } finally {
+    editor.saving = false
+  }
+}
+
 const audioAttachments = computed(() => attachments.value.filter((a) => a.fileType === 'audio'))
 
 const onFileChosen = async (event) => {
@@ -637,4 +806,15 @@ onBeforeUnmount(() => {
 .file-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 999px; background: var(--el-fill-color-light); font-size: 12px; }
 .chip-x { border: 0; background: transparent; color: var(--text-muted); cursor: pointer; font-size: 14px; line-height: 1; }
+
+.pub-lead { margin: 0 0 10px; color: var(--text-muted); font-size: 12px; }
+.suishi-grid { display: grid; grid-template-columns: repeat(3, 96px); gap: 8px; margin-top: 8px; }
+.img-empty { width: 96px; height: 96px; border: 1px dashed var(--el-border-color-lighter); border-radius: 8px; background: var(--el-fill-color-lighter); opacity: .55; }
+.img-zoom { position: absolute; left: 2px; bottom: 2px; width: 20px; height: 20px; border: 0; border-radius: 4px; background: rgba(0,0,0,.55); color: #fff; cursor: pointer; line-height: 1; font-size: 12px; }
+.edit-tools { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.edit-tools-label { color: var(--text-muted); font-size: 12px; }
+.edit-tool { padding: 3px 10px; border: 1px solid var(--el-border-color); border-radius: 999px; background: var(--el-fill-color-blank); color: var(--text-secondary); font-size: 12px; cursor: pointer; }
+.edit-tool.on, .edit-tool:hover { border-color: var(--el-color-primary); color: var(--el-color-primary); }
+.editor-stage { display: flex; justify-content: center; align-items: center; min-height: 240px; background: #111; border-radius: 8px; overflow: hidden; }
+.editor-stage canvas { display: block; max-width: 100%; cursor: crosshair; }
 </style>
