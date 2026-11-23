@@ -587,12 +587,21 @@ public class PermissionMatrixTest {
         }
         assertTrue(body.contains("folderPermissionService.check(folderId, FolderPermissionService.P_UPLOAD"),
                 "FileService.upload 必须保留文件夹 P_UPLOAD 权限守卫");
-        assertTrue(body.contains("folderPermissionService.check(folder.getParentId(), FolderPermissionService.P_UPLOAD"),
-                "FileService.createFolder 必须保留父文件夹 P_UPLOAD 权限守卫");
-        assertTrue(body.contains("folderPermissionService.check(folder.getId(), FolderPermissionService.P_RENAME"),
-                "FileService.renameFolder 必须保留文件夹 P_RENAME 权限守卫(【文件权限 v2】动作细分, 存量 edit 授权由判定层读时展开)");
-        assertTrue(body.contains("folderPermissionService.check(folder.getId(), FolderPermissionService.P_DELETE"),
-                "FileService.deleteFolder 必须保留文件夹 P_DELETE 权限守卫");
+        Path folderSrc = Paths.get("src/main/java/com/aigicrm/module/file/service/FileFolderService.java")
+                .toAbsolutePath().normalize();
+        assertTrue(Files.exists(folderSrc), "FileFolderService 源文件不存在: " + folderSrc);
+        String folderBody;
+        try {
+            folderBody = SourceNormalizer.read(folderSrc);
+        } catch (IOException e) {
+            throw new IllegalStateException("读取 FileFolderService 源码失败", e);
+        }
+        assertTrue(folderBody.contains("folderPermissionService.check(folder.getParentId(), FolderPermissionService.P_UPLOAD"),
+                "FileFolderService.createFolder 必须保留父文件夹 P_UPLOAD 权限守卫");
+        assertTrue(folderBody.contains("folderPermissionService.check(folder.getId(), FolderPermissionService.P_RENAME"),
+                "FileFolderService.renameFolder 必须保留文件夹 P_RENAME 权限守卫(【文件权限 v2】动作细分, 存量 edit 授权由判定层读时展开)");
+        assertTrue(folderBody.contains("folderPermissionService.check(folder.getId(), FolderPermissionService.P_DELETE"),
+                "FileFolderService.deleteFolder 必须保留文件夹 P_DELETE 权限守卫");
         assertTrue(body.contains("folderPermissionService.checkFile(fileId, FolderPermissionService.P_RENAME"),
                 "FileService.renameFile 必须保留文件 P_RENAME 权限守卫(【文件权限 v2】动作细分)");
         assertTrue(body.contains("folderPermissionService.checkFile(fileId, FolderPermissionService.P_REPLACE"),
