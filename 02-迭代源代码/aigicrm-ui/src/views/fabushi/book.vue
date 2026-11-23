@@ -31,10 +31,13 @@
       <aside class="sub-panel">
         <div class="sub-title">书目 · {{ categoryName || '全部' }}</div>
         <el-input v-model="leftKeyword" clearable placeholder="搜索书目" size="small" />
-        <button v-for="book in leftBooks" :key="book.id" type="button" class="sub-row" :class="{ active: selectedBookId === book.id }" @click="selectBook(book)">
+        <button v-for="book in pagedLeftBooks" :key="book.id" type="button" class="sub-row" :class="{ active: selectedBookId === book.id }" @click="selectBook(book)">
           <span>{{ book.title }}</span><span class="cnt">{{ book.postCount || 0 }}</span>
         </button>
         <div v-if="!leftBooks.length" class="sub-empty">暂无书目</div>
+        <div v-if="leftTotalPages > 1" class="sub-pager">
+          <el-pagination v-model:current-page="leftPage" :page-size="leftSize" :total="leftBooks.length" layout="prev, pager, next" small />
+        </div>
         <div class="sub-note">左侧计数 = 该书目已发布作品数；右侧表格为当前筛选结果（含待审核/驳回，仅管理端可见）。</div>
       </aside>
 
@@ -161,6 +164,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import request from '@/utils/request'
 import { useUserStore } from '@/store/user'
 import { getDictData } from '@/api/system'
+import { usePagedList } from '@/composables/usePagedList'
 import {
   getFabushiBooks, submitFabushiBook, approveFabushiBook, rejectFabushiBook, disableFabushiBook, attachBookPdf, deleteFabushiBook,
   getFabushiSections, createFabushiSection, deleteFabushiSection, updateFabushiBookLayout,
@@ -204,6 +208,8 @@ const selectedBookTitle = computed(() => allBooks.value.find((book) => book.id =
 const leftBooks = computed(() => allBooks.value
   .filter((book) => (!query.value.categoryCode || book.categoryCode === query.value.categoryCode))
   .filter((book) => !leftKeyword.value || String(book.title).includes(leftKeyword.value)))
+const { current: leftPage, size: leftSize, totalPages: leftTotalPages, paged: pagedLeftBooks, reset: resetLeftPage } = usePagedList(leftBooks, { pageSize: 10 })
+watch([leftKeyword, () => query.value.categoryCode], resetLeftPage)
 
 const statusMap = { approved: '已通过', pending: '待审核', rejected: '已驳回', disabled: '已停用' }
 const statusText = (s) => statusMap[s] || s
@@ -405,6 +411,7 @@ onMounted(async () => { await Promise.all([loadDicts(), loadAll()]); await loadD
 .sub-row.active { color: var(--primary-color); background: var(--el-color-primary-light-9); font-weight: 700; }
 .sub-row .cnt { color: var(--text-muted); font-size: 10px; }
 .sub-empty { padding: 10px 0; color: var(--text-placeholder); font-size: 11px; }
+.sub-pager { display: flex; justify-content: center; margin: 6px 0; }
 .sub-note { margin-top: 4px; color: var(--text-placeholder); font-size: 10.5px; line-height: 1.6; }
 .table-panel { overflow: hidden; border: 1px solid var(--border-light); border-radius: var(--radius-md); background: var(--el-bg-color); }
 .table-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--border-light); }

@@ -27,7 +27,7 @@
     </div>
 
     <div v-else class="group-list">
-      <section v-for="g in groups" :key="g.key" class="hl-group">
+      <section v-for="g in pagedGroups" :key="g.key" class="hl-group">
         <header class="hl-group-head" @click="toggle(g.key)">
           <span class="hl-caret" :class="{ open: !collapsed[g.key] }">›</span>
           <b class="hl-book-title">《{{ g.bookTitle }}》</b>
@@ -55,14 +55,20 @@
         </ul>
       </section>
     </div>
+
+    <div v-if="totalPages > 1" class="hl-pager">
+      <span>共 {{ groups.length }} 本书</span>
+      <el-pagination v-model:current-page="current" :page-size="size" :total="total" layout="prev, pager, next" small />
+    </div>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getMyFabushiBookmarks, removeFabushiBookmark } from '@/api/fabushi'
+import { usePagedList } from '@/composables/usePagedList'
 
 const router = useRouter()
 const loading = ref(true)
@@ -96,6 +102,8 @@ const groups = computed(() => {
 
 /** 副标题跟随筛选：搜索时若仍报总数（共 4 条却只列 1 本书）会让人以为漏了数据 */
 const visibleCount = computed(() => groups.value.reduce((n, g) => n + g.list.length, 0))
+const { current, size, total, totalPages, paged: pagedGroups, reset: resetPage } = usePagedList(groups, { pageSize: 6 })
+watch(keyword, resetPage)
 
 function toggle(key) {
   collapsed[key] = !collapsed[key]
@@ -166,4 +174,5 @@ onMounted(async () => {
 .hl-note { flex: 1; margin: 0; color: var(--text-primary); font-size: 13px; line-height: 1.5; word-break: break-word; }
 .hl-note.muted { color: var(--text-muted); font-style: italic; }
 .hl-time { flex: none; color: var(--text-muted); font-size: 11px; }
+.hl-pager { display: flex; align-items: center; justify-content: space-between; padding: 10px 2px; color: var(--text-muted); font-size: 11px; }
 </style>

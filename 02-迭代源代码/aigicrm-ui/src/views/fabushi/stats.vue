@@ -152,7 +152,7 @@
       <table class="rank-table">
         <thead><tr><th>书名</th><th>类别</th><th class="w-num r">已读人数</th><th class="w-num r">已读人次</th><th class="w-act">阅读占比</th><th>最新阅读</th></tr></thead>
         <tbody>
-          <tr v-for="(row, i) in dashboard.bookRanking || []" :key="row.bookId">
+          <tr v-for="(row, i) in pagedBookRanking" :key="row.bookId">
             <td><span class="book-cell"><span class="mini-cover">{{ (row.title || '书').replace(/[《》]/g, '').slice(0, 2) }}</span><span class="strong">{{ row.title }}</span></span></td>
             <td><span class="cat-chip" :class="'c' + (i % 3)">{{ row.categoryName || row.category || '—' }}</span></td>
             <td class="num w-num r">{{ row.readUsers }}</td>
@@ -163,6 +163,10 @@
         </tbody>
       </table>
       <div v-if="!(dashboard.bookRanking || []).length" class="empty">本周期暂无书目阅读</div>
+      <div v-if="bookRankTotalPages > 1" class="inline-pager">
+        <span>共 {{ (dashboard.bookRanking || []).length }} 本</span>
+        <el-pagination v-model:current-page="bookRankPage" :page-size="bookRankSize" :total="(dashboard.bookRanking || []).length" layout="prev, pager, next" small />
+      </div>
     </section>
 
     <!-- ⑦ 分隔带: 月度盘点是独立月份口径, 与上方周期切换切开 -->
@@ -179,7 +183,7 @@
           <colgroup><col /><col class="w-num" /><col class="w-num" /><col style="width: 168px" /><col class="w-num" /><col class="w-num" /><col class="w-num" /><col class="w-num" /></colgroup>
           <thead><tr><th>部门</th><th class="r">成员数</th><th class="r">已读人数</th><th>覆盖率</th><th class="r">发布</th><th class="r" title="本部门成员敲出的点赞数">木鱼</th><th class="r" title="本部门成员发出的评论数">评论</th><th class="r">已读天数</th></tr></thead>
           <tbody>
-            <tr v-for="row in dashboard.deptProgress || []" :key="row.deptId ?? 'none'">
+            <tr v-for="row in pagedDeptProgress" :key="row.deptId ?? 'none'">
               <td><span class="strong" :title="row.deptName">{{ row.deptName }}</span><span v-if="row.companyLevel" class="dept-badge">公司直隶</span><span v-if="row.deptId == null" class="dept-badge unassigned">无部门成员</span></td>
               <td class="num r">{{ row.memberCount }}</td>
               <td class="num r">{{ row.readUsers }}</td>
@@ -274,6 +278,7 @@
 
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
+import { usePagedList } from '@/composables/usePagedList'
 import { useRouter } from 'vue-router'
 import { getFabushiDashboard, getFabushiMonthly, getFabushiPersonalStats } from '@/api/fabushi'
 import { useUserStore } from '@/store/user'
@@ -298,6 +303,8 @@ const personal = ref({
 })
 // 【2026-11-16 P3】月度报告: 默认当月, el-date-picker(type=month) 切换
 const monthly = ref({ month: '', periodStart: '', periodEnd: '', memberCount: 0, posts: 0, likes: 0, comments: 0, readCount: 0, readUsers: 0, activeUsers: 0, coveragePct: null, prev: {}, deptProgress: [], ranking: [], trend: [] })
+const { current: bookRankPage, size: bookRankSize, totalPages: bookRankTotalPages, paged: pagedBookRanking } = usePagedList(computed(() => dashboard.value.bookRanking || []), { pageSize: 8 })
+const { current: deptPage, size: deptSize, totalPages: deptTotalPages, paged: pagedDeptProgress } = usePagedList(computed(() => dashboard.value.deptProgress || []), { pageSize: 8 })
 const monthlyMonth = ref(new Date().toISOString().slice(0, 7))
 
 // 【UI-STATS-PAGE-001】成员榜分页态: 默认每页 10; 切排序/每页数回第 1 页
@@ -581,6 +588,7 @@ onMounted(() => {
 .metric-bar .pc { color: var(--text-muted); font-size: 11px; font-variant-numeric: tabular-nums; min-width: 32px; }
 
 /* 分页底栏 */
+.inline-pager { display: flex; align-items: center; justify-content: space-between; padding: 10px 4px; color: var(--text-muted); font-size: 11px; }
 .rank-pager { margin-top: 12px; padding-top: 8px; border-top: 1px dashed #efe7d8; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .rank-pager .info { color: #a99d8c; font-size: 11px; }
 .rank-pager .info b { color: var(--text-secondary); font-weight: 600; }

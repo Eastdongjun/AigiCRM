@@ -98,7 +98,7 @@
       <div v-if="!visibleShelf.length" class="empty">当前筛选下没有书架记录，去书目浏览加入一本吧。</div>
 
       <div v-else :class="viewMode === 'grid' ? 'shelf-grid' : 'shelf-list'">
-        <article v-for="book in visibleShelf" :key="book.id" class="shelf-card" :class="{ selected: selected.includes(book.id) }" @click="onCardClick(book)">
+        <article v-for="book in pagedShelf" :key="book.id" class="shelf-card" :class="{ selected: selected.includes(book.id) }" @click="onCardClick(book)">
           <div class="cover-wrap">
             <div class="cover">{{ book.cover }}</div>
             <span v-if="book.pinned" class="pin">★</span>
@@ -127,6 +127,11 @@
         </article>
       </div>
 
+      <div v-if="shelfTotalPages > 1" class="inline-pager">
+        <span>共 {{ visibleShelf.length }} 本</span>
+        <el-pagination v-model:current-page="shelfPage" :page-size="shelfSize" :total="visibleShelf.length" layout="prev, pager, next" small />
+      </div>
+
       <div v-if="manageMode && selected.length" class="batch-bar">
         <span>已选 {{ selected.length }} 本</span>
         <el-button size="small" @click="batch('pin')">置顶</el-button>
@@ -147,8 +152,11 @@
       </div>
       <div class="record-stats"><span>本月阅读 <b>{{ records.readDays || 0 }}</b> 天</span><span>阅读 <b>{{ records.readCount || 0 }}</b> 次</span></div>
       <div class="record-list">
-        <div v-for="day in records.days || []" :key="day.date" class="record-row"><span>{{ day.date }}</span><b>{{ day.count }} 次</b></div>
+        <div v-for="day in pagedRecordDays" :key="day.date" class="record-row"><span>{{ day.date }}</span><b>{{ day.count }} 次</b></div>
         <div v-if="!(records.days || []).length" class="empty">本月暂无阅读记录</div>
+        <div v-if="recordTotalPages > 1" class="inline-pager">
+          <el-pagination v-model:current-page="recordPage" :page-size="recordSize" :total="(records.days || []).length" layout="prev, pager, next" small />
+        </div>
       </div>
     </section>
 
@@ -190,7 +198,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -202,6 +210,7 @@ import {
 import {
   SHELF_STATUS_OPTIONS, SHELF_SORT_OPTIONS, shelfStatusLabel, progressPct, filterShelf, sortShelf,
 } from '@/utils/fabushi-shelf'
+import { usePagedList } from '@/composables/usePagedList'
 
 const router = useRouter()
 const tabs = [
@@ -264,6 +273,10 @@ const visibleShelf = computed(() => sortShelf(
   filterShelf(shelf.value, { status: statusFilter.value, keyword: keyword.value, group: currentGroup.value }),
   sortMode.value
 ))
+const { current: shelfPage, size: shelfSize, totalPages: shelfTotalPages, paged: pagedShelf, reset: resetShelfPage } = usePagedList(visibleShelf, { pageSize: 12 })
+const recordDays = computed(() => records.value.days || [])
+const { current: recordPage, size: recordSize, totalPages: recordTotalPages, paged: pagedRecordDays } = usePagedList(recordDays, { pageSize: 10 })
+watch([statusFilter, groupFilter, keyword, sortMode, viewMode], resetShelfPage)
 
 const loadShelf = async () => {
   loading.value = true
@@ -416,6 +429,7 @@ onMounted(async () => {
 .group-chip small { opacity: .6; }
 .shelf-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
 .shelf-list { display: flex; flex-direction: column; gap: 8px; }
+.inline-pager { display: flex; align-items: center; justify-content: space-between; padding: 10px 2px; color: var(--text-muted); font-size: 11px; }
 .shelf-card { position: relative; display: flex; align-items: center; gap: 10px; padding: 10px; border: 1px solid var(--border-light); border-radius: var(--radius-md); cursor: pointer; }
 .shelf-card:hover { border-color: var(--primary-color); }
 .shelf-card.selected { border-color: var(--primary-color); box-shadow: 0 0 0 2px var(--el-color-primary-light-8); }

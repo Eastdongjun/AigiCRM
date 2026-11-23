@@ -47,7 +47,7 @@
 
         <div v-if="recitations.length" class="recite-sec">
           <div class="recite-title">复诵（他人对本段也进行朗读/背诵，不必自建每日诵读）</div>
-          <div v-for="item in recitations" :key="item.id" class="recite-row">
+          <div v-for="item in pagedRecitations" :key="item.id" class="recite-row">
             <b>{{ item.userName || '同事' }}</b>
             <span v-if="item.durationSeconds" class="recite-dur">复诵 {{ item.durationSeconds }} 秒</span>
             <span class="recite-time">{{ formatTime(item.createdAt) }}</span>
@@ -55,12 +55,20 @@
           </div>
         </div>
 
+        <div v-if="recitationTotalPages > 1" class="inline-pager">
+          <el-pagination v-model:current-page="recPage" :page-size="recSize" :total="recitationTotal" layout="prev, pager, next" small />
+        </div>
+
         <div class="comments-head">评论（{{ comments.length }}）</div>
         <div v-if="!comments.length" class="comment-empty">还没有评论</div>
-        <div v-for="comment in comments" :key="comment.id" class="comment">
+        <div v-for="comment in pagedComments" :key="comment.id" class="comment">
           <b>{{ comment.userName || '同事' }}</b>
           <p>{{ comment.content }}</p>
           <span>{{ formatTime(comment.createdAt) }}</span>
+        </div>
+
+        <div v-if="commentTotalPages > 1" class="inline-pager">
+          <el-pagination v-model:current-page="commentPage" :page-size="commentSize" :total="comments.length" layout="prev, pager, next" small />
         </div>
 
         <div v-if="canCreate" class="comment-form">
@@ -147,6 +155,8 @@ const attachments = ref([])
 const fileToken = ref('')
 const recitations = ref([])
 const recitationCount = ref(0)
+const { current: commentPage, size: commentSize, totalPages: commentTotalPages, paged: pagedComments } = usePagedList(comments, { pageSize: 10 })
+const { current: recPage, size: recSize, total: recitationTotal, totalPages: recitationTotalPages, paged: pagedRecitations } = usePagedList(recitations, { pageSize: 5 })
 // 【D25 计划切片 3】PC 木鱼音效（复用 MP muyu.mp3；受用户设置 soundEnabled 控制，默认开）
 const muyuSfx = typeof Audio !== 'undefined' ? new Audio('/audio/muyu.mp3') : null
 const soundOn = ref(true)
@@ -420,6 +430,7 @@ onBeforeUnmount(() => { if (muyuTimer) clearTimeout(muyuTimer) })
 .recite-dur, .recite-time { color: var(--text-muted); font-size: 11px; }
 .recite-audio { height: 30px; max-width: 260px; }
 .comments-head { margin-top: 16px; color: var(--text-primary); font-size: 13px; font-weight: 700; }
+.inline-pager { display: flex; justify-content: flex-end; margin-top: 8px; }
 .comment { padding: 10px 0; border-bottom: 1px solid var(--border-light); }
 .comment:last-of-type { border-bottom: 0; }
 .comment b { color: var(--text-secondary); font-size: 12px; }

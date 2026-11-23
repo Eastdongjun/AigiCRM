@@ -56,7 +56,10 @@
           <div class="rail-bookmarks">
             <div class="rail-subtitle">我的书签 <span>{{ bookmarks.length }}</span></div>
             <div v-if="!bookmarks.length" class="rail-empty">还没有书签，翻到重要页可点「加书签」</div>
-            <div v-for="item in bookmarks" :key="item.id" class="bookmark-row">
+            <div v-if="bookmarkTotalPages > 1" class="rail-pager">
+              <el-pagination v-model:current-page="bookmarkPage" :page-size="bookmarkSize" :total="bookmarks.length" layout="prev, pager, next" small />
+            </div>
+            <div v-for="item in pagedBookmarks" :key="item.id" class="bookmark-row">
               <button type="button" class="bm-jump" @click="turnTo(item.page)">第 {{ item.page }} 页<template v-if="item.note"> · {{ item.note }}</template></button>
               <button type="button" class="bm-del" :aria-label="'删除第 ' + item.page + ' 页书签'" @click="removeBookmark(item.id)">×</button>
             </div>
@@ -188,6 +191,7 @@ import { downloadFile } from '@/utils/download'
 import { useUserStore } from '@/store/user'
 import { useFabushiPdfReader } from '@/composables/useFabushiPdfReader'
 import { useFabushiReaderSettings } from '@/composables/useFabushiReaderSettings'
+import { usePagedList } from '@/composables/usePagedList'
 import {
   FABUSHI_LAYOUT_TYPES, READER_BACKDROPS, backdropOf, layoutLabel, lineHeightRatio,
   normalizeReaderSettings, readingPercent, readerCssVars
@@ -206,6 +210,7 @@ const token = ref(getToken() || '')
 const canDownload = computed(() => userStore.hasPermission('fabushi:view'))
 const settingsOpen = ref(false)
 const bookmarks = ref([])
+const { current: bookmarkPage, size: bookmarkSize, totalPages: bookmarkTotalPages, paged: pagedBookmarks } = usePagedList(bookmarks, { pageSize: 8 })
 const bookmarkBusy = ref(false)
 
 const layoutType = computed(() => book.value.layoutType === 'text' ? 'text' : 'scan')
@@ -494,6 +499,7 @@ onBeforeUnmount(() => {
 .rail-meta { display: flex; flex-direction: column; gap: 7px; margin-top: 16px; }
 .rail-meta span { color: #a67c52; font-size: 10.5px; }
 .rail-meta b { color: #2e2a24; font-size: 12px; font-weight: 500; }
+.rail-pager { margin-top: 8px; display: flex; justify-content: center; }
 .rail-bookmarks { margin-top: 18px; padding-top: 10px; border-top: 1px dashed #d8cdbb; }
 .rail-subtitle { display: flex; justify-content: space-between; color: #2e2a24; font-size: 11.5px; font-weight: 700; }
 .rail-subtitle span { color: #a67c52; }
