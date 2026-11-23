@@ -457,7 +457,7 @@ class PermissionSecurityFixTest {
                     .thenReturn(com.aigicrm.common.scope.ScopeDecision.all());
             com.aigicrm.module.system.service.RolePermScopeService rps = mock(com.aigicrm.module.system.service.RolePermScopeService.class);
             when(rps.anchorOf(any(), any(), any())).thenReturn(com.aigicrm.common.scope.ScopeRequest.AnchorType.OWNER);
-            com.aigicrm.module.customer.service.CustomerService cs = new com.aigicrm.module.customer.service.CustomerService(
+            com.aigicrm.module.customer.service.CustomerService cs = com.aigicrm.module.customer.service.support.CustomerServiceFixture.create(
                     mock(com.aigicrm.module.customer.mapper.BizCustomerMapper.class),
                     null,
                     mock(com.aigicrm.module.customer.mapper.BizCustomerLogMapper.class),

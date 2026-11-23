@@ -91,7 +91,7 @@ class ApprovalServiceTest {
     /** 【2026-11-02 副本收敛】延期公式已收敛进 CustomerService.applyExtendApproval(三线/365),
      *  extend 执行用例注入真实例(其余依赖全 mock; configService 返回 null → 公式走默认 365/180)。 */
     private static com.aigicrm.module.customer.service.CustomerService realCustomerService(BizCustomerMapper customerMapper) {
-        return new com.aigicrm.module.customer.service.CustomerService(
+        return com.aigicrm.module.customer.service.support.CustomerServiceFixture.create(
                 customerMapper,
                 null,
                 mock(com.aigicrm.module.customer.mapper.BizCustomerLogMapper.class),

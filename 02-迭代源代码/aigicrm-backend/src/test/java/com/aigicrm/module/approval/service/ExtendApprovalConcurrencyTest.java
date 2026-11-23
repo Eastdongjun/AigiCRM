@@ -91,7 +91,7 @@ class ExtendApprovalConcurrencyTest {
     }
 
     private static com.aigicrm.module.customer.service.CustomerService realCustomerService(BizCustomerMapper customerMapper) {
-        return new com.aigicrm.module.customer.service.CustomerService(
+        return com.aigicrm.module.customer.service.support.CustomerServiceFixture.create(
                 customerMapper,
                 null,
                 mock(com.aigicrm.module.customer.mapper.BizCustomerLogMapper.class),

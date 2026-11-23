@@ -11,6 +11,7 @@ import com.aigicrm.module.customer.mapper.BizCustomerShareMapper;
 import com.aigicrm.module.customer.mapper.BizCustomerStageAmountMapper;
 import com.aigicrm.module.customer.mapper.BizInvoiceMapper;
 import com.aigicrm.module.customer.mapper.BizPaymentMapper;
+import com.aigicrm.module.customer.service.CustomerContactShareService;
 import com.aigicrm.module.customer.service.CustomerEventService;
 import com.aigicrm.module.customer.service.CustomerService;
 import com.aigicrm.module.customer.service.CustomerVisibilityService;
@@ -59,10 +60,12 @@ public final class CustomerServiceFixture {
             BizApprovalMapper approvalMapper,
             SysLogMapper financeAuditLogMapper,
             CustomerEventService customerEventService) {
+        CustomerContactShareService contactShareService = new CustomerContactShareService(customerMapper,
+                shareMapper, reminderMapper, contactMapper, userMapper, jdbc);
         return new CustomerService(customerMapper, customerVisibilityService, customerLogMapper, invoiceMapper,
-                shareMapper, indicatorMapper, contactMapper, paymentMapper, stageAmountMapper, seaPoolMapper,
-                userMapper, deptMapper, reminderMapper, jdbc, configService, scopeResolver,
+                shareMapper, indicatorMapper, paymentMapper, stageAmountMapper, seaPoolMapper,
+                userMapper, deptMapper, jdbc, configService, scopeResolver,
                 customerAccessService, rolePermScopeService, approvalMapper, financeAuditLogMapper,
-                customerEventService);
+                customerEventService, contactShareService);
     }
 }
