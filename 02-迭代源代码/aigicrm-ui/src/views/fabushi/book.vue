@@ -48,13 +48,17 @@
           <span class="head-hint">状态操作需 fabushi:book:manage</span>
         </div>
         <table class="data-table">
-          <thead><tr><th>书目</th><th>作者 / 版本 / 页数</th><th>状态</th><th>电子书</th><th>提交人 / 时间</th><th>操作</th></tr></thead>
+          <thead><tr><th>书目</th><th>作者 / 版本 / 页数</th><th>类别</th><th>状态</th><th>电子书</th><th class="r" title="参与人数 / 已发布内容条数（原型「8 人/36 条」）">参与</th><th>版式</th><th>提交人 / 时间</th><th>操作</th></tr></thead>
           <tbody>
             <tr v-for="row in books" :key="row.id">
               <td class="title-cell">{{ row.title }}</td>
               <td>{{ row.author || '—' }}<template v-if="row.editionType"> · {{ editionLabel(row.editionType) }}</template><template v-if="row.pages"> · {{ row.pages }} 页</template></td>
+              <td class="dim">{{ row.categoryName || row.categoryCode || '—' }}</td>
               <td><span class="status" :class="row.status">{{ statusText(row.status) }}</span></td>
               <td><span v-if="row.pdfFileId" class="pdf-tag">已挂载</span><span v-else class="muted">未挂载</span></td>
+              <!-- 【P10 2026-11-23】原型「参与」= 人数/条数（8 人/36 条），此前只显示条数 -->
+              <td class="num r">{{ row.memberCount || 0 }} 人/{{ row.postCount || 0 }} 条</td>
+              <td><span class="layout-tag" :class="row.layoutType === 'text' ? 'text' : 'scan'">{{ layoutLabel(row.layoutType) }}</span></td>
               <td>{{ row.submitterName || '—' }} · {{ formatDate(row.createdAt) }}</td>
               <td class="actions">
                 <template v-if="userStore.hasPermission('fabushi:book:manage')">
@@ -62,6 +66,7 @@
                   <el-button v-if="row.status === 'pending'" link type="warning" @click="openReject(row)">驳回</el-button>
                   <el-button v-if="row.status === 'approved'" link type="primary" @click="openPdf(row)">{{ row.pdfFileId ? '换PDF' : '挂PDF' }}</el-button>
                   <el-button v-if="row.status === 'approved'" link type="primary" @click="openSections(row)">章节</el-button>
+                  <el-button v-if="row.status === 'approved'" link type="primary" @click="openLayout(row)">版式</el-button>
                   <el-button v-if="row.status === 'approved'" link type="danger" @click="doDisable(row)">停用</el-button>
                   <el-button v-if="row.status === 'rejected'" link type="primary" @click="showRejectReason(row)">查看原因</el-button>
                   <el-button link type="danger" @click="doDelete(row)">删除</el-button>
@@ -134,6 +139,19 @@
       </div>
       <p class="pdf-hint">当前书目：{{ pdfVisible ? pdfVisible.title : '' }}</p>
     </el-dialog>
+
+    <!-- 【D19 切片 7】管理员确认版式标记：文本版/影印版（自动检测文本层留批2） -->
+    <el-dialog v-model="layoutVisible" title="书目版式标记" width="420px">
+      <p class="pdf-hint">当前书目：{{ layoutVisible ? layoutVisible.title : '' }}</p>
+      <el-radio-group v-model="layoutForm.layoutType">
+        <el-radio-button v-for="item in layoutTypes" :key="item.value" :value="item.value">{{ item.label }}</el-radio-button>
+      </el-radio-group>
+      <p class="pdf-hint">{{ (layoutTypes.find((x) => x.value === layoutForm.layoutType) || {}).hint }}</p>
+      <template #footer>
+        <el-button @click="layoutVisible = null">取消</el-button>
+        <el-button type="primary" :loading="actionLoading" @click="doSaveLayout">保存标记</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -145,8 +163,9 @@ import { useUserStore } from '@/store/user'
 import { getDictData } from '@/api/system'
 import {
   getFabushiBooks, submitFabushiBook, approveFabushiBook, rejectFabushiBook, disableFabushiBook, attachBookPdf, deleteFabushiBook,
-  getFabushiSections, createFabushiSection, deleteFabushiSection,
+  getFabushiSections, createFabushiSection, deleteFabushiSection, updateFabushiBookLayout,
 } from '@/api/fabushi'
+import { FABUSHI_LAYOUT_TYPES, layoutLabel } from '@/utils/fabushi-reader-settings'
 
 const userStore = useUserStore()
 const loading = ref(false)
@@ -264,6 +283,29 @@ const doDelete = async (row) => {
   ElMessage.success('已删除')
   await Promise.all([loadData(), loadAll()])
 }
+// 【D19 切片 7】版式标记（管理员确认；自动检测文本层=批2）
+const layoutVisible = ref(null)
+const layoutTypes = FABUSHI_LAYOUT_TYPES
+const layoutForm = ref({ layoutType: 'scan' })
+const openLayout = (row) => {
+  layoutVisible.value = row
+  layoutForm.value = { layoutType: row.layoutType === 'text' ? 'text' : 'scan' }
+}
+const doSaveLayout = async () => {
+  if (!layoutVisible.value) return
+  actionLoading.value = true
+  try {
+    await updateFabushiBookLayout(layoutVisible.value.id, layoutForm.value.layoutType)
+    ElMessage.success('版式标记已保存')
+    layoutVisible.value = null
+    await loadData()
+  } catch (e) {
+    // 全局拦截器已提示
+  } finally {
+    actionLoading.value = false
+  }
+}
+
 const openPdf = (row) => { pdfVisible.value = row }
 const pickPdf = () => pdfInputRef.value?.click()
 const handlePdfChosen = async (evt) => {
@@ -340,6 +382,9 @@ onMounted(async () => { await Promise.all([loadDicts(), loadAll()]); await loadD
 .status.rejected { color: var(--el-color-danger); background: var(--el-color-danger-light-9); }
 .status.disabled { color: var(--text-muted); background: var(--el-fill-color-light); }
 .pdf-tag { color: var(--el-color-success); font-size: 11px; }
+.layout-tag { padding: 1px 7px; border-radius: 999px; font-size: 10px; }
+.layout-tag.text { color: #2d5a4a; background: #e4efe6; }
+.layout-tag.scan { color: #a67c52; background: #f4ead9; }
 .muted { color: var(--text-placeholder); font-size: 11px; }
 .actions { white-space: nowrap; }
 .empty { padding: 24px; color: var(--text-placeholder); text-align: center; font-size: 12px; }

@@ -87,12 +87,37 @@ export function getFabushiPersonalStats() {
 }
 
 // 二期阅读链
+// 【D7 切片 6】我的觉醒聚合状态（当日/本月/累计）
+export function getFabushiAwakenStatus() {
+  return request.get('/fabushi/awaken/status')
+}
+
 export function getFabushiShelf() {
   return request.get('/fabushi/shelf')
 }
 
-export function addFabushiShelf(bookId) {
-  return request.post('/fabushi/shelf', { bookId })
+export function addFabushiShelf(bookId, data) {
+  return request.post('/fabushi/shelf', { bookId, ...(data || {}) })
+}
+
+export function batchFabushiShelf(data) {
+  return request.post('/fabushi/shelf/batch', data)
+}
+
+export function getFabushiShelfGroups() {
+  return request.get('/fabushi/shelf/groups')
+}
+
+export function createFabushiShelfGroup(name) {
+  return request.post('/fabushi/shelf/groups', { name })
+}
+
+export function renameFabushiShelfGroup(id, name) {
+  return request.put(`/fabushi/shelf/groups/${id}`, { name })
+}
+
+export function deleteFabushiShelfGroup(id) {
+  return request.delete(`/fabushi/shelf/groups/${id}`)
 }
 
 export function updateFabushiShelf(id, data) {
@@ -109,6 +134,25 @@ export function getFabushiProgress(bookId) {
 
 export function saveFabushiProgress(bookId, data) {
   return request.put(`/fabushi/progress/${bookId}`, data)
+}
+
+// 【D19/D24 切片 7】阅读器页码书签（按书记忆，本人维度）
+export function getFabushiBookmarks(bookId) {
+  return request.get('/fabushi/bookmarks', { params: { bookId } })
+}
+// 【PROTO-AUDIT-20261123 P9/D23】我的书摘：跨书本人书签（带书名）
+export function getMyFabushiBookmarks() { return request.get('/fabushi/bookmarks/mine') }
+
+export function addFabushiBookmark(data) {
+  return request.post('/fabushi/bookmarks', data)
+}
+export function removeFabushiBookmark(id) {
+  return request.delete(`/fabushi/bookmarks/${id}`)
+}
+
+/** 【D19 切片 7】管理员确认书目版式标记 text=文本版 / scan=影印版 */
+export function updateFabushiBookLayout(id, layoutType) {
+  return request.put(`/fabushi/books/${id}/layout`, { layoutType })
 }
 
 export function getFabushiRecords(month) {
@@ -164,3 +208,21 @@ export function endFabushiActivity(id) {
 export function getFabushiMonthly(month) {
   return request.get('/fabushi/stats/monthly', { params: { month: month || undefined } })
 }
+
+// 【D1 2026-11-23】内容类型单源（与后端 FabushiScopeType 枚举/V2026.11.23.1 一致，禁止页面另写字面量）
+export const FABUSHI_SCOPE_TYPES = [
+  { value: 'songdu', label: '每日诵读' },
+  { value: 'suishi', label: '每日随施' },
+  { value: 'zaidu', label: '再读一本' }
+]
+export const fabushiScopeLabel = (value) => (FABUSHI_SCOPE_TYPES.find((t) => t.value === value) || {}).label || '内容'
+
+// 【D13/D16 2026-11-23 计划切片 2】本人修改/删除 + 治理已删除
+export function updateFabushiPost(id, data) { return request.put(`/fabushi/posts/${id}`, data) }
+export function deleteFabushiPost(id) { return request.delete(`/fabushi/posts/${id}`) }
+export function getDeletedFabushiPosts(params) { return request.get('/fabushi/posts/deleted', { params }) }
+export function restoreDeletedFabushiPost(id) { return request.put(`/fabushi/posts/${id}/restore-deleted`) }
+
+// 【D14 2026-11-23 计划切片 3】复诵（独立实体表；同人同帖可多次）
+export function getFabushiRecitations(id) { return request.get(`/fabushi/posts/${id}/recitations`) }
+export function addFabushiRecitation(id, data) { return request.post(`/fabushi/posts/${id}/recitations`, data) }

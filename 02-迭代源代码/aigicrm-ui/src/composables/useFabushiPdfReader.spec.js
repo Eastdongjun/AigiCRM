@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { defineComponent, h, ref } from 'vue'
-import { clampPage, resolveResumePage, useFabushiPdfReader } from './useFabushiPdfReader'
+import { clampPage, resolveResumePage, searchInPagesPure, useFabushiPdfReader } from './useFabushiPdfReader'
 
 // P3 PC/MP 共用阅读器：页码边界与续读定位是「翻页回传/重开续读」的正确性根，
 // 单独锁死，避免后续改渲染逻辑时回归这两条口径。
@@ -57,5 +57,49 @@ describe('useFabushiPdfReader 初始态', () => {
       },
     }))
     api.unmount()
+  })
+})
+
+// 【D24 2026-11-23】书内搜索纯函数：中文直接子串（不分词）、大小写不敏感、
+// snippet 命中词用 ⟪⟫ 标出、无命中/空输入不抛错、单页命中数有上限。
+describe('searchInPagesPure（书内搜索）', () => {
+  const pages = [
+    { page: 1, text: '上善若水，水善利万物而不争，处众人之所恶，故几于道。' },
+    { page: 2, text: '道可道，非常道。名可名，非常名。' },
+    { page: 3, text: '' },
+    { page: 4, text: 'The Dao that can be told is not the eternal Dao.' },
+  ]
+
+  it('中文子串命中并带页码与高亮标记', () => {
+    const hits = searchInPagesPure(pages, '上善若水')
+    expect(hits).toHaveLength(1)
+    expect(hits[0].page).toBe(1)
+    expect(hits[0].snippet).toContain('⟪上善若水⟫')
+  })
+
+  it('同页多次命中逐条返回，跨页命中都返回', () => {
+    const hits = searchInPagesPure(pages, '道')
+    const hitPages = [...new Set(hits.map((h) => h.page))]
+    expect(hitPages).toContain(1)
+    expect(hitPages).toContain(2)
+    expect(hits.filter((h) => h.page === 2).length).toBeGreaterThanOrEqual(3)
+  })
+
+  it('大小写不敏感，英文可命中', () => {
+    expect(searchInPagesPure(pages, 'eternal dao')).toHaveLength(1)
+    expect(searchInPagesPure(pages, 'ETERNAL')).toHaveLength(1)
+  })
+
+  it('无关键词 / 空文本 / 未命中 一律空数组，不抛错', () => {
+    expect(searchInPagesPure(pages, '   ')).toEqual([])
+    expect(searchInPagesPure(pages, null)).toEqual([])
+    expect(searchInPagesPure(pages, '不存在的词')).toEqual([])
+    expect(searchInPagesPure(null, '道')).toEqual([])
+    expect(searchInPagesPure([{ page: 9, text: '' }], '道')).toEqual([])
+  })
+
+  it('单页命中数有上限，高频词不会刷爆结果列表', () => {
+    const hits = searchInPagesPure([{ page: 1, text: '道'.repeat(400) }], '道')
+    expect(hits.length).toBeLessThanOrEqual(50)
   })
 })

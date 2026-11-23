@@ -5,7 +5,7 @@
         <h1>书目浏览</h1>
         <p>按类别浏览已通过审核的书目，在线阅读或写心得</p>
       </div>
-      <el-button @click="router.push('/fabushi/shelf')">我的阅读</el-button>
+      <el-button @click="router.push('/fabushi/shelf')">我的觉醒</el-button>
     </div>
 
     <div class="filter">

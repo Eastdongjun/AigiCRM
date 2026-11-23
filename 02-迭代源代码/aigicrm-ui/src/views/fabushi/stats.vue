@@ -2,6 +2,8 @@
   <div class="fabushi-stats" v-loading="loading">
     <!-- 【UI-STATS-PAGE-001 2026-11-19】按已过审原型 v4 落地: 纵向卷轴三行型(全宽段带/等宽双卡/四卡),
          成员榜前端分页(默认每页 10, 名次章=全榜前三, 占比条=全榜最高值分母), 后端需配套 UI-STATS-PAGE-001 -->
+    <!-- 【D28 切片 7】渐变 hero：页头 + 周期/导出控制内聚到同一块，数据口径与接口零改动 -->
+    <div class="stats-hero">
     <!-- ① 页头: 标题回归法布施页头母题, 范围章/数据新鲜度上收(原"统计范围"假筛选移除) -->
     <div class="page-head">
       <div>
@@ -26,34 +28,24 @@
       <button type="button" class="btn" @click="loadData">↻ 刷新</button>
       <button v-if="userStore.hasPermission('fabushi:stats:export')" type="button" class="btn primary" @click="exportStats">⬇ 导出报表（CSV）</button>
     </div>
+    </div>
 
     <!-- ③ KPI×4: 阅读四指标, 副行统一口径公式一种性质 -->
     <div class="kpi-row">
-      <div class="kpi">
-        <div class="label">今日已读人数</div>
-        <div class="value">{{ dashboard.todayReadUsers || 0 }}<span class="unit">人</span></div>
-        <div class="sub">今日已读 / {{ scopeShort }} {{ dashboard.coveragePct != null ? dashboard.coveragePct + '%' : '—' }}</div>
-      </div>
-      <div class="kpi">
-        <div class="label">周期已读人数</div>
-        <div class="value">{{ dashboard.periodReadUsers || 0 }}<span class="unit">人</span></div>
-        <div class="sub">{{ dashboard.period === 'month' ? '本月' : '本周' }}内有过阅读的成员</div>
-      </div>
-      <div class="kpi">
-        <div class="label">阅读覆盖率</div>
+      <div class="kpi" v-for="(card, i) in kpiCards" :key="card.label">
+        <div class="kpi-top">
+          <span class="kpi-icon" :class="'ki' + i" aria-hidden="true">{{ card.icon }}</span>
+          <span class="kpi-trend" :class="kpiTrendClass(i)">{{ kpiTrendText(i) }}</span>
+        </div>
+        <div class="label">{{ card.label }}</div>
         <div class="value">
-          <template v-if="dashboard.periodCoveragePct != null">{{ dashboard.periodCoveragePct }}<em>%</em></template>
+          <template v-if="card.value != null">{{ card.value }}<span v-if="card.unit === '%'" class="unit-suffix">%</span><span v-else class="unit">{{ card.unit }}</span></template>
           <template v-else>—</template>
         </div>
-        <div class="sub">= 周期已读人数 / {{ scopeShort }}</div>
-      </div>
-      <div class="kpi">
-        <div class="label">每日一读达成率</div>
-        <div class="value">
-          <template v-if="dashboard.dailyGoalRate != null">{{ dashboard.dailyGoalRate }}<em>%</em></template>
-          <template v-else>—</template>
+        <div class="kpi-spark" aria-hidden="true">
+          <i v-for="(h, idx) in sparkHeights" :key="idx" :style="{ height: h + '%' }" :class="{ today: idx === sparkHeights.length - 1 }" />
         </div>
-        <div class="sub">提醒应读人日中实读占比</div>
+        <div class="sub">{{ card.sub }}</div>
       </div>
     </div>
 
@@ -82,20 +74,30 @@
         <thead>
           <tr>
             <th class="w-no">名次</th><th>成员</th><th>部门</th>
+            <!-- 【PROTO-AUDIT-20261123 P12】D1 三类型口径落到成员榜（原型列：诵读/随施/再读） -->
+            <th class="w-num r" title="每日诵读发布数">诵读</th>
+            <th class="w-num r" title="每日随施发布数">随施</th>
+            <th class="w-num r" title="再读一本发布数">再读</th>
             <th class="w-num r">已读天数</th><th class="w-num r">已读人次</th>
             <th class="w-num r">发布</th><th class="w-num r" title="内容被点赞数，按内容归属">获木鱼</th>
+            <!-- 【P12 2026-11-23】原型成员榜含「复诵」指标：口径＝他人对本人在本周期内容的复诵行数 -->
+            <th class="w-num r" title="本人内容被他人复诵的次数，按内容归属、限本周期">被复诵</th>
             <th class="w-act">{{ metricLabel }}</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="(row, i) in pagedRanking" :key="row.userId">
-            <td class="w-no"><span class="rank-no" :class="{ top: rankFrom + i < 3 }">{{ rankFrom + i + 1 }}</span></td>
-            <td><span class="who-cell"><span class="mini-avatar">{{ (row.userName || '?').slice(0, 1) }}</span><span class="strong">{{ row.userName }}</span></span></td>
+            <td class="w-no"><span class="rank-no" :class="medalClass(rankFrom + i)">{{ rankFrom + i + 1 }}</span></td>
+            <td><span class="who-cell"><span class="mini-avatar" :class="medalClass(rankFrom + i)">{{ (row.userName || '?').slice(0, 1) }}</span><span class="strong">{{ row.userName }}</span></span></td>
             <td class="dim" :title="row.deptName">{{ row.deptName }}</td>
+            <td class="num w-num r">{{ row.songduCount || 0 }}</td>
+            <td class="num w-num r">{{ row.suishiCount || 0 }}</td>
+            <td class="num w-num r">{{ row.zaiduCount || 0 }}</td>
             <td class="num w-num r">{{ row.readDays }}</td>
             <td class="num w-num r">{{ row.readCount }}</td>
             <td class="num w-num r">{{ row.postCount }}</td>
             <td class="num w-num r">{{ row.likesReceived }}</td>
+            <td class="num w-num r">{{ row.recitationsReceived || 0 }}</td>
             <td class="w-act"><span class="metric-bar"><span class="tr"><i :style="{ width: metricPct(row) + '%' }" /></span><span class="pc">{{ metricPct(row) }}%</span></span></td>
           </tr>
         </tbody>
@@ -120,9 +122,9 @@
     <div class="twin-row">
       <section class="panel">
         <div class="panel-head"><span class="ttl">类别分布</span><span class="hint">已读人次 · 占比</span></div>
-        <div v-for="item in dashboard.categoryReads || []" :key="item.categoryCode" class="heat-row">
+        <div v-for="(item, i) in dashboard.categoryReads || []" :key="item.categoryCode" class="heat-row">
           <span class="heat-label" :title="item.categoryName">{{ item.categoryName }}</span>
-          <div class="heat-track"><i :style="{ width: heatWidth(item.readCount) }" /></div>
+          <div class="heat-track"><i :style="{ width: heatWidth(item.readCount), background: heatGradient(i) }" /></div>
           <span class="heat-val">{{ item.readCount }}</span>
           <span class="heat-share">{{ heatShare(item.readCount) }}%</span>
         </div>
@@ -248,7 +250,7 @@
         <div><span>我的内容</span><b>{{ personal.myPosts || 0 }}</b></div>
         <div><span>获木鱼</span><b>{{ personal.myLikesReceived || 0 }}</b></div>
       </div>
-      <a class="p-cta" href="/fabushi/read" @click.prevent="goRead">进入我的阅读 →</a>
+      <a class="p-cta" href="/fabushi/read" @click.prevent="goRead">进入我的觉醒 →</a>
     </section>
 
     <!-- ⑪ 口径说明: 把"哪种数按谁算"一次讲清 -->
@@ -258,9 +260,11 @@
         <div class="g-row"><b>已读人数</b><span>周期内有过阅读记录的去重成员数</span></div>
         <div class="g-row"><b>已读人次</b><span>阅读记录条数，同一人重复阅读累计</span></div>
         <div class="g-row"><b>获木鱼</b><span>内容被点赞数，按内容作者归属（榜单口径）</span></div>
+        <div class="g-row"><b>被复诵</b><span>本人内容被他人复诵的次数，按内容作者归属、限本周期；复诵不计入本人诵读完成度（防刷口径）</span></div>
         <div class="g-row"><b>敲木鱼 / 木鱼</b><span>点赞行为次数，按点赞人归属（互动条 / 部门表口径）</span></div>
         <div class="g-row"><b>每日一读达成率</b><span>开提醒成员的应读人日中实读占比</span></div>
         <div class="g-row"><b>近 7 日趋势</b><span>固定滚动近 7 天每日已读人数，不随周期切换变化</span></div>
+        <div class="g-row"><b>指标卡迷你条</b><span>四张卡共用同一条「近 7 日每日已读人数」趋势，仅作视觉参照，不代表各自指标的日序列</span></div>
         <div class="g-row"><b>阅读占比</b><span>个人该指标 / 全榜最高值，跨页可比</span></div>
         <div class="g-row"><b>可见成员</b><span>数据权限范围内的成员集合；全集团时部门表含全部组织</span></div>
       </div>
@@ -363,7 +367,57 @@ const pctText = (pct) => {
 }
 const pctClass = (pct) => ({ up: pct != null && pct > 0, down: pct != null && pct < 0 })
 
-const goRead = () => router.push('/fabushi/read')
+// 【D28 切片 7】纯前端视觉：卡片图标/趋势 pill/7 日迷你条全部来自现有 dashboard 字段，零接口改动。
+// 迷你条四卡共用「近 7 日每日已读人数」同口径，口径说明里已标注，不伪造其他指标的日序列。
+const kpiCards = computed(() => [
+  {
+    label: '今日已读人数', icon: '阅',
+    value: dashboard.value.todayReadUsers || 0, unit: '人',
+    sub: `今日已读 / ${scopeShort.value} ${dashboard.value.coveragePct != null ? dashboard.value.coveragePct + '%' : '—'}`
+  },
+  {
+    label: '周期已读人数', icon: '周',
+    value: dashboard.value.periodReadUsers || 0, unit: '人',
+    sub: `${dashboard.value.period === 'month' ? '本月' : '本周'}内有过阅读的成员`
+  },
+  {
+    label: '阅读覆盖率', icon: '覆',
+    value: dashboard.value.periodCoveragePct, unit: '%',
+    sub: `= 周期已读人数 / ${scopeShort.value}`
+  },
+  {
+    label: '每日一读达成率', icon: '达',
+    value: dashboard.value.dailyGoalRate, unit: '%',
+    sub: '提醒应读人日中实读占比'
+  }
+])
+const trendValues = computed(() => (dashboard.value.trend || []).map((item) => Number(item.count) || 0))
+const trendDelta = computed(() => {
+  const values = trendValues.value
+  if (values.length < 2 || !values[values.length - 2]) return null
+  return Math.round(((values[values.length - 1] - values[values.length - 2]) * 100) / values[values.length - 2])
+})
+const kpiTrendText = (i) => {
+  if (i !== 0 || trendDelta.value == null) return dashboard.value.period === 'month' ? '本月' : '本周'
+  return (trendDelta.value > 0 ? '▲ ' : trendDelta.value < 0 ? '▼ ' : '') + Math.abs(trendDelta.value) + '%'
+}
+const kpiTrendClass = (i) => (i === 0 && trendDelta.value != null ? (trendDelta.value >= 0 ? 'up' : 'down') : 'flat')
+const sparkHeights = computed(() => {
+  const values = trendValues.value
+  const max = Math.max(1, ...values)
+  return values.map((v) => Math.max(8, Math.round((v * 100) / max)))
+})
+const HEAT_GRADIENTS = [
+  'linear-gradient(90deg, #2d5a4a, #7fa08e)',
+  'linear-gradient(90deg, #a67c52, #d9b98a)',
+  'linear-gradient(90deg, #b5543a, #e0a07f)',
+  'linear-gradient(90deg, #40688a, #8fb6d1)',
+  'linear-gradient(90deg, #6a5a8a, #b3a4d1)'
+]
+const heatGradient = (i) => HEAT_GRADIENTS[i % HEAT_GRADIENTS.length]
+const medalClass = (index) => (index === 0 ? 'gold' : index === 1 ? 'silver' : index === 2 ? 'bronze' : '')
+
+const goRead = () => router.push('/fabushi/library') // 【修复 2026-11-23】路由定义为 /fabushi/read/:bookId，无 bookId 不匹配——改跳书目浏览选书后再阅读
 
 const loadData = async () => {
   loading.value = true
@@ -420,6 +474,16 @@ onMounted(() => {
    6. 控件高 30px; 面板头迷你件 22px; 分页钮 24px */
 .fabushi-stats { display: flex; flex-direction: column; gap: 12px; }
 
+/* 【D28】渐变 hero：标题/范围/周期/导出收在同一视觉块 */
+.stats-hero { padding: 16px 18px; border-radius: 14px; background: linear-gradient(135deg, #22483c 0%, #2d5a4a 48%, #7fa08e 100%); box-shadow: 0 6px 18px rgba(45, 90, 74, .16); }
+.stats-hero .page-head h1 { color: #fff7ee; }
+.stats-hero .page-head .sub { color: rgba(255, 247, 238, .82); }
+.stats-hero .fresh { color: rgba(255, 247, 238, .78); }
+.stats-hero .fresh b { color: #fff7ee; }
+.stats-hero .scope-chip { color: #fff7ee; background: rgba(255, 247, 238, .18); }
+.stats-hero .seal { border-color: #fff7ee; color: #fff7ee; opacity: .9; }
+.stats-hero .ctrl-bar { margin-top: 12px; border-color: rgba(255, 247, 238, .4); }
+
 /* ① 页头 */
 .page-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .page-head h1 { margin: 0; color: var(--text-primary); font-family: 'Songti SC', 'STSong', serif; font-size: 21px; font-weight: 800; letter-spacing: 2px; }
@@ -448,6 +512,20 @@ onMounted(() => {
 .kpi-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .kpi { position: relative; padding: 14px 16px 12px; border: 1px solid var(--border-light); border-radius: 12px; background: #fffdf8; }
 .kpi::before { content: ''; position: absolute; top: 0; left: 16px; right: 16px; height: 3px; border-radius: 0 0 999px 999px; background: #2d5a4a; }
+.kpi-top { display: flex; align-items: center; justify-content: space-between; }
+.kpi-icon { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 8px; color: #fff7ee; font-family: 'Songti SC', 'STSong', serif; font-size: 13px; font-weight: 700; }
+.kpi-icon.ki0 { background: linear-gradient(135deg, #2d5a4a, #7fa08e); }
+.kpi-icon.ki1 { background: linear-gradient(135deg, #b5543a, #e0a07f); }
+.kpi-icon.ki2 { background: linear-gradient(135deg, #40688a, #8fb6d1); }
+.kpi-icon.ki3 { background: linear-gradient(135deg, #a67c52, #d9b98a); }
+.kpi-trend { padding: 2px 8px; border-radius: 999px; font-size: 10px; font-variant-numeric: tabular-nums; }
+.kpi-trend.up { color: #2d5a4a; background: #e4efe6; }
+.kpi-trend.down { color: #b5543a; background: #f8e9e0; }
+.kpi-trend.flat { color: #a67c52; background: #f4ead9; }
+.kpi-spark { display: flex; align-items: flex-end; gap: 3px; height: 18px; margin-top: 8px; }
+.kpi-spark i { flex: 1; max-width: 14px; border-radius: 2px 2px 0 0; background: #cfe0d4; }
+.kpi-spark i.today { background: #2d5a4a; }
+.kpi .value .unit-suffix { font-style: normal; font-size: 21px; }
 .kpi .label { color: var(--text-muted); font-size: 12px; }
 .kpi .value { margin-top: 8px; color: var(--text-primary); font-family: 'Songti SC', 'STSong', serif; font-size: 30px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.1; }
 .kpi .value .unit { margin-left: 4px; color: var(--text-muted); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 12px; font-weight: 500; }
@@ -492,6 +570,9 @@ onMounted(() => {
 .book-table .w-time { width: 110px; font-size: 11px; }
 .rank-no { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 999px; background: #f4ede0; color: var(--text-muted); font-size: 11px; font-weight: 700; }
 .rank-no.top { color: #b5543a; background: #f8e9e0; }
+.rank-no.gold, .mini-avatar.gold { color: #6b4a12; background: linear-gradient(135deg, #f7d774, #e0ac35); }
+.rank-no.silver, .mini-avatar.silver { color: #4b5158; background: linear-gradient(135deg, #e3e8ec, #b9c3cc); }
+.rank-no.bronze, .mini-avatar.bronze { color: #6e3d22; background: linear-gradient(135deg, #e7b58d, #c17d4e); }
 .who-cell { display: flex; align-items: center; gap: 8px; }
 .mini-avatar { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 24px; height: 24px; border-radius: 999px; background: linear-gradient(135deg, #2d5a4a, #4a7a62); color: #fff7ee; font-family: 'Songti SC', 'STSong', serif; font-size: 11px; font-weight: 700; }
 .metric-bar { display: inline-flex; align-items: center; gap: 8px; }

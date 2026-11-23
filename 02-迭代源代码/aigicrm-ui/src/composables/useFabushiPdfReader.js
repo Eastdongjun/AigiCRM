@@ -44,6 +44,43 @@ export function resolveResumePage(progress, pageCount) {
   return clampPage(last, pageCount)
 }
 
+/** 单页命中上限：防某页高频词（如"的"）刷爆结果列表，也让用户不至于滚不完。 */
+const MAX_HITS_PER_PAGE = 50
+
+/**
+ * 书内搜索（纯函数，不依赖 PDF/DOM，便于单测）。
+ * 大小写不敏感；中文直接子串匹配，不做分词；snippet 取命中前后各 ~30 字，命中词用 ⟪⟫ 标出。
+ * @param {{page:number, text:string}[]} pages
+ * @param {string} keyword
+ * @returns {{page:number, snippet:string}[]}
+ */
+export function searchInPagesPure(pages, keyword) {
+  const kw = String(keyword || '').trim()
+  if (!kw || !Array.isArray(pages)) return []
+  const lower = kw.toLowerCase()
+  const hits = []
+  for (const item of pages) {
+    const text = String((item && item.text) || '')
+    if (!text) continue
+    const hay = text.toLowerCase()
+    let from = 0
+    let guard = 0
+    while (guard < MAX_HITS_PER_PAGE) {
+      const at = hay.indexOf(lower, from)
+      if (at < 0) break
+      const start = Math.max(0, at - 30)
+      const end = Math.min(text.length, at + kw.length + 30)
+      hits.push({
+        page: item.page,
+        snippet: `${start > 0 ? '…' : ''}${text.slice(start, at)}⟪${text.slice(at, at + kw.length)}⟫${text.slice(at + kw.length, end)}${end < text.length ? '…' : ''}`,
+      })
+      from = at + kw.length
+      guard += 1
+    }
+  }
+  return hits
+}
+
 /**
  * @param {{
  *   bookId: import('vue').Ref<string|number>,
@@ -176,6 +213,17 @@ export function useFabushiPdfReader({ bookId, pdfFileId, token, saveDelay = SAVE
     if (n !== lastSavedPage) scheduleSave()
   }
 
+  /**
+   * 【D24 2026-11-23】只更新页码与进度，不重绘画布。
+   * 重排视图是连续滚动，页码随滚动变化，若走 goPage 会白白重绘一张看不见的画布。
+   */
+  function markPage(num) {
+    const n = clampPage(num, totalPages.value)
+    if (n === currentPage.value) return
+    currentPage.value = n
+    if (n !== lastSavedPage) scheduleSave()
+  }
+
   function scheduleSave() {
     if (saveTimer) clearTimeout(saveTimer)
     saveTimer = setTimeout(saveProgress, saveDelay) // debounce: 连续翻页只保存最终页码
@@ -201,6 +249,77 @@ export function useFabushiPdfReader({ bookId, pdfFileId, token, saveDelay = SAVE
     resizeTimer = setTimeout(() => { renderPage(currentPage.value) }, RESIZE_DEBOUNCE_MS)
   }
 
+  /* ==================== 文本层（D24：重排 / 字号行距 / 书内搜索） ====================
+   * 只读 PDF 自带的文本层，不做 OCR（原型明确「在线 OCR 重排」不做）。
+   * 影印件没有文本层 ⇒ pageText 返回空串，由壳层如实提示「重排与书内搜索不可用」，
+   * 不允许拿图片假装文字，也不允许在无文本时给出"搜索无结果"的假结论。
+   */
+  const textCache = new Map()
+  let textLayerProbe = null
+
+  /** 单页文本：按 item.str 拼接，item.hasEOL 断行（PDF 文本层无段落语义，不臆造段落）。 */
+  async function pageText(num) {
+    const n = Math.floor(Number(num))
+    if (!Number.isFinite(n) || n < 1) return ''
+    if (textCache.has(n)) return textCache.get(n)
+    if (!pdfDoc) return ''
+    const page = await pdfDoc.getPage(n)
+    if (disposed) return ''
+    const content = await page.getTextContent()
+    let out = ''
+    for (const item of content.items) {
+      if (!item || typeof item.str !== 'string') continue
+      out += item.str
+      if (item.hasEOL) out += '\n'
+    }
+    const text = out.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim()
+    textCache.set(n, text)
+    return text
+  }
+
+  /**
+   * 是否有文本层：探前 min(3, 总页数) 页，任一处有实质文字即视为有。
+   * 结果缓存，重复调用不再触发 PDF 解析。
+   */
+  async function detectTextLayer() {
+    if (textLayerProbe !== null) return textLayerProbe
+    if (!pdfDoc) return false
+    const probe = Math.min(3, totalPages.value || 1)
+    for (let i = 1; i <= probe; i += 1) {
+      const t = await pageText(i)
+      if (t && t.replace(/\s/g, '').length >= 10) {
+        textLayerProbe = true
+        return true
+      }
+    }
+    textLayerProbe = false
+    return false
+  }
+
+  /**
+   * 全书文本（书内搜索用）：逐页提取并回调进度；已提取过的页走缓存。
+   * @param {(done:number, total:number) => void} [onProgress]
+   */
+  async function extractAllText(onProgress) {
+    const total = totalPages.value
+    if (!pdfDoc || !total) return []
+    const pages = []
+    for (let i = 1; i <= total; i += 1) {
+      if (disposed) break
+      pages.push({ page: i, text: await pageText(i) })
+      if (typeof onProgress === 'function') onProgress(i, total)
+    }
+    return pages
+  }
+
+  /**
+   * 书内搜索：大小写不敏感、支持中文（不做分词，直接子串），返回 { page, snippet } 列表。
+   * 纯函数在模块级（searchInPages），这里只做转发，便于单测不依赖 PDF/DOM。
+   */
+  function searchInPages(pages, keyword) {
+    return searchInPagesPure(pages, keyword)
+  }
+
   /** 重试（错误态按钮）：复用已挂载画布重新拉取。 */
   function retry() {
     return load()
@@ -220,5 +339,9 @@ export function useFabushiPdfReader({ bookId, pdfFileId, token, saveDelay = SAVE
   if (typeof window !== 'undefined') window.addEventListener('resize', onResize)
   onBeforeUnmount(dispose)
 
-  return { state, loadPct, errorMsg, currentPage, totalPages, load, goPage, retry, dispose }
+  return {
+    state, loadPct, errorMsg, currentPage, totalPages, load, goPage, markPage, retry, dispose,
+    // 【D24 2026-11-23】文本层能力：重排视图与书内搜索共用，不做 OCR
+    pageText, detectTextLayer, extractAllText, searchInPages,
+  }
 }

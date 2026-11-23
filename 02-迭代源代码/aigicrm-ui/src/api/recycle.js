@@ -67,3 +67,16 @@ export function restoreDeletedFolder(id) {
 export function hardDeleteFolder(id) {
   return request.post(`/system/recycle/folders/${id}/purge`)
 }
+
+// ==================== 法布施书目回收（D15 2026-11-23，复用 system:recycle:* 权限码） ====================
+export function getDeletedBooks(params) {
+  return request.get('/system/recycle/books', { params })
+}
+
+export function restoreDeletedBook(id) {
+  return request.post(`/system/recycle/books/${id}/restore`)
+}
+
+export function hardDeleteBook(id) {
+  return request.post(`/system/recycle/books/${id}/purge`)
+}

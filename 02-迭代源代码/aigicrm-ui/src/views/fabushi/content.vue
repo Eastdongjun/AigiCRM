@@ -16,7 +16,7 @@
     <section class="table-panel" v-loading="loading">
       <table class="data-table">
         <thead>
-          <tr><th>作品 / 正文摘要</th><th>类型</th><th>关联书目</th><th>作者</th><th>互动</th><th>状态</th><th>发布时间</th><th>操作</th></tr>
+          <tr><th>作品 / 正文摘要</th><th>类型</th><th>关联书目</th><th>作者</th><th>互动</th><th>复诵</th><th>状态</th><th>发布时间</th><th>操作</th></tr>
         </thead>
         <tbody>
           <tr v-for="row in filteredPosts" :key="row.id">
@@ -25,12 +25,14 @@
             <td>{{ row.bookTitle || '—' }}</td>
             <td>{{ row.userName || '—' }}</td>
             <td class="num">木鱼 {{ row.likeCount || 0 }} · 评论 {{ row.commentCount || 0 }}</td>
+            <td class="num">{{ row.recitationCount || 0 }} 次</td>
             <td><span class="status" :class="row.status">{{ row.status === 'offline' ? '已下架' : '发布中' }}</span></td>
             <td>{{ formatTime(row.createdAt) }}</td>
             <td class="actions">
               <el-button link type="primary" @click="openDetail(row)">详情</el-button>
               <el-button v-if="row.status === 'published' && canManage" link type="danger" @click="openOffline(row)">下架</el-button>
               <el-button v-if="row.status === 'offline' && canManage" link type="primary" @click="doRestore(row)">恢复</el-button>
+              <el-button v-if="active === 'deleted' && canManage" link type="primary" @click="doRestoreDeleted(row)">恢复已删</el-button>
             </td>
           </tr>
         </tbody>
@@ -76,18 +78,19 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/store/user'
-import { getFabushiPosts, offlineFabushiPost, restoreFabushiPost } from '@/api/fabushi'
+import { getFabushiPosts, offlineFabushiPost, restoreFabushiPost, getDeletedFabushiPosts, restoreDeletedFabushiPost } from '@/api/fabushi'
 
 const userStore = useUserStore()
 const canManage = computed(() => userStore.hasPermission('fabushi:content:manage'))
 const tabs = [
-  { value: 'heart', label: '心得', scope: 'heart', status: 'published' },
-  { value: 'recitation', label: '诵读', scope: 'recitation', status: 'published' },
-  { value: 'znl', label: '正能量', scope: 'znl', status: 'published' },
+  { value: 'songdu', label: '每日诵读', scope: 'songdu', status: 'published' },
+  { value: 'suishi', label: '每日随施', scope: 'suishi', status: 'published' },
+  { value: 'zaidu', label: '再读一本', scope: 'zaidu', status: 'published' },
   { value: 'offline', label: '已下架', scope: '', status: 'offline' },
+  { value: 'deleted', label: '已删除', scope: '', status: 'deleted' },
 ]
-const active = ref('heart')
-const counts = reactive({ heart: 0, recitation: 0, znl: 0, offline: 0 })
+const active = ref('songdu')
+const counts = reactive({ songdu: 0, suishi: 0, zaidu: 0, offline: 0, deleted: 0 })
 const posts = ref([])
 const total = ref(0)
 const current = ref(1)
@@ -107,7 +110,7 @@ const filteredPosts = computed(() => posts.value.filter((row) => {
   const text = `${row.title || ''} ${row.content || ''} ${row.userName || ''}`.toLowerCase()
   return text.includes(keyword.value.toLowerCase())
 }))
-const scopeText = (value) => ({ heart: '心得', recitation: '诵读', znl: '正能量' }[value] || '内容')
+const scopeText = (value) => ({ songdu: '每日诵读', suishi: '每日随施', zaidu: '再读一本' }[value] || '内容')
 const formatTime = (value) => (value ? String(value).replace('T', ' ').slice(0, 16) : '')
 
 const loadCounts = async () => {
@@ -119,6 +122,13 @@ const loadData = async () => {
   loading.value = true
   try {
     const tab = currentTab.value
+    if (tab.value === 'deleted') {
+      // 【D13 计划切片 2】已删除帖走专用端点（逻辑删滤除常规查询）
+      const { data } = await getDeletedFabushiPosts({ current: current.value, size })
+      posts.value = (data && data.records) || []
+      total.value = Number(data && data.total) || 0
+      return
+    }
     const { data } = await getFabushiPosts({
       scopeType: tab.scope || undefined,
       status: tab.status,
@@ -151,6 +161,15 @@ const doOffline = async () => {
     ElMessage.success('已下架（留痕）')
     offlineVisible.value = false
     detailVisible.value = false
+    await Promise.all([loadData(), loadCounts()])
+  } finally { actionLoading.value = false }
+}
+
+const doRestoreDeleted = async (row) => {
+  actionLoading.value = true
+  try {
+    await restoreDeletedFabushiPost(row.id)
+    ElMessage.success('已恢复为发布中')
     await Promise.all([loadData(), loadCounts()])
   } finally { actionLoading.value = false }
 }

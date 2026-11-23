@@ -5,7 +5,7 @@
       <div class="hero-copy">
         <span class="hero-eyebrow">系统管理 · 数据治理</span>
         <h2 class="hero-title">回收站</h2>
-        <p class="hero-sub">查看、恢复或彻底清理已删除的客户、人员与文件</p>
+        <p class="hero-sub">查看、恢复或彻底清理已删除的客户、人员、文件、文件夹与法布施书目</p>
       </div>
       <div class="hero-stats">
         <button
@@ -165,7 +165,7 @@
 
         <!-- 已删除文件 -->
         <el-table
-          v-else v-loading="loading" :data="rows" class="recycle-table"
+          v-else-if="activeTab === 'files'" v-loading="loading" :data="rows" class="recycle-table"
           style="width:100%" :empty-text="emptyText"
         >
           <el-table-column label="文件" min-width="280">
@@ -217,6 +217,33 @@
               <el-button link type="primary" size="small" @click.stop="openFileDetail(row)">详情</el-button>
               <el-button v-if="canRestore && row.contentAvailable" link type="primary" size="small" :icon="RefreshLeft" @click.stop="handleRestoreFile(row)">恢复</el-button>
               <el-button v-if="canPurge" link type="danger" size="small" @click.stop="handleHardDeleteFile(row)">彻底删除</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+
+        <!-- 【D15 2026-11-23】已删除法布施书目(软删留痕; 恢复防同名重复; 彻底删除关联阻断) -->
+        <el-table
+          v-else-if="activeTab === 'books'" v-loading="loading" :data="rows" class="recycle-table"
+          style="width:100%" :empty-text="emptyText"
+        >
+          <el-table-column label="书名" min-width="240">
+            <template #default="{ row }">
+              <span class="cell-title">{{ row.title || '未命名书目' }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="categoryCode" label="类别编码" min-width="140">
+            <template #default="{ row }"><span class="muted-text">{{ row.categoryCode || '-' }}</span></template>
+          </el-table-column>
+          <el-table-column prop="status" label="原状态" min-width="110" align="center">
+            <template #default="{ row }"><span class="type-chip">{{ row.status || '-' }}</span></template>
+          </el-table-column>
+          <el-table-column label="删除时间" min-width="165">
+            <template #default="{ row }"><span class="time-text">{{ formatTime(row.deletedAt) }}</span></template>
+          </el-table-column>
+          <el-table-column v-if="canRestore || canPurge" label="操作" width="225" align="right" fixed="right">
+            <template #default="{ row }">
+              <el-button v-if="canRestore" link type="primary" size="small" :icon="RefreshLeft" @click.stop="handleRestoreBook(row)">恢复</el-button>
+              <el-button v-if="canPurge" link type="danger" size="small" @click.stop="handleHardDeleteBook(row)">彻底删除</el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -360,13 +387,14 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  Avatar, Document, Delete, Download, Folder, InfoFilled, Refresh, RefreshLeft, Search, User, WarningFilled } from '@element-plus/icons-vue'
+  Avatar, Document, Delete, Download, Folder, InfoFilled, Reading, Refresh, RefreshLeft, Search, User, WarningFilled } from '@element-plus/icons-vue'
 import {
   getDeletedCustomers, getDeletedUsers, getDeletedFiles,
   getDeletedFolders, restoreDeletedFolder, hardDeleteFolder,
   restoreDeletedCustomer, restoreDeletedUser, restoreDeletedFile, purgeDeletedFiles,
   getDeletedCustomerDetail, getDeletedUserDetail, getDeletedFileDetail,
   hardDeleteCustomer, hardDeleteUser, hardDeleteFile,
+  getDeletedBooks, restoreDeletedBook, hardDeleteBook as purgeDeletedBook,
 } from '@/api/recycle'
 import { downloadFile } from '@/utils/download'
 import { getToken } from '@/utils/token'
@@ -382,12 +410,14 @@ const tabs = [
   { key: 'users', label: '已删除人员' },
   { key: 'files', label: '已删除文件' },
   { key: 'folders', label: '已删除文件夹' },
+  { key: 'books', label: '已删除书目' },
 ]
 const statItems = [
   { key: 'customers', label: '已删除客户', icon: User },
   { key: 'users', label: '已删除人员', icon: Avatar },
   { key: 'files', label: '已删除文件', icon: Document },
   { key: 'folders', label: '已删除文件夹', icon: Folder },
+  { key: 'books', label: '已删除书目', icon: Reading },
 ]
 const activeTab = ref('customers')
 const keyword = ref('')
@@ -403,13 +433,13 @@ const listError = ref(false)
 const appliedKeyword = ref('')
 // 计数仅由 loadCounts（全量口径）与增删动作后的全量刷新维护，loadData/搜索不得改写，
 // 避免搜索列表把页头/页签计数改成匹配条数
-const counts = reactive({ customers: 0, users: 0, files: 0, folders: 0 })
+const counts = reactive({ customers: 0, users: 0, files: 0, folders: 0, books: 0 })
 
 // 列表/详情请求序号：旧响应（含错误）不得覆盖当前页签/当前详情
 let listSeq = 0
 let detailSeq = 0
 
-const ENTITY_LABEL = { customers: '客户', users: '人员', files: '文件' }
+const ENTITY_LABEL = { customers: '客户', users: '人员', files: '文件', folders: '文件夹', books: '书目' }
 const emptyText = computed(() => {
   const kw = appliedKeyword.value.trim()
   // 搜索无结果时明确提示匹配词；未搜索时才显示“暂无已删除…”
@@ -447,6 +477,7 @@ const searchPlaceholder = computed(() => ({
   customers: '搜索客户名称或编号',
   users: '搜索姓名或账号',
   files: '搜索文件名或存储路径',
+  books: '搜索书名',
 }[activeTab.value] || '搜索'))
 
 async function loadData() {
@@ -464,7 +495,9 @@ async function loadData() {
         ? await getDeletedUsers(params)
         : tab === 'folders'
           ? await getDeletedFolders(params)
-          : await getDeletedFiles(params)
+          : tab === 'books'
+            ? await getDeletedBooks(params)
+            : await getDeletedFiles(params)
     if (seq !== listSeq || tab !== activeTab.value) return
     rows.value = res.data?.records || []
     total.value = res.data?.total || 0
@@ -485,16 +518,18 @@ async function loadData() {
 // 全量计数（无 keyword）：供页头统计卡/页签徽标使用，也是清空回收站前的确认口径
 async function loadCounts() {
   try {
-    const [customers, users, files, folders] = await Promise.all([
+    const [customers, users, files, folders, books] = await Promise.all([
       getDeletedCustomers({ current: 1, size: 1 }),
       getDeletedUsers({ current: 1, size: 1 }),
       getDeletedFiles({ current: 1, size: 1 }),
       getDeletedFolders({ current: 1, size: 1 }),
+      getDeletedBooks({ current: 1, size: 1 }),
     ])
     counts.customers = customers.data?.total || 0
     counts.users = users.data?.total || 0
     counts.files = files.data?.total || 0
     counts.folders = folders.data?.total || 0
+    counts.books = books.data?.total || 0
     return true
   } catch (e) {
     // 计数失败不阻断列表；保留上一次全量计数（仍不含搜索条件）
@@ -707,6 +742,46 @@ async function hardDelete(kind, row) {
 const handleHardDeleteCustomer = (row) => hardDelete('customer', row)
 const handleHardDeleteUser = (row) => hardDelete('user', row)
 const handleHardDeleteFile = (row) => hardDelete('file', row)
+
+// ===== 法布施书目回收（D15） =====
+async function handleRestoreBook(row) {
+  try {
+    await ElMessageBox.confirm(
+      `确认恢复书目“${row.title}”？若存在同名活跃书目，系统将拒绝恢复。`,
+      '恢复书目',
+      { confirmButtonText: '确认恢复', cancelButtonText: '取消' }
+    )
+  } catch (e) {
+    return
+  }
+  try {
+    const res = await restoreDeletedBook(row.id)
+    ElMessage.success(res.data?.message || '书目已恢复')
+    await Promise.all([loadData(), loadCounts()])
+  } catch (e) {
+    // 错误提示由 request 拦截器统一弹出
+  }
+}
+
+async function handleHardDeleteBook(row) {
+  try {
+    await ElMessageBox.confirm(
+      `确认彻底删除书目“${row.title}”？此操作不可恢复；若仍有章节/书架/阅读进度/挂帖/复诵关联，系统会拒绝并说明原因。`,
+      '彻底删除书目',
+      { confirmButtonText: '彻底删除', cancelButtonText: '取消', type: 'warning' }
+    )
+  } catch (e) {
+    return
+  }
+  try {
+    const res = await purgeDeletedBook(row.id)
+    ElMessage.success(res.data?.message || '书目已彻底删除')
+    await Promise.all([loadData(), loadCounts()])
+  } catch (e) {
+    // 关联阻断原因由 request 拦截器统一弹出
+  }
+}
+
 const hardDeleteFromDetail = () => {
   if (!detailRow.value) return
   hardDelete(detailType.value, detailRow.value)

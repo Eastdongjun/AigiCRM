@@ -141,13 +141,13 @@ const routes = [
         path: 'fabushi/feed',
         name: 'FabushiFeed',
         component: () => import('@/views/fabushi/feed.vue'),
-        meta: { title: '分享广场', parentTitle: '法布施', icon: 'ChatDotRound', permission: 'fabushi:view' }
+        meta: { title: '认知广场', parentTitle: '法布施', icon: 'ChatDotRound', permission: 'fabushi:view' }
       },
       {
         path: 'fabushi/detail/:id',
         name: 'FabushiDetail',
         component: () => import('@/views/fabushi/detail.vue'),
-        meta: { title: '内容详情', parentTitle: '分享广场', activeMenu: '/fabushi/feed', icon: 'Document', permission: 'fabushi:view' }
+        meta: { title: '内容详情', parentTitle: '认知广场', activeMenu: '/fabushi/feed', icon: 'Document', permission: 'fabushi:view' }
       },
       {
         path: 'fabushi/library',
@@ -159,7 +159,7 @@ const routes = [
         path: 'fabushi/shelf',
         name: 'FabushiShelf',
         component: () => import('@/views/fabushi/shelf.vue'),
-        meta: { title: '我的阅读', parentTitle: '法布施', icon: 'Reading', permission: 'fabushi:view' }
+        meta: { title: '我的觉醒', parentTitle: '法布施', icon: 'Reading', permission: 'fabushi:view' }
       },
       {
         path: 'fabushi/read/:bookId',
