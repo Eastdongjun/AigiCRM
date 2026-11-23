@@ -321,9 +321,9 @@ class IncentiveUploadValidationTest {
         }
     }
 
-    private BusinessException addRecordRejected(BizIncentiveRecord record) {
+    private BusinessException addRecordRejected(BizIncentiveRecord incRecord) {
         IncentiveService svc = newService();
-        return assertThrows(BusinessException.class, () -> svc.addRecord(record));
+        return assertThrows(BusinessException.class, () -> svc.addRecord(incRecord));
     }
 
     private BusinessException updateRecordRejected(Long id, BizIncentiveRecord update) {

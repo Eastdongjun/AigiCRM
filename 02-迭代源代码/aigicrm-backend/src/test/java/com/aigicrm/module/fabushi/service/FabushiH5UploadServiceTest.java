@@ -244,8 +244,4 @@ class FabushiH5UploadServiceTest {
     private BusinessException consumeRejected(String ticket, MultipartFile file) {
         return assertThrows(BusinessException.class, () -> svc.consumeUpload(ticket, file));
     }
-
-    private BusinessException consumeFileRejected(String ticket, MultipartFile file, Long folderId, String scope) {
-        return assertThrows(BusinessException.class, () -> svc.consumeFileUpload(ticket, file, folderId, scope));
-    }
 }
