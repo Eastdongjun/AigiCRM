@@ -5,6 +5,7 @@ import com.aigicrm.module.customer.entity.BizCustomer;
 import com.aigicrm.module.customer.mapper.BizCustomerMapper;
 import com.aigicrm.module.incentive.mapper.BizIncentiveCategoryMapper;
 import com.aigicrm.module.incentive.mapper.BizIncentiveRecordMapper;
+import com.aigicrm.module.incentive.service.support.IncentiveServiceFixture;
 import com.aigicrm.module.file.mapper.BizFileMapper;
 import com.aigicrm.module.incentive.entity.BizIncentiveRecord;
 import com.aigicrm.module.system.mapper.SysDeptMapper;
@@ -16,8 +17,8 @@ import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -57,8 +58,15 @@ class IncentiveServiceStatsScopeTest {
         }
     }
 
-    @InjectMocks
     private IncentiveService service;
+
+    @Mock private com.aigicrm.module.customer.service.CustomerVisibilityService customerVisibilityService;
+
+    @BeforeEach
+    void setUp() {
+        service = IncentiveServiceFixture.create(categoryMapper, recordMapper, userMapper, fileMapper,
+                customerMapper, deptMapper, scopeResolver, customerVisibilityService, jdbc);
+    }
 
     @Mock private BizIncentiveCategoryMapper categoryMapper;
     @Mock private BizIncentiveRecordMapper recordMapper;

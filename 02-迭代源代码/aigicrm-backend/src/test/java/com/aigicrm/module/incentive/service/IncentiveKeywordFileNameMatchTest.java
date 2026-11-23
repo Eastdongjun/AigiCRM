@@ -67,7 +67,7 @@ class IncentiveKeywordFileNameMatchTest {
         try (MockedStatic<com.aigicrm.security.SecurityUtils> m = mockStatic(com.aigicrm.security.SecurityUtils.class)) {
             m.when(com.aigicrm.security.SecurityUtils::isAdmin).thenReturn(true);
             m.when(com.aigicrm.security.SecurityUtils::getCurrentUserId).thenReturn(1L);
-            svc.getCustomerRecords(null, null, null, null, null, null, null, null, null, null, "现场照片", null);
+            svc.getCustomerRecords(new com.aigicrm.module.incentive.service.IncentiveCustomerRecordQuery(null, null, null, null, null, null, null, null, null, null, "现场照片", null));
         }
 
         @SuppressWarnings("unchecked") // forClass 需具体类, LambdaQueryWrapper 泛型参数擦除, 必须的 unchecked

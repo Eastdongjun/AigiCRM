@@ -66,7 +66,7 @@ class IncentiveCustomerRecordsRecordIdTest {
         try (MockedStatic<com.aigicrm.security.SecurityUtils> m = mockStatic(com.aigicrm.security.SecurityUtils.class)) {
             m.when(com.aigicrm.security.SecurityUtils::isAdmin).thenReturn(true);
             m.when(com.aigicrm.security.SecurityUtils::getCurrentUserId).thenReturn(1L);
-            result = svc.getCustomerRecords(null, null, null, null, null, null, null, null, null, null, null, 55L);
+            result = svc.getCustomerRecords(new com.aigicrm.module.incentive.service.IncentiveCustomerRecordQuery(null, null, null, null, null, null, null, null, null, null, null, 55L));
         }
 
         @SuppressWarnings("unchecked") // LambdaQueryWrapper 泛型擦除，捕获必需的 unchecked（与 PeriodTest 同款）
@@ -90,7 +90,7 @@ class IncentiveCustomerRecordsRecordIdTest {
         try (MockedStatic<com.aigicrm.security.SecurityUtils> m = mockStatic(com.aigicrm.security.SecurityUtils.class)) {
             m.when(com.aigicrm.security.SecurityUtils::isAdmin).thenReturn(true);
             m.when(com.aigicrm.security.SecurityUtils::getCurrentUserId).thenReturn(1L);
-            result = svc.getCustomerRecords(null, null, null, null, null, null, null, null, null, null, null, 404L);
+            result = svc.getCustomerRecords(new com.aigicrm.module.incentive.service.IncentiveCustomerRecordQuery(null, null, null, null, null, null, null, null, null, null, null, 404L));
         }
 
         assertEquals(0, result.size(), "种子不可见/不存在应返回空列表");

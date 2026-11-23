@@ -7,6 +7,8 @@ import com.aigicrm.module.file.mapper.BizFileMapper;
 import com.aigicrm.module.incentive.mapper.BizIncentiveCategoryMapper;
 import com.aigicrm.module.incentive.mapper.BizIncentiveRecordMapper;
 import com.aigicrm.module.incentive.service.IncentiveAccessService;
+import com.aigicrm.module.incentive.service.IncentiveCategoryService;
+import com.aigicrm.module.incentive.service.IncentiveStatsService;
 import com.aigicrm.module.incentive.service.IncentiveService;
 import com.aigicrm.module.system.mapper.SysDeptMapper;
 import com.aigicrm.module.system.mapper.SysUserMapper;
@@ -32,7 +34,11 @@ public final class IncentiveServiceFixture {
             JdbcTemplate jdbc) {
         IncentiveAccessService accessService = new IncentiveAccessService(recordMapper, userMapper,
                 customerMapper, customerVisibilityService, jdbc);
+        IncentiveStatsService statsService = new IncentiveStatsService(categoryMapper, recordMapper, userMapper,
+                customerMapper, fileMapper, deptMapper, scopeResolver, jdbc, accessService);
+        IncentiveCategoryService categoryService = new IncentiveCategoryService(categoryMapper, recordMapper,
+                accessService);
         return new IncentiveService(categoryMapper, recordMapper, userMapper, fileMapper, customerMapper,
-                deptMapper, scopeResolver, accessService, jdbc);
+                deptMapper, scopeResolver, accessService, statsService, categoryService, jdbc);
     }
 }

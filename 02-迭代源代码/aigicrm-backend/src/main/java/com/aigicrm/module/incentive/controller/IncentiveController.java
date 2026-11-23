@@ -4,6 +4,7 @@ import com.aigicrm.common.BusinessException;
 import com.aigicrm.common.Result;
 import com.aigicrm.module.incentive.entity.BizIncentiveCategory;
 import com.aigicrm.module.incentive.entity.BizIncentiveRecord;
+import com.aigicrm.module.incentive.service.IncentiveCustomerRecordQuery;
 import com.aigicrm.module.incentive.service.IncentiveService;
 import com.aigicrm.security.SecurityUser;
 import com.aigicrm.security.SecurityUtils;
@@ -192,7 +193,7 @@ public class IncentiveController {
             // 【性能 2026-10-27】recordId 定位: 小程序拨盘详情页只拉该记录所属客户的一组数据,
             // 替代"全量下载所有客户记录再客户端线性查找"(生产实测全量 544KB/TTFB 0.9s)
             @RequestParam(required = false) Long recordId) {
-        return Result.ok(incentiveService.getCustomerRecords(industry, mainCategoryId, customerName, salesperson, startDate, endDate, period, orgIds, devType, product, keyword, recordId));
+        return Result.ok(incentiveService.getCustomerRecords(new IncentiveCustomerRecordQuery(industry, mainCategoryId, customerName, salesperson, startDate, endDate, period, orgIds, devType, product, keyword, recordId)));
     }
 
     @PreAuthorize("hasAuthority('incentive:view')")
