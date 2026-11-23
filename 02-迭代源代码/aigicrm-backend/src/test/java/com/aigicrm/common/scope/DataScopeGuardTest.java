@@ -60,8 +60,8 @@ class DataScopeGuardTest {
     private static DataScopeGuard guardWithScope(List<Long> scope) {
         OrgScopeResolver stub = new OrgScopeResolver(null, null, null, null, null, null) { // resolve 被覆写，configService/jdbcTemplate null 安全
             @Override
-            public List<Long> resolve(SecurityUser user) {
-                return scope;
+            public java.util.Optional<List<Long>> resolve(SecurityUser user) {
+                return scope == null ? java.util.Optional.empty() : java.util.Optional.of(scope);
             }
         };
         return new DataScopeGuard(stub);

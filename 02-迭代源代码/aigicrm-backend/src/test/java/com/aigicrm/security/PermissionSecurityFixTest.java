@@ -165,7 +165,7 @@ class PermissionSecurityFixTest {
         su.setDataScope("org_and_children");
         su.setManagedOrgIds(List.of(22L, 222L));
 
-        List<Long> visible = r.resolve(su);
+        List<Long> visible = r.resolve(su).orElseThrow();
         assertNotNull(visible);
         // 部门 11(本人)+22/222(授权组织) 的用户都应可见
         assertTrue(visible.containsAll(List.of(1L, 2L, 3L)), "org_and_children 必须并入 managedOrgIds 授权组织: " + visible);
@@ -196,7 +196,7 @@ class PermissionSecurityFixTest {
         when(deptMapper.selectList(any())).thenReturn(List.of()); // collectSubtree: 无子
         when(userMapper.selectList(any())).thenReturn(List.of(user(6L, 33L), user(7L, 333L), user(5L, 33L)));
 
-        List<Long> visible = r.resolve(su);
+        List<Long> visible = r.resolve(su).orElseThrow();
         assertNotNull(visible);
         assertTrue(visible.containsAll(List.of(5L, 6L, 7L)), "custom 范围应回退到角色授权组织: " + visible);
         verify(roleOrgMapper).selectByUserId(5L);
@@ -220,7 +220,7 @@ class PermissionSecurityFixTest {
         com.aigicrm.module.system.mapper.SysDeptMapper deptMapper = mock(com.aigicrm.module.system.mapper.SysDeptMapper.class);
         OrgScopeResolver resolver = mock(OrgScopeResolver.class);
         when(userMapper.selectById(2L)).thenReturn(user(2L, 4L));
-        when(resolver.resolveVisibleDeptIds(any())).thenReturn(List.of(4L));
+        when(resolver.resolveVisibleDeptIds(any())).thenReturn(java.util.Optional.of(List.of(4L)));
         com.aigicrm.module.system.service.SysUserService svc = new com.aigicrm.module.system.service.SysUserService(
                 userMapper, mock(com.aigicrm.module.system.mapper.SysUserRoleMapper.class),
                 mock(org.springframework.security.crypto.password.PasswordEncoder.class),
@@ -247,7 +247,7 @@ class PermissionSecurityFixTest {
         com.aigicrm.module.system.mapper.SysUserMapper userMapper = mock(com.aigicrm.module.system.mapper.SysUserMapper.class);
         OrgScopeResolver resolver = mock(OrgScopeResolver.class);
         when(userMapper.selectById(2L)).thenReturn(user(2L, 4L));
-        when(resolver.resolveVisibleDeptIds(any())).thenReturn(List.of(9L)); // 可见部门不含 4
+        when(resolver.resolveVisibleDeptIds(any())).thenReturn(java.util.Optional.of(List.of(9L))); // 可见部门不含 4
         com.aigicrm.module.system.service.SysUserService svc = new com.aigicrm.module.system.service.SysUserService(
                 userMapper, mock(com.aigicrm.module.system.mapper.SysUserRoleMapper.class),
                 mock(org.springframework.security.crypto.password.PasswordEncoder.class),
@@ -308,7 +308,7 @@ class PermissionSecurityFixTest {
         su.setUserId(1L);
         su.setDeptId(11L);
         su.setDataScope("dept_and_children");
-        List<Long> visible = r.resolve(su);
+        List<Long> visible = r.resolve(su).orElseThrow();
         assertNotNull(visible);
         assertTrue(visible.containsAll(List.of(1L, 2L)), "dept_and_children 应按部门树解析而非降级 self: " + visible);
     }
@@ -319,7 +319,7 @@ class PermissionSecurityFixTest {
             com.aigicrm.module.system.mapper.SysUserMapper userMapper,
             org.springframework.security.crypto.password.PasswordEncoder encoder) {
         OrgScopeResolver resolver = mock(OrgScopeResolver.class);
-        when(resolver.resolveVisibleDeptIds(any())).thenReturn(List.of(1L));
+        when(resolver.resolveVisibleDeptIds(any())).thenReturn(java.util.Optional.of(List.of(1L)));
         return new com.aigicrm.module.system.service.SysUserService(
                 userMapper, mock(com.aigicrm.module.system.mapper.SysUserRoleMapper.class),
                 encoder,

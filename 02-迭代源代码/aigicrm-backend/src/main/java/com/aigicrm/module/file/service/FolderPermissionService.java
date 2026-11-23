@@ -500,8 +500,8 @@ public class FolderPermissionService {
             return depts == null || depts.contains(targetOrgId);
         }
         if (targetUploaderId != null) {
-            List<Long> users = scopeResolver.resolveScope(u, lv);
-            return users == null || users.contains(targetUploaderId);
+            java.util.Optional<List<Long>> users = scopeResolver.resolveScope(u, lv);
+            return users.isEmpty() || users.get().contains(targetUploaderId);
         }
         return false;
     }

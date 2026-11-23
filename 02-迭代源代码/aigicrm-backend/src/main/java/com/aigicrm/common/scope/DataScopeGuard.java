@@ -31,9 +31,9 @@ public class DataScopeGuard {
         if (ownerId == null) throw new BusinessException(403, "记录归属缺失");
         Long me = SecurityUtils.getCurrentUserId();
         if (me != null && me.equals(ownerId)) return; // 本人恒可
-        List<Long> resolved = resolver.resolve(SecurityUtils.getCurrentUser());
-        if (resolved == null) return; // all：不过滤
-        Set<Long> scope = new LinkedHashSet<>(resolved);
+        java.util.Optional<List<Long>> resolved = resolver.resolve(SecurityUtils.getCurrentUser());
+        if (resolved.isEmpty()) return; // all：不过滤
+        Set<Long> scope = new LinkedHashSet<>(resolved.get());
         if (scopeOverride != null) scope.addAll(scopeOverride); // 并集：Resolver 结果 ∪ 分享授予
         if (!scope.contains(ownerId)) throw new BusinessException(403, "无权操作该记录");
     }

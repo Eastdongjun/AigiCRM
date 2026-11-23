@@ -45,7 +45,7 @@ class CustomerAccessServiceSeaPermTest {
     /** 默认范围桩: 编辑/删除等未配置 → self; resolveScope 空集 → 非本人不在范围内 */
     private void stubDefaultScope() {
         when(rolePermScopeService.effectiveScopes(any(), any(), any())).thenReturn(List.of("self"));
-        when(scopeResolver.resolveScope(any(), any())).thenReturn(List.of());
+        when(scopeResolver.resolveScope(any(), any())).thenReturn(java.util.Optional.of(List.of()));
     }
 
     /** 当前用户: id=100, 无集团/法人归属, 组织可见范围为空(自见范围) */
@@ -88,7 +88,7 @@ class CustomerAccessServiceSeaPermTest {
             ms.when(SecurityUtils::getCurrentLegalEntityIds).thenReturn(List.of());
             when(customerMapper.selectById(1L)).thenReturn(cust);
             when(shareMapper.selectCount(any())).thenReturn(0L);
-            when(scopeResolver.resolve(any())).thenReturn(List.of()); // 组织范围不含原负责人
+            when(scopeResolver.resolve(any())).thenReturn(java.util.Optional.of(List.of())); // 组织范围不含原负责人
             stubDefaultScope();
             when(seaPoolMapper.selectOne(any())).thenReturn(pool);
             when(seaConfigService.hasPoolPerm(10L, SeaConfigService.PERM_VIEW, viewer())).thenReturn(true);
@@ -109,7 +109,7 @@ class CustomerAccessServiceSeaPermTest {
             ms.when(SecurityUtils::getCurrentLegalEntityIds).thenReturn(List.of());
             when(customerMapper.selectById(1L)).thenReturn(cust);
             when(shareMapper.selectCount(any())).thenReturn(0L);
-            when(scopeResolver.resolve(any())).thenReturn(List.of());
+            when(scopeResolver.resolve(any())).thenReturn(java.util.Optional.of(List.of()));
             stubDefaultScope();
             when(seaPoolMapper.selectOne(any())).thenReturn(pool);
             // 四种池权限均未命中

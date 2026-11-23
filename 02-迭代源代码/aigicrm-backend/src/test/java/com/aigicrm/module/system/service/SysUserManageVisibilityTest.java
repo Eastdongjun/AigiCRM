@@ -62,7 +62,7 @@ class SysUserManageVisibilityTest {
     @Test
     void crossDeptTarget_rejected() {
         when(userMapper.selectById(9L)).thenReturn(userOf(9L, 200L));
-        when(scopeResolver.resolveVisibleDeptIds(org.mockito.ArgumentMatchers.any())).thenReturn(List.of(100L));
+        when(scopeResolver.resolveVisibleDeptIds(org.mockito.ArgumentMatchers.any())).thenReturn(java.util.Optional.of(List.of(100L)));
 
         try (MockedStatic<SecurityUtils> sec = mockStatic(SecurityUtils.class)) {
             sec.when(SecurityUtils::isAdmin).thenReturn(false);
@@ -78,7 +78,7 @@ class SysUserManageVisibilityTest {
     @Test
     void sameDeptTarget_passes() {
         when(userMapper.selectById(9L)).thenReturn(userOf(9L, 100L));
-        when(scopeResolver.resolveVisibleDeptIds(org.mockito.ArgumentMatchers.any())).thenReturn(List.of(100L));
+        when(scopeResolver.resolveVisibleDeptIds(org.mockito.ArgumentMatchers.any())).thenReturn(java.util.Optional.of(List.of(100L)));
 
         try (MockedStatic<SecurityUtils> sec = mockStatic(SecurityUtils.class)) {
             sec.when(SecurityUtils::isAdmin).thenReturn(false);
@@ -91,7 +91,7 @@ class SysUserManageVisibilityTest {
     @Test
     void orgAdminManagedSubtree_passes() {
         when(userMapper.selectById(9L)).thenReturn(userOf(9L, 200L));
-        when(scopeResolver.resolveVisibleDeptIds(org.mockito.ArgumentMatchers.any())).thenReturn(List.of(100L));
+        when(scopeResolver.resolveVisibleDeptIds(org.mockito.ArgumentMatchers.any())).thenReturn(java.util.Optional.of(List.of(100L)));
         when(deptMapper.selectDescendantIds(50L)).thenReturn(List.of(50L, 200L));
 
         try (MockedStatic<SecurityUtils> sec = mockStatic(SecurityUtils.class)) {
@@ -107,7 +107,7 @@ class SysUserManageVisibilityTest {
     @Test
     void admin_passesWhenTargetInCurrentScope() {
         when(userMapper.selectById(9L)).thenReturn(userOf(9L, 200L));
-        when(scopeResolver.resolveVisibleDeptIds(org.mockito.ArgumentMatchers.any())).thenReturn(List.of(200L));
+        when(scopeResolver.resolveVisibleDeptIds(org.mockito.ArgumentMatchers.any())).thenReturn(java.util.Optional.of(List.of(200L)));
         try (MockedStatic<SecurityUtils> sec = mockStatic(SecurityUtils.class)) {
             sec.when(SecurityUtils::isAdmin).thenReturn(true);
             sec.when(SecurityUtils::getCurrentUserId).thenReturn(7L);

@@ -130,7 +130,7 @@ class OrgScopeResolverTest {
         });
         OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService,
                 mock(com.aigicrm.module.system.mapper.SysRoleOrgMapper.class), null, null);
-        List<Long> u = r.resolve(su(1L, "team", 11L));
+        List<Long> u = r.resolve(su(1L, "team", 11L)).orElseThrow();
         assertEquals(Set.of(1L, 2L, 3L, 4L), new HashSet<>(u));
         // 4 层链：in(1) → in(2) → in(3) → in(4) 空，逐层各查一次
         verify(userMapper, times(4)).selectList(any(LambdaQueryWrapper.class));
@@ -150,7 +150,7 @@ class OrgScopeResolverTest {
         });
         OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService,
                 mock(com.aigicrm.module.system.mapper.SysRoleOrgMapper.class), null, null);
-        List<Long> u = r.resolve(su(1L, "team", 11L));
+        List<Long> u = r.resolve(su(1L, "team", 11L)).orElseThrow();
         assertEquals(Set.of(1L, 2L, 3L, 4L, 5L, 6L), new HashSet<>(u));
         assertFalse(u.contains(7L), "第 6 级下级（本人+6）不可见");
         // TEAM_MAX_DEPTH=5：恰 5 次查询（本人 + 5 级下级），不查第 6 层
@@ -167,7 +167,7 @@ class OrgScopeResolverTest {
         });
         OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService,
                 mock(com.aigicrm.module.system.mapper.SysRoleOrgMapper.class), null, null);
-        assertEquals(Set.of(1L), new HashSet<>(r.resolve(su(1L, "team", 11L))));
+        assertEquals(Set.of(1L), new HashSet<>(r.resolve(su(1L, "team", 11L)).orElseThrow()));
         verify(userMapper, times(1)).selectList(any(LambdaQueryWrapper.class));
     }
 
@@ -193,7 +193,7 @@ class OrgScopeResolverTest {
         });
         OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService,
                 mock(com.aigicrm.module.system.mapper.SysRoleOrgMapper.class), null, null);
-        List<Long> u = r.resolve(su(1L, "dept", 11L));
+        List<Long> u = r.resolve(su(1L, "dept", 11L)).orElseThrow();
         assertEquals(Set.of(1L, 2L), new HashSet<>(u));
         verify(deptMapper, times(2)).selectList(any(LambdaQueryWrapper.class)); // 查 11、12 的子
         verify(userMapper, times(1)).selectList(any(LambdaQueryWrapper.class));
@@ -218,7 +218,7 @@ class OrgScopeResolverTest {
         });
         OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService,
                 mock(com.aigicrm.module.system.mapper.SysRoleOrgMapper.class), null, null);
-        List<Long> u = r.resolve(su(1L, "dept", 11L));
+        List<Long> u = r.resolve(su(1L, "dept", 11L)).orElseThrow();
         assertEquals(Set.of(1L, 2L, 3L), new HashSet<>(u), "环数据不误伤、不无限递归");
         // 恰 3 次子树查询（13 的子 11 已收集，不再递归查 11）
         verify(deptMapper, times(3)).selectList(any(LambdaQueryWrapper.class));
@@ -231,14 +231,14 @@ class OrgScopeResolverTest {
     void allReturnsNull() {
         OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService,
                 mock(com.aigicrm.module.system.mapper.SysRoleOrgMapper.class), null, null);
-        assertNull(r.resolve(su(1L, "all", 11L)));
+        assertTrue(r.resolve(su(1L, "all", 11L)).isEmpty());
     }
 
     @Test
     void selfReturnsOnlySelf() {
         OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService,
                 mock(com.aigicrm.module.system.mapper.SysRoleOrgMapper.class), null, null);
-        assertEquals(Set.of(1L), new HashSet<>(r.resolve(su(1L, "self", 11L))));
+        assertEquals(Set.of(1L), new HashSet<>(r.resolve(su(1L, "self", 11L)).orElseThrow()));
     }
 
     /**
@@ -259,7 +259,7 @@ class OrgScopeResolverTest {
                 mock(com.aigicrm.module.system.mapper.SysRoleOrgMapper.class), null, null);
         // userId=7 属部门11: OWNER 锚 self→{7}(仅本人); ORG 锚 self→{11}(本部门全体) —— 两条锚点语义对照
         assertEquals(Set.of(11L), new HashSet<>(r.resolveDeptScope(su(7L, "self", 11L), "self")));
-        assertEquals(Set.of(7L), new HashSet<>(r.resolveScope(su(7L, "self", 11L), "self")));
+        assertEquals(Set.of(7L), new HashSet<>(r.resolveScope(su(7L, "self", 11L), "self").orElseThrow()));
     }
 
     // ---- 多角色并集（设计 §4.2）----
@@ -301,7 +301,7 @@ class OrgScopeResolverTest {
         });
         OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService,
                 mock(com.aigicrm.module.system.mapper.SysRoleOrgMapper.class), null, null);
-        List<Long> u = r.resolve(suMulti(1L, List.of("team", "dept"), 11L));
+        List<Long> u = r.resolve(suMulti(1L, List.of("team", "dept"), 11L)).orElseThrow();
         // team={1,2,3} ∪ dept={1,2,5} = {1,2,3,5}
         assertEquals(Set.of(1L, 2L, 3L, 5L), new HashSet<>(u), "并集=两角色各自可见集合并集");
     }
@@ -311,7 +311,7 @@ class OrgScopeResolverTest {
     void unionShortCircuitsOnAll() {
         OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService,
                 mock(com.aigicrm.module.system.mapper.SysRoleOrgMapper.class), null, null);
-        assertNull(r.resolve(suMulti(1L, List.of("all", "team"), 11L)));
+        assertTrue(r.resolve(suMulti(1L, List.of("all", "team"), 11L)).isEmpty());
         verify(userMapper, never()).selectList(any(LambdaQueryWrapper.class));
     }
 
@@ -333,7 +333,7 @@ class OrgScopeResolverTest {
         });
         OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService,
                 mock(com.aigicrm.module.system.mapper.SysRoleOrgMapper.class), null, null);
-        List<Long> u = r.resolve(s); // dataScopes size=1 → 单值路径 dataScope=dept
+        List<Long> u = r.resolve(s).orElseThrow(); // dataScopes size=1 → 单值路径 dataScope=dept
         assertEquals(Set.of(1L, 2L), new HashSet<>(u));
     }
 
@@ -359,7 +359,7 @@ class OrgScopeResolverTest {
         });
         OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService,
                 mock(com.aigicrm.module.system.mapper.SysRoleOrgMapper.class), null, null);
-        List<Long> u = r.resolve(su(1L, "org_and_children", 11L));
+        List<Long> u = r.resolve(su(1L, "org_and_children", 11L)).orElseThrow();
         assertEquals(Set.of(1L, 2L), new HashSet<>(u), "org_and_children 组织管理员可见部门树（含子级）");
     }
 
@@ -375,7 +375,7 @@ class OrgScopeResolverTest {
         });
         OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService,
                 mock(com.aigicrm.module.system.mapper.SysRoleOrgMapper.class), null, null);
-        List<Long> u = r.resolve(su(1L, "org", 11L));
+        List<Long> u = r.resolve(su(1L, "org", 11L)).orElseThrow();
         assertEquals(Set.of(1L, 7L), new HashSet<>(u), "org 仅本部门，不含子部门用户");
         verify(deptMapper, never()).selectList(any(LambdaQueryWrapper.class));
     }
@@ -397,7 +397,7 @@ class OrgScopeResolverTest {
         });
         OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService,
                 mock(com.aigicrm.module.system.mapper.SysRoleOrgMapper.class), null, null);
-        List<Long> u = r.resolve(su(1L, "self", 11L));
+        List<Long> u = r.resolve(su(1L, "self", 11L)).orElseThrow();
         assertEquals(Set.of(1L, 2L, 3L), new HashSet<>(u), "self+上级开关: 可见递归下属链(≤5层)");
         verify(userMapper, times(3)).selectList(any(LambdaQueryWrapper.class)); // in(1)→in(2)→in(3)空
     }
@@ -425,7 +425,7 @@ class OrgScopeResolverTest {
         });
         OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService,
                 mock(com.aigicrm.module.system.mapper.SysRoleOrgMapper.class), null, null);
-        List<Long> u = r.resolve(su(1L, "self", 11L));
+        List<Long> u = r.resolve(su(1L, "self", 11L)).orElseThrow();
         assertEquals(Set.of(1L, 2L, 3L), new HashSet<>(u), "self+负责人开关: 可见负责组织整棵子树");
     }
 
@@ -453,7 +453,7 @@ class OrgScopeResolverTest {
         });
         OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService,
                 mock(com.aigicrm.module.system.mapper.SysRoleOrgMapper.class), null, null);
-        List<Long> u = r.resolve(su(1L, "self", 21L));
+        List<Long> u = r.resolve(su(1L, "self", 21L)).orElseThrow();
         assertEquals(Set.of(1L, 4L, 5L, 6L), new HashSet<>(u), "大区负责人看整棵子树(递归)");
     }
 
@@ -464,7 +464,7 @@ class OrgScopeResolverTest {
         when(configService.getBooleanValue(anyString(), anyBoolean())).thenAnswer(inv -> inv.getArgument(1));
         OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService,
                 mock(com.aigicrm.module.system.mapper.SysRoleOrgMapper.class), null, null);
-        assertEquals(Set.of(1L), new HashSet<>(r.resolve(su(1L, "self", 11L))),
+        assertEquals(Set.of(1L), new HashSet<>(r.resolve(su(1L, "self", 11L)).orElseThrow()),
                 "配置缺失→默认 OFF, self 保持仅本人");
         verify(configService).getBooleanValue(OrgScopeResolver.KEY_SUPERIOR_SEE_SUBORDINATE, false);
     }
@@ -475,7 +475,7 @@ class OrgScopeResolverTest {
         switchesOff();
         OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService,
                 mock(com.aigicrm.module.system.mapper.SysRoleOrgMapper.class), null, null);
-        assertEquals(Set.of(1L), new HashSet<>(r.resolve(su(1L, "self", 11L))), "两开关关: self 保持仅本人");
+        assertEquals(Set.of(1L), new HashSet<>(r.resolve(su(1L, "self", 11L)).orElseThrow()), "两开关关: self 保持仅本人");
         verify(userMapper, never()).selectList(any(LambdaQueryWrapper.class));
         verify(deptMapper, never()).selectList(any(LambdaQueryWrapper.class));
     }
@@ -485,7 +485,7 @@ class OrgScopeResolverTest {
         // all 在追加开关前短路 → 不读开关、不产生任何查询（即便开关配置存在）
         OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService,
                 mock(com.aigicrm.module.system.mapper.SysRoleOrgMapper.class), null, null);
-        assertNull(r.resolve(su(1L, "all", 11L)), "all 范围忽略开关仍不过滤");
+        assertTrue(r.resolve(su(1L, "all", 11L)).isEmpty(), "all 范围忽略开关仍不过滤");
         verify(userMapper, never()).selectList(any(LambdaQueryWrapper.class));
         verify(deptMapper, never()).selectList(any(LambdaQueryWrapper.class));
     }
@@ -509,7 +509,7 @@ class OrgScopeResolverTest {
         });
         OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService,
                 mock(com.aigicrm.module.system.mapper.SysRoleOrgMapper.class), null, null);
-        List<Long> u = r.resolve(su(1L, "team", 11L));
+        List<Long> u = r.resolve(su(1L, "team", 11L)).orElseThrow();
         assertEquals(Set.of(1L, 2L, 3L), new HashSet<>(u));
         // team 解析一次: in(1)→in(2)→in(3) 3次；守卫避免第2次 team 查询
         verify(userMapper, times(3)).selectList(any(LambdaQueryWrapper.class));
@@ -539,7 +539,7 @@ class OrgScopeResolverTest {
         });
         OrgScopeResolver r = new OrgScopeResolver(userMapper, deptMapper, configService,
                 mock(com.aigicrm.module.system.mapper.SysRoleOrgMapper.class), null, null);
-        List<Long> u = r.resolve(suMulti(1L, List.of("self", "dept"), 11L));
+        List<Long> u = r.resolve(suMulti(1L, List.of("self", "dept"), 11L)).orElseThrow();
         assertEquals(Set.of(1L, 5L, 2L), new HashSet<>(u), "并集 base 上追加开关集合");
     }
 
@@ -696,7 +696,7 @@ class OrgScopeResolverTest {
         OrgScopeResolver resolver = new OrgScopeResolver(userMapper, deptMapper, configService,
                 mock(com.aigicrm.module.system.mapper.SysRoleOrgMapper.class), null, null);
 
-        assertEquals(List.of(9L), resolver.resolveScope(su(9L, "region", 30L), "region"));
+        assertEquals(List.of(9L), resolver.resolveScope(su(9L, "region", 30L), "region").orElseThrow());
     }
 
     /** USER 级 `* *` 通配优先于 ROLE 级精确配置（主体层级 USER>ROLE, 如 NM100 场景） */

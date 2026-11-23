@@ -38,8 +38,8 @@ public class ScopeService {
         java.util.Set<Long> deptScope = deptId != null
                 ? new java.util.LinkedHashSet<>(com.aigicrm.common.util.DeptTreeUtils.expandSubtree(deptMapper, deptId))
                 : null;
-        List<Long> u = resolver.resolve(user);
-        if (u == null) { // all：全部启用用户
+        java.util.Optional<List<Long>> uOpt = resolver.resolve(user);
+        if (uOpt.isEmpty()) { // all：全部启用用户
             // 【PR-01 P1-09 2026-09-18】all = 当前集团全量，仅平台 admin 为跨集团全量。
             // 非 admin 必须套集团成员边界（sys_user 非租户表，拦截器管不到）。
             if (user == null || !user.hasRole("admin")) {
@@ -60,6 +60,7 @@ public class ScopeService {
                             .orderByAsc(SysUser::getRealName))
                     .stream().map(this::toUserMap).toList();
         }
+        List<Long> u = uOpt.get();
         if (u.isEmpty()) return List.of();
         return userMapper.selectByIds(u).stream()
                 .filter(x -> deptScope == null || deptScope.contains(x.getDeptId()))
@@ -76,12 +77,13 @@ public class ScopeService {
      * 按 parent_id 组装树，层内按 sortOrder 升序；parent 不可见的节点提升为顶层。
      */
     public List<SysDept> visibleDeptTree(SecurityUser user) {
-        List<Long> deptIds = resolver.resolveVisibleDeptIds(user);
-        if (deptIds == null) { // all
+        java.util.Optional<List<Long>> deptIdsOpt = resolver.resolveVisibleDeptIds(user);
+        if (deptIdsOpt.isEmpty()) { // all
             List<SysDept> all = deptMapper.selectList(new LambdaQueryWrapper<SysDept>()
                     .eq(SysDept::getStatus, 1).orderByAsc(SysDept::getSortOrder));
             return buildPartialTree(narrowToOwnChain(user, all));
         }
+        List<Long> deptIds = deptIdsOpt.get();
         if (deptIds.isEmpty()) return List.of();
         List<SysDept> depts = new ArrayList<>(deptMapper.selectByIds(deptIds));
         // 与 all 分支口径一致：禁用部门不进入可见树

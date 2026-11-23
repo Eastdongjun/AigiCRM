@@ -123,7 +123,7 @@ class ScopeServiceTest {
     /** deptId 过滤：U 中按部门 ∩ 过滤 */
     @Test
     void deptIdFiltersVisibleUsers() {
-        when(resolver.resolve(any())).thenReturn(List.of(1L, 2L));
+        when(resolver.resolve(any())).thenReturn(java.util.Optional.of(List.of(1L, 2L)));
         when(userMapper.selectByIds(anyList()))
                 .thenReturn(List.of(user(1L, 11L, "甲"), user(2L, 12L, "乙")));
         ScopeService svc = new ScopeService(resolver, userMapper, deptMapper, mock(org.springframework.jdbc.core.JdbcTemplate.class));
@@ -135,7 +135,7 @@ class ScopeServiceTest {
     /** 可见列表按 realName 升序 */
     @Test
     void visibleUsersSortedByRealName() {
-        when(resolver.resolve(any())).thenReturn(List.of(1L, 2L));
+        when(resolver.resolve(any())).thenReturn(java.util.Optional.of(List.of(1L, 2L)));
         when(userMapper.selectByIds(anyList()))
                 .thenReturn(List.of(user(2L, 12L, "B员工"), user(1L, 11L, "A员工")));
         ScopeService svc = new ScopeService(resolver, userMapper, deptMapper, mock(org.springframework.jdbc.core.JdbcTemplate.class));
@@ -149,7 +149,7 @@ class ScopeServiceTest {
      * 【PR-01 P1-09】all=当前集团全量，仅平台 admin 为跨集团全量；本用例覆盖 admin 分支 */
     @Test
     void allScopeReturnsAllEnabledUsers() {
-        when(resolver.resolve(any())).thenReturn(null);
+        when(resolver.resolve(any())).thenReturn(java.util.Optional.empty());
         when(userMapper.selectList(any(LambdaQueryWrapper.class))).thenAnswer(inv -> {
             LambdaQueryWrapper<SysUser> w = inv.getArgument(0);
             assertEquals(List.of(1L), columnValues(w).get("status"), "all 分支必须过滤 status=1");
@@ -165,7 +165,7 @@ class ScopeServiceTest {
     /** 非 admin 的 all 收敛为当前集团（P1-09）：无集团归属直接空集，不查库 */
     @Test
     void allScopeNonAdminWithoutGroupReturnsEmpty() {
-        when(resolver.resolve(any())).thenReturn(null);
+        when(resolver.resolve(any())).thenReturn(java.util.Optional.empty());
         ScopeService svc = new ScopeService(resolver, userMapper, deptMapper, mock(org.springframework.jdbc.core.JdbcTemplate.class));
         assertTrue(svc.visibleUsers(su(1L, "all", 11L), null).isEmpty());
         verify(userMapper, never()).selectList(any(LambdaQueryWrapper.class));
@@ -175,7 +175,7 @@ class ScopeServiceTest {
      * 【PR-01 P1-09】本用例覆盖 admin 跨集团全量分支（非 admin 走集团成员过滤） */
     @Test
     void allScopeWithDeptIdFiltersInWrapper() {
-        when(resolver.resolve(any())).thenReturn(null);
+        when(resolver.resolve(any())).thenReturn(java.util.Optional.empty());
         when(userMapper.selectList(any(LambdaQueryWrapper.class))).thenAnswer(inv -> {
             LambdaQueryWrapper<SysUser> w = inv.getArgument(0);
             assertEquals(List.of(1L), columnValues(w).get("status"), "必须过滤 status=1");
@@ -193,7 +193,7 @@ class ScopeServiceTest {
     /** 空范围（无用户上下文）：直接空列表，不查库 */
     @Test
     void emptyScopeReturnsEmpty() {
-        when(resolver.resolve(any())).thenReturn(List.of());
+        when(resolver.resolve(any())).thenReturn(java.util.Optional.of(List.of()));
         ScopeService svc = new ScopeService(resolver, userMapper, deptMapper, mock(org.springframework.jdbc.core.JdbcTemplate.class));
         assertTrue(svc.visibleUsers(null, null).isEmpty());
         verify(userMapper, never()).selectByIds(anyList());
@@ -204,7 +204,7 @@ class ScopeServiceTest {
     /** all + admin：完整部门树（status=1，根 parentId=0） */
     @Test
     void deptTreeAllReturnsFullTreeForAdmin() {
-        when(resolver.resolveVisibleDeptIds(any())).thenReturn(null);
+        when(resolver.resolveVisibleDeptIds(any())).thenReturn(java.util.Optional.empty());
         when(deptMapper.selectList(any(LambdaQueryWrapper.class))).thenAnswer(inv -> {
             LambdaQueryWrapper<SysDept> w = inv.getArgument(0);
             assertEquals(List.of(1L), columnValues(w).get("status"), "部门查询必须过滤 status=1");
@@ -222,7 +222,7 @@ class ScopeServiceTest {
     /** all + 非 admin：收窄为本人部门+祖先链，远处部门不出现（FEAT-20260804-DEPTS-DATASCOPE 口径） */
     @Test
     void deptTreeAllNarrowedForNonAdmin() {
-        when(resolver.resolveVisibleDeptIds(any())).thenReturn(null);
+        when(resolver.resolveVisibleDeptIds(any())).thenReturn(java.util.Optional.empty());
         when(deptMapper.selectList(any(LambdaQueryWrapper.class))).thenAnswer(inv -> {
             LambdaQueryWrapper<SysDept> w = inv.getArgument(0);
             assertEquals(List.of(1L), columnValues(w).get("status"), "部门查询必须过滤 status=1");
@@ -240,7 +240,7 @@ class ScopeServiceTest {
     /** 部分可见集合：selectByIds 批量查 + 按 parent_id 组装（children 挂接） */
     @Test
     void deptTreePartialAssemblesByParentId() {
-        when(resolver.resolveVisibleDeptIds(any())).thenReturn(List.of(1L, 11L, 12L));
+        when(resolver.resolveVisibleDeptIds(any())).thenReturn(java.util.Optional.of(List.of(1L, 11L, 12L)));
         when(deptMapper.selectByIds(anyList())).thenReturn(List.of(
                 dept(11L, 1L, "大区"), dept(1L, 0L, "集团"), dept(12L, 11L, "办事处")));
         ScopeService svc = new ScopeService(resolver, userMapper, deptMapper, mock(org.springframework.jdbc.core.JdbcTemplate.class));
@@ -257,7 +257,7 @@ class ScopeServiceTest {
     /** parent 不可见的节点提升为顶层（不产生孤儿丢弃） */
     @Test
     void deptTreePromotesNodesWhoseParentInvisible() {
-        when(resolver.resolveVisibleDeptIds(any())).thenReturn(List.of(1L, 12L));
+        when(resolver.resolveVisibleDeptIds(any())).thenReturn(java.util.Optional.of(List.of(1L, 12L)));
         when(deptMapper.selectByIds(anyList()))
                 .thenReturn(List.of(dept(12L, 99L, "办事处"), dept(1L, 0L, "集团")));
         ScopeService svc = new ScopeService(resolver, userMapper, deptMapper, mock(org.springframework.jdbc.core.JdbcTemplate.class));
@@ -270,7 +270,7 @@ class ScopeServiceTest {
     /** 层内按 sortOrder 升序 */
     @Test
     void deptTreeOrdersChildrenBySortOrder() {
-        when(resolver.resolveVisibleDeptIds(any())).thenReturn(List.of(1L, 11L, 12L));
+        when(resolver.resolveVisibleDeptIds(any())).thenReturn(java.util.Optional.of(List.of(1L, 11L, 12L)));
         when(deptMapper.selectByIds(anyList())).thenReturn(List.of(
                 dept(11L, 1L, "B部", 2), dept(12L, 1L, "A部", 1), dept(1L, 0L, "集团", 0)));
         ScopeService svc = new ScopeService(resolver, userMapper, deptMapper, mock(org.springframework.jdbc.core.JdbcTemplate.class));
@@ -282,7 +282,7 @@ class ScopeServiceTest {
     /** partial 分支必须过滤 status=1：禁用部门不进入可见树（与 all 分支口径一致） */
     @Test
     void deptTreePartialExcludesDisabledDept() {
-        when(resolver.resolveVisibleDeptIds(any())).thenReturn(List.of(1L, 11L));
+        when(resolver.resolveVisibleDeptIds(any())).thenReturn(java.util.Optional.of(List.of(1L, 11L)));
         when(deptMapper.selectByIds(anyList())).thenReturn(List.of(
                 dept(1L, 0L, "集团"), dept(11L, 1L, "禁用大区", 0, 0)));
         ScopeService svc = new ScopeService(resolver, userMapper, deptMapper, mock(org.springframework.jdbc.core.JdbcTemplate.class));
@@ -296,7 +296,7 @@ class ScopeServiceTest {
     /** 空可见集合：空树，不查库 */
     @Test
     void deptTreeEmptyScopeReturnsEmpty() {
-        when(resolver.resolveVisibleDeptIds(any())).thenReturn(List.of());
+        when(resolver.resolveVisibleDeptIds(any())).thenReturn(java.util.Optional.of(List.of()));
         ScopeService svc = new ScopeService(resolver, userMapper, deptMapper, mock(org.springframework.jdbc.core.JdbcTemplate.class));
         assertTrue(svc.visibleDeptTree(su(1L, "self", 11L)).isEmpty());
         verify(deptMapper, never()).selectByIds(anyList());

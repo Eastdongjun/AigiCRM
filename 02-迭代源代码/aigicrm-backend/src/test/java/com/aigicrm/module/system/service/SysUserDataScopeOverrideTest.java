@@ -176,7 +176,7 @@ class SysUserDataScopeOverrideTest {
         SysUserService service = newService();
         SysUser user = validCreatePayload();
         user.setRoleId(99L);
-        when(scopeResolver.resolveVisibleDeptIds(any())).thenReturn(List.of(1L));
+        when(scopeResolver.resolveVisibleDeptIds(any())).thenReturn(java.util.Optional.of(List.of(1L)));
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(true);
             m.when(() -> SecurityUtils.hasAuthority("system:role:grant")).thenReturn(true);

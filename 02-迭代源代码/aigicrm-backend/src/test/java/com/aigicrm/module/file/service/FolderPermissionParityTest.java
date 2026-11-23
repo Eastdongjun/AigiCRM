@@ -108,7 +108,7 @@ class FolderPermissionParityTest {
         @Bean
         OrgScopeResolver scopeResolver() {
             OrgScopeResolver resolver = mock(OrgScopeResolver.class);
-            when(resolver.resolveScope(any(), any())).thenReturn(List.of());
+            when(resolver.resolveScope(any(), any())).thenReturn(java.util.Optional.of(List.of()));
             when(resolver.resolveDeptScope(any(), any())).thenReturn(List.of());
             when(resolver.resolveModuleUsers(any(), any(), any())).thenReturn(List.of());
             return resolver;

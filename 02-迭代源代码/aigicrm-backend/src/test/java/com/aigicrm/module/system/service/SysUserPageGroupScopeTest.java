@@ -89,7 +89,7 @@ class SysUserPageGroupScopeTest {
         when(userMapper.selectUserPage(any(), any(), any(), any()))
                 .thenReturn(new Page<SysUser>(1, 15));
         when(deptMapper.selectList(any())).thenReturn(List.of(dept(1L), dept(2L)));
-        when(scopeResolver.resolveVisibleDeptIds(any())).thenReturn(null);
+        when(scopeResolver.resolveVisibleDeptIds(any())).thenReturn(java.util.Optional.empty());
 
         SysUserService service = newService();
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
@@ -109,7 +109,7 @@ class SysUserPageGroupScopeTest {
         when(userMapper.selectUserPage(any(), any(), any(), any()))
                 .thenReturn(new Page<SysUser>(1, 15));
         when(deptMapper.selectList(any())).thenReturn(List.of(dept(1L), dept(2L)));
-        when(scopeResolver.resolveVisibleDeptIds(any())).thenReturn(null);
+        when(scopeResolver.resolveVisibleDeptIds(any())).thenReturn(java.util.Optional.empty());
 
         SysUserService service = newService();
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
@@ -132,7 +132,7 @@ class SysUserPageGroupScopeTest {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
             m.when(SecurityUtils::getCurrentGroupIds).thenReturn(List.of(1L));
             // 显式声明 all 范围(null)以走集团边界分支; 空表 = 本集团无可见部门
-            when(scopeResolver.resolveVisibleDeptIds(any())).thenReturn(null);
+            when(scopeResolver.resolveVisibleDeptIds(any())).thenReturn(java.util.Optional.empty());
             when(deptMapper.selectList(any())).thenReturn(Collections.emptyList());
 
             var result = service.page(1, 15, null, null, null);
@@ -161,7 +161,7 @@ class SysUserPageGroupScopeTest {
 
     @Test
     void nonAdminList_filtersByVisibleDeptIds() {
-        when(scopeResolver.resolveVisibleDeptIds(any())).thenReturn(List.of(100L, 101L));
+        when(scopeResolver.resolveVisibleDeptIds(any())).thenReturn(java.util.Optional.of(List.of(100L, 101L)));
 
         String deptIds = capturedDeptIds(1, 15, null);
 
@@ -170,7 +170,7 @@ class SysUserPageGroupScopeTest {
 
     @Test
     void nonAdminList_requestedDeptOutsideVisible_returnsEmptyPage() {
-        when(scopeResolver.resolveVisibleDeptIds(any())).thenReturn(List.of(100L));
+        when(scopeResolver.resolveVisibleDeptIds(any())).thenReturn(java.util.Optional.of(List.of(100L)));
         SysUserService service = newService();
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(false);
@@ -186,7 +186,7 @@ class SysUserPageGroupScopeTest {
 
     @Test
     void nonAdminList_requestedDeptIntersectsVisible() {
-        when(scopeResolver.resolveVisibleDeptIds(any())).thenReturn(List.of(100L));
+        when(scopeResolver.resolveVisibleDeptIds(any())).thenReturn(java.util.Optional.of(List.of(100L)));
 
         String deptIds = capturedDeptIds(1, 15, "100,200");
 
@@ -195,7 +195,7 @@ class SysUserPageGroupScopeTest {
 
     @Test
     void orgAdminList_includesManagedSubtree() {
-        when(scopeResolver.resolveVisibleDeptIds(any())).thenReturn(List.of(100L));
+        when(scopeResolver.resolveVisibleDeptIds(any())).thenReturn(java.util.Optional.of(List.of(100L)));
         when(deptMapper.selectDescendantIds(50L)).thenReturn(List.of(50L, 200L));
         when(userMapper.selectUserPage(any(), any(), any(), any()))
                 .thenReturn(new Page<SysUser>(1, 15));
@@ -216,7 +216,7 @@ class SysUserPageGroupScopeTest {
     @Test
     void allScopeList_stillBoundByGroup() {
         // all 范围：resolveVisibleDeptIds=null，仍走集团边界（applyGroupScope）
-        when(scopeResolver.resolveVisibleDeptIds(any())).thenReturn(null);
+        when(scopeResolver.resolveVisibleDeptIds(any())).thenReturn(java.util.Optional.empty());
         SysDept dept = new SysDept();
         dept.setId(100L);
         dept.setGroupId(1L);
@@ -238,7 +238,7 @@ class SysUserPageGroupScopeTest {
 
     @Test
     void nonAdminList_emptyVisibleDepts_returnsEmptyPage() {
-        when(scopeResolver.resolveVisibleDeptIds(any())).thenReturn(List.of());
+        when(scopeResolver.resolveVisibleDeptIds(any())).thenReturn(java.util.Optional.of(List.of()));
         SysUserService service = newService();
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::isAdmin).thenReturn(false);

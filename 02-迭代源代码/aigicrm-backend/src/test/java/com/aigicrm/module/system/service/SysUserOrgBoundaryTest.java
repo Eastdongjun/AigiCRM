@@ -112,7 +112,7 @@ class SysUserOrgBoundaryTest {
     void create_withDeptOutsideVisibleScope_rejected() {
         when(roleMapper.selectById(11L)).thenReturn(role(11L));
         when(deptMapper.selectById(200L)).thenReturn(dept(200L, 1L));
-        when(scopeResolver.resolveVisibleDeptIds(any())).thenReturn(List.of(100L));
+        when(scopeResolver.resolveVisibleDeptIds(any())).thenReturn(java.util.Optional.of(List.of(100L)));
 
         try (MockedStatic<SecurityUtils> sec = org.mockito.Mockito.mockStatic(SecurityUtils.class)) {
             sec.when(SecurityUtils::isAdmin).thenReturn(false);
@@ -131,7 +131,7 @@ class SysUserOrgBoundaryTest {
     void create_withOfficeOutsideVisibleScope_rejected() {
         when(roleMapper.selectById(11L)).thenReturn(role(11L));
         when(deptMapper.selectById(100L)).thenReturn(dept(100L, 1L));
-        when(scopeResolver.resolveVisibleDeptIds(any())).thenReturn(List.of(100L));
+        when(scopeResolver.resolveVisibleDeptIds(any())).thenReturn(java.util.Optional.of(List.of(100L)));
 
         try (MockedStatic<SecurityUtils> sec = org.mockito.Mockito.mockStatic(SecurityUtils.class)) {
             sec.when(SecurityUtils::isAdmin).thenReturn(false);
@@ -150,7 +150,7 @@ class SysUserOrgBoundaryTest {
     void create_withVisibleDept_passes() {
         when(roleMapper.selectById(11L)).thenReturn(role(11L));
         when(deptMapper.selectById(100L)).thenReturn(dept(100L, 1L));
-        when(scopeResolver.resolveVisibleDeptIds(any())).thenReturn(List.of(100L));
+        when(scopeResolver.resolveVisibleDeptIds(any())).thenReturn(java.util.Optional.of(List.of(100L)));
 
         try (MockedStatic<SecurityUtils> sec = org.mockito.Mockito.mockStatic(SecurityUtils.class)) {
             sec.when(SecurityUtils::isAdmin).thenReturn(false);
@@ -167,7 +167,7 @@ class SysUserOrgBoundaryTest {
     void create_withRoleExceedingCallerPermissions_rejected() {
         when(roleMapper.selectById(11L)).thenReturn(role(11L));
         when(deptMapper.selectById(100L)).thenReturn(dept(100L, 1L));
-        when(scopeResolver.resolveVisibleDeptIds(any())).thenReturn(List.of(100L));
+        when(scopeResolver.resolveVisibleDeptIds(any())).thenReturn(java.util.Optional.of(List.of(100L)));
         when(jdbc.queryForList(anyString(), eq(String.class), eq(11L)))
                 .thenReturn(List.of("system:role:edit"));
 
@@ -190,7 +190,7 @@ class SysUserOrgBoundaryTest {
         existing.setId(5L);
         when(userMapper.selectById(5L)).thenReturn(existing);
         when(deptMapper.selectById(200L)).thenReturn(dept(200L, 1L));
-        when(scopeResolver.resolveVisibleDeptIds(any())).thenReturn(List.of(100L));
+        when(scopeResolver.resolveVisibleDeptIds(any())).thenReturn(java.util.Optional.of(List.of(100L)));
 
         SysUser payload = new SysUser();
         payload.setId(5L);
@@ -215,7 +215,7 @@ class SysUserOrgBoundaryTest {
         existing.setId(5L);
         when(userMapper.selectById(5L)).thenReturn(existing);
         when(deptMapper.selectById(100L)).thenReturn(dept(100L, 1L));
-        when(scopeResolver.resolveVisibleDeptIds(any())).thenReturn(List.of(100L));
+        when(scopeResolver.resolveVisibleDeptIds(any())).thenReturn(java.util.Optional.of(List.of(100L)));
 
         SysUser payload = new SysUser();
         payload.setId(5L);
@@ -242,7 +242,7 @@ class SysUserOrgBoundaryTest {
         when(userMapper.selectById(5L)).thenReturn(existing);
         when(deptMapper.selectById(200L)).thenReturn(dept(200L, 1L));
         when(deptMapper.selectDescendantIds(50L)).thenReturn(List.of(50L, 200L));
-        when(scopeResolver.resolveVisibleDeptIds(any())).thenReturn(List.of(100L));
+        when(scopeResolver.resolveVisibleDeptIds(any())).thenReturn(java.util.Optional.of(List.of(100L)));
 
         SysUser payload = new SysUser();
         payload.setId(5L);

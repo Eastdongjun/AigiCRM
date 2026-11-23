@@ -164,12 +164,13 @@ public class SysUserService {
      * </ul>
      */
     private String applyVisibleDeptScope(String deptIds) {
-        java.util.List<Long> visibleDeptIds = scopeResolver.resolveVisibleDeptIds(SecurityUtils.getCurrentUser());
-        if (visibleDeptIds == null) {
+        java.util.Optional<java.util.List<Long>> visibleOpt =
+                scopeResolver.resolveVisibleDeptIds(SecurityUtils.getCurrentUser());
+        if (visibleOpt.isEmpty()) {
             // all 范围：仍须落在当前用户集团的组织集合内（与 getById 的 all 分支同口径）
             return applyGroupScope(deptIds);
         }
-        java.util.Set<Long> allowed = new LinkedHashSet<>(visibleDeptIds);
+        java.util.Set<Long> allowed = new LinkedHashSet<>(visibleOpt.get());
         mergeManagedOrgs(allowed);
         if (allowed.isEmpty()) return null;
         if (!StringUtils.hasText(deptIds)) return joinIds(allowed);
@@ -276,10 +277,11 @@ public class SysUserService {
     /** 目标用户是否在当前用户可见范围：visibleDeptIds / 组织管理员管辖子树；all 范围叠加集团边界 */
     private boolean isUserVisible(SysUser target) {
         Long targetDeptId = target.getDeptId();
-        java.util.List<Long> visibleDeptIds = scopeResolver.resolveVisibleDeptIds(SecurityUtils.getCurrentUser());
-        if (visibleDeptIds == null) return isAllScopeVisible(targetDeptId);
+        java.util.Optional<java.util.List<Long>> visibleOpt =
+                scopeResolver.resolveVisibleDeptIds(SecurityUtils.getCurrentUser());
+        if (visibleOpt.isEmpty()) return isAllScopeVisible(targetDeptId);
         if (targetDeptId == null) return false;
-        if (visibleDeptIds.contains(targetDeptId)) return true;
+        if (visibleOpt.get().contains(targetDeptId)) return true;
         return isInManagedOrg(targetDeptId);
     }
 
@@ -361,7 +363,7 @@ public class SysUserService {
         if (officeId != null) targets.add(officeId);
         if (orgId != null) targets.add(orgId);
         if (targets.isEmpty()) return;
-        List<Long> visibleDeptIds = scopeResolver.resolveVisibleDeptIds(SecurityUtils.getCurrentUser());
+        List<Long> visibleDeptIds = scopeResolver.resolveVisibleDeptIds(SecurityUtils.getCurrentUser()).orElse(null);
         Set<Long> managedOrgScope = managedOrgScope();
         for (Long target : targets) {
             if (!isTargetOrgVisible(target, visibleDeptIds, managedOrgScope)) {

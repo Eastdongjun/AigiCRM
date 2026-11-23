@@ -87,31 +87,31 @@ public class OrgScopeResolver {
     }
 
     /** 解析当前用户可见 userIds（恒含本人；all 返回 null） */
-    public List<Long> resolve(SecurityUser user) {
-        if (user == null) return List.of();
+    /** @return empty=all（不过滤），of(list)=可见 userIds（list 可为空=无人可见） */
+    public Optional<List<Long>> resolve(SecurityUser user) {
+        if (user == null) return Optional.of(List.of());
         List<String> scopes = user.getDataScopes();
-        // 多角色并集（设计 §4.2）：所有角色各自的 code 逐解析后并集合并；任一 all → null 短路
-        List<Long> base;
+        Optional<List<Long>> base;
         if (scopes != null && scopes.size() > 1) {
             base = resolveUnion(user, scopes);
         } else {
             base = resolveSingle(user, user.getDataScope() != null ? user.getDataScope() : "self");
         }
-        if (base == null) return null; // all：不过滤，开关不生效
-        return appendSystemLevelScopes(user, base);
+        if (base.isEmpty()) return Optional.empty(); // all
+        return appendSystemLevelScopes(user, base.get());
     }
 
-    /** 按指定范围 code 解析可见 userIds（null=全部；含系统级开关）——权限体系重构: 每模块/动作独立范围 */
-    public List<Long> resolveScope(SecurityUser user, String scope) {
+    /** 按指定范围 code 解析可见 userIds（empty=全部；含系统级开关）——每模块/动作独立范围 */
+    public Optional<List<Long>> resolveScope(SecurityUser user, String scope) {
         return resolveScope(user, scope, "view");
     }
 
     /** 【WP1.4】带动作版: 系统开关仅 view_like 动作追加（写动作不放宽） */
-    public List<Long> resolveScope(SecurityUser user, String scope, String action) {
-        if (user == null || scope == null) return List.of();
-        List<Long> base = resolveSingle(user, scope);
-        if (base == null) return null; // all
-        return appendSystemLevelScopes(user, base, action);
+    public Optional<List<Long>> resolveScope(SecurityUser user, String scope, String action) {
+        if (user == null || scope == null) return Optional.of(List.of());
+        Optional<List<Long>> base = resolveSingle(user, scope);
+        if (base.isEmpty()) return Optional.empty(); // all
+        return appendSystemLevelScopes(user, base.get(), action);
     }
 
     // ==================== 统一数据访问层入口(批② 2026-08-10) ====================
@@ -253,8 +253,9 @@ public class OrgScopeResolver {
         List<Long> visible = null;
         for (String scope : scopeCodes(req)) {
             // 【WP1.4】动作贯通: 写动作不追加上级/负责人开关
-            List<Long> part = resolveScope(user, scope, req.getAction());
-            if (part == null) { visible = null; break; }
+            java.util.Optional<List<Long>> partOpt = resolveScope(user, scope, req.getAction());
+            if (partOpt.isEmpty()) { visible = null; break; }
+            List<Long> part = partOpt.get();
             if (visible == null) visible = new ArrayList<>(part);
             else visible.addAll(part);
         }
@@ -452,7 +453,7 @@ public class OrgScopeResolver {
      * 【WP1.4 2026-11-13】本重载为存量查看路径兼容入口（按 view_like 处理）；带动作的解析
      * 走 {@link #appendSystemLevelScopes(SecurityUser, Collection, String)}——写动作不追加开关。
      */
-    public List<Long> appendSystemLevelScopes(SecurityUser user, Collection<Long> base) {
+    public Optional<List<Long>> appendSystemLevelScopes(SecurityUser user, Collection<Long> base) {
         return appendSystemLevelScopes(user, base, "view");
     }
 
@@ -460,16 +461,16 @@ public class OrgScopeResolver {
      * 【WP1.4 2026-11-13】带动作语义的系统开关追加：仅 view_like 动作生效（锁定决策#8）。
      * 写动作(edit/delete/approve/share...)恒不追加——开关只放宽"看"，不放宽"改"。
      */
-    public List<Long> appendSystemLevelScopes(SecurityUser user, Collection<Long> base, String action) {
-        if (base == null) return null;
-        if (user == null || user.getUserId() == null) return new ArrayList<>(base);
-        if (configService == null) return new ArrayList<>(base); // 防御（测试匿名子类）
-        if (!isViewLikeAction(action)) return new ArrayList<>(base); // 写动作 fail-closed: 开关不生效
+    public Optional<List<Long>> appendSystemLevelScopes(SecurityUser user, Collection<Long> base, String action) {
+        if (base == null) return Optional.empty();
+        if (user == null || user.getUserId() == null) return Optional.of(new ArrayList<>(base));
+        if (configService == null) return Optional.of(new ArrayList<>(base)); // 防御（测试匿名子类）
+        if (!isViewLikeAction(action)) return Optional.of(new ArrayList<>(base)); // 写动作 fail-closed: 开关不生效
 
         boolean[] switches = readSwitchFlags();
         boolean superiorOn = switches[0];
         boolean leaderOn = switches[1];
-        if (!superiorOn && !leaderOn) return new ArrayList<>(base);
+        if (!superiorOn && !leaderOn) return Optional.of(new ArrayList<>(base));
 
         Set<Long> merged = new LinkedHashSet<>(base);
         Long userId = user.getUserId();
@@ -477,7 +478,7 @@ public class OrgScopeResolver {
         if (superiorOn && !isTeamScoped(user)) merged.addAll(resolveTeam(userId));
         // 开关2：组织负责人子树
         if (leaderOn) merged.addAll(resolveLedOrgs(userId));
-        return new ArrayList<>(merged);
+        return Optional.of(new ArrayList<>(merged));
     }
 
     /** 用户是否已按 team 范围解析（此时开关1 的集合已含在 base，无需重复查询） */
@@ -503,39 +504,39 @@ public class OrgScopeResolver {
     }
 
     /** 多角色并集合并（逐 code 各自解析；任一角色为 all → 本集团不过滤） */
-    private List<Long> resolveUnion(SecurityUser user, List<String> scopes) {
+    private Optional<List<Long>> resolveUnion(SecurityUser user, List<String> scopes) {
         Set<Long> merged = new LinkedHashSet<>();
         for (String code : scopes) {
             if (code == null) continue;
-            List<Long> part = resolveSingle(user, code);
-            if (part == null) return null; // all：短路
-            merged.addAll(part);
+            Optional<List<Long>> part = resolveSingle(user, code);
+            if (part.isEmpty()) return Optional.empty(); // all：短路
+            merged.addAll(part.get());
         }
         if (user.getUserId() != null) merged.add(user.getUserId()); // 恒含本人
-        return new ArrayList<>(merged);
+        return Optional.of(new ArrayList<>(merged));
     }
 
     /** 单 code 解析（resolve 与并集共用） */
-    private List<Long> resolveSingle(SecurityUser user, String scope) {
+    private Optional<List<Long>> resolveSingle(SecurityUser user, String scope) {
         Long userId = user.getUserId();
         Long deptId = user.getDeptId() != null ? user.getDeptId() : user.getOfficeId();
 
         switch (scope) {
-            case "all": return null;
-            case "custom": return resolveCustom(user, userId);
-            case "region": return resolveByAncestorType(userId, deptId, TYPE_REGION);
-            case "office": return resolveByAncestorType(userId, deptId, TYPE_OFFICE);
-            case "dept": return resolveDeptTree(userId, deptId);
+            case "all": return Optional.empty();
+            case "custom": return Optional.of(resolveCustom(user, userId));
+            case "region": return Optional.of(resolveByAncestorType(userId, deptId, TYPE_REGION));
+            case "office": return Optional.of(resolveByAncestorType(userId, deptId, TYPE_OFFICE));
+            case "dept": return Optional.of(resolveDeptTree(userId, deptId));
             // 【修复 2026-08-10 P2-03】dept_and_children 是 V7 注释允许值, 此前落入 default 静默降级 self;
             // 与 applyDataScope 的 dept_and_children 分支同语义(本部门及子部门)
-            case "dept_and_children": return resolveDeptTree(userId, deptId);
-            case "team": return resolveTeam(userId);
+            case "dept_and_children": return Optional.of(resolveDeptTree(userId, deptId));
+            case "team": return Optional.of(resolveTeam(userId));
             // 旧码兼容（DataScopeType @Deprecated）：org_and_children=本组织及下级 → 部门树含子级；
             // org=仅本部门（不含子级）。组织管理员升级路径仍产出 org_and_children，必须可解析。
-            case LIT_ORG_AND_CHILDREN: return resolveOrgAndChildren(user, userId, deptId);
-            case "org": return resolveDeptOnly(userId, deptId);
+            case LIT_ORG_AND_CHILDREN: return Optional.of(resolveOrgAndChildren(user, userId, deptId));
+            case "org": return Optional.of(resolveDeptOnly(userId, deptId));
             case "self":
-            default: return List.of(userId);
+            default: return Optional.of(List.of(userId));
         }
     }
 
@@ -548,9 +549,10 @@ public class OrgScopeResolver {
     }
 
     /** 可见部门集合（scope 接口用）：U 中用户所属 deptId 去重 + 本人部门 */
-    public List<Long> resolveVisibleDeptIds(SecurityUser user) {
-        List<Long> u = resolve(user);
-        if (u == null) return null; // all：不过滤
+    public Optional<List<Long>> resolveVisibleDeptIds(SecurityUser user) {
+        Optional<List<Long>> uOpt = resolve(user);
+        if (uOpt.isEmpty()) return Optional.empty(); // all：不过滤
+        List<Long> u = uOpt.get();
         Set<Long> deptIds = new LinkedHashSet<>();
         if (!u.isEmpty()) {
             List<SysUser> users = userMapper.selectByIds(u);
@@ -559,7 +561,7 @@ public class OrgScopeResolver {
             }
         }
         if (user.getDeptId() != null) deptIds.add(user.getDeptId());
-        return new ArrayList<>(deptIds);
+        return Optional.of(new ArrayList<>(deptIds));
     }
 
     // ---- 各级别实现 ----

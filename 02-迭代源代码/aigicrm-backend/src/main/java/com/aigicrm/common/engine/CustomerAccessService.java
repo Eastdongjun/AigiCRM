@@ -250,10 +250,10 @@ public class CustomerAccessService {
 
         // 数据范围内的客户（统一走 OrgScopeResolver，含系统级开关并集；null=all 不过滤）
         // 【2026-08-07】由"仅 ORG/ORG_AND_CHILDREN"扩展为全范围，team/office/region/self+开关 一并生效
-        List<Long> visible = scopeResolver.resolve(SecurityUtils.getCurrentUser());
-        if (visible != null && !visible.isEmpty()) {
+        java.util.Optional<List<Long>> visibleOpt = scopeResolver.resolve(SecurityUtils.getCurrentUser());
+        if (visibleOpt.isPresent() && !visibleOpt.get().isEmpty()) {
             List<BizCustomer> scopedCustomers = customerMapper.selectList(
-                    new LambdaQueryWrapper<BizCustomer>().in(BizCustomer::getOwnerId, visible));
+                    new LambdaQueryWrapper<BizCustomer>().in(BizCustomer::getOwnerId, visibleOpt.get()));
             scopedCustomers.forEach(c -> ids.add(c.getId()));
         }
 

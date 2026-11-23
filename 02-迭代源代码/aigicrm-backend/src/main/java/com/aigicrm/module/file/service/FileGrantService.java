@@ -657,8 +657,8 @@ public class FileGrantService {
             return depts == null || depts.contains(targetOrgId);
         }
         if (targetUploaderId != null) {
-            List<Long> users = scopeResolver.resolveScope(u, level);
-            return users == null || users.contains(targetUploaderId);
+            java.util.Optional<List<Long>> users = scopeResolver.resolveScope(u, level);
+            return users.isEmpty() || users.get().contains(targetUploaderId);
         }
         return false;
     }
