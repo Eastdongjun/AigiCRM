@@ -46,7 +46,15 @@ public class MybatisPlusConfig {
             // 业务数据 → 进白名单(实体无 tenantId 字段, 租户列由插件维护, 与其余白名单表同范式)
             "biz_fabushi_book", "biz_fabushi_section", "biz_fabushi_post", "biz_fabushi_post_attachment",
             "biz_fabushi_comment", "biz_fabushi_like", "biz_fabushi_read_status", "biz_fabushi_user_setting",
-            "biz_fabushi_shelf", "biz_fabushi_reading_progress", "biz_fabushi_activity", "biz_fabushi_activity_join");
+            "biz_fabushi_shelf", "biz_fabushi_reading_progress", "biz_fabushi_activity", "biz_fabushi_activity_join",
+            // 【CODE-REVIEW-20261123 R1-01】V2026.11.23.2/.3/.4 三张新表补登记。
+            // 单集团前提(2026-11-23 确认): tenant_id 恒为 1 ⇒ 登记后插件加的 tenant_id=1 过滤
+            // 不改变结果集, 与既有 12 张 biz_fabushi_* 表同范式; 不登记则写入靠 DEFAULT 1 兜底、
+            // 查询完全不过滤, 属隐式契约 —— 下一个新增表的人会照抄错的那个。
+            // biz_fabushi_recitation 原本连 tenant_id 列都没有, 由 V2026.11.23.5 补齐(否则本处登记会让生产启动失败)。
+            // ⚠️ 多集团前置阻断项见 docs/TECH_DEBT.md「单集团假设」: 开通第二集团前必须先处理
+            //    biz_fabushi_shelf_group 的 user_id=0 共享模板行与 uk(user_id,name) 唯一键。
+            "biz_fabushi_recitation", "biz_fabushi_shelf_group", "biz_fabushi_bookmark");
     // 【体检 H4 2026-10-12】biz_customer_stage_amount(V2026.10.10.1 新表, tenant_id NOT NULL DEFAULT '1')
     // 此前漏白名单: 新录行走 MP insert 不自动补租户恒落默认 1, 而排行子查询手动按租户过滤——
     // 集团≠1 的阶段金额被滤为 0 且污染核心客户判定金额源(2026-10-12 生产摸底: 单集团 16 行全对, 0 行受害)。

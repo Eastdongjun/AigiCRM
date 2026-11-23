@@ -134,6 +134,11 @@ public class FabushiStatsService {
             data.put("myReadDays", 0);
             data.put("myStreakDays", 0);
             data.put("myTopCategory", null);
+            // 与正常分支保持同键集，前端不用判空
+            data.put("monthSongdu", 0L);
+            data.put("monthSuishi", 0L);
+            data.put("monthZaidu", 0L);
+            data.put("monthPosts", 0L);
             return data;
         }
 
@@ -168,6 +173,22 @@ public class FabushiStatsService {
         data.put("myReadDays", dates.size());
         data.put("myStreakDays", streakDays(dates, LocalDate.now()));
         data.put("myTopCategory", topReadCategory(uid));
+
+        // 【PROTO-AUDIT-20261123 P9】「我的本月（诵读 / 随施 / 再读）」卡：原型 P9 有此卡，
+        // 之前只有全量 myPosts，拆不出三类型、也拆不出"本月"。这里一次查询按 scope_type 分组计数。
+        LocalDateTime monthStart = LocalDate.now().withDayOfMonth(1).atStartOfDay();
+        List<BizFabushiPost> myMonthPosts = postMapper.selectList(new LambdaQueryWrapper<BizFabushiPost>()
+                .eq(BizFabushiPost::getUserId, uid)
+                .eq(BizFabushiPost::getStatus, LIT_PUBLISHED)
+                .ge(BizFabushiPost::getCreatedAt, monthStart)
+                .select(BizFabushiPost::getId, BizFabushiPost::getScopeType));
+        Map<String, Long> monthByType = myMonthPosts.stream()
+                .filter(p -> p.getScopeType() != null)
+                .collect(Collectors.groupingBy(BizFabushiPost::getScopeType, Collectors.counting()));
+        data.put("monthSongdu", monthByType.getOrDefault("songdu", 0L));
+        data.put("monthSuishi", monthByType.getOrDefault("suishi", 0L));
+        data.put("monthZaidu", monthByType.getOrDefault("zaidu", 0L));
+        data.put("monthPosts", (long) myMonthPosts.size());
         return data;
     }
 

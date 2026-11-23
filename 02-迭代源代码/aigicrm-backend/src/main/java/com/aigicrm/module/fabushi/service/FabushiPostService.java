@@ -1,16 +1,21 @@
 package com.aigicrm.module.fabushi.service;
 
 import com.aigicrm.common.BusinessException;
+import com.aigicrm.module.fabushi.FabushiScopeType;
+import com.aigicrm.module.fabushi.entity.BizFabushiBook;
 import com.aigicrm.module.fabushi.entity.BizFabushiComment;
 import com.aigicrm.module.fabushi.entity.BizFabushiLike;
 import com.aigicrm.module.fabushi.entity.BizFabushiPost;
 import com.aigicrm.module.fabushi.entity.BizFabushiPostAttachment;
 import com.aigicrm.module.fabushi.entity.BizFabushiReadStatus;
+import com.aigicrm.module.fabushi.entity.BizFabushiSection;
+import com.aigicrm.module.fabushi.mapper.BizFabushiBookMapper;
 import com.aigicrm.module.fabushi.mapper.BizFabushiCommentMapper;
 import com.aigicrm.module.fabushi.mapper.BizFabushiLikeMapper;
 import com.aigicrm.module.fabushi.mapper.BizFabushiPostAttachmentMapper;
 import com.aigicrm.module.fabushi.mapper.BizFabushiPostMapper;
 import com.aigicrm.module.fabushi.mapper.BizFabushiReadStatusMapper;
+import com.aigicrm.module.fabushi.mapper.BizFabushiSectionMapper;
 import com.aigicrm.module.system.entity.SysUser;
 import com.aigicrm.module.system.mapper.SysUserMapper;
 import com.aigicrm.module.file.entity.BizFile;
@@ -50,18 +55,29 @@ public class FabushiPostService {
 
 
     private final BizFabushiPostMapper postMapper;
+    private final BizFabushiBookMapper bookMapper;
     private final BizFabushiCommentMapper commentMapper;
     private final BizFabushiLikeMapper likeMapper;
+    private final FabushiRecitationService recitationService;
     private final BizFabushiReadStatusMapper readStatusMapper;
     private final BizFabushiPostAttachmentMapper attachmentMapper;
     private final SysUserMapper userMapper;
     private final BizFileMapper fileMapper;
     private final com.aigicrm.security.SecurityAuditService securityAuditService;
+    /** 【P2 2026-11-23】章节标题联显（按书浏览表格「章节」列）；只读查询，不参与写路径。 */
+    private final BizFabushiSectionMapper sectionMapper;
 
-    private static final Set<String> SCOPE_TYPES = Set.of("heart", "recitation", "znl");
+    /** 【D1 2026-11-23】类型白名单收敛到单源枚举 FabushiScopeType（songdu/suishi/zaidu）；旧值已由 V2026.11.23.1 迁移。 */
+    private static final Set<String> SCOPE_TYPES = FabushiScopeType.codes();
+    // Sonar java:S1192 —— body 键与审计前缀在多个切片中共用，收敛为常量
+    private static final String LIT_TITLE = "title";
+    private static final String LIT_SECTION_ID = "sectionId";
+    private static final String LIT_POST_KEY = "post:";
 
     /** 【F1 2026-11-19 spec v2】附件分型限额: 图≤5 / 视≤5 / 音≤10 段。 */
     private static final int MAX_IMAGE = 5;
+    /** 【Q14 2026-11-23 拍板】随施(朋友圈式)图片对齐 9 张；songdu/zaidu 沿用原文规格 5 张。 */
+    private static final int MAX_IMAGE_SUISHI = 9;
     private static final int MAX_VIDEO = 5;
     private static final int MAX_AUDIO = 10;
     /** 【F1】音单段时长上限(秒); durationSeconds 未知暂放行, F2 录音上线后必填。 */
@@ -87,24 +103,58 @@ public class FabushiPostService {
      * 其余调用方一律强制 published——防越权翻看下架内容。
      */
     public Page<BizFabushiPost> page(String scopeType, Long bookId, String status, boolean manageAllowed,
-                                     Long viewerId, long current, long size) {
+                                     Long viewerId, String keyword, long current, long size) {
         boolean publishedOnly = !manageAllowed || status == null || status.isBlank() || LIT_PUBLISHED.equals(status);
         LambdaQueryWrapper<BizFabushiPost> qw = new LambdaQueryWrapper<BizFabushiPost>()
                 .eq(BizFabushiPost::getStatus, publishedOnly ? LIT_PUBLISHED : status)
                 .eq(scopeType != null && !scopeType.isBlank(), BizFabushiPost::getScopeType, scopeType)
                 .eq(bookId != null, BizFabushiPost::getBookId, bookId)
                 .orderByDesc(BizFabushiPost::getCreatedAt);
+        applyKeyword(qw, keyword);
         Page<BizFabushiPost> page = postMapper.selectPage(new Page<>(current, size), qw);
         fillInteractions(page.getRecords(), viewerId);
         return page;
+    }
+
+    /**
+     * 【D16 2026-11-23】服务端搜索（人名/书籍/具体文字）：人名/书名先解析为 id 集再 or-in，
+     * 正文/标题 like；仅叠加在既有 status/scope 条件内——已删帖由逻辑删自动滤除（负例契约
+     * check-fabushi-search-visibility.sql：offline/deleted 命中必须 0 行）。
+     */
+    private void applyKeyword(LambdaQueryWrapper<BizFabushiPost> qw, String keyword) {
+        if (keyword == null || keyword.isBlank()) {
+            return;
+        }
+        String kw = keyword.trim();
+        List<Long> uids = userMapper.selectList(new LambdaQueryWrapper<SysUser>()
+                .like(SysUser::getRealName, kw)).stream().map(SysUser::getId).toList();
+        List<Long> bids = bookMapper.selectList(new LambdaQueryWrapper<BizFabushiBook>()
+                .like(BizFabushiBook::getTitle, kw)).stream().map(BizFabushiBook::getId).toList();
+        qw.and(w -> {
+            w.like(BizFabushiPost::getContent, kw).or().like(BizFabushiPost::getTitle, kw);
+            if (!uids.isEmpty()) {
+                w.or().in(BizFabushiPost::getUserId, uids);
+            }
+            if (!bids.isEmpty()) {
+                w.or().in(BizFabushiPost::getBookId, bids);
+            }
+        });
     }
 
     // ===== Controller 层 Map 化输出(ArchUnit: controller_must_not_depend_on_entity) =====
 
     /** 内容分页 Map 化(records/total)。 */
     public Map<String, Object> pageData(String scopeType, Long bookId, String status, boolean manageAllowed,
-                                        Long viewerId, long current, long size) {
-        Page<BizFabushiPost> p = page(scopeType, bookId, status, manageAllowed, viewerId, current, size);
+                                        Long viewerId, String keyword, long current, long size) {
+        Page<BizFabushiPost> p = page(scopeType, bookId, status, manageAllowed, viewerId, keyword, current, size);
+        // 【D21】朋友圈式图片网格：批量查附件按帖组装（image 类型在前端过滤展示）
+        if (!p.getRecords().isEmpty()) {
+            Set<Long> ids = p.getRecords().stream().map(BizFabushiPost::getId).collect(Collectors.toSet());
+            Map<Long, List<BizFabushiPostAttachment>> byPost = attachmentMapper.selectList(
+                            new LambdaQueryWrapper<BizFabushiPostAttachment>().in(BizFabushiPostAttachment::getPostId, ids))
+                    .stream().collect(Collectors.groupingBy(BizFabushiPostAttachment::getPostId));
+            p.getRecords().forEach(r -> r.setAttachments(byPost.getOrDefault(r.getId(), List.of())));
+        }
         Map<String, Object> data = new java.util.LinkedHashMap<>();
         data.put("records", p.getRecords());
         data.put("total", p.getTotal());
@@ -115,13 +165,13 @@ public class FabushiPostService {
     public Map<String, Object> createData(Map<String, Object> body) {
         BizFabushiPost post = new BizFabushiPost();
         post.setScopeType(body.get("scopeType") == null ? null : String.valueOf(body.get("scopeType")));
-        post.setTitle(body.get("title") == null ? null : String.valueOf(body.get("title")));
+        post.setTitle(body.get(LIT_TITLE) == null ? null : String.valueOf(body.get(LIT_TITLE)));
         post.setContent(body.get(LIT_CONTENT) == null ? null : String.valueOf(body.get(LIT_CONTENT)));
         if (body.get("bookId") != null) {
             post.setBookId(Long.valueOf(String.valueOf(body.get("bookId"))));
         }
-        if (body.get("sectionId") != null) {
-            post.setSectionId(Long.valueOf(String.valueOf(body.get("sectionId"))));
+        if (body.get(LIT_SECTION_ID) != null) {
+            post.setSectionId(Long.valueOf(String.valueOf(body.get(LIT_SECTION_ID))));
         }
         BizFabushiPost created = create(post);
         return Map.of("id", created.getId());
@@ -142,7 +192,7 @@ public class FabushiPostService {
         return Map.of("id", created.getId());
     }
 
-    /** 内容详情(fabushi:view 门): 帖+附件+互动计数(无 per-id 范围判定需求: 社区内容全员可见)。 */
+    /** 内容详情(fabushi:view 门): 帖+附件+互动计数+复诵列表(D14)。 */
     public Map<String, Object> detail(Long id, Long viewerId) {
         BizFabushiPost post = postMapper.selectById(id);
         if (post == null || !LIT_PUBLISHED.equals(post.getStatus())) {
@@ -150,11 +200,14 @@ public class FabushiPostService {
         }
         fillInteractions(List.of(post), viewerId);
         List<Map<String, Object>> attachments = attachmentData(id);
+        List<Map<String, Object>> recitations = recitationService.listData(id);
         return Map.of(
                 "post", post,
                 "attachments", attachments,
                 "likeCount", post.getLikeCount() == null ? 0L : post.getLikeCount(),
-                "likedByMe", isLikedBy(id, viewerId));
+                "likedByMe", isLikedBy(id, viewerId),
+                "recitationCount", post.getRecitationCount() == null ? 0L : post.getRecitationCount(),
+                "recitations", recitations);
     }
 
     /** 附件输入：文件 id / 类型 / 可选时长（create 用）。 */
@@ -227,12 +280,17 @@ public class FabushiPostService {
      * durationSeconds 未知(旧聊天选文件路径)暂放行, F2 录音上线后改为必填校验。
      */
     private void enforceAttachmentLimits(Long postId, AttachmentInput input) {
+        BizFabushiPost owner = postMapper.selectById(postId);
+        boolean isSuishi = owner != null && FabushiScopeType.SUISHI.getCode().equals(owner.getScopeType());
+        int maxImage = isSuishi ? MAX_IMAGE_SUISHI : MAX_IMAGE;
         List<BizFabushiPostAttachment> existing = attachmentMapper.selectList(new LambdaQueryWrapper<BizFabushiPostAttachment>()
                 .eq(BizFabushiPostAttachment::getPostId, postId));
         long sameType = existing.stream().filter(a -> input.fileType().equals(a.getFileType())).count();
         switch (input.fileType()) {
             case "image" -> {
-                if (sameType >= MAX_IMAGE) throw new BusinessException(400, "图片已达上限5张");
+                if (sameType >= maxImage) {
+                    throw new BusinessException(400, isSuishi ? "图片已达上限9张" : "图片已达上限5张");
+                }
             }
             case "video" -> {
                 if (sameType >= MAX_VIDEO) throw new BusinessException(400, "视频已达上限5段");
@@ -264,7 +322,11 @@ public class FabushiPostService {
         }).collect(Collectors.toList());
     }
 
-    /** 发布(fabushi:create 门): scope_type 白名单; 书目须为 approved(挂书内容)。 */
+    /**
+     * 发布(fabushi:create 门): scope_type 白名单(单源枚举) + 分型校验(D1 2026-11-23, Q4 拍板)。
+     * songdu/zaidu：必选书（如同四项激励先选客户）且书目须 approved——补齐此前"注释写了没实现"的校验；
+     * suishi：免标题免书目（负例 400：带 title/bookId 即拒，朋友圈式一键发）。
+     */
     public BizFabushiPost create(BizFabushiPost post) {
         com.aigicrm.security.SecurityUser user = com.aigicrm.security.SecurityUtils.getCurrentUser();
         if (user == null) {
@@ -272,6 +334,25 @@ public class FabushiPostService {
         }
         if (post.getScopeType() == null || !SCOPE_TYPES.contains(post.getScopeType())) {
             throw new BusinessException(400, "内容类型不合法");
+        }
+        FabushiScopeType type = FabushiScopeType.valueOf(post.getScopeType().toUpperCase());
+        if (type.requiresBook()) {
+            if (post.getBookId() == null) {
+                throw new BusinessException(400, "该类型必须关联具体书目（先选书再发布）");
+            }
+            BizFabushiBook book = bookMapper.selectById(post.getBookId());
+            if (book == null
+                    || (book.getDeleted() != null && book.getDeleted() == 1)
+                    || !"approved".equals(book.getStatus())) {
+                throw new BusinessException(400, "关联书目不存在或未通过审核");
+            }
+        } else {
+            if (post.getTitle() != null && !post.getTitle().isBlank()) {
+                throw new BusinessException(400, "每日随施不设置标题");
+            }
+            if (post.getBookId() != null) {
+                throw new BusinessException(400, "每日随施不关联书目");
+            }
         }
         if ((post.getContent() == null || post.getContent().isBlank())
                 && (post.getTitle() == null || post.getTitle().isBlank())) {
@@ -299,7 +380,7 @@ public class FabushiPostService {
         post.setOfflineAt(LocalDateTime.now());
         post.setOfflineReason(reason);
         postMapper.updateById(post);
-        securityAuditService.permissionChange("fabushi_post_offline", "post:" + id);
+        securityAuditService.permissionChange("fabushi_post_offline", LIT_POST_KEY + id);
     }
 
     /** 恢复已下架内容(fabushi:content:manage 门): 回到 published, 清空下架留痕。 */
@@ -318,7 +399,108 @@ public class FabushiPostService {
                 .set(BizFabushiPost::getOfflineBy, null)
                 .set(BizFabushiPost::getOfflineAt, null)
                 .set(BizFabushiPost::getOfflineReason, null));
-        securityAuditService.permissionChange("fabushi_post_restore", "post:" + id);
+        securityAuditService.permissionChange("fabushi_post_restore", LIT_POST_KEY + id);
+    }
+
+    // ===== D13 2026-11-23 本人修改/删除 + 治理已删除（计划切片 2，权限审计口径：PUT 仅作者本人，DELETE 作者或 admin） =====
+
+    /** 本人编辑(仅作者本人，admin 不代编辑；offline 帖禁编辑)：可改 title/content/sectionId，分型规则保持。 */
+    @Transactional
+    public void updateOwn(Long id, Map<String, Object> body) {
+        BizFabushiPost post = requireOwnedPost(id);
+        if (!LIT_PUBLISHED.equals(post.getStatus())) {
+            throw new BusinessException(400, "已下架内容不可编辑");
+        }
+        BizFabushiPost upd = buildEditablePatch(id, body);
+        validateEditable(post, upd);
+        postMapper.updateById(upd);
+        securityAuditService.permissionChange("fabushi_post_edit", LIT_POST_KEY + id);
+    }
+
+    /** 【S3776 2026-11-23】updateOwn 认知复杂度拆分：登录/存在/归属校验集中一处。 */
+    private BizFabushiPost requireOwnedPost(Long id) {
+        com.aigicrm.security.SecurityUser user = com.aigicrm.security.SecurityUtils.getCurrentUser();
+        if (user == null) {
+            throw new BusinessException(401, "未登录");
+        }
+        BizFabushiPost post = postMapper.selectById(id);
+        if (post == null) {
+            throw new BusinessException(404, LIT_X_2);
+        }
+        if (!Objects.equals(post.getUserId(), user.getUserId())) {
+            throw new BusinessException(403, "只能编辑自己发布的内容");
+        }
+        return post;
+    }
+
+    /** 只把 body 里出现的字段装进 patch（未出现=不改），与旧逻辑逐字段 containsKey 等价。 */
+    private static BizFabushiPost buildEditablePatch(Long id, Map<String, Object> body) {
+        BizFabushiPost upd = new BizFabushiPost();
+        upd.setId(id);
+        if (body.containsKey(LIT_TITLE)) {
+            upd.setTitle(body.get(LIT_TITLE) == null ? null : String.valueOf(body.get(LIT_TITLE)));
+        }
+        if (body.containsKey(LIT_CONTENT)) {
+            upd.setContent(body.get(LIT_CONTENT) == null ? null : String.valueOf(body.get(LIT_CONTENT)));
+        }
+        if (body.containsKey(LIT_SECTION_ID)) {
+            upd.setSectionId(body.get(LIT_SECTION_ID) == null
+                    ? null : Long.valueOf(String.valueOf(body.get(LIT_SECTION_ID))));
+        }
+        return upd;
+    }
+
+    /** 编辑后整体校验：合并后仍不能全空；每日随施不得带标题。 */
+    private static void validateEditable(BizFabushiPost post, BizFabushiPost upd) {
+        String finalTitle = upd.getTitle() != null ? upd.getTitle() : post.getTitle();
+        String finalContent = upd.getContent() != null ? upd.getContent() : post.getContent();
+        if ((finalTitle == null || finalTitle.isBlank()) && (finalContent == null || finalContent.isBlank())) {
+            throw new BusinessException(400, "内容不能为空");
+        }
+        if (FabushiScopeType.SUISHI.getCode().equals(post.getScopeType())
+                && upd.getTitle() != null && !upd.getTitle().isBlank()) {
+            throw new BusinessException(400, "每日随施不设置标题");
+        }
+    }
+
+    /** 本人删除(作者本人或 admin)：逻辑删除；附件文件保留文件中心（口径=文件独立生命周期，归上传人）。 */
+    @Transactional
+    public void deleteOwn(Long id) {
+        com.aigicrm.security.SecurityUser user = com.aigicrm.security.SecurityUtils.getCurrentUser();
+        if (user == null) {
+            throw new BusinessException(401, "未登录");
+        }
+        BizFabushiPost post = postMapper.selectById(id);
+        if (post == null) {
+            throw new BusinessException(404, LIT_X_2);
+        }
+        if (!Objects.equals(post.getUserId(), user.getUserId()) && !com.aigicrm.security.SecurityUtils.isAdmin()) {
+            throw new BusinessException(403, "只能删除自己发布的内容");
+        }
+        postMapper.deleteById(id);
+        securityAuditService.permissionChange("fabushi_post_delete", LIT_POST_KEY + id);
+    }
+
+    /** 治理侧"已删除"分页（content:manage 门，自定义 SQL 绕过逻辑删）。 */
+    public Map<String, Object> deletedPageData(long current, long size) {
+        // 【SMOKE-20261123 F1】筛选条件已下沉到 Mapper SQL（deleted = 1），此处不再传 Wrapper：
+        // 原实现传 null 导致片段为空、WHERE 丢失，已删除页签会列出全部内容。
+        com.baomidou.mybatisplus.core.metadata.IPage<BizFabushiPost> p =
+                postMapper.selectDeletedPage(new Page<>(current, size));
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("records", p.getRecords());
+        data.put("total", p.getTotal());
+        return data;
+    }
+
+    /** 治理侧恢复已删帖（content:manage 门，回到 published）。 */
+    @Transactional
+    public void restoreDeleted(Long id) {
+        int rows = postMapper.restoreDeleted(id);
+        if (rows == 0) {
+            throw new BusinessException(404, "已删除内容不存在");
+        }
+        securityAuditService.permissionChange("fabushi_post_restore_deleted", LIT_POST_KEY + id);
     }
 
     /** 评论(fabushi:create 门): 帖须 published。 */
@@ -453,12 +635,12 @@ public class FabushiPostService {
         Map<Long, String> names = userMapper.selectBatchIds(userIds).stream()
                 .collect(Collectors.toMap(SysUser::getId, SysUser::getRealName, (a, b) -> a));
 
-        Map<Long, Long> likeCounts = likeMapper.selectList(new LambdaQueryWrapper<BizFabushiLike>()
-                        .in(BizFabushiLike::getPostId, postIds)).stream()
-                .collect(Collectors.groupingBy(BizFabushiLike::getPostId, Collectors.counting()));
+        List<BizFabushiLike> likeRows = likeMapper.selectList(new LambdaQueryWrapper<BizFabushiLike>()
+                .in(BizFabushiLike::getPostId, postIds));
+        Map<Long, List<BizFabushiLike>> likeRowsByPost = likeRows.stream()
+                .collect(Collectors.groupingBy(BizFabushiLike::getPostId));
         Set<Long> myLiked = viewerId == null ? Collections.emptySet()
-                : likeMapper.selectList(new LambdaQueryWrapper<BizFabushiLike>()
-                        .eq(BizFabushiLike::getUserId, viewerId).in(BizFabushiLike::getPostId, postIds)).stream()
+                : likeRows.stream().filter(l -> Objects.equals(l.getUserId(), viewerId))
                 .map(BizFabushiLike::getPostId).collect(Collectors.toSet());
         Set<Long> myRead = viewerId == null ? Collections.emptySet()
                 : readStatusMapper.selectList(new LambdaQueryWrapper<BizFabushiReadStatus>()
@@ -467,16 +649,50 @@ public class FabushiPostService {
         Map<Long, Long> commentCounts = commentMapper.selectList(new LambdaQueryWrapper<BizFabushiComment>()
                         .eq(BizFabushiComment::getStatus, LIT_PUBLISHED).in(BizFabushiComment::getPostId, postIds)).stream()
                 .collect(Collectors.groupingBy(BizFabushiComment::getPostId, Collectors.counting()));
+        Map<Long, Long> recitationCounts = recitationService.countByPosts(postIds);
+
+        // 【P2 2026-11-23】书名/章节名批量联显：按书浏览表格要「章节」列，信息流要「《书》› 章节」来源行。
+        // 两次批量查询，不做 N+1；书目/章节已被软删时取不到则留 null（前端显示占位，不抛错）。
+        Set<Long> bookIds = posts.stream().map(BizFabushiPost::getBookId)
+                .filter(Objects::nonNull).collect(Collectors.toSet());
+        Map<Long, String> bookTitles = bookIds.isEmpty() ? Collections.emptyMap()
+                : bookMapper.selectBatchIds(bookIds).stream()
+                .collect(Collectors.toMap(BizFabushiBook::getId, BizFabushiBook::getTitle, (a, b) -> a));
+        Set<Long> sectionIds = posts.stream().map(BizFabushiPost::getSectionId)
+                .filter(Objects::nonNull).collect(Collectors.toSet());
+        Map<Long, String> sectionTitles = sectionIds.isEmpty() ? Collections.emptyMap()
+                : sectionMapper.selectBatchIds(sectionIds).stream()
+                .collect(Collectors.toMap(BizFabushiSection::getId, BizFabushiSection::getTitle, (a, b) -> a));
 
         for (BizFabushiPost p : posts) {
             p.setUserName(names.get(p.getUserId()));
-            p.setLikeCount(likeCounts.getOrDefault(p.getId(), 0L));
+            p.setBookTitle(p.getBookId() == null ? null : bookTitles.get(p.getBookId()));
+            p.setSectionTitle(p.getSectionId() == null ? null : sectionTitles.get(p.getSectionId()));
+            List<BizFabushiLike> rows = likeRowsByPost.getOrDefault(p.getId(), List.of());
+            p.setLikeCount((long) rows.size());
+            p.setLikeNames(buildLikeNames(rows, names));
             p.setCommentCount(commentCounts.getOrDefault(p.getId(), 0L));
+            p.setRecitationCount(recitationCounts.getOrDefault(p.getId(), 0L));
             p.setReadByMe(myRead.contains(p.getId()));
             p.setLikedByMe(myLiked.contains(p.getId()));
             p.setIsNew(p.getCreatedAt() != null
                     && p.getCreatedAt().isAfter(LocalDateTime.now().minusDays(NEW_WINDOW_DAYS)));
         }
+    }
+
+    /** 【D21】点赞人名单：前 8 位昵称 + 总数（如"王晓兰、陈慧 等 12 人"；无则 null）。 */
+    private String buildLikeNames(List<BizFabushiLike> rows, Map<Long, String> names) {
+        if (rows.isEmpty()) {
+            return null;
+        }
+        List<String> nick = rows.stream()
+                .map(l -> names.getOrDefault(l.getUserId(), "同事"))
+                .distinct()
+                .toList();
+        int total = rows.size();
+        int show = Math.min(8, nick.size());
+        String head = String.join("、", nick.subList(0, show));
+        return total > show ? head + " 等 " + total + " 人" : head;
     }
 
     private boolean isLikedBy(Long postId, Long viewerId) {

@@ -1,10 +1,13 @@
 package com.aigicrm.module.fabushi.service;
 
 import com.aigicrm.common.BusinessException;
+import com.aigicrm.module.fabushi.FabushiScopeType;
 import com.aigicrm.module.fabushi.entity.BizFabushiBook;
 import com.aigicrm.module.fabushi.mapper.BizFabushiBookMapper;
 import com.aigicrm.module.fabushi.mapper.BizFabushiPostMapper;
+import com.aigicrm.module.fabushi.mapper.BizFabushiRecitationMapper;
 import com.aigicrm.module.fabushi.entity.BizFabushiPost;
+import com.aigicrm.module.fabushi.entity.BizFabushiRecitation;
 import com.aigicrm.module.system.entity.SysDictData;
 import com.aigicrm.module.system.entity.SysUser;
 import com.aigicrm.module.system.mapper.SysUserMapper;
@@ -31,16 +34,28 @@ public class FabushiBookService {
     // P0-5 batch A: duplicated string literals (Sonar java:S1192)
     private static final String LIT_BOOK = "book:";
     private static final String LIT_APPROVED = "approved";
+    /** 统一回收站台账 biz_type（与 RecycleService 书目回收端点同码）。 */
+    private static final String LIT_RECYCLE_BOOK = "fabushi_book";
+    private static final String LIT_CATEGORY_CODE = "categoryCode";
+    private static final String LIT_TITLE = "title";
+    private static final String LIT_STATUS = "status";
+    /** 【D19 切片 7】版式标记白名单，与前端 FABUSHI_LAYOUT_TYPES 同源口径。 */
+    private static final String LAYOUT_TEXT = "text";
+    private static final String LAYOUT_SCAN = "scan";
 
 
     private final BizFabushiBookMapper bookMapper;
     private final BizFabushiPostMapper postMapper;
+    /** 【P1 2026-11-23】书目复诵总数（右栏推荐卡「复诵 N」）。 */
+    private final BizFabushiRecitationMapper recitationMapper;
     private final com.aigicrm.module.file.mapper.BizFileMapper fileMapper;
     private final SysUserMapper userMapper;
     private final SysDictService dictService;
     private final com.aigicrm.security.SecurityAuditService securityAuditService;
     /** 【FILE-FABU-FOLDER-001】法布施系统夹解析(书籍夹校验)。构造注入(S6813 裁决, 旧测试同步解锁)。 */
     private final com.aigicrm.module.file.service.FabushiFolderService fabushiFolderService;
+    /** 【D15/回收站 2026-11-23】软删同步写统一回收站台账（best-effort，不阻断主表删除）。 */
+    private final com.aigicrm.module.system.service.RecycleBinService recycleBinService;
 
     /** 挂载 PDF 大小上限: 与前端文案一致(挂载电子书 PDF「≤100MB」, book.vue)。 */
     static final long MAX_PDF_BYTES = 100L * 1024 * 1024;
@@ -55,7 +70,7 @@ public class FabushiBookService {
         Map<String, String> catNames = dictService.listDataByCode(FabushiStatsService.DICT_FABUSHI_CATEGORY).stream()
                 .collect(Collectors.toMap(SysDictData::getDictValue, SysDictData::getDictLabel, (a, b) -> a));
         Set<Long> userIds = books.stream().map(BizFabushiBook::getCreatedBy).collect(Collectors.toSet());
-        Map<Long, String> userNames = userMapper.selectBatchIds(userIds).stream()
+        Map<Long, String> userNames = userMapper.selectByIds(userIds).stream()
                 .collect(Collectors.toMap(SysUser::getId, SysUser::getRealName, (a, b) -> a));
         for (BizFabushiBook b : books) {
             b.setCategoryName(catNames.get(b.getCategoryCode()));
@@ -66,11 +81,36 @@ public class FabushiBookService {
                 .isNotNull(BizFabushiPost::getBookId)
                 .eq(BizFabushiPost::getStatus, "published"));
         Map<Long, List<BizFabushiPost>> byBook = posts.stream().collect(Collectors.groupingBy(BizFabushiPost::getBookId));
+        // 【P1 2026-11-23】复诵总次数：一次 in 查询按 postId 分组，避免逐书 N+1。
+        Map<Long, Long> reciteByPost = posts.isEmpty() ? java.util.Collections.emptyMap()
+                : recitationMapper.selectList(new LambdaQueryWrapper<BizFabushiRecitation>()
+                        .in(BizFabushiRecitation::getPostId, posts.stream().map(BizFabushiPost::getId).toList()))
+                .stream().collect(Collectors.groupingBy(BizFabushiRecitation::getPostId, Collectors.counting()));
         for (BizFabushiBook b : books) {
             List<BizFabushiPost> items = byBook.getOrDefault(b.getId(), List.of());
             b.setPostCount((long) items.size());
-            b.setHeartCount(items.stream().filter(p -> "heart".equals(p.getScopeType())).count());
-            b.setRecitationCount(items.stream().filter(p -> "recitation".equals(p.getScopeType())).count());
+            // 【P2 2026-11-23】参与人数 = 去重作者数（不是条数）；按书浏览左栏「8 人」与排序依据。
+            b.setMemberCount(items.stream().map(BizFabushiPost::getUserId)
+                    .filter(java.util.Objects::nonNull).distinct().count());
+            // 【P1 2026-11-23】三类型条数 + 复诵总数（原型右栏「诵读 N · 随施 N · 再读 N 人 · 复诵 N」）。
+            long songdu = items.stream().filter(p -> FabushiScopeType.SONGDU.getCode().equals(p.getScopeType())).count();
+            long suishi = items.stream().filter(p -> FabushiScopeType.SUISHI.getCode().equals(p.getScopeType())).count();
+            long zaidu = items.stream().filter(p -> FabushiScopeType.ZAIDU.getCode().equals(p.getScopeType())).count();
+            b.setSongduCount(songdu);
+            b.setSuishiCount(suishi);
+            b.setZaiduCount(zaidu);
+            // 原型「再读 N 人」按人去重（同一人多次上传只算一人）
+            b.setZaiduMemberCount(items.stream()
+                    .filter(p -> FabushiScopeType.ZAIDU.getCode().equals(p.getScopeType()))
+                    .map(BizFabushiPost::getUserId).filter(java.util.Objects::nonNull).distinct().count());
+            b.setRecitationTotal(items.stream().mapToLong(p -> reciteByPost.getOrDefault(p.getId(), 0L)).sum());
+            // 【CODE-REVIEW-20261123 R1-03】原为裸字面量 "suishi"/"songdu"，违反 FabushiScopeType
+            // javadoc「双端字面量禁止另行定义」。改引用枚举，D1 再改 code 时不会静默失效。
+            // 【P1 2026-11-23】直接复用上面算好的 suishi/songdu，不再各扫一遍列表。
+            // 注意：heartCount/recitationCount 是**历史命名**（小程序书目页按此读「心得」「诵读」），
+            // 语义与字面不一致，见 BizFabushiBook 字段注释；新代码用 suishiCount/songduCount。
+            b.setHeartCount(suishi);
+            b.setRecitationCount(songdu);
         }
     }
 
@@ -188,6 +228,17 @@ public class FabushiBookService {
         bookMapper.updateById(book);
     }
 
+    /** 【D19 切片 7】管理员确认书目版式标记；仅 text/scan 两值，默认 scan 保守原样。 */
+    public void updateLayoutType(Long id, String layoutType) {
+        BizFabushiBook book = requireBook(id);
+        String type = layoutType == null ? null : layoutType.trim();
+        if (!LAYOUT_TEXT.equals(type) && !LAYOUT_SCAN.equals(type)) {
+            throw new BusinessException(400, "版式标记只能是 text（文本版）或 scan（影印版）");
+        }
+        book.setLayoutType(type);
+        bookMapper.updateById(book);
+    }
+
     /** 待审核队列(fabushi:book:manage 门)。 */
     public List<BizFabushiBook> pendingList() {
         List<BizFabushiBook> books = bookMapper.selectList(new LambdaQueryWrapper<BizFabushiBook>()
@@ -212,8 +263,8 @@ public class FabushiBookService {
     /** 提交书目 Map 化(前端 body → 实体组装收在 service)。 */
     public Map<String, Object> submitData(Map<String, Object> body) {
         BizFabushiBook book = new BizFabushiBook();
-        book.setCategoryCode(body.get("categoryCode") == null ? null : String.valueOf(body.get("categoryCode")));
-        book.setTitle(body.get("title") == null ? null : String.valueOf(body.get("title")));
+        book.setCategoryCode(body.get(LIT_CATEGORY_CODE) == null ? null : String.valueOf(body.get(LIT_CATEGORY_CODE)));
+        book.setTitle(body.get(LIT_TITLE) == null ? null : String.valueOf(body.get(LIT_TITLE)));
         book.setAuthor(body.get("author") == null ? null : String.valueOf(body.get("author")));
         book.setPublisher(body.get("publisher") == null ? null : String.valueOf(body.get("publisher")));
         book.setEditionType(body.get("editionType") == null ? null : String.valueOf(body.get("editionType")));
@@ -221,7 +272,7 @@ public class FabushiBookService {
             book.setPages(Integer.valueOf(String.valueOf(body.get("pages"))));
         }
         BizFabushiBook created = submit(book);
-        return Map.of("id", created.getId(), "status", created.getStatus());
+        return Map.of("id", created.getId(), LIT_STATUS, created.getStatus());
     }
 
     /** 待审核队列 Map 化。 */
@@ -244,6 +295,12 @@ public class FabushiBookService {
     public void deleteBook(Long id) {
         BizFabushiBook book = requireBook(id);
         bookMapper.deleteById(id);
+        // 统一回收站台账：软删后可从 /api/system/recycle/books 查看/恢复；台账失败不阻断主表删除。
+        Map<String, Object> snapshot = new java.util.LinkedHashMap<>();
+        snapshot.put(LIT_TITLE, book.getTitle());
+        snapshot.put(LIT_CATEGORY_CODE, book.getCategoryCode());
+        snapshot.put(LIT_STATUS, book.getStatus());
+        recycleBinService.record(LIT_RECYCLE_BOOK, id, snapshot, "管理员删除书目", "admin");
         securityAuditService.permissionChange("fabushi_book_delete", LIT_BOOK + id + ":" + book.getTitle());
     }
 

@@ -6,7 +6,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -84,6 +83,14 @@ public class FabushiBookController {
     @com.aigicrm.common.annotation.AigicrmLog(module = "法布施", action = "挂载PDF", targetType = "file")
     public Result<Void> attachPdf(@PathVariable Long id, @RequestBody Map<String, Long> body) {
         bookService.attachPdf(id, body == null ? null : body.get("fileId"));
+        return Result.ok();
+    }
+
+    /** 【D19 切片 7】管理员确认版式标记：text=文本版 / scan=影印版（影响阅读器默认版式）。 */
+    @PutMapping("/{id}/layout")
+    @PreAuthorize("hasAuthority('fabushi:book:manage')")
+    public Result<Void> updateLayout(@PathVariable Long id, @RequestBody Map<String, String> body) {
+        bookService.updateLayoutType(id, body == null ? null : body.get("layoutType"));
         return Result.ok();
     }
 

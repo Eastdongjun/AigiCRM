@@ -71,6 +71,10 @@ public class RecycleService {
     private static final String LIT_X_5 = "该客户不在回收站（可能已被恢复或已被彻底删除）";
     private static final String LIT_X_6 = "该人员不在回收站（可能已被恢复或已被彻底删除）";
     private static final String LIT_X_7 = "恢复失败：数据状态已变化，请刷新后重试";
+    /** 【D15/回收站 2026-11-23】法布施书目回收台账类型（与 FabushiBookService 写入同码）。 */
+    private static final String LIT_FABUSHI_BOOK = "fabushi_book";
+    private static final String LIT_BOOK_NOT_IN_BIN = "该书不在回收站（可能已被恢复或已被彻底删除）";
+    private static final String LIT_DELETE_BLOCKED = "），不能彻底删除；请先处理这些记录";
 
 
     private static final com.fasterxml.jackson.databind.ObjectMapper JSON =
@@ -249,7 +253,7 @@ public class RecycleService {
                 .toList();
         if (!blocked.isEmpty()) {
             throw new BusinessException("存在关联数据（" + String.join("、", blocked)
-                    + "），不能彻底删除；请先处理这些记录");
+                    + LIT_DELETE_BLOCKED);
         }
         jdbc.update("DELETE FROM biz_customer_share WHERE customer_id = ?", id);
         jdbc.update("DELETE FROM biz_reminder WHERE customer_id = ?", id);
@@ -280,7 +284,7 @@ public class RecycleService {
                 .toList();
         if (!blocked.isEmpty()) {
             throw new BusinessException("存在业务关联（" + String.join("、", blocked)
-                    + "），不能彻底删除；请先处理这些记录");
+                    + LIT_DELETE_BLOCKED);
         }
         // biz_incentive_read.user_id 为 NO ACTION 外键, 必须随人员行先删, 否则 500
         jdbc.update("DELETE FROM biz_incentive_read WHERE user_id = ?", id);
@@ -1075,6 +1079,91 @@ public class RecycleService {
         Integer active = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM sys_user WHERE id=? AND deleted=0 AND status=1", Integer.class, id);
         return active != null && active > 0;
+    }
+
+    // ==================== 已删除法布施书目（D15/回收站 2026-11-23） ====================
+
+    /** 已删除书目分页（管理员回收站页，标题关键词；updated_at 作为删除时间口径）。 */
+    public PageResult<DeletedBookRow> deletedBooks(int current, int size, String keyword) {
+        int safeSize = Math.clamp(size, 1, MAX_PAGE_SIZE);
+        int offset = (Math.max(current, 1) - 1) * safeSize;
+        String pattern = "%" + (keyword == null ? "" : keyword.trim()) + "%";
+        List<DeletedBookRow> rows = jdbc.query(
+                "SELECT id, title, category_code, status, updated_at FROM biz_fabushi_book "
+                        + "WHERE deleted = 1 AND title LIKE ? ORDER BY updated_at DESC LIMIT ? OFFSET ?",
+                (rs, i) -> new DeletedBookRow(rs.getLong(1), rs.getString(2), rs.getString(3),
+                        rs.getString(4), rs.getTimestamp(5) == null ? null : rs.getTimestamp(5).toLocalDateTime()),
+                pattern, safeSize, offset);
+        Long total = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM biz_fabushi_book WHERE deleted = 1 AND title LIKE ?", Long.class, pattern);
+        return new PageResult<>(rows, total == null ? 0 : total);
+    }
+
+    /** 恢复书目：同名活跃书存在即拒绝（防重复），台账状态回写。 */
+    @Transactional
+    public String restoreBook(Long id) {
+        requireDeletedBook(id);
+        Long dup = jdbc.queryForObject("SELECT COUNT(*) FROM biz_fabushi_book "
+                + "WHERE title = (SELECT title FROM biz_fabushi_book WHERE id = ?) "
+                + "AND deleted = 0 AND id <> ?", Long.class, id, id);
+        if (dup != null && dup > 0) {
+            throw new BusinessException("存在同名活跃书目，无法恢复（请先改名或删除活跃项）");
+        }
+        if (jdbc.update("UPDATE biz_fabushi_book SET deleted = 0 WHERE id = ? AND deleted = 1", id) != 1) {
+            throw new BusinessException(LIT_X_7);
+        }
+        writeAuditLog("恢复书目", "biz_fabushi_book", id, "book:" + id);
+        if (recycleBinService != null) recycleBinService.markRestored(LIT_FABUSHI_BOOK, id);
+        return "书目已恢复";
+    }
+
+    /** 彻底删除书目：章节/书架/进度/挂帖/复诵任一存在即阻断并列出明细。 */
+    @Transactional
+    public String hardDeleteBook(Long id) {
+        requireDeletedBook(id);
+        Map<String, Long> related = bookRelated(id);
+        List<String> blocked = related.entrySet().stream()
+                .filter(e -> e.getValue() > 0)
+                .map(e -> e.getKey() + " " + e.getValue())
+                .toList();
+        if (!blocked.isEmpty()) {
+            throw new BusinessException("存在关联数据（" + String.join("、", blocked)
+                    + LIT_DELETE_BLOCKED);
+        }
+        if (jdbc.update("DELETE FROM biz_fabushi_book WHERE id = ? AND deleted = 1", id) != 1) {
+            throw new BusinessException(LIT_X_3);
+        }
+        writeAuditLog("彻底删除书目", "biz_fabushi_book", id, "book:" + id);
+        if (recycleBinService != null) recycleBinService.markPurged(LIT_FABUSHI_BOOK, id);
+        return "书目已彻底删除（不可恢复）";
+    }
+
+    private void requireDeletedBook(Long id) {
+        Integer deleted = jdbc.queryForObject("SELECT deleted FROM biz_fabushi_book WHERE id = ?", Integer.class, id);
+        if (deleted == null || deleted != 1) {
+            throw new BusinessException(LIT_BOOK_NOT_IN_BIN);
+        }
+    }
+
+    private Map<String, Long> bookRelated(Long id) {
+        Map<String, Long> related = new java.util.LinkedHashMap<>();
+        related.put("章节", countRef("SELECT COUNT(*) FROM biz_fabushi_section WHERE book_id = ?", id));
+        related.put("书架", countRef("SELECT COUNT(*) FROM biz_fabushi_shelf WHERE book_id = ?", id));
+        related.put("阅读进度", countRef("SELECT COUNT(*) FROM biz_fabushi_reading_progress WHERE book_id = ?", id));
+        related.put("挂帖", countRef("SELECT COUNT(*) FROM biz_fabushi_post WHERE book_id = ?", id));
+        related.put("复诵", countRef("SELECT COUNT(*) FROM biz_fabushi_recitation r "
+                + "JOIN biz_fabushi_post p ON p.id = r.post_id WHERE p.book_id = ?", id));
+        return related;
+    }
+
+    private long countRef(String sql, Long id) {
+        Long n = jdbc.queryForObject(sql, Long.class, id);
+        return n == null ? 0 : n;
+    }
+
+    /** 回收站书目列表行（deletedAt 取主表 updated_at，无独立 deleted_at 列）。 */
+    public record DeletedBookRow(Long id, String title, String categoryCode, String status,
+                                 LocalDateTime deletedAt) {
     }
 
     /** 我的回收站·文件(非 admin 视角): 只列本人删除的(deleted_by 归属口径; V2026.11.14.1 补列) */

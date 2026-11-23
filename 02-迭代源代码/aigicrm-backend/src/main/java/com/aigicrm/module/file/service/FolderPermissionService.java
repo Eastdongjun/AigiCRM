@@ -369,16 +369,17 @@ public class FolderPermissionService {
     /**
      * 社区型法布施文件（社区内容流，全员可见，不设数据范围）：
      * ① 已审核书籍挂载的 PDF（biz_fabushi_book.status=approved 且未删）；
-     * ② 已发布内容（心得/诵读/正能量）的附件（biz_fabushi_post.status=published 且未删）；
-     * ③ 已发布内容下已发布语音评论的音频。
-     * 动态判定：书籍停用/内容下架后立即回落到上传人数据范围通道。
+     * ② 已发布内容（每日诵读/每日随施/再读一本）的附件（biz_fabushi_post.status=published 且未删）；
+     * ③ 已发布内容下已发布语音评论的音频；
+     * ④ 已发布内容下的复诵音频（biz_fabushi_recitation，D14 2026-11-23）。
+     * 动态判定：书籍停用/内容下架/删除后立即回落到上传人数据范围通道。
      * 仅做“是否社区内容”的事实查询，功能码 fabushi:view 已在调用方前置。
      */
     boolean isFabushiCommunityFile(Long fileId) {
-        // native-sql-audit: 社区内容事实查询(R2-FABUSHI-SCOPE-001)——按 fileId 主键定位, 只判
+        // native-sql-audit: 社区内容事实查询(R2-FABUSHI-SCOPE-001 + D14 复诵第四类)——按 fileId 主键定位, 只判
         // "该文件是否已发布为社区内容", 不返回业务数据行; fileId 在调用方已过功能码+数据范围门。
         // 不加 tenant 限定的理由: ①R2 语义即"已发布社区内容跨组织放行", 加过滤反而破坏放行语义;
-        // ②被查四表 biz_fabushi_book/post/post_attachment/comment 无 tenant_id 列(2026-11-22
+        // ②被查五表 biz_fabushi_book/post/post_attachment/comment/recitation 无 tenant_id 列(2026-11-22
         // 实测 schema, 仅 reading_progress/section/shelf/user_setting 有); ③单集团部署
         // tenant_id 恒 1(同 FileChunkUploadService/RecycleBinService 豁免口径)。
         if (fileId == null || jdbc == null) return false;
@@ -393,8 +394,12 @@ public class FolderPermissionService {
                         + "SELECT 1 FROM biz_fabushi_comment c "
                         + "JOIN biz_fabushi_post p2 ON p2.id = c.post_id "
                         + "WHERE c.audio_file_id = ? AND c.status = 'published' AND p2.status = 'published' AND p2.deleted = 0"
+                        + " UNION ALL "
+                        + "SELECT 1 FROM biz_fabushi_recitation r "
+                        + "JOIN biz_fabushi_post p3 ON p3.id = r.post_id "
+                        + "WHERE r.audio_file_id = ? AND r.deleted = 0 AND p3.status = 'published' AND p3.deleted = 0"
                         + ") t",
-                Integer.class, fileId, fileId, fileId);
+                Integer.class, fileId, fileId, fileId, fileId);
         return n != null && n > 0;
     }
 

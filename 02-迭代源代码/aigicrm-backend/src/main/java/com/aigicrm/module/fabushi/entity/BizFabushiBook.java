@@ -21,6 +21,8 @@ public class BizFabushiBook {
     private String editionType;
     private Integer pages;
     private Long pdfFileId;
+    /** 【D19 切片 7】版式标记：text=文本版（默认偏重排）/ scan=影印版（默认原样增强）。 */
+    private String layoutType;
     private String status;
     private String rejectReason;
     private Long createdBy;
@@ -39,8 +41,35 @@ public class BizFabushiBook {
     private String categoryName;
     @TableField(exist = false)
     private Long postCount;
+    /** 【P2 2026-11-23】该书参与人数（已发布内容的去重作者数），按书浏览左栏排序与「N 人」角标用。 */
+    @TableField(exist = false)
+    private Long memberCount;
+    /**
+     * 心得（=随施）条数。**历史命名**：小程序书目页（aigicrm-miniprogram/pages/fabushi/book）
+     * 直接读 heartCount 并显示为「心得」，改名会断小程序，故保留原名；
+     * 新代码请用语义正确的 {@link #suishiCount}（两者取值恒等）。
+     */
     @TableField(exist = false)
     private Long heartCount;
+    /**
+     * 诵读条数。**历史命名**，同 {@link #heartCount} 的成因：小程序按 recitationCount 取诵读数；
+     * 新代码请用 {@link #songduCount}（两者取值恒等）。
+     */
     @TableField(exist = false)
     private Long recitationCount;
+
+    /** 【P1 2026-11-23】该书 D1 三类型内容条数，右栏「今日推荐书目」按原型展示
+     *  「诵读 N · 随施 N · 再读 N 人 · 复诵 N」一行，不再只给总条数。 */
+    @TableField(exist = false)
+    private Long songduCount;
+    @TableField(exist = false)
+    private Long suishiCount;
+    @TableField(exist = false)
+    private Long zaiduCount;
+    /** 【P1 2026-11-23】正在「再读」本书的去重人数（原型文案「再读 N 人」按人计，不是条数）。 */
+    @TableField(exist = false)
+    private Long zaiduMemberCount;
+    /** 【P1 2026-11-23】该书全部内容的复诵总次数（他人对本书内容的复诵行数）。 */
+    @TableField(exist = false)
+    private Long recitationTotal;
 }

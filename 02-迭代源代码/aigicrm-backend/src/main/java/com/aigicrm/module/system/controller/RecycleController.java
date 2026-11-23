@@ -241,4 +241,29 @@ public class RecycleController {
         body.put("failed", result.failed());
         return Result.ok(body);
     }
+
+    // ===== 法布施书目回收（D15 2026-11-23；复用 system:recycle:* 权限码，零新增码） =====
+
+    @PreAuthorize("hasAuthority('system:recycle:view')")
+    @GetMapping("/books")
+    public Result<RecycleService.PageResult<RecycleService.DeletedBookRow>> deletedBooks(
+            @RequestParam(defaultValue = "1") int current,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String keyword) {
+        return Result.ok(recycleService.deletedBooks(current, size, keyword));
+    }
+
+    @PreAuthorize("hasAuthority('system:recycle:restore')")
+    @PostMapping("/books/{id}/restore")
+    public Result<Map<String, String>> restoreBook(@PathVariable Long id) {
+        requireAdmin();
+        return Result.ok(Map.of(LIT_MESSAGE, recycleService.restoreBook(id)));
+    }
+
+    @PreAuthorize("hasAuthority('system:recycle:purge')")
+    @PostMapping("/books/{id}/purge")
+    public Result<Map<String, String>> hardDeleteBook(@PathVariable Long id) {
+        requireAdmin();
+        return Result.ok(Map.of(LIT_MESSAGE, recycleService.hardDeleteBook(id)));
+    }
 }

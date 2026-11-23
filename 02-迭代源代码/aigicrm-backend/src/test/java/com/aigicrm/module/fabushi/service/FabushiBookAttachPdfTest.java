@@ -33,8 +33,9 @@ class FabushiBookAttachPdfTest {
     private final com.aigicrm.module.file.service.FabushiFolderService fabushiFolderService =
             mock(com.aigicrm.module.file.service.FabushiFolderService.class);
     private final FabushiBookService svc = new FabushiBookService(
-            bookMapper, postMapper, fileMapper, userMapper, dictService, auditService,
-            fabushiFolderService);
+            bookMapper, postMapper, mock(com.aigicrm.module.fabushi.mapper.BizFabushiRecitationMapper.class),
+            fileMapper, userMapper, dictService, auditService,
+            fabushiFolderService, mock(com.aigicrm.module.system.service.RecycleBinService.class));
 
     @BeforeEach
     void initLambdaCache() {

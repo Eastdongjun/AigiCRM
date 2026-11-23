@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 /** 书目删除语义钉(2026-11-16 用户令"书籍可以删除"): 软删走 @TableLogic deleteById + 审计留痕; 已删/不存在=404。 */
@@ -24,9 +25,12 @@ class FabushiBookDeleteTest {
     private final SysUserMapper userMapper = mock(SysUserMapper.class);
     private final SysDictService dictService = mock(SysDictService.class);
     private final SecurityAuditService auditService = mock(SecurityAuditService.class);
+    private final com.aigicrm.module.system.service.RecycleBinService recycleBinService =
+            mock(com.aigicrm.module.system.service.RecycleBinService.class);
     private final FabushiBookService svc = new FabushiBookService(
-            bookMapper, postMapper, fileMapper, userMapper, dictService, auditService,
-            mock(com.aigicrm.module.file.service.FabushiFolderService.class));
+            bookMapper, postMapper, mock(com.aigicrm.module.fabushi.mapper.BizFabushiRecitationMapper.class),
+            fileMapper, userMapper, dictService, auditService,
+            mock(com.aigicrm.module.file.service.FabushiFolderService.class), recycleBinService);
 
     @BeforeEach
     void initLambdaCache() {
@@ -52,6 +56,7 @@ class FabushiBookDeleteTest {
         svc.deleteBook(3L);
 
         verify(bookMapper).deleteById((java.io.Serializable) 3L); // @TableLogic: 物理被禁, 实际 UPDATE deleted=1
+        verify(recycleBinService).record(eq("fabushi_book"), eq(3L), any(), anyString(), eq("admin"));
         verify(auditService).permissionChange(eq("fabushi_book_delete"), contains("book:3:了凡四训"));
         // requireBook 的 selectById 为合法前置交互, 不做 noMoreInteractions 全禁
         verifyNoMoreInteractions(auditService);

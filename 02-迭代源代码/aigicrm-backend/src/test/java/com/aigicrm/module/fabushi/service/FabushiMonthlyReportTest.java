@@ -5,6 +5,7 @@ import com.aigicrm.module.fabushi.entity.BizFabushiComment;
 import com.aigicrm.module.fabushi.entity.BizFabushiLike;
 import com.aigicrm.module.fabushi.entity.BizFabushiPost;
 import com.aigicrm.module.fabushi.entity.BizFabushiReadStatus;
+import com.aigicrm.module.fabushi.entity.BizFabushiRecitation;
 import com.aigicrm.module.fabushi.mapper.*;
 import com.aigicrm.module.system.entity.SysDept;
 import com.aigicrm.module.system.entity.SysUser;
@@ -48,6 +49,8 @@ class FabushiMonthlyReportTest {
         com.baomidou.mybatisplus.core.metadata.TableInfoHelper.initTableInfo(assistant, BizFabushiComment.class);
         com.baomidou.mybatisplus.core.metadata.TableInfoHelper.initTableInfo(assistant, BizFabushiLike.class);
         com.baomidou.mybatisplus.core.metadata.TableInfoHelper.initTableInfo(assistant, BizFabushiReadStatus.class);
+        // 【P12 2026-11-23】成员榜新增「被复诵」指标，buildRanking 会建 recitation 的 Lambda wrapper
+        com.baomidou.mybatisplus.core.metadata.TableInfoHelper.initTableInfo(assistant, BizFabushiRecitation.class);
         com.baomidou.mybatisplus.core.metadata.TableInfoHelper.initTableInfo(assistant, SysUser.class);
         com.baomidou.mybatisplus.core.metadata.TableInfoHelper.initTableInfo(assistant, SysDept.class);
     }
@@ -66,7 +69,8 @@ class FabushiMonthlyReportTest {
     private final FabushiDashboardService svc = new FabushiDashboardService(
             statsService, postMapper, likeMapper, commentMapper, readStatusMapper,
             bookMapper, userMapper, deptMapper, dictService,
-            mock(BizFabushiSectionMapper.class), mock(BizFabushiUserSettingMapper.class));
+            mock(BizFabushiSectionMapper.class), mock(BizFabushiUserSettingMapper.class),
+            mock(BizFabushiRecitationMapper.class));
 
     /** 负例(核心): 非 admin + 解析空集 = 零数据 + 不发任何统计查询(fail-closed)。 */
     @Test

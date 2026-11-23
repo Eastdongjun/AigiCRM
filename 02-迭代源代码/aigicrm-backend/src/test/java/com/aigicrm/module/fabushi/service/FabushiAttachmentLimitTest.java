@@ -3,11 +3,14 @@ package com.aigicrm.module.fabushi.service;
 import com.aigicrm.common.BusinessException;
 import com.aigicrm.module.fabushi.entity.BizFabushiPost;
 import com.aigicrm.module.fabushi.entity.BizFabushiPostAttachment;
+import com.aigicrm.module.fabushi.mapper.BizFabushiBookMapper;
 import com.aigicrm.module.fabushi.mapper.BizFabushiCommentMapper;
 import com.aigicrm.module.fabushi.mapper.BizFabushiLikeMapper;
 import com.aigicrm.module.fabushi.mapper.BizFabushiPostAttachmentMapper;
 import com.aigicrm.module.fabushi.mapper.BizFabushiPostMapper;
 import com.aigicrm.module.fabushi.mapper.BizFabushiReadStatusMapper;
+import com.aigicrm.module.fabushi.mapper.BizFabushiSectionMapper;
+// recitationService 由下方字段注入（D14）
 import com.aigicrm.module.file.entity.BizFile;
 import com.aigicrm.module.file.mapper.BizFileMapper;
 import com.aigicrm.module.system.mapper.SysUserMapper;
@@ -37,7 +40,9 @@ import static org.mockito.Mockito.when;
  */
 class FabushiAttachmentLimitTest {
 
+    private final FabushiRecitationService recitationService = mock(FabushiRecitationService.class);
     private final BizFabushiPostMapper postMapper = mock(BizFabushiPostMapper.class);
+    private final BizFabushiBookMapper bookMapper = mock(BizFabushiBookMapper.class);
     private final BizFabushiCommentMapper commentMapper = mock(BizFabushiCommentMapper.class);
     private final BizFabushiLikeMapper likeMapper = mock(BizFabushiLikeMapper.class);
     private final BizFabushiReadStatusMapper readStatusMapper = mock(BizFabushiReadStatusMapper.class);
@@ -46,8 +51,9 @@ class FabushiAttachmentLimitTest {
     private final BizFileMapper fileMapper = mock(BizFileMapper.class);
     private final SecurityAuditService auditService = mock(SecurityAuditService.class);
     private final FabushiPostService svc = new FabushiPostService(
-            postMapper, commentMapper, likeMapper, readStatusMapper, attachmentMapper,
-            userMapper, fileMapper, auditService);
+            postMapper, bookMapper, commentMapper, likeMapper, recitationService, readStatusMapper,
+            attachmentMapper, userMapper, fileMapper, auditService,
+            mock(BizFabushiSectionMapper.class));
 
     @BeforeEach
     void initLambdaCache() {
@@ -65,6 +71,7 @@ class FabushiAttachmentLimitTest {
         p.setId(7L);
         p.setUserId(5L);
         p.setStatus("published");
+        p.setScopeType("songdu");
         return p;
     }
 
@@ -84,6 +91,12 @@ class FabushiAttachmentLimitTest {
         for (int i = 0; i < videos; i++) rows.add(att("video"));
         for (int i = 0; i < audios; i++) rows.add(att("audio"));
         when(attachmentMapper.selectList(any())).thenReturn(rows);
+    }
+
+    private BizFabushiPost ownedSuishiPost() {
+        BizFabushiPost p = ownedPost();
+        p.setScopeType("suishi");
+        return p;
     }
 
     private BizFabushiPostAttachment att(String type) {
@@ -127,7 +140,7 @@ class FabushiAttachmentLimitTest {
         run(() -> assertDoesNotThrow(() -> svc.addAttachment(7L, body(type, dur))));
     }
 
-    // ===== 图 ≤5 =====
+    // ===== 图 ≤5（songdu/zaidu） / ≤9（suishi，Q14） =====
 
     @Test
     void image_5th_allowed_6th_rejected() {
@@ -135,6 +148,47 @@ class FabushiAttachmentLimitTest {
         BusinessException ex = reject("image", null, 5, 0, 0);
         assertEquals(400, ex.getCode());
         assertEquals("图片已达上限5张", ex.getMessage());
+    }
+
+    // ===== 【Q14 2026-11-23】随施 9 张 / 其他类型 5 张 =====
+    // 注意：allow/reject 内部 run() 会把 post stub 重置为 songdu——本组用例显式 stub，不走 run()
+
+    private void mockExistingImages(int images) {
+        List<BizFabushiPostAttachment> rows = new ArrayList<>();
+        for (int i = 0; i < images; i++) rows.add(att("image"));
+        when(attachmentMapper.selectList(any())).thenReturn(rows);
+        when(fileMapper.selectById(2696L)).thenReturn(fabushiFile());
+    }
+
+    @Test
+    void suishi_image_9th_allowed_10th_rejected() {
+        when(postMapper.selectById(7L)).thenReturn(ownedSuishiPost());
+        org.mockito.Mockito.doAnswer(inv -> {
+            BizFabushiPostAttachment x = inv.getArgument(0);
+            x.setId(999L);
+            return 1;
+        }).when(attachmentMapper).insert(any(BizFabushiPostAttachment.class));
+        try (MockedStatic<SecurityUtils> sec = org.mockito.Mockito.mockStatic(SecurityUtils.class)) {
+            sec.when(SecurityUtils::getCurrentUserId).thenReturn(5L);
+            mockExistingImages(8);
+            assertDoesNotThrow(() -> svc.addAttachment(7L, body("image", null)));
+            mockExistingImages(9);
+            BusinessException ex = assertThrows(BusinessException.class, () -> svc.addAttachment(7L, body("image", null)));
+            assertEquals("图片已达上限9张", ex.getMessage());
+        }
+    }
+
+    @Test
+    void zaidu_image_still_capped_at_5() {
+        BizFabushiPost p = ownedPost();
+        p.setScopeType("zaidu");
+        when(postMapper.selectById(7L)).thenReturn(p);
+        try (MockedStatic<SecurityUtils> sec = org.mockito.Mockito.mockStatic(SecurityUtils.class)) {
+            sec.when(SecurityUtils::getCurrentUserId).thenReturn(5L);
+            mockExistingImages(5);
+            BusinessException ex = assertThrows(BusinessException.class, () -> svc.addAttachment(7L, body("image", null)));
+            assertEquals("图片已达上限5张", ex.getMessage());
+        }
     }
 
     // ===== 视 ≤5 =====

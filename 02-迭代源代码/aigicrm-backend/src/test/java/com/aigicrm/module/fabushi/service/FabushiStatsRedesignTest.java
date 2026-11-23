@@ -1,8 +1,10 @@
 package com.aigicrm.module.fabushi.service;
 
 import com.aigicrm.module.fabushi.entity.BizFabushiBook;
+import com.aigicrm.module.fabushi.entity.BizFabushiLike;
 import com.aigicrm.module.fabushi.entity.BizFabushiPost;
 import com.aigicrm.module.fabushi.entity.BizFabushiReadStatus;
+import com.aigicrm.module.fabushi.entity.BizFabushiRecitation;
 import com.aigicrm.module.fabushi.entity.BizFabushiSection;
 import com.aigicrm.module.fabushi.entity.BizFabushiUserSetting;
 import com.aigicrm.module.fabushi.mapper.BizFabushiBookMapper;
@@ -10,6 +12,7 @@ import com.aigicrm.module.fabushi.mapper.BizFabushiCommentMapper;
 import com.aigicrm.module.fabushi.mapper.BizFabushiLikeMapper;
 import com.aigicrm.module.fabushi.mapper.BizFabushiPostMapper;
 import com.aigicrm.module.fabushi.mapper.BizFabushiReadStatusMapper;
+import com.aigicrm.module.fabushi.mapper.BizFabushiRecitationMapper;
 import com.aigicrm.module.fabushi.mapper.BizFabushiSectionMapper;
 import com.aigicrm.module.fabushi.mapper.BizFabushiUserSettingMapper;
 import com.aigicrm.module.system.entity.SysDictData;
@@ -56,10 +59,11 @@ class FabushiStatsRedesignTest {
     private final SysDictService dictService = mock(SysDictService.class);
     private final BizFabushiSectionMapper sectionMapper = mock(BizFabushiSectionMapper.class);
     private final BizFabushiUserSettingMapper settingMapper = mock(BizFabushiUserSettingMapper.class);
+    private final BizFabushiRecitationMapper recitationMapper = mock(BizFabushiRecitationMapper.class);
 
     private final FabushiDashboardService svc = new FabushiDashboardService(
             statsService, postMapper, likeMapper, commentMapper, readStatusMapper, bookMapper,
-            userMapper, deptMapper, dictService, sectionMapper, settingMapper);
+            userMapper, deptMapper, dictService, sectionMapper, settingMapper, recitationMapper);
 
     private MockedStatic<SecurityUtils> sec;
 
@@ -80,6 +84,8 @@ class FabushiStatsRedesignTest {
         com.baomidou.mybatisplus.core.metadata.TableInfoHelper.initTableInfo(assistant,
                 com.aigicrm.module.fabushi.entity.BizFabushiComment.class);
         com.baomidou.mybatisplus.core.metadata.TableInfoHelper.initTableInfo(assistant, BizFabushiUserSetting.class);
+        // 【P12 2026-11-23】成员榜新增「被复诵」指标，buildRanking 会建 recitation 的 Lambda wrapper
+        com.baomidou.mybatisplus.core.metadata.TableInfoHelper.initTableInfo(assistant, BizFabushiRecitation.class);
         com.baomidou.mybatisplus.core.metadata.TableInfoHelper.initTableInfo(assistant, SysUser.class);
         com.baomidou.mybatisplus.core.metadata.TableInfoHelper.initTableInfo(assistant,
                 com.aigicrm.module.system.entity.SysDept.class);
@@ -96,6 +102,7 @@ class FabushiStatsRedesignTest {
         lenient().when(commentMapper.selectList(any())).thenReturn(List.of());
         lenient().when(readStatusMapper.selectList(any())).thenReturn(List.<BizFabushiReadStatus>of());
         lenient().when(settingMapper.selectList(any())).thenReturn(List.<BizFabushiUserSetting>of());
+        lenient().when(recitationMapper.selectList(any())).thenReturn(List.<BizFabushiRecitation>of());
         lenient().when(userMapper.selectBatchIds(any())).thenReturn(List.<SysUser>of());
         lenient().when(deptMapper.selectBatchIds(any())).thenReturn(List.of());
         lenient().when(postMapper.selectCount(any())).thenReturn(0L);
@@ -174,6 +181,41 @@ class FabushiStatsRedesignTest {
         return u;
     }
 
+    // ===== 【BUGFIX 2026-11-23】可见集=全部(null) 时「获木鱼 / 被复诵」必须真算，不能恒 0 =====
+    // 原写法把 visible==null 当成「只查 userId=-1」，作者帖集合恒空 ⇒ 两项指标永远 0。
+    // 这里用 null 可见集 + 真实点赞/复诵行钉住修复后的归属口径。
+    @Test
+    @SuppressWarnings("unchecked")
+    void ranking_likesAndRecitations_countedWhenVisibleScopeIsAll() {
+        BizFabushiPost mine = post(10L, null, "published"); // userId=5
+        when(postMapper.selectList(any())).thenReturn(List.of(mine));
+        LocalDateTime now = LocalDateTime.now();
+        BizFabushiLike l1 = new BizFabushiLike();
+        l1.setPostId(10L);
+        l1.setUserId(6L);
+        l1.setCreatedAt(now);
+        BizFabushiLike l2 = new BizFabushiLike();
+        l2.setPostId(10L);
+        l2.setUserId(7L);
+        l2.setCreatedAt(now);
+        when(likeMapper.selectList(any())).thenReturn(List.of(l1, l2));
+        BizFabushiRecitation rec = new BizFabushiRecitation();
+        rec.setPostId(10L);
+        rec.setUserId(6L);
+        rec.setCreatedAt(now);
+        when(recitationMapper.selectList(any())).thenReturn(List.of(rec));
+        when(userMapper.selectBatchIds(any())).thenReturn(List.of(user(5L)));
+
+        Map<String, Object> data = svc.dashboard("week");
+
+        List<Map<String, Object>> ranking = (List<Map<String, Object>>) data.get("ranking");
+        assertTrue(!ranking.isEmpty(), "全集团档也必须有榜行");
+        Map<String, Object> row = ranking.get(0);
+        assertEquals(5L, row.get("userId"));
+        assertEquals(2L, row.get("likesReceived"), "获木鱼按内容作者归属，全集团档不得恒 0");
+        assertEquals(1L, row.get("recitationsReceived"), "被复诵按内容作者归属，全集团档不得恒 0");
+    }
+
     private BizFabushiSection section(long id, long bookId) {
         BizFabushiSection s = new BizFabushiSection();
         s.setId(id);
@@ -220,14 +262,17 @@ class FabushiStatsRedesignTest {
         // u8: 无设置行但有读 → 不入分母
         when(settingMapper.selectList(any())).thenReturn(List.of(
                 setting(5L, 1, "daily"), setting(6L, 1, "daily"), setting(7L, 0, "daily")));
+        // 【修复 2026-11-23】原第二条 read 用 today-1——自然周边界(周一)上 yesterday 落入上周窗口,
+        // 分子从 2 人日缩为 1, 期望公式仍按 2 算 → 每逢周一必红(时间敏感既有缺陷, 基线实测复现)。
+        // 改为两条同日(今日)不同时刻: 分子=distinct(user,day)=1 人日, 期望公式与星期无关。
         when(readStatusMapper.selectList(any())).thenReturn(List.of(
                 read(10L, 5L, today.atTime(9, 0)),
-                read(10L, 5L, today.minusDays(1).atTime(9, 0)),
+                read(10L, 5L, today.atTime(21, 30)),
                 read(10L, 7L, today.atTime(9, 0)),
                 read(10L, 8L, today.atTime(9, 0))));
         Map<String, Object> data = svc.dashboard("week");
-        double expected = Math.round(2 * 1000.0 / (2 * pastDays)) / 10.0;
-        assertEquals(expected, data.get("dailyGoalRate"), "分母=开提醒人日(7/8 排除), 分子=其中实读人日");
+        double expected = Math.round(1 * 1000.0 / (2 * pastDays)) / 10.0;
+        assertEquals(expected, data.get("dailyGoalRate"), "分母=开提醒人日(7/8 排除), 分子=其中实读人日(distinct user-day)");
     }
 
     @Test

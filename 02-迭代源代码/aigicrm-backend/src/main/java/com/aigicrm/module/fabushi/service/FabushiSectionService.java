@@ -60,6 +60,39 @@ public class FabushiSectionService {
         return Map.of("id", row.getId());
     }
 
+    /**
+     * 【PROTO-AUDIT-20261123 P8】发布时「自我录入章节」。
+     *
+     * <p>原型 P8 的「② 确定章节」给两条路：选择已有章节 / 自我录入章节。自我录入若走
+     * {@link #create} 需要 {@code fabushi:book:manage}（那是书目管理员的权限），普通发布人
+     * 没有，于是只能被迫"选不到就发不了"。这里单开一个**只追加叶子章节**的入口：
+     * 权限降到 {@code fabushi:create}（谁发布谁能建），且**同名幂等**——同一本书里已存在
+     * 同名章节就直接复用，不会因为多人上传刷出一堆重复章节。
+     *
+     * <p>刻意不允许指定 parentId / levelCode：自录只能挂在根下当叶子（levelCode=section），
+     * 结构树的编排仍归 book:manage。
+     */
+    @Transactional
+    public Map<String, Object> selfCreate(Long bookId, String rawTitle) {
+        if (bookMapper.selectById(bookId) == null) throw new BusinessException(404, "书目不存在");
+        String title = rawTitle == null ? null : rawTitle.trim();
+        if (title == null || title.isEmpty()) throw new BusinessException(400, "章节标题不能为空");
+        if (title.length() > 100) throw new BusinessException(400, "章节标题不能超过 100 字");
+        BizFabushiSection existing = sectionMapper.selectOne(new LambdaQueryWrapper<BizFabushiSection>()
+                .eq(BizFabushiSection::getBookId, bookId)
+                .eq(BizFabushiSection::getTitle, title)
+                .last("limit 1"));
+        if (existing != null) return Map.of("id", existing.getId(), "reused", true);
+        BizFabushiSection row = new BizFabushiSection();
+        row.setBookId(bookId);
+        row.setParentId(0L);
+        row.setLevelCode("section");
+        row.setTitle(title);
+        row.setSortOrder(0);
+        sectionMapper.insert(row);
+        return Map.of("id", row.getId(), "reused", false);
+    }
+
     @Transactional
     public void update(Long bookId, Long id, Map<String, Object> body) {
         BizFabushiSection row = sectionMapper.selectById(id);

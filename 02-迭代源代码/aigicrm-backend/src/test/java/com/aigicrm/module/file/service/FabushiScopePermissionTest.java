@@ -102,7 +102,7 @@ class FabushiScopePermissionTest {
             m.when(SecurityUtils::getCurrentUser).thenReturn(user(2L));
             m.when(SecurityUtils::getCurrentUserId).thenReturn(2L);
             m.when(() -> SecurityUtils.hasAuthority("fabushi:view")).thenReturn(true);
-            when(jdbc.queryForObject(anyString(), eq(Integer.class), any(), any(), any())).thenReturn(1);
+            when(jdbc.queryForObject(anyString(), eq(Integer.class), any(), any(), any(), any())).thenReturn(1);
             when(scopeResolver.canAccess(any())).thenReturn(false); // 上传人(admin)不在本人范围
 
             assertTrue(svc.canViewFabushiFile(fabushiFile(10L, 4L), 2L),
@@ -118,7 +118,7 @@ class FabushiScopePermissionTest {
             m.when(SecurityUtils::getCurrentUser).thenReturn(user(2L));
             m.when(SecurityUtils::getCurrentUserId).thenReturn(2L);
             m.when(() -> SecurityUtils.hasAuthority("fabushi:view")).thenReturn(true);
-            when(jdbc.queryForObject(anyString(), eq(Integer.class), any(), any(), any())).thenReturn(0);
+            when(jdbc.queryForObject(anyString(), eq(Integer.class), any(), any(), any(), any())).thenReturn(0);
             when(scopeResolver.canAccess(any())).thenReturn(false);
 
             assertFalse(svc.canViewFabushiFile(fabushiFile(10L, 4L), 2L),
@@ -139,7 +139,7 @@ class FabushiScopePermissionTest {
             when(engine.decideFile(any(), eq("view"), eq(2L))).thenReturn(FileGrantService.Decision.DENY);
 
             assertFalse(svc.canViewFabushiFile(fabushiFile(10L, 4L), 2L), "DENY 优先于社区放行");
-            verify(jdbc, never()).queryForObject(anyString(), eq(Integer.class), any(), any(), any());
+            verify(jdbc, never()).queryForObject(anyString(), eq(Integer.class), any(), any(), any(), any());
         }
     }
 

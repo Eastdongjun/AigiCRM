@@ -6,6 +6,7 @@ import com.aigicrm.module.fabushi.entity.BizFabushiComment;
 import com.aigicrm.module.fabushi.entity.BizFabushiLike;
 import com.aigicrm.module.fabushi.entity.BizFabushiPost;
 import com.aigicrm.module.fabushi.entity.BizFabushiReadStatus;
+import com.aigicrm.module.fabushi.entity.BizFabushiRecitation;
 import com.aigicrm.module.fabushi.entity.BizFabushiSection;
 import com.aigicrm.module.fabushi.entity.BizFabushiUserSetting;
 import com.aigicrm.module.fabushi.mapper.BizFabushiBookMapper;
@@ -13,6 +14,7 @@ import com.aigicrm.module.fabushi.mapper.BizFabushiCommentMapper;
 import com.aigicrm.module.fabushi.mapper.BizFabushiLikeMapper;
 import com.aigicrm.module.fabushi.mapper.BizFabushiPostMapper;
 import com.aigicrm.module.fabushi.mapper.BizFabushiReadStatusMapper;
+import com.aigicrm.module.fabushi.mapper.BizFabushiRecitationMapper;
 import com.aigicrm.module.fabushi.mapper.BizFabushiSectionMapper;
 import com.aigicrm.module.fabushi.mapper.BizFabushiUserSettingMapper;
 import com.aigicrm.module.system.entity.SysDept;
@@ -77,6 +79,8 @@ public class FabushiDashboardService {
     private final SysDictService dictService;
     private final BizFabushiSectionMapper sectionMapper;
     private final BizFabushiUserSettingMapper settingMapper;
+    /** 【P12 2026-11-23】成员榜「复诵」指标（被复诵次数），只读。 */
+    private final BizFabushiRecitationMapper recitationMapper;
 
     public Map<String, Object> dashboard(String period) {
         boolean month = LIT_MONTH.equalsIgnoreCase(period);
@@ -496,21 +500,39 @@ public class FabushiDashboardService {
                                                    List<BizFabushiReadStatus> periodReads, LocalDateTime startAt) {
         Map<Long, Long> postCount = periodPosts.stream()
                 .collect(Collectors.groupingBy(BizFabushiPost::getUserId, Collectors.counting()));
-        Set<Long> allPostIdsOfVisible = postMapper.selectList(new LambdaQueryWrapper<BizFabushiPost>()
-                        .eq(BizFabushiPost::getStatus, LIT_PUBLISHED)
-                        .in(BizFabushiPost::getUserId, visible == null ? List.of(-1L) : visible)
-                        .select(BizFabushiPost::getId, BizFabushiPost::getUserId))
-                .stream().map(BizFabushiPost::getId).collect(Collectors.toSet());
+        // 【PROTO-AUDIT-20261123 P12】成员榜按 D1 三类型拆列（原型列：诵读/随施/再读/获木鱼/活跃度）。
+        // 数据源就是本方法已加载的 periodPosts，不新增查询、不新增依赖。
+        Map<Long, Map<String, Long>> typeCount = periodPosts.stream()
+                .filter(p -> p.getScopeType() != null && p.getUserId() != null)
+                .collect(Collectors.groupingBy(BizFabushiPost::getUserId,
+                        Collectors.groupingBy(BizFabushiPost::getScopeType, Collectors.counting())));
+        // 【BUGFIX 2026-11-23】「获木鱼」在 visible==null（全集团）时恒为 0：
+        // 原写法 `.in(userId, visible == null ? List.of(-1L) : visible)` 把"不限范围"当成
+        // "只查 userId=-1"，于是作者帖集合永远为空，整块点赞归属被跳过。
+        // 现在 visible==null 时不加用户条件；同时把重复查两次的帖集合收成一次查询。
+        LambdaQueryWrapper<BizFabushiPost> ownerQw = new LambdaQueryWrapper<BizFabushiPost>()
+                .eq(BizFabushiPost::getStatus, LIT_PUBLISHED)
+                .select(BizFabushiPost::getId, BizFabushiPost::getUserId);
+        if (visible != null) {
+            ownerQw.in(BizFabushiPost::getUserId, visible.isEmpty() ? List.of(-1L) : visible);
+        }
+        Map<Long, Long> postOwner = postMapper.selectList(ownerQw).stream()
+                .collect(Collectors.toMap(BizFabushiPost::getId, BizFabushiPost::getUserId, (a, b) -> a));
+        Set<Long> allPostIdsOfVisible = postOwner.keySet();
         Map<Long, Long> likesReceived = new HashMap<>();
+        Map<Long, Long> recitationsReceived = new HashMap<>();
         if (!allPostIdsOfVisible.isEmpty()) {
             List<BizFabushiLike> likes = likeMapper.selectList(new LambdaQueryWrapper<BizFabushiLike>()
                     .in(BizFabushiLike::getPostId, allPostIdsOfVisible)
                     .ge(BizFabushiLike::getCreatedAt, startAt));
-            Map<Long, Long> postOwner = postMapper.selectList(new LambdaQueryWrapper<BizFabushiPost>()
-                            .in(BizFabushiPost::getId, allPostIdsOfVisible)
-                            .select(BizFabushiPost::getId, BizFabushiPost::getUserId))
-                    .stream().collect(Collectors.toMap(BizFabushiPost::getId, BizFabushiPost::getUserId));
             likes.forEach(l -> likesReceived.merge(postOwner.get(l.getPostId()), 1L, Long::sum));
+            // 【P12 2026-11-23】被复诵次数：口径与「获木鱼」并列（他人对本人在区间内帖的复诵行数），
+            // 复用同一份 postOwner 映射，不额外查帖；区间过滤与获木鱼一致。
+            List<BizFabushiRecitation> recs = recitationMapper.selectList(
+                    new LambdaQueryWrapper<BizFabushiRecitation>()
+                            .in(BizFabushiRecitation::getPostId, allPostIdsOfVisible)
+                            .ge(BizFabushiRecitation::getCreatedAt, startAt));
+            recs.forEach(r -> recitationsReceived.merge(postOwner.get(r.getPostId()), 1L, Long::sum));
         }
         Map<Long, Set<LocalDate>> readDays = new HashMap<>();
         Map<Long, Long> readCount = new HashMap<>();
@@ -539,6 +561,7 @@ public class FabushiDashboardService {
             SysUser u = users.get(uid);
             if (u == null) continue;
             long p = postCount.getOrDefault(uid, 0L);
+            Map<String, Long> byType = typeCount.getOrDefault(uid, Map.of());
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("userId", uid);
             row.put("userName", u.getRealName());
@@ -546,7 +569,12 @@ public class FabushiDashboardService {
             row.put(LIT_READDAYS, readDays.getOrDefault(uid, Set.of()).size());
             row.put(LIT_READCOUNT, readCount.getOrDefault(uid, 0L));
             row.put(LIT_POSTCOUNT, p);
+            // 三类型拆分（D1）：前端成员榜按原型列「诵读 / 随施 / 再读」展示
+            row.put("songduCount", byType.getOrDefault("songdu", 0L));
+            row.put("suishiCount", byType.getOrDefault("suishi", 0L));
+            row.put("zaiduCount", byType.getOrDefault("zaidu", 0L));
             row.put("likesReceived", likesReceived.getOrDefault(uid, 0L));
+            row.put("recitationsReceived", recitationsReceived.getOrDefault(uid, 0L));
             row.put("activityPct", Math.round(p * 100.0 / Math.max(maxPost, 1)));
             ranking.add(row);
         }

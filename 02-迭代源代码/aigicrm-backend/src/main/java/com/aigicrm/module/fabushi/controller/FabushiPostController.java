@@ -23,8 +23,9 @@ public class FabushiPostController {
     private final FabushiPostService postService;
 
     /**
-     * 内容分页(heart/recitation/znl, 全员社区流)。status 传参仅治理门生效
+     * 内容分页(每日诵读/每日随施/再读一本, 全员社区流)。status 传参仅治理门生效
      * (fabushi:content:manage 可查下架记录, 其余强制 published 防越权翻看下架内容)。
+     * 【D16 2026-11-23】keyword=服务端搜索(人名/书籍/具体文字), 已删帖由逻辑删自动滤除。
      */
     @GetMapping
     @PreAuthorize("hasAuthority('fabushi:view')")
@@ -32,11 +33,12 @@ public class FabushiPostController {
             @RequestParam(required = false) String scopeType,
             @RequestParam(required = false) Long bookId,
             @RequestParam(required = false) String status,
+            @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "1") long current,
             @RequestParam(defaultValue = "10") long size) {
         boolean manageAllowed = SecurityUtils.hasAuthority("fabushi:content:manage");
         return Result.ok(postService.pageData(scopeType, bookId, status, manageAllowed,
-                SecurityUtils.getCurrentUserId(), current, size));
+                SecurityUtils.getCurrentUserId(), keyword, current, size));
     }
 
     /** 内容详情(帖+附件+互动计数; service 返回 Map)。 */
@@ -51,6 +53,41 @@ public class FabushiPostController {
     @PreAuthorize("hasAuthority('fabushi:create')")
     public Result<Map<String, Object>> create(@RequestBody Map<String, Object> body) {
         return Result.ok(postService.createData(body));
+    }
+
+    // ===== D13 2026-11-23 本人修改/删除 + 治理已删除（计划切片 2） =====
+
+    /** 本人编辑(仅作者本人，admin 不代编辑；可改 title/content/sectionId，分型规则保持)。 */
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('fabushi:create')")
+    public Result<Void> updateOwn(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+        postService.updateOwn(id, body);
+        return Result.ok();
+    }
+
+    /** 本人删除(作者本人或 admin)：逻辑删除，附件文件保留文件中心。 */
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('fabushi:create')")
+    public Result<Void> deleteOwn(@PathVariable Long id) {
+        postService.deleteOwn(id);
+        return Result.ok();
+    }
+
+    /** 治理侧"已删除"分页(仅 content:manage；自定义 SQL 绕过逻辑删)。 */
+    @GetMapping("/deleted")
+    @PreAuthorize("hasAuthority('fabushi:content:manage')")
+    public Result<Map<String, Object>> deletedPage(
+            @RequestParam(defaultValue = "1") long current,
+            @RequestParam(defaultValue = "10") long size) {
+        return Result.ok(postService.deletedPageData(current, size));
+    }
+
+    /** 治理侧恢复已删帖(content:manage)：回到 published。 */
+    @PutMapping("/{id}/restore-deleted")
+    @PreAuthorize("hasAuthority('fabushi:content:manage')")
+    public Result<Void> restoreDeleted(@PathVariable Long id) {
+        postService.restoreDeleted(id);
+        return Result.ok();
     }
 
     /** 内容附件(二期, 作者/管理员; 文件须 scope=fabushi)。 */
