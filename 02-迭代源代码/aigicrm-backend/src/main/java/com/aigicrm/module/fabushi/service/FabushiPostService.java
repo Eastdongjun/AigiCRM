@@ -94,6 +94,10 @@ public class FabushiPostService {
 
     private static final Set<String> COMMENT_TYPES = Set.of("text", "highlight", TYPE_AUDIO);
 
+    /** 内容分页查询参数：收口 8 参签名，避免 S107 超长参数。 */
+    public record PageQuery(String scopeType, Long bookId, String status, boolean manageAllowed,
+                            Long viewerId, String keyword, long current, long size) {}
+
     /** 【F4a】提醒触达在线自检日界口径: Asia/Shanghai(与 C4 时区结论同源)。 */
     private static final ZoneId ZONE_SHANGHAI = ZoneId.of("Asia/Shanghai");
 
@@ -102,8 +106,15 @@ public class FabushiPostService {
      * status 传参仅治理门生效: 持 fabushi:content:manage 者可查 offline 记录(内容治理页),
      * 其余调用方一律强制 published——防越权翻看下架内容。
      */
-    public Page<BizFabushiPost> page(String scopeType, Long bookId, String status, boolean manageAllowed,
-                                     Long viewerId, String keyword, long current, long size) {
+    public Page<BizFabushiPost> page(PageQuery q) {
+        String scopeType = q.scopeType();
+        Long bookId = q.bookId();
+        String status = q.status();
+        boolean manageAllowed = q.manageAllowed();
+        Long viewerId = q.viewerId();
+        String keyword = q.keyword();
+        long current = q.current();
+        long size = q.size();
         boolean publishedOnly = !manageAllowed || status == null || status.isBlank() || LIT_PUBLISHED.equals(status);
         LambdaQueryWrapper<BizFabushiPost> qw = new LambdaQueryWrapper<BizFabushiPost>()
                 .eq(BizFabushiPost::getStatus, publishedOnly ? LIT_PUBLISHED : status)
@@ -144,9 +155,8 @@ public class FabushiPostService {
     // ===== Controller 层 Map 化输出(ArchUnit: controller_must_not_depend_on_entity) =====
 
     /** 内容分页 Map 化(records/total)。 */
-    public Map<String, Object> pageData(String scopeType, Long bookId, String status, boolean manageAllowed,
-                                        Long viewerId, String keyword, long current, long size) {
-        Page<BizFabushiPost> p = page(scopeType, bookId, status, manageAllowed, viewerId, keyword, current, size);
+    public Map<String, Object> pageData(PageQuery q) {
+        Page<BizFabushiPost> p = page(q);
         // 【D21】朋友圈式图片网格：批量查附件按帖组装（image 类型在前端过滤展示）
         if (!p.getRecords().isEmpty()) {
             Set<Long> ids = p.getRecords().stream().map(BizFabushiPost::getId).collect(Collectors.toSet());

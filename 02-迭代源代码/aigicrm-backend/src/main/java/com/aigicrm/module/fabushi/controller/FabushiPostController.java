@@ -37,8 +37,9 @@ public class FabushiPostController {
             @RequestParam(defaultValue = "1") long current,
             @RequestParam(defaultValue = "10") long size) {
         boolean manageAllowed = SecurityUtils.hasAuthority("fabushi:content:manage");
-        return Result.ok(postService.pageData(scopeType, bookId, status, manageAllowed,
-                SecurityUtils.getCurrentUserId(), keyword, current, size));
+        return Result.ok(postService.pageData(new FabushiPostService.PageQuery(
+                scopeType, bookId, status, manageAllowed,
+                SecurityUtils.getCurrentUserId(), keyword, current, size)));
     }
 
     /** 内容详情(帖+附件+互动计数; service 返回 Map)。 */

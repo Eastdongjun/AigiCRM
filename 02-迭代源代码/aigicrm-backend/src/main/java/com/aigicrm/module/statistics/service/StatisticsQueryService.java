@@ -471,8 +471,8 @@ public class StatisticsQueryService {
         data.put("coveredCount", cards.coveredCount());
         data.put(LIT_CORECOUNT, cards.coreCount());
         data.put("quasiCount", cards.quasiCount());
-        data.put(LIT_COREMINORWAN, ctx.coreThresholds()[0]);
-        data.put(LIT_COREMAJORWAN, ctx.coreThresholds()[1]);
+        data.put(LIT_COREMINORWAN, ctx.coreThresholds().get(0));
+        data.put(LIT_COREMAJORWAN, ctx.coreThresholds().get(1));
         data.put(LIT_AVGSCORE, cards.avgScore());
         data.put("qualifyRate", cards.qualifyRate());
 
@@ -487,32 +487,12 @@ public class StatisticsQueryService {
 
     /**
      * 本次请求共享的指标上下文：可见客户/指标、年度金额、核心门槛。
-     * 普通载体类而非 record——内含数组值 Map，record 生成的 equals/hashCode 会按引用比较数组内容
-     * (Sonar java:S6218)，而本类只作方法间传参、从不参与比较。
+     * coreThresholds 用 List 而非数组，避免 record 数组组件的 equals/hashCode 引用比较（S6218）。
      */
-    private static final class IndicatorContext {
-        private final List<BizCustomerIndicator> indicators;
-        private final List<BizCustomer> allCustomers;
-        private final Map<Long, BizCustomer> customerMap;
-        private final Map<Long, java.math.BigDecimal[]> annualAmounts;
-        private final java.math.BigDecimal[] coreThresholds;
-
-        IndicatorContext(List<BizCustomerIndicator> indicators, List<BizCustomer> allCustomers,
-                         Map<Long, BizCustomer> customerMap, Map<Long, java.math.BigDecimal[]> annualAmounts,
-                         java.math.BigDecimal[] coreThresholds) {
-            this.indicators = indicators;
-            this.allCustomers = allCustomers;
-            this.customerMap = customerMap;
-            this.annualAmounts = annualAmounts;
-            this.coreThresholds = coreThresholds;
-        }
-
-        List<BizCustomerIndicator> indicators() { return indicators; }
-        List<BizCustomer> allCustomers() { return allCustomers; }
-        Map<Long, BizCustomer> customerMap() { return customerMap; }
-        Map<Long, java.math.BigDecimal[]> annualAmounts() { return annualAmounts; }
-        java.math.BigDecimal[] coreThresholds() { return coreThresholds; }
-    }
+    private record IndicatorContext(List<BizCustomerIndicator> indicators, List<BizCustomer> allCustomers,
+                                    Map<Long, BizCustomer> customerMap,
+                                    Map<Long, java.math.BigDecimal[]> annualAmounts,
+                                    List<java.math.BigDecimal> coreThresholds) {}
 
     /** 顶部四张卡片口径（覆盖数/真核心/争核心/平均分/达标率）。 */
     private record IndicatorCards(int coveredCount, int coreCount, int quasiCount,
@@ -536,7 +516,7 @@ public class StatisticsQueryService {
         Map<Long, java.math.BigDecimal[]> annualAmounts = annualAmountsByCustomer(
                 stageAmountMapper.selectList(null));
         // 【2026-11-03 门槛配置化】双门槛读一次配置贯穿本请求
-        java.math.BigDecimal[] coreThresholds = coreThresholds();
+        List<java.math.BigDecimal> coreThresholds = java.util.Arrays.asList(coreThresholds());
         return new IndicatorContext(indicators, allCustomers, customerMap, annualAmounts, coreThresholds);
     }
 
@@ -551,7 +531,7 @@ public class StatisticsQueryService {
             scoreSum += indicatorScore(ind);
             java.math.BigDecimal[] ann = ctx.annualAmounts().get(ind.getCustomerId());
             if (ann != null) {
-                String ct = coreTypeOf(ann[0], ann[1], ctx.coreThresholds()[0], ctx.coreThresholds()[1]);
+                String ct = coreTypeOf(ann[0], ann[1], ctx.coreThresholds().get(0), ctx.coreThresholds().get(1));
                 if ("core".equals(ct)) coreCount++;
                 else if (LIT_QUASI.equals(ct)) quasiCount++;
             }
@@ -566,7 +546,7 @@ public class StatisticsQueryService {
     private int countQualified(IndicatorContext ctx) {
         int qualifyCount = 0;
         for (BizCustomer c : ctx.allCustomers()) {
-            if (isQualified(c, ctx.annualAmounts(), ctx.coreThresholds()[1])) qualifyCount++;
+            if (isQualified(c, ctx.annualAmounts(), ctx.coreThresholds().get(1))) qualifyCount++;
         }
         return qualifyCount;
     }
@@ -596,11 +576,11 @@ public class StatisticsQueryService {
 
     private Map<String, Object> buildCustomerRankingRow(BizCustomerIndicator ind, BizCustomer c, int s,
                                                         Map<Long, java.math.BigDecimal[]> annualAmounts,
-                                                        java.math.BigDecimal[] coreThresholds) {
+                                                        List<java.math.BigDecimal> coreThresholds) {
         java.math.BigDecimal[] ann = annualAmounts.get(ind.getCustomerId());
         java.math.BigDecimal invTotal = ann != null ? ann[0] : java.math.BigDecimal.ZERO;
         java.math.BigDecimal paymentTotal = ann != null ? ann[1] : java.math.BigDecimal.ZERO;
-        String coreType = ann != null ? coreTypeOf(invTotal, paymentTotal, coreThresholds[0], coreThresholds[1]) : "";
+        String coreType = ann != null ? coreTypeOf(invTotal, paymentTotal, coreThresholds.get(0), coreThresholds.get(1)) : "";
         Map<String, Object> row = new LinkedHashMap<>();
         row.put("customerId", ind.getCustomerId());
         row.put(LIT_CUSTOMERNAME, c.getCustomerName());
@@ -669,8 +649,8 @@ public class StatisticsQueryService {
         return ownerScores;
     }
 
-    private boolean isCoreAmount(java.math.BigDecimal[] ann, java.math.BigDecimal[] coreThresholds) {
-        return ann != null && "core".equals(coreTypeOf(ann[0], ann[1], coreThresholds[0], coreThresholds[1]));
+    private boolean isCoreAmount(java.math.BigDecimal[] ann, List<java.math.BigDecimal> coreThresholds) {
+        return ann != null && "core".equals(coreTypeOf(ann[0], ann[1], coreThresholds.get(0), coreThresholds.get(1)));
     }
 
     private Map<Long, SysUser> loadUsers(Set<Long> allOwnerIds) {

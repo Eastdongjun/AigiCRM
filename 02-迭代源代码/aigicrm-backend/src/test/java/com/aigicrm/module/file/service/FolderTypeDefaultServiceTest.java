@@ -64,7 +64,7 @@ class FolderTypeDefaultServiceTest {
         LocalDateTime exp = LocalDateTime.now().plusYears(1);
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
-            svc.saveGrant("public", "FILE", null, null, null, "USER", 42L, List.of("view", "edit", "download"), exp);
+            svc.saveGrant(new FolderTypeDefaultService.GrantCommand("public", "FILE", null, null, null, "USER", 42L, List.of("view", "edit", "download"), exp));
         }
         ArgumentCaptor<BizFolderTypeDefault> cap = ArgumentCaptor.forClass(BizFolderTypeDefault.class);
         verify(grantMapper).insert(cap.capture());
@@ -107,8 +107,8 @@ class FolderTypeDefaultServiceTest {
     private BusinessException saveGrantRejected(String folderType, String objectType, Long folderId,
                                                 Long scopeOrgId, String scopeLevel, String subjectType,
                                                 Long subjectId, List<String> perms, LocalDateTime expiresAt) {
-        return assertThrows(BusinessException.class,
-                () -> svc.saveGrant(folderType, objectType, folderId, scopeOrgId, scopeLevel,
-                        subjectType, subjectId, perms, expiresAt));
+        var cmd = new FolderTypeDefaultService.GrantCommand(folderType, objectType,
+                folderId, scopeOrgId, scopeLevel, subjectType, subjectId, perms, expiresAt);
+        return assertThrows(BusinessException.class, () -> svc.saveGrant(cmd));
     }
 }

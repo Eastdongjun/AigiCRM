@@ -92,7 +92,7 @@ class FabushiPostDisplayFieldsTest {
         section.setTitle("第八章 · 上善若水");
         when(sectionMapper.selectByIds(any())).thenReturn(List.of(section));
 
-        svc.page(null, 7L, null, false, null, null, 1, 10);
+        svc.page(new FabushiPostService.PageQuery(null, 7L, null, false, null, null, 1, 10));
 
         assertEquals("道德经", withRef.getBookTitle(), "有 bookId 必须联显书名");
         assertEquals("第八章 · 上善若水", withRef.getSectionTitle(), "有 sectionId 必须联显章节名");

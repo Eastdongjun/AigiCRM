@@ -69,9 +69,9 @@ public class CustomerController {
             @RequestParam(required = false) String userIds,
             @RequestParam(required = false) String officeIds,
             @RequestParam(required = false) String ownerName) {
-        return Result.ok(customerService.pageList(buildListFilter(keyword, industry, officeId, regionId, status,
+        return Result.ok(customerService.pageList(buildListFilter(new CustomerListQuery(keyword, industry, officeId, regionId, status,
                 ownerId, scope, devType, groupName, deptId, protectionStatus, province, city,
-                regDateStart, regDateEnd, expDateStart, expDateEnd, userIds, officeIds, ownerName), current, size));
+                regDateStart, regDateEnd, expDateStart, expDateEnd, userIds, officeIds, ownerName)), current, size));
     }
 
     /**
@@ -100,22 +100,25 @@ public class CustomerController {
             @RequestParam(required = false) String userIds,
             @RequestParam(required = false) String officeIds,
             @RequestParam(required = false) String ownerName) {
-        return Result.ok(customerService.countByDevType(buildListFilter(keyword, industry, officeId, regionId, status,
+        return Result.ok(customerService.countByDevType(buildListFilter(new CustomerListQuery(keyword, industry, officeId, regionId, status,
                 ownerId, scope, null, groupName, deptId, protectionStatus, province, city,
-                regDateStart, regDateEnd, expDateStart, expDateEnd, userIds, officeIds, ownerName)));
+                regDateStart, regDateEnd, expDateStart, expDateEnd, userIds, officeIds, ownerName))));
     }
 
     /** /list 与 /list/counts-by-filter 共用的条件组装(含 csv 长整型解析) */
-    private CustomerListFilter buildListFilter(String keyword, String industry, Long officeId, Long regionId,
-                                                        String status, Long ownerId, String scope, String devType,
-                                                        String groupName, Long deptId, String protectionStatus,
-                                                        String province, String city,
-                                                        java.time.LocalDate rs, java.time.LocalDate re,
-                                                        java.time.LocalDate es, java.time.LocalDate ee,
-                                                        String userIds, String officeIds, String ownerName) {
-        return new CustomerListFilter(keyword, industry, officeId, regionId, deptId, status, ownerId, scope,
-                devType, groupName, protectionStatus, province, city, rs, re, es, ee,
-                parseLongCsv(userIds), parseLongCsv(officeIds), ownerName);
+    private record CustomerListQuery(String keyword, String industry, Long officeId, Long regionId,
+                                     String status, Long ownerId, String scope, String devType,
+                                     String groupName, Long deptId, String protectionStatus,
+                                     String province, String city,
+                                     java.time.LocalDate rs, java.time.LocalDate re,
+                                     java.time.LocalDate es, java.time.LocalDate ee,
+                                     String userIds, String officeIds, String ownerName) {}
+
+    private CustomerListFilter buildListFilter(CustomerListQuery q) {
+        return new CustomerListFilter(q.keyword(), q.industry(), q.officeId(), q.regionId(), q.deptId(),
+                q.status(), q.ownerId(), q.scope(), q.devType(), q.groupName(), q.protectionStatus(),
+                q.province(), q.city(), q.rs(), q.re(), q.es(), q.ee(),
+                parseLongCsv(q.userIds()), parseLongCsv(q.officeIds()), q.ownerName());
     }
 
     /** 【L3 2026-10-08】userIds/officeIds CSV 数量上限:防构造巨型 IN 列表放大查询;
@@ -629,9 +632,9 @@ public class CustomerController {
         // 【容量加固 2026-10-05】查全部（不分页），受数据范围控制——
         // 改走 exportList(selectList):旧实现 page(1,10000) 会被分页拦截器 maxLimit=500 静默截断;
         // 同时导出与列表共享 buildListWrapper 全量条件(含高级筛选),口径一致。
-        java.util.List<BizCustomer> rows = customerService.exportList(buildListFilter(keyword, industry, officeId,
+        java.util.List<BizCustomer> rows = customerService.exportList(buildListFilter(new CustomerListQuery(keyword, industry, officeId,
                 regionId, status, null, scope, devType, null, deptId, protectionStatus, province, city,
-                regDateStart, regDateEnd, expDateStart, expDateEnd, userIds, officeIds, ownerName));
+                regDateStart, regDateEnd, expDateStart, expDateEnd, userIds, officeIds, ownerName)));
         EasyExcelFactory.write(response.getOutputStream(), BizCustomer.class)
                 .excludeColumnFieldNames(List.of("deleted", LIT_CREATEDAT, "updatedAt", "id"))
                 .sheet("客户列表")

@@ -192,8 +192,8 @@ class LegacyFileGrantSyncTxTest {
     private void seedOneRow() {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
-            svc.saveGrant("public", "FILE", null, null, null, "ROLE", 9L,
-                    List.of("view", "download"), LocalDateTime.now().plusYears(1));
+            svc.saveGrant(new FolderTypeDefaultService.GrantCommand("public", "FILE", null, null, null,
+                    "ROLE", 9L, List.of("view", "download"), LocalDateTime.now().plusYears(1)));
         }
     }
 

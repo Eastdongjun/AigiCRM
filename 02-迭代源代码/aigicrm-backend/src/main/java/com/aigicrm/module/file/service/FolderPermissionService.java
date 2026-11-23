@@ -78,8 +78,13 @@ public class FolderPermissionService {
     private FileGrantService fileGrantService;
 
     /** 【R2-FABUSHI-SCOPE-001 2026-11-22】社区型法布施文件识别；单测/旧上下文可缺省（缺省=不启用社区放行）。 */
-    @org.springframework.beans.factory.annotation.Autowired(required = false)
     private JdbcTemplate jdbc;
+
+    /** 可选依赖用 setter 注入，兼顾单测/旧上下文缺省；避免字段注入（S6813）。 */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setJdbc(JdbcTemplate jdbc) {
+        this.jdbc = jdbc;
+    }
 
     // ==================== 判定入口 ====================
 

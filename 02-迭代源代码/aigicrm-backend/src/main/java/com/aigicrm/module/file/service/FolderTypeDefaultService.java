@@ -88,9 +88,22 @@ public class FolderTypeDefaultService {
 
     /** 保存授权: 词表按对象组校验; 'edit' 伞归一 rename+replace; 过期时间必填且须晚于当前
      *  【A2 §2.5】事务内双写 biz_file_grant（legacy/dual 模式均执行，为切换积累数据）。 */
+    /** 授权保存参数：收口 9 参签名，避免 S107。 */
+    public record GrantCommand(String folderType, String objectType, Long folderId, Long scopeOrgId,
+                               String scopeLevel, String subjectType, Long subjectId,
+                               List<String> perms, LocalDateTime expiresAt) {}
+
     @org.springframework.transaction.annotation.Transactional
-    public void saveGrant(String folderType, String objectType, Long folderId, Long scopeOrgId, String scopeLevel,
-                          String subjectType, Long subjectId, List<String> perms, LocalDateTime expiresAt) {
+    public void saveGrant(GrantCommand cmd) {
+        String folderType = cmd.folderType();
+        String objectType = cmd.objectType();
+        Long folderId = cmd.folderId();
+        Long scopeOrgId = cmd.scopeOrgId();
+        String scopeLevel = cmd.scopeLevel();
+        String subjectType = cmd.subjectType();
+        Long subjectId = cmd.subjectId();
+        List<String> perms = cmd.perms();
+        LocalDateTime expiresAt = cmd.expiresAt();
         validateGrantShape(folderType, objectType, folderId, scopeLevel, subjectId, expiresAt);
         validatePerms(objectType, perms);
         validateSubject(subjectType, subjectId);

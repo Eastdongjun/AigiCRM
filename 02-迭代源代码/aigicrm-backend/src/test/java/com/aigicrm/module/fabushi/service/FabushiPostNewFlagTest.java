@@ -83,7 +83,7 @@ class FabushiPostNewFlagTest {
         page.setRecords(List.of(fresh, old, noTime));
         when(postMapper.selectPage(any(), any())).thenReturn(page);
 
-        svc.page(null, null, null, false, null, null, 1, 10);
+        svc.page(new FabushiPostService.PageQuery(null, null, null, false, null, null, 1, 10));
 
         assertEquals(Boolean.TRUE, fresh.getIsNew(), "30 天内应标 NEW");
         assertNotEquals(Boolean.TRUE, old.getIsNew(), "30 天外不应标 NEW");
