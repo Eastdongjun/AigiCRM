@@ -71,13 +71,9 @@ public class FileService {
     private final BizIncentiveRecordMapper incentiveRecordMapper;
     private final SysUserMapper userMapper;
     private final FolderPermissionService folderPermissionService;
-    // 【2026-11-10 拍板③】删除=高敏动作, 全程走审计
-    private final com.aigicrm.security.SecurityAuditService securityAudit;
     // 【2026-11-09 类型级默认权限】建夹门槛(公共根=admin∨类型默认create)+新夹继承默认ACL
     // 【2026-10-27 深度检查修复】shareFile 集团边界校验需要(同 CustomerService.addShares 范式)
     private final JdbcTemplate jdbc;
-    // 【BIZ-007 2026-11-13】删除激励佐证联动: 反查引用记录→剔除槽位→重算学分(与 removeFile 同不变量)
-    private final com.aigicrm.module.incentive.service.IncentiveService incentiveService;
     /** S5.3 分享语义独立 bean；本类保留公共委托，控制器/测试调用方不变。 */
     private final FileShareService fileShareService;
     /** S5.3 文件夹写侧独立 bean；本类保留公共委托。 */
@@ -90,16 +86,14 @@ public class FileService {
     private final FileEvidenceGuard fileEvidenceGuard;
     /** S5.3 版本列表/下载/回滚/裁剪独立 bean；本类保留公共委托。 */
     private final FileVersionService fileVersionService;
+    /** S5.3 删除/改名独立 bean；本类保留公共委托。 */
+    private final FileMutationService fileMutationService;
 
     /** 【2026-11-17 阶段三】视频 5 秒预览：ffmpeg 路径/开关（默认开，失败回退 503，不泄露原文件）。 */
     @Value("${file.video-preview-enabled:true}")
     private boolean videoPreviewEnabled;
     @Value("${file.ffmpeg-path:ffmpeg}")
     private String ffmpegPath;
-
-    /** 【2026-11-17 阶段三】统一回收站台账；单测可缺省。 */
-    @org.springframework.beans.factory.annotation.Autowired(required = false)
-    private com.aigicrm.module.system.service.RecycleBinService recycleBinService;
 
     /**
      * 【性能 file-3 2026-10-18】激励可见 fileId 集合缓存：key=userId:currentGroupId。
@@ -448,140 +442,14 @@ public class FileService {
         fileFolderService.deleteFolder(folderId);
     }
 
-    /**
-     * 删除文件（进入回收站）。
-     * 【审查 backend-5 2026-10-18】补事务 + 以逻辑删影响行数为唯一退款凭据：
-     * 旧实现 selectById→deleteById(丢弃返回值)→无条件 adjustStorageUsed，两个并发删除
-     * 都能读到同一行并各退一次配额(重复归还)。现在只有 deleted=0 行被本次请求真正删除
-     * (affected==1)才归还；affected==0 = 重复/并发删除，幂等返回成功且不二次退款。
-     */
-    private void assertCanDeleteFile(Long fileId, BizFile file, Long userId, String scope) {
-        if (file.getFolderId() != null) {
-            if (!folderPermissionService.checkFile(fileId, FolderPermissionService.P_DELETE, userId)) {
-                throw new BusinessException(403, LIT_X);
-            }
-        } else if (LIT_PUBLIC.equals(scope)) {
-            if (!SecurityUtils.hasAuthority("file:delete")) {
-                throw new BusinessException(403, "删除公共文件需要 file:delete 权限");
-            }
-        } else if (LIT_PRIVATE.equals(scope) || LIT_INCENTIVE.equals(scope)) {
-            if (!userId.equals(file.getUploaderId())) {
-                throw new BusinessException(403, "无权删除该文件");
-            }
-        } else if (LIT_FABUSHI.equals(scope)) {
-            if (!folderPermissionService.canDeleteFabushiFile(file, userId)) {
-                throw new BusinessException(403, "删除法布殊文件需要 fabushi:file:delete 权限且在上传人数据范围内");
-            }
-        } else {
-            throw new BusinessException(403, "无权删除该文件");
-        }
-    }
+    // ====== 删除/改名（S5.3 语义已移到 FileMutationService，本类保留公共委托） ======
 
-    @org.springframework.transaction.annotation.Transactional
     public void deleteFile(Long fileId) {
-        BizFile file = fileMapper.selectById(fileId);
-        if (file == null) return;
-
-        Long userId = SecurityUtils.getCurrentUserId();
-        String scope = file.getFileScope();
-
-        // 【安全修复 FEAT-20260804-FILE-AUTHZ】此前只对 public/private 两种 scope 做归属校验，
-        // incentive 等其它 scope 完全未校验，导致任何拥有 file:delete 权限的用户都能删除他人的
-        // 激励文件（IDOR）。现在改为白名单放行、默认拒绝，且新增 incentive scope 的归属校验。
-        // 【文件权限体系】夹内文件（folderId 非空）改按文件夹权限判定（管理员/本人/上级链/ACL delete），
-        // 无文件夹文件沿用下方 scope 白名单归属校验。
-        assertCanDeleteFile(fileId, file, userId, scope);
-
-        // 【BIZ-007 2026-11-13 外部审计修复】删除激励佐证必须联动重算学分:
-        // 反查引用该文件的激励记录 → 剔除槽位引用 → calcScore 重算(与记录侧 removeFile 同一套
-        // 不变量与空壳守卫)。守卫抛 400 时本事务回滚、文件保留——修前"佐证已删、分数还在"。
-        if (LIT_INCENTIVE.equals(scope)) {
-            incentiveService.detachFileFromRecords(fileId);
-        }
-
-        // 【文件回收站 2026-10-18 用户裁决】删除不再物理清除字节: 文件进入回收站,
-        // 由保留期任务(FileRecycleCleanupTask)到期或管理员手动清空时再调 deleteStoredContent。
-        // 逻辑删除 + 配额归还保持原语义(私有文件删除即归还配额, 恢复时重新占用)。
-
-        // 逻辑删除(【V2026.11.14.1】先填删除人/时间——"我的回收站"归属口径, deleteById 只翻标志)
-        fileMapper.update(null, new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<BizFile>()
-                .eq(BizFile::getId, fileId)
-                .set(BizFile::getDeletedAt, LocalDateTime.now())
-                .set(BizFile::getDeletedBy, userId));
-        int affected = fileMapper.deleteById(fileId);
-        if (affected != 1) {
-            // 并发/重复删除: 台账已不在活跃态, 不得二次归还配额; 幂等返回成功(前端不报错)
-            return;
-        }
-        if (recycleBinService != null) {
-            java.util.Map<String, Object> snap = new java.util.LinkedHashMap<>();
-            snap.put("id", fileId);
-            snap.put("fileName", file.getFileName());
-            snap.put("fileSize", file.getFileSize());
-            snap.put("fileScope", file.getFileScope());
-            snap.put("uploaderId", file.getUploaderId());
-            snap.put("folderId", file.getFolderId());
-            recycleBinService.record("file", fileId, snap, "用户删除", "user");
-        }
-        // 【2026-11-10 拍板③】删除审计(高敏动作, 失败不阻断)
-        try { securityAudit.permissionChange("file_delete",
-                "file:" + fileId + " name:" + file.getFileName() + " scope:" + file.getFileScope()
-                        + " by:" + SecurityUtils.getCurrentUsername()); }
-        catch (Exception e) { log.warn("权限审计留痕失败(不阻断业务) file_delete fileId={}", fileId, e); }
-        // 【性能 file-3】删除后清掉该文件所有版本的缩略图磁盘缓存（逻辑删只保留原图供回收站）
-        evictThumbnailCache(fileId);
-
-        // 【P2 2026-10-09 配额并发修复】归还改数据库端原子增减, 消除读改写丢失更新
-        // 【T2 2026-11-11】归还覆盖全 scope(与扣减对称); 历史脏 scope 行不还
-        if (quotaBearing(file.getFileScope()) && file.getFileSize() != null && file.getUploaderId() != null) {
-            userMapper.adjustStorageUsed(file.getUploaderId(), -file.getFileSize());
-        }
+        fileMutationService.deleteFile(fileId);
     }
 
-    /**
-     * 【2026-11-06 用户令"加一个可以修改文件名称的"】文件重命名: 只改 file_name 展示名,
-     * oss_key/oss_url/file_type/version 不动——物理对象与下载路由零变化。
-     * 【2026-11-09 文件权限 v2】动作细分: 改名走独立动作 rename(全局码仍 file:edit 伞),
-     * 判定链=管理员/本人/上级链/ACL/类型授权(FolderPermissionService.checkFile P_RENAME,
-     * 存量 ACL 的 edit 授权由判定层读时展开, 老授权继续有效)。
-     * 校验: 去首尾空格非空、≤200 字符(与 biz_file.file_name 同宽); 不做扩展名强约束
-     * (类型字段沿用上传时白名单结果, 改名不重算类型)。
-     */
     public void renameFile(Long fileId, String fileName) {
-        BizFile file = fileMapper.selectById(fileId);
-        if (file == null) throw new BusinessException(LIT_X_2);
-        if (LIT_FABUSHI.equals(file.getFileScope())) {
-            throw new BusinessException(403, "法布施文件只支持查看/下载/删除，不支持改名");
-        }
-        Long userId = SecurityUtils.getCurrentUserId();
-        if (!folderPermissionService.checkFile(fileId, FolderPermissionService.P_RENAME, userId)) {
-            throw new BusinessException(403, LIT_X);
-        }
-        String name = fileName == null ? "" : fileName.trim();
-        if (name.isEmpty()) throw new BusinessException("文件名不能为空");
-        if (name.length() > 200) throw new BusinessException("文件名过长（不超过 200 字符）");
-        // 【2026-11-08 用户令"改名不更改格式"】扩展名铁律守卫: 无论用户输入是否带/换扩展名,
-        // 一律剥掉输入中的扩展名后拼回原扩展名——photo.jpg → 输入"photo2"/"photo2.png"均得 photo2.jpg。
-        // 原名无扩展名则保持无扩展; 主名被剥空(只输了个扩展名)按"文件名不能为空"拒绝。
-        name = keepOriginalExtension(name, file.getFileName());
-        if (name.equals(file.getFileName())) return;
-        BizFile patch = new BizFile();
-        patch.setId(fileId);
-        patch.setFileName(name);
-        fileMapper.updateById(patch);
-    }
-
-    /** 改名保格式: 剥掉输入自带的后缀, 拼回原名扩展名——复用本类既有 extOf(:1231, 返回无点小写/null) */
-    private static String keepOriginalExtension(String input, String originalName) {
-        String originalExt = FileNames.extOf(originalName); // null=原名无扩展名
-        String inputExt = FileNames.extOf(input);
-        String main = input;
-        if (inputExt != null) {
-            // 输入带了后缀(与原一致或想换格式): 一律剥掉, 稍后统一拼回原扩展名
-            main = input.substring(0, input.length() - inputExt.length() - 1);
-        }
-        if (main.isBlank()) throw new BusinessException("文件名不能为空");
-        return originalExt == null ? main : main + "." + originalExt;
+        fileMutationService.renameFile(fileId, fileName);
     }
 
     /**

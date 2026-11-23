@@ -7,6 +7,7 @@ import com.aigicrm.module.file.mapper.BizFileShareMapper;
 import com.aigicrm.module.file.mapper.BizFileVersionMapper;
 import com.aigicrm.module.file.service.FileEvidenceGuard;
 import com.aigicrm.module.file.service.FileFolderService;
+import com.aigicrm.module.file.service.FileMutationService;
 import com.aigicrm.module.file.service.FileService;
 import com.aigicrm.module.file.service.FileShareService;
 import com.aigicrm.module.file.service.FileStorageService;
@@ -55,10 +56,12 @@ public final class FileServiceFixture {
         FileVersionService fileVersionService = new FileVersionService(fileVersionMapper, fileMapper, configService,
                 jdbc, folderPermissionService, fileStorageService, fileThumbnailService, userMapper,
                 fileEvidenceGuard);
+        FileMutationService fileMutationService = new FileMutationService(fileMapper, folderPermissionService,
+                securityAudit, incentiveService, null, fileThumbnailService, userMapper);
         return new FileService(fileMapper, folderMapper, fileShareMapper, fileVersionMapper,
-                incentiveRecordMapper, userMapper, folderPermissionService, securityAudit, jdbc, incentiveService,
+                incentiveRecordMapper, userMapper, folderPermissionService, jdbc,
                 fileShareService, fileFolderService, fileStorageService, fileThumbnailService,
-                fileEvidenceGuard, fileVersionService);
+                fileEvidenceGuard, fileVersionService, fileMutationService);
     }
 
     /** 测试需要改 storageType/uploadDir 等 @Value 字段时，拿到真实的存储 bean。 */

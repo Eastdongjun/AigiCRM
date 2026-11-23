@@ -524,17 +524,17 @@ public class PermissionMatrixTest {
 
         assertPreAuthorize(deleteFile, "hasAnyAuthority('file:delete','fabushi:file:delete')");
 
-        Path src = Paths.get("src/main/java/com/aigicrm/module/file/service/FileService.java")
+        Path src = Paths.get("src/main/java/com/aigicrm/module/file/service/FileMutationService.java")
                 .toAbsolutePath().normalize();
-        assertTrue(Files.exists(src), "FileService 源文件不存在: " + src);
+        assertTrue(Files.exists(src), "FileMutationService 源文件不存在: " + src);
         String body;
         try {
             body = SourceNormalizer.read(src);
         } catch (IOException e) {
-            throw new IllegalStateException("读取 FileService 源码失败", e);
+            throw new IllegalStateException("读取 FileMutationService 源码失败", e);
         }
         assertTrue(body.contains("checkFile(fileId, FolderPermissionService.P_DELETE"),
-                "FileService.deleteFile 必须保留 FolderPermissionService.P_DELETE 细粒度删除守卫");
+                "FileMutationService.deleteFile 必须保留 FolderPermissionService.P_DELETE 细粒度删除守卫");
     }
 
     /** 文件主链路必须保留入口权限码，并继续下沉到文件夹 ACL 细粒度动作。 */
@@ -585,6 +585,15 @@ public class PermissionMatrixTest {
         } catch (IOException e) {
             throw new IllegalStateException("读取 FileService 源码失败", e);
         }
+        Path mutationSrc = Paths.get("src/main/java/com/aigicrm/module/file/service/FileMutationService.java")
+                .toAbsolutePath().normalize();
+        assertTrue(Files.exists(mutationSrc), "FileMutationService 源文件不存在: " + mutationSrc);
+        String mutationBody;
+        try {
+            mutationBody = SourceNormalizer.read(mutationSrc);
+        } catch (IOException e) {
+            throw new IllegalStateException("读取 FileMutationService 源码失败", e);
+        }
         Path storageSrc = Paths.get("src/main/java/com/aigicrm/module/file/service/FileStorageService.java")
                 .toAbsolutePath().normalize();
         assertTrue(Files.exists(storageSrc), "FileStorageService 源文件不存在: " + storageSrc);
@@ -611,8 +620,8 @@ public class PermissionMatrixTest {
                 "FileFolderService.renameFolder 必须保留文件夹 P_RENAME 权限守卫(【文件权限 v2】动作细分, 存量 edit 授权由判定层读时展开)");
         assertTrue(folderBody.contains("folderPermissionService.check(folder.getId(), FolderPermissionService.P_DELETE"),
                 "FileFolderService.deleteFolder 必须保留文件夹 P_DELETE 权限守卫");
-        assertTrue(body.contains("folderPermissionService.checkFile(fileId, FolderPermissionService.P_RENAME"),
-                "FileService.renameFile 必须保留文件 P_RENAME 权限守卫(【文件权限 v2】动作细分)");
+        assertTrue(mutationBody.contains("folderPermissionService.checkFile(fileId, FolderPermissionService.P_RENAME"),
+                "FileMutationService.renameFile 必须保留文件 P_RENAME 权限守卫(【文件权限 v2】动作细分)");
         assertTrue(body.contains("folderPermissionService.checkFile(fileId, FolderPermissionService.P_REPLACE"),
                 "FileService.replaceFile 必须保留文件 P_REPLACE 权限守卫(【文件权限 v2】动作细分)");
         assertTrue(body.contains("folderPermissionService.checkFile(file.getId(), FolderPermissionService.P_DOWNLOAD")
