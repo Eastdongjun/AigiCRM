@@ -24,7 +24,7 @@
           :default-openeds="collapsibleGroupIndexes"
         >
           <template v-for="group in menuGroups" :key="group.id">
-            <!-- 学分管理/法布施：参考客户管理，收成可折叠分组，避免侧栏过长 -->
+            <!-- 学分管理/法布施/流程协同/统计分析：参考客户管理，收成可折叠分组，避免侧栏过长 -->
             <el-sub-menu v-if="isCollapsibleGroup(group)" :index="'group-' + group.id" class="menu-group-sub">
               <template #title>
                 <el-icon v-if="groupIcon(group)"><component :is="groupIcon(group)" /></el-icon>
@@ -281,8 +281,8 @@ const menuGroups = computed(() => {
   // 不再前端注入；无 task:view 的角色由后端菜单树/权限自然过滤。
   return groups
 })
-const COLLAPSIBLE_GROUP_NAMES = new Set(['学分管理', '法布施'])
-const GROUP_ICON_FALLBACK = { 学分管理: 'Medal', 法布施: 'Reading' }
+const COLLAPSIBLE_GROUP_NAMES = new Set(['学分管理', '法布施', '流程协同', '统计分析'])
+const GROUP_ICON_FALLBACK = { 学分管理: 'Medal', 法布施: 'Reading', 流程协同: 'List', 统计分析: 'DataAnalysis' }
 const groupIcon = (group) => group.icon || GROUP_ICON_FALLBACK[group.menuName] || ''
 const isCollapsibleGroup = (group) => COLLAPSIBLE_GROUP_NAMES.has(group.menuName)
 const collapsibleGroupIndexes = computed(() => menuGroups.value
