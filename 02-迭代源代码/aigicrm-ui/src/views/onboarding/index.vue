@@ -57,6 +57,7 @@
                 <p>系统名称：<b>{{ companyName || '未填写' }}</b></p>
                 <p>行业词表：<b>{{ selectedIndustries.length ? selectedIndustries.join('、') : '保持默认' }}</b></p>
                 <p>初始账号：<b>admin</b>（密码已在首次登录时修改）</p>
+                <p>演示数据：<b>{{ demoSeeded ? '已导入' : '未导入（可在客户模块按需导入）' }}</b></p>
               </div>
             </template>
           </el-result>
@@ -93,6 +94,7 @@ const industryOptions = ref([])
 const selectedIndustries = ref([])
 const customIndustry = ref('')
 const industryTypeId = ref(null)
+const demoSeeded = ref(false)
 
 function configValue(key, fallback = '') {
   const row = configRows.value.find(c => c.configKey === key)
@@ -111,6 +113,7 @@ async function load() {
     companyName.value = configValue('system.name', 'AIGICRM')
     subtitle.value = configValue('system.subtitle', '市场资源管理系统')
     companyShort.value = configValue('onboarding.companyShort', '')
+    demoSeeded.value = configValue('onboarding.demoSeeded', 'false') === 'true'
     industryOptions.value = (dictRes?.data || []).map(d => d.dictLabel).filter(Boolean)
     const type = (typeRes?.data || []).find(t => t.dictCode === 'industry')
     industryTypeId.value = type?.id ?? null
@@ -218,7 +221,7 @@ async function finish() {
 
 onMounted(load)
 
-defineExpose({ next, finish, step, companyName, selectedIndustries, industryOptions })
+defineExpose({ next, finish, step, companyName, selectedIndustries, industryOptions, demoSeeded })
 </script>
 
 <style scoped>

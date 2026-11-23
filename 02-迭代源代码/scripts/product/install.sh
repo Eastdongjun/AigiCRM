@@ -13,6 +13,7 @@ WEB_PORT=18082
 MYSQL_PORT=13306
 REDIS_PORT=16379
 FRONTEND=1
+SEED_DEMO=0
 APPLY=0
 DRY_ONLY=0
 DOWN=0
@@ -37,6 +38,7 @@ usage() {
   --http-port N       后端宿主机端口（默认 18080）
   --web-port N        前端宿主机端口（默认 18082）
   --no-frontend       只装后端 API（跳过前端构建/冒烟）
+  --seed-demo         导入 3 条演示客户（仅空库/无同名演示客户时）
   --mysql-port N      MySQL 宿主机端口（默认 13306）
   --redis-port N      Redis 宿主机端口（默认 16379）
   --jar PATH          后端 jar 路径（默认 target/aigicrm-backend-1.0.0.jar）
@@ -55,6 +57,7 @@ while [ $# -gt 0 ]; do
     --http-port) [ $# -ge 2 ] || { echo "--http-port 缺值" >&2; exit 2; }; HTTP_PORT="$2"; shift 2 ;;
     --web-port) [ $# -ge 2 ] || { echo "--web-port 缺值" >&2; exit 2; }; WEB_PORT="$2"; shift 2 ;;
     --no-frontend) FRONTEND=0; shift ;;
+    --seed-demo) SEED_DEMO=1; shift ;;
     --mysql-port) [ $# -ge 2 ] || { echo "--mysql-port 缺值" >&2; exit 2; }; MYSQL_PORT="$2"; shift 2 ;;
     --redis-port) [ $# -ge 2 ] || { echo "--redis-port 缺值" >&2; exit 2; }; REDIS_PORT="$2"; shift 2 ;;
     --jar) [ $# -ge 2 ] || { echo "--jar 缺路径" >&2; exit 2; }; JAR_PATH="$2"; shift 2 ;;
@@ -211,6 +214,13 @@ seed() {
     || die "种子失败"
 }
 
+seed_demo() {
+  [ "$SEED_DEMO" = "1" ] || return 0
+  echo "== 演示客户种子（显式 --seed-demo）=="
+  dc exec -T mysql mysql -uroot -p"$DB_PASSWORD" "${DB_NAME:-aigicrm}" < "$ROOT/scripts/product/seed-demo.sql" \
+    || die "演示数据种子失败"
+}
+
 wait_health() {
   local i body
   for i in $(seq 1 90); do
@@ -298,6 +308,7 @@ if [ "$APPLY" = "0" ]; then
   echo "  4) 组织/admin 种子"
   echo "  5) docker compose up -d backend"
   echo "  6) health + admin 登录冒烟"
+  if [ "$SEED_DEMO" = "1" ]; then echo "  * 演示客户种子（--seed-demo）"; fi
   if [ "$FRONTEND" = "1" ]; then
     echo "  7) docker compose up -d --build frontend"
     echo "  8) 前端首页 + 经 /api 代理登录冒烟"
@@ -313,6 +324,7 @@ dc up -d mysql redis || die "mysql/redis 启动失败"
 wait_mysql
 migrate
 seed
+seed_demo
 dc up -d backend || die "backend 启动失败"
 wait_health
 smoke

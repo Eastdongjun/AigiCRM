@@ -36,9 +36,10 @@ bash "$ROOT/scripts/product/preflight.sh" --env-file "$TMP/bad.env" --ports 1808
 [ $? -eq 1 ] && grep -q 'TENANT_ENABLE 必须为 true' "$TMP/bad.log" && ok "preflight 非法 env 拒绝" || bad "preflight 非法 env 拒绝"
 
 # dry-run 使用临时 runtime，不触碰真实 env/容器
-RUNTIME_DIR="$TMP/runtime" bash "$ROOT/scripts/product/install.sh" --dry-run --project "b1-test-$$" \
+RUNTIME_DIR="$TMP/runtime" bash "$ROOT/scripts/product/install.sh" --dry-run --seed-demo --project "b1-test-$$" \
   --http-port 18080 --web-port 18082 --mysql-port 13306 --redis-port 16379 >"$TMP/dry.log" 2>&1
-[ $? -eq 0 ] && grep -q 'DRY-RUN' "$TMP/dry.log" && ok "install dry-run" || bad "install dry-run"
+[ $? -eq 0 ] && grep -q 'DRY-RUN' "$TMP/dry.log" && grep -q '演示客户种子' "$TMP/dry.log" \
+  && ok "install dry-run + seed-demo" || bad "install dry-run + seed-demo"
 
 echo
 echo "RESULT: FAIL=$FAIL"

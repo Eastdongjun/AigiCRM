@@ -9,7 +9,7 @@
 | S6.1a 安装前预检 | **已完成**：`preflight.sh` |
 | S6.1b 后端最小安装（DB/迁移/种子/健康/登录/回滚） | **已完成**：`install.sh`（本机实测通过） |
 | S6.1c 前端接入（构建/nginx/代理登录） | **已完成**：同一条 `--apply`，实测通过 |
-| S6.2 首启向导（企业/行业/完成） | **最小闭环已完成**：首登强制改密 + `/onboarding` 向导；业务演示数据导入未做 |
+| S6.2 首启向导（企业/行业/完成） | **最小闭环已完成**：首登强制改密 + `/onboarding` 向导；演示客户用 `--seed-demo` 显式导入（不在向导内） |
 | S6.3 行业词表配置化 | **部分完成**：向导可选用/新增 industry 字典；其他行业文案配置化未做 |
 | S6.4 监控接线 | **部分完成**：`monitoring/probe.sh` + textfile 指标 + 告警规则；外部 Prometheus/Grafana 未部署 |
 
@@ -49,6 +49,9 @@ bash scripts/product/install.sh --apply --project aigicrm-b1-test \
 # 只装后端 API
 bash scripts/product/install.sh --apply --no-frontend ...
 
+# 额外导入 3 条演示客户（仅空库/无同名 DEMO 客户；可重复执行）
+bash scripts/product/install.sh --apply --seed-demo ...
+
 # 停止（保留数据卷）
 bash scripts/product/install.sh --project aigicrm-b1-test --down
 ```
@@ -59,6 +62,7 @@ bash scripts/product/install.sh --project aigicrm-b1-test --down
 - health `UP`、admin 登录成功；
 - frontend 首页 HTTP 200（含 `<div id="app">`）、入口 JS 200、经 `/api/auth/login` 代理登录成功；
 - 同项目幂等重跑：Flyway `No migration necessary`，health/登录仍通过；
+- `--seed-demo`：`DEMO001..003` 3 条、`onboarding.demoSeeded=true`，重跑不重复；
 - 失败回滚：`down` 保留数据卷；测试栈已 `down -v` 清理。
 
 架构注意：MySQL 默认 `mysql:8.0`（多架构）；Flyway 在 arm64 自动用 `9.22.3-alpine`。
