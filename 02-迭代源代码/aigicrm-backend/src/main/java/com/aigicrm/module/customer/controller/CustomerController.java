@@ -123,7 +123,7 @@ public class CustomerController {
     private static final int CSV_ID_LIMIT = 200;
 
     static List<Long> parseLongCsv(String csv) { // 包可见:供同包单测直接断言去重/上限(L3)
-        if (csv == null || csv.isBlank()) return null;
+        if (csv == null || csv.isBlank()) return java.util.List.of();
         List<Long> ids = new java.util.ArrayList<>();
         for (String part : csv.split(",")) {
             String t = part.trim();
@@ -134,7 +134,7 @@ public class CustomerController {
                 // 容错:脏值跳过(与既有 csv 参数宽松风格一致)
             }
         }
-        if (ids.isEmpty()) return null;
+        if (ids.isEmpty()) return java.util.List.of();
         // 【L3 2026-10-08】去重(officeIds 下游 in 条件此前不去重,userIds 下游原有 distinct 统一前置)
         // + 上限 200 截断(巨型 IN 放大向量护栏)
         return ids.stream().distinct().limit(CSV_ID_LIMIT).toList();

@@ -63,7 +63,7 @@ public class SysConfigController {
         String oldMajor = configService.getValue(CORE_MAJOR_WAN_KEY);
         java.math.BigDecimal[] newThresholds = validateCoreThresholdConfigs(safeConfigs);
         configService.batchUpdate(safeConfigs);
-        if (newThresholds != null && (decimalValueChanged(oldMinor, newThresholds[0])
+        if (newThresholds.length == 2 && (decimalValueChanged(oldMinor, newThresholds[0])
                 || decimalValueChanged(oldMajor, newThresholds[1]))) {
             customerService.recalculateAllCoreStatuses();
         }
@@ -83,7 +83,7 @@ public class SysConfigController {
     /**
      * 【2026-11-03 用户令"输入数字判断核心, 改后自动刷新"】核心客户双门槛校验(照 validateLogoConfigs 模式):
      * 前端"保存全部配置"会回传未修改的键, 只校验请求里实际出现的两键; 返回解析后的 [minor, major]
-     * (两键都未出现返回 null); 非法取值直接 400, 不让脏门槛落库。
+     * (两键都未出现返回空数组); 非法取值直接 400, 不让脏门槛落库。
      */
     private java.math.BigDecimal[] validateCoreThresholdConfigs(List<SysConfig> configs) {
         java.math.BigDecimal minor = null;
@@ -93,7 +93,7 @@ public class SysConfigController {
             if (CORE_MINOR_WAN_KEY.equals(c.getConfigKey())) minor = parseCoreThreshold(c, "争核心门槛");
             else if (CORE_MAJOR_WAN_KEY.equals(c.getConfigKey())) major = parseCoreThreshold(c, "真核心门槛");
         }
-        if (minor == null && major == null) return null;
+        if (minor == null && major == null) return new java.math.BigDecimal[0];
         if (minor == null) minor = parseCoreThreshold(configService.getValue(CORE_MINOR_WAN_KEY), "争核心门槛");
         if (major == null) major = parseCoreThreshold(configService.getValue(CORE_MAJOR_WAN_KEY), "真核心门槛");
         if (minor.compareTo(major) > 0) {

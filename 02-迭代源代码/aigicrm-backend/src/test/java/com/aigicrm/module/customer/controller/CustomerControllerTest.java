@@ -137,8 +137,8 @@ class CustomerControllerTest {
     void parseLongCsv_dedupesAndCapsAtTwoHundred() {
         assertEquals(List.of(1L, 2L), CustomerController.parseLongCsv("1,2,1"), "重复 id 必须去重");
         assertEquals(List.of(3L), CustomerController.parseLongCsv("3,x,"), "脏值跳过(既有容错)");
-        assertEquals(null, CustomerController.parseLongCsv(null));
-        assertEquals(null, CustomerController.parseLongCsv("x"));
+        assertEquals(List.of(), CustomerController.parseLongCsv(null));
+        assertEquals(List.of(), CustomerController.parseLongCsv("x"));
 
         StringBuilder csv = new StringBuilder();
         for (int i = 1; i <= 250; i++) {

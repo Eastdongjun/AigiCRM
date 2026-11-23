@@ -608,7 +608,7 @@ public class OrgScopeResolver {
             // (装载仅在 dataScope=custom / override=custom 时发生)——按用户角色现查 sys_role_org 回退,
             // 否则自定义范围对新模型配置静默退化为仅本人
             refs = loadRoleOrgRefs(user);
-            if (refs == null || refs.isEmpty()) return List.of(userId);
+            if (refs.isEmpty()) return List.of(userId);
         }
         Set<Long> deptIds = new LinkedHashSet<>();
         for (com.aigicrm.security.ManagedOrgRef ref : refs) {
@@ -626,9 +626,9 @@ public class OrgScopeResolver {
 
     /** 【WP1.2】按用户全部角色现查 sys_role_org 授权组织**原始行**(不预展开)——custom 范围装载回退 */
     private java.util.List<com.aigicrm.security.ManagedOrgRef> loadRoleOrgRefs(SecurityUser user) {
-        if (user.getUserId() == null) return null;
+        if (user.getUserId() == null) return java.util.List.of();
         java.util.List<com.aigicrm.module.system.entity.SysRoleOrg> rows = roleOrgMapper.selectByUserId(user.getUserId());
-        if (rows == null || rows.isEmpty()) return null;
+        if (rows == null || rows.isEmpty()) return java.util.List.of();
         java.util.List<com.aigicrm.security.ManagedOrgRef> refs = new ArrayList<>();
         for (com.aigicrm.module.system.entity.SysRoleOrg ro : rows) {
             if (ro.getOrgId() == null) continue;
