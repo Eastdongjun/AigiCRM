@@ -59,7 +59,7 @@
 
     <input wx:if="{{scopeType === 'zaidu'}}" class="form-input" placeholder="标题（可选）" value="{{title}}" bindinput="onTitle" />
     <textarea class="form-textarea" placeholder="{{scopeType === 'suishi' ? '随手施：一句话/一页书/一张照片都行…' : scopeType === 'songdu' ? '今日诵读内容（可留空，以语音为主）…' : '写下本章节的精读记录…'}}" value="{{content}}" bindinput="onContent" maxlength="2000" />
-    <view wx:if="{{scopeType === 'suishi'}}" class="suishi-tip">不关联书目 · 不设标题 · 直接上传，像发朋友圈一样简单</view>
+    <view wx:if="{{scopeType === 'suishi'}}" class="suishi-tip">不关联书目 · 不设标题 · 全员可见 · 附件归档「文件中心 › 法布施」，像发朋友圈一样简单</view>
   </view>
 
   <view class="submit-btn {{submitting ? 'disabled' : ''}}" bindtap="submit">
@@ -75,7 +75,9 @@
   <view class="attach-card">
     <view class="attach-head"><text>附件</text><text class="attach-count">{{attachHint}}</text></view>
     <view class="attach-btns">
-      <view class="attach-btn" bindtap="chooseMedia">相册 / 拍摄</view>
+      <view class="attach-btn" data-source="album" bindtap="chooseMedia">图片</view>
+      <view class="attach-btn" data-source="camera" bindtap="chooseMedia">拍摄</view>
+      <view class="attach-btn" bindtap="chooseVideo">视频</view>
       <view class="attach-btn {{recording ? 'rec' : ''}}" bindtap="toggleRecord">{{recording ? '停止 · ' + recordSeconds + 's' : '录制语音'}}</view>
       <view class="attach-btn" bindtap="choosePhoneFile">手机文件</view>
     </view>

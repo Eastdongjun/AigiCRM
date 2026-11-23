@@ -350,18 +350,29 @@ Page({
   onTitle(e) { this.setData({ title: e.detail.value }) },
   onContent(e) { this.setData({ content: e.detail.value }) },
 
-  chooseMedia() {
+  chooseMedia(e) {
+    const source = (e && e.currentTarget && e.currentTarget.dataset && e.currentTarget.dataset.source) || 'all'
+    this.pickMedia(['image', 'video'], source === 'camera' ? ['camera'] : source === 'album' ? ['album'] : ['album', 'camera'])
+  },
+
+  // 【B3 原型】独立“视频”入口：相机/相册都可选，限额 5 段
+  chooseVideo() {
+    this.pickMedia(['video'], ['album', 'camera'])
+  },
+
+  pickMedia(mediaType, sourceType) {
     if (this.data.uploading) return
-    // 【F1 限额】图/视各≤5, 按剩余量分型截断(spec v2: 图1-5张/视1-5段)
     const counts = this.attachmentCounts()
-    const imgLeft = 5 - counts.image
-    const vidLeft = 5 - counts.video
+    // Q14 已定：随施九宫格 9 张，其余 5 张；视频始终 5 段
+    const imgMax = this.data.scopeType === 'suishi' ? 9 : 5
+    const imgLeft = mediaType.indexOf('image') >= 0 ? Math.max(0, imgMax - counts.image) : 0
+    const vidLeft = mediaType.indexOf('video') >= 0 ? Math.max(0, 5 - counts.video) : 0
     if (imgLeft <= 0 && vidLeft <= 0) {
-      wx.showToast({ title: '图片/视频已达上限', icon: 'none' })
+      wx.showToast({ title: mediaType.indexOf('video') >= 0 ? '视频已达上限' : '图片已达上限', icon: 'none' })
       return
     }
-    const count = Math.max(Math.min(9 - this.data.attachments.length, Math.max(imgLeft, vidLeft)), 1)
-    wx.chooseMedia({ count, mediaType: ['image', 'video'], success: (res) => {
+    const count = Math.max(Math.min(9, Math.max(imgLeft, vidLeft)), 1)
+    wx.chooseMedia({ count, mediaType, sourceType, success: (res) => {
       const picked = (res.tempFiles || []).map((f) => ({ path: f.tempFilePath, type: f.fileType === 'video' ? 'video' : 'image', name: f.fileType === 'video' ? '视频' : '图片' }))
       const files = []
       let imgAdded = 0
@@ -373,7 +384,7 @@ Page({
           if (imgAdded < imgLeft) { files.push(f); imgAdded++ } else { imgCut = true }
         } else if (vidAdded < vidLeft) { files.push(f); vidAdded++ } else { vidCut = true }
       })
-      if (imgCut) wx.showToast({ title: '图片最多5张，已保留前5', icon: 'none' })
+      if (imgCut) wx.showToast({ title: '图片最多' + imgMax + '张，已保留前' + imgMax, icon: 'none' })
       else if (vidCut) wx.showToast({ title: '视频最多5段，已保留前5', icon: 'none' })
       this.uploadFiles(files)
     } })
