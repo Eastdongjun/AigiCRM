@@ -106,8 +106,7 @@ class IncentiveUploadValidationTest {
             stubNotManager(m);
             BizIncentiveRecord r = validRecord();
             r.setCategoryId(null);
-            BusinessException ex = assertThrows(BusinessException.class,
-                    () -> newService().addRecord(r));
+            BusinessException ex = addRecordRejected(r);
             assertEquals("请选择激励分类", ex.getMessage());
             verify(recordMapper, never()).insert(any(BizIncentiveRecord.class));
         }
@@ -119,8 +118,7 @@ class IncentiveUploadValidationTest {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             stubNotManager(m);
             when(categoryMapper.selectById(1L)).thenReturn(null);
-            BusinessException ex = assertThrows(BusinessException.class,
-                    () -> newService().addRecord(validRecord()));
+            BusinessException ex = addRecordRejected(validRecord());
             assertEquals("激励分类不存在或已删除", ex.getMessage());
             verify(recordMapper, never()).insert(any(BizIncentiveRecord.class));
         }
@@ -134,8 +132,7 @@ class IncentiveUploadValidationTest {
             when(categoryMapper.selectById(1L)).thenReturn(new BizIncentiveCategory());
             BizIncentiveRecord r = validRecord();
             r.setCustomerId(null);
-            BusinessException ex = assertThrows(BusinessException.class,
-                    () -> newService().addRecord(r));
+            BusinessException ex = addRecordRejected(r);
             assertEquals("请选择关联客户", ex.getMessage());
             verify(recordMapper, never()).insert(any(BizIncentiveRecord.class));
         }
@@ -148,8 +145,7 @@ class IncentiveUploadValidationTest {
             stubNotManager(m);
             when(categoryMapper.selectById(1L)).thenReturn(new BizIncentiveCategory());
             when(customerMapper.selectById(10L)).thenReturn(null);
-            BusinessException ex = assertThrows(BusinessException.class,
-                    () -> newService().addRecord(validRecord()));
+            BusinessException ex = addRecordRejected(validRecord());
             assertEquals("关联客户不存在或已删除", ex.getMessage());
             verify(recordMapper, never()).insert(any(BizIncentiveRecord.class));
         }
@@ -164,8 +160,7 @@ class IncentiveUploadValidationTest {
             when(customerMapper.selectById(10L)).thenReturn(new BizCustomer());
             BizIncentiveRecord r = validRecord();
             r.setFilePreId(null);
-            BusinessException ex = assertThrows(BusinessException.class,
-                    () -> newService().addRecord(r));
+            BusinessException ex = addRecordRejected(r);
             assertEquals("请至少上传一个文件", ex.getMessage());
             verify(recordMapper, never()).insert(any(BizIncentiveRecord.class));
         }
@@ -179,8 +174,7 @@ class IncentiveUploadValidationTest {
             when(categoryMapper.selectById(1L)).thenReturn(new BizIncentiveCategory());
             when(customerMapper.selectById(10L)).thenReturn(new BizCustomer());
             when(fileMapper.selectCount(any())).thenReturn(0L);
-            BusinessException ex = assertThrows(BusinessException.class,
-                    () -> newService().addRecord(validRecord()));
+            BusinessException ex = addRecordRejected(validRecord());
             assertEquals("包含无效文件引用，请重新上传", ex.getMessage());
             verify(recordMapper, never()).insert(any(BizIncentiveRecord.class));
         }
@@ -220,8 +214,7 @@ class IncentiveUploadValidationTest {
 
             BizIncentiveRecord update = new BizIncentiveRecord();
             update.setCustomerId(99L);
-            BusinessException ex = assertThrows(BusinessException.class,
-                    () -> newService().updateRecord(1L, update));
+            BusinessException ex = updateRecordRejected(1L, update);
             assertEquals(403, ex.getCode());
             assertEquals("无权修改记录归属客户", ex.getMessage());
             verify(recordMapper, never()).updateById(any(BizIncentiveRecord.class));
@@ -322,10 +315,19 @@ class IncentiveUploadValidationTest {
 
             BizIncentiveRecord update = new BizIncentiveRecord();
             update.setFilePreId("[869,999]");
-            BusinessException ex = assertThrows(BusinessException.class,
-                    () -> newService().updateRecord(1L, update));
+            BusinessException ex = updateRecordRejected(1L, update);
             assertEquals("包含无效文件引用，请重新上传", ex.getMessage());
             verify(recordMapper, never()).updateById(any(BizIncentiveRecord.class));
         }
+    }
+
+    private BusinessException addRecordRejected(BizIncentiveRecord record) {
+        IncentiveService svc = newService();
+        return assertThrows(BusinessException.class, () -> svc.addRecord(record));
+    }
+
+    private BusinessException updateRecordRejected(Long id, BizIncentiveRecord update) {
+        IncentiveService svc = newService();
+        return assertThrows(BusinessException.class, () -> svc.updateRecord(id, update));
     }
 }
