@@ -27,7 +27,7 @@ bash scripts/product/install.sh --apply --project aigicrm-b1-test \
 bash scripts/product/install.sh --apply --no-frontend ...
 ```
 
-安装器顺序：预检 → 拉/建镜像 → MySQL/Redis → Flyway（164 迁移）→
+安装器顺序：预检 → 重建 jar（`--build`）/拉建镜像 → MySQL/Redis → Flyway（164 迁移）→
 组织/admin 种子（`pwd_reset_required=1`）→ backend → health → 前端构建/nginx →
 经 `/api` 代理登录冒烟。可选 `--monitoring` 启动 node-exporter + Prometheus
 （含告警规则）并验证抓到 `aigicrm_api_up=1`。失败 `down` 保留数据卷；`--down` 停止容器。
@@ -53,7 +53,9 @@ bash scripts/product/test-install.sh              # 离线语法/preflight/dry-r
 - 停止：`install.sh --project ... --down`（保留卷）。
 - 彻底清理（仅测试）：`docker compose -p <project> -f scripts/product/docker-compose.yml \
   --env-file .../\.env down -v`。
-- 升级 jar：`--jar` 指向新 jar 后重跑 `--apply`；Flyway 只增量迁移。
+- 升级 jar：`--build` 重新 package（或 `--jar` 指向新 jar）后重跑 `--apply`；
+  admin 口令已改时加 `--skip-smoke`；Flyway 只增量迁移。
+- 安装器会拒绝比后端源码旧的 jar，避免“代码改了但装的是旧包”。
 
 ## 6. 已知限制
 

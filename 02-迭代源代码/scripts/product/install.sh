@@ -15,6 +15,7 @@ REDIS_PORT=16379
 FRONTEND=1
 SEED_DEMO=0
 MONITORING=0
+SKIP_SMOKE=0
 NODE_EXPORTER_PORT=19100
 PROMETHEUS_PORT=19090
 APPLY=0
@@ -43,6 +44,7 @@ usage() {
   --no-frontend       只装后端 API（跳过前端构建/冒烟）
   --seed-demo         导入 3 条演示客户（仅空库/无同名演示客户时）
   --monitoring        启动 node-exporter + Prometheus（可选 S6.4）
+  --skip-smoke        跳过登录冒烟（升级时 admin 口令已改；health 仍校验）
   --mysql-port N      MySQL 宿主机端口（默认 13306）
   --redis-port N      Redis 宿主机端口（默认 16379）
   --jar PATH          后端 jar 路径（默认 target/aigicrm-backend-1.0.0.jar）
@@ -63,6 +65,7 @@ while [ $# -gt 0 ]; do
     --no-frontend) FRONTEND=0; shift ;;
     --seed-demo) SEED_DEMO=1; shift ;;
     --monitoring) MONITORING=1; shift ;;
+    --skip-smoke) SKIP_SMOKE=1; shift ;;
     --mysql-port) [ $# -ge 2 ] || { echo "--mysql-port 缺值" >&2; exit 2; }; MYSQL_PORT="$2"; shift 2 ;;
     --redis-port) [ $# -ge 2 ] || { echo "--redis-port 缺值" >&2; exit 2; }; REDIS_PORT="$2"; shift 2 ;;
     --jar) [ $# -ge 2 ] || { echo "--jar 缺路径" >&2; exit 2; }; JAR_PATH="$2"; shift 2 ;;
@@ -185,6 +188,11 @@ build_jar() {
     (cd "$ROOT/aigicrm-backend" && ./mvnw -o -DskipTests package) || die "jar 构建失败"
   fi
   [ -r "$JAR_PATH" ] || die "jar 不存在: $JAR_PATH（加 --build 或先构建）"
+  if [ "$APPLY" = "1" ] && [ "$BUILD" = "0" ]; then
+    if find "$ROOT/aigicrm-backend/src/main" -newer "$JAR_PATH" -print -quit 2>/dev/null | grep -q .; then
+      die "jar 比后端源码旧（可能存在未编译改动）：加 --build 或先重新 package"
+    fi
+  fi
 }
 
 wait_mysql() {
@@ -354,13 +362,17 @@ wait_mysql
 migrate
 seed
 seed_demo
-dc up -d backend || die "backend 启动失败"
+dc up -d --force-recreate backend || die "backend 启动失败"
 wait_health
-smoke
+if [ "$SKIP_SMOKE" = "1" ]; then
+  echo "SKIP: 登录冒烟（--skip-smoke；health 已通过）"
+else
+  smoke
+fi
 if [ "$FRONTEND" = "1" ]; then
   dc up -d --build frontend || die "frontend 启动失败"
   wait_frontend
-  smoke_frontend
+  if [ "$SKIP_SMOKE" = "1" ]; then echo "SKIP: 前端代理登录冒烟"; else smoke_frontend; fi
 fi
 start_monitoring
 

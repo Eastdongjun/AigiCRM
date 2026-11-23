@@ -55,6 +55,9 @@ bash scripts/product/install.sh --apply --seed-demo ...
 # 可选监控：node-exporter + Prometheus + 首次探针（含告警规则）
 bash scripts/product/install.sh --apply --monitoring ...
 
+# 源码有改动时先重新打包（否则安装器拒绝旧 jar）；升级时 admin 口令可能已改
+bash scripts/product/install.sh --apply --build --skip-smoke ...
+
 # 停止（保留数据卷）
 bash scripts/product/install.sh --project aigicrm-b1-test --down
 ```
@@ -66,6 +69,8 @@ bash scripts/product/install.sh --project aigicrm-b1-test --down
 - frontend 首页 HTTP 200（含 `<div id="app">`）、入口 JS 200、经 `/api/auth/login` 代理登录成功；
 - 同项目幂等重跑：Flyway `No migration necessary`，health/登录仍通过；
 - `--seed-demo`：`DEMO001..003` 3 条、`onboarding.demoSeeded=true`，重跑不重复；
+- `--monitoring`：Prometheus 抓到 `aigicrm_api_up=1`，3 条告警规则加载；
+- `--build` 重新打包 jar；`--skip-smoke` 供升级（admin 口令已改）跳过登录冒烟；
 - 失败回滚：`down` 保留数据卷；测试栈已 `down -v` 清理。
 
 架构注意：MySQL 默认 `mysql:8.0`（多架构）；Flyway 在 arm64 自动用 `9.22.3-alpine`。
