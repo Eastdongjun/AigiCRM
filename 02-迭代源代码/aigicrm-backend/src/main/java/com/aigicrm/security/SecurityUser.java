@@ -22,7 +22,14 @@ public class SecurityUser implements UserDetails {
 
     // 多角色 + 多岗位支持
     private List<String> roleCodes = new ArrayList<>();
-    private List<SysPosition> positions = new ArrayList<>();        // 用户所有岗位
+    /**
+     * 【S1948 2026-11-23】positions/permissionRules/ruleResult 标 transient。
+     * 理由：这三个是登录时从 DB 装载的请求级派生数据（SysPosition/SysPermissionRule/RuleResult
+     * 均未实现 Serializable），不是身份本体。当前无分布式会话（未引入 Spring Session），
+     * 标 transient 对运行期零影响；将来若启用 Redis 会话，这些字段反序列化后为空，
+     * 必须在认证阶段重建——那才是正确做法，而不是把一堆实体塞进会话。
+     */
+    private transient List<SysPosition> positions = new ArrayList<>();        // 用户所有岗位
     private String dataScope = DataScopeType.SELF.getCode();
     /** 所有角色各自的 dataScope code（多角色并集解析用；单角色/空时走 dataScope 单值路径） */
     private List<String> dataScopes = new ArrayList<>();
@@ -38,9 +45,9 @@ public class SecurityUser implements UserDetails {
     private List<Long> groupIds = new ArrayList<>();                // 用户所属的所有集团ID
     private List<Long> legalEntityIds = new ArrayList<>();          // 用户所属的所有法人公司ID
 
-    // 权限规则引擎
-    private List<SysPermissionRule> permissionRules = new ArrayList<>(); // 生效的权限规则
-    private RuleResult ruleResult;                                      // 规则求值缓存
+    // 权限规则引擎（transient 理由见上方 positions 注释）
+    private transient List<SysPermissionRule> permissionRules = new ArrayList<>(); // 生效的权限规则
+    private transient RuleResult ruleResult;                                      // 规则求值缓存
 
     private Set<String> permissions;
     private Collection<? extends GrantedAuthority> authorities;

@@ -178,8 +178,14 @@ public class SysConfigController {
         return Result.ok(result);
     }
 
+    /**
+     * 【S1452 2026-11-23】原签名 {@code ResponseEntity<?>}：分支分别返回 byte[]（透明占位图）
+     * 与 Resource（本地 logo），两种泛型实参不兼容，只能靠通配符。改为统一收敛到
+     * {@code ResponseEntity<Resource>}——占位图用 {@link ByteArrayResource} 包一层，
+     * 302 分支 body 为空靠 build() 推断。这样类型是闭合的，也不影响 Content-Type（显式设置）。
+     */
     @GetMapping("/logo")
-    public ResponseEntity<?> logo() {
+    public ResponseEntity<Resource> logo() {
         try {
             String logoUrl = configService.getValue(LIT_SYSTEM_LOGO);
             if (logoUrl == null || logoUrl.isBlank()) {
@@ -225,10 +231,10 @@ public class SysConfigController {
         }
     }
 
-    private ResponseEntity<byte[]> transparentSvg() {
+    private ResponseEntity<Resource> transparentSvg() {
         byte[] svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1\" height=\"1\"/>".getBytes(StandardCharsets.UTF_8);
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_TYPE, "image/svg+xml")
-                .body(svg);
+                .body(new org.springframework.core.io.ByteArrayResource(svg));
     }
 }

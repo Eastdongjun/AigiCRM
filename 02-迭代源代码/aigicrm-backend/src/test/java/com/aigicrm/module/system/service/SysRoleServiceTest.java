@@ -22,6 +22,7 @@ import org.mockito.MockedStatic;
 
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -740,7 +741,9 @@ class SysRoleServiceTest {
             m.when(SecurityUtils::isAdmin).thenReturn(true);
             m.when(() -> SecurityUtils.hasAuthority("system:role:grant")).thenReturn(true);
             role.setGroupId(1L); // 跳过 visibleGroupIds 默认分支
-            service.create(role); // 不应抛异常
+            // 【S2699 2026-11-23】原为裸调用 + 注释「不应抛异常」——没有断言，用例永远绿。
+            // 改成 assertDoesNotThrow，让它真的能红。
+            assertDoesNotThrow(() -> service.create(role), "超管创建 admin 角色不应抛异常");
         }
     }
 

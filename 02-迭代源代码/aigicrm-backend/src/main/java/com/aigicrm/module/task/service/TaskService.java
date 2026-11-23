@@ -51,7 +51,13 @@ public class TaskService {
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.aigicrm.module.system.service.RecycleBinService recycleBinService;
 
-    /** 控制器 Map → 实体转换(控制器零 entity 依赖) */
+    /**
+     * 控制器 Map → 实体转换(控制器零 entity 依赖)。
+     * 【S2229 2026-11-23】此处 this.create(task) 是同类自调用，Spring 代理被绕过——
+     * create() 上的 @Transactional 实际不生效（历史上所有走 Map 入口的建单都不在事务里）。
+     * 事务边界上移到本方法：控制器入口即开事务，内部自调用不再需要代理。
+     */
+    @Transactional
     public BizTask createFromMap(Map<String, Object> body) {
         BizTask task = new BizTask();
         if (body.get(LIT_TITLE) != null) task.setTitle(body.get(LIT_TITLE).toString());
@@ -63,6 +69,8 @@ public class TaskService {
         return create(task);
     }
 
+    /** 【S2229 2026-11-23】同上：this.update(task) 自调用绕过代理，事务边界上移到入口。 */
+    @Transactional
     public void updateFromMap(Long id, Map<String, Object> body) {
         BizTask task = new BizTask();
         task.setId(id);

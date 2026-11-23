@@ -326,36 +326,17 @@ public class FabushiPostService {
      * 发布(fabushi:create 门): scope_type 白名单(单源枚举) + 分型校验(D1 2026-11-23, Q4 拍板)。
      * songdu/zaidu：必选书（如同四项激励先选客户）且书目须 approved——补齐此前"注释写了没实现"的校验；
      * suishi：免标题免书目（负例 400：带 title/bookId 即拒，朋友圈式一键发）。
+     * 【S3776 2026-11-23】原方法认知复杂度 21（阈值 15），把"类型解析/分型校验/书目校验"各自
+     * 抽成单一职责私有方法；校验顺序与异常码逐条保持不变（有测试钉住）。
      */
     public BizFabushiPost create(BizFabushiPost post) {
         com.aigicrm.security.SecurityUser user = com.aigicrm.security.SecurityUtils.getCurrentUser();
         if (user == null) {
             throw new BusinessException(401, "未登录");
         }
-        if (post.getScopeType() == null || !SCOPE_TYPES.contains(post.getScopeType())) {
-            throw new BusinessException(400, "内容类型不合法");
-        }
-        FabushiScopeType type = FabushiScopeType.valueOf(post.getScopeType().toUpperCase());
-        if (type.requiresBook()) {
-            if (post.getBookId() == null) {
-                throw new BusinessException(400, "该类型必须关联具体书目（先选书再发布）");
-            }
-            BizFabushiBook book = bookMapper.selectById(post.getBookId());
-            if (book == null
-                    || (book.getDeleted() != null && book.getDeleted() == 1)
-                    || !"approved".equals(book.getStatus())) {
-                throw new BusinessException(400, "关联书目不存在或未通过审核");
-            }
-        } else {
-            if (post.getTitle() != null && !post.getTitle().isBlank()) {
-                throw new BusinessException(400, "每日随施不设置标题");
-            }
-            if (post.getBookId() != null) {
-                throw new BusinessException(400, "每日随施不关联书目");
-            }
-        }
-        if ((post.getContent() == null || post.getContent().isBlank())
-                && (post.getTitle() == null || post.getTitle().isBlank())) {
+        FabushiScopeType type = resolveScopeType(post);
+        validateScopeTarget(post, type);
+        if (isBlankText(post.getContent()) && isBlankText(post.getTitle())) {
             throw new BusinessException(400, "内容不能为空");
         }
         post.setId(null);
@@ -363,6 +344,45 @@ public class FabushiPostService {
         post.setStatus(LIT_PUBLISHED);
         postMapper.insert(post);
         return post;
+    }
+
+    /** scope_type 必须在单源枚举内，否则 400。 */
+    private FabushiScopeType resolveScopeType(BizFabushiPost post) {
+        if (post.getScopeType() == null || !SCOPE_TYPES.contains(post.getScopeType())) {
+            throw new BusinessException(400, "内容类型不合法");
+        }
+        return FabushiScopeType.valueOf(post.getScopeType().toUpperCase());
+    }
+
+    /** 分型校验：需书的类型必须挂已审核书目；免书类型不得带标题/书目。 */
+    private void validateScopeTarget(BizFabushiPost post, FabushiScopeType type) {
+        if (type.requiresBook()) {
+            requireApprovedBook(post.getBookId());
+            return;
+        }
+        if (!isBlankText(post.getTitle())) {
+            throw new BusinessException(400, "每日随施不设置标题");
+        }
+        if (post.getBookId() != null) {
+            throw new BusinessException(400, "每日随施不关联书目");
+        }
+    }
+
+    /** 书目必须存在、未删、已审核。 */
+    private void requireApprovedBook(Long bookId) {
+        if (bookId == null) {
+            throw new BusinessException(400, "该类型必须关联具体书目（先选书再发布）");
+        }
+        BizFabushiBook book = bookMapper.selectById(bookId);
+        if (book == null
+                || (book.getDeleted() != null && book.getDeleted() == 1)
+                || !"approved".equals(book.getStatus())) {
+            throw new BusinessException(400, "关联书目不存在或未通过审核");
+        }
+    }
+
+    private static boolean isBlankText(String s) {
+        return s == null || s.isBlank();
     }
 
     /** 下架(fabushi:content:manage 门; G3 留痕: 原因必填 + 审计切面 + PERMISSION_CHANGE 时间线)。 */

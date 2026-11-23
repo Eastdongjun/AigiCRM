@@ -236,8 +236,10 @@ public class FileService {
             wrapper.eq(BizFile::getFolderId, folderId);
         }
         wrapper.eq(BizFile::getFileScope, scope);
-        if (LIT_INCENTIVE.equals(scope) && !applyIncentiveVisibility(wrapper, userId)) {
-            return new Page<>(current, size, 0);
+        // 【S3516 2026-11-23】applyIncentiveVisibility 恒返回 true（见其注释），原 !...return 空页
+        // 是永假分支，Sonar 以 BLOCKER 报出。改为 void：语义就是"只加过滤条件，不短路"。
+        if (LIT_INCENTIVE.equals(scope)) {
+            applyIncentiveVisibility(wrapper, userId);
         }
         if (LIT_FABUSHI.equals(scope) && !applyFabushiVisibility(wrapper, userId)) {
             return new Page<>(current, size, 0);
@@ -259,13 +261,18 @@ public class FileService {
                 || LIT_INCENTIVE.equals(scope) || LIT_FABUSHI.equals(scope));
     }
 
-    /** 激励空间可见性过滤；返回 false 表示候选集必空（直接回空页）。 */
-    private boolean applyIncentiveVisibility(LambdaQueryWrapper<BizFile> wrapper, Long userId) {
+    /**
+     * 激励空间可见性过滤：只往 wrapper 上加条件，不短路。
+     * 【S3516 2026-11-23】原签名为 {@code boolean} 且注释写「返回 false 表示候选集必空」，
+     * 但三条路径全部 return true——契约是假的，调用点的 {@code !...} 分支永远不成立。
+     * 现改为 void，把假契约删掉；若将来真需要短路，另设显式语义再改调用方。
+     */
+    private void applyIncentiveVisibility(LambdaQueryWrapper<BizFile> wrapper, Long userId) {
         // 【2026-11-01 审计修复】admin/持 incentive:view-all 全量旁路——与激励侧 applyShareVisibility
         // 同口径(原文件侧无旁路: 总监在 MP 四项服务tab可见的未分享激励文件, PC 文件中心不出现,
         // 且下载分支无旁路时会出现"MP 可见 PC 下载 403"的双端分叉)
         if (incentiveViewAllGranted()) {
-            return true; // 全量可见, 不加可见性过滤
+            return; // 全量可见, 不加可见性过滤
         }
         // 自己的 + 其他挂了分享的激励文件（与下载可见性同源，30s 缓存见 incentiveVisibleFileIds）
         Set<Long> sharedFileIds = incentiveVisibleFileIds(userId);
@@ -277,7 +284,7 @@ public class FileService {
                 wrapper.and(w -> w.in(BizFile::getUploaderId, java.util.List.of(userId))
                         .or().in(BizFile::getId, sharedFileIds));
             }
-            return true;
+            return;
         }
         java.util.List<Long> allow = new java.util.ArrayList<>(orgVisible);
         if (!allow.contains(userId)) allow.add(userId);
@@ -287,7 +294,6 @@ public class FileService {
             wrapper.and(w -> w.in(BizFile::getUploaderId, allow)
                     .or().in(BizFile::getId, sharedFileIds));
         }
-        return true;
     }
 
     /** 法布施空间可见性过滤；返回 false 表示候选集必空。

@@ -3,7 +3,7 @@ package com.aigicrm.module.customer.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.alibaba.excel.EasyExcel;
+import com.alibaba.excel.EasyExcelFactory;
 import com.aigicrm.common.BusinessException;
 import com.aigicrm.common.engine.PermissionRuleEngine;
 import com.aigicrm.module.customer.dto.CustomerImportResult;
@@ -625,7 +625,7 @@ public class CustomerService {
                 this, currentUserId, currentOfficeId, result);
 
         try {
-            EasyExcel.read(file.getInputStream(), CustomerImportDTO.class, listener)
+            EasyExcelFactory.read(file.getInputStream(), CustomerImportDTO.class, listener)
                     .sheet()
                     .doRead();
         } catch (Exception e) {

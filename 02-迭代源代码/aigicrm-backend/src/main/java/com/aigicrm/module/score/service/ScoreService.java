@@ -17,7 +17,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.alibaba.excel.EasyExcel;
+import com.alibaba.excel.EasyExcelFactory;
 import com.alibaba.excel.write.style.column.LongestMatchColumnWidthStyleStrategy;
 import com.aigicrm.module.system.entity.SysDictData;
 import com.aigicrm.module.system.service.SysDictService;
@@ -587,7 +587,7 @@ public class ScoreService {
         String fileName = URLEncoder.encode(period + "学分录入.xlsx", StandardCharsets.UTF_8);
         response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
         response.setHeader("Content-Disposition", "attachment;filename=" + fileName);
-        EasyExcel.write(response.getOutputStream())
+        EasyExcelFactory.write(response.getOutputStream())
                 .head(head)
                 .registerWriteHandler(new LongestMatchColumnWidthStyleStrategy())
                 .sheet(period)

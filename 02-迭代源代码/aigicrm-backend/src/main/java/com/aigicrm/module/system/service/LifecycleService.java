@@ -348,9 +348,9 @@ public class LifecycleService {
     // ==================== 执行：组织移动 ====================
 
     private Map<String, Object> executeOrgMove(Map<String, Object> req) {
-        long id = longVal(req.get("id"));
-        long userId = longVal(req.get(LIT_SUBJECT_USER_ID));
-        long toDept = longVal(req.get("target_dept_id"));
+        long id = requireLong(req.get("id"), "id");
+        long userId = requireLong(req.get(LIT_SUBJECT_USER_ID), LIT_SUBJECT_USER_ID);
+        long toDept = requireLong(req.get("target_dept_id"), "target_dept_id");
         Map<String, Object> user = user(userId);
         if (user == null) throw new BusinessException("人员不存在");
         Long oldDept = longVal(user.get(LIT_DEPT_ID));
@@ -441,7 +441,7 @@ public class LifecycleService {
         Long oldDept = longVal(snapshot.get("deptId"));
         Long oldOffice = longVal(snapshot.get("officeId"));
         Long oldOrg = longVal(snapshot.get("orgId"));
-        long userId = longVal(req.get(LIT_SUBJECT_USER_ID));
+        long userId = requireLong(req.get(LIT_SUBJECT_USER_ID), LIT_SUBJECT_USER_ID);
         Long newDept = longVal(snapshot.get("newDeptId"));
         Long newOffice = longVal(snapshot.get("newOfficeId"));
         Long newOrg = longVal(snapshot.get("newOrgId"));
@@ -692,5 +692,18 @@ public class LifecycleService {
         if (v == null) return null;
         if (v instanceof Number n) return n.longValue();
         try { return Long.valueOf(String.valueOf(v)); } catch (Exception e) { return null; }
+    }
+
+    /**
+     * 【S2259 2026-11-23】必填 long。原写法 {@code long x = longVal(...)} 是把可空 Long 直接拆箱，
+     * 入参缺失时抛 NullPointerException（Sonar 以 BUG 报出 4 处）。这里显式判空并给可读错误，
+     * 让"请求缺字段"表现为 400 业务异常而不是 500 栈。
+     */
+    private long requireLong(Object v, String field) {
+        Long n = longVal(v);
+        if (n == null) {
+            throw new BusinessException("缺少必填参数: " + field);
+        }
+        return n;
     }
 }

@@ -1,6 +1,6 @@
 package com.aigicrm.module.customer.controller;
 
-import com.alibaba.excel.EasyExcel;
+import com.alibaba.excel.EasyExcelFactory;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.aigicrm.common.BusinessException;
 import com.aigicrm.common.Result;
@@ -590,12 +590,12 @@ public class CustomerController {
         refHeaders.add(List.of("填写说明"));
 
         // 用 DTO 模型写模板 sheet
-        com.alibaba.excel.ExcelWriter writer = EasyExcel.write(response.getOutputStream(), CustomerImportDTO.class).build();
-        com.alibaba.excel.write.metadata.WriteSheet sheet1 = EasyExcel.writerSheet(0, "客户导入模板").build();
+        com.alibaba.excel.ExcelWriter writer = EasyExcelFactory.write(response.getOutputStream(), CustomerImportDTO.class).build();
+        com.alibaba.excel.write.metadata.WriteSheet sheet1 = EasyExcelFactory.writerSheet(0, "客户导入模板").build();
         writer.write(List.of(sample), sheet1);
 
         // 填写说明 sheet（无模型，手动头）
-        com.alibaba.excel.write.metadata.WriteSheet sheet2 = EasyExcel.writerSheet(1, "填写说明").head(refHeaders).build();
+        com.alibaba.excel.write.metadata.WriteSheet sheet2 = EasyExcelFactory.writerSheet(1, "填写说明").head(refHeaders).build();
         writer.write(refData, sheet2);
         writer.finish();
     }
@@ -631,7 +631,7 @@ public class CustomerController {
         java.util.List<BizCustomer> rows = customerService.exportList(buildListFilter(keyword, industry, officeId,
                 regionId, status, null, scope, devType, null, deptId, protectionStatus, province, city,
                 regDateStart, regDateEnd, expDateStart, expDateEnd, userIds, officeIds, ownerName));
-        EasyExcel.write(response.getOutputStream(), BizCustomer.class)
+        EasyExcelFactory.write(response.getOutputStream(), BizCustomer.class)
                 .excludeColumnFieldNames(List.of("deleted", LIT_CREATEDAT, "updatedAt", "id"))
                 .sheet("客户列表")
                 .doWrite(rows);

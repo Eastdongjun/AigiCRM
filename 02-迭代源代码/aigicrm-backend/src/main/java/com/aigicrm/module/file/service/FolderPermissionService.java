@@ -163,25 +163,39 @@ public class FolderPermissionService {
         return deptVisible(folder.getOrgId(), userId, matrixActionOf(action));
     }
 
+    /**
+     * 【S2447 2026-11-23】短路判定结果。原用 {@code Boolean} 三态（true/false/null 表示"无决定"），
+     * Sonar 以 CRITICAL 报「Null is returned but a Boolean is expected」——null 是隐式哨兵，
+     * 调用方漏判即 NPE。改成显式枚举，编译期就不会漏掉 UNDECIDED 分支。
+     */
+    private enum ShortCircuit {
+        /** 明确放行 */
+        ALLOW,
+        /** 明确拒绝 */
+        DENY,
+        /** 无短路结论，继续走矩阵回退 */
+        UNDECIDED
+    }
+
     public boolean checkFile(Long fileId, String action, Long userId) {
         if (fileId == null || userId == null) return false;
         if (SecurityUtils.isAdmin()) return adminActionAllowed(action);
         BizFile file = fileMapper.selectById(fileId);
         if (file == null) return false;
-        Boolean shortCircuit = shortCircuitAllows(file, action, userId);
-        if (shortCircuit != null) return shortCircuit;
+        ShortCircuit shortCircuit = shortCircuitAllows(file, action, userId);
+        if (shortCircuit != ShortCircuit.UNDECIDED) return shortCircuit == ShortCircuit.ALLOW;
         return fallbackMatrix(file, action, userId);
     }
 
-    /** 授权例外/上传者本人/上级链短路；返回 null 表示继续走矩阵回退。 */
-    private Boolean shortCircuitAllows(BizFile file, String action, Long userId) {
+    /** 授权例外/上传者本人/上级链短路；UNDECIDED 表示继续走矩阵回退。 */
+    private ShortCircuit shortCircuitAllows(BizFile file, String action, Long userId) {
         // 【2026-11-17 阶段二】统一授权 DENY 优先于“上传者本人恒管”；ALLOW 作为例外通道。
-        Boolean grantDecision = applyFileGrantDecision(file, action, userId);
-        if (grantDecision != null) return grantDecision;
+        ShortCircuit grantDecision = applyFileGrantDecision(file, action, userId);
+        if (grantDecision != ShortCircuit.UNDECIDED) return grantDecision;
         // 【2026-11-10 用户令"A"】上传者本人恒可管理自己上传的文件(改名/替换/删除/分享/下载), 无论在哪个夹
-        if (Objects.equals(file.getUploaderId(), userId)) return true;
-        if (isManagerChain(userId, file.getUploaderId())) return true;
-        return null;
+        if (Objects.equals(file.getUploaderId(), userId)) return ShortCircuit.ALLOW;
+        if (isManagerChain(userId, file.getUploaderId())) return ShortCircuit.ALLOW;
+        return ShortCircuit.UNDECIDED;
     }
 
     private boolean fallbackMatrix(BizFile file, String action, Long userId) {
@@ -204,12 +218,12 @@ public class FolderPermissionService {
         return uploader != null && matrixVisible(uploader, userId, matrixActionOf(action));
     }
 
-    private Boolean applyFileGrantDecision(BizFile file, String action, Long userId) {
-        if (fileGrantService == null) return null;
+    private ShortCircuit applyFileGrantDecision(BizFile file, String action, Long userId) {
+        if (fileGrantService == null) return ShortCircuit.UNDECIDED;
         FileGrantService.Decision d = fileGrantService.decideFile(file, action, userId);
-        if (d == FileGrantService.Decision.DENY) return false;
-        if (d == FileGrantService.Decision.ALLOW) return true;
-        return null;
+        if (d == FileGrantService.Decision.DENY) return ShortCircuit.DENY;
+        if (d == FileGrantService.Decision.ALLOW) return ShortCircuit.ALLOW;
+        return ShortCircuit.UNDECIDED;
     }
 
     private record FolderRef(BizFileFolder ref, String folderType) {}

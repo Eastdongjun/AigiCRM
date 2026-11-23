@@ -17,6 +17,7 @@ import java.nio.file.Path;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -77,7 +78,14 @@ class SysConfigControllerLogoTest {
 
         // 命中穿越 → 返回透明 SVG 兜底，绝不返回 private 文件
         assertTrue(resp.getHeaders().getContentType().toString().startsWith("image/svg+xml"));
-        assertTrue(new String((byte[]) resp.getBody()).contains("<svg"));
+        // 【S1452 2026-11-23】logo() 返回体由 byte[] 收敛为 Resource（占位图用 ByteArrayResource），
+        // 断言意图不变：body 里必须是那段透明 SVG，绝不能是 private 文件内容。
+        Object body = resp.getBody();
+        assertNotNull(body);
+        String text = body instanceof byte[] bytes
+                ? new String(bytes)
+                : new String(((org.springframework.core.io.Resource) body).getContentAsByteArray());
+        assertTrue(text.contains("<svg"));
         verify(fileService, never()).getOssUrlByKey("public/../private/secret.png");
     }
 

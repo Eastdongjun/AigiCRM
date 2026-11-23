@@ -14,15 +14,26 @@ import java.util.List;
 public class CorsConfig {
 
     /**
+     * 默认允许来源（本地开发用）。抽成常量而不是写在 {@code ${key:default}} 里：
+     * 【S6857 2026-11-23】默认值本身含 "http://…:5173" 这种冒号，占位符的 ":" 分隔语义
+     * 在这里是歧义的（Spring 取首个 ":" 之后全部内容，恰好能用但极易被误读/误改）。
+     * 生产必须用 CORS_ALLOWED_ORIGINS 覆盖成具体域名。
+     */
+    private static final String DEFAULT_ALLOWED_ORIGINS =
+            "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000";
+
+    /**
      * 允许的跨域来源列表，逗号分隔
      * 生产环境必须设置为具体域名，如：https://aigicrm.example.com
      */
-    @Value("${cors.allowed-origins:http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000}")
+    @Value("${cors.allowed-origins:}")
     private String allowedOrigins;
 
     @Bean
     public CorsFilter corsFilter() {
-        List<String> origins = Arrays.stream(allowedOrigins.split(","))
+        String raw = (allowedOrigins == null || allowedOrigins.isBlank())
+                ? DEFAULT_ALLOWED_ORIGINS : allowedOrigins;
+        List<String> origins = Arrays.stream(raw.split(","))
                 .map(String::trim)
                 .filter(s -> !s.isEmpty())
                 .toList();

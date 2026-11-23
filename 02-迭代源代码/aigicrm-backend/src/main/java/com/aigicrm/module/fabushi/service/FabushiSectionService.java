@@ -21,12 +21,15 @@ public class FabushiSectionService {
     private static final String LIT_SORTORDER = "sortOrder";
     private static final String LIT_LEVELCODE = "levelCode";
     private static final String LIT_TITLE = "title";
+    // 【S1192 2026-11-23】两段提示各出现 3 次，抽常量；文案与前端提示保持一致，改一处即全改。
+    private static final String MSG_BOOK_NOT_FOUND = "书目不存在";
+    private static final String MSG_TITLE_REQUIRED = "章节标题不能为空";
 
     private final BizFabushiSectionMapper sectionMapper;
     private final BizFabushiBookMapper bookMapper;
 
     public Map<String, Object> tree(Long bookId) {
-        if (bookMapper.selectById(bookId) == null) throw new BusinessException(404, "书目不存在");
+        if (bookMapper.selectById(bookId) == null) throw new BusinessException(404, MSG_BOOK_NOT_FOUND);
         List<BizFabushiSection> rows = sectionMapper.selectList(new LambdaQueryWrapper<BizFabushiSection>()
                 .eq(BizFabushiSection::getBookId, bookId)
                 .orderByAsc(BizFabushiSection::getParentId).orderByAsc(BizFabushiSection::getSortOrder));
@@ -47,9 +50,9 @@ public class FabushiSectionService {
 
     @Transactional
     public Map<String, Object> create(Long bookId, Map<String, Object> body) {
-        if (bookMapper.selectById(bookId) == null) throw new BusinessException(404, "书目不存在");
+        if (bookMapper.selectById(bookId) == null) throw new BusinessException(404, MSG_BOOK_NOT_FOUND);
         String title = body == null || body.get(LIT_TITLE) == null ? null : String.valueOf(body.get(LIT_TITLE)).trim();
-        if (title == null || title.isEmpty()) throw new BusinessException(400, "章节标题不能为空");
+        if (title == null || title.isEmpty()) throw new BusinessException(400, MSG_TITLE_REQUIRED);
         BizFabushiSection row = new BizFabushiSection();
         row.setBookId(bookId);
         row.setParentId(body.get(LIT_PARENTID) == null ? 0L : Long.valueOf(String.valueOf(body.get(LIT_PARENTID))));
@@ -74,9 +77,9 @@ public class FabushiSectionService {
      */
     @Transactional
     public Map<String, Object> selfCreate(Long bookId, String rawTitle) {
-        if (bookMapper.selectById(bookId) == null) throw new BusinessException(404, "书目不存在");
+        if (bookMapper.selectById(bookId) == null) throw new BusinessException(404, MSG_BOOK_NOT_FOUND);
         String title = rawTitle == null ? null : rawTitle.trim();
-        if (title == null || title.isEmpty()) throw new BusinessException(400, "章节标题不能为空");
+        if (title == null || title.isEmpty()) throw new BusinessException(400, MSG_TITLE_REQUIRED);
         if (title.length() > 100) throw new BusinessException(400, "章节标题不能超过 100 字");
         BizFabushiSection existing = sectionMapper.selectOne(new LambdaQueryWrapper<BizFabushiSection>()
                 .eq(BizFabushiSection::getBookId, bookId)
@@ -99,7 +102,7 @@ public class FabushiSectionService {
         if (row == null || !bookId.equals(row.getBookId())) throw new BusinessException(404, "章节不存在");
         if (body != null && body.get(LIT_TITLE) != null) {
             String title = String.valueOf(body.get(LIT_TITLE)).trim();
-            if (title.isEmpty()) throw new BusinessException(400, "章节标题不能为空");
+            if (title.isEmpty()) throw new BusinessException(400, MSG_TITLE_REQUIRED);
             row.setTitle(title);
         }
         if (body != null && body.get(LIT_SORTORDER) != null) row.setSortOrder(Integer.parseInt(String.valueOf(body.get(LIT_SORTORDER))));

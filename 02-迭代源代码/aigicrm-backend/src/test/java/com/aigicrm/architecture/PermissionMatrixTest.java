@@ -1242,7 +1242,9 @@ public class PermissionMatrixTest {
                         && serviceBody.contains("if (visible != null) ew.in(BizScoreEntry::getUserId, visible)")
                         && serviceBody.contains("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
                         && serviceBody.contains("attachment;filename=")
-                        && serviceBody.contains("EasyExcel.write(response.getOutputStream())"),
+                        // 【S3252 2026-11-23】静态访问改为父类 EasyExcelFactory（EasyExcel 已弃用该用法）。
+                        // 契约本意不变：仍是通过 EasyExcel 写出到响应流。
+                        && serviceBody.contains("EasyExcelFactory.write(response.getOutputStream())"),
                 "ScoreService.exportGrid 必须按数据范围导出、设置 XLSX 响应头并通过 EasyExcel 写出");
     }
 
