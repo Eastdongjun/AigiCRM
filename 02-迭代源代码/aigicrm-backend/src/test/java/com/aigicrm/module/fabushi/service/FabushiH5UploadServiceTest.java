@@ -134,14 +134,14 @@ class FabushiH5UploadServiceTest {
     @Test
     void consume_invalidOrExpired_401() {
         when(provider.validateToken("bad")).thenReturn(false);
-        assertEquals(401, assertThrows(BusinessException.class, () -> svc.consumeUpload("bad", file("a.jpg", 1L))).getCode());
+        assertEquals(401, consumeRejected("bad", file("a.jpg", 1L)).getCode());
     }
 
     @Test
     void consume_wrongScope_403_neverUploads() {
         when(provider.validateToken("dl")).thenReturn(true);
         when(provider.getScopeFromToken("dl")).thenReturn("download");
-        BusinessException ex = assertThrows(BusinessException.class, () -> svc.consumeUpload("dl", file("a.jpg", 1L)));
+        BusinessException ex = consumeRejected("dl", file("a.jpg", 1L));
         assertEquals(403, ex.getCode());
         assertTrue(ex.getMessage().contains("scope"));
         verify(fileService, never()).upload(any(), any(), anyString());
@@ -152,7 +152,7 @@ class FabushiH5UploadServiceTest {
         when(provider.validateToken("s")).thenReturn(true);
         when(provider.getScopeFromToken("s")).thenReturn("upload");
         when(provider.getSceneFromToken("s")).thenReturn("other");
-        assertEquals(403, assertThrows(BusinessException.class, () -> svc.consumeUpload("s", file("a.jpg", 1L))).getCode());
+        assertEquals(403, consumeRejected("s", file("a.jpg", 1L)).getCode());
     }
 
     @Test
@@ -162,12 +162,12 @@ class FabushiH5UploadServiceTest {
         when(provider.getSceneFromToken("t1")).thenReturn("fabushi");
         when(provider.getJtiFromToken("t1")).thenReturn("jti-x");
         when(provider.isBlacklisted("jti-x")).thenReturn(true);
-        assertEquals(401, assertThrows(BusinessException.class, () -> svc.consumeUpload("t1", file("a.jpg", 1L))).getCode());
+        assertEquals(401, consumeRejected("t1", file("a.jpg", 1L)).getCode());
 
         when(provider.isBlacklisted("jti-x")).thenReturn(false);
         when(provider.getParentJtiFromToken("t1")).thenReturn("pjti-x");
         when(provider.isBlacklisted("pjti-x")).thenReturn(true);
-        assertEquals(401, assertThrows(BusinessException.class, () -> svc.consumeUpload("t1", file("a.jpg", 1L))).getCode());
+        assertEquals(401, consumeRejected("t1", file("a.jpg", 1L)).getCode());
     }
 
     // ===== 消费: 分型大小闸 =====
@@ -177,15 +177,15 @@ class FabushiH5UploadServiceTest {
         validTicketStubs("T");
         when(userDetailsService.loadUserByUsername("5")).thenReturn(user());
         assertEquals("图片不能超过10MB",
-                assertThrows(BusinessException.class, () -> svc.consumeUpload("T", file("a.jpg", 10L * 1024 * 1024 + 1))).getMessage());
+                consumeRejected("T", file("a.jpg", 10L * 1024 * 1024 + 1)).getMessage());
         assertEquals("语音不能超过20MB",
-                assertThrows(BusinessException.class, () -> svc.consumeUpload("T", file("a.mp3", 20L * 1024 * 1024 + 1))).getMessage());
+                consumeRejected("T", file("a.mp3", 20L * 1024 * 1024 + 1)).getMessage());
         assertEquals("视频不能超过100MB",
-                assertThrows(BusinessException.class, () -> svc.consumeUpload("T", file("a.mp4", 100L * 1024 * 1024 + 1))).getMessage());
+                consumeRejected("T", file("a.mp4", 100L * 1024 * 1024 + 1)).getMessage());
         assertEquals("PDF不能超过100MB",
-                assertThrows(BusinessException.class, () -> svc.consumeUpload("T", file("a.pdf", 100L * 1024 * 1024 + 1))).getMessage());
+                consumeRejected("T", file("a.pdf", 100L * 1024 * 1024 + 1)).getMessage());
         assertEquals("不支持的文件类型(仅图片/语音/视频/PDF)",
-                assertThrows(BusinessException.class, () -> svc.consumeUpload("T", file("a.exe", 1024))).getMessage());
+                consumeRejected("T", file("a.exe", 1024)).getMessage());
         verify(fileService, never()).upload(any(), any(), anyString());
         verify(userDetailsService, never()).loadUserByUsername(anyString());
     }
@@ -239,5 +239,13 @@ class FabushiH5UploadServiceTest {
         when(fileService.upload(any(), any(), eq("fabushi"))).thenReturn(out);
         svc.consumeUpload("T", file("a.png", 10));
         assertEquals(1L, su.getCurrentGroupId(), "无会话集团 claim → 最小集团兜底(同 JwtAuthFilter 口径)");
+    }
+
+    private BusinessException consumeRejected(String ticket, MultipartFile file) {
+        return assertThrows(BusinessException.class, () -> svc.consumeUpload(ticket, file));
+    }
+
+    private BusinessException consumeFileRejected(String ticket, MultipartFile file, Long folderId, String scope) {
+        return assertThrows(BusinessException.class, () -> svc.consumeFileUpload(ticket, file, folderId, scope));
     }
 }

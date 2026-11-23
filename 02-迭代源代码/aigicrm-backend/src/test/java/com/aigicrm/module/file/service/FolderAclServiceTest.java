@@ -73,9 +73,9 @@ class FolderAclServiceTest {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(USER_ID);
             assertThrows(BusinessException.class, () -> svc.listAcl(FOLDER_ID));
-            assertThrows(BusinessException.class, () -> svc.saveAcl(FOLDER_ID, 3L, List.of(FolderPermissionService.P_VIEW)));
-            assertThrows(BusinessException.class, () -> svc.removeAcl(FOLDER_ID, 3L));
-            assertThrows(BusinessException.class, () -> svc.setDownloadable(FOLDER_ID, 0));
+            saveAclRejected(FOLDER_ID, 3L, List.of(FolderPermissionService.P_VIEW));
+            removeAclRejected(FOLDER_ID, 3L);
+            setDownloadableRejected(FOLDER_ID, 0);
             verify(permissionService, times(4)).check(FOLDER_ID, FolderPermissionService.P_EDIT, USER_ID);
             verifyNoInteractions(aclMapper, folderMapper, roleMapper);
         }
@@ -83,7 +83,7 @@ class FolderAclServiceTest {
 
     @Test
     void nullFolderId_throwsBeforeCheck() {
-        assertThrows(BusinessException.class, () -> svc.saveAcl(null, 3L, List.of(FolderPermissionService.P_VIEW)));
+        saveAclRejected(null, 3L, List.of(FolderPermissionService.P_VIEW));
     }
 
     // ---------- saveAcl：白名单校验 + 插入 ----------
@@ -126,7 +126,7 @@ class FolderAclServiceTest {
         when(permissionService.check(FOLDER_ID, FolderPermissionService.P_EDIT, USER_ID)).thenReturn(true);
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(USER_ID);
-            assertThrows(BusinessException.class, () -> svc.saveAcl(FOLDER_ID, null, List.of(FolderPermissionService.P_VIEW)));
+            saveAclRejected(FOLDER_ID, null, List.of(FolderPermissionService.P_VIEW));
         }
     }
 
@@ -135,8 +135,8 @@ class FolderAclServiceTest {
         when(permissionService.check(FOLDER_ID, FolderPermissionService.P_EDIT, USER_ID)).thenReturn(true);
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(USER_ID);
-            assertThrows(BusinessException.class, () -> svc.saveAcl(FOLDER_ID, 3L, null));
-            assertThrows(BusinessException.class, () -> svc.saveAcl(FOLDER_ID, 3L, List.of()));
+            saveAclRejected(FOLDER_ID, 3L, null);
+            saveAclRejected(FOLDER_ID, 3L, List.of());
             verifyNoInteractions(aclMapper);
         }
     }
@@ -147,9 +147,9 @@ class FolderAclServiceTest {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(USER_ID);
             // 非法权限项（含空串，空串会破坏公共 view 兜底，必须拒绝）
-            assertThrows(BusinessException.class, () -> svc.saveAcl(FOLDER_ID, 3L, List.of("admin")));
-            assertThrows(BusinessException.class, () -> svc.saveAcl(FOLDER_ID, 3L, List.of(FolderPermissionService.P_VIEW, "x")));
-            assertThrows(BusinessException.class, () -> svc.saveAcl(FOLDER_ID, 3L, List.of("")));
+            saveAclRejected(FOLDER_ID, 3L, List.of("admin"));
+            saveAclRejected(FOLDER_ID, 3L, List.of(FolderPermissionService.P_VIEW, "x"));
+            saveAclRejected(FOLDER_ID, 3L, List.of(""));
             verifyNoInteractions(aclMapper);
         }
     }
@@ -186,8 +186,8 @@ class FolderAclServiceTest {
         when(permissionService.check(FOLDER_ID, FolderPermissionService.P_EDIT, USER_ID)).thenReturn(true);
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(USER_ID);
-            assertThrows(BusinessException.class, () -> svc.setDownloadable(FOLDER_ID, 2));
-            assertThrows(BusinessException.class, () -> svc.setDownloadable(FOLDER_ID, null));
+            setDownloadableRejected(FOLDER_ID, 2);
+            setDownloadableRejected(FOLDER_ID, null);
             verifyNoInteractions(folderMapper);
         }
     }
@@ -198,7 +198,7 @@ class FolderAclServiceTest {
         when(folderMapper.selectById(FOLDER_ID)).thenReturn(null);
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(USER_ID);
-            assertThrows(BusinessException.class, () -> svc.setDownloadable(FOLDER_ID, 0));
+            setDownloadableRejected(FOLDER_ID, 0);
         }
     }
 
@@ -285,18 +285,18 @@ class FolderAclServiceTest {
         try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
             m.when(SecurityUtils::getCurrentUserId).thenReturn(USER_ID);
             // body 缺失
-            assertThrows(BusinessException.class, () -> svc.saveAclFromBody(FOLDER_ID, null));
+            saveAclFromBodyRejected(FOLDER_ID, null);
             // roleId 缺失
-            assertThrows(BusinessException.class, () -> svc.saveAclFromBody(FOLDER_ID, Map.of("perms", List.of("view"))));
+            saveAclFromBodyRejected(FOLDER_ID, Map.of("perms", List.of("view")));
             // roleId 非数字
-            assertThrows(BusinessException.class, () -> svc.saveAclFromBody(FOLDER_ID,
-                    Map.<String, Object>of("roleId", "abc", "perms", List.of("view"))));
+            saveAclFromBodyRejected(FOLDER_ID,
+                    Map.<String, Object>of("roleId", "abc", "perms", List.of("view")));
             // perms 缺失
-            assertThrows(BusinessException.class, () -> svc.saveAclFromBody(FOLDER_ID,
-                    Map.<String, Object>of("roleId", 3)));
+            saveAclFromBodyRejected(FOLDER_ID,
+                    Map.<String, Object>of("roleId", 3));
             // perms 非数组
-            assertThrows(BusinessException.class, () -> svc.saveAclFromBody(FOLDER_ID,
-                    Map.<String, Object>of("roleId", 3, "perms", "view")));
+            saveAclFromBodyRejected(FOLDER_ID,
+                    Map.<String, Object>of("roleId", 3, "perms", "view"));
             // 不触碰任何 mapper
             verify(aclMapper, never()).insert(any(BizFolderAcl.class));
             verify(aclMapper, never()).updateById(any(BizFolderAcl.class));
@@ -317,5 +317,21 @@ class FolderAclServiceTest {
             assertEquals("view,upload", cap.getValue().getPerms());
             assertEquals(USER_ID, cap.getValue().getCreatedBy());
         }
+    }
+
+    private BusinessException saveAclRejected(Long folderId, Long roleId, List<String> perms) {
+        return assertThrows(BusinessException.class, () -> svc.saveAcl(folderId, roleId, perms));
+    }
+
+    private BusinessException removeAclRejected(Long folderId, Long roleId) {
+        return assertThrows(BusinessException.class, () -> svc.removeAcl(folderId, roleId));
+    }
+
+    private BusinessException setDownloadableRejected(Long folderId, Integer downloadable) {
+        return assertThrows(BusinessException.class, () -> svc.setDownloadable(folderId, downloadable));
+    }
+
+    private BusinessException saveAclFromBodyRejected(Long folderId, Map<String, Object> body) {
+        return assertThrows(BusinessException.class, () -> svc.saveAclFromBody(folderId, body));
     }
 }
