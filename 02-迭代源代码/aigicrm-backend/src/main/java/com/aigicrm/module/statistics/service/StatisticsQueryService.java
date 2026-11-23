@@ -36,6 +36,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.Map;
 import java.util.Set;
 
@@ -268,11 +269,11 @@ public class StatisticsQueryService {
         Map<String, Object> userStats = userFresh ? userHit.value() : computeDashboardUser(userId);
         if (!dashFresh) {
             // 【防过期风暴】TTL 加 0~50% 随机抖动：同范围条目过期时刻各异，miss 速率平滑
-            long ttl = DASHBOARD_TTL_MS / 2 + (long) (Math.random() * (DASHBOARD_TTL_MS / 2));
+            long ttl = ThreadLocalRandom.current().nextLong(DASHBOARD_TTL_MS / 2, DASHBOARD_TTL_MS);
             dashboardCache.put(scopeKey, new DashboardCacheEntry(shared, System.currentTimeMillis() + ttl));
         }
         if (!userFresh) {
-            long ttl = DASHBOARD_TTL_MS / 2 + (long) (Math.random() * (DASHBOARD_TTL_MS / 2));
+            long ttl = ThreadLocalRandom.current().nextLong(DASHBOARD_TTL_MS / 2, DASHBOARD_TTL_MS);
             userStatsCache.put(userId, new UserStatsCacheEntry(userStats, System.currentTimeMillis() + ttl));
         }
         return mergeDashboard(shared, userStats);

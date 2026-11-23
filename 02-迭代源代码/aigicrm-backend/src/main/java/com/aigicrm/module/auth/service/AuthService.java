@@ -23,7 +23,7 @@ import org.springframework.stereotype.Service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 
 import java.util.*;
-import java.util.concurrent.ThreadLocalRandom;
+import java.security.SecureRandom;
 import java.time.Duration;
 import java.util.stream.Collectors;
 
@@ -31,6 +31,8 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class AuthService {
+
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private static final String RESET_CODE_PREFIX = "pwd_reset:";
     private static final String RESET_RATE_PREFIX = "pwd_reset_rate:";
@@ -379,7 +381,7 @@ public class AuthService {
             return;
         }
 
-        String code = String.format("%06d", ThreadLocalRandom.current().nextInt(1000000));
+        String code = String.format("%06d", SECURE_RANDOM.nextInt(1_000_000));
         String codeKey = RESET_CODE_PREFIX + request.getUsername();
         redisTemplate.opsForValue().set(codeKey, code, Duration.ofSeconds(CODE_TTL_SECONDS));
         redisTemplate.opsForValue().set(rateKey, "1", Duration.ofSeconds(RATE_LIMIT_SECONDS));

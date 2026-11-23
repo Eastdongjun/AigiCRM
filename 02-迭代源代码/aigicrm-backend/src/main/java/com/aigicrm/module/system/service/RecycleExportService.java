@@ -59,6 +59,8 @@ public class RecycleExportService {
     private static final String LIT_DELETED_REASON = "deleted_reason";
     private static final String LIT_DELETED_AT = "deleted_at";
     private static final String LIT_DELETED_BY = "deleted_by";
+    private static final String FILTER_DELETED_FROM = "deletedFrom";
+    private static final String FILTER_DELETED_TO = "deletedTo";
 
 
     private static final Logger log = LoggerFactory.getLogger(RecycleExportService.class);
@@ -290,7 +292,8 @@ public class RecycleExportService {
 
     /** 单类型 CSV 分批写出（UTF-8 BOM；显式 deleted=1；返回行数）。 */
     private long writeTypeCsv(ZipOutputStream zip, String type, Map<String, Object> filter, StringBuilder checksums) throws IOException {
-        String sql = selectSql(type, filter);
+        String sql = selectSql(type) + rangeSql(filter);
+        java.util.List<Object> args = rangeArgs(filter);
         String header = headerOf(type);
         zip.putNextEntry(new ZipEntry("data/" + csvName(type)));
         zip.write(new byte[]{(byte) 0xEF, (byte) 0xBB, (byte) 0xBF}); // UTF-8 BOM 三字节(write(int) 只写低8位)
@@ -298,7 +301,10 @@ public class RecycleExportService {
         long lastId = 0;
         long rows = 0;
         while (true) {
-            List<Map<String, Object>> batch = jdbc.queryForList(sql + " AND id > ? ORDER BY id LIMIT " + BATCH, lastId);
+            java.util.List<Object> queryArgs = new java.util.ArrayList<>(args);
+            queryArgs.add(lastId);
+            List<Map<String, Object>> batch = jdbc.queryForList(
+                    sql + " AND id > ? ORDER BY id LIMIT " + BATCH, queryArgs.toArray());
             if (batch.isEmpty()) break;
             StringBuilder sb = new StringBuilder();
             for (Map<String, Object> r : batch) {
@@ -316,23 +322,31 @@ public class RecycleExportService {
 
     // ==================== 类型元数据（列/行；不导敏感字段） ====================
 
-    private String selectSql(String t, Map<String, Object> filter) {
-        String range = "";
-        if (filter != null && filter.get("deletedFrom") != null) {
-            range = " AND deleted_at >= '" + String.valueOf(filter.get("deletedFrom")).replace("'", "") + "'";
-        }
-        if (filter != null && filter.get("deletedTo") != null) {
-            range += " AND deleted_at <= '" + String.valueOf(filter.get("deletedTo")).replace("'", "") + "'";
-        }
+    private String selectSql(String t) {
         return switch (t) {
-            case LIT_CUSTOMER -> "SELECT id, customer_name, owner_id, dept_id, deleted_at, deleted_by, deleted_reason FROM biz_customer WHERE deleted=1" + range;
-            case "user" -> "SELECT id, username, real_name, dept_id, status, leave_status, deleted_at, deleted_by FROM sys_user WHERE deleted=1" + range;
-            case "file" -> "SELECT id, file_name, file_scope, folder_id, uploader_id, oss_key, deleted_at, deleted_by, deleted_reason FROM biz_file WHERE deleted=1" + range;
-            case "task" -> "SELECT id, title, assignee_id, customer_id, deleted_at, deleted_by, deleted_reason FROM biz_task WHERE deleted=1" + range;
-            case LIT_INCENTIVE -> "SELECT id, user_id, customer_id, category_id, deleted_at, deleted_by, deleted_reason FROM biz_incentive_record WHERE deleted=1" + range;
-            case LIT_REMINDER -> "SELECT id, customer_id, owner_id, reminder_type, deleted_at, deleted_by, deleted_reason FROM biz_reminder WHERE deleted=1" + range;
+            case LIT_CUSTOMER -> "SELECT id, customer_name, owner_id, dept_id, deleted_at, deleted_by, deleted_reason FROM biz_customer WHERE deleted=1";
+            case "user" -> "SELECT id, username, real_name, dept_id, status, leave_status, deleted_at, deleted_by FROM sys_user WHERE deleted=1";
+            case "file" -> "SELECT id, file_name, file_scope, folder_id, uploader_id, oss_key, deleted_at, deleted_by, deleted_reason FROM biz_file WHERE deleted=1";
+            case "task" -> "SELECT id, title, assignee_id, customer_id, deleted_at, deleted_by, deleted_reason FROM biz_task WHERE deleted=1";
+            case LIT_INCENTIVE -> "SELECT id, user_id, customer_id, category_id, deleted_at, deleted_by, deleted_reason FROM biz_incentive_record WHERE deleted=1";
+            case LIT_REMINDER -> "SELECT id, customer_id, owner_id, reminder_type, deleted_at, deleted_by, deleted_reason FROM biz_reminder WHERE deleted=1";
             default -> throw new BusinessException("非法类型");
         };
+    }
+
+    /** 删除时间过滤片段：只拼 ? 占位符，值走 rangeArgs，禁止把输入拼进 SQL。 */
+    private String rangeSql(Map<String, Object> filter) {
+        StringBuilder range = new StringBuilder();
+        if (filter != null && filter.get(FILTER_DELETED_FROM) != null) range.append(" AND deleted_at >= ?");
+        if (filter != null && filter.get(FILTER_DELETED_TO) != null) range.append(" AND deleted_at <= ?");
+        return range.toString();
+    }
+
+    private java.util.List<Object> rangeArgs(Map<String, Object> filter) {
+        java.util.List<Object> args = new java.util.ArrayList<>();
+        if (filter != null && filter.get(FILTER_DELETED_FROM) != null) args.add(filter.get(FILTER_DELETED_FROM));
+        if (filter != null && filter.get(FILTER_DELETED_TO) != null) args.add(filter.get(FILTER_DELETED_TO));
+        return args;
     }
 
     private String headerOf(String t) {
@@ -403,7 +417,8 @@ public class RecycleExportService {
             case LIT_REMINDER -> "biz_reminder";
             default -> throw new BusinessException("非法类型");
         };
-        Long n = jdbc.queryForObject("SELECT COUNT(*) FROM " + tbl + " WHERE deleted=1", Long.class);
+        Long n = jdbc.queryForObject("SELECT COUNT(*) FROM " + tbl + " WHERE deleted=1" + rangeSql(filter),
+                Long.class, rangeArgs(filter).toArray());
         return n == null ? 0 : n;
     }
 

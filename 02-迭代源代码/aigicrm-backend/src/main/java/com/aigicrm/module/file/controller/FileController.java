@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.MediaTypeFactory;
 import org.springframework.http.ResponseEntity;
@@ -316,7 +317,7 @@ public class FileController {
                         .header(HttpHeaders.CONTENT_DISPOSITION, disp + "; filename*=UTF-8''" + encodedFilename)
                         .contentType(mediaType).body(resource);
             }
-            return ResponseEntity.notFound().build();
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         } catch (Exception e) {
             return ResponseEntity.notFound().build();
         }
@@ -373,7 +374,7 @@ public class FileController {
                         .build();
             }
 
-            return ResponseEntity.notFound().build();
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         } catch (Exception e) {
             return ResponseEntity.notFound().build();
         }
