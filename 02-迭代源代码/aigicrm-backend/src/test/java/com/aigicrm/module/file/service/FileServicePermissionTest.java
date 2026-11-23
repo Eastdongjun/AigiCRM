@@ -73,8 +73,9 @@ class FileServicePermissionTest {
     void initForTest() throws Exception {
         // 绕过 @Value 注入：storageType 固定 local（与生产默认一致，使存储走真实本地落盘路径，替换/下载用例可验证文件内容），
         // uploadDir 指向临时目录，避免下载路径 Paths.get(null,...) 依赖异常吞掉的巧合
-        ReflectionTestUtils.setField(svc, "storageType", "local");
-        ReflectionTestUtils.setField(svc, "uploadDir", System.getProperty("java.io.tmpdir"));
+        FileStorageService storage = com.aigicrm.module.file.service.support.FileServiceFixture.storageOf(svc);
+        ReflectionTestUtils.setField(storage, "storageType", "local");
+        ReflectionTestUtils.setField(storage, "uploadDir", System.getProperty("java.io.tmpdir"));
         // 【性能 file-3】缩略图缓存目录隔离到本用例临时目录，避免跨用例/跨次运行串味
         thumbCacheDir = java.nio.file.Files.createTempDirectory("aigicrm-thumb-cache-test-");
         ReflectionTestUtils.setField(svc, "thumbnailCacheDir", thumbCacheDir.toString());
@@ -924,32 +925,32 @@ class FileServicePermissionTest {
     @Test
     void sanitizeFilename_blocksPathTraversal() {
         // Unix 绝对/相对路径 → 只保留文件名
-        assertEquals("passwd", FileService.sanitizeFilename("../../etc/passwd"));
-        assertEquals("passwd", FileService.sanitizeFilename("/etc/passwd"));
+        assertEquals("passwd", FileStorageService.sanitizeFilename("../../etc/passwd"));
+        assertEquals("passwd", FileStorageService.sanitizeFilename("/etc/passwd"));
         // Windows 路径分隔符 → 只保留最后一段
-        assertEquals("x.exe", FileService.sanitizeFilename("C:\\..\\..\\evil\\x.exe"));
+        assertEquals("x.exe", FileStorageService.sanitizeFilename("C:\\..\\..\\evil\\x.exe"));
         // 纯 .. 序列 → 兜底 unnamed
-        assertEquals("unnamed", FileService.sanitizeFilename("../../.."));
+        assertEquals("unnamed", FileStorageService.sanitizeFilename("../../.."));
         // 含 .. 的混合文件名 → 移除 .. 但保留文件名
-        assertEquals("a1b.pdf", FileService.sanitizeFilename("a..1b.pdf"));
+        assertEquals("a1b.pdf", FileStorageService.sanitizeFilename("a..1b.pdf"));
         // 正常文件名不受影响
-        assertEquals("报告.pdf", FileService.sanitizeFilename("报告.pdf"));
+        assertEquals("报告.pdf", FileStorageService.sanitizeFilename("报告.pdf"));
         // null → 兜底
-        assertEquals("unnamed", FileService.sanitizeFilename(null));
+        assertEquals("unnamed", FileStorageService.sanitizeFilename(null));
     }
 
     // ====== 上传类型断言负向(GPT三轮 FILE-P1-008): 无扩展名必须拒绝, 对齐 javadoc 声明 ======
     @org.junit.jupiter.api.Test
     void uploadType_noExtension_rejected() {
         org.junit.jupiter.api.Assertions.assertThrows(com.aigicrm.common.BusinessException.class,
-                () -> FileService.assertAllowedUploadType("unnamed", "application/octet-stream"));
+                () -> FileStorageService.assertAllowedUploadType("unnamed"));
         org.junit.jupiter.api.Assertions.assertThrows(com.aigicrm.common.BusinessException.class,
-                () -> FileService.assertAllowedUploadType("报告", null));
+                () -> FileStorageService.assertAllowedUploadType("报告"));
         // 白名单内正常类型仍放行(不抛)
-        FileService.assertAllowedUploadType("报告.pdf", "application/pdf");
+        FileStorageService.assertAllowedUploadType("报告.pdf");
         // 白名单外有扩展名仍拒绝
         org.junit.jupiter.api.Assertions.assertThrows(com.aigicrm.common.BusinessException.class,
-                () -> FileService.assertAllowedUploadType("evil.exe", "application/x-msdownload"));
+                () -> FileStorageService.assertAllowedUploadType("evil.exe"));
     }
 
     // ====== 缩略图子采样解码回归（2026-08-09 生产 OOM 复盘）======
@@ -1303,7 +1304,8 @@ class FileServicePermissionTest {
     /** 【A7】本组用例隔离的本地存储根(共享 tmpdir 下 private/1 有其它用例产物, 断言目录内容需隔离) */
     private java.nio.file.Path a7IsolatedRoot() throws Exception {
         java.nio.file.Path root = java.nio.file.Files.createTempDirectory("aigicrm-replace-tx-");
-        ReflectionTestUtils.setField(svc, "uploadDir", root.toString());
+        ReflectionTestUtils.setField(com.aigicrm.module.file.service.support.FileServiceFixture.storageOf(svc),
+                "uploadDir", root.toString());
         return root;
     }
 

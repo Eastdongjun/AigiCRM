@@ -1,11 +1,9 @@
 package com.aigicrm.module.file.service;
 
-import com.aliyun.oss.OSS;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.aigicrm.common.BusinessException;
-import com.aigicrm.config.OssConfig;
 import com.aigicrm.module.file.entity.BizFile;
 import com.aigicrm.module.file.entity.BizFileFolder;
 import com.aigicrm.module.file.entity.BizFileVersion;
@@ -39,7 +37,6 @@ import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
-import org.springframework.beans.factory.ObjectProvider;
 
 @Service
 @RequiredArgsConstructor
@@ -51,12 +48,7 @@ public class FileService {
     private static final String LIT_PUBLIC = "public";
     private static final String LIT_PRIVATE = "private";
     private static final String LIT_X = "没有访问权限，请联系管理员授权";
-    private static final String LIT_API_FILE_DOWNLOAD = "/api/file/download/";
     private static final String LIT_X_2 = "文件不存在";
-    private static final String LIT_UNNAMED = "unnamed";
-
-    /** 字节换算单位:1KB=1024B(文件大小格式化用) */
-    private static final long BYTES_PER_KB = 1024L;
 
     /**
      * 【性能 file-3 2026-10-18】激励可见集合缓存 TTL：硬上限 30s。
@@ -88,8 +80,6 @@ public class FileService {
     private final com.aigicrm.module.system.service.SysConfigService configService;
     private final BizIncentiveRecordMapper incentiveRecordMapper;
     private final SysUserMapper userMapper;
-    private final ObjectProvider<OSS> ossClientProvider;
-    private final OssConfig ossConfig;
     private final FolderPermissionService folderPermissionService;
     // 【2026-11-10 拍板③】删除=高敏动作, 全程走审计
     private final com.aigicrm.security.SecurityAuditService securityAudit;
@@ -102,12 +92,8 @@ public class FileService {
     private final FileShareService fileShareService;
     /** S5.3 文件夹写侧独立 bean；本类保留公共委托。 */
     private final FileFolderService fileFolderService;
-
-    @Value("${file.storage-type:local}")
-    private String storageType;
-
-    @Value("${file.upload-dir:./uploads}")
-    private String uploadDir;
+    /** S5.3 字节存储独立 bean；本类保留公共委托。 */
+    private final FileStorageService fileStorageService;
 
     /** 缩略图磁盘缓存目录；留空则使用 java.io.tmpdir/aigicrm-thumb-cache */
     @Value("${file.thumbnail-cache-dir:}")
@@ -123,10 +109,6 @@ public class FileService {
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.aigicrm.module.system.service.RecycleBinService recycleBinService;
 
-    /** 【2026-11-17 阶段三】上传病毒扫描钩子；单测可缺省。 */
-    @org.springframework.beans.factory.annotation.Autowired(required = false)
-    private FileScanService fileScanService;
-
     /** 写缓存次数计数（用于摊销容量巡检，非业务状态） */
     private final java.util.concurrent.atomic.AtomicInteger thumbnailCacheOps = new java.util.concurrent.atomic.AtomicInteger();
 
@@ -139,16 +121,6 @@ public class FileService {
             new java.util.concurrent.ConcurrentHashMap<>();
     /** 可替换的单调时钟（单测控制 TTL）；生产使用 System.nanoTime */
     private volatile java.util.function.LongSupplier incentiveCacheClock = System::nanoTime;
-
-    private boolean isLocal() {
-        return "local".equalsIgnoreCase(storageType);
-    }
-
-    private OSS ossClient() {
-        return ossClientProvider.getIfAvailable(() -> {
-            throw new BusinessException("OSS 存储未配置");
-        });
-    }
 
     public List<BizFileFolder> getFolderTree(String scope, Long userId) {
         LambdaQueryWrapper<BizFileFolder> wrapper = new LambdaQueryWrapper<>();
@@ -445,107 +417,10 @@ public class FileService {
         return page;
     }
 
-    /** scope 白名单 + 无夹公共上传门槛（S3776 拆分，语义与原内联校验一致）。 */
-    private void validateUploadScope(String scope, Long folderId) {
-        // 【安全加固】scope 白名单：允许 public/private/incentive/fabushi，未识别 scope 直接拒绝
-        // （与 pageFiles/getFolderTree 的 scope 白名单对称，防止任意 scope 落盘后绕过查询过滤/占用存储）
-        if (scope == null || !(LIT_PUBLIC.equals(scope) || LIT_PRIVATE.equals(scope) || LIT_INCENTIVE.equals(scope) || LIT_FABUSHI.equals(scope))) {
-            throw new BusinessException(403, "非法的文件范围");
-        }
-        // 【2026-10-27 深度检查修复】无夹 public 上传补管理员门槛: 该路径落盘 public/{userId}/ 且
-        // file_scope=public 后立即进入匿名无鉴权下载通道(/api/file/download/public/**), 与
-        // "根级公共文件夹仅管理员可建"门槛对称——普通用户要发公共资源, 走公共文件夹(ACL 判定)。
-        if (LIT_PUBLIC.equals(scope) && folderId == null
-                && !SecurityUtils.hasAuthority("file:folder:manage")) {
-            throw new BusinessException(403, "公共根目录上传需要 file:folder:manage 权限");
-        }
-    }
-
-    /** 激励/法布施/文件夹上传权限校验（S3776 拆分，语义与原内联校验一致）。 */
-    private void validateUploadPermissions(String scope, Long folderId, Long userId) {
-        // 【T2 2026-11-11 审计整改】激励空间上传=激励计分动作: 与 IncentiveController /records
-        // 同码门槛(incentive:add, 设计 §3.2 上传语义), 防无激励权限者借文件上传端点向激励空间
-        // 无限落盘(此前仅 private 扣配额, incentive 是绕过面, 审计 P1-2)。
-        if (LIT_INCENTIVE.equals(scope) && !SecurityUtils.hasAuthority("incentive:add")) {
-            throw new BusinessException(403, LIT_X);
-        }
-        // 【法布施一期 2026-11-15】法布施空间上传=发布动作: 与 FabushiPostController /posts 同码门槛
-        // (fabushi:create, 需求 G2 独立命名空间裁决——附件不进文件管理列表, 但计个人配额)。
-        // 注意 scope 判定与 hasAuthority 必须拆行: 同行会让命令式码提取把裸 LIT_FABUSHI 串
-        // 混进 binding-coverage 码集, 造成"码未绑定"假红(2026-11-15 实测)。
-        boolean fabushiScope = LIT_FABUSHI.equals(scope);
-        if (fabushiScope && !SecurityUtils.hasAuthority("fabushi:create")) {
-            throw new BusinessException(403, LIT_X);
-        }
-        // 【文件权限体系】上传到文件夹需文件夹上传权限（管理员/本人/上级链/ACL upload）。
-        // 【FILE-FABU-FOLDER-001】法布施系统夹例外: 无 ACL/无属主, 通道门槛已在 FileController.upload
-        // 路由层判定(书籍=fabushi:book:manage; 分享=fabushi:create 上面同码门), 此处不重复走夹级判定。
-        if (folderId != null && !fileFolderService.isFabushiSystemFolder(folderId)
-                && !folderPermissionService.check(folderId, FolderPermissionService.P_UPLOAD, userId)) {
-            throw new BusinessException(403, LIT_X);
-        }
-    }
+    // ====== 上传/字节存储（S5.3 语义已移到 FileStorageService，本类保留公共委托） ======
 
     public BizFile upload(MultipartFile file, Long folderId, String scope) {
-
-        Long userId = SecurityUtils.getCurrentUserId();
-        validateUploadScope(scope, folderId);
-        validateUploadPermissions(scope, folderId, userId);
-
-        // 【P2 2026-10-09 配额并发修复】配额检查与扣减原子化: WHERE used+size<=quota 命中才扣,
-        // 0 行=配额不足——并发上传在 DB 端串行判定, 消除"两请求同过内存检查"的超配额竞态。
-        // 【T2 2026-11-11 审计整改】配额覆盖全部 scope(public/private/incentive): 激励佐证是
-        // 存储大头(生产 2.5k+ 条), 仅 private 扣配额=激励空间无限上传; 存量已由
-        // V2026.11.11.3 一次性回溯对账(全员 10GB 配额, 回溯峰值 943MB, 零超配)。
-        if (userMapper.tryConsumeQuota(userId, file.getSize()) == 0) {
-            SysUser user = userMapper.selectById(userId);
-            throw new BusinessException("存储空间不足，当前已用: " +
-                    formatSize(user != null ? user.getStorageUsed() : 0L) +
-                    "，配额: " + formatSize(user != null ? user.getStorageQuota() : 0L));
-        }
-
-        String uploadedKey = null;
-        try {
-            String originalFilename = file.getOriginalFilename();
-            if (originalFilename == null || originalFilename.isBlank()) {
-                originalFilename = LIT_UNNAMED;
-            }
-            String fileKey = uploadStorage(file, scope, userId);
-            uploadedKey = fileKey;
-            // 【2026-11-17 阶段三】落盘后、台账前扫描；命中/扫描失败即删除新字节并由 catch 归还配额。
-            scanStored(fileKey);
-            String fileUrl;
-            if (isLocal()) {
-                fileUrl = LIT_API_FILE_DOWNLOAD + fileKey;
-            } else {
-                fileUrl = LIT_HTTPS + ossConfig.getBucketName() + "." + ossConfig.getEndpoint() + "/" + fileKey;
-            }
-
-            BizFile bizFile = new BizFile();
-            bizFile.setFolderId(folderId);
-            // 【2026-11-10 终版】归属组织快照(上传人当时组织节点, 转岗不漂移)
-            SysUser uploader = userMapper.selectById(userId);
-            bizFile.setOrgId(uploader != null ? java.util.Objects.requireNonNullElse(uploader.getOfficeId(), uploader.getDeptId()) : null);
-            bizFile.setFileName(originalFilename);
-            bizFile.setFileSize(file.getSize());
-            int dotIdx = originalFilename.lastIndexOf('.');
-            String fileType = dotIdx > 0 ? originalFilename.substring(dotIdx + 1).toUpperCase() : "";
-            bizFile.setFileType(fileType);
-            bizFile.setOssKey(fileKey);
-            bizFile.setOssUrl(fileUrl);
-            bizFile.setFileScope(scope);
-            bizFile.setUploaderId(userId);
-            fileMapper.insert(bizFile);
-
-            return bizFile;
-        } catch (Exception e) {
-            // 【2026-11-17 阶段三】扫描/入库失败时清理已落盘新字节，避免病毒样本/孤儿文件留存。
-            if (uploadedKey != null) deleteStorage(uploadedKey);
-            // 【P2 2026-10-09】扣减成功后存储/入库失败 → 补偿归还(GREATEST 守护)
-            // 【T2 2026-11-11】全 scope 扣减 → 补偿归还同步去 scope 条件
-            userMapper.adjustStorageUsed(userId, -file.getSize());
-            throw new BusinessException("文件上传失败: " + e.getMessage());
-        }
+        return fileStorageService.upload(file, folderId, scope);
     }
 
     /** 【2026-11-17 阶段三】分片上传完成回读/回填 md5。 */
@@ -709,8 +584,8 @@ public class FileService {
 
     /** 改名保格式: 剥掉输入自带的后缀, 拼回原名扩展名——复用本类既有 extOf(:1231, 返回无点小写/null) */
     private static String keepOriginalExtension(String input, String originalName) {
-        String originalExt = extOf(originalName); // null=原名无扩展名
-        String inputExt = extOf(input);
+        String originalExt = FileNames.extOf(originalName); // null=原名无扩展名
+        String inputExt = FileNames.extOf(input);
         String main = input;
         if (inputExt != null) {
             // 输入带了后缀(与原一致或想换格式): 一律剥掉, 稍后统一拼回原扩展名
@@ -754,8 +629,8 @@ public class FileService {
             // 先存新文件（沿用原文件的 scope/uploaderId 目录，保证 key 下载路由语义一致）
             // 【GPT三轮 FILE-P1-008】无扩展名拒绝后, replace 的 null 文件名场景改用旧文件扩展兜底
             // (类型继承自已过白名单的旧文件, 治理语义不破), 保持 M-2② 的 ossUrl 更新行为可测
-            newKey = uploadStorage(newFile, scope, file.getUploaderId(), extOf(file.getFileName()));
-            scanStored(newKey);
+            newKey = fileStorageService.uploadStorage(newFile, scope, file.getUploaderId(), FileNames.extOf(file.getFileName()));
+            fileStorageService.scanStored(newKey);
             String oldKey = file.getOssKey();
             long oldSize = file.getFileSize() != null ? file.getFileSize() : 0L;
             // 【V2026.11.14.1 版本历史】主行覆盖前先快照旧版本(旧 key/type/size/version):
@@ -765,17 +640,14 @@ public class FileService {
             archived.setFileId(fileId);
             archived.setVersionNo(file.getVersion() == null ? 1 : file.getVersion());
             archived.setOssKey(oldKey);
-            archived.setOssUrl(isLocal() ? LIT_API_FILE_DOWNLOAD + oldKey
-                    : LIT_HTTPS + ossConfig.getBucketName() + "." + ossConfig.getEndpoint() + "/" + oldKey);
+            archived.setOssUrl(fileStorageService.fileUrl(oldKey));
             archived.setFileSize(oldSize);
             archived.setFileType(file.getFileType());
             archived.setFileName(file.getFileName());
             archived.setUploadedBy(userId);
             fileVersionMapper.insert(archived);
             // ossUrl 与 upload 的 URL 方案一致：本地走 key 下载路由，OSS 走桶地址（保证替换后两种模式均可下载）
-            String newOssUrl = isLocal()
-                    ? LIT_API_FILE_DOWNLOAD + newKey
-                    : LIT_HTTPS + ossConfig.getBucketName() + "." + ossConfig.getEndpoint() + "/" + newKey;
+            String newOssUrl = fileStorageService.fileUrl(newKey);
             file.setOssKey(newKey);
             // 【安全修复】ossUrl 无条件更新为新 key 的 URL：旧对象已随 deleteStorage 删除，
             // 保留旧 URL 会指向已删除文件（M-2②：originalFilename==null 时同样更新）
@@ -835,7 +707,7 @@ public class FileService {
     private void cleanupOrphanMedia(String newKey) {
         if (newKey == null || newKey.isEmpty()) return;
         try {
-            deleteStorage(newKey);
+            fileStorageService.deleteStorage(newKey);
         } catch (Exception e) {
             log.warn("替换失败后的新媒体清理异常 fileKey={}", newKey, e);
         }
@@ -861,143 +733,23 @@ public class FileService {
         return false;
     }
 
-    /**
-     * 实际存储写入（从 upload 抽出复用）：本地落盘回读校验 / OSS putObject。
-     * 返回存储 key（scope/userId 目录 + 唯一文件名），供 upload 与 replaceFile 共用，行为与原先一致。
-     */
-    private String uploadStorage(MultipartFile file, String scope, Long userId) throws Exception {
-        return uploadStorage(file, scope, userId, null);
-    }
-
-    /** 本地存储路径扫描；OSS 模式暂无本地字节，扫描器在下载/转存链路上补（部署期配置）。 */
-    private void scanStored(String key) {
-        if (fileScanService == null || key == null) return;
-        fileScanService.scan(Paths.get(uploadDir, key));
-    }
-
-    /**
-     * @param fallbackExt 替换场景的旧文件扩展兜底: 客户端未提供文件名(消毒后无扩展名)时,
-     *                    继承旧文件扩展再过白名单——避免"必须带文件名"破坏既有替换链路
-     */
-    private String uploadStorage(MultipartFile file, String scope, Long userId, String fallbackExt) throws Exception {
-        // 【安全 2026-08-08 上传路径穿越】originalFilename 可能含 ../ 或路径分隔符，消毒后再拼落盘路径
-        String originalFilename = sanitizeFilename(file.getOriginalFilename());
-        // 【PR-01 N-09 2026-09-18】上传文件类型白名单：仅允许办公文档/图片/音视频/压缩包/文本。
-        // 阻断可执行脚本与 HTML/SVG（未来某路径改 inline 即 XSS/恶意分发）。未知类型 400 拒绝。
-        if (fallbackExt != null && !fallbackExt.isBlank() && originalFilename.lastIndexOf('.') < 0) {
-            originalFilename = originalFilename + "." + fallbackExt;
-        }
-        assertAllowedUploadType(originalFilename, file.getContentType());
-        // 【U1 2026-11-17】.pdf 扩展名须含 %PDF- 魔数(前 1024 字节内, PDF 规范 7.5.1)——
-        // 挡"任意内容改名 .pdf"的内容伪装(T5f 实测: 纯文本 fake.pdf 可上传挂载致阅读器打不开)
-        if ("pdf".equals(extOf(originalFilename))) {
-            assertPdfMagic(file);
-        }
-        String dir = scope + "/" + userId;
-        String fileKey = dir + "/" + resolveUniqueFilename(dir, originalFilename);
-        if (isLocal()) {
-            // 本地存储
-            Path filePath = Paths.get(uploadDir, fileKey);
-            Files.createDirectories(filePath.getParent());
-            Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
-            // 【需求】落盘校验:防止"数据库有记录但磁盘无文件"的静默失败(FEAT-20260804-FILE-INTEGRITY)
-            // 【方法】写盘后回读文件大小,与上传大小不一致说明写盘异常,删除已写文件并报错
-            if (Files.size(filePath) != file.getSize()) {
-                Files.deleteIfExists(filePath);
-                throw new BusinessException("文件写入校验失败,请重试");
-            }
-        } else {
-            // OSS 存储
-            InputStream inputStream = file.getInputStream();
-            ossClient().putObject(ossConfig.getBucketName(), fileKey, inputStream);
-        }
-        return fileKey;
-    }
-
-    /**
-     * 物理删除存储中的文件（从 deleteFile 抽出复用）：本地 deleteIfExists / OSS deleteObject，
-     * 异常吞掉与 deleteFile 原行为一致；null/空 key 直接跳过。
-     */
-    private void deleteStorage(String fileKey) {
-        if (fileKey == null || fileKey.isEmpty()) return;
-        try {
-            if (isLocal()) {
-                Path filePath = Paths.get(uploadDir, fileKey);
-                Files.deleteIfExists(filePath);
-            } else {
-                ossClient().deleteObject(ossConfig.getBucketName(), fileKey);
-            }
-        } catch (Exception e) {
-            // 尽力而为:删除失败不回滚主流程(文件元数据已删)。
-            // 当前无自动清理任务(2026-09-22 GPT外审确认): 物理残留需按 OSS 生命周期策略/人工核对处置,
-            // 在此 log.warn 留痕;引入 FileDeletionOutbox 台账列产品批次
-            log.warn("物理存储删除失败 fileKey={}, 元数据已删, 残留待处置(无自动清理任务)", fileKey, e);
-            }
-    }
+    // ====== 字节存储（S5.3 语义已移到 FileStorageService，本类保留公共委托） ======
 
     public Path getLocalFilePath(String fileKey) {
-        return Paths.get(uploadDir, fileKey);
+        return fileStorageService.getLocalFilePath(fileKey);
     }
 
-    /**
-     * 【文件回收站 2026-10-18】物理清除存储内容。
-     * 仅供回收站保留期到期/管理员手动清空调用; deleteFile 本身不再物理删除(先进回收站)。
-     * 尽力而为: 清除失败不回滚台账删除, 残留由日志留痕(与既有 deleteStorage 语义一致)。
-     */
     public void deleteStoredContent(String fileKey) {
-        deleteStorage(fileKey);
+        fileStorageService.deleteStoredContent(fileKey);
     }
 
-    /**
-     * 【回收站 2026-10-18】把存储内容写回响应(仅供回收站详情下载, 已按权限校验)。
-     * 本地直接读盘; OSS 走 getObject 流式写出。失败置 500, 不抛异常穿透响应。
-     */
     public void writeStoredContent(String fileKey, String fileName, String contentType,
                                    jakarta.servlet.http.HttpServletResponse response) {
-        try {
-            response.setContentType(contentType != null && !contentType.isBlank()
-                    ? contentType : "application/octet-stream");
-            String name = fileName != null && !fileName.isBlank() ? fileName : "file";
-            String encoded = java.net.URLEncoder.encode(name, java.nio.charset.StandardCharsets.UTF_8)
-                    .replace("+", "%20");
-            response.setHeader("Content-Disposition", "attachment; filename*=UTF-8''" + encoded);
-            if (isLocal()) {
-                Path path = Paths.get(uploadDir, fileKey);
-                if (!Files.exists(path)) {
-                    response.setStatus(404);
-                    return;
-                }
-                response.setContentLengthLong(Files.size(path));
-                Files.copy(path, response.getOutputStream());
-            } else {
-                com.aliyun.oss.model.OSSObject obj =
-                        ossClient().getObject(ossConfig.getBucketName(), fileKey);
-                try (java.io.InputStream in = obj.getObjectContent()) {
-                    in.transferTo(response.getOutputStream());
-                } finally {
-                    obj.close();
-                }
-            }
-        } catch (Exception e) {
-            log.warn("回收站文件内容写出失败 fileKey={}: {}", fileKey, e.getMessage());
-            response.setStatus(500);
-        }
+        fileStorageService.writeStoredContent(fileKey, fileName, contentType, response);
     }
 
-    /** 存储对象字节写出到任意流(版本 zip 打包通道; 本地 Files.copy / OSS 流拷贝) */
-    private void writeStoredContentTo(String fileKey, java.io.OutputStream out) throws java.io.IOException {
-        if (isLocal()) {
-            Path path = Paths.get(uploadDir, fileKey);
-            if (!Files.exists(path)) throw new java.io.FileNotFoundException(fileKey);
-            Files.copy(path, out);
-        } else {
-            com.aliyun.oss.model.OSSObject obj = ossClient().getObject(ossConfig.getBucketName(), fileKey);
-            try (java.io.InputStream in = obj.getObjectContent()) {
-                in.transferTo(out);
-            } finally {
-                obj.close();
-            }
-        }
+    void writeStoredContentTo(String fileKey, java.io.OutputStream out) throws java.io.IOException {
+        fileStorageService.writeStoredContentTo(fileKey, out);
     }
 
     // ==================== 【V2026.11.14.1 版本历史】(用户拍板 2026-11-14) ====================
@@ -1229,12 +981,8 @@ public class FileService {
      * fail-closed: 检查异常一律按不可恢复处理。
      */
     public boolean contentExists(String fileKey) {
-        if (fileKey == null || fileKey.isBlank()) return false;
         try {
-            if (isLocal()) {
-                return Files.exists(Paths.get(uploadDir, fileKey));
-            }
-            return ossClient().doesObjectExist(ossConfig.getBucketName(), fileKey);
+            return fileStorageService.contentExists(fileKey);
         } catch (Exception e) {
             log.warn("文件内容存在性检查失败 fileKey={}", fileKey, e);
             return false;
@@ -1286,7 +1034,7 @@ public class FileService {
         if (!name.matches(".*\\.(mp4|webm|mov|avi|mkv|m4v)$")) { response.setStatus(415); return null; }
         if (!videoPreviewEnabled) { response.setStatus(503); return null; }
         if (file.getOssKey() == null) { response.setStatus(404); return null; }
-        Path source = Paths.get(uploadDir, file.getOssKey());
+        Path source = fileStorageService.getLocalFilePath(file.getOssKey());
         if (Files.isRegularFile(source)) return source;
         if (file.getOssUrl() != null && file.getOssUrl().startsWith(LIT_HTTPS)) {
             response.setStatus(302);
@@ -1334,7 +1082,7 @@ public class FileService {
             return;
         }
         try {
-            Path filePath = Paths.get(uploadDir, file.getOssKey());
+            Path filePath = fileStorageService.getLocalFilePath(file.getOssKey());
             // 【缩略图 2026-08-09】列表预览场景：图片返回 ≤300px 缩略图，避免激励查询等页首屏全尺寸下载
             // 【性能 file-3 2026-10-18】授权（上方 canDownloadFile）每次请求都先执行；命中字节缓存后不再读原图
             // 非图片/读取失败 → 回退完整下载
@@ -1773,8 +1521,8 @@ public class FileService {
         if (user != null) {
             info.put("used", user.getStorageUsed());
             info.put("quota", user.getStorageQuota());
-            info.put("usedFormatted", formatSize(user.getStorageUsed()));
-            info.put("quotaFormatted", formatSize(user.getStorageQuota()));
+            info.put("usedFormatted", FileNames.formatSize(user.getStorageUsed()));
+            info.put("quotaFormatted", FileNames.formatSize(user.getStorageQuota()));
         }
         return info;
     }
@@ -1816,122 +1564,6 @@ public class FileService {
                 .filter(f -> Objects.equals(f.getParentId(), parentId))
                 .peek(f -> f.setChildren(buildFolderTree(folders, f.getId())))
                 .collect(Collectors.toList());
-    }
-
-    /**
-     * 【安全 2026-08-08 上传路径穿越】文件名消毒：只保留最后一段文件名，去掉路径分隔符(/ \)、
-     * .. 序列与控制字符，防止 originalFilename 含 ../../ 时写出 uploadDir 之外。
-     * 与下载路径的 normalize+前缀校验（FileController）同等级防护。
-     */
-    static String sanitizeFilename(String filename) {
-        if (filename == null) return LIT_UNNAMED;
-        String safe = filename.replace('\\', '/');
-        int slash = safe.lastIndexOf('/');
-        if (slash >= 0) safe = safe.substring(slash + 1); // 只取最后一段，忽略一切目录
-        safe = safe.replace("..", "");                     // 移除 .. 序列
-        safe = safe.replaceAll("[\\x00-\\x1f]", "");       // 移除控制字符
-        return safe.isBlank() ? LIT_UNNAMED : safe;
-    }
-
-    /**
-     * 【PR-01 N-09 2026-09-18】上传文件类型白名单（扩展名判定为主，MIME 仅作参考不单独信任）。
-     * 允许：办公文档/表格/演示/文本/图片/音视频/压缩包；拒绝：可执行脚本(js/jar/sh/exe/bat/
-     * ps1/py 等)与可在浏览器直接执行的 html/htm/svg/xml/xhtml。
-     * 无扩展名文件默认拒绝（历史LIT_UNNAMED兜底不再放行未知类型）。
-     */
-    static final Set<String> ALLOWED_UPLOAD_EXTS = Set.of(
-            "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "csv", "md",
-            "jpg", "jpeg", "png", "gif", "bmp", "webp", "heic",
-            "mp3", "wav", "m4a", "mp4", "mov", "avi", "mkv",
-            "zip", "rar", "7z", "tar", "gz");
-
-    /** 取文件名扩展(无扩展名返回 null); 供替换场景兜底继承 */
-    private static String extOf(String filename) {
-        if (filename == null) return null;
-        int dot = filename.lastIndexOf('.');
-        if (dot < 0 || dot == filename.length() - 1) return null;
-        return filename.substring(dot + 1).toLowerCase(java.util.Locale.ROOT);
-    }
-
-    static void assertAllowedUploadType(String sanitizedFilename, String contentType) {
-        String ext = "";
-        boolean hasExt = false;
-        int dot = sanitizedFilename == null ? -1 : sanitizedFilename.lastIndexOf('.');
-        if (dot >= 0 && dot < sanitizedFilename.length() - 1) {
-            hasExt = true;
-            ext = sanitizedFilename.substring(dot + 1).toLowerCase(java.util.Locale.ROOT);
-        }
-        // 【GPT三轮 FILE-P1-008 2026-09-22】无扩展名文件拒绝——对齐上方 javadoc 声明与白名单哲学:
-        // 白名单体系下"未知类型"不默认放行; 旧代码此处 return 放行与注释相反(FILE-P2-004 挂账清偿)。
-        // 前端/小程序无 unnamed 兜底依赖(仅 sanitizeFilename 对穿越序列的消毒产物, 该产物在类型层拒绝属预期)
-        if (!hasExt) {
-            throw new BusinessException(400, "不支持的文件类型: 缺少扩展名");
-        }
-        if (!ALLOWED_UPLOAD_EXTS.contains(ext)) {
-            throw new BusinessException(400, "不支持的文件类型");
-        }
-    }
-
-    /**
-     * 【U1 2026-11-17】pdf 内容魔数校验：前 1024 字节内须含 "%PDF-"（PDF 规范 7.5.1 允许头
-     * 位于文件起始处，部分工具会前置少量字节；1024 字节窗口与主流解析器一致）。
-     * 只依赖内容不信任扩展名——任何真 PDF 100% 有此头，误拒风险为零。
-     * 调用点：uploadStorage（.pdf 扩展名上传时），MultipartFile#getInputStream 可重复获取新流，
-     * 此处读头不影响后续落盘/OSS 写入。
-     */
-    static void assertPdfMagic(MultipartFile file) {
-        byte[] head;
-        try (java.io.InputStream in = file.getInputStream()) {
-            head = in.readNBytes(1024);
-        } catch (java.io.IOException e) {
-            throw new BusinessException(400, "PDF 文件读取失败, 请重试");
-        }
-        for (int i = 0; i + 5 <= head.length; i++) {
-            if (head[i] == '%' && head[i + 1] == 'P' && head[i + 2] == 'D'
-                    && head[i + 3] == 'F' && head[i + 4] == '-') {
-                return;
-            }
-        }
-        throw new BusinessException(400, "PDF 文件内容校验失败(缺少 %PDF- 标识), 请确认文件是真实的 PDF");
-    }
-
-    /**
-     * 保留原文件名，重名时加后缀：报告.pdf → 报告(1).pdf → 报告(2).pdf
-     */
-    private String resolveUniqueFilename(String dir, String filename) {
-        String baseName;
-        String ext;
-        int dotIdx = filename.lastIndexOf('.');
-        if (dotIdx > 0) {
-            baseName = filename.substring(0, dotIdx);
-            ext = filename.substring(dotIdx);
-        } else {
-            baseName = filename;
-            ext = "";
-        }
-
-        String candidate = filename;
-        int seq = 1;
-        while (fileExists(dir, candidate)) {
-            candidate = baseName + "(" + seq + ")" + ext;
-            seq++;
-        }
-        return candidate;
-    }
-
-    private boolean fileExists(String dir, String filename) {
-        if (isLocal()) {
-            return Files.exists(Paths.get(uploadDir, dir, filename));
-        } else {
-            return ossClient().doesObjectExist(ossConfig.getBucketName(), dir + "/" + filename);
-        }
-    }
-
-    private String formatSize(long bytes) {
-        if (bytes < BYTES_PER_KB) return bytes + "B";
-        if (bytes < 1024 * 1024) return String.format("%.1fKB", bytes / 1024.0);
-        if (bytes < 1024 * 1024 * 1024) return String.format("%.1fMB", bytes / (1024.0 * 1024));
-        return String.format("%.1fGB", bytes / (1024.0 * 1024 * 1024));
     }
 
     /** 文件访问权限校验：上传者 / 被分享者 / 管理员 / 公共文件（/download/{id} 与 /download/{key} 同权） */

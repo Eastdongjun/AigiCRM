@@ -8,6 +8,7 @@ import com.aigicrm.module.file.mapper.BizFileVersionMapper;
 import com.aigicrm.module.file.service.FileFolderService;
 import com.aigicrm.module.file.service.FileService;
 import com.aigicrm.module.file.service.FileShareService;
+import com.aigicrm.module.file.service.FileStorageService;
 import com.aigicrm.module.file.service.FolderPermissionService;
 import com.aigicrm.module.incentive.mapper.BizIncentiveRecordMapper;
 import com.aigicrm.module.incentive.service.IncentiveService;
@@ -44,8 +45,16 @@ public final class FileServiceFixture {
                 folderPermissionService, jdbc);
         FileFolderService fileFolderService = new FileFolderService(folderMapper, fileMapper, userMapper,
                 folderPermissionService);
+        FileStorageService fileStorageService = new FileStorageService(fileMapper, userMapper,
+                folderPermissionService, fileFolderService, ossClientProvider, ossConfig, null);
         return new FileService(fileMapper, folderMapper, fileShareMapper, fileVersionMapper, configService,
-                incentiveRecordMapper, userMapper, ossClientProvider, ossConfig, folderPermissionService,
-                securityAudit, jdbc, incentiveService, fileShareService, fileFolderService);
+                incentiveRecordMapper, userMapper, folderPermissionService, securityAudit, jdbc, incentiveService,
+                fileShareService, fileFolderService, fileStorageService);
+    }
+
+    /** 测试需要改 storageType/uploadDir 等 @Value 字段时，拿到真实的存储 bean。 */
+    public static FileStorageService storageOf(FileService service) {
+        return (FileStorageService) org.springframework.test.util.ReflectionTestUtils
+                .getField(service, "fileStorageService");
     }
 }

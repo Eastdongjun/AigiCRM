@@ -4,7 +4,7 @@ import com.aigicrm.common.BusinessException;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockMultipartFile;
 
-import static com.aigicrm.module.file.service.FileService.assertPdfMagic;
+import static com.aigicrm.module.file.service.FileStorageService.assertPdfMagic;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**

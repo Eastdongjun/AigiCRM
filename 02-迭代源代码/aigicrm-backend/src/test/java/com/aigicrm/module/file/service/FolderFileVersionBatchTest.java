@@ -89,8 +89,10 @@ class FolderFileVersionBatchTest {
                 mock(com.aigicrm.security.SecurityAuditService.class),
                 jdbc,
                 mock(com.aigicrm.module.incentive.service.IncentiveService.class));
-        org.springframework.test.util.ReflectionTestUtils.setField(svc, "storageType", "local");
-        org.springframework.test.util.ReflectionTestUtils.setField(svc, "uploadDir", root.toString());
+        com.aigicrm.module.file.service.FileStorageService storage =
+                com.aigicrm.module.file.service.support.FileServiceFixture.storageOf(svc);
+        org.springframework.test.util.ReflectionTestUtils.setField(storage, "storageType", "local");
+        org.springframework.test.util.ReflectionTestUtils.setField(storage, "uploadDir", root.toString());
         when(incentiveRecordMapper.selectList(any())).thenReturn(List.of()); // 非激励佐证
         batchDeleteService = new FileBatchDeleteService(svc, fileMapper);
     }

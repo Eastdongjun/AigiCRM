@@ -585,8 +585,17 @@ public class PermissionMatrixTest {
         } catch (IOException e) {
             throw new IllegalStateException("读取 FileService 源码失败", e);
         }
-        assertTrue(body.contains("folderPermissionService.check(folderId, FolderPermissionService.P_UPLOAD"),
-                "FileService.upload 必须保留文件夹 P_UPLOAD 权限守卫");
+        Path storageSrc = Paths.get("src/main/java/com/aigicrm/module/file/service/FileStorageService.java")
+                .toAbsolutePath().normalize();
+        assertTrue(Files.exists(storageSrc), "FileStorageService 源文件不存在: " + storageSrc);
+        String storageBody;
+        try {
+            storageBody = SourceNormalizer.read(storageSrc);
+        } catch (IOException e) {
+            throw new IllegalStateException("读取 FileStorageService 源码失败", e);
+        }
+        assertTrue(storageBody.contains("folderPermissionService.check(folderId, FolderPermissionService.P_UPLOAD"),
+                "FileStorageService.upload 必须保留文件夹 P_UPLOAD 权限守卫");
         Path folderSrc = Paths.get("src/main/java/com/aigicrm/module/file/service/FileFolderService.java")
                 .toAbsolutePath().normalize();
         assertTrue(Files.exists(folderSrc), "FileFolderService 源文件不存在: " + folderSrc);
