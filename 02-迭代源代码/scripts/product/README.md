@@ -68,6 +68,14 @@ bash scripts/product/install.sh --project aigicrm-b1-test --down
 > 业务演示数据导入未做；S6.3 仅 industry 字典可选/新增；S6.4 监控未开始。
 > 因此 B1 整体仍未验收。
 
+## 离线回归
+
+```bash
+bash scripts/product/test-install.sh
+```
+
+覆盖：脚本语法、preflight 合法/非法 env、install dry-run；不启动容器。
+
 ## 安全边界
 
 - 不读取 `.env` 的值到输出；只做键存在/长度/布尔判断。
