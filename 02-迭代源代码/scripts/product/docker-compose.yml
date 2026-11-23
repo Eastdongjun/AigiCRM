@@ -75,6 +75,29 @@ services:
       backend:
         condition: service_started
 
+  node-exporter:
+    image: prom/node-exporter:v1.8.2
+    profiles: ["monitoring"]
+    restart: unless-stopped
+    command:
+      - --collector.textfile.directory=/var/lib/node_exporter/textfile
+    ports:
+      - "127.0.0.1:${NODE_EXPORTER_PORT:-19100}:9100"
+    volumes:
+      - ${MONITORING_DIR:?MONITORING_DIR 未设置}/textfile:/var/lib/node_exporter/textfile:ro
+
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    profiles: ["monitoring"]
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${PROMETHEUS_PORT:-19090}:9090"
+    volumes:
+      - ../../scripts/product/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ../../scripts/product/monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
+    depends_on:
+      - node-exporter
+
 volumes:
   mysql-data:
   redis-data:

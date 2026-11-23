@@ -11,7 +11,7 @@
 | S6.1c 前端接入（构建/nginx/代理登录） | **已完成**：同一条 `--apply`，实测通过 |
 | S6.2 首启向导（企业/行业/完成） | **最小闭环已完成**：首登强制改密 + `/onboarding` 向导；演示客户用 `--seed-demo` 显式导入（不在向导内） |
 | S6.3 行业词表配置化 | **最小完成**：默认 10 项 industry 字典已入库；管理员可在字典管理维护；其他行业文案未全面清理 |
-| S6.4 监控接线 | **部分完成**：`monitoring/probe.sh` + textfile 指标 + 告警规则；外部 Prometheus/Grafana 未部署 |
+| S6.4 监控接线 | **最小完成**：`--monitoring` 启动 node-exporter + Prometheus（含 3 条告警规则）；Grafana/Alertmanager 未接 |
 
 ## preflight.sh
 
@@ -51,6 +51,9 @@ bash scripts/product/install.sh --apply --no-frontend ...
 
 # 额外导入 3 条演示客户（仅空库/无同名 DEMO 客户；可重复执行）
 bash scripts/product/install.sh --apply --seed-demo ...
+
+# 可选监控：node-exporter + Prometheus + 首次探针（含告警规则）
+bash scripts/product/install.sh --apply --monitoring ...
 
 # 停止（保留数据卷）
 bash scripts/product/install.sh --project aigicrm-b1-test --down

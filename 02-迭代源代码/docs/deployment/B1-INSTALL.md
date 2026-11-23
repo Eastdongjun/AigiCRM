@@ -29,7 +29,8 @@ bash scripts/product/install.sh --apply --no-frontend ...
 
 安装器顺序：预检 → 拉/建镜像 → MySQL/Redis → Flyway（164 迁移）→
 组织/admin 种子（`pwd_reset_required=1`）→ backend → health → 前端构建/nginx →
-经 `/api` 代理登录冒烟。失败 `down` 保留数据卷；`--down` 停止容器。
+经 `/api` 代理登录冒烟。可选 `--monitoring` 启动 node-exporter + Prometheus
+（含告警规则）并验证抓到 `aigicrm_api_up=1`。失败 `down` 保留数据卷；`--down` 停止容器。
 
 ## 3. 首启
 

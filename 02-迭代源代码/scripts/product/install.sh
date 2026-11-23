@@ -14,6 +14,9 @@ MYSQL_PORT=13306
 REDIS_PORT=16379
 FRONTEND=1
 SEED_DEMO=0
+MONITORING=0
+NODE_EXPORTER_PORT=19100
+PROMETHEUS_PORT=19090
 APPLY=0
 DRY_ONLY=0
 DOWN=0
@@ -39,6 +42,7 @@ usage() {
   --web-port N        前端宿主机端口（默认 18082）
   --no-frontend       只装后端 API（跳过前端构建/冒烟）
   --seed-demo         导入 3 条演示客户（仅空库/无同名演示客户时）
+  --monitoring        启动 node-exporter + Prometheus（可选 S6.4）
   --mysql-port N      MySQL 宿主机端口（默认 13306）
   --redis-port N      Redis 宿主机端口（默认 16379）
   --jar PATH          后端 jar 路径（默认 target/aigicrm-backend-1.0.0.jar）
@@ -58,6 +62,7 @@ while [ $# -gt 0 ]; do
     --web-port) [ $# -ge 2 ] || { echo "--web-port 缺值" >&2; exit 2; }; WEB_PORT="$2"; shift 2 ;;
     --no-frontend) FRONTEND=0; shift ;;
     --seed-demo) SEED_DEMO=1; shift ;;
+    --monitoring) MONITORING=1; shift ;;
     --mysql-port) [ $# -ge 2 ] || { echo "--mysql-port 缺值" >&2; exit 2; }; MYSQL_PORT="$2"; shift 2 ;;
     --redis-port) [ $# -ge 2 ] || { echo "--redis-port 缺值" >&2; exit 2; }; REDIS_PORT="$2"; shift 2 ;;
     --jar) [ $# -ge 2 ] || { echo "--jar 缺路径" >&2; exit 2; }; JAR_PATH="$2"; shift 2 ;;
@@ -69,10 +74,11 @@ while [ $# -gt 0 ]; do
 done
 
 RUNTIME_DIR="$RUNTIME_ROOT/$PROJECT"
+MONITORING_DIR="$RUNTIME_DIR/monitoring"
 if [ -z "$ENV_FILE" ]; then
   ENV_FILE="$RUNTIME_DIR/.env"
 fi
-export RUNTIME_DIR JAR_PATH HTTP_PORT WEB_PORT MYSQL_PORT REDIS_PORT
+export RUNTIME_DIR MONITORING_DIR JAR_PATH HTTP_PORT WEB_PORT MYSQL_PORT REDIS_PORT NODE_EXPORTER_PORT PROMETHEUS_PORT
 
 dc() {
   docker compose -p "$PROJECT" -f "$COMPOSE" --env-file "$ENV_FILE" "$@"
@@ -105,10 +111,7 @@ JWT_SECRET=$jwt
 TENANT_ENABLE=true
 ADMIN_USER=admin
 ADMIN_PASSWORD=$admin_pw
-HTTP_PORT=$HTTP_PORT
-WEB_PORT=$WEB_PORT
-MYSQL_PORT=$MYSQL_PORT
-REDIS_PORT=$REDIS_PORT
+# 端口由命令行/默认值控制，不写入 env，避免旧值覆盖新 CLI
 ENVEOF
   chmod 600 "$ENV_FILE"
   cat > "$RUNTIME_DIR/build/01-app-user.sql" <<SQLEOF
@@ -137,10 +140,16 @@ SQLEOF
 
 load_env() {
   [ -r "$ENV_FILE" ] || die "env 文件不存在: $ENV_FILE"
+  # CLI 显式端口优先于 env 文件（旧 env 可能保留上次端口）
+  local cli_http="$HTTP_PORT" cli_web="$WEB_PORT" cli_mysql="$MYSQL_PORT" cli_redis="$REDIS_PORT"
+  local cli_node="$NODE_EXPORTER_PORT" cli_prom="$PROMETHEUS_PORT"
   set -a
   # shellcheck disable=SC1090
   . "$ENV_FILE"
   set +a
+  HTTP_PORT="$cli_http" WEB_PORT="$cli_web" MYSQL_PORT="$cli_mysql" REDIS_PORT="$cli_redis"
+  NODE_EXPORTER_PORT="$cli_node" PROMETHEUS_PORT="$cli_prom"
+  export HTTP_PORT WEB_PORT MYSQL_PORT REDIS_PORT NODE_EXPORTER_PORT PROMETHEUS_PORT
   RUNTIME_DIR="$RUNTIME_DIR" JAR_PATH="$JAR_PATH"
 }
 
@@ -166,6 +175,7 @@ preflight() {
   # shellcheck disable=SC2086
   local ports="$HTTP_PORT,$MYSQL_PORT,$REDIS_PORT"
   [ "$FRONTEND" = "1" ] && ports="$ports,$WEB_PORT"
+  [ "$MONITORING" = "1" ] && ports="$ports,$NODE_EXPORTER_PORT,$PROMETHEUS_PORT"
   bash "$ROOT/scripts/product/preflight.sh" --env-file "$ENV_FILE"     --ports "$ports" $skip_ports || die "预检未通过"
 }
 
@@ -278,6 +288,24 @@ smoke_frontend() {
   echo "前端代理登录冒烟通过"
 }
 
+start_monitoring() {
+  [ "$MONITORING" = "1" ] || return 0
+  echo "== 监控（S6.4 最小）：node-exporter + Prometheus =="
+  mkdir -p "$MONITORING_DIR/textfile"
+  bash "$ROOT/scripts/product/monitoring/probe.sh"     --api-url "http://127.0.0.1:$HTTP_PORT" --web-url "http://127.0.0.1:$WEB_PORT"     --out "$MONITORING_DIR/textfile/aigicrm.prom" || die "探针首次采集失败"
+  dc --profile monitoring up -d node-exporter prometheus || die "监控容器启动失败"
+  local i body
+  for i in $(seq 1 30); do
+    body="$(curl -fsS -m 5 "http://127.0.0.1:$PROMETHEUS_PORT/api/v1/query?query=aigicrm_api_up" 2>/dev/null || true)"
+    if echo "$body" | grep -q '"value":\[.*"1"'; then
+      echo "Prometheus 已抓到 aigicrm_api_up=1"
+      return 0
+    fi
+    sleep 2
+  done
+  die "Prometheus 30 次查询仍未抓到 aigicrm_api_up=1（最后响应: ${body:-empty}）"
+}
+
 cleanup() {
   if [ "$APPLIED" = "1" ] && [ "$FAIL" != "0" ]; then
     echo "== 失败回滚：停止本次容器（保留数据卷）=="
@@ -309,6 +337,7 @@ if [ "$APPLY" = "0" ]; then
   echo "  5) docker compose up -d backend"
   echo "  6) health + admin 登录冒烟"
   if [ "$SEED_DEMO" = "1" ]; then echo "  * 演示客户种子（--seed-demo）"; fi
+  if [ "$MONITORING" = "1" ]; then echo "  * 监控：node-exporter + Prometheus + 首次探针"; fi
   if [ "$FRONTEND" = "1" ]; then
     echo "  7) docker compose up -d --build frontend"
     echo "  8) 前端首页 + 经 /api 代理登录冒烟"
@@ -333,11 +362,16 @@ if [ "$FRONTEND" = "1" ]; then
   wait_frontend
   smoke_frontend
 fi
+start_monitoring
 
 echo
 echo "PASS: 安装完成"
 echo "  API: http://127.0.0.1:$HTTP_PORT"
 if [ "$FRONTEND" = "1" ]; then echo "  Web: http://127.0.0.1:$WEB_PORT"; fi
+if [ "$MONITORING" = "1" ]; then
+  echo "  Prometheus: http://127.0.0.1:$PROMETHEUS_PORT"
+  echo "  node-exporter: http://127.0.0.1:$NODE_EXPORTER_PORT"
+fi
 echo "  admin: ${ADMIN_USER}（密码在 ${ENV_FILE}，不要提交）"
 echo "  停止: bash $ROOT/scripts/product/install.sh --project $PROJECT --env-file $ENV_FILE --down"
 APPLIED=0
