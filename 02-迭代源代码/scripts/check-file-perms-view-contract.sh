@@ -15,10 +15,16 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 fail() { echo "FAIL: $1" >&2; exit 1; }
 
+# 【退出码守卫】见 exit-guard.sh: bash 3.2 在 set -e + EXIT 陷阱下会把未定义变量引起的中止报成退出码 0。
+#   检查脚本因此会在"其实没检查完"的情况下显示通过。
+cleanup_neg_dir() { if [ -n "${NEG_DIR:-}" ]; then rm -rf "$NEG_DIR"; fi; }
+. "$(cd "$(dirname "$0")" && pwd)/exit-guard.sh"
+exit_guard_install cleanup_neg_dir
+
 # 【P1 修复 2026-11-12】负例自证通道(AIGI_NEGATIVE=1): 不动真源码——FileTable 沙箱副本回退为
 # 单词门控(根因1 形态), ①组断言在沙箱上必须红; 证明契约"改坏会红"而非只验"正例不红"。
 if [ "${AIGI_NEGATIVE:-0}" = "1" ]; then
-  NEG_DIR=$(mktemp -d /tmp/t9neg-fpv.XXXXXX); trap 'rm -rf "$NEG_DIR"' EXIT
+  NEG_DIR=$(mktemp -d /tmp/t9neg-fpv.XXXXXX)
   cp "$ROOT/aigicrm-ui/src/views/file/FileTable.vue" "$NEG_DIR/FileTable.vue"
   python3 - "$NEG_DIR/FileTable.vue" <<'PY'
 import sys
@@ -72,4 +78,5 @@ rg -Fq "permsForFiles(page.getRecords(), userId)" "$FSVC" || fail "FileService �
 rg -Fq "Array.isArray(row?.perms) ? row.perms : folderPerms.value" "$FILE_TABLE" || fail "PC 行级优先消费缺失(row.perms)"
 ! rg -Fq 'GetMapping("/folders/type-perms")' "$FCTRL" || fail "已退役的页级 type-perms 端点复活(T2 已由行级取代)"
 
+EXIT_GUARD_DONE=1
 echo "PASS: 文件按钮视图词表契约(双词兼容/夹行分字段/空间锚/根目录行级类型授权) 全部就位。"

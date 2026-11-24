@@ -48,7 +48,9 @@ import sys,json
 rows=[r for r in json.load(sys.stdin)['data'] if r.get('subjectType')=='USER' and r.get('subjectId')==$E2E_TUID and r.get('folderType')=='public' and r.get('objectType')=='FILE']
 print(rows[0]['id'] if rows else '')")
 cleanup() { [ -n "${GRANT_ID:-}" ] && curl -s -X DELETE "$BASE/api/file/folders/type-defaults/$GRANT_ID" -H "Authorization: Bearer $AT" >/dev/null || true; }
-trap cleanup EXIT
+# 【退出码守卫】见 exit-guard.sh: bash 3.2 在 set -e + EXIT 陷阱下会把未定义变量引起的中止报成退出码 0
+. "$(cd "$(dirname "$0")" && pwd)/exit-guard.sh"
+exit_guard_install cleanup
 
 view_perms() { # 双端口径: PC 单夹接口 + MP 树回填
   P=$(curl -s "$BASE/api/file/folders/$FOLDER_ID/permissions" -H "Authorization: Bearer $T2" | python3 -c "import sys,json;print(','.join(sorted(json.load(sys.stdin)['data']['perms'])))")
@@ -101,4 +103,5 @@ echo "  PC=[$PC2] MP=[$MP2]"
 [ "$PC2" = "$MP2" ] || fail "收回后双端口径不一致"
 [ "$PC2" = "${V0%%|*}" ] || fail "收回后未回到授权前口径(授权前=[${V0%%|*}] 现=[$PC2])"
 
+EXIT_GUARD_DONE=1
 echo "PASS: 文件权限端到端一致(勾→双端出→操作放行→收回复位)"

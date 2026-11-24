@@ -34,7 +34,10 @@ cleanup_remote_script() {
   if [ -n "$REMOTE_SCRIPT" ]; then rm -f "$REMOTE_SCRIPT"; fi
   return 0
 }
-trap cleanup_remote_script EXIT
+# 【退出码守卫】见 exit-guard.sh: bash 3.2 在 set -e + EXIT 陷阱下会把未定义变量引起的中止报成退出码 0
+#   回滚中途死掉却报成功, 比明确失败危险得多。
+. "$(cd "$(dirname "$0")" && pwd)/exit-guard.sh"
+exit_guard_install cleanup_remote_script
 
 case "$TARGET" in
   db|frontend|backend|all) ;;
@@ -299,6 +302,9 @@ rollback_backend() {
   if [ -z "${OSS_ACCESS_KEY_ID:-}" ] || [ -z "${OSS_ACCESS_KEY_SECRET:-}" ]; then
     echo "⚠️ 未配置 OSS 凭据：回滚容器可启动，但短信/OSS 功能可能不可用" >&2
   fi
+  # 【GL-06 2026-11-24】回滚也要显式知道 biz_file_grant 模式(生产现值为 new)。未设置即中止,
+  # 不让"回滚后的容器"带着与部署时不同的模式启动。
+  assert_file_grant_mode
 
   local rc
   REMOTE_SCRIPT="$(mktemp /tmp/aigicrm-rollback-backend.XXXXXX)"
@@ -314,6 +320,12 @@ rollback_backend() {
     emit_var OSS_BUCKET_NAME "${OSS_BUCKET_NAME:-aigicrm-files}"
     emit_var SEL "$SEL"
     emit_var RUN_TS "$RUN_TS"
+    # 【GL-05 2026-11-24】远端脚本要用 DEPLOY_DIR(此前没传, 远端 set -u 下第一步就会因未定义而失败);
+    # 构建/启动/等待等远端函数与 deploy-backend.sh 共用 deploy-lib.sh 的同一份 —— 此前这里内联的那份
+    # 写死了 DB_HOST=mysql / REDIS_HOST=redis, 且没有 FILE_GRANT_MODE 与导出挂载。
+    emit_var DEPLOY_DIR "$DEPLOY_DIR"
+    emit_var FILE_GRANT_MODE "$FILE_GRANT_MODE"
+    emit_remote_backend_runtime
     cat <<'REMOTE'
 case "$SEL" in
   latest)
@@ -356,64 +368,6 @@ else
 fi
 
 SWITCHED=0
-build_image() {
-  cd "$DEPLOY_DIR"
-  # 【2026-10-27 生产事故】buildkit 生产挂死, 回滚通道同样走经典构建器+硬超时(与 deploy-backend 同款)
-  if ! timeout 240 env DOCKER_BUILDKIT=0 docker build -q -t "${APP_SLUG}-backend:${BACKEND_TAG}" -f Dockerfile-run . >/tmp/dbuild.out 2>&1; then
-    tail -5 /tmp/dbuild.out >&2
-    return 1
-  fi
-  tail -3 /tmp/dbuild.out >&2 || true
-}
-image_jar_md5() {
-  docker run --rm --entrypoint sh "${APP_SLUG}-backend:${BACKEND_TAG}" -c 'md5sum /app/app.jar' 2>/dev/null \
-    | cut -d' ' -f1 | tr -d '\r\n '
-}
-start_backend() {
-  docker stop "${APP_SLUG}-backend" >/dev/null 2>&1 || true
-  docker rm "${APP_SLUG}-backend" >/dev/null 2>&1 || true
-  # 【D3 2026-10-21】机密(DB/JWT/OSS 口令)经 0600 env-file 注入，不进 docker run argv
-  #（旧写法把明文口令作为 -e KEY=VALUE 参数写进远端 docker 进程 argv，同机 ps 可见）；非机密项保持 -e 便于排查。
-  local envf
-  envf="$(mktemp /tmp/aigicrm-backend-env.XXXXXX)"
-  chmod 600 "$envf"
-  {
-    printf 'DB_PASSWORD=%s\n' "$APP_DB_PASSWORD"
-    printf 'JWT_SECRET=%s\n' "$JWT_SECRET"
-    printf 'OSS_ACCESS_KEY_ID=%s\n' "$OSS_ACCESS_KEY_ID"
-    printf 'OSS_ACCESS_KEY_SECRET=%s\n' "$OSS_ACCESS_KEY_SECRET"
-  } > "$envf"
-  if ! docker run -d --name "${APP_SLUG}-backend" --network "${APP_SLUG}_default" --restart always \
-    -p 127.0.0.1:8080:8080 \
-    --env-file "$envf" \
-    -e DB_HOST=mysql -e DB_PORT=3306 -e DB_NAME="$DB_NAME" -e DB_USER="$APP_DB_USER" \
-    -e REDIS_HOST=redis -e REDIS_PORT=6379 -e SPRING_PROFILES_ACTIVE=prod -e TENANT_ENABLE=true \
-    -e UPLOAD_DIR=/app/uploads -e STORAGE_TYPE=local -e TZ=Asia/Shanghai \
-    -e OSS_ENDPOINT=oss-cn-beijing.aliyuncs.com -e OSS_BUCKET_NAME="$OSS_BUCKET_NAME" \
-    -e CORS_ORIGINS=https://www.aigicrm.com \
-    -v /Aigicrm/files/uploads:/app/uploads -v "${APP_SLUG}-logs:/app/logs" \
-    "${APP_SLUG}-backend:${BACKEND_TAG}" >/dev/null; then
-    rm -f "$envf"
-    echo "❌ docker run 后端容器失败" >&2
-    return 1
-  fi
-  rm -f "$envf"
-  docker inspect "${APP_SLUG}-backend" --format '{{range .Mounts}}{{.Source}} {{end}}' \
-    | grep -q '/Aigicrm/files/uploads' \
-    || { echo "❌ 上传挂载不是 NAS 路径 /Aigicrm/files/uploads" >&2; return 1; }
-}
-wait_started() {
-  local i
-  for i in $(seq 1 60); do
-    if [ "$(docker inspect -f '{{.State.Running}}' "${APP_SLUG}-backend" 2>/dev/null)" = "true" ] \
-       && docker logs "${APP_SLUG}-backend" 2>&1 | grep 'Started AigicrmApplication' >/dev/null; then
-      return 0
-    fi
-    sleep 5
-  done
-  docker logs "${APP_SLUG}-backend" --tail 50 >&2 2>&1 || true
-  return 1
-}
 restore_previous() {
   if [ -n "$PREV_JAR" ] && [ -s "$PREV_JAR" ]; then
     echo "↩ 恢复回滚前 jar: $PREV_JAR" >&2
@@ -484,7 +438,8 @@ wait_backend_started
 check_health_retry
 
 BODY_FILE="$(mktemp /tmp/aigicrm-rollback-check.XXXXXX)"
-trap 'rm -f "$BODY_FILE"; cleanup_remote_script' EXIT
+# 收尾时连公网验证用的临时文件一起删: 守卫调用的仍是 cleanup_remote_script, 这里不另设陷阱
+cleanup_remote_script() { rm -f "$BODY_FILE"; if [ -n "$REMOTE_SCRIPT" ]; then rm -f "$REMOTE_SCRIPT"; fi; return 0; }
 # 【D6 2026-10-21】去掉 -k：证书过期/域不符/被替换必须让回滚后验证失败(如实报错)；
 # 部署机 CA 不含生产链时用 AIGICRM_CACERT 显式指定。
 CODE="$(curl -s $CURL_CA_OPTS --connect-timeout 10 --max-time 30 -H 'Cache-Control: no-cache' \
@@ -508,4 +463,5 @@ if [ -n "$FRONTEND_EXPECTED_SHA" ]; then
     || { echo "❌ 回滚后首页 body sha256 与备份 index.html 不一致(期望=$FRONTEND_EXPECTED_SHA 实际=$BODY_SHA)" >&2; exit 1; }
 fi
 
+EXIT_GUARD_DONE=1
 echo "✅ 回滚完成 (target=$TARGET selector=$SEL)"

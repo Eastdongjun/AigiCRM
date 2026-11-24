@@ -17,6 +17,13 @@ check_deploy_arch
 # 【D6 2026-10-21】破坏性动作(备份覆盖/容器重建)前只读 TLS 预检：健康检查已去 -k，
 # 证书链在部署机系统 CA 下不可校验时在此失败，避免"部署成功→健康检查必败→误触发自动回滚"。
 check_prod_tls
+# 【GL-06 2026-11-24】FILE_GRANT_MODE 必须在部署 env 里显式设置(生产现值为 new)。
+# 未设置即中止 —— 旧写法默认 legacy, 部署或自动回滚会把生产静默降回旧链。
+assert_file_grant_mode
+# 【GL-09 2026-11-24】制品溯源: 当前 HEAD 必须是冻结清单登记的提交, 工作区必须干净。
+#   从测试服取回的 jar 还要过指纹门(见 [1/5] 末尾的 assert_backend_artifact), 在备份与上传之前。
+assert_release_manifest
+assert_worktree_clean
 
 # 【IL2·2026-10-08 审查修复】生产镜像 tag 单一来源 BACKEND_TAG 定义在 deploy-lib.sh——
 # 2026-10-08 复核遗留修复时上提：rollback.sh 回滚重建同样引用，杜绝"部署新版、回滚旧 tag"错位。
@@ -46,8 +53,21 @@ LOCAL_JAR="/tmp/${APP_SLUG}-backend-new-${TS}.jar"
 REMOTE_STAGE="${DEPLOY_DIR}/.app.jar.upload-${TS}"
 BACKUP_JAR="${NAS_BACKUP_DIR}/${APP_SLUG}-backend-jar-${TS}.jar"
 
+# 【退出码守卫 2026-11-24】macOS 自带的 bash 3.2 有一个缺陷: set -e 与 EXIT 陷阱同时存在时, 未定义变量(set -u)
+#   引起的中止会以退出码 0 结束 —— 部署中途死掉, 调用方却看到"成功"。陷阱里也拿不到真实退出码, 只能看
+#   "是否走到了最后一行": 没走到却要退出, 一律按失败。DONE=1 只在脚本最后一行设置。
+DONE=0
 cleanup_local() { rm -f "$LOCAL_JAR"; }
-trap cleanup_local EXIT
+on_exit() {
+  local rc=$?
+  cleanup_local || echo "⚠️ 本地临时文件清理失败(不影响本次结论)" >&2
+  if [ "$rc" -eq 0 ] && [ "${DONE:-0}" -ne 1 ]; then
+    echo "❌ 脚本在收尾之前异常终止(退出码被 bash 3.2 吞成 0), 按失败处理" >&2
+    rc=1
+  fi
+  exit "$rc"
+}
+trap on_exit EXIT
 
 # 把本地配置安全地写成远端 bash 可 source 的赋值（printf %q 处理空格/引号/特殊字符；
 # 脚本经 stdin 传给远端，避免把 JWT/DB 口令放进 ssh 命令行 argv 被 ps 看到）。
@@ -84,6 +104,9 @@ if [ "$(head -c 2 "$LOCAL_JAR")" != "PK" ]; then
 fi
 LOCAL_MD5="$(md5 -q "$LOCAL_JAR")"
 echo "本地 jar md5: $LOCAL_MD5"
+# 【GL-09 2026-11-24】这个 jar 必须是冻结清单登记的那个版本(md5 与 sha256 都要对上), 否则不进入备份与上传。
+# 此前只校验它"像个 jar"和"上传前后一致"; 部署日志里的 commit 记的是本机 HEAD, 与 jar 实际由哪个提交构建无关。
+assert_backend_artifact "$LOCAL_JAR"
 
 echo "=== [2/5] 备份旧 jar（失败即中止）并上传 ==="
 # 2026-08-09 复盘：必须先备份旧 jar 再覆盖。ops-3: 备份 cp/校验失败必须终止，
@@ -121,108 +144,12 @@ echo "=== [3/5] 校验上传并原子替换, 重建镜像 (jar md5 门禁) ==="
   echo 'set -Eeuo pipefail'
   emit_remote_env
   emit_var LOCAL_MD5 "$LOCAL_MD5"
-  emit_var FILE_GRANT_MODE "${FILE_GRANT_MODE:-legacy}"
+  emit_var FILE_GRANT_MODE "$FILE_GRANT_MODE"
+  # 【GL-05 2026-11-24】build_image / start_backend / wait_started / rollback_to_backup 等远端函数
+  # 来自 deploy-lib.sh 的单一出处(健康检查失败后的回滚块与 rollback.sh 引用同一份), 此前各处内联且已漂移。
+  emit_remote_backend_runtime
   cat <<'REMOTE_BUILD'
 SWITCHED=0
-build_image() {
-  cd "$DEPLOY_DIR"
-  # 【2026-10-27 生产事故】buildkit 在生产 dockerd 上 0 CPU 挂死(连极小构建都挂, 4 次实证),
-  # 容器运行时正常——改经典构建器(DOCKER_BUILDKIT=0)并加 240s 硬超时, 挂死可暴露而非死等。
-  if ! timeout 240 env DOCKER_BUILDKIT=0 docker build -q -t "${APP_SLUG}-backend:${BACKEND_TAG}" -f Dockerfile-run . >/tmp/dbuild.out 2>&1; then
-    tail -5 /tmp/dbuild.out >&2
-    return 1
-  fi
-  tail -3 /tmp/dbuild.out >&2 || true
-}
-image_jar_md5() {
-  docker run --rm --entrypoint sh "${APP_SLUG}-backend:${BACKEND_TAG}" -c 'md5sum /app/app.jar' 2>/dev/null \
-    | cut -d' ' -f1 | tr -d '\r\n '
-}
-start_backend() {
-  docker stop "${APP_SLUG}-backend" >/dev/null 2>&1 || true
-  docker rm "${APP_SLUG}-backend" >/dev/null 2>&1 || true
-  # 【D3 2026-10-21】机密(DB/JWT/OSS 口令)经 0600 env-file 注入，不进 docker run argv
-  #（旧写法把明文口令作为 -e KEY=VALUE 参数写进远端 docker 进程 argv，同机 ps 可见）。
-  local envf
-  envf="$(mktemp /tmp/aigicrm-backend-env.XXXXXX)"
-  chmod 600 "$envf"
-  {
-    printf 'DB_PASSWORD=%s\n' "$APP_DB_PASSWORD"
-    printf 'JWT_SECRET=%s\n' "$JWT_SECRET"
-    printf 'OSS_ACCESS_KEY_ID=%s\n' "$OSS_ACCESS_KEY_ID"
-    printf 'OSS_ACCESS_KEY_SECRET=%s\n' "$OSS_ACCESS_KEY_SECRET"
-  } > "$envf"
-  if ! docker run -d --name "${APP_SLUG}-backend" --network "${APP_SLUG}_default" --restart always \
-    -p 127.0.0.1:8080:8080 \
-    --env-file "$envf" \
-    -e DB_HOST=ycmn-mysql -e DB_PORT=3306 -e DB_NAME="$DB_NAME" -e DB_USER="$APP_DB_USER" \
-    -e REDIS_HOST=ycmn-redis -e REDIS_PORT=6379 \
-    -e SPRING_PROFILES_ACTIVE=prod \
-    -e FILE_GRANT_MODE="${FILE_GRANT_MODE:-legacy}" \
-    -e EXPORT_DIR=/app/exports \
-    -e TENANT_ENABLE=true \
-    -e UPLOAD_DIR=/app/uploads -e STORAGE_TYPE=local -e TZ=Asia/Shanghai \
-    -e OSS_ENDPOINT=oss-cn-beijing.aliyuncs.com -e OSS_BUCKET_NAME="$OSS_BUCKET_NAME" \
-    -e CORS_ORIGINS=https://www.aigicrm.com \
-    -v /Aigicrm/files/uploads:/app/uploads \
-    -v /Aigicrm/files/ycmn-exports:/app/exports \
-    -v "${APP_SLUG}-logs:/app/logs" \
-    "${APP_SLUG}-backend:${BACKEND_TAG}" >/dev/null; then
-    rm -f "$envf"
-    echo "❌ docker run 后端容器失败" >&2
-    return 1
-  fi
-  rm -f "$envf"
-  # 上传文件必须在 NAS；误挂旧 upload-data 卷会造成"文件消失"假象
-  if ! docker inspect "${APP_SLUG}-backend" --format '{{range .Mounts}}{{.Source}} {{end}}' | grep -q '/Aigicrm/files/uploads'; then
-    echo "❌ 上传挂载不是 NAS 路径 /Aigicrm/files/uploads" >&2
-    return 1
-  fi
-}
-wait_started() {
-  local i
-  for i in $(seq 1 60); do
-    if [ "$(docker inspect -f '{{.State.Running}}' "${APP_SLUG}-backend" 2>/dev/null)" = "true" ] \
-       && docker logs "${APP_SLUG}-backend" 2>&1 | grep 'Started AigicrmApplication' >/dev/null; then
-      return 0
-    fi
-    sleep 5
-  done
-  echo "❌ 后端 300 秒内未就绪" >&2
-  docker logs "${APP_SLUG}-backend" --tail 50 >&2 2>&1 || true
-  return 1
-}
-fast_rollback_container() {
-  # 【2026-11-17 build 通道挂死事故】免重建快滚: docker cp 直换容器内 jar + 重启。
-  # 救急通道——容器内 jar 与镜像脱钩(镜像内 jar 陈旧), 标准通道恢复后需重建自愈;
-  # 容器已被删除时无救(无 cp 载体), 只能走镜像重建。
-  docker inspect "${APP_SLUG}-backend" >/dev/null 2>&1 \
-    || { echo "❌ 快滚通道不可用: 容器不存在(需镜像重建)" >&2; return 1; }
-  docker cp "$DEPLOY_DIR/app.jar" "${APP_SLUG}-backend:/app/app.jar" || return 1
-  local exp act
-  exp=$(md5sum "$DEPLOY_DIR/app.jar" | cut -d' ' -f1 | tr -d '\r\n ')
-  act=$(docker exec "${APP_SLUG}-backend" md5sum /app/app.jar 2>/dev/null | cut -d' ' -f1 | tr -d '\r\n ')
-  [ "$exp" = "$act" ] || { echo "❌ 快滚后容器内 jar 校验不符(exp=$exp act=$act)" >&2; return 1; }
-  docker restart "${APP_SLUG}-backend" >/dev/null || return 1
-  wait_started || return 1
-}
-rollback_to_backup() {
-  [ -s "$BACKUP_JAR" ] || { echo "❌ 备份 jar 不存在/为空: $BACKUP_JAR" >&2; return 1; }
-  echo "↩ 使用备份 jar 回滚: $BACKUP_JAR" >&2
-  cp -p "$BACKUP_JAR" "$DEPLOY_DIR/app.jar" || return 1
-  if build_image; then
-    local exp act
-    exp=$(md5sum "$BACKUP_JAR" | cut -d' ' -f1 | tr -d '\r\n ')
-    act=$(image_jar_md5)
-    [ "$exp" = "$act" ] || { echo "❌ 回滚镜像内 jar 校验不符(exp=$exp act=$act)" >&2; return 1; }
-    start_backend || return 1
-    wait_started || return 1
-  else
-    # 镜像重建不可用(dockerd 构建挂死等) → 免重建快滚, 保服务恢复优先
-    echo "↩ 镜像重建失败, 走免重建快滚(docker cp + restart) ..." >&2
-    fast_rollback_container || return 1
-  fi
-}
 on_error() {
   rc=$?
   trap - ERR
@@ -268,72 +195,12 @@ if ! check_health_retry; then
   {
     echo 'set -Eeuo pipefail'
     emit_remote_env
+    # 【GL-05 2026-11-24】回滚用的远端函数与正向部署是同一份(deploy-lib.sh)。此前这里另抄了一份,
+    # 漏了 FILE_GRANT_MODE、导出目录及其挂载 —— 自动回滚后的容器会与正向部署的容器行为不同。
+    emit_remote_backend_runtime
     cat <<'REMOTE_ROLLBACK'
-build_image() {
-  cd "$DEPLOY_DIR"
-  # 【2026-10-27 生产事故】同上: 回滚重建也走经典构建器+硬超时, 防回滚路径再挂死
-  timeout 240 env DOCKER_BUILDKIT=0 docker build -q -t "${APP_SLUG}-backend:${BACKEND_TAG}" -f Dockerfile-run . >/tmp/dbuild.out 2>&1 || { tail -5 /tmp/dbuild.out >&2; return 1; }
-}
-start_backend() {
-  docker stop "${APP_SLUG}-backend" >/dev/null 2>&1 || true
-  docker rm "${APP_SLUG}-backend" >/dev/null 2>&1 || true
-  # 【D3 2026-10-21】同上：机密经 0600 env-file 注入，不进 docker run argv
-  local envf
-  envf="$(mktemp /tmp/aigicrm-backend-env.XXXXXX)"
-  chmod 600 "$envf"
-  {
-    printf 'DB_PASSWORD=%s\n' "$APP_DB_PASSWORD"
-    printf 'JWT_SECRET=%s\n' "$JWT_SECRET"
-    printf 'OSS_ACCESS_KEY_ID=%s\n' "$OSS_ACCESS_KEY_ID"
-    printf 'OSS_ACCESS_KEY_SECRET=%s\n' "$OSS_ACCESS_KEY_SECRET"
-  } > "$envf"
-  if ! docker run -d --name "${APP_SLUG}-backend" --network "${APP_SLUG}_default" --restart always \
-    -p 127.0.0.1:8080:8080 \
-    --env-file "$envf" \
-    -e DB_HOST=ycmn-mysql -e DB_PORT=3306 -e DB_NAME="$DB_NAME" -e DB_USER="$APP_DB_USER" \
-    -e REDIS_HOST=ycmn-redis -e REDIS_PORT=6379 -e SPRING_PROFILES_ACTIVE=prod -e TENANT_ENABLE=true \
-    -e UPLOAD_DIR=/app/uploads -e STORAGE_TYPE=local -e TZ=Asia/Shanghai \
-    -e OSS_ENDPOINT=oss-cn-beijing.aliyuncs.com -e OSS_BUCKET_NAME="$OSS_BUCKET_NAME" \
-    -e CORS_ORIGINS=https://www.aigicrm.com \
-    -v /Aigicrm/files/uploads:/app/uploads -v "${APP_SLUG}-logs:/app/logs" \
-    "${APP_SLUG}-backend:${BACKEND_TAG}" >/dev/null; then
-    rm -f "$envf"
-    echo "❌ docker run 后端容器失败" >&2
-    return 1
-  fi
-  rm -f "$envf"
-}
-wait_started() {
-  local i
-  for i in $(seq 1 60); do
-    if [ "$(docker inspect -f '{{.State.Running}}' "${APP_SLUG}-backend" 2>/dev/null)" = "true" ] \
-       && docker logs "${APP_SLUG}-backend" 2>&1 | grep 'Started AigicrmApplication' >/dev/null; then
-      return 0
-    fi
-    sleep 5
-  done
-  docker logs "${APP_SLUG}-backend" --tail 50 >&2 2>&1 || true
-  return 1
-}
 [ -s "$BACKUP_JAR" ] || { echo "❌ 备份 jar 不存在，无法回滚" >&2; exit 1; }
-cp -p "$BACKUP_JAR" "$DEPLOY_DIR/app.jar"
-# 【2026-11-17 build 通道挂死事故】镜像重建失败时走免重建快滚(docker cp+restart), 服务恢复优先
-if build_image; then
-  [ "$(md5sum "$BACKUP_JAR" | cut -d' ' -f1 | tr -d '\r\n ')" = \
-    "$(docker run --rm --entrypoint sh "${APP_SLUG}-backend:${BACKEND_TAG}" -c 'md5sum /app/app.jar' | cut -d' ' -f1 | tr -d '\r\n ')" ] \
-    || { echo "❌ 回滚镜像内 jar 校验不符" >&2; exit 1; }
-  start_backend
-  wait_started
-else
-  echo "↩ 镜像重建失败, 走免重建快滚(docker cp + restart) ..." >&2
-  docker inspect "${APP_SLUG}-backend" >/dev/null 2>&1 || { echo "❌ 容器不存在, 快滚不可用" >&2; exit 1; }
-  docker cp "$DEPLOY_DIR/app.jar" "${APP_SLUG}-backend:/app/app.jar"
-  [ "$(md5sum "$DEPLOY_DIR/app.jar" | cut -d' ' -f1 | tr -d '\r\n ')" = \
-    "$(docker exec "${APP_SLUG}-backend" md5sum /app/app.jar | cut -d' ' -f1 | tr -d '\r\n ')" ] \
-    || { echo "❌ 快滚后容器内 jar 校验不符" >&2; exit 1; }
-  docker restart "${APP_SLUG}-backend" >/dev/null
-  wait_started
-fi
+rollback_to_backup
 echo "↩ 已回滚旧 jar 并重启"
 REMOTE_ROLLBACK
   } | ssh_prod_once "bash -s" || {
@@ -350,3 +217,4 @@ echo "=== [5/5] 部署记录 ==="
 ssh_prod "echo \"$(date +%Y-%m-%d\ %H:%M:%S) backend deploy commit=$COMMIT\" >> $DEPLOY_DIR/deploy.log"
 echo "✅ 后端部署完成 (commit: $COMMIT, backup: $BACKUP_JAR)"
 echo "RESULT=PASS"
+DONE=1

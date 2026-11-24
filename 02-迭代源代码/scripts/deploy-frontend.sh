@@ -26,14 +26,33 @@ check_deploy_arch
 # 证书链在部署机系统 CA 下不可校验时在此失败，避免"切换成功→公网校验必败→误恢复旧入口"。
 check_prod_tls
 
+# 【GL-09 2026-11-24】制品溯源: 当前 HEAD 必须是冻结清单登记的提交, 工作区必须干净(本脚本用工作区直接构建)。
+#   构建产物还要过指纹门(见 [2/6] 的 assert_frontend_artifact), 在上传之前。
+assert_release_manifest
+assert_worktree_clean
+
 TS="$(date +%Y%m%d-%H%M%S)"
 TARBALL="/tmp/${APP_SLUG}-dist-${TS}.tgz"
 REMOTE_TGZ="/tmp/${APP_SLUG}-dist-${TS}.tgz"
 BACKUP_DIR="${NAS_BACKUP_DIR}/dist-rollback-${TS}"
 STAGE="${NAS_DIST_DIR%/}.staging-${TS}"
+BODY_FILE=""            # 公网验证时临时保存首页的文件, 由 on_exit 清理
 
-cleanup_local() { rm -f "$TARBALL"; }
-trap cleanup_local EXIT
+# 【退出码守卫 2026-11-24】macOS 自带的 bash 3.2 有一个缺陷: set -e 与 EXIT 陷阱同时存在时, 未定义变量(set -u)
+#   引起的中止会以退出码 0 结束 —— 部署中途死掉, 调用方却看到"成功"。陷阱里也拿不到真实退出码, 只能看
+#   "是否走到了最后一行": 没走到却要退出, 一律按失败。DONE=1 只在脚本最后一行设置。
+DONE=0
+cleanup_local() { rm -f "$TARBALL"; if [ -n "$BODY_FILE" ]; then rm -f "$BODY_FILE"; fi; }
+on_exit() {
+  local rc=$?
+  cleanup_local || echo "⚠️ 本地临时文件清理失败(不影响本次结论)" >&2
+  if [ "$rc" -eq 0 ] && [ "${DONE:-0}" -ne 1 ]; then
+    echo "❌ 脚本在收尾之前异常终止(退出码被 bash 3.2 吞成 0), 按失败处理" >&2
+    rc=1
+  fi
+  exit "$rc"
+}
+trap on_exit EXIT
 
 echo "=== [1/6] 构建前端 (commit: $COMMIT) ==="
 cd "$UI_DIR" && npm run build 2>&1 | grep -E "built in|error" | head -2
@@ -61,6 +80,9 @@ PY
 ENTRY="$(grep -oE 'assets/index-[A-Za-z0-9_-]+\.js' "$UI_DIR/dist/index.html" | head -1)"
 [ -n "$ENTRY" ] || { echo "❌ 构建产物 index.html 未引用 assets/index-*.js" >&2; exit 1; }
 [ -s "$UI_DIR/dist/$ENTRY" ] || { echo "❌ 入口资源不存在: dist/$ENTRY" >&2; exit 1; }
+# 【GL-09 2026-11-24】构建出的入口 JS 必须是冻结清单登记的那个(文件名与 sha256 都要对上), 否则不上传。
+# 此前的 sha256 只证明"传上去的和本地构建的一致", 不证明"本地构建的就是冻结的那个版本"。
+assert_frontend_artifact "$UI_DIR/dist"
 printf '%s\n' "$TS" > "$UI_DIR/dist/version.txt"
 INDEX_SHA="$(shasum -a 256 "$UI_DIR/dist/index.html" | awk '{print $1}')"
 echo "入口: $ENTRY (sha256=$INDEX_SHA)"
@@ -160,7 +182,6 @@ LIVE_SHA="$(printf '%s\n' "$REMOTE_OUT" | sed -n 's/^LIVE_INDEX_SHA=//p' | tail 
 
 echo "=== [5/6] 公网验证（HTTP 200 / body 含 app 根 / 入口资源 200 / 入口 hash） ==="
 BODY_FILE="$(mktemp /tmp/aigicrm-frontend-check.XXXXXX)"
-trap 'rm -f "$BODY_FILE"; cleanup_local' EXIT
 # 【D6 2026-10-21】去掉 -k：证书过期/域不符/被替换必须让公网验证失败。
 CODE="$(curl -s $CURL_CA_OPTS --connect-timeout 10 --max-time 30 -H 'Cache-Control: no-cache' \
   -o "$BODY_FILE" -w '%{http_code}' "https://www.aigicrm.com/?deploy=$TS")"
@@ -256,3 +277,4 @@ else
   echo "❌ 内容级核验失败——按门禁 G6 人工裁决回滚(备份: $BACKUP_DIR)" >&2
   exit 1
 fi
+DONE=1

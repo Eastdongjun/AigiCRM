@@ -17,6 +17,7 @@
 # 【本脚本做什么】
 #   把 db/migration 整目录上传到测试服，用 flyway/flyway:9.22.3-alpine
 #   （与生产 deploy-db.sh 同 tag、与 pom flyway-core 同版本）在测试库执行 migrate。
+#   迁移前记快照、迁移后做硬断言（GL-07 2026-11-24，与生产 deploy-db.sh 同口径，失败即中止）。
 #
 # 【与生产脚本的刻意差异】
 #   · 走 ssh_test / scp_test，不碰 ssh_prod
@@ -51,7 +52,7 @@ case "${1:-}" in
   --info)    MODE="info" ;;
   --dry-run) MODE="dryrun" ;;
   "")        MODE="migrate" ;;
-  -h|--help) sed -n '2,45p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+  -h|--help) sed -n '2,46p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
   *) echo "未知参数: $1（支持 --info / --dry-run）" >&2; exit 2 ;;
 esac
 
@@ -212,6 +213,19 @@ REMOTE
   exit 0
 fi
 
+echo "=== [4b/5] 迁移前快照 ==="
+# 【GL-07 2026-11-24】与 deploy-db.sh 同一口径: 迁移前记下已应用版本与内容类型旧值计数, 迁移后对账。
+#   容器名用上面探测到的 CT(可能不是默认值), 所以显式传给断言脚本。快照读不到就中止: 宁可不迁。
+SNAP="$(TEST_DB_CONTAINER="$CT" TEST_DB_NAME="$TEST_DB_NAME" bash "$SCRIPT_DIR/verify-post-migrate.sh" test --snapshot)" \
+  || { echo "❌ 读不到迁移前快照(Flyway 版本 / 内容类型计数), 中止" >&2; exit 1; }
+PRE_VER="$(printf '%s\n' "$SNAP" | sed -n 's/^SINCE=//p')"
+PRE_CNT="$(printf '%s\n' "$SNAP" | sed -n 's/^PRE=//p')"
+case "$PRE_VER" in ''|*[!0-9.]*) echo "❌ 迁移前快照里的版本号不合法: [${PRE_VER}]" >&2; exit 1 ;; esac
+case "$PRE_CNT" in ''|*[!0-9,]*) echo "❌ 迁移前快照里的内容类型计数不合法: [${PRE_CNT}]" >&2; exit 1 ;; esac
+printf '%s\n' "$PRE_CNT" | awk -F, 'NF != 4 { exit 1 } { for (i = 1; i <= NF; i++) if ($i !~ /^[0-9]+$/) exit 1 }' \
+  || { echo "❌ 迁移前快照里的内容类型计数应为 4 个非负整数: [${PRE_CNT}]" >&2; exit 1; }
+echo "  迁移前: 已应用版本=${PRE_VER}, 内容类型(诵读,心得,正能量,总量)=${PRE_CNT}"
+
 echo "=== [5/5] Flyway repair + migrate（-validateMigrationNaming=true）==="
 # repair 先行：容忍历史手工执行造成的小偏差；随后 migrate。
 # -validateMigrationNaming=true：把"坏文件名被静默跳过"变成硬失败
@@ -296,4 +310,9 @@ REMOTE
 } | ssh_test_once "bash -s" || true
 echo "  预期：5 行全部 status=1（否则 apply 未生效）"
 echo
+echo "=== 迁移后断言 ==="
+# 【GL-07 2026-11-24】硬断言(只读 SQL), 与生产 deploy-db.sh 同口径。不通过就不算迁移完成。
+TEST_DB_CONTAINER="$CT" TEST_DB_NAME="$TEST_DB_NAME" \
+  bash "$SCRIPT_DIR/verify-post-migrate.sh" test --since "$PRE_VER" --pre "$PRE_CNT" || {
+  echo "❌ 迁移后断言未通过 —— 不要在这个测试库上继续验证; 用 [4/5] 打印的备份排查" >&2; exit 1; }
 echo "✅ 测试库迁移完成（库=${TEST_DB_NAME} 容器=${CT}）"

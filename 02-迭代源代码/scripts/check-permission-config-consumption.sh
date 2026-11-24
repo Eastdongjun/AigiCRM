@@ -16,7 +16,9 @@ NEG=0
 # ---- 负例沙箱: 复制源码子集, 删掉一个后端消费点, 让 ① 的断言在沙箱上跑 ----
 SANDBOX=""
 cleanup() { if [ -n "${SANDBOX:-}" ]; then rm -rf "$SANDBOX"; fi; return 0; }
-trap cleanup EXIT
+# 【退出码守卫】见 exit-guard.sh: bash 3.2 在 set -e + EXIT 陷阱下会把未定义变量引起的中止报成退出码 0
+. "$(cd "$(dirname "$0")" && pwd)/exit-guard.sh"
+exit_guard_install cleanup
 if [ "$NEG" = "1" ]; then
   SANDBOX=$(mktemp -d /tmp/t9-neg.XXXXXX)
   mkdir -p "$SANDBOX/aigicrm-backend/src/main/java"
@@ -90,4 +92,5 @@ for c in $fe_only; do
 done
 
 rows=$(grep -cE '^\| [a-z]+[a-z0-9_-]*:[a-z0-9:_-]+ \|' "$MATRIX")
+EXIT_GUARD_DONE=1
 echo "PASS: 配置-消费注册表契约(${rows} 功能码后端消费可grep/PC消费格非空/双白名单对账; 负例通道 AIGI_NEGATIVE=1)"

@@ -50,7 +50,10 @@ CODES_FILE="$SCRIPT_DIR/empty-replay-codes.txt"
 echo "  断言码: $(grep -cE '^[a-z]' "$CODES_FILE") 个(单一源 empty-replay-codes.txt)"
 CNT=$(tar tzf "$PACK" | grep -c '\.sql$' || true)
 echo "  包内 .sql: $CNT (预期 = 全量 - 10)"
-trap 'rm -f "$PACK"' EXIT
+# 【退出码守卫】见 exit-guard.sh: bash 3.2 在 set -e + EXIT 陷阱下会把未定义变量引起的中止报成退出码 0
+cleanup_pack() { rm -f "$PACK"; }
+. "$(cd "$(dirname "$0")" && pwd)/exit-guard.sh"
+exit_guard_install cleanup_pack
 
 export AIGICRM_TEST_ONLY=1
 source "$SCRIPT_DIR/deploy-lib.sh"
@@ -128,3 +131,4 @@ echo "  [3] admin 持码数: $ADMIN_N/$TOTAL_CODES"
 [ "$rc" = "0" ] && echo "✅ 空库重放全绿" || echo "❌ 空库重放断言失败"
 exit $rc
 REMOTE
+EXIT_GUARD_DONE=1

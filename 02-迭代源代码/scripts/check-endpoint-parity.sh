@@ -18,7 +18,10 @@ WHITELIST='
 '
 
 TMP="$(mktemp -d)"
-trap 'rm -rf "$TMP"' EXIT
+# 【退出码守卫】见 exit-guard.sh: bash 3.2 在 set -e + EXIT 陷阱下会把未定义变量引起的中止报成退出码 0
+cleanup_tmp() { rm -rf "$TMP"; }
+. "$(cd "$(dirname "$0")" && pwd)/exit-guard.sh"
+exit_guard_install cleanup_tmp
 
 # ---------- 1) 后端端点清单: "METHOD /api/path" ----------
 : > "$TMP/backend.txt"
@@ -106,4 +109,5 @@ fi
 if [ "$fails" -eq 0 ]; then
   echo "PASS: 双端端点一致(前端调用 ${total_calls} 条全部有后端端点; 后端端点 ${total_eps} 个, 写端点零休眠; 白名单 $(printf '%s' "$WHITELIST" | grep -c '^/api' || true) 条)"
 fi
+EXIT_GUARD_DONE=1
 exit "$fails"

@@ -8,6 +8,12 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 fail() { echo "FAIL: $1" >&2; exit 1; }
 
+# 【退出码守卫】见 exit-guard.sh: bash 3.2 在 set -e + EXIT 陷阱下会把未定义变量引起的中止报成退出码 0。
+#   检查脚本因此会在"其实没检查完"的情况下显示通过。
+cleanup_neg_dir() { if [ -n "${NEG_DIR:-}" ]; then rm -rf "$NEG_DIR"; fi; }
+. "$(cd "$(dirname "$0")" && pwd)/exit-guard.sh"
+exit_guard_install cleanup_neg_dir
+
 # P0-5 batch A: normalize LIT_* constants back to literals before extraction.
 backend_scope_targets() {
   python3 - "$1" <<'PY' | { grep -oE '\{"[a-z]+", "[a-z_]+"' || true; } | tr -d '{"' | tr -d ' ' | tr ',' '|' | sort -u
@@ -23,7 +29,7 @@ PY
 # 【P1 修复 2026-11-12】负例自证通道(AIGI_NEGATIVE=1): 前端映射沙箱副本删一行——
 # 双源 diff 必须红; 证明对账器"改坏会红"。
 if [ "${AIGI_NEGATIVE:-0}" = "1" ]; then
-  NEG_DIR=$(mktemp -d /tmp/t9neg-par.XXXXXX); trap 'rm -rf "$NEG_DIR"' EXIT
+  NEG_DIR=$(mktemp -d /tmp/t9neg-par.XXXXXX)
   cp "$ROOT/aigicrm-ui/src/views/system/PermScopeManager.vue" "$NEG_DIR/PermScopeManager.vue"
   python3 - "$NEG_DIR/PermScopeManager.vue" <<'PY'
 import sys
@@ -61,4 +67,5 @@ if [ "$backend" != "$frontend" ]; then
 fi
 
 cnt=$(echo "$backend" | grep -c .)
+EXIT_GUARD_DONE=1
 echo "PASS: 码↔范围键映射双源对账($cnt 个 module|action 对两侧一致)"

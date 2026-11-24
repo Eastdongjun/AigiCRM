@@ -1,5 +1,5 @@
 #!/bin/bash
-# 数据库迁移（2026-08-09 Flyway 化）: 生产备份 → Flyway migrate → 结构验证
+# 数据库迁移（2026-08-09 Flyway 化）: 生产备份 → 迁移前快照 → Flyway migrate → 结构验证 + 迁移后断言
 #
 # 用法:
 #   ./deploy-db.sh              # 迁移 src/main/resources/db/migration 目录（Flyway 版本化）
@@ -48,6 +48,19 @@ ssh_prod "
   if [ ! -s \"\$BK\" ]; then echo '❌ 备份文件为空, 中止'; exit 1; fi
   echo '备份完成:'; ls -la \"\$BK\" | awk '{print \$5, \$9}'
 "
+
+echo "=== [1b/4] 迁移前快照 ==="
+# 【GL-07 2026-11-24】记下"迁移前"的样子: 当前已应用的 Flyway 版本 + 内容类型旧值计数。
+#   本批迁移里的类型重映射(诵读→每日诵读, 心得+正能量→每日随施)和按菜单名定位的两支, 事后必须有基准才对得了账。
+#   快照读不到就中止: 宁可不迁, 也不能迁完才发现无从核对。
+SNAP="$(bash "$SCRIPT_DIR/verify-post-migrate.sh" prod --snapshot)" || { echo '❌ 读不到迁移前快照(Flyway 版本 / 内容类型计数), 中止'; exit 1; }
+PRE_VER="$(printf '%s\n' "$SNAP" | sed -n 's/^SINCE=//p')"
+PRE_CNT="$(printf '%s\n' "$SNAP" | sed -n 's/^PRE=//p')"
+case "$PRE_VER" in ''|*[!0-9.]*) echo "❌ 迁移前快照里的版本号不合法: [${PRE_VER}]"; exit 1 ;; esac
+case "$PRE_CNT" in ''|*[!0-9,]*) echo "❌ 迁移前快照里的内容类型计数不合法: [${PRE_CNT}]"; exit 1 ;; esac
+printf '%s\n' "$PRE_CNT" | awk -F, 'NF != 4 { exit 1 } { for (i = 1; i <= NF; i++) if ($i !~ /^[0-9]+$/) exit 1 }' \
+  || { echo "❌ 迁移前快照里的内容类型计数应为 4 个非负整数: [${PRE_CNT}]"; exit 1; }
+echo "迁移前: 已应用版本=${PRE_VER}, 内容类型(诵读,心得,正能量,总量)=${PRE_CNT}"
 
 echo "=== [2/4] 上传迁移目录到生产 ==="
 ssh_prod "rm -rf $DEPLOY_DIR/flyway-sql && mkdir -p $DEPLOY_DIR/flyway-sql"
@@ -150,5 +163,13 @@ ssh_prod "
     SELECT 'flyway记录', COUNT(*) FROM $DB_NAME.flyway_schema_history;
   \" 2>/dev/null
 "
+
+echo "=== [4b/4] 迁移后断言 ==="
+# 【GL-07 2026-11-24】上面的计数只打印、不判断。这里做硬断言(只读 SQL): 本批迁移全部成功应用、
+#   内容类型对账、租户列齐全且只有 1、菜单名与父组、行业词表、首启向导标记、提醒频率无旧值。
+#   .8/.9 按菜单名定位, 目标行不存在时"0 行受影响"也算迁移成功 —— 只有这里能发现。
+#   不通过就不算迁移完成: 不要启动新后端, 用 [1/4] 打印的备份文件恢复后排查。
+bash "$SCRIPT_DIR/verify-post-migrate.sh" prod --since "$PRE_VER" --pre "$PRE_CNT" || {
+  echo "❌ 迁移后断言未通过 —— 不要启动新后端; 用 [1/4] 打印的备份文件恢复后排查"; exit 1; }
 check_health
 echo "✅ 数据库迁移完成"

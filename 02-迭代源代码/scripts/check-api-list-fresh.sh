@@ -11,7 +11,10 @@ GEN="$SCRIPT_DIR/gen-api.py"
 SRC="$ROOT/aigicrm-backend/src/main/java/com/aigicrm"
 COMMITTED="$ROOT/docs/api/api-list.md"
 TMP="$(mktemp /tmp/api-list-fresh.XXXXXX.md)"
-trap 'rm -f "$TMP"' EXIT
+# 【退出码守卫】见 exit-guard.sh: bash 3.2 在 set -e + EXIT 陷阱下会把未定义变量引起的中止报成退出码 0
+cleanup_tmp() { rm -f "$TMP"; }
+. "$(cd "$(dirname "$0")" && pwd)/exit-guard.sh"
+exit_guard_install cleanup_tmp
 
 fail() { echo "FAIL: $1" >&2; exit 1; }
 
@@ -28,4 +31,5 @@ if ! diff <(grep -v '^> 生成时间' "$COMMITTED") <(grep -v '^> 生成时间' 
   exit 1
 fi
 
+EXIT_GUARD_DONE=1
 echo "PASS: API 清单内容级新鲜度(与源码生成一致)"

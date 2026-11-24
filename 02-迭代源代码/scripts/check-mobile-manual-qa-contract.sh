@@ -11,7 +11,9 @@ cleanup() {
     rm -f "${TMP_FILES[@]}"
   fi
 }
-trap cleanup EXIT
+# 【退出码守卫】见 exit-guard.sh: bash 3.2 在 set -e + EXIT 陷阱下会把未定义变量引起的中止报成退出码 0
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/exit-guard.sh"
+exit_guard_install cleanup
 
 [ -f "$DOC" ] || fail 'mobile manual QA checklist is missing'
 grep -Fq '/Users/dongjun/东来/项目/02-已上线/01-AIGICRM/02-迭代源代码/aigicrm-miniprogram' "$DOC" || fail 'QA checklist must name the real mini-program root'
@@ -104,4 +106,5 @@ grep -Fq '| 验收项 | 后端环境 | 账号角色/权限组合 | PC 证据 | �
 grep -Fq '四项服务与附件' "$DOC" || fail 'reconciliation template must include incentive attachment parity'
 grep -Fq '安装前/中/后/跟踪文件可预览或下载；阅读状态同步' "$DOC" || fail 'reconciliation template must verify incentive slots and read state'
 grep -Fq '结论只允许填写“通过 / 失败 / 阻塞”' "$DOC" || fail 'reconciliation template must constrain conclusion states'
+EXIT_GUARD_DONE=1
 echo 'PASS: mobile manual QA checklist covers project root, business parity, and PC-only boundaries.'

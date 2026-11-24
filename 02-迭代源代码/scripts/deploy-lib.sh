@@ -411,3 +411,287 @@ EOF
 git_commit() {
   cd "${SOURCE_DIR:-$(cd "$SCRIPT_DIR/.." && pwd)}" && git rev-parse --short HEAD 2>/dev/null || echo "unknown"
 }
+
+# ============================================================
+# 【GL-06 2026-11-24】FILE_GRANT_MODE 必须显式设置(fail-closed)
+#
+# 背景: biz_file_grant 主链模式(env + 重启生效)取值 legacy / dual / new, 生产现值为 new。
+#   deploy-backend.sh 的旧写法是 ${FILE_GRANT_MODE:-legacy} —— 部署 env 里只要没写这一项,
+#   下一次部署或健康检查失败后的自动回滚, 就会把生产静默降回 legacy(新引擎整体旁路), 且日志里看不出来。
+# 本函数在本地侧、任何远端动作之前拒绝"未设置"和"取值非法"。
+# 合法取值与 FileGrantService 的 file.grant.mode 一致; 新增取值时同步这里。
+# 用法: 会启动后端容器的脚本在远端动作之前调用(调用方 set -e, 返回 1 即中止)。
+# ============================================================
+assert_file_grant_mode() {
+  local v="${FILE_GRANT_MODE:-}"
+  if [ -z "$v" ]; then
+    echo "❌ FILE_GRANT_MODE 未设置：拒绝部署/回滚。生产现值为 new，请在部署 env 显式写 FILE_GRANT_MODE=new（脚本不再默认 legacy）" >&2
+    return 1
+  fi
+  case "$v" in
+    legacy|dual|new) ;;
+    *)
+      echo "❌ FILE_GRANT_MODE 取值非法: '$v'（只接受 legacy / dual / new）" >&2
+      return 1
+      ;;
+  esac
+  # 变量后紧跟全角标点时必须用 ${v} —— macOS bash 3.2 不把全角字符当作变量名边界(见 assert_prod_env_pinned 的同类说明)
+  echo "✅ FILE_GRANT_MODE=${v}（已显式设置）"
+  return 0
+}
+
+# ============================================================
+# 【GL-09 2026-11-24】制品溯源(fail-closed): 生产部署的制品必须等于冻结清单登记的那个版本
+#
+# 背景:
+#   deploy-backend.sh 部署的是"测试服容器里正在跑的那个 jar"。它只校验这个 jar 像个 jar、上传前后一致,
+#     从不核对它是不是冻结的版本; 部署日志里的 commit 记的是本机当前 HEAD, 与 jar 实际由哪个提交构建无关。
+#   deploy-frontend.sh 用本机工作区直接构建, 有未提交改动也照发。
+#   两者的 md5/sha256 都只证明"传上去的和本地的一致", 不证明"本地的就是冻结的那个"。
+#
+# 冻结清单: RELEASE_MANIFEST(部署 env 里给出文件路径), JSON, 由冻结步骤生成:
+#   {
+#     "schema": 1,
+#     "tag": "rc/…",
+#     "commit": "<40 位提交号>",
+#     "backend":  { "jar":  { "md5": "<32 位>", "sha256": "<64 位>" } },
+#     "frontend": { "entry": { "file": "assets/index-….js", "sha256": "<64 位>" } },
+#     "miniprogram": { "version": "…" }, "migrations": 167, "api_endpoints": 350
+#   }
+# 前端取入口 JS 而不是 index.html: index.html 在部署时会被注入 prefetch、写入时间戳, 每次都不同;
+# 入口 JS 由构建决定, 同一份源码与依赖构建出来是同一份。
+#
+# 四道门, 都在任何生产远端动作之前, 缺一不可(调用方 set -e, 返回 1 即中止):
+#   assert_release_manifest    清单存在、可解析, 登记的提交等于当前 HEAD
+#   assert_worktree_clean      已跟踪文件没有未提交改动。未跟踪文件不拦: 它们不属于提交内容;
+#                              会影响构建产物的那些(例如被 gitignore 的本地配置)由制品指纹那道门兜住
+#   assert_backend_artifact    jar 的 md5 与 sha256 等于清单
+#   assert_frontend_artifact   构建出的入口 JS 的文件名与 sha256 等于清单
+# 没有旁路开关: 急修也走同一条路 —— 给急修的提交出一份清单再部署。
+# 行为测试见 scripts/test-release-provenance.sh。
+# ============================================================
+RELEASE_MANIFEST="${RELEASE_MANIFEST:-}"
+
+manifest_field() { # $1=点分字段名(如 backend.jar.md5); 取不到时说明原因并返回 1
+  [ -n "$RELEASE_MANIFEST" ] || { echo "冻结清单未提供: 部署 env 里没有 RELEASE_MANIFEST(冻结清单文件路径)" >&2; return 1; }
+  [ -f "$RELEASE_MANIFEST" ] || { echo "冻结清单文件不存在: $RELEASE_MANIFEST" >&2; return 1; }
+  python3 - "$RELEASE_MANIFEST" "$1" <<'PY'
+import json, sys
+path, keys = sys.argv[1], sys.argv[2].split('.')
+try:
+    doc = json.load(open(path, encoding='utf-8'))
+except (OSError, ValueError) as exc:
+    print('冻结清单无法读取或不是合法 JSON: %s' % exc, file=sys.stderr); sys.exit(1)
+if not isinstance(doc, dict) or doc.get('schema') != 1:
+    print('冻结清单格式不对: 应为 JSON 对象且 schema 为 1', file=sys.stderr); sys.exit(1)
+cur, seen = doc, []
+for key in keys:
+    seen.append(key)
+    if not isinstance(cur, dict) or key not in cur:
+        print('冻结清单缺少字段: %s' % '.'.join(seen), file=sys.stderr); sys.exit(1)
+    cur = cur[key]
+if not isinstance(cur, str) or not cur:
+    print('冻结清单字段不是非空字符串: %s' % '.'.join(keys), file=sys.stderr); sys.exit(1)
+print(cur)
+PY
+}
+
+_source_root() { (cd "${SOURCE_DIR:-$(cd "$SCRIPT_DIR/.." && pwd)}" && pwd); }
+
+assert_release_manifest() {
+  local want have
+  want="$(manifest_field commit)" || { echo "❌ 生产部署必须提供冻结清单, 并登记要部署的提交。拒绝继续, 未发生任何远端动作" >&2; return 1; }
+  want="$(printf '%s' "$want" | tr 'A-Z' 'a-z')"
+  case "$want" in *[!0-9a-f]*|'') echo "❌ 冻结清单里的提交号不是十六进制: [${want}]" >&2; return 1 ;; esac
+  [ "${#want}" -eq 40 ] || { echo "❌ 冻结清单里的提交号应为 40 位, 实际 ${#want} 位: [${want}]" >&2; return 1; }
+  have="$(cd "$(_source_root)" && git rev-parse HEAD 2>/dev/null | tr 'A-Z' 'a-z' || echo unknown)"
+  if [ "$want" != "$have" ]; then
+    echo "❌ 当前 HEAD(${have}) 不是冻结清单登记的提交(${want})。生产只能部署冻结的那个提交: 请先检出冻结的提交(或它的 tag)" >&2
+    return 1
+  fi
+  echo "✅ 冻结清单: 登记的提交 ${want} 与当前 HEAD 一致"
+}
+
+assert_worktree_clean() {
+  local dirty
+  dirty="$(cd "$(_source_root)" && git status --porcelain --untracked-files=no 2>/dev/null)"
+  if [ -n "$dirty" ]; then
+    echo "❌ 工作区有未提交的改动 —— 生产只能部署已提交且已冻结的内容。先提交或还原这些改动:" >&2
+    printf '%s\n' "$dirty" | head -10 >&2
+    return 1
+  fi
+  echo "✅ 工作区干净(已跟踪文件没有未提交改动)"
+}
+
+assert_backend_artifact() { # $1=从测试服取回的 jar
+  local jar="$1" want_md5 want_sha have_md5 have_sha
+  want_md5="$(manifest_field backend.jar.md5)"    || { echo "❌ 冻结清单没有登记后端 jar 的 md5, 无法核对" >&2; return 1; }
+  want_sha="$(manifest_field backend.jar.sha256)" || { echo "❌ 冻结清单没有登记后端 jar 的 sha256, 无法核对" >&2; return 1; }
+  have_md5="$(md5 -q "$jar")"
+  have_sha="$(shasum -a 256 "$jar" | awk '{print $1}')"
+  if [ "$have_md5" != "$want_md5" ] || [ "$have_sha" != "$want_sha" ]; then
+    echo "❌ 从测试服取回的 jar 不是冻结清单登记的那个版本, 拒绝部署:" >&2
+    echo "    md5    清单=${want_md5}  实际=${have_md5}" >&2
+    echo "    sha256 清单=${want_sha}" >&2
+    echo "           实际=${have_sha}" >&2
+    echo "    测试服上跑的可能不是冻结的版本; 核对后再部署" >&2
+    return 1
+  fi
+  echo "✅ 后端 jar 与冻结清单一致(md5=${have_md5})"
+}
+
+assert_frontend_artifact() { # $1=构建产物目录(dist)
+  local dist="$1" entry want_file want_sha have_sha
+  entry="$(grep -oE 'assets/index-[A-Za-z0-9_-]+\.js' "$dist/index.html" 2>/dev/null | head -1)"
+  if [ -z "$entry" ] || [ ! -s "$dist/$entry" ]; then
+    echo "❌ 构建产物没有入口 JS(index.html 应引用 assets/index-*.js)" >&2
+    return 1
+  fi
+  want_file="$(manifest_field frontend.entry.file)"  || { echo "❌ 冻结清单没有登记前端入口文件, 无法核对" >&2; return 1; }
+  want_sha="$(manifest_field frontend.entry.sha256)" || { echo "❌ 冻结清单没有登记前端入口的 sha256, 无法核对" >&2; return 1; }
+  have_sha="$(shasum -a 256 "$dist/$entry" | awk '{print $1}')"
+  if [ "$entry" != "$want_file" ] || [ "$have_sha" != "$want_sha" ]; then
+    echo "❌ 构建出的前端不是冻结清单登记的那个版本, 拒绝部署:" >&2
+    echo "    入口文件 清单=${want_file}" >&2
+    echo "            实际=${entry}" >&2
+    echo "    sha256   清单=${want_sha}" >&2
+    echo "            实际=${have_sha}" >&2
+    echo "    常见原因: 依赖或构建环境变了, 或有被 gitignore 的本地配置影响了构建" >&2
+    return 1
+  fi
+  echo "✅ 前端入口与冻结清单一致(${entry})"
+}
+
+# ============================================================
+# 【GL-05 2026-11-24】后端运行时的单一出处
+#
+# 背景: "构建镜像 / 启动容器 / 等待就绪"这几个远端函数此前在四个地方各抄一份, 彼此已经漂移:
+#   - deploy-backend.sh 正向路径带 FILE_GRANT_MODE、导出目录及其挂载;
+#   - 同一脚本"健康检查失败后的自动回滚"漏了这三项 —— 回滚后的容器与正向部署的容器行为不同;
+#   - rollback.sh 写死 DB_HOST=mysql / REDIS_HOST=redis(生产容器名是 <slug>-mysql / <slug>-redis),
+#     同样漏了这三项, 而且远端脚本根本没收到 DEPLOY_DIR。
+# 行为测试见 scripts/test-deploy-backend-runtime.sh: 渲染结果放进 docker 桩里真实执行, 逐项断言。
+#
+# 用法(本地侧): 把本函数的输出拼进要发给远端的脚本即可, 两个入口脚本的写法都能用:
+#   { echo 'set -Eeuo pipefail'; <输出变量赋值>; emit_remote_backend_runtime; cat <<'REMOTE' … REMOTE; } | ssh …
+# 远端需要事先定义的变量:
+#   必需: APP_SLUG DB_NAME APP_DB_USER APP_DB_PASSWORD JWT_SECRET OSS_ACCESS_KEY_ID OSS_ACCESS_KEY_SECRET
+#         OSS_BUCKET_NAME FILE_GRANT_MODE BACKEND_TAG
+#   调用 build_image / fast_rollback_container 时另需 DEPLOY_DIR; 调用 rollback_to_backup 时另需 BACKUP_JAR。
+# 改后端容器的启动参数只改这里。
+# ============================================================
+emit_remote_backend_runtime() {
+  cat <<'REMOTE_BACKEND_RUNTIME'
+build_image() {
+  cd "$DEPLOY_DIR"
+  # 【2026-10-27 生产事故】buildkit 在生产 dockerd 上 0 CPU 挂死(连极小构建都挂, 4 次实证),
+  # 容器运行时正常——改经典构建器(DOCKER_BUILDKIT=0)并加 240s 硬超时, 挂死可暴露而非死等。
+  if ! timeout 240 env DOCKER_BUILDKIT=0 docker build -q -t "${APP_SLUG}-backend:${BACKEND_TAG}" -f Dockerfile-run . >/tmp/dbuild.out 2>&1; then
+    tail -5 /tmp/dbuild.out >&2
+    return 1
+  fi
+  tail -3 /tmp/dbuild.out >&2 || true
+}
+image_jar_md5() {
+  docker run --rm --entrypoint sh "${APP_SLUG}-backend:${BACKEND_TAG}" -c 'md5sum /app/app.jar' 2>/dev/null \
+    | cut -d' ' -f1 | tr -d '\r\n '
+}
+start_backend() {
+  # FILE_GRANT_MODE 必须由本地侧显式传入(本地已用 assert_file_grant_mode 校验取值), 不回落 legacy。
+  # 这一步放在写含机密的 env-file 之前: 检查失败时不在 /tmp 留下任何文件。
+  if [ -z "${FILE_GRANT_MODE:-}" ]; then
+    echo "❌ FILE_GRANT_MODE 未传入, 拒绝启动后端" >&2
+    return 1
+  fi
+  docker stop "${APP_SLUG}-backend" >/dev/null 2>&1 || true
+  docker rm "${APP_SLUG}-backend" >/dev/null 2>&1 || true
+  # 【D3 2026-10-21】机密(DB/JWT/OSS 口令)经 0600 env-file 注入，不进 docker run argv
+  #（旧写法把明文口令作为 -e KEY=VALUE 参数写进远端 docker 进程 argv，同机 ps 可见）；非机密项保持 -e 便于排查。
+  local envf mounts
+  envf="$(mktemp /tmp/aigicrm-backend-env.XXXXXX)"
+  chmod 600 "$envf"
+  {
+    printf 'DB_PASSWORD=%s\n' "$APP_DB_PASSWORD"
+    printf 'JWT_SECRET=%s\n' "$JWT_SECRET"
+    printf 'OSS_ACCESS_KEY_ID=%s\n' "$OSS_ACCESS_KEY_ID"
+    printf 'OSS_ACCESS_KEY_SECRET=%s\n' "$OSS_ACCESS_KEY_SECRET"
+  } > "$envf"
+  if ! docker run -d --name "${APP_SLUG}-backend" --network "${APP_SLUG}_default" --restart always \
+    -p 127.0.0.1:8080:8080 \
+    --env-file "$envf" \
+    -e DB_HOST="${APP_SLUG}-mysql" -e DB_PORT=3306 -e DB_NAME="$DB_NAME" -e DB_USER="$APP_DB_USER" \
+    -e REDIS_HOST="${APP_SLUG}-redis" -e REDIS_PORT=6379 \
+    -e SPRING_PROFILES_ACTIVE=prod \
+    -e FILE_GRANT_MODE="$FILE_GRANT_MODE" \
+    -e EXPORT_DIR=/app/exports \
+    -e TENANT_ENABLE=true \
+    -e UPLOAD_DIR=/app/uploads -e STORAGE_TYPE=local -e TZ=Asia/Shanghai \
+    -e OSS_ENDPOINT=oss-cn-beijing.aliyuncs.com -e OSS_BUCKET_NAME="$OSS_BUCKET_NAME" \
+    -e CORS_ORIGINS=https://www.aigicrm.com \
+    -v /Aigicrm/files/uploads:/app/uploads \
+    -v /Aigicrm/files/ycmn-exports:/app/exports \
+    -v "${APP_SLUG}-logs:/app/logs" \
+    "${APP_SLUG}-backend:${BACKEND_TAG}" >/dev/null; then
+    rm -f "$envf"
+    echo "❌ docker run 后端容器失败" >&2
+    return 1
+  fi
+  rm -f "$envf"
+  # 挂载自检：上传目录与导出目录都必须在 NAS。少任何一个,"回滚后的容器"都会与"正向部署的容器"行为不同
+  # (此前只有正向部署检查上传挂载; 两条回滚路径既不检查上传、也完全没有导出挂载)。
+  mounts="$(docker inspect "${APP_SLUG}-backend" --format '{{range .Mounts}}{{.Source}} {{end}}')"
+  case "$mounts" in
+    *'/Aigicrm/files/uploads '*) ;;
+    *) echo "❌ 上传挂载不是 NAS 路径 /Aigicrm/files/uploads" >&2; return 1 ;;
+  esac
+  case "$mounts" in
+    *'/Aigicrm/files/ycmn-exports '*) ;;
+    *) echo "❌ 导出挂载不是 NAS 路径 /Aigicrm/files/ycmn-exports" >&2; return 1 ;;
+  esac
+}
+wait_started() {
+  local i
+  for i in $(seq 1 60); do
+    if [ "$(docker inspect -f '{{.State.Running}}' "${APP_SLUG}-backend" 2>/dev/null)" = "true" ] \
+       && docker logs "${APP_SLUG}-backend" 2>&1 | grep 'Started AigicrmApplication' >/dev/null; then
+      return 0
+    fi
+    sleep 5
+  done
+  echo "❌ 后端 300 秒内未就绪" >&2
+  docker logs "${APP_SLUG}-backend" --tail 50 >&2 2>&1 || true
+  return 1
+}
+fast_rollback_container() {
+  # 【2026-11-17 build 通道挂死事故】免重建快滚: docker cp 直换容器内 jar + 重启。
+  # 救急通道——容器内 jar 与镜像脱钩(镜像内 jar 陈旧), 标准通道恢复后需重建自愈;
+  # 容器已被删除时无救(无 cp 载体), 只能走镜像重建。
+  docker inspect "${APP_SLUG}-backend" >/dev/null 2>&1 \
+    || { echo "❌ 快滚通道不可用: 容器不存在(需镜像重建)" >&2; return 1; }
+  docker cp "$DEPLOY_DIR/app.jar" "${APP_SLUG}-backend:/app/app.jar" || return 1
+  local exp act
+  exp=$(md5sum "$DEPLOY_DIR/app.jar" | cut -d' ' -f1 | tr -d '\r\n ')
+  act=$(docker exec "${APP_SLUG}-backend" md5sum /app/app.jar 2>/dev/null | cut -d' ' -f1 | tr -d '\r\n ')
+  [ "$exp" = "$act" ] || { echo "❌ 快滚后容器内 jar 校验不符(exp=$exp act=$act)" >&2; return 1; }
+  docker restart "${APP_SLUG}-backend" >/dev/null || return 1
+  wait_started || return 1
+}
+rollback_to_backup() {
+  [ -s "$BACKUP_JAR" ] || { echo "❌ 备份 jar 不存在/为空: $BACKUP_JAR" >&2; return 1; }
+  echo "↩ 使用备份 jar 回滚: $BACKUP_JAR" >&2
+  cp -p "$BACKUP_JAR" "$DEPLOY_DIR/app.jar" || return 1
+  if build_image; then
+    local exp act
+    exp=$(md5sum "$BACKUP_JAR" | cut -d' ' -f1 | tr -d '\r\n ')
+    act=$(image_jar_md5)
+    [ "$exp" = "$act" ] || { echo "❌ 回滚镜像内 jar 校验不符(exp=$exp act=$act)" >&2; return 1; }
+    start_backend || return 1
+    wait_started || return 1
+  else
+    # 镜像重建不可用(dockerd 构建挂死等) → 免重建快滚, 保服务恢复优先
+    echo "↩ 镜像重建失败, 走免重建快滚(docker cp + restart) ..." >&2
+    fast_rollback_container || return 1
+  fi
+}
+REMOTE_BACKEND_RUNTIME
+}

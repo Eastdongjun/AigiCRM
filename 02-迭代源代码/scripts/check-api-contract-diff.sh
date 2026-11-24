@@ -13,14 +13,27 @@ fail() { echo "FAIL: $1" >&2; exit 1; }
 COMMITTED="$ROOT/docs/api/api-list.json"
 [ -f "$COMMITTED" ] || fail "机器契约不存在: docs/api/api-list.json(先跑 gen-api.py)"
 
-# 从源码重生成契约(md+json 一并刷新)——真实语义: committed 契约 vs 源码现状。
-# AIGI_API_CONTRACT_NOGEN=1 供负例自证(跳过 regen, 直接拿手改 json 验证检测器会红;
-# 正常门禁勿设——regen 会复原任何对 json 的手改, 这正是"机器契约不可手绕"的机制)。
+# 从源码重生成契约到临时文件(md+json), 再与已提交的 json 比较 —— 真实语义: committed 契约 vs 源码现状。
+# 【修正 2026-11-24】此前直接写回 docs/api/api-list.md(+同名 .json): 一个"检查"脚本每次运行都改被跟踪的文件
+#   (生成时间行必变), 跑完契约集工作区就是脏的, 而部署/小程序上传守卫要求工作区干净。
+#   改为生成到临时文件后语义不变: 比较用的"现状"来自生成结果, 不读工作区里可能被手改的 json。
+# AIGI_API_CONTRACT_NOGEN=1 供负例自证(跳过 regen, 直接拿工作区里手改的 json 验证检测器会红; 正常门禁勿设)。
+NEW_JSON="$COMMITTED"
+# 【退出码守卫】见 exit-guard.sh: bash 3.2 在 set -e + EXIT 陷阱下会把未定义变量引起的中止报成退出码 0。
+#   检查脚本因此会在"其实没检查完"的情况下显示通过。
+cleanup_gen_dir() { if [ -n "${GEN_DIR:-}" ]; then rm -rf "$GEN_DIR"; fi; }
+. "$(cd "$(dirname "$0")" && pwd)/exit-guard.sh"
+exit_guard_install cleanup_gen_dir
 if [ "${AIGI_API_CONTRACT_NOGEN:-0}" != "1" ]; then
-  python3 "$SCRIPT_DIR/gen-api.py" "$ROOT/aigicrm-backend/src/main/java/com/aigicrm" "$ROOT/docs/api/api-list.md" >/dev/null 2>&1
+  GEN_DIR="$(mktemp -d "${TMPDIR:-/tmp}/api-contract-diff.XXXXXX")"
+  # 生成失败要出声: 旧写法把生成器的报错丢进 /dev/null, 失败时只剩一个没有说明的退出码 1
+  if ! python3 "$SCRIPT_DIR/gen-api.py" "$ROOT/aigicrm-backend/src/main/java/com/aigicrm" "$GEN_DIR/api-list.md" > "$GEN_DIR/gen.out" 2>&1; then
+    echo "FAIL: gen-api.py 生成失败:" >&2; tail -5 "$GEN_DIR/gen.out" >&2; exit 1
+  fi
+  NEW_JSON="$GEN_DIR/api-list.json"
 fi
 
-python3 - "$ROOT" <<'PY'
+python3 - "$ROOT" "$NEW_JSON" <<'PY'
 import json, subprocess, sys, os
 root = sys.argv[1]
 # 仓库根可能在 $ROOT 之上(仓库根=01-AIGICRM, $ROOT=02-迭代源代码)——git show 的路径
@@ -42,7 +55,8 @@ def committed_text():
     print('FAIL: %s 不在版本控制中(先提交)' % rel); sys.exit(1)
 
 old = json.loads(committed_text())
-new = json.loads(open(os.path.join(root, 'docs/api/api-list.json'), encoding='utf-8').read())
+# "现状": 正常模式下来自临时生成的 json; NOGEN 模式下来自工作区的 json(负例自证用)
+new = json.loads(open(sys.argv[2], encoding='utf-8').read())
 def index(doc):
     return {(e['method'], e['path']): e['permission'] for e in doc['endpoints']}
 oi, ni = index(old), index(new)
@@ -63,7 +77,8 @@ if breaking:
     print('FAIL: API 机器契约检测到破坏性变更(删端点/改权限码):', file=sys.stderr)
     for b in breaking:
         print(f'  [破坏性] {b}', file=sys.stderr)
-    print('  若为有意变更: 提交更新后的 docs/api/api-list.json 使其入版本库(评审将看到该 diff)。', file=sys.stderr)
+    print('  若为有意变更: 运行 python3 scripts/gen-api.py aigicrm-backend/src/main/java/com/aigicrm docs/api/api-list.md 后, 提交更新后的 docs/api/api-list.json(评审将看到该 diff)。', file=sys.stderr)
     sys.exit(1)
 print(f"PASS: API 机器契约无破坏性变更({len(ni)} 端点; 新增 {len(added)})")
 PY
+EXIT_GUARD_DONE=1
