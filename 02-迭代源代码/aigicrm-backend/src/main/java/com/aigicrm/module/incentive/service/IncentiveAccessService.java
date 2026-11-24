@@ -137,6 +137,9 @@ public class IncentiveAccessService {
      * 【注意】只读；实时查询不走权限缓存，面板改动即时生效
      */
     // 【2026-11-03 权限中心·生效预览】提 public: 预览接口按任意 userId 读四开关(不绑当前登录人)
+    // native-sql-audit[1]: 按 user_id 读这个用户的激励例外授权行，只读，不返回别的内容。
+    // 不加租户过滤：一个用户只属于一个集团，按用户查不会读到别家的授权行。调用方两类——当前登录人自己；
+    // 权限中心的生效预览(按任意 userId 调用, 该端点要求 system:config:view)。
     public Map<String, Object> grantRow(Long userId) {
         if (userId == null) return Map.of();
         try {

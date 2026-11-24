@@ -64,6 +64,8 @@ public class FileVersionService {
     }
 
     /** 版本字节是否仍被"当前主行之外"的活跃文件/其他版本引用(含同文件其他版本、其他文件版本)。 */
+    // native-sql-audit[2]: 按对象存储 key 统计“除这一行之外还有谁引用这份字节”，只取计数，不改库，不返回业务行。
+    // 故意不加租户过滤：同一份字节可能被别的集团的记录共用，多算只会“不删”，少算才可能误删别人正在用的字节。
     private boolean versionContentReferencedElsewhere(String key, Long fileId, Long excludeVersionId) {
         Long active = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM biz_file WHERE oss_key = ? AND deleted = 0 AND id <> ?",

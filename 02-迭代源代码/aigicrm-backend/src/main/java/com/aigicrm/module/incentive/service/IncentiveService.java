@@ -198,6 +198,15 @@ public class IncentiveService {
      */
     @Transactional
     public void deleteRecord(Long id) {
+        // 【2026-11-25 原生 SQL 审计】下面的三条 SQL 走 JdbcTemplate, 按主键直接改库, 不经过租户拦截器。
+        // 动手之前先用 Mapper 取一次(Mapper 走拦截器链): 取不到 = 记录不存在、已在回收站, 或属于别的租户 ——
+        // 这时就停, 一条原生 SQL 都不发。这样不依赖调用方有没有做过归属校验(控制器的归属校验对
+        // admin 和持有删除授权的人是不做的)。
+        // native-sql-audit[3]: 本方法里的三条原生 SQL(取已读名单、软删、清理已读行)都按上面取到的那条记录执行。
+        BizIncentiveRecord target = recordMapper.selectById(id);
+        if (target == null) {
+            throw new BusinessException(404, "激励记录不存在或已删除");
+        }
         // 【2026-11-17 阶段三】软删进统一回收站：保留原分值与文件引用，管理员可恢复。
         // 【2026-11-17 P2-5】已读记录先快照进 bin，恢复时回填，避免“恢复后全员变未读”。
         java.util.List<java.util.Map<String, Object>> reads = jdbc.queryForList(
@@ -507,6 +516,9 @@ public class IncentiveService {
         evictScoreboardCache();
     }
 
+    // native-sql-audit[1]: 按文件 id 反查引用它的记录，只取候选 id，不改库，不按租户过滤(候选因此可能落在别的集团)。
+    // 真正的修改在 detachFromRecord 里：用 selectByIdForUpdate(@Select, 走租户拦截器)重新取行，取不到就跳过，
+    // 所以改不到别集团的数据。
     private List<Long> findRecordsContainingFile(Long fileId) {
         return jdbc.queryForList(
                 "SELECT id FROM biz_incentive_record WHERE " +

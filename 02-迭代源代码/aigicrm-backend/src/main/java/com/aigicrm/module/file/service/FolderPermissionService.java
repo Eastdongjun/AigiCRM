@@ -395,9 +395,10 @@ public class FolderPermissionService {
      * 仅做“是否社区内容”的事实查询，功能码 fabushi:view 已在调用方前置。
      */
     boolean isFabushiCommunityFile(Long fileId) {
-        // 原生 SQL 审计：社区内容事实查询，按 fileId 主键只判“是否已发布为社区内容”，不返回业务行。
-        // 不加租户过滤是有意为之：已发布社区内容按跨组织放行语义处理，且被查五张社区表没有租户列；
-        // 单集团部署下租户值恒为 1，与文件分片/回收站服务的豁免口径一致。
+        // native-sql-audit[1]: 社区内容事实查询，按 fileId 只判“这个文件是否已被已发布的社区内容引用”，
+        // 只返回是否存在，不返回业务行。不加租户过滤是有意为之：这是“文件能不能删”的保护性判断，按“有引用就拦”
+        // 取宽口径——多拦只会不删，少拦才可能删掉别人正在用的文件。被查的五张社区表都在租户白名单里
+        // (2026-11-25 核实；原注释写的“没有租户列”不准，复诵表的租户列由 V2026.11.23.5 补上)，这里刻意不按租户收窄。
         if (fileId == null || jdbc == null) return false;
         Integer n = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM ("
