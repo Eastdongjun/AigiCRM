@@ -567,6 +567,10 @@ local_contracts() {
   # 【2026-11-25】原生 SQL 租户范围契约的行为测试: 契约新增“带处数的豁免”(登记的处数必须等于实际的调用点数,
   #   以后再往豁免过的文件里加原生 SQL 就会红); 这个安全护栏此前没有自己的行为测试。隔离夹具, 不需要构建。
   run bash "$ROOT/scripts/test-check-native-sql-tenant-scope.sh"
+  # 【2026-11-25】空库重放脚本的行为测试(不联网; 此前它一跑就要连测试服, 所以没有任何行为测试):
+  #   排序规则只认两个值并在上传之前校验、末态迁移数断言、包里不带本机工具状态目录;
+  #   远端脚本在“假测试服”(桩 docker)里整段跑, 各类末态异常必须红, 失败也要清场。
+  run bash "$ROOT/scripts/test-replay-empty-db.sh"
   run "$ROOT/scripts/check-pr22-coverage-ledger.sh"
   run "$ROOT/scripts/check-incentive-search-detail-contract.sh"
   run "$ROOT/scripts/check-incentive-stats-detail-contract.sh"
