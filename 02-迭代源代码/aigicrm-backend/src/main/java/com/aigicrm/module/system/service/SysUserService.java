@@ -93,7 +93,7 @@ public class SysUserService {
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.aigicrm.module.system.service.RecycleBinService recycleBinService;
 
-    /** 【2026-08-14 安全 P0】随机初始口令(12 位, 去易混字符, SecureRandom)——替代硬编码 123456 */
+    /** 【2026-08-14 安全 P0】随机初始口令(12 位, 去易混字符, SecureRandom)——替代硬编码默认口令 */
     private String generateRandomPassword() {
         final String chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
         java.security.SecureRandom random = new java.security.SecureRandom();

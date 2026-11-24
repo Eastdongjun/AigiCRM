@@ -25,7 +25,7 @@
 ## 失败与纠正
 - 部署后浏览器显示旧版树形表格 → 根因：浏览器缓存旧 index.html/chunk → 纠正：带 ?v= 参数强刷验证通过（服务器 dist 已确认含新代码 config-CPsXd-MI.js）
 - 初版需求文档子项数写 16 → 实测为 12 → 已修正文档
-- MySQL 密码误用 AIGICRM123 → 实际 root/<redacted>（容器 env 确认），已纠正
+- MySQL 密码误用 <已移除，2026-11-24 脱敏> → 实际 root/<redacted>（容器 env 确认），已纠正
 
 ## 实际执行命令
 - cd aigicrm-ui && npm run build && npm run test

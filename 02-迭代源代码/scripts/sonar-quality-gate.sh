@@ -6,7 +6,8 @@ set -euo pipefail
 HOST="${SONAR_HOST_URL:-http://127.0.0.1:19000}"
 PROJECT="${SONAR_PROJECT_KEY:-Eastdongjun_AigiCRM-local}"
 GATE="${SONAR_GATE_NAME:-AIGICRM-P0-5}"
-if [ -n "${SONAR_TOKEN:-}" ]; then AUTH="$SONAR_TOKEN:"; else AUTH="${SONAR_AUTH:-admin:admin}"; fi
+# 【GL-01 2026-11-24】不再内置安装默认口令：本地凭据经 SONAR_AUTH 或 SONAR_USER/SONAR_PASSWORD 传入，缺则 fail-closed
+if [ -n "${SONAR_TOKEN:-}" ]; then AUTH="$SONAR_TOKEN:"; else AUTH="${SONAR_AUTH:-${SONAR_USER:-admin}:${SONAR_PASSWORD:?未配置 SONAR_PASSWORD（本地 Sonar 口令经环境变量传入，脚本不写安装默认值）}}"; fi
 api() { curl -s -u "$AUTH" "$@"; }
 
 api -X POST "$HOST/api/qualitygates/create" -d "name=$GATE" >/dev/null || true

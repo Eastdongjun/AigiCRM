@@ -7,7 +7,7 @@ services:
     container_name: ${APP_SLUG:-aigicrm}-mysql
     restart: always
     environment:
-      # 经部署 env 注入（DB_PASSWORD=已轮换的生产 root 密码，2026-08-08 后 123456 已失效）
+      # 经部署 env 注入（DB_PASSWORD=已轮换的生产 root 密码，2026-08-08 后旧默认口令已失效）
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD 未设置（经部署 env 注入，已轮换）}
       MYSQL_DATABASE: ${DB_NAME:-aigicrm}
       TZ: Asia/Shanghai

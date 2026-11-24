@@ -50,7 +50,7 @@ public class SysUser {
     private LocalDateTime pwdChangedAt;
     /** 【2026-08-14 缓存自愈】权限版本号：任一权限变更 +1；缓存命中时与 DB 比对，防 evict 漏网残留 */
     private Integer permVersion;
-    /** 【2026-08-14 安全 P0】首次登录强制改密标记（1=需改密；配合随机初始口令消除硬编码 123456） */
+    /** 【2026-08-14 安全 P0】首次登录强制改密标记（1=需改密；配合随机初始口令消除硬编码默认口令） */
     private Integer pwdResetRequired;
     private Long storageQuota;
     private Long storageUsed;

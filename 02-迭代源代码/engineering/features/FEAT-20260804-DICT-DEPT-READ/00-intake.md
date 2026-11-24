@@ -34,7 +34,7 @@
 
 ## 来源与事实
 
-- 用户报障：`https://www.aigicrm.com/customer/add`，账号 NM005 / 密码 717500。
+- 用户报障：`https://www.aigicrm.com/customer/add`，账号 NM005 / 密码 <已移除，2026-11-24 脱敏>。
 - 生产服务器 `root@39.99.35.218`（Docker Compose @ /root/aigicrm/），容器 `aigicrm-mysql`，库 `aigicrm`：NM005=王磊磊，role_id=11 销售员(06)；行政(9/05)、销售员(11/06) 均未绑定菜单 32/34；销售总监(10/0)、管理员(1/admin) 已绑定。
 - 后端源码：`/Users/donglai/东来/01-Projects/01-aigicrm/04-源码/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysDictController.java`、`SysDeptController.java`（已读，权限注解逐行确认）。
 - 前端调用点：`/Users/donglai/东来/01-Projects/01-aigicrm/04-源码/aigicrm-ui/src/api/system.js` 与 `views/` 各页面（已 grep 确认）。

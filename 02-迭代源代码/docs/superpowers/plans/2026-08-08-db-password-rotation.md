@@ -2,20 +2,24 @@
 
 > 状态：**执行中**。Step 1 已完成，Step 2-4 待单独授权。
 > 前置：N1-A（密码移出 git 文件）已完成，commit `084ac65`。
+>
+> **2026-11-24 更正与脱敏**：① 本文原多处写有旧默认口令明文，已替换为 `<旧默认口令>` 占位符，语义不变。
+> ② 文末「仓库为私有」这一前提**现已不成立**——GitHub 仓库当前为 PUBLIC，git 历史里的旧值对所有人可见。
+> ③ 「测试库 root 未轮换」这一条是否仍然成立，需单独确认（截至本文更正时未找到后续轮换记录）。
 
 ## 执行进度
 
 - ✅ **Step 1 测试环境最小权限账号（2026-08-08 完成）**：测试库建 `aigicrm_app`（SELECT/INSERT/UPDATE/DELETE on aigicrm.*），测试后端容器切 `DB_USER=aigicrm_app`（凭据存 `~/.aigicrm-deploy.env` 的 `TEST_DB_USER/TEST_DB_PASSWORD`）。验证：6 关键接口 200 + 写操作（INSERT 自动提醒 / UPDATE process 提醒）均通过，jar 保持 `c7d2837e`。
 - ✅ **Step 2 生产切换（2026-08-08 完成）**：生产库建 `aigicrm_app`（独立强密码，存 `~/.aigicrm-deploy.env` 的 `APP_DB_USER/APP_DB_PASSWORD`）；deploy-backend.sh/rollback.sh 改 `APP_DB_*`（含守卫）；生产容器已切 `DB_USER=aigicrm_app`，4 关键接口 200。commit `7dc3119`，已 push origin/main。**顺带修复**：rollback.sh 缺 JWT_SECRET 的回滚断链 bug。
 - ✅ **Step 3 备份 cron 切换（2026-08-08 完成）**：服务器建 `aigicrm_backup`（SELECT/LOCK TABLES/SHOW VIEW/TRIGGER/EVENT on aigicrm.* + 全局 PROCESS），凭据 `/usr/local/bin/.aigicrm-backup.env`(600)；`aigicrm-daily-backup.sh` 4 处改 env 注入（备份 .bak）。手动跑备份 `db=OK login=200 missing=0`。
-- ✅ **Step 4 root 轮换（2026-08-08 完成）**：生产 root（`%` + `localhost` 两 host）改新强密码（28 位字母数字）；`~/.aigicrm-deploy.env` 的 `DB_PASSWORD` 更新为新 root。验证三链路：应用 aigicrm_app 登录 200 / Mac 脚本新 root 读 574 / 备份 aigicrm_backup db=OK。旧 `123456` 已拒绝。
+- ✅ **Step 4 root 轮换（2026-08-08 完成）**：生产 root（`%` + `localhost` 两 host）改新强密码（28 位字母数字）；`~/.aigicrm-deploy.env` 的 `DB_PASSWORD` 更新为新 root。验证三链路：应用 aigicrm_app 登录 200 / Mac 脚本新 root 读 574 / 备份 aigicrm_backup db=OK。旧 `<旧默认口令>` 已拒绝。
 - ✅ **测试环境密码分离**：脚本测试模式改用 `TEST_DB_ROOT_PASSWORD`（测试 root 不变）。commit `8731677`。
-- ⚠️ **遗留**：① git 历史仍含 `123456` 明文（已轮换失效；`git filter-repo` 清理可选）；② 测试库 root 未轮换（与 ShopJoy 共享 shared-mysql，改密可能影响 ShopJoy，需单独评估）；③ 服务器 `.aigicrm-backup.env` 与 Mac `~/.aigicrm-deploy.env` 是本机凭证，勿入 git。
+- ⚠️ **遗留**：① git 历史仍含 `<旧默认口令>` 明文（已轮换失效；`git filter-repo` 清理可选）；② 测试库 root 未轮换（与 ShopJoy 共享 shared-mysql，改密可能影响 ShopJoy，需单独评估）；③ 服务器 `.aigicrm-backup.env` 与 Mac `~/.aigicrm-deploy.env` 是本机凭证，勿入 git。
 
 ## 一、目标
 
 1. 后端应用不再用 `root` 连生产库，改用**最小权限账号** `aigicrm_app`（仅 `aigicrm` 库 DML）。
-2. 轮换生产 MySQL `root` 密码（当前 `123456`，已泄露至 git 历史），旧值立即失效。
+2. 轮换生产 MySQL `root` 密码（当前 `<旧默认口令>`，已泄露至 git 历史），旧值立即失效。
 3. 备份/运维链路同步切换，不因轮换中断每日备份。
 
 ## 二、现状（已核实）
@@ -23,7 +27,7 @@
 | 项 | 现状 |
 |---|---|
 | 生产 MySQL | Docker 容器 `aigicrm-mysql`，root/<redacted> |
-| 后端容器 | `DB_USER=root`、`DB_PASSWORD` 经 env（N1-A 后从 `~/.aigicrm-deploy.env` 注入，当前值仍 123456） |
+| 后端容器 | `DB_USER=root`、`DB_PASSWORD` 经 env（N1-A 后从 `~/.aigicrm-deploy.env` 注入，当前值仍 <旧默认口令>） |
 | 部署脚本 | 6 个脚本已改 `-p"$DB_PASSWORD"`（N1-A） |
 | 服务器备份 cron | `/usr/local/bin/aigicrm-daily-backup.sh`（mysqldump，用 root/<redacted>） |
 | 测试环境 | 同一套 `DB_PASSWORD`（shared-mysql，root/<redacted>） |
@@ -55,7 +59,7 @@ FLUSH PRIVILEGES;
 ALTER USER 'root'@'%' IDENTIFIED BY '<强密码-root-生产>';
 ```
 - 轮换前确认：应用已切 `aigicrm_app`、备份已切 `aigicrm_backup`/新 root 密码、部署脚本 `DB_PASSWORD` 已更新。
-- 轮换后立即验证：应用健康、备份 cron 下个周期正常、git 里的旧值 123456 全部失效。
+- 轮换后立即验证：应用健康、备份 cron 下个周期正常、git 里的旧值 <旧默认口令> 全部失效。
 
 ### 回滚
 - 任一生产步骤失败：`rollback.sh rollback_backend` 回滚 jar（DB_USER/DB_PASSWORD 仍是 env 注入，改回 root/旧值即可）。
@@ -70,7 +74,7 @@ ALTER USER 'root'@'%' IDENTIFIED BY '<强密码-root-生产>';
 
 ## 五、Git 历史清理（可选，非紧急）
 
-- 仓库为**私有**，疑似仅本人有权限；root 轮换后 git 历史里的 `123456` 已失效。
+- 仓库为**私有**，疑似仅本人有权限；root 轮换后 git 历史里的 `<旧默认口令>` 已失效。
 - 如需彻底清理：`git filter-repo` 移除含密码的 blob → 强推（force push）所有远端分支。⚠️ 会重写历史，需先确认无协作者。
 - 推荐：先轮换密码（止血），filter-repo 作为择期操作。
 

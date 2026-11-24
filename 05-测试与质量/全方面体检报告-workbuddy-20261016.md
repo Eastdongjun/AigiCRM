@@ -189,7 +189,7 @@
 | 前端测试（序列模式） | `npx vitest run --fileParallelism=false` → `Test Files 31 passed (31) / Tests 202 passed (202)`（日志 `/tmp/wb-fe-nopar.log`） |
 | 前端构建重试 | `npm run build` → `✓ built in 920ms`，`dist/assets/index-BVJbvEj9.js` |
 | contracts 清点 | 门禁日志 contracts 区逐条：133 PASS（122 `PASS` + 11 `[PASS]`）/ 0 FAIL |
-| 权限矩阵复跑 | venv（bcrypt 5.0.0）+ `AIGI_TEST_USER=admin AIGI_TEST_PASS=123456 bash scripts/verify-perm-matrix.sh` → `PASS=21 FAIL=0`（日志 `/tmp/wb-perm-final2.log`） |
+| 权限矩阵复跑 | venv（bcrypt 5.0.0）+ `AIGI_TEST_USER=admin AIGI_TEST_PASS=<旧默认口令> bash scripts/verify-perm-matrix.sh` → `PASS=21 FAIL=0`（日志 `/tmp/wb-perm-final2.log`） |
 | 生产 SSH | `ssh -i 06-部署与运维/阿里云环境/aigicrm.com.pem root@39.99.35.218`（默认值出自 `scripts/deploy-lib.sh:72`） |
 | md5 三方比对 | 测试机 jar ↔ 生产镜像内 jar ↔ 生产磁盘 app.jar：`1e81443341adfc9dde8a1b6c3add6851` |
 | 生产 Flyway | `flyway_schema_history` 最新 `V2026.10.12.2` success=1（2026-10-13 22:38:43） |

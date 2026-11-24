@@ -33,4 +33,4 @@
 
 - ✅ **数据范围过滤锚点**：保持 owner 部门归属（六级范围语义正确），客户自身 office_id 是属性筛选；如确有"按客户所属组织看"诉求单独立项。已记设计记忆。
 - ✅ **测试库 root**：AIGICRM 测试运维改专用 `aigicrm_admin`（commit `13f557d`，测试脚本不再用共享 root）；共享 root/<redacted> 保留（ShopJoy 微服务已停止 8 天但配置依赖，重启需兼容）。
-- ✅ **git filter-repo**：**决定不做**。prod root 已轮换（123456 失效，安全收益 0）；全局 scrub 会改写当前 AGENTS.md/CLAUDE.md/运维手册等多处文档需修复；force-push 不可逆且重写全部远端分支。仅当需要"干净历史"作为独立立项时再做。
+- ✅ **git filter-repo**：**决定不做**。prod root 已轮换（旧默认口令失效，安全收益 0）；全局 scrub 会改写当前 AGENTS.md/CLAUDE.md/运维手册等多处文档需修复；force-push 不可逆且重写全部远端分支。仅当需要"干净历史"作为独立立项时再做。

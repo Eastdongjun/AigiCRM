@@ -22,11 +22,11 @@
 
 ## 配置方式
 
-本地（默认 `admin:admin`）：
+本地（账号口令经环境变量 `SONAR_USER` / `SONAR_PASSWORD` 传入；脚本不再内置安装默认值）：
 
 ```bash
 cd 02-迭代源代码
-bash scripts/sonar-quality-gate.sh
+SONAR_PASSWORD='<本地 Sonar 口令>' bash scripts/sonar-quality-gate.sh
 ```
 
 SonarCloud（需项目管理员 token；把 token 作为用户名、空密码）：
