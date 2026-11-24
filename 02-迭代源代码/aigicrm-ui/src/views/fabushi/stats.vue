@@ -154,7 +154,8 @@
         <tbody>
           <tr v-for="(row, i) in pagedBookRanking" :key="row.bookId">
             <td><span class="book-cell"><span class="mini-cover">{{ (row.title || '书').replace(/[《》]/g, '').slice(0, 2) }}</span><span class="strong">{{ row.title }}</span></span></td>
-            <td><span class="cat-chip" :class="'c' + (i % 3)">{{ row.categoryName || row.category || '—' }}</span></td>
+            <!-- 【GL-14 2026-11-24】行号先转数字再取模: 类型检查不认这里的循环下标是数字(运行结果不变), 这一行让类型基线超了 1 处 -->
+            <td><span class="cat-chip" :class="'c' + (Number(i) % 3)">{{ row.categoryName || row.category || '—' }}</span></td>
             <td class="num w-num r">{{ row.readUsers }}</td>
             <td class="num w-num r">{{ row.readCount }}</td>
             <td class="w-act"><span class="metric-bar"><span class="tr"><i :style="{ width: bookPct(row) + '%' }" /></span><span class="pc">{{ bookPct(row) }}%</span></span></td>
@@ -200,6 +201,11 @@
         </table>
       </div>
       <div v-if="!(dashboard.deptProgress || []).length" class="empty">本周期暂无部门数据</div>
+      <!-- 【GL-14 2026-11-24】部门进度每页 8 个, 但此前没有翻页条: 超过 8 个部门时后面的在界面上看不到。与书目阅读榜同一写法 -->
+      <div v-if="deptTotalPages > 1" class="inline-pager">
+        <span>共 {{ (dashboard.deptProgress || []).length }} 个部门</span>
+        <el-pagination v-model:current-page="deptPage" :page-size="deptSize" :total="(dashboard.deptProgress || []).length" layout="prev, pager, next" small />
+      </div>
     </section>
 
     <!-- ⑨ 月度报告(行型 A 全宽): 阅读组/互动组各一行格子; 环比无值时隐藏不露占位符 -->
