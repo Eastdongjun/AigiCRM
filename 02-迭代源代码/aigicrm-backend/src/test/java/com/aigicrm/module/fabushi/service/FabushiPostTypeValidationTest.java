@@ -29,7 +29,10 @@ import static org.mockito.Mockito.when;
 /**
  * 【D1 2026-11-23】三类型分型校验矩阵钉（REQUIREMENT-DELTA-20261122 Q4/Q9/Q11/Q14 拍板）：
  * songdu/zaidu 必选书且书目 approved（Q4：A 通道也必选书，如同四项激励先选客户）；
- * suishi 免标题免书目（负例 400，朋友圈式一键发）；旧类型值 heart/recitation/znl 迁移后一律 400。
+ * suishi 免标题免书目（负例 400，朋友圈式一键发）。
+ * 旧类型值 heart/recitation/znl 已由 V2026.11.23.1 迁移；【GL-11 2026-11-24】起入口把它们当作旧客户端的
+ * 别名接受并落库为新值（兼容线上小程序旧版本），白名单之外的取值仍然 400。完整的别名矩阵见
+ * FabushiLegacyScopeTypeAliasTest。
  */
 class FabushiPostTypeValidationTest {
 
@@ -126,9 +129,17 @@ class FabushiPostTypeValidationTest {
     }
 
     @Test
-    void legacyScopeType_rejected() {
-        BusinessException ex = createRejected(post("heart", null, "旧心得", "旧内容"));
+    void unknownScopeType_rejected() {
+        BusinessException ex = createRejected(post("xxx", null, "内容", "内容"));
         assertEquals("内容类型不合法", ex.getMessage());
+    }
+
+    /** 【GL-11 2026-11-24】旧值不再 400：heart 是旧客户端发的心得，落库为 suishi，并沿用 suishi 的规则。 */
+    @Test
+    void legacyScopeType_heart_storedAsSuishi() {
+        BizFabushiPost created = svc.create(post("heart", null, null, "旧内容"));
+        assertEquals("suishi", created.getScopeType());
+        assertEquals("published", created.getStatus());
     }
 
     @Test

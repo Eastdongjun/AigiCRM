@@ -67,8 +67,8 @@ public class FabushiPostService {
     /** 【P2 2026-11-23】章节标题联显（按书浏览表格「章节」列）；只读查询，不参与写路径。 */
     private final BizFabushiSectionMapper sectionMapper;
 
-    /** 【D1 2026-11-23】类型白名单收敛到单源枚举 FabushiScopeType（songdu/suishi/zaidu）；旧值已由 V2026.11.23.1 迁移。 */
-    private static final Set<String> SCOPE_TYPES = FabushiScopeType.codes();
+    /** 【D1 2026-11-23】类型白名单收敛到单源枚举 FabushiScopeType（songdu/suishi/zaidu）；旧值已由 V2026.11.23.1 迁移。
+     *  入口只认枚举: 发布经 applyScopeType 归一(旧客户端别名落库为新值), 筛选经 FabushiScopeType.toCurrent。 */
     // Sonar java:S1192 —— body 键与审计前缀在多个切片中共用，收敛为常量
     private static final String LIT_TITLE = "title";
     private static final String LIT_SECTION_ID = "sectionId";
@@ -107,7 +107,9 @@ public class FabushiPostService {
      * 其余调用方一律强制 published——防越权翻看下架内容。
      */
     public Page<BizFabushiPost> page(PageQuery q) {
-        String scopeType = q.scopeType();
+        // 【GL-11 2026-11-24】旧客户端按旧类型筛选时归一成现行取值(存量已迁移, 库里只有新值)。
+        // 未知值保持原样: 查不到任何行, 与重构前一致 —— 不能因为"不认识"就变成不过滤。
+        String scopeType = FabushiScopeType.toCurrent(q.scopeType());
         Long bookId = q.bookId();
         String status = q.status();
         boolean manageAllowed = q.manageAllowed();
@@ -342,7 +344,7 @@ public class FabushiPostService {
         if (user == null) {
             throw new BusinessException(401, "未登录");
         }
-        FabushiScopeType type = resolveScopeType(post);
+        FabushiScopeType type = applyScopeType(post);
         validateScopeTarget(post, type);
         if (isBlankText(post.getContent()) && isBlankText(post.getTitle())) {
             throw new BusinessException(400, "内容不能为空");
@@ -354,12 +356,18 @@ public class FabushiPostService {
         return post;
     }
 
-    /** scope_type 必须在单源枚举内，否则 400。 */
-    private FabushiScopeType resolveScopeType(BizFabushiPost post) {
-        if (post.getScopeType() == null || !SCOPE_TYPES.contains(post.getScopeType())) {
+    /**
+     * scope_type 必须是现行取值或旧客户端别名（单源枚举 FabushiScopeType），否则 400。
+     * 【GL-11 2026-11-24】线上小程序的旧版本仍会发重构前的类型值: 在入口归一并写回实体，落库一律是新值。
+     * 别名沿用新类型的全部规则（由返回的枚举驱动后续分型校验）。
+     */
+    private FabushiScopeType applyScopeType(BizFabushiPost post) {
+        String normalized = FabushiScopeType.normalize(post.getScopeType());
+        if (normalized == null) {
             throw new BusinessException(400, "内容类型不合法");
         }
-        return FabushiScopeType.valueOf(post.getScopeType().toUpperCase());
+        post.setScopeType(normalized);
+        return FabushiScopeType.valueOf(normalized.toUpperCase());
     }
 
     /** 分型校验：需书的类型必须挂已审核书目；免书类型不得带标题/书目。 */
