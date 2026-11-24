@@ -159,7 +159,9 @@ const {
   selectedIndustry, industryOptions, relatedCat, relatedSub, productCatKeys, productCats,
   categoryCodeOf, specificProduct,
   secTitle, detailLabel, isSingleSlot, preInstallQuestion, isTrial, remarkLabel, remarkText,
-  slotLabel, MAX_FILES, installFiles, fileSlots,
+  // 【GL-14 2026-11-24】trackFile 此前漏了解构: 模板把它传给“跟踪记录”那一格, 翻页组件拿到 undefined 就在 setup 里抛错,
+  // 这一格整个渲染不出来(已有的跟踪文件看不到, 也没有“选择文件”入口)
+  slotLabel, MAX_FILES, installFiles, fileSlots, trackFile,
   shareToTeam, uploading, totalNewFiles, uploadProgress, uploadProgressText, canSubmit, confirmUpload,
   canToggleShare, formatDate,
 } = injectIncentiveUpload()
