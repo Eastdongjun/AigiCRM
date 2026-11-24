@@ -1,10 +1,12 @@
-// 【GL-12 2026-11-24】法布施图片编辑页: 放大查看 + 裁剪
-// 图片在固定的裁剪框下拖动、双指或双击缩放; 确定后从原图取裁剪框对应的区域,
-// 长边压到不超过 1600, 导出 JPG。几何、手势、回传的纯函数都在 utils/fabushi-image-editor,
+// 【GL-12 2026-11-24】法布施图片编辑页: 放大查看 + 裁剪 + 标注(划线 / 方框 / 圈)
+// 图片在固定的裁剪框下拖动、双指或双击缩放; 确定后从原图取裁剪框对应的区域, 把落在区域内的标注画上去,
+// 长边压到不超过 1600, 导出 JPG。几何、手势、标注、回传的纯函数都在 utils/fabushi-image-editor,
 // 本页只负责接线:
 //   舞台画布(#stage, 2d)负责显示与触摸; 导出画布(#export, 2d)放在屏幕外, 确定时才用。
 // 结果经 app.globalData[EDIT_RESULT_KEY] 回传发布页(与 H5 手机文件回传同一做法)。
-// 标注(划线/圈/框)不在本页: 裁决 Q9 定为先做放大与裁剪, 标注后置。
+// 【2026-11-25 补标注】工具栏分“裁剪 / 标注”两个面板。标注记在原图坐标里, 换比例、放大之后位置跟着图走;
+//   标注工具下: 单指在裁剪框内拖动是画(框外起手不画、也不拖动图片), 双指照常缩放, 双击不缩放(免得画时误触);
+//   选“浏览”工具或回到裁剪面板, 单指拖动、双击与原先一样。
 const editor = require('../../../utils/fabushi-image-editor')
 
 const BUTTON_ZOOM = 1.5
@@ -27,7 +29,17 @@ Page({
     canZoomOut: false,
     exporting: false,
     exportWidth: 1,
-    exportHeight: 1
+    exportHeight: 1,
+    // 标注: 工具栏的面板(裁剪 / 标注)、当前工具、颜色、线宽、已提交的标注数
+    panel: 'crop',
+    markTools: editor.MARK_TOOLS,
+    markColors: editor.MARK_COLORS,
+    markWidths: editor.MARK_WIDTHS,
+    tool: 'none',
+    toolLabel: '',
+    colorKey: 'red',
+    widthKey: 'medium',
+    strokeCount: 0
   },
 
   onLoad(options) {
@@ -37,6 +49,9 @@ Page({
     const total = Math.max(1, Number(query.total) || 1)
     const position = Math.min(total, Math.max(1, Number(query.position) || 1))
     this._gesture = editor.createGesture()
+    this._strokes = []        // 已提交的标注(原图坐标)
+    this._stroke = null       // 正在画的一笔
+    this._markTool = 'free'   // 上次选的标注工具, 再次进标注面板时沿用
     this.setData({ position, total, showUseOriginalForRest: total > 1 })
     if (!this._src || !this._requestId) {
       wx.showToast({ title: '缺少图片', icon: 'none' })
@@ -104,6 +119,11 @@ Page({
     const { width, height } = this._view
     ctx.clearRect(0, 0, width, height)
     ctx.drawImage(this._image, transform.x, transform.y, this._fit.width * transform.scale, this._fit.height * transform.scale)
+    // 标注画在图片上、压暗层的下面: 裁剪框外的标注和框外的图片一样被压暗, 看得出“这一段不会被保留”
+    const perStage = editor.imagePixelsPerStagePixel(transform, this._fit, this._source)
+    const toStage = (point) => editor.imageToStage(point, transform, this._fit, this._source)
+    const strokes = this._stroke ? this._strokes.concat([this._stroke]) : this._strokes
+    for (let i = 0; i < strokes.length; i++) editor.drawStroke(ctx, strokes[i], toStage, 1 / perStage)
     // 裁剪框外压暗: 上、下、左、右四块; 没有空白的那一侧不画
     ctx.fillStyle = DIM_COLOR
     this.dim(0, 0, width, frame.y)
@@ -116,7 +136,8 @@ Page({
     const min = editor.minScale(this._fit, frame)
     this.setData({
       canZoomIn: transform.scale < Math.max(editor.MAX_SCALE, min) - 1e-6,
-      canZoomOut: transform.scale > min + 1e-6
+      canZoomOut: transform.scale > min + 1e-6,
+      strokeCount: this._strokes.length
     })
   },
 
@@ -124,7 +145,9 @@ Page({
     if (width > 0 && height > 0) this._ctx.fillRect(x, y, width, height)
   },
 
-  // ===== 触摸: 单指拖动, 双指缩放, 双击在整图与放大之间切换 =====
+  // ===== 触摸 =====
+  // 浏览(裁剪面板, 或标注面板里的“浏览”工具): 单指拖动, 双指缩放, 双击在整图与放大之间切换。
+  // 标注工具: 单指在裁剪框内拖动是画; 双指照常缩放; 不响应双击。
 
   pointsOf(e) {
     const touches = (e && e.touches) || []
@@ -135,13 +158,53 @@ Page({
     return e && e.timeStamp ? e.timeStamp : Date.now()
   },
 
+  isMarking() {
+    return this.data.tool !== 'none'
+  },
+
   onTouchStart(e) {
-    if (this.data.ready) editor.gestureStart(this._gesture, this.pointsOf(e), this.nowOf(e))
+    if (!this.data.ready) return
+    const points = this.pointsOf(e)
+    editor.gestureStart(this._gesture, points, this.nowOf(e))
+    if (points.length !== 1) {
+      // 第二根手指落下: 正在画的这一笔不要了(接下来是缩放)
+      this._stroke = null
+    } else if (this.isMarking() && editor.pointInRect(points[0], this._frame)) {
+      const point = editor.stageToImage(points[0], this._transform, this._fit, this._source)
+      const size = editor.markWidthSize(this.data.widthKey, Math.max(this._source.width, this._source.height))
+      this._stroke = editor.startStroke(this.data.tool, this.data.colorKey, size, point)
+      // 落笔就画出来(一个圆点): 手一按下去就有反馈
+      this.render()
+    } else {
+      this._stroke = null
+    }
   },
 
   onTouchMove(e) {
     if (!this.data.ready) return
-    const delta = editor.gestureMove(this._gesture, this.pointsOf(e), this.nowOf(e))
+    const points = this.pointsOf(e)
+    const delta = editor.gestureMove(this._gesture, points, this.nowOf(e))
+    if (points.length > 1) {
+      // 双指: 缩放并移动图片; 正在画的那一笔作废
+      this._stroke = null
+      if (delta) {
+        this._transform = editor.applyGesture(this._transform, delta, this._fit, this._frame)
+        this.render()
+      }
+      return
+    }
+    if (this._stroke && delta) {
+      const point = editor.stageToImage(points[0], this._transform, this._fit, this._source)
+      const gap = editor.MIN_POINT_GAP * editor.imagePixelsPerStagePixel(this._transform, this._fit, this._source)
+      const next = editor.extendStroke(this._stroke, point, gap)
+      if (next !== this._stroke) {
+        this._stroke = next
+        this.render()
+      }
+      return
+    }
+    // 标注工具下, 单指不做别的: 起手在裁剪框外的拖动既不画、也不拖动图片
+    if (this.isMarking()) return
     if (!delta) return
     this._transform = editor.applyGesture(this._transform, delta, this._fit, this._frame)
     this.render()
@@ -149,18 +212,87 @@ Page({
 
   onTouchEnd(e) {
     if (!this.data.ready) return
-    const result = editor.gestureEnd(this._gesture, this.pointsOf(e), this.nowOf(e))
+    const points = this.pointsOf(e)
+    const result = editor.gestureEnd(this._gesture, points, this.nowOf(e))
+    if (points.length) {
+      // 还有手指按着: 不是抬笔
+      this._stroke = null
+      return
+    }
+    const stroke = this._stroke
+    this._stroke = null
+    if (stroke) {
+      // 抬笔: 够长的才算一条标注
+      const minExtent = editor.MIN_STROKE_EXTENT * editor.imagePixelsPerStagePixel(this._transform, this._fit, this._source)
+      const done = editor.finishStroke(stroke, minExtent)
+      if (done) this._strokes = editor.addStroke(this._strokes, done)
+      this.render()
+      return
+    }
+    if (this.isMarking()) return
     if (!result || !result.doubleTap) return
     this._transform = editor.toggleZoom(this._transform, this._fit, this._frame)
     this.render()
   },
 
-  // 触摸被系统打断(来电、手势冲突): 只重新锚定, 丢弃这一下位移
+  // 触摸被系统打断(来电、手势冲突): 只重新锚定, 丢弃这一下位移; 画到一半的那一笔也不要了
   onTouchCancel(e) {
+    this._stroke = null
     if (this.data.ready) editor.gestureMove(this._gesture, this.pointsOf(e), this.nowOf(e))
   },
 
   // ===== 工具栏 =====
+
+  // 面板: “裁剪”里工具是浏览; “标注”里沿用上次选的工具
+  onPanel(e) {
+    const target = e && e.currentTarget && e.currentTarget.dataset && e.currentTarget.dataset.panel
+    if ((target !== 'crop' && target !== 'mark') || target === this.data.panel) return
+    this._stroke = null
+    const tool = target === 'mark' ? this._markTool : 'none'
+    this.setData({ panel: target, tool, toolLabel: editor.toolLabel(tool) })
+    if (this.data.ready) this.render()
+  },
+
+  onTool(e) {
+    const key = e && e.currentTarget && e.currentTarget.dataset && e.currentTarget.dataset.key
+    if (!editor.MARK_TOOLS.some((item) => item.key === key)) return
+    this._markTool = key
+    this._stroke = null
+    this.setData({ tool: key, toolLabel: editor.toolLabel(key) })
+    if (this.data.ready) this.render()
+  },
+
+  onColor(e) {
+    const key = e && e.currentTarget && e.currentTarget.dataset && e.currentTarget.dataset.key
+    if (editor.MARK_COLORS.some((item) => item.key === key)) this.setData({ colorKey: key })
+  },
+
+  onWidth(e) {
+    const key = e && e.currentTarget && e.currentTarget.dataset && e.currentTarget.dataset.key
+    if (editor.MARK_WIDTHS.some((item) => item.key === key)) this.setData({ widthKey: key })
+  },
+
+  onUndo() {
+    if (!this._strokes.length) return
+    this._strokes = editor.undoStroke(this._strokes)
+    this.render()
+  },
+
+  onClear() {
+    if (!this._strokes.length) return
+    wx.showModal({
+      title: '清空标注',
+      content: '去掉这张图上的全部标注？裁剪保持不变。',
+      confirmText: '清空',
+      confirmColor: '#b5543a',
+      success: (res) => {
+        if (!res || !res.confirm) return
+        this._strokes = []
+        this._stroke = null
+        if (this.data.ready) this.render()
+      }
+    })
+  },
 
   onRatio(e) {
     const ratioKey = e && e.currentTarget && e.currentTarget.dataset && e.currentTarget.dataset.key
@@ -196,18 +328,18 @@ Page({
     this.finish({ edited: false, useOriginalForRest: true })
   },
 
-  // ===== 确定: 导出裁剪框内的部分 =====
+  // ===== 确定: 导出裁剪框内的部分, 连同落在其中的标注 =====
 
   onConfirm() {
     if (!this.data.ready || this.data.exporting) return
     const rect = editor.cropSourceRect(this._transform, this._fit, this._frame, this._source.width, this._source.height)
     const size = editor.exportSize(rect.width, rect.height)
-    this._exportPlan = { rect, size }
+    this._exportPlan = { rect, size, strokes: editor.strokesInRect(this._strokes, rect) }
     this.setData({ exporting: true, exportWidth: size.width, exportHeight: size.height }, () => this.drawExport())
   },
 
   drawExport() {
-    const { rect, size } = this._exportPlan
+    const { rect, size, strokes } = this._exportPlan
     const query = wx.createSelectorQuery().select('#export').fields({ node: true })
     runQuery(query, (res) => {
       const canvas = res && res[0] && res[0].node
@@ -219,6 +351,16 @@ Page({
       ctx.fillStyle = '#ffffff'
       ctx.fillRect(0, 0, size.width, size.height)
       ctx.drawImage(this._image, rect.x, rect.y, rect.width, rect.height, 0, 0, size.width, size.height)
+      if (strokes.length) {
+        // 标注按“裁剪区域画满导出画布”换算; 先把画布裁成导出区域, 跨出边界的部分不画到别处
+        const mapper = editor.exportMapper(rect, size)
+        ctx.save()
+        ctx.beginPath()
+        ctx.rect(0, 0, size.width, size.height)
+        ctx.clip()
+        for (let i = 0; i < strokes.length; i++) editor.drawStroke(ctx, strokes[i], mapper.toCanvas, mapper.scale)
+        ctx.restore()
+      }
       wx.canvasToTempFilePath({
         canvas,
         x: 0,

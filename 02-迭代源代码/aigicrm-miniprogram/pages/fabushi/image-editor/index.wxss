@@ -6,6 +6,21 @@ page { background: #1f1c18; height: 100vh; overflow: hidden; }
 .position { position: absolute; top: 20rpx; left: 0; width: 100%; text-align: center; color: rgba(255, 247, 238, .8); font-size: 23rpx; pointer-events: none; }
 .stage-mask { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: #9c9184; font-size: 26rpx; }
 .toolbar { flex: 0 0 auto; background: #f7f3ec; padding: 20rpx 24rpx calc(24rpx + env(safe-area-inset-bottom)); }
+/* 面板切换: 裁剪 / 标注 */
+.panels { display: flex; gap: 12rpx; margin-bottom: 16rpx; }
+.panel-tab { flex: 1; padding: 16rpx 0; border-radius: 12rpx; background: #efe7d8; color: #6b6257; text-align: center; font-size: 27rpx; }
+.panel-tab.active { background: #2d5a4a; color: #fff7ee; font-weight: 600; }
+/* 标注: 工具、颜色、粗细 */
+.tools { white-space: nowrap; }
+.tool-chip { display: inline-block; padding: 12rpx 30rpx; margin-right: 12rpx; border-radius: 999rpx; background: #efe7d8; color: #6b6257; font-size: 26rpx; }
+.tool-chip.active { background: #b5543a; color: #fff7ee; font-weight: 600; }
+.mark-row { display: flex; align-items: center; justify-content: space-between; margin-top: 16rpx; }
+.swatches { display: flex; align-items: center; }
+.swatch { width: 56rpx; height: 56rpx; margin-right: 16rpx; border-radius: 50%; border: 4rpx solid transparent; box-shadow: inset 0 0 0 2rpx rgba(0, 0, 0, .12); }
+.swatch.active { border-color: #2d5a4a; }
+.widths { display: flex; }
+.width-chip { min-width: 72rpx; padding: 12rpx 0; margin-left: 10rpx; border-radius: 10rpx; background: #efe7d8; color: #6b6257; text-align: center; font-size: 24rpx; }
+.width-chip.active { background: #2d5a4a; color: #fff7ee; font-weight: 600; }
 .ratios { white-space: nowrap; }
 .ratio-chip { display: inline-block; padding: 12rpx 30rpx; margin-right: 12rpx; border-radius: 999rpx; background: #efe7d8; color: #6b6257; font-size: 26rpx; }
 .ratio-chip.active { background: #2d5a4a; color: #fff7ee; font-weight: 600; }
@@ -13,6 +28,7 @@ page { background: #1f1c18; height: 100vh; overflow: hidden; }
 .actions { display: flex; gap: 12rpx; margin-top: 16rpx; }
 .act-btn { flex: 1; padding: 16rpx 0; border-radius: 12rpx; background: #eef3ee; color: #2d5a4a; text-align: center; font-size: 25rpx; }
 .act-btn.disabled { opacity: .4; }
+.act-btn.danger { color: #b5543a; }
 .decide { display: flex; gap: 14rpx; margin-top: 20rpx; }
 .decide-btn { flex: 1; padding: 22rpx 0; border-radius: 16rpx; text-align: center; font-size: 27rpx; font-weight: 700; }
 .decide-btn.primary { background: #b5543a; color: #fff7ee; }

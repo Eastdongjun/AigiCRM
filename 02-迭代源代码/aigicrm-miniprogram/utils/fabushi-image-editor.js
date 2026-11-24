@@ -1,4 +1,4 @@
-// 【GL-12 2026-11-24】法布施图片编辑(放大查看 + 裁剪): 几何、手势、编辑队列
+// 【GL-12 2026-11-24】法布施图片编辑(放大查看 + 裁剪 + 标注): 几何、手势、编辑队列
 // 纯函数, 零 wx 依赖; 画布与触摸事件由 pages/fabushi/image-editor 接线。
 //
 // 坐标约定(全部是舞台内的逻辑像素):
@@ -222,6 +222,234 @@ function toggleZoom(transform, fit, frame) {
   return applyZoom(transform, (baseScale(fit, frame) * DOUBLE_TAP_SCALE) / transform.scale, anchor, fit, frame)
 }
 
+// ---------------- 标注(划线 / 方框 / 圈) ----------------
+// 标注记在“原图像素坐标”里, 与查看时的缩放、平移、裁剪比例都无关: 换比例、放大之后位置照旧跟着图片走;
+// 导出时跟着裁剪区域一起平移、缩放, 完全落在裁剪区域之外的标注不导出。
+//   free     徒手线: points 是原图像素坐标的折线
+//   rect     方框:   points 是对角两点
+//   ellipse  圈:     points 是外接矩形的对角两点
+// size 是线宽, 同样用原图像素表示(按原图长边的比例取): 图大线粗, 导出之后粗细关系不变。
+// 工具 none = 浏览(只拖动、缩放, 不画)。工具、颜色、线宽的清单只有这里一份, 页面放进 data 供模板渲染。
+// 【GL-12 2026-11-25 补】原型 v7 把 MP 标注的范围写作“待裁(Q9)”, 已批准的计划正文定为划线 / 圈 / 框。
+
+const MARK_TOOLS = [
+  { key: 'none', label: '浏览' },
+  { key: 'free', label: '划线' },
+  { key: 'rect', label: '方框' },
+  { key: 'ellipse', label: '圈' }
+]
+const MARK_COLORS = [
+  { key: 'red', label: '红', value: '#e8412c' },
+  { key: 'yellow', label: '黄', value: '#f7c948' },
+  { key: 'green', label: '绿', value: '#2fbf71' },
+  { key: 'blue', label: '蓝', value: '#2f80ed' },
+  { key: 'white', label: '白', value: '#ffffff' }
+]
+const MARK_WIDTHS = [
+  { key: 'thin', label: '细', ratio: 0.004 },
+  { key: 'medium', label: '中', ratio: 0.008 },
+  { key: 'thick', label: '粗', ratio: 0.016 }
+]
+// 一条徒手线最多记多少个点(防止长按乱画拖慢重绘)
+const MAX_FREE_POINTS = 400
+// 徒手线相邻两点的最小间距(舞台逻辑像素): 比它近的不记
+const MIN_POINT_GAP = 1.5
+// 成笔的最小长度(舞台逻辑像素): 更短的是点了一下或手抖, 不算标注
+const MIN_STROKE_EXTENT = 6
+
+function markColorValue(colorKey) {
+  const preset = MARK_COLORS.find((item) => item.key === colorKey)
+  return preset ? preset.value : MARK_COLORS[0].value
+}
+
+// 线宽的原图像素数; 认不出的线宽按“中”, 再小也至少 1 像素
+function markWidthSize(widthKey, imageLongEdge) {
+  const preset = MARK_WIDTHS.find((item) => item.key === widthKey) || MARK_WIDTHS[1]
+  return Math.max(1, Math.round(preset.ratio * imageLongEdge))
+}
+
+function toolLabel(tool) {
+  const preset = MARK_TOOLS.find((item) => item.key === tool)
+  return preset ? preset.label : ''
+}
+
+function isMarkTool(tool) {
+  return tool === 'free' || tool === 'rect' || tool === 'ellipse'
+}
+
+// ---------------- 坐标换算: 舞台 ↔ 原图像素 ----------------
+
+// 舞台 1 逻辑像素等于多少原图像素(随缩放变化)
+function imagePixelsPerStagePixel(transform, fit, source) {
+  return source.width / (fit.width * transform.scale)
+}
+
+// 两个方向分开算: 图片显示出来是 fit × scale, 竖图的宽和高不一样, 纵轴要用 fit.height。
+// (第一版纵轴也用了 fit.width: 舞台上画的时候一来一回正好抵消看不出来, 导出的标注却是偏的。)
+function stageToImage(point, transform, fit, source) {
+  return {
+    x: (point.x - transform.x) / (fit.width * transform.scale) * source.width,
+    y: (point.y - transform.y) / (fit.height * transform.scale) * source.height
+  }
+}
+
+function imageToStage(point, transform, fit, source) {
+  return {
+    x: transform.x + point.x / source.width * fit.width * transform.scale,
+    y: transform.y + point.y / source.height * fit.height * transform.scale
+  }
+}
+
+function pointInRect(point, rect) {
+  return point.x >= rect.x && point.x <= rect.x + rect.width && point.y >= rect.y && point.y <= rect.y + rect.height
+}
+
+// ---------------- 一笔标注 ----------------
+
+// 坐标保持精确, 不取整: 取整会让标注落笔的位置偏一点点, 换算回舞台时对不上手指的位置。
+function startStroke(tool, color, size, point) {
+  return { tool, color, size, points: [{ x: point.x, y: point.y }] }
+}
+
+// 徒手线追加点: 离上一点不足 gap(原图像素)的不记, 记满上限为止; 方框与圈只有“起点 + 当前点”。
+// 没有变化时原样返回传入的那个对象(页面据此跳过重绘)。
+function extendStroke(stroke, point, gap) {
+  if (!stroke || !point || !stroke.points.length) return stroke
+  const last = stroke.points[stroke.points.length - 1]
+  const next = { x: point.x, y: point.y }
+  if (stroke.tool !== 'free') {
+    if (last.x === next.x && last.y === next.y) return stroke
+    return Object.assign({}, stroke, { points: [stroke.points[0], next] })
+  }
+  if (stroke.points.length >= MAX_FREE_POINTS || Math.hypot(next.x - last.x, next.y - last.y) < gap) return stroke
+  return Object.assign({}, stroke, { points: stroke.points.concat([next]) })
+}
+
+// 标注的外包矩形(原图像素); 方框与圈就是它本身
+function shapeOf(stroke) {
+  const points = (stroke && stroke.points) || []
+  if (points.length === 1) return { x: points[0].x, y: points[0].y, width: 0, height: 0 }
+  if (!points.length) return { x: 0, y: 0, width: 0, height: 0 }
+  if (stroke.tool !== 'free') {
+    return {
+      x: Math.min(points[0].x, points[1].x),
+      y: Math.min(points[0].y, points[1].y),
+      width: Math.abs(points[1].x - points[0].x),
+      height: Math.abs(points[1].y - points[0].y)
+    }
+  }
+  let minX = Infinity
+  let minY = Infinity
+  let maxX = -Infinity
+  let maxY = -Infinity
+  points.forEach((item) => {
+    minX = Math.min(minX, item.x)
+    minY = Math.min(minY, item.y)
+    maxX = Math.max(maxX, item.x)
+    maxY = Math.max(maxY, item.y)
+  })
+  return { x: minX, y: minY, width: maxX - minX, height: maxY - minY }
+}
+
+// 徒手线量总长, 方框与圈量长边: 都用来判断“这一笔够不够长”
+function strokeLength(stroke) {
+  if (!stroke || !stroke.points) return 0
+  if (stroke.tool !== 'free') return Math.max(shapeOf(stroke).width, shapeOf(stroke).height)
+  let total = 0
+  for (let i = 1; i < stroke.points.length; i++) {
+    total += Math.hypot(stroke.points[i].x - stroke.points[i - 1].x, stroke.points[i].y - stroke.points[i - 1].y)
+  }
+  return total
+}
+
+// 抬笔: 够长的原样返回, 否则 null(不算标注)
+function finishStroke(stroke, minExtent) {
+  if (!stroke || !isMarkTool(stroke.tool) || !stroke.points || stroke.points.length < 2) return null
+  return strokeLength(stroke) >= minExtent ? stroke : null
+}
+
+// ---------------- 标注的增、删、平移、筛(都返回新数组, 不改动传入的) ----------------
+
+function addStroke(strokes, stroke) {
+  return (strokes || []).concat([stroke])
+}
+
+function undoStroke(strokes) {
+  return (strokes || []).slice(0, -1)
+}
+
+// 导出前的平移: 原图坐标 → 以裁剪区域左上角为原点
+function shiftStrokes(strokes, dx, dy) {
+  return (strokes || []).map((stroke) => Object.assign({}, stroke, {
+    points: stroke.points.map((point) => ({ x: point.x - dx, y: point.y - dy }))
+  }))
+}
+
+// 与裁剪区域有交集的标注(刚好贴边也算)
+function strokesInRect(strokes, rect) {
+  return (strokes || []).filter((stroke) => {
+    const box = shapeOf(stroke)
+    return box.x <= rect.x + rect.width && box.x + box.width >= rect.x
+      && box.y <= rect.y + rect.height && box.y + box.height >= rect.y
+  })
+}
+
+// ---------------- 画出来 ----------------
+
+// 画一个圈: 画布有 ellipse 接口就用; 没有(旧基础库)用四段三阶贝塞尔曲线逼近
+function ellipsePath(ctx, cx, cy, rx, ry) {
+  if (typeof ctx.ellipse === 'function') {
+    ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2)
+    return
+  }
+  const k = 0.5522847498307936
+  ctx.moveTo(cx + rx, cy)
+  ctx.bezierCurveTo(cx + rx, cy + ry * k, cx + rx * k, cy + ry, cx, cy + ry)
+  ctx.bezierCurveTo(cx - rx * k, cy + ry, cx - rx, cy + ry * k, cx - rx, cy)
+  ctx.bezierCurveTo(cx - rx, cy - ry * k, cx - rx * k, cy - ry, cx, cy - ry)
+  ctx.bezierCurveTo(cx + rx * k, cy - ry, cx + rx, cy - ry * k, cx + rx, cy)
+}
+
+// 把一条标注画到画布上。toCanvas: 原图像素 → 画布坐标; scale: 画布像素 / 原图像素(线宽按它换算)。
+// 只负责这一条的路径与描边, 不处理裁剪与状态保存。
+function drawStroke(ctx, stroke, toCanvas, scale) {
+  if (!stroke || !isMarkTool(stroke.tool) || !stroke.points || !stroke.points.length) return
+  ctx.strokeStyle = markColorValue(stroke.color)
+  ctx.lineWidth = Math.max(1, stroke.size * scale)
+  ctx.lineCap = 'round'
+  ctx.lineJoin = 'round'
+  ctx.beginPath()
+  if (stroke.tool === 'free') {
+    const first = toCanvas(stroke.points[0])
+    ctx.moveTo(first.x, first.y)
+    // 只有一个点时线段两端重合, 配上圆头就是一个点
+    if (stroke.points.length === 1) ctx.lineTo(first.x, first.y)
+    for (let i = 1; i < stroke.points.length; i++) {
+      const at = toCanvas(stroke.points[i])
+      ctx.lineTo(at.x, at.y)
+    }
+  } else {
+    const shape = shapeOf(stroke)
+    const a = toCanvas({ x: shape.x, y: shape.y })
+    const b = toCanvas({ x: shape.x + shape.width, y: shape.y + shape.height })
+    if (stroke.tool === 'ellipse') {
+      ellipsePath(ctx, (a.x + b.x) / 2, (a.y + b.y) / 2, (b.x - a.x) / 2, (b.y - a.y) / 2)
+    } else {
+      ctx.rect(a.x, a.y, b.x - a.x, b.y - a.y)
+    }
+  }
+  ctx.stroke()
+}
+
+// 导出时的换算: 裁剪区域 rect(原图像素)画满 size(导出像素)
+function exportMapper(rect, size) {
+  const scale = size.width / rect.width
+  return {
+    scale,
+    toCanvas: (point) => ({ x: (point.x - rect.x) * scale, y: (point.y - rect.y) * scale })
+  }
+}
+
 // ---------------- 编辑队列 ----------------
 // 发布页选完图 → createEditQueue 排出要进编辑器的图片 → 逐张打开编辑页 →
 // 编辑页把结果写进 app.globalData[EDIT_RESULT_KEY] 并返回 → 发布页 onShow 用 takeEditResult 取走 →
@@ -295,6 +523,31 @@ module.exports = {
   applyGesture,
   isZoomedIn,
   toggleZoom,
+  MARK_TOOLS,
+  MARK_COLORS,
+  MARK_WIDTHS,
+  MAX_FREE_POINTS,
+  MIN_POINT_GAP,
+  MIN_STROKE_EXTENT,
+  markColorValue,
+  markWidthSize,
+  toolLabel,
+  isMarkTool,
+  imagePixelsPerStagePixel,
+  stageToImage,
+  imageToStage,
+  pointInRect,
+  startStroke,
+  extendStroke,
+  shapeOf,
+  strokeLength,
+  finishStroke,
+  addStroke,
+  undoStroke,
+  shiftStrokes,
+  strokesInRect,
+  drawStroke,
+  exportMapper,
   createEditQueue,
   currentEditTarget,
   applyEditResult,

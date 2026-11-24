@@ -1,5 +1,5 @@
 <view class="editor">
-  <!-- 舞台: 图片在这块画布上拖动、缩放; 裁剪框固定在画布中央 -->
+  <!-- 舞台: 图片在这块画布上拖动、缩放; 裁剪框固定在画布中央; 标注画在图片上 -->
   <view class="stage-wrap">
     <canvas id="stage" type="2d" class="stage"
       catchtouchstart="onTouchStart" catchtouchmove="onTouchMove"
@@ -9,16 +9,49 @@
   </view>
 
   <view class="toolbar">
-    <scroll-view scroll-x class="ratios" enhanced show-scrollbar="{{false}}">
-      <view class="ratio-chip {{ratioKey === item.key ? 'active' : ''}}"
-        wx:for="{{ratios}}" wx:key="key" data-key="{{item.key}}" bindtap="onRatio">{{item.label}}</view>
-    </scroll-view>
-    <view class="hint">拖动调整位置 · 双指或双击缩放 · 裁剪框内的部分会被保留</view>
-    <view class="actions">
-      <view class="act-btn {{canZoomIn ? '' : 'disabled'}}" bindtap="onZoomIn">放大</view>
-      <view class="act-btn {{canZoomOut ? '' : 'disabled'}}" bindtap="onZoomOut">缩小</view>
-      <view class="act-btn {{canZoomOut ? '' : 'disabled'}}" bindtap="onReset">重置</view>
+    <!-- 两个面板共用上面的舞台和下面的“使用原图 / 确定” -->
+    <view class="panels">
+      <view class="panel-tab {{panel === 'crop' ? 'active' : ''}}" data-panel="crop" bindtap="onPanel">裁剪</view>
+      <view class="panel-tab {{panel === 'mark' ? 'active' : ''}}" data-panel="mark" bindtap="onPanel">标注{{strokeCount ? ' · ' + strokeCount : ''}}</view>
     </view>
+
+    <!-- 裁剪: 选比例、挪位置、缩放 -->
+    <block wx:if="{{panel === 'crop'}}">
+      <scroll-view scroll-x class="ratios" enhanced show-scrollbar="{{false}}">
+        <view class="ratio-chip {{ratioKey === item.key ? 'active' : ''}}"
+          wx:for="{{ratios}}" wx:key="key" data-key="{{item.key}}" bindtap="onRatio">{{item.label}}</view>
+      </scroll-view>
+      <view class="hint">拖动调整位置 · 双指或双击缩放 · 裁剪框内的部分会被保留</view>
+      <view class="actions">
+        <view class="act-btn {{canZoomIn ? '' : 'disabled'}}" bindtap="onZoomIn">放大</view>
+        <view class="act-btn {{canZoomOut ? '' : 'disabled'}}" bindtap="onZoomOut">缩小</view>
+        <view class="act-btn {{canZoomOut ? '' : 'disabled'}}" bindtap="onReset">重置</view>
+      </view>
+    </block>
+
+    <!-- 标注: 划线 / 方框 / 圈, 颜色与粗细; “浏览”工具下回到拖动与缩放 -->
+    <block wx:else>
+      <scroll-view scroll-x class="tools" enhanced show-scrollbar="{{false}}">
+        <view class="tool-chip {{tool === item.key ? 'active' : ''}}"
+          wx:for="{{markTools}}" wx:key="key" data-key="{{item.key}}" bindtap="onTool">{{item.label}}</view>
+      </scroll-view>
+      <view class="mark-row">
+        <view class="swatches">
+          <view class="swatch {{colorKey === item.key ? 'active' : ''}}" wx:for="{{markColors}}" wx:key="key"
+            style="background: {{item.value}};" data-key="{{item.key}}" bindtap="onColor" aria-label="{{item.label}}色"></view>
+        </view>
+        <view class="widths">
+          <view class="width-chip {{widthKey === item.key ? 'active' : ''}}" wx:for="{{markWidths}}" wx:key="key"
+            data-key="{{item.key}}" bindtap="onWidth">{{item.label}}</view>
+        </view>
+      </view>
+      <view class="hint">{{tool === 'none' ? '拖动调整位置 · 双指或双击缩放 · 切到划线、方框或圈来画' : toolLabel + '：在裁剪框内拖动来画 · 双指缩放 · 标注会随图片一起保留'}}</view>
+      <view class="actions">
+        <view class="act-btn {{strokeCount ? '' : 'disabled'}}" bindtap="onUndo">撤销</view>
+        <view class="act-btn danger {{strokeCount ? '' : 'disabled'}}" bindtap="onClear">清空标注</view>
+      </view>
+    </block>
+
     <view class="decide">
       <view class="decide-btn ghost" bindtap="onUseOriginal">使用原图</view>
       <view wx:if="{{showUseOriginalForRest}}" class="decide-btn ghost" bindtap="onUseOriginalForRest">其余用原图</view>

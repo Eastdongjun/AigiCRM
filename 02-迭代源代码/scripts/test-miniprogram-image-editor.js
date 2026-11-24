@@ -567,25 +567,51 @@ async function testEditorPage() {
   let imageSizes = {}        // 图片地址 → [宽, 高]; 不在其中 = 加载失败
   let exportResult = 'success' // success | fail | manual(由测试决定何时回调)
   let fillStyle = ''
+  // 画布上的“画线”调用(beginPath / moveTo / lineTo / rect / ellipse / stroke / save / restore / clip), 标注用。
+  // stroke 那一笔记下当时用的颜色与线宽。
+  const stagePaths = []
+  const exportPaths = []
+  const pathRecorder = (log, extra) => {
+    const state = { strokeStyle: '', lineWidth: 0 }
+    const ctx = {}
+    // 存取属性(带取值/赋值函数的属性)必须连同函数一起拷: Object.assign 只会拷它当前的值,
+    // 赋值就落不进闭包里的状态(第一版就栽在这里, 颜色和线宽全是空的)。
+    Object.defineProperties(ctx, Object.getOwnPropertyDescriptors(extra))
+    Object.defineProperties(ctx, Object.getOwnPropertyDescriptors({
+      get strokeStyle() { return state.strokeStyle },
+      set strokeStyle(value) { state.strokeStyle = value },
+      get lineWidth() { return state.lineWidth },
+      set lineWidth(value) { state.lineWidth = value },
+      beginPath: () => log.push(['beginPath']),
+      moveTo: (x, y) => log.push(['moveTo', round(x), round(y)]),
+      lineTo: (x, y) => log.push(['lineTo', round(x), round(y)]),
+      rect: (x, y, w, h) => log.push(['rect', round(x), round(y), round(w), round(h)]),
+      ellipse: (x, y, rx, ry) => log.push(['ellipse', round(x), round(y), round(rx), round(ry)]),
+      stroke: () => log.push(['stroke', state.strokeStyle, round(state.lineWidth)]),
+      save: () => log.push(['save']),
+      restore: () => log.push(['restore']),
+      clip: () => log.push(['clip'])
+    }))
+    return ctx
+  }
   const stageNode = { width: 0, height: 0 }
   const exportNode = { width: 0, height: 0 }
-  const stageCtx = {
+  const stageCtx = pathRecorder(stagePaths, {
     get fillStyle() { return fillStyle },
     set fillStyle(value) { fillStyle = value },
-    strokeStyle: '', lineWidth: 0,
     scale: (x, y) => stageScales.push([x, y]),
     clearRect: () => {},
     drawImage: (img, ...args) => stageDraws.push(args.map(round)),
     fillRect: (...args) => stageFills.push(args.map(round)),
     strokeRect: () => {}
-  }
-  const exportCtx = {
+  })
+  const exportCtx = pathRecorder(exportPaths, {
     get fillStyle() { return fillStyle },
     set fillStyle(value) { fillStyle = value },
     clearRect: () => {},
     fillRect: (...args) => exportFills.push({ style: fillStyle, rect: args.map(round) }),
     drawImage: (img, ...args) => exportDraws.push(args.map(round))
-  }
+  })
   stageNode.getContext = () => stageCtx
   exportNode.getContext = () => exportCtx
   stageNode.createImage = () => {
@@ -625,8 +651,12 @@ async function testEditorPage() {
       else if (exportResult === 'fail') opts.fail({ errMsg: 'canvasToTempFilePath:fail' })
     },
     showToast: (opts) => toasts.push(opts && opts.title),
+    // 确认框: 记下参数, 并按 modals.answer 回调(清空标注之前会问一次)
+    showModal: (opts) => { modals.push(opts); opts.success({ confirm: modalAnswer.confirm, cancel: !modalAnswer.confirm }) },
     navigateBack: () => { backs.push(1) }
   }
+  const modals = []
+  const modalAnswer = { confirm: true }
   global.getApp = () => app
   global.Page = (config) => { editorPageConfig = config }
   require('../aigicrm-miniprogram/pages/fabushi/image-editor/index.js')
@@ -829,10 +859,354 @@ async function testEditorPage() {
   await new Promise((resolve) => setTimeout(resolve, 450))
   assert.strictEqual(app.globalData[editor.EDIT_RESULT_KEY], null, '没有请求号就不写回传')
   assert.deepStrictEqual(backs, [1, 1], '各返回一次')
+
+  // ================= 标注(划线 / 方框 / 圈): 在 node 下驱动真实页面 =================
+  // 坐标: 原图 3000×4000 在 375×600 舞台上是 375×500、位于 (0, 50), 所以整图时舞台 1 像素 = 原图 8 像素。
+  const ds = (key) => ({ currentTarget: { dataset: { key } } })
+  const panel = (target) => ({ currentTarget: { dataset: { panel: target } } })
+  // 一根手指按给出的位置依次移动后抬起
+  const draw = (p, points, at) => {
+    p.onTouchStart(touch([points[0]], at))
+    points.slice(1).forEach((point, i) => p.onTouchMove(touch([point], at + 16 * (i + 1))))
+    p.onTouchEnd(touch([], at + 16 * points.length))
+  }
+  const strokesDrawn = (log) => log.filter((call) => call[0] === 'stroke')
+  const lineOf = (kind, log) => log.filter((call) => call[0] === kind).at(-1)
+  exportResult = 'success'
+
+  // ---- 6.15 标注面板: 选工具, 在裁剪框内拖动画一笔 ----
+  page = await open({ requestId: 'r-mark' })
+  assert.strictEqual(page.data.panel, 'crop', '默认在“裁剪”面板')
+  page.onPanel(panel('mark'))
+  assert.strictEqual(page.data.panel, 'mark', '切到“标注”面板')
+  assert.strictEqual(page.data.tool, 'free', '进“标注”面板默认是划线')
+  assert.deepStrictEqual(pick(page.data, ['colorKey', 'widthKey']), { colorKey: 'red', widthKey: 'medium' }, '默认红色、中线宽')
+  page.onTool(ds('rect'))
+  assert.strictEqual(page.data.tool, 'rect', '切到方框')
+  page.onTool(ds('scribble'))
+  assert.strictEqual(page.data.tool, 'rect', '认不出的工具不切')
+  page.onTool(ds('free'))
+  stagePaths.length = 0
+  draw(page, [[100, 150], [130, 190], [160, 230]], 100)
+  assert.strictEqual(page.data.strokeCount, 1, '一笔提交')
+  assert.deepStrictEqual(lineOf('moveTo', stagePaths), ['moveTo', 100, 150], '舞台画布上从落笔处起笔')
+  assert.deepStrictEqual(lineOf('lineTo', stagePaths), ['lineTo', 160, 230], '画到抬笔处')
+  assert.deepStrictEqual(strokesDrawn(stagePaths).at(-1), ['stroke', '#e8412c', 4], '红色; 线宽 = 原图 32 像素 × (375 / 3000) = 4')
+
+  // ---- 6.16 标注模式下的触摸规则 ----
+  const resting = stageDraws.at(-1)
+  draw(page, [[200, 200], [240, 200]], 1000)
+  assert.deepStrictEqual(stageDraws.at(-1), resting, '标注模式下单指拖动是在画, 不移动图片')
+  assert.strictEqual(page.data.strokeCount, 2, '第二笔')
+  stagePaths.length = 0
+  draw(page, [[100, 20], [200, 30]], 2000)
+  assert.strictEqual(page.data.strokeCount, 2, '从裁剪框外起手不画(原比例时上方 50 像素是框外)')
+  assert.deepStrictEqual(stagePaths, [], '也没往画布上画任何线')
+  assert.deepStrictEqual(stageDraws.at(-1), resting, '从裁剪框外起手的拖动也不移动图片')
+  draw(page, [[100, 150], [102, 151]], 3000)
+  assert.strictEqual(page.data.strokeCount, 2, '太短的一笔不算')
+  // 落笔即显示; 不到间距的移动不记点也不重画; 到了间距才重画(每次重画画的是全部标注, 所以看“这次动作之后新增的部分”)
+  const drawnSince = (mark) => strokesDrawn(stagePaths.slice(mark))
+  stagePaths.length = 0
+  let mark = 0
+  page.onTouchStart(touch([[100, 150]], 7000))
+  assert.strictEqual(drawnSince(mark).length, 3, '落笔就重画: 已有的两条 + 正在画的这一条')
+  mark = stagePaths.length
+  page.onTouchMove(touch([[101, 150]], 7016))
+  page.onTouchMove(touch([[101.2, 150.5]], 7032))
+  assert.strictEqual(stagePaths.length, mark, '离上一个已记录的点始终不到 1.5 像素的移动: 不记点, 也不重画')
+  page.onTouchMove(touch([[160, 230]], 7048))
+  assert.strictEqual(drawnSince(mark).length, 3, '到了间距: 记一个点并重画')
+  page.onTouchEnd(touch([], 7060))
+  assert.strictEqual(drawnSince(mark).length, 6, '抬笔再画一次')
+  assert.deepStrictEqual(stagePaths.slice(stagePaths.map((call) => call[0]).lastIndexOf('beginPath')), [['beginPath'], ['moveTo', 100, 150], ['lineTo', 160, 230], ['stroke', '#e8412c', 4]], '这一笔只有起点和终点')
+  assert.strictEqual(page.data.strokeCount, 3, '第三笔')
+  // 触摸被打断(来电、手势冲突): 画到一半的那一笔不要了
+  page.onTouchStart(touch([[100, 150]], 8000))
+  page.onTouchMove(touch([[160, 230]], 8016))
+  page.onTouchCancel(touch([], 8020))
+  page.onTouchEnd(touch([], 8030))
+  assert.strictEqual(page.data.strokeCount, 3, '触摸被打断: 画到一半的那一笔不算, 之后的抬手也不把它补上')
+  tap(page, 100, 150, 4000)
+  tap(page, 100, 152, 4150)
+  assert.deepStrictEqual(stageDraws.at(-1), resting, '标注模式下双击不缩放(画的时候容易误触)')
+  page.onTouchStart(touch([[100, 150]], 5000))
+  page.onTouchMove(touch([[120, 160]], 5016))
+  page.onTouchStart(touch([[120, 160], [220, 260]], 5020))
+  page.onTouchMove(touch([[70, 110], [270, 310]], 5036))
+  page.onTouchEnd(touch([], 5060))
+  assert.deepStrictEqual(stageDraws.at(-1), [-170, -110, 750, 1000], '双指张开: 照常缩放')
+  assert.strictEqual(page.data.strokeCount, 3, '第二根手指落下时正在画的那一笔不算')
+  page.onReset()
+
+  // ---- 6.17 撤销与清空 ----
+  assert.strictEqual(page.data.strokeCount, 3)
+  page.onUndo()
+  assert.strictEqual(page.data.strokeCount, 2, '撤销一笔')
+  page.onUndo()
+  assert.strictEqual(page.data.strokeCount, 1, '再撤销一笔')
+  stagePaths.length = 0
+  page.onUndo()
+  page.onUndo()
+  assert.strictEqual(page.data.strokeCount, 0, '撤销到空; 空了再撤销不出错')
+  assert.deepStrictEqual(strokesDrawn(stagePaths), [], '没有标注时画布上不画任何线')
+  modals.length = 0
+  page.onClear()
+  assert.strictEqual(modals.length, 0, '没有标注时点清空, 不弹确认框')
+  draw(page, [[100, 150], [160, 230]], 6000)
+  assert.strictEqual(page.data.strokeCount, 1)
+  modalAnswer.confirm = false
+  page.onClear()
+  assert.strictEqual(modals.length, 1, '清空之前问一次')
+  assert.ok(String(modals[0].title || '').length > 0 && String(modals[0].content || '').length > 0, '确认框写明要做什么')
+  assert.strictEqual(page.data.strokeCount, 1, '选了取消: 标注还在')
+  modalAnswer.confirm = true
+  stagePaths.length = 0
+  page.onClear()
+  assert.strictEqual(page.data.strokeCount, 0, '确认清空: 标注全部去掉')
+  assert.deepStrictEqual(strokesDrawn(stagePaths), [], '画布上不再画线')
+
+  // ---- 6.18 标注记在原图上: 换比例、放大之后位置跟着图走 ----
+  draw(page, [[100, 150], [160, 230]], 8000)
+  page.onRatio(ds('1:1'))
+  assert.strictEqual(page.data.strokeCount, 1, '换裁剪比例不清掉标注')
+  page.onZoomIn()
+  assert.deepStrictEqual(stageDraws.at(-1), [-93.75, -75, 562.5, 750], '以裁剪框中心放大 1.5 倍')
+  assert.deepStrictEqual(lineOf('moveTo', stagePaths), ['moveTo', 56.25, 75], '放大后标注跟着图片走: 原图 (800,800) → 舞台 (56.25, 75)')
+  page.onTool(ds('ellipse'))
+  page.onColor(ds('blue'))
+  page.onWidth(ds('thick'))
+  page.onColor(ds('nope'))
+  page.onWidth(ds('nope'))
+  assert.deepStrictEqual(pick(page.data, ['tool', 'colorKey', 'widthKey']), { tool: 'ellipse', colorKey: 'blue', widthKey: 'thick' }, '认不出的颜色、线宽不切')
+  page.onReset()
+  assert.deepStrictEqual(stageDraws.at(-1), [0, 50, 375, 500], '重置回到整图')
+  stagePaths.length = 0
+  draw(page, [[100, 150], [300, 450]], 9000)
+  assert.deepStrictEqual(strokesDrawn(stagePaths).at(-1), ['stroke', '#2f80ed', 8], '之后画的一笔用上新选的蓝色与粗线宽(原图 64 像素 × 375 / 3000 = 8)')
+  assert.deepStrictEqual(lineOf('ellipse', stagePaths), ['ellipse', 200, 300, 100, 150], '圈: 舞台上的中心与半径')
+
+  // ---- 6.19 导出: 标注跟着裁剪区域一起导出; 裁剪区域外的标注不导出 ----
+  page = await open({ requestId: 'r-mark-export' })
+  page.onPanel(panel('mark'))
+  draw(page, [[100, 150], [160, 230]], 100)
+  page.onTool(ds('rect'))
+  draw(page, [[300, 80], [350, 100]], 1000)
+  page.onTool(ds('ellipse'))
+  draw(page, [[100, 150], [300, 450]], 2000)
+  assert.strictEqual(page.data.strokeCount, 3, '三条标注: 徒手线在裁剪区域内; 方框在区域外; 圈跨边界')
+  page.onRatio(ds('1:1'))
+  page.onZoomIn()
+  exportPaths.length = 0
+  exportDraws.length = 0
+  page.onConfirm()
+  assert.deepStrictEqual(exportDraws, [[640, 1140, 1720, 1720, 0, 0, 1600, 1600]], '先画裁剪区域(原图 (640,1140) 起 1720×1720 → 1600×1600)')
+  const drawn = strokesDrawn(exportPaths)
+  assert.strictEqual(drawn.length, 2, '只画裁剪区域内的两条, 区域外的那条不导出')
+  const clipAt = exportPaths.findIndex((call) => call[0] === 'clip')
+  const firstStroke = exportPaths.findIndex((call) => call[0] === 'stroke')
+  assert.ok(clipAt >= 0 && clipAt < firstStroke, '先把画布裁成导出区域, 再画标注')
+  assert.deepStrictEqual(exportPaths[clipAt - 1], ['rect', 0, 0, 1600, 1600], '裁剪范围就是整块导出画布')
+  assert.deepStrictEqual(exportPaths.at(-1), ['restore'], '画完恢复画布状态')
+  const exportScale = 1600 / 1720
+  const exported = (x, y) => [round(x * exportScale), round(y * exportScale)]
+  assert.deepStrictEqual(exportPaths.find((call) => call[0] === 'ellipse'), ['ellipse', ...exported(960, 860), ...exported(800, 1200)], '圈: 中心 (原图 1600,2000) 与半径 (800,1200) 按裁剪区域换算')
+  assert.deepStrictEqual(drawn[1], ['stroke', '#e8412c', round(32 * exportScale)], '导出的线宽随导出比例缩放')
+  assert.strictEqual(app.globalData[editor.EDIT_RESULT_KEY].edited, true, '带标注的图导出成功')
+  page = await open({ requestId: 'r-plain-export' })
+  exportPaths.length = 0
+  page.onConfirm()
+  assert.deepStrictEqual(exportPaths, [], '没有标注时导出不碰画线接口')
+  assert.strictEqual(app.globalData[editor.EDIT_RESULT_KEY].edited, true)
+
+  // ---- 6.20 使用原图 / 直接返回: 画过的标注不生效 ----
+  exportCalls.length = 0
+  app.globalData[editor.EDIT_RESULT_KEY] = null
+  page = await open({ requestId: 'r-mark-orig' })
+  page.onPanel(panel('mark'))
+  draw(page, [[100, 150], [160, 230]], 100)
+  page.onUseOriginal()
+  assert.deepStrictEqual(app.globalData[editor.EDIT_RESULT_KEY], { requestId: 'r-mark-orig', edited: false }, '使用原图: 不带标注')
+  assert.strictEqual(exportCalls.length, 0, '使用原图不导出')
+  app.globalData[editor.EDIT_RESULT_KEY] = null
+  page = await open({ requestId: 'r-mark-leave' })
+  page.onPanel(panel('mark'))
+  draw(page, [[100, 150], [160, 230]], 100)
+  page.onUnload()
+  assert.deepStrictEqual(app.globalData[editor.EDIT_RESULT_KEY], { requestId: 'r-mark-leave', edited: false }, '直接返回同理')
+
+  // ---- 6.21 面板里选“浏览”或回到“裁剪”面板: 单指拖动仍是移动图片, 双击仍缩放; 记住上次的工具 ----
+  page = await open({ requestId: 'r-browse' })
+  page.onPanel(panel('mark'))
+  page.onTool(ds('none'))
+  page.onRatio(ds('1:1'))
+  page.onZoomIn()
+  draw(page, [[300, 300], [320, 300]], 100)
+  assert.deepStrictEqual(stageDraws.at(-1), [-73.75, -75, 562.5, 750], '“浏览”工具下单指拖动移动图片')
+  assert.strictEqual(page.data.strokeCount, 0, '不产生标注')
+  tap(page, 100, 200, 3000)
+  tap(page, 102, 203, 3150)
+  assert.deepStrictEqual(stageDraws.at(-1), [0, 50, 375, 500], '“浏览”工具下双击在放大与整图之间切换')
+  page.onPanel(panel('crop'))
+  assert.strictEqual(page.data.tool, 'none', '回到裁剪面板: 工具是浏览')
+  page.onPanel(panel('mark'))
+  assert.strictEqual(page.data.tool, 'none', '再进标注面板: 沿用上次选的“浏览”')
+  page.onTool(ds('rect'))
+  page.onPanel(panel('crop'))
+  assert.strictEqual(page.data.tool, 'none', '带着标注工具回到裁剪面板: 工具切回浏览')
+  page.onPanel(panel('mark'))
+  assert.strictEqual(page.data.tool, 'rect', '再进标注面板: 沿用上次选的方框')
+}
+
+// =====================================================================
+// 7. 标注的纯函数: 坐标换算、成笔规则、增删平移筛选、画法、导出换算
+// =====================================================================
+function testAnnotationPure() {
+  // ---- 7.1 舞台坐标 ↔ 原图像素 ----
+  const source = { width: 3000, height: 4000 }
+  const fit = { width: 375, height: 500 }
+  const frame = editor.makeFrame('original', 3000, 4000, { width: 375, height: 600 })
+  const whole = editor.initialTransform(fit, frame)
+  const center = editor.stageToImage({ x: 187.5, y: 300 }, whole, fit, source)
+  near(center.x, 1500, 1e-6, '7.1 整图: 舞台中心的横坐标落在原图正中')
+  near(center.y, 2000, 1e-6, '7.1 整图: 舞台中心的纵坐标落在原图正中')
+  const zoomed = editor.applyZoom(whole, 1.5, { x: 187.5, y: 300 }, fit, frame)
+  const back = editor.imageToStage(editor.stageToImage({ x: 40, y: 520 }, zoomed, fit, source), zoomed, fit, source)
+  near(back.x, 40, 1e-6, '7.1 换过去再换回来: 横坐标不变')
+  near(back.y, 520, 1e-6, '7.1 换过去再换回来: 纵坐标不变')
+  near(editor.imagePixelsPerStagePixel(whole, fit, source), 8, 1e-6, '7.1 整图时舞台 1 像素 = 原图 8 像素')
+  near(editor.imagePixelsPerStagePixel(zoomed, fit, source), 8 / 1.5, 1e-6, '7.1 放大 1.5 倍后 = 8 / 1.5')
+  // 不在中心的点, 两个方向各有明确的期望值: 竖图显示成 375×500, 横向 1 像素 = 8 原图像素, 纵向 = 8 原图像素
+  // (只测“换过去再换回来”和中心点是不够的——对称的错会互相抵消; 第一版纵轴用错了方向, 就是这么漏过去的)
+  assert.deepStrictEqual(editor.stageToImage({ x: 100, y: 150 }, whole, fit, source), { x: 800, y: 800 }, '7.1 整图: 舞台 (100,150) → 原图 (800,800)')
+  assert.deepStrictEqual(editor.stageToImage({ x: 300, y: 450 }, whole, fit, source), { x: 2400, y: 3200 }, '7.1 整图: 舞台 (300,450) → 原图 (2400,3200)')
+  assert.deepStrictEqual(editor.imageToStage({ x: 2400, y: 3200 }, whole, fit, source), { x: 300, y: 450 }, '7.1 整图: 原图 (2400,3200) → 舞台 (300,450)')
+  // 放大 1.5 倍后图片画在 (-93.75, -75), 显示 562.5 × 750
+  assert.deepStrictEqual(editor.imageToStage({ x: 800, y: 800 }, zoomed, fit, source), { x: 56.25, y: 75 }, '7.1 放大后: 原图 (800,800) → 舞台 (56.25,75)')
+  assert.deepStrictEqual(editor.stageToImage({ x: 56.25, y: 75 }, zoomed, fit, source), { x: 800, y: 800 }, '7.1 放大后: 舞台 (56.25,75) → 原图 (800,800)')
+
+  // ---- 7.2 颜色与线宽 ----
+  assert.strictEqual(editor.markColorValue('blue'), '#2f80ed', '7.2 按名字取颜色')
+  assert.strictEqual(editor.markColorValue('nope'), '#e8412c', '7.2 认不出的颜色按红色')
+  assert.strictEqual(editor.markWidthSize('medium', 4000), 32, '7.2 中线宽 = 原图长边的 0.8%')
+  assert.strictEqual(editor.markWidthSize('thin', 1000), 4, '7.2 细线宽')
+  assert.strictEqual(editor.markWidthSize('thick', 1000), 16, '7.2 粗线宽')
+  assert.strictEqual(editor.markWidthSize('nope', 1000), 8, '7.2 认不出的线宽按中')
+  assert.strictEqual(editor.markWidthSize('thin', 100), 1, '7.2 很小的图至少 1 像素')
+  assert.deepStrictEqual(['free', 'rect', 'ellipse', 'none', 'scribble', undefined].map(editor.isMarkTool), [true, true, true, false, false, false], '7.2 三种标注工具')
+
+  // ---- 7.3 徒手线: 太近的点不记, 有上限 ----
+  let stroke = editor.startStroke('free', 'red', 32, { x: 100, y: 100 })
+  assert.deepStrictEqual(stroke, { tool: 'free', color: 'red', size: 32, points: [{ x: 100, y: 100 }] }, '7.3 起笔')
+  assert.strictEqual(editor.extendStroke(stroke, { x: 101, y: 100 }, 8), stroke, '7.3 离上一点不到间距: 不记, 原样返回')
+  stroke = editor.extendStroke(stroke, { x: 120.04, y: 140 }, 8)
+  assert.deepStrictEqual(stroke.points.at(-1), { x: 120.04, y: 140 }, '7.3 到了间距就记一个点, 坐标原样保留(不取整)')
+  assert.strictEqual(stroke.points.length, 2, '7.3 不改动传入的对象')
+  let long = editor.startStroke('free', 'red', 32, { x: 0, y: 0 })
+  for (let i = 1; i < 1000; i++) long = editor.extendStroke(long, { x: i * 10, y: 0 }, 1)
+  assert.strictEqual(long.points.length, editor.MAX_FREE_POINTS, '7.3 最多记上限个点')
+  assert.strictEqual(editor.extendStroke(long, { x: 99999, y: 0 }, 1), long, '7.3 满了以后再拖也不记')
+
+  // ---- 7.4 形状: 只有两个点; 归一成“左上角 + 宽高” ----
+  let box = editor.startStroke('rect', 'blue', 16, { x: 300, y: 300 })
+  box = editor.extendStroke(box, { x: 200, y: 100 }, 8)
+  assert.deepStrictEqual(box.points, [{ x: 300, y: 300 }, { x: 200, y: 100 }], '7.4 形状只有起点与当前点(间距规则不适用)')
+  box = editor.extendStroke(box, { x: 380, y: 450 }, 8)
+  assert.deepStrictEqual(box.points.at(-1), { x: 380, y: 450 }, '7.4 第二个点跟着手指走, 不累加')
+  assert.deepStrictEqual(editor.shapeOf(box), { x: 300, y: 300, width: 80, height: 150 }, '7.4 往右下拖')
+  assert.deepStrictEqual(editor.shapeOf({ tool: 'rect', points: [{ x: 300, y: 300 }, { x: 200, y: 100 }] }), { x: 200, y: 100, width: 100, height: 200 }, '7.4 往左上拖也归一成“左上角 + 宽高”')
+  assert.deepStrictEqual(editor.shapeOf({ tool: 'ellipse', points: [{ x: 300, y: 100 }, { x: 200, y: 300 }] }), { x: 200, y: 100, width: 100, height: 200 }, '7.4 往左下拖同理')
+  assert.deepStrictEqual(editor.shapeOf({ tool: 'rect', points: [{ x: 200, y: 300 }, { x: 300, y: 100 }] }), { x: 200, y: 100, width: 100, height: 200 }, '7.4 往右上拖同理')
+  assert.deepStrictEqual(editor.shapeOf({ tool: 'free', points: [{ x: 100, y: 100 }, { x: 140, y: 110 }, { x: 130, y: 150 }] }), { x: 100, y: 100, width: 40, height: 50 }, '7.4 徒手线取各点的外包矩形')
+  assert.deepStrictEqual(editor.shapeOf({ tool: 'free', points: [{ x: 7, y: 9 }] }), { x: 7, y: 9, width: 0, height: 0 }, '7.4 只有一个点的徒手线: 外包矩形退化成那个点')
+  assert.deepStrictEqual(editor.shapeOf({ tool: 'free', points: [] }), { x: 0, y: 0, width: 0, height: 0 }, '7.4 没有点: 零')
+
+  // ---- 7.5 成笔: 太小的不算 ----
+  assert.strictEqual(editor.finishStroke({ tool: 'free', color: 'red', size: 32, points: [{ x: 10, y: 10 }, { x: 14, y: 10 }] }, 48), null, '7.5 徒手线总长不到最小长度: 丢弃')
+  assert.strictEqual(editor.finishStroke({ tool: 'free', color: 'red', size: 32, points: [{ x: 10, y: 10 }] }, 48), null, '7.5 只有一个点(点了一下): 丢弃')
+  const longEnough = { tool: 'free', color: 'red', size: 32, points: [{ x: 0, y: 0 }, { x: 60, y: 80 }] }
+  assert.strictEqual(editor.finishStroke(longEnough, 48), longEnough, '7.5 够长的原样保留')
+  assert.strictEqual(editor.finishStroke({ tool: 'rect', color: 'red', size: 32, points: [{ x: 0, y: 0 }, { x: 40, y: 30 }] }, 48), null, '7.5 方框长边不到最小: 丢弃')
+  const bar = { tool: 'rect', color: 'red', size: 32, points: [{ x: 0, y: 0 }, { x: 60, y: 3 }] }
+  assert.strictEqual(editor.finishStroke(bar, 48), bar, '7.5 方框长边够了就收(很扁的条也算)')
+  assert.strictEqual(editor.finishStroke({ tool: 'ellipse', color: 'red', size: 32, points: [{ x: 0, y: 0 }, { x: 60, y: 60 }] }, 48).tool, 'ellipse', '7.5 圈同理')
+  assert.strictEqual(editor.finishStroke(null, 48), null, '7.5 没有在画的一笔: 丢弃')
+  assert.strictEqual(editor.finishStroke({ tool: 'free', color: 'red', size: 32, points: [] }, 48), null, '7.5 没有点: 丢弃')
+
+  // ---- 7.6 增、删、平移、筛 ----
+  const first = { tool: 'free', color: 'red', size: 32, points: [{ x: 0, y: 0 }, { x: 100, y: 100 }] }
+  const second = { tool: 'rect', color: 'blue', size: 16, points: [{ x: 300, y: 300 }, { x: 380, y: 450 }] }
+  const none = editor.addStroke(null, first)
+  assert.deepStrictEqual(none, [first], '7.6 原来没有标注: 从一条开始')
+  const both = editor.addStroke(none, second)
+  assert.deepStrictEqual(both, [first, second], '7.6 追加在后')
+  assert.deepStrictEqual(none, [first], '7.6 不改动原数组')
+  assert.deepStrictEqual(editor.undoStroke(both), [first], '7.6 撤销最后一条')
+  assert.deepStrictEqual(both, [first, second], '7.6 撤销也不改动原数组')
+  assert.deepStrictEqual(editor.undoStroke([]), [], '7.6 空的撤销还是空')
+  assert.deepStrictEqual(editor.undoStroke(null), [], '7.6 没有标注时按空处理')
+  const moved = editor.shiftStrokes(both, 100, 50)
+  assert.deepStrictEqual(moved[0].points, [{ x: -100, y: -50 }, { x: 0, y: 50 }], '7.6 平移: 徒手线逐点')
+  assert.deepStrictEqual(moved[1].points, [{ x: 200, y: 250 }, { x: 280, y: 400 }], '7.6 平移: 形状的两个点')
+  assert.deepStrictEqual({ tool: moved[1].tool, color: moved[1].color, size: moved[1].size }, { tool: 'rect', color: 'blue', size: 16 }, '7.6 平移不改别的')
+  assert.deepStrictEqual(editor.shiftStrokes([], 1, 1), [], '7.6 空的平移还是空')
+  const crop = { x: 100, y: 100, width: 200, height: 200 }
+  const boundsOf = (x, y, width, height) => ({ tool: 'rect', points: [{ x, y }, { x: x + width, y: y + height }] })
+  assert.deepStrictEqual(editor.strokesInRect([boundsOf(150, 150, 20, 20), boundsOf(400, 400, 10, 10), boundsOf(250, 250, 100, 100), boundsOf(300, 150, 50, 20), boundsOf(301, 150, 50, 20)], crop).map((item) => item.points[0].x), [150, 250, 300], '7.6 区域内的、跨边界的、刚好贴边的算; 完全在外的、差 1 像素贴不到的不算')
+  assert.deepStrictEqual(editor.strokesInRect(null, crop), [], '7.6 没有标注按空处理')
+
+  // ---- 7.7 画到画布 ----
+  const recorder = () => {
+    const calls = []
+    const ctx = {
+      strokeStyle: '', lineWidth: 0, lineCap: '', lineJoin: '',
+      beginPath: () => calls.push(['beginPath']),
+      moveTo: (x, y) => calls.push(['moveTo', x, y]),
+      lineTo: (x, y) => calls.push(['lineTo', x, y]),
+      rect: (x, y, w, h) => calls.push(['rect', x, y, w, h]),
+      ellipse: (x, y, rx, ry, rot, from, to) => calls.push(['ellipse', x, y, rx, ry, rot, from, to]),
+      bezierCurveTo: () => calls.push(['bezierCurveTo']),
+      stroke: () => calls.push(['stroke', ctx.strokeStyle, ctx.lineWidth, ctx.lineCap, ctx.lineJoin])
+    }
+    return { ctx, calls }
+  }
+  const times2 = (point) => ({ x: point.x * 2, y: point.y * 2 + 1 })
+  let rec = recorder()
+  editor.drawStroke(rec.ctx, first, times2, 2)
+  assert.deepStrictEqual(rec.calls, [['beginPath'], ['moveTo', 0, 1], ['lineTo', 200, 201], ['stroke', '#e8412c', 64, 'round', 'round']], '7.7 徒手线: 逐点连线, 线宽 = 原图线宽 × 画布比例')
+  rec = recorder()
+  editor.drawStroke(rec.ctx, second, times2, 0.5)
+  assert.deepStrictEqual(rec.calls, [['beginPath'], ['rect', 600, 601, 160, 300], ['stroke', '#2f80ed', 8, 'round', 'round']], '7.7 方框: 左上角与宽高')
+  const ring = { tool: 'ellipse', color: 'green', size: 4, points: [{ x: 300, y: 300 }, { x: 500, y: 500 }] }
+  rec = recorder()
+  editor.drawStroke(rec.ctx, ring, times2, 0.25)
+  assert.deepStrictEqual(rec.calls, [['beginPath'], ['ellipse', 800, 801, 200, 200, 0, 0, Math.PI * 2], ['stroke', '#2fbf71', 1, 'round', 'round']], '7.7 圈: 中心与两个半径')
+  const dot = { tool: 'free', color: 'white', size: 2, points: [{ x: 5, y: 5 }] }
+  rec = recorder()
+  editor.drawStroke(rec.ctx, dot, times2, 1)
+  assert.deepStrictEqual(rec.calls, [['beginPath'], ['moveTo', 10, 11], ['lineTo', 10, 11], ['stroke', '#ffffff', 2, 'round', 'round']], '7.7 只有一个点的徒手线画成一个点(线段两端重合, 圆头)')
+  rec = recorder()
+  delete rec.ctx.ellipse
+  editor.drawStroke(rec.ctx, ring, times2, 0.25)
+  assert.strictEqual(rec.calls.filter((call) => call[0] === 'bezierCurveTo').length, 4, '7.7 画布没有 ellipse 接口时, 用四段贝塞尔曲线画圈')
+  rec = recorder()
+  editor.drawStroke(rec.ctx, { tool: 'scribble', color: 'red', size: 2, points: [{ x: 0, y: 0 }] }, times2, 1)
+  assert.deepStrictEqual(rec.calls, [], '7.7 认不出的工具什么都不画')
+  rec = recorder()
+  editor.drawStroke(rec.ctx, { tool: 'rect', color: 'nope', size: 3, points: [{ x: 0, y: 0 }, { x: 10, y: 10 }] }, times2, 1)
+  assert.deepStrictEqual(rec.calls.at(-1), ['stroke', '#e8412c', 3, 'round', 'round'], '7.7 认不出的颜色按红色')
+
+  // ---- 7.8 导出换算: 裁剪区域画满导出画布 ----
+  const mapper = editor.exportMapper({ x: 640, y: 1140, width: 1720, height: 1720 }, { width: 1600, height: 1600 })
+  near(mapper.scale, 1600 / 1720, 1e-9, '7.8 比例 = 导出宽 / 裁剪宽')
+  assert.deepStrictEqual(mapper.toCanvas({ x: 640, y: 1140 }), { x: 0, y: 0 }, '7.8 裁剪区域左上角 → 画布原点')
+  assert.deepStrictEqual(mapper.toCanvas({ x: 2360, y: 2860 }), { x: 1600, y: 1600 }, '7.8 裁剪区域右下角 → 画布右下角')
+  assert.deepStrictEqual(mapper.toCanvas({ x: 1500, y: 2000 }), { x: (1500 - 640) * (1600 / 1720), y: (2000 - 1140) * (1600 / 1720) }, '7.8 区域内的点按比例换算')
 }
 
 testUploadPageWiring()
   .then(() => testEditorPage())
+  .then(() => testAnnotationPure())
   .then(() => {
     console.log('PASS: test-miniprogram-image-editor')
   }, (err) => {
