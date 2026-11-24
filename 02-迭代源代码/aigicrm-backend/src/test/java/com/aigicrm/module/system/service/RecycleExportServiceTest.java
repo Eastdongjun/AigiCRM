@@ -314,8 +314,8 @@ CREATE TABLE IF NOT EXISTS biz_recycle_export (id BIGINT AUTO_INCREMENT PRIMARY 
     }
 
     // ==================== 【GL-14 2026-11-24】删除时间过滤的回归 ====================
-    // 安全修复 9db17c8f 把过滤值由字符串拼接改成占位符 + 参数绑定, 并让行数上限按过滤后的范围计;
-    // 在此之前上面的用例过滤条件一律传 null, 这条路径没有任何测试。过滤值只能经接口直接传入(PC 端不发这两个字段)。
+    // 安全修复 9db17c8f 把过滤值由字符串拼接改成占位符和参数绑定，行数上限也改为按过滤后的范围来计。
+    // 在此之前，上面的用例过滤条件一律传空，这条路径没有任何测试。过滤值只能经接口直接传入，PC 端不发这两个字段。
 
     private static final DateTimeFormatter FILTER_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
@@ -372,7 +372,6 @@ CREATE TABLE IF NOT EXISTS biz_recycle_export (id BIGINT AUTO_INCREMENT PRIMARY 
         ArgumentCaptor<Object[]> countArgs = ArgumentCaptor.forClass(Object[].class);
         verify(spy, atLeastOnce()).queryForObject(countSql.capture(), eq(Long.class), countArgs.capture());
         ArgumentCaptor<String> batchSql = ArgumentCaptor.forClass(String.class);
-        ArgumentCaptor<Object[]> batchArgs = ArgumentCaptor.forClass(Object[].class);
         verify(spy, atLeast(0)).queryForList(batchSql.capture(), any(Object[].class));
         List<String> sqlTexts = new ArrayList<>(countSql.getAllValues());
         sqlTexts.addAll(batchSql.getAllValues());
@@ -400,7 +399,8 @@ CREATE TABLE IF NOT EXISTS biz_recycle_export (id BIGINT AUTO_INCREMENT PRIMARY 
             m.when(SecurityUtils::isAdmin).thenReturn(true);
             m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
             m.when(SecurityUtils::getCurrentUser).thenReturn(null);
-            BusinessException ex = assertThrows(BusinessException.class, () -> svc.create(List.of("customer"), null));
+            List<String> types = List.of("customer");
+            BusinessException ex = assertThrows(BusinessException.class, () -> svc.create(types, null));
             assertTrue(ex.getMessage().contains("超过单类型上限"), ex.getMessage());
         }
         Long id = createAsAdmin(List.of("customer"), Map.of("deletedFrom", daysAgo(5)));

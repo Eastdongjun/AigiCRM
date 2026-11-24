@@ -90,7 +90,8 @@ class IncentiveServiceDeleteRecordGuardTest {
         // Mapper 取不到：记录不存在、已在回收站，或属于别的租户
         when(recordMapper.selectById(9L)).thenReturn(null);
 
-        BusinessException ex = assertThrows(BusinessException.class, () -> service().deleteRecord(9L));
+        IncentiveService service = service();
+        BusinessException ex = assertThrows(BusinessException.class, () -> service.deleteRecord(9L));
 
         assertEquals(404, ex.getCode());
         verifyNoInteractions(jdbc);

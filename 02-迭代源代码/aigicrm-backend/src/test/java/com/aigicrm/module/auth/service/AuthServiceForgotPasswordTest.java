@@ -138,8 +138,9 @@ class AuthServiceForgotPasswordTest {
 
     @Test
     void sendCode_emailMethodIsRejectedOutright() {
+        ForgotPasswordSendCodeRequest byEmail = send("alice", "email");
         BusinessException ex = assertThrows(BusinessException.class,
-                () -> svc.sendResetCode(send("alice", "email"), "10.0.0.1"));
+                () -> svc.sendResetCode(byEmail, "10.0.0.1"));
         assertEquals(400, ex.getCode());
         assertTrue(ex.getMessage().contains("邮箱"), ex.getMessage());
         assertFalse(store.containsKey(CODE_KEY), "不产生验证码");
@@ -150,8 +151,9 @@ class AuthServiceForgotPasswordTest {
         stubSms("OK", "OK");
 
         svc.sendResetCode(send("alice", "phone"), "10.0.0.1");
+        ForgotPasswordSendCodeRequest again = send("alice", "phone");
         BusinessException ex = assertThrows(BusinessException.class,
-                () -> svc.sendResetCode(send("alice", "phone"), "10.0.0.1"));
+                () -> svc.sendResetCode(again, "10.0.0.1"));
 
         assertEquals(429, ex.getCode());
         assertTrue(ex.getMessage().contains("太频繁"), ex.getMessage());
@@ -167,8 +169,9 @@ class AuthServiceForgotPasswordTest {
             String username = "ghost" + i;
             assertDoesNotThrow(() -> svc.sendResetCode(send(username, "phone"), "10.0.0.9"));
         }
+        ForgotPasswordSendCodeRequest eleventh = send("ghost11", "phone");
         BusinessException ex = assertThrows(BusinessException.class,
-                () -> svc.sendResetCode(send("ghost11", "phone"), "10.0.0.9"));
+                () -> svc.sendResetCode(eleventh, "10.0.0.9"));
 
         assertEquals(429, ex.getCode(), "同一 IP 一小时内第 11 次被拒");
         verify(smsClient, never()).sendSms(any(SendSmsRequest.class));
@@ -197,8 +200,9 @@ class AuthServiceForgotPasswordTest {
     void sendCode_smsFailureIsReportedAsServerError() throws Exception {
         stubSms("isv.BUSINESS_LIMIT_CONTROL", "触发分钟级流控");
 
+        ForgotPasswordSendCodeRequest request = send("alice", "phone");
         BusinessException ex = assertThrows(BusinessException.class,
-                () -> svc.sendResetCode(send("alice", "phone"), "10.0.0.1"));
+                () -> svc.sendResetCode(request, "10.0.0.1"));
 
         assertEquals(500, ex.getCode());
         assertTrue(ex.getMessage().contains("短信发送失败"), ex.getMessage());
@@ -236,16 +240,18 @@ class AuthServiceForgotPasswordTest {
         store.put(CODE_KEY, "123456");
 
         for (int i = 1; i <= 5; i++) {
+            ForgotPasswordResetRequest wrongCode = reset("alice", "000000", FRESH_LOGIN_PHRASE);
             BusinessException ex = assertThrows(BusinessException.class,
-                    () -> svc.resetPassword(reset("alice", "000000", FRESH_LOGIN_PHRASE)));
+                    () -> svc.resetPassword(wrongCode));
             assertEquals(400, ex.getCode(), "第 " + i + " 次输错");
             assertEquals("验证码错误或已过期", ex.getMessage());
         }
         assertEquals(5, store.get(ERROR_KEY), "错误次数已记满");
 
         // 锁定之后, 即使验证码对了也不放行
+        ForgotPasswordResetRequest rightCode = reset("alice", "123456", FRESH_LOGIN_PHRASE);
         BusinessException locked = assertThrows(BusinessException.class,
-                () -> svc.resetPassword(reset("alice", "123456", FRESH_LOGIN_PHRASE)));
+                () -> svc.resetPassword(rightCode));
         assertEquals(429, locked.getCode());
         assertTrue(locked.getMessage().contains("错误次数过多"), locked.getMessage());
 
@@ -257,8 +263,9 @@ class AuthServiceForgotPasswordTest {
     @Test
     void reset_withoutIssuedCodeIsRejectedAndNotCounted() {
         // 没发过码: 与“验证码错误”同一句回复; 且不计错误次数(否则可以凭空把真实账号刷到锁定)
+        ForgotPasswordResetRequest request = reset("alice", "123456", FRESH_LOGIN_PHRASE);
         BusinessException ex = assertThrows(BusinessException.class,
-                () -> svc.resetPassword(reset("alice", "123456", FRESH_LOGIN_PHRASE)));
+                () -> svc.resetPassword(request));
 
         assertEquals(400, ex.getCode());
         assertEquals("验证码错误或已过期", ex.getMessage());
@@ -270,13 +277,15 @@ class AuthServiceForgotPasswordTest {
     void reset_unknownAccountGetsTheSameAnswerAsAWrongCode() {
         // 第一次: 账号不存在; 第二次: 账号存在但验证码不对。两次回复必须一字不差
         when(userMapper.selectOne(any())).thenReturn(null);
+        ForgotPasswordResetRequest forGhost = reset("ghost", "123456", FRESH_LOGIN_PHRASE);
         BusinessException unknown = assertThrows(BusinessException.class,
-                () -> svc.resetPassword(reset("ghost", "123456", FRESH_LOGIN_PHRASE)));
+                () -> svc.resetPassword(forGhost));
 
         when(userMapper.selectOne(any())).thenReturn(alice);
         store.put(CODE_KEY, "123456");
+        ForgotPasswordResetRequest wrongCode = reset("alice", "999999", FRESH_LOGIN_PHRASE);
         BusinessException wrong = assertThrows(BusinessException.class,
-                () -> svc.resetPassword(reset("alice", "999999", FRESH_LOGIN_PHRASE)));
+                () -> svc.resetPassword(wrongCode));
 
         assertEquals("验证码错误或已过期", wrong.getMessage(), "账号存在、验证码不对");
         assertEquals(wrong.getCode(), unknown.getCode(), "状态码不可区分");
@@ -288,13 +297,15 @@ class AuthServiceForgotPasswordTest {
     void reset_weakPasswordIsRejectedAndCodeStaysValid() {
         store.put(CODE_KEY, "123456");
 
+        ForgotPasswordResetRequest shortPhrase = reset("alice", "123456", "Ab1");
         BusinessException tooShort = assertThrows(BusinessException.class,
-                () -> svc.resetPassword(reset("alice", "123456", "Ab1")));
+                () -> svc.resetPassword(shortPhrase));
         assertEquals(400, tooShort.getCode());
         assertTrue(tooShort.getMessage().contains("密码长度"), tooShort.getMessage());
 
+        ForgotPasswordResetRequest letterOnly = reset("alice", "123456", "OnlyLettersHere");
         BusinessException noDigit = assertThrows(BusinessException.class,
-                () -> svc.resetPassword(reset("alice", "123456", "OnlyLettersHere")));
+                () -> svc.resetPassword(letterOnly));
         assertTrue(noDigit.getMessage().contains("字母和数字"), noDigit.getMessage());
 
         verify(userMapper, never()).updateById(any(SysUser.class));
