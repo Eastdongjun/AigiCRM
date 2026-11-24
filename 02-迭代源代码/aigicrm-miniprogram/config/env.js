@@ -11,9 +11,14 @@
 //     `config/env.local.js`（已 gitignore，不入库）：
 //        cp ../docs/env-templates/env.local.example.js config/env.local.js
 //     （模板在 docs/env-templates/，2026-09-23 移出代码包：example 不参与打包）
-//     本文件在 develop 档采用其中的地址；删除该文件即回到 demo 档。
-//   · 本机覆盖档**只影响 develop 档**：release/trial 永远走生产地址，
-//     避免本机调试配置污染正式包。
+//     本文件在 develop 与 trial 档采用其中的地址；删除该文件，develop 回到 demo 档、trial 回到生产地址。
+//   · 本机覆盖档**影响 develop 与 trial，不影响 release**：release 永远走生产地址。
+//     【GL-15 2026-11-24】体验版也能读覆盖档：从配了覆盖档的机器上传的体验版指向测试环境，
+//     用来在真机上验测试环境（测试地址须是已在微信后台登记的 HTTPS 域名）。
+//     覆盖档跟着包出去、结果进了正式包的情形，由 scripts/miniprogram/upload.mjs 的上传守卫拦
+//     （带着覆盖档只允许声明为测试环境上传）。界面上看不出体验版连的是哪个后端——
+//     真机验证时用测试环境的账号登录，登不上就说明这个体验版连的是生产。
+//   · 注意：体验版没有覆盖档时连的是**生产**。
 //
 // 运行时判定用 wx.getAccountInfoSync().miniProgram.envVersion，
 // 与本仓库既有做法一致（见 pages/files/index.js:29-34 的版本门禁）。
@@ -28,7 +33,7 @@ function resolveEnvVersion() {
     var accountInfo = wx.getAccountInfoSync()
     return (accountInfo && accountInfo.miniProgram && accountInfo.miniProgram.envVersion) || 'develop'
   } catch (e) {
-    // 非小程序运行时（构建期/单测）按 develop 处理 ⇒ 落到 demo 默认，安全方向。
+    // 非小程序运行时（构建期/单测）按 develop 处理：没有本机覆盖档时落到 demo 默认，安全方向。
     return 'develop'
   }
 }
@@ -51,12 +56,12 @@ var apiBaseUrl = ''
 if (envVersion === 'release') {
   apiBaseUrl = PROD_API_BASE
 } else if (envVersion === 'trial') {
-  // 体验版默认也指向生产。若要指向测试环境，改为 'https://<测试域名>'；
-  // 注意小程序 request 合法域名必须是 HTTPS 且已在微信后台登记，
-  // 裸 IP（如 <测试服IP>）微信不允许直接请求。
-  apiBaseUrl = TRIAL_API_BASE
+  // 【GL-15 2026-11-24】体验版先读本机覆盖档，没有才用生产地址。
+  // 配了覆盖档就原样采用、不回落：宁可连不上，也不要让“以为在测测试环境”的体验版悄悄连到生产。
+  // 小程序 request 合法域名必须是 HTTPS 且已在微信后台登记；裸 IP 微信不允许直接请求。
+  apiBaseUrl = resolveLocalOverride() || TRIAL_API_BASE
 } else if (envVersion === 'develop') {
-  // 仅 develop 档读取本机覆盖档；未知 envVersion 不走这里，保持 ''（demo）。
+  // develop 没有覆盖档时保持 ''（demo）；未知 envVersion 不走这里，也不读覆盖档。
   apiBaseUrl = resolveLocalOverride()
 }
 

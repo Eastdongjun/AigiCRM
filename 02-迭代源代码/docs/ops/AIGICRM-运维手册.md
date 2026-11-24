@@ -260,9 +260,17 @@ docker exec shared-mysql mysql -uroot -p'[DB密码]' aigicrm
 
 ### 8.1 前置
 
-- Mac 权威源码：`/Users/donglai/东来/01-Projects/01-aigicrm/04-源码`
-- 凭据：`~/.aigicrm-deploy.env`
+- Mac 权威源码：`/Users/dongjun/东来/项目/02-已上线/01-AIGICRM/02-迭代源代码`（2026-11-24 更正：原写的是重组前的旧路径）
+- 凭据与部署配置：`~/.aigicrm-deploy.env`（2026-11-24 起必须显式写 `FILE_GRANT_MODE` 和 `RELEASE_MANIFEST`，格式见 `scripts/aigicrm-deploy.env.example`）
 - 脚本：`scripts/deploy-lib.sh`（含 ssh/scp/健康检查封装）
+
+**部署前的硬门**（2026-11-24 新增；都在任何生产动作之前生效，不满足就拒绝继续）：
+
+| 硬门 | 在哪里 | 管什么 |
+|---|---|---|
+| `FILE_GRANT_MODE` 必须显式设置 | `deploy-backend.sh`、`rollback.sh` 的后端回滚 | 生产现值是 `new`；不写的话旧写法默认 `legacy`，会把生产静默降回旧链 |
+| `RELEASE_MANIFEST` 冻结清单 | `deploy-backend.sh`、`deploy-frontend.sh` | 清单里的提交号 = 当前 HEAD；工作区干净；后端 jar 的 md5/sha256、前端入口文件的 sha256 与清单一致 |
+| 迁移后断言 | `deploy-db.sh` | 迁移后自动跑 16 条断言；不通过就中止并提示不要启动新后端 |
 
 ### 8.2 后端部署（生产）
 
@@ -270,12 +278,13 @@ docker exec shared-mysql mysql -uroot -p'[DB密码]' aigicrm
 bash scripts/deploy-backend.sh
 ```
 
-流程：
-1. 从测试服提取已验证 jar（`docker cp aigicrm-backend:/app/app.jar`）
-2. 上传生产 + 备份旧 jar 到 NAS
-3. 重建镜像 `aigicrm-backend:2.7.0`
-4. 重启容器（保留 env：DB_HOST=mysql / JWT_SECRET / CORS_ORIGINS 等）
-5. 健康检查（登录 API 200）
+流程（2026-11-24 按脚本现状更正）：
+0. 过上面的硬门；只读 TLS 预检
+1. 从测试服提取已验证 jar（`<应用标识>-backend` 容器的 `/app/app.jar`，现值 `ycmn-backend`）；校验大小、zip 魔数、md5
+2. 校验这个 jar 的 md5 与 sha256 等于冻结清单登记的版本（不通过就不进入备份与上传）
+3. 备份旧 jar 到 NAS（失败即中止）→ 上传 → 校验 md5 → 原子替换
+4. 重建镜像（标签取 `deploy-lib.sh` 的 `BACKEND_TAG`）→ 重启容器（保留 env）
+5. 健康检查；失败时自动用备份 jar 重建并重启，脚本返回非零
 
 ### 8.3 前端部署（生产）
 
@@ -298,10 +307,14 @@ bash scripts/deploy-frontend.sh
 ### 8.5 数据库迁移
 
 ```bash
-cat sql/migration/xxx.sql | sshpass ... ssh prod 'docker exec -i aigicrm-mysql mysql -uroot -p[DB密码] --default-character-set=utf8mb4 aigicrm'
+bash scripts/deploy-db.sh
+# 全量备份 → 迁移前快照 → 上传迁移目录 → Flyway repair + migrate → 结构验证 → 迁移后断言
 ```
 
-⚠️ 必须带库名 + utf8mb4；执行前备份。
+⚠️ **2026-11-24 更正**：原文教的是把迁移文件用 `mysql` 命令手工灌进库。**不要这样做**——Flyway 的版本记录会与实际结构对不上，
+之后的迁移会出错，`deploy-db.sh` 的校验也会红。迁移一律走 `deploy-db.sh`，并且**先迁移、后发布后端**：
+应用的数据库账号没有建表权限，迁移不随应用启动。脚本的备份文件名会打印出来，记进部署记录。
+确实需要手工改数据（不是迁移）时，按 `docs/deployment/manual-data-ops.md` 的纪律登记。
 
 ### 8.6 部署后验证
 
@@ -355,6 +368,11 @@ rsync -az root@39.99.35.218:/Aigicrm/files/backup/ <本地备份目录>/Aigicrm-
 > **上传文件只能恢复到 NAS `/Aigicrm/files/uploads`**。禁止恢复进 `upload-data` /
 > `aigicrm_upload-data` 卷；旧卷只读保留、**不挂载**（误挂会让 NAS 文件"消失"）。
 > 恢复上传文件前建议先停后端（`docker stop aigicrm-backend`），恢复完成后再启动。
+>
+> ⚠️ 2026-11-24 补充：本节命令里的容器名与镜像标签是早期写法。**容器名以部署 env 的 `APP_SLUG` 为准**——生产的后端容器现值是 `ycmn-backend`，
+> 不是 `aigicrm-backend`；镜像标签取 `deploy-lib.sh` 的 `BACKEND_TAG`。执行前先用 `docker ps` 核对实际名字。
+> 应用回滚优先走脚本：`bash scripts/rollback.sh backend <备份 jar>`、`bash scripts/rollback.sh frontend <备份 dist 目录>`；
+> **不要不带参数运行 `rollback.sh`**（等同于 `all`，会连数据库一起恢复）。
 
 ```bash
 # 数据库（先备份当前库；口令从容器环境读取）

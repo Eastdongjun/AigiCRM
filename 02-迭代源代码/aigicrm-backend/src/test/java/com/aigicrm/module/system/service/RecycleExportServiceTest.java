@@ -5,6 +5,7 @@ import com.aigicrm.security.SecurityUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringBootConfiguration;
@@ -22,18 +23,27 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
 
 import javax.sql.DataSource;
 import java.nio.file.*;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeast;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.verify;
 
 /**
  * 【A3】回收站导出集成测试（计划 §1.8 单测/集成九条；H2 + @TempDir 真实文件系统）：
  * ①admin 创建→ready ②非 admin 403 ③过期 410+清理置 expired ④manifest/checksums 行数一致
  * ⑤路径穿越清洗 ⑥空/非法类型 400 ⑦六类各 1 条导出字段抽查 ⑧contentMissing 行不打包
  * ⑨审计 create/download/delete 三条（audit mock 计数）。
+ * 【GL-14 2026-11-24】⑩～⑫ 删除时间过滤的回归(安全修复 9db17c8f)：过滤值只作参数绑定、
+ * 行数上限按过滤后的范围计、过滤确实缩小导出范围。
  * 异步生成用同步等待轮询（worker 单线程, 导出即触发, 秒级完成）。
  */
 @SpringJUnitConfig(RecycleExportServiceTest.Ctx.class)
@@ -112,12 +122,18 @@ CREATE TABLE IF NOT EXISTS biz_recycle_export (id BIGINT AUTO_INCREMENT PRIMARY 
 
     static final List<String> ALL = List.of("customer", "user", "file", "task", "incentive", "reminder");
 
+    /** svc 是事务代理(类里有 @Transactional 方法), 代理对象自己的字段是空的: 反射读写要落在真实实例上。 */
+    private RecycleExportService realService() {
+        return org.springframework.test.util.AopTestUtils.getTargetObject(svc);
+    }
+
     @BeforeEach
     void seed() throws Exception {
         // export.dir 指向 @TempDir（反射注入 @Value 字段）
+        // 【GL-14 2026-11-24】此前设在代理对象上, 没有生效, 导出包一直落在源码目录的 ./exports 下
         var f = RecycleExportService.class.getDeclaredField("exportDir");
         f.setAccessible(true);
-        f.set(svc, tmpDir.toString());
+        f.set(realService(), tmpDir.toString());
         jdbc.update("DELETE FROM biz_recycle_export");
         for (String t : List.of("biz_customer", "sys_user", "biz_file", "biz_task", "biz_incentive_record", "biz_reminder")) {
             jdbc.update("DELETE FROM " + t);
@@ -295,5 +311,117 @@ CREATE TABLE IF NOT EXISTS biz_recycle_export (id BIGINT AUTO_INCREMENT PRIMARY 
 
     private BusinessException createRejected(List<String> types) {
         return assertThrows(BusinessException.class, () -> svc.create(types, null));
+    }
+
+    // ==================== 【GL-14 2026-11-24】删除时间过滤的回归 ====================
+    // 安全修复 9db17c8f 把过滤值由字符串拼接改成占位符 + 参数绑定, 并让行数上限按过滤后的范围计;
+    // 在此之前上面的用例过滤条件一律传 null, 这条路径没有任何测试。过滤值只能经接口直接传入(PC 端不发这两个字段)。
+
+    private static final DateTimeFormatter FILTER_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
+    private String daysAgo(int days) {
+        return LocalDateTime.now().minusDays(days).format(FILTER_TIME);
+    }
+
+    private Long createAsAdmin(List<String> types, Map<String, Object> filter) {
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(true);
+            m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
+            m.when(SecurityUtils::getCurrentUser).thenReturn(null);
+            Map<String, Object> out = svc.create(types, filter);
+            return ((Number) out.get("id")).longValue();
+        }
+    }
+
+    private String csvOf(Long id, String entry) throws Exception {
+        try (ZipFile zip = new ZipFile(String.valueOf(awaitReady(id).get("file_path")))) {
+            return new String(zip.getInputStream(zip.getEntry(entry)).readAllBytes(),
+                    java.nio.charset.StandardCharsets.UTF_8);
+        }
+    }
+
+    /** 把服务持有的 JdbcTemplate 换成 spy, 以便记录实际执行的 SQL 文本与绑定参数。 */
+    private JdbcTemplate spyJdbc() throws Exception {
+        var f = RecycleExportService.class.getDeclaredField("jdbc");
+        f.setAccessible(true);
+        JdbcTemplate spy = org.mockito.Mockito.spy((JdbcTemplate) f.get(realService()));
+        f.set(realService(), spy);
+        return spy;
+    }
+
+    @Test
+    void t12_filterValuesAreBoundNeverConcatenated() throws Exception {
+        // 攻击串: 反斜杠吃掉收尾引号 + 恒真条件 + 注释。修复前的写法只去掉单引号, 这种输入会改写 SQL。
+        String from = "2026-11-01\\";
+        String to = " OR 1=1 -- ";
+        Map<String, Object> filter = new LinkedHashMap<>();
+        filter.put("deletedFrom", from);
+        filter.put("deletedTo", to);
+        JdbcTemplate spy = spyJdbc();
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(true);
+            m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
+            m.when(SecurityUtils::getCurrentUser).thenReturn(null);
+            try {
+                svc.create(List.of("customer"), filter);
+            } catch (RuntimeException e) {
+                // 非法的时间值被数据库拒绝, 也是安全的结果
+            }
+        }
+        ArgumentCaptor<String> countSql = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Object[]> countArgs = ArgumentCaptor.forClass(Object[].class);
+        verify(spy, atLeastOnce()).queryForObject(countSql.capture(), eq(Long.class), countArgs.capture());
+        ArgumentCaptor<String> batchSql = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Object[]> batchArgs = ArgumentCaptor.forClass(Object[].class);
+        verify(spy, atLeast(0)).queryForList(batchSql.capture(), any(Object[].class));
+        List<String> sqlTexts = new ArrayList<>(countSql.getAllValues());
+        sqlTexts.addAll(batchSql.getAllValues());
+
+        for (String sql : sqlTexts) {
+            assertFalse(sql.contains(from), "过滤值不得出现在 SQL 文本里: " + sql);
+            assertFalse(sql.contains("1=1") || sql.contains("--"), "攻击串不得进入 SQL 文本: " + sql);
+        }
+        String count = countSql.getAllValues().get(0);
+        assertTrue(count.contains("deleted_at >= ?") && count.contains("deleted_at <= ?"), "时间条件以占位符出现: " + count);
+        // 输入原样作为参数交给数据库
+        Object[] args = countArgs.getAllValues().get(0);
+        assertEquals(2, args.length, "两个过滤值各占一个参数: " + Arrays.toString(args));
+        assertEquals(from, args[0]);
+        assertEquals(to, args[1]);
+    }
+
+    @Test
+    void t13_rowLimitCountsOnlyRowsInsideFilter() throws Exception {
+        // 10 万零 1 条十天前删除的 + 种子里 1 条刚删除的: 不过滤时超过单类型上限 10 万, 按“最近 5 天”过滤后只剩 1 条
+        // (不用 SYSTEM_RANGE 的列名: H2 开了转小写, 系统表的 X 列不加引号找不到; 行号用窗口函数现算)
+        jdbc.update("INSERT INTO biz_customer (id, customer_name, owner_id, deleted, deleted_at, deleted_by, deleted_reason) "
+                + "SELECT ROW_NUMBER() OVER () + 2, '批量旧数据', 7, 1, TIMESTAMPADD(DAY, -10, NOW()), 1, '批量' FROM SYSTEM_RANGE(1, 100001)");
+        try (MockedStatic<SecurityUtils> m = mockStatic(SecurityUtils.class)) {
+            m.when(SecurityUtils::isAdmin).thenReturn(true);
+            m.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
+            m.when(SecurityUtils::getCurrentUser).thenReturn(null);
+            BusinessException ex = assertThrows(BusinessException.class, () -> svc.create(List.of("customer"), null));
+            assertTrue(ex.getMessage().contains("超过单类型上限"), ex.getMessage());
+        }
+        Long id = createAsAdmin(List.of("customer"), Map.of("deletedFrom", daysAgo(5)));
+        String csv = csvOf(id, "data/customers.csv");
+        assertTrue(csv.contains("已删客户"), "过滤范围内的行照常导出");
+        assertFalse(csv.contains("批量旧数据"), "过滤范围之外的行不导出");
+    }
+
+    @Test
+    void t14_timeFilterNarrowsExportedRows() throws Exception {
+        jdbc.update("INSERT INTO biz_customer (id, customer_name, owner_id, deleted, deleted_at, deleted_by, deleted_reason) "
+                + "VALUES (3,'十天前删除',7,1,TIMESTAMPADD(DAY, -10, NOW()),1,'测试')");
+        String recentOnly = csvOf(createAsAdmin(List.of("customer"), Map.of("deletedFrom", daysAgo(5))), "data/customers.csv");
+        assertTrue(recentOnly.contains("已删客户"), "下限: 5 天内删除的在内");
+        assertFalse(recentOnly.contains("十天前删除"), "下限: 更早删除的在外");
+        assertFalse(recentOnly.contains("活跃客户"), "未删除的始终不导出");
+        String oldOnly = csvOf(createAsAdmin(List.of("customer"), Map.of("deletedTo", daysAgo(5))), "data/customers.csv");
+        assertTrue(oldOnly.contains("十天前删除"), "上限: 更早删除的在内");
+        assertFalse(oldOnly.contains("已删客户"), "上限: 5 天内删除的在外");
+        String both = csvOf(createAsAdmin(List.of("customer"),
+                Map.of("deletedFrom", daysAgo(20), "deletedTo", daysAgo(5))), "data/customers.csv");
+        assertTrue(both.contains("十天前删除") && !both.contains("已删客户"), "区间: 两头都生效");
     }
 }

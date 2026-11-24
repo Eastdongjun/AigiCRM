@@ -78,6 +78,11 @@
       <view class="attach-btn {{recording ? 'rec' : ''}}" bindtap="toggleRecord">{{recording ? '停止 · ' + recordSeconds + 's' : '录制语音'}}</view>
       <view class="attach-btn" bindtap="choosePhoneFile">手机文件</view>
     </view>
+    <!-- 【GL-12】选图后裁剪的开关(记在本机存储) -->
+    <view class="attach-toggle" aria-role="switch" aria-checked="{{editOnPick}}" bindtap="toggleEditOnPick">
+      <text class="attach-switch {{editOnPick ? 'on' : ''}}"></text>
+      <text>选图后可放大查看、裁剪</text>
+    </view>
     <view wx:if="{{recording}}" class="attach-hint rec-hint">录音中…每段最长 60 秒，到时自动保存；不足 1 秒丢弃</view>
     <view class="attach-sub" bindtap="chooseAudio">从聊天文件选音频（备选入口）</view>
     <view wx:for="{{attachments}}" wx:key="fileId" class="attach-item">
@@ -103,7 +108,7 @@
       <view class="muyu-plus">+1</view>
     </view>
     <view class="success-title">发布成功</view>
-    <view class="success-sub">已进入法布施分享广场，30 天内展示 NEW。</view>
+    <view class="success-sub">已进入法布施认知广场，30 天内展示 NEW。</view>
     <view class="success-actions">
       <view class="success-btn ghost" bindtap="replayMuyu">再敲一下</view>
       <view class="success-btn primary" bindtap="goDetail">查看作品</view>

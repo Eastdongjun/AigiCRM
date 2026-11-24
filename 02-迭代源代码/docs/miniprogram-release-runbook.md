@@ -77,7 +77,8 @@ WECHAT_AUTOMATOR_WS=ws://127.0.0.1:9421 npm run verify:incentive-attachments
 
 1. **小程序账号与成员**：用 AppID `wx513e6dd7eabdae7b` 登录微信公众平台（企业主体需已认证）→ 成员管理里把使用者加为**体验成员**（上限 15 人/可调整）。
 2. **登记服务器域名**：开发管理 → 开发设置 → 服务器域名 → **request 合法域名** 添加 `https://www.aigicrm.com`。
-   > 微信**只接受 HTTPS 域名，不接受裸 IP**（如 `111.229.37.220`），因此**测试环境不能用于体验版**；测试服只能在路径 A 里用。
+   > 微信**只接受 HTTPS 域名，不接受裸 IP**（如 `111.229.37.220`）。所以**用裸 IP 的测试服不能用于体验版**，只能走路径 A；
+   > 要拿体验版验测试环境，测试环境须有一个已登记的 HTTPS 测试域名（见 §2.3）。
 3. **生成上传密钥**（若走 CI 上传）：开发管理 → 开发设置 → 小程序代码上传 → 生成密钥并下载（`private.<appid>.key`），同时把**当前出口 IP** 加入白名单。
 
 ### 2.2 上传代码（两种方式，二选一）
@@ -105,10 +106,26 @@ MINIPROGRAM_PRIVATE_KEY=~/.wechat-mp/private.wx513e6dd7eabdae7b.key npm run prev
 
 **密钥纪律**：密钥是凭据，**不要放进仓库**（脚本检测到密钥在仓库内会告警）；建议放 `~/.wechat-mp/` 并 `chmod 600`。
 
+**上传守卫**（2026-11-24）：`npm run upload` 在真正上传之前会检查下面四条，任何一条不满足就以退出码 3 结束、什么都不上传：
+
+1. 小程序源码目录没有未提交改动（未跟踪的文件也会被打进包，同样算）。
+2. 有本机覆盖档 `config/env.local.js` 时，必须声明 `MP_TARGET=staging`（这个包会指向非生产环境）。
+3. 声明了 `MP_TARGET=staging` 时，覆盖档必须存在（否则这个包其实指向生产，名不副实）。
+4. 源码目录里没有嵌套的 git 仓库（`git status` 会失真）。
+
+先演练一遍：`MINIPROGRAM_DRY_RUN=1 npm run upload`——只检查并打印将要上传的内容，不加载上传依赖、不联网、不需要密钥。
+守卫通过后，目标与提交号会写进上传备注，在公众平台的版本列表里能看出每个版本对应哪个提交。预览不受守卫限制。
+
 ### 2.3 体验版注意事项
 
 - 体验版请求**受域名白名单约束**：不要依赖 `project.config.json` 里的 `setting.urlCheck=false`（那主要作用于开发版/工具环境），务必完成 §2.1-2 的域名登记。
-- 体验版走 `trial` 档 → 固定 `https://www.aigicrm.com`（生产数据）。**要拿体验版收测试数据是不可行的**（需 HTTPS 测试域名 + 登记）。
+- 体验版走 `trial` 档，**没有本机覆盖档时连的是生产** `https://www.aigicrm.com`（生产数据）。
+- **让体验版连测试环境**（2026-11-24 更新；原文写的是“要拿体验版收测试数据是不可行的”，现已可行）：
+  1. 测试环境先有 HTTPS 测试域名，并在微信后台登记为 request / uploadFile / downloadFile 合法域名。
+  2. 本机建覆盖档：`cp docs/env-templates/env.local.example.js aigicrm-miniprogram/config/env.local.js`，把 `apiBaseUrl` 填成 `https://<测试域名>`（该文件已 gitignore，不入库）。
+  3. 上传时声明目标：`MP_TARGET=staging npm run upload`。不带这个声明时上传守卫会拒绝（见 §2.2）。
+  4. 界面上看不出体验版连的是哪个后端。真机验证请用**测试环境的账号**登录——登不上，就说明这个体验版连的是生产，停下来核对。
+  正式版（`release`）永远连生产，不读本机覆盖档。
 - 上传前必须先跑本地门禁，确保 PC/小程序差异、PC-only 边界、手工 QA 契约和小程序基础配置仍然一致：
 
 ```bash
@@ -117,6 +134,7 @@ cd /Users/dongjun/东来/项目/02-已上线/01-AIGICRM
 02-迭代源代码/scripts/check-mobile-manual-qa-contract.sh
 bash 02-迭代源代码/scripts/check-wechat-project-root.sh
 bash 02-迭代源代码/scripts/check-miniprogram-local-profile.sh
+node 02-迭代源代码/scripts/test-miniprogram-upload-guard.js
 python3 02-迭代源代码/scripts/check-miniprogram-permission-contract.py
 python3 02-迭代源代码/scripts/check-mobile-reconciliation-evidence.py /path/to/sanitized-reconciliation.md
 ```

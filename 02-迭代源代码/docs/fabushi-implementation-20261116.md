@@ -1,5 +1,7 @@
 # 法布施实现与测试环境部署记录（2026-11-16）
 
+> 术语更新（2026-11-25）：本文是 11-16 当时的记录。正文里的模块名称已按现行名称更新（“内容治理”→“内容管理”，“分享广场”→“认知广场”，菜单改名见迁移 `V2026.11.23.8`），其余内容没有改。现行名称以 `unified-feature-manifest.md` 为准。
+
 ## 已完成
 
 ### 数据库（测试环境）
@@ -19,7 +21,7 @@
 ### PC
 - 法布施 3 个页面/API/路由已合并进测试工作树并构建。
 - 测试前端静态资源已部署（index.html md5 `fb891e6f83687a256dd17feefbe5797d`），fabushi JS 200。
-- admin `/auth/info` 菜单已包含：法布施 / 书目管理 / 内容治理 / 统计看板。
+- admin `/auth/info` 菜单已包含：法布施 / 书目管理 / 内容管理 / 统计看板。
 
 ### 小程序
 - 新增内容流 `pages/fabushi/feed/index`、详情 `pages/fabushi/detail/index`，补 `getFabushiComments` API。
@@ -56,7 +58,7 @@
 
 ### 3. PC 真实页面验收
 Playwright + 测试环境真实登录态：
-- `/fabushi/book` 标题「书目管理 - AIGICRM」，菜单含法布施/书目管理/内容治理/统计看板；
+- `/fabushi/book` 标题「书目管理 - AIGICRM」，菜单含法布施/书目管理/内容管理/统计看板；
 - `/fabushi/content`、`/fabushi/stats` 均正常加载；
 - 截图：`test-results/fabushi/pc-fabushi-{book,content,stats}.png`。
 
@@ -117,7 +119,7 @@ Playwright + 测试环境真实登录态：
 - 新页面权限码复用 `fabushi:view`，未新增权限码
 - 页面绑定从现有 `fabushi:view` 绑定复制（不硬编码角色）
 - 默认可见：
-  - admin：内容流/书目浏览/书目管理/内容治理/统计看板
+  - admin：内容流/书目浏览/书目管理/内容管理/统计看板
   - 销售总监 0 / 行政 05 / 销售员 06：内容流/书目浏览
 - PC 与 MP 共用同一套接口与权限，仅布局不同。
 
@@ -168,7 +170,7 @@ Playwright + 测试环境真实登录态：
 
 按用户「全做 要完整」与 ZCode 交接单，一期范围全部落地：
 
-- PC：分享广场（原内容流）改名；30 天 NEW；书目 10 类全显；P6 书目管理改为胶囊分类+左书目/右治理表；P7 内容治理改为四分段+详情+下架/恢复；P9 统计看板接成员榜/类别热度/每日趋势/周月切换。
+- PC：认知广场（原内容流）改名；30 天 NEW；书目 10 类全显；P6 书目管理改为胶囊分类+左书目/右治理表；P7 内容管理改为四分段+详情+下架/恢复；P9 统计看板接成员榜/类别热度/每日趋势/周月切换。
 - 后端：`GET /fabushi/books/{id}`、`PUT /fabushi/posts/{id}/restore`、`GET /fabushi/stats/dashboard`；书目列表支持 `status=all`（仅 book:manage），非 approved 查询收口到 book:manage。
 - MP：A1 工作台重构（hero+四格+五页签+搜索+推荐+动态）；A4 书目详情弹层（书卡/统计/作品/二期结构树标注）；B3 发布成功木鱼动画态；C5 个人四格并补 myComments。
 - 权限：不新增码；恢复走 content:manage，看板走 stats:view，导出已入后端/PC。

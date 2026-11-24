@@ -1,30 +1,30 @@
 # AIGICRM Unified Feature Audit
 
-Generated from local source: `.`
+Generated from local source: `02-迭代源代码`
 
 ## Summary
 
-- PC routes: 43
-- PC API functions: 259
-- Mini Program pages: 50
-- Mini Program API functions: 141
-- Backend endpoints: 288
-- PC UI actions: 338
-- Mini Program UI actions: 303
-- Backend permission tokens: 87
+- PC routes: 46
+- PC API functions: 282
+- Mini Program pages: 54
+- Mini Program API functions: 153
+- Backend endpoints: 350
+- PC UI actions: 401
+- Mini Program UI actions: 354
+- Backend permission tokens: 90
 - Permission dictionary tokens: 104
 - Runtime permission dictionary tokens: 96
 - Compatibility/deprecated dictionary tokens: 8
-- Local migration permission tokens: 108
+- Local migration permission tokens: 111
 - Backend permissions missing in dictionary or local migrations: 0
 - Runtime dictionary permissions not directly seen in backend annotations: 9
 - Runtime dictionary permissions referenced outside backend annotations: 7
 - Runtime dictionary permissions not seen in backend annotations or code references: 2
 - UI permission tokens missing in backend, dictionary, and local migrations: 0
-- Frontend code permission tokens: 71
+- Frontend code permission tokens: 73
 - Frontend code permission tokens missing in known sources: 0
 - PC API wrappers without backend endpoint match: 0
-- Mini Program API wrappers without backend endpoint match: 11
+- Mini Program API wrappers without backend endpoint match: 9
 
 ## PC Routes
 
@@ -33,6 +33,9 @@ Generated from local source: `.`
 | `/login` | 登录 | `` | `aigicrm-ui/src/router/index.js` |
 | `/403` | 无权限 | `` | `aigicrm-ui/src/router/index.js` |
 | `/mp-file-picker` | 手机文件上传 | `` | `aigicrm-ui/src/router/index.js` |
+| `/mp-fabushi-reader` | 在线阅读 | `` | `aigicrm-ui/src/router/index.js` |
+| `/mp-fabushi-uploader` | 手机文件上传 | `` | `aigicrm-ui/src/router/index.js` |
+| `/onboarding` | 首次启动向导 | `` | `aigicrm-ui/src/router/index.js` |
 | `/:pathMatch(.*)*` | 页面不存在 | `` | `aigicrm-ui/src/router/index.js` |
 | `/` | 工作台 | `statistics:view` | `aigicrm-ui/src/router/index.js` |
 | `customer` | 客户列表 | `customer:view` | `aigicrm-ui/src/router/index.js` |
@@ -43,13 +46,13 @@ Generated from local source: `.`
 | `incentive` | 激励上传 | `incentive:add` | `aigicrm-ui/src/router/index.js` |
 | `incentive/stats` | 激励统计 | `incentive:stats:view` | `aigicrm-ui/src/router/index.js` |
 | `incentive/search` | 激励查询 | `incentive:view` | `aigicrm-ui/src/router/index.js` |
-| `fabushi/feed` | 分享广场 | `fabushi:view` | `aigicrm-ui/src/router/index.js` |
+| `fabushi/feed` | 认知广场 | `fabushi:view` | `aigicrm-ui/src/router/index.js` |
 | `fabushi/detail/:id` | 内容详情 | `fabushi:view` | `aigicrm-ui/src/router/index.js` |
 | `fabushi/library` | 书目浏览 | `fabushi:view` | `aigicrm-ui/src/router/index.js` |
-| `fabushi/shelf` | 我的阅读 | `fabushi:view` | `aigicrm-ui/src/router/index.js` |
+| `fabushi/shelf` | 我的觉醒 | `fabushi:view` | `aigicrm-ui/src/router/index.js` |
 | `fabushi/read/:bookId` | 在线阅读 | `fabushi:view` | `aigicrm-ui/src/router/index.js` |
 | `fabushi/book` | 书目管理 | `fabushi:book:view` | `aigicrm-ui/src/router/index.js` |
-| `fabushi/content` | 内容治理 | `fabushi:content:view` | `aigicrm-ui/src/router/index.js` |
+| `fabushi/content` | 内容管理 | `fabushi:content:view` | `aigicrm-ui/src/router/index.js` |
 | `fabushi/stats` | 统计看板 | `fabushi:stats:view` | `aigicrm-ui/src/router/index.js` |
 | `incentive/ranking` | 学分排行 | `score:view` | `aigicrm-ui/src/router/index.js` |
 | `task` | 我的任务 | `task:view` | `aigicrm-ui/src/router/index.js` |
@@ -126,8 +129,12 @@ Generated from local source: `.`
 | `pages/fabushi/book/index` |
 | `pages/fabushi/upload/index` |
 | `pages/fabushi/feed/index` |
+| `pages/fabushi/bybook/index` |
 | `pages/fabushi/detail/index` |
 | `pages/fabushi/settings/index` |
+| `pages/fabushi/reader/index` |
+| `pages/fabushi/uploader/index` |
+| `pages/fabushi/image-editor/index` |
 
 ## PC UI Actions
 
@@ -211,61 +218,100 @@ Generated from local source: `.`
 | 重置 | `resetFilters` | `` | `aigicrm-ui/src/views/fabushi/book.vue:24` |
 | 待审核 () | `showPending` | `` | `aigicrm-ui/src/views/fabushi/book.vue:26` |
 | ＋ 新增书目 | `submitVisible = true` | `userStore.hasPermission('fabushi:create')` | `aigicrm-ui/src/views/fabushi/book.vue:27` |
-| 通过 | `doApprove(row)` | `` | `aigicrm-ui/src/views/fabushi/book.vue:61` |
-| 驳回 | `openReject(row)` | `` | `aigicrm-ui/src/views/fabushi/book.vue:62` |
-| (icon/button) | `openPdf(row)` | `` | `aigicrm-ui/src/views/fabushi/book.vue:63` |
-| 章节 | `openSections(row)` | `` | `aigicrm-ui/src/views/fabushi/book.vue:64` |
-| 停用 | `doDisable(row)` | `` | `aigicrm-ui/src/views/fabushi/book.vue:65` |
-| 查看原因 | `showRejectReason(row)` | `` | `aigicrm-ui/src/views/fabushi/book.vue:66` |
-| 取消 | `submitVisible = false` | `` | `aigicrm-ui/src/views/fabushi/book.vue:97` |
-| 提交 | `doSubmit` | `` | `aigicrm-ui/src/views/fabushi/book.vue:98` |
-| 取消 | `rejectVisible = null` | `` | `aigicrm-ui/src/views/fabushi/book.vue:105` |
-| 确认驳回 | `doReject` | `` | `aigicrm-ui/src/views/fabushi/book.vue:106` |
-| 添加 | `addSection` | `` | `aigicrm-ui/src/views/fabushi/book.vue:118` |
-| 删除 | `removeSection(item)` | `userStore.hasPermission('fabushi:book:manage')` | `aigicrm-ui/src/views/fabushi/book.vue:124` |
+| 通过 | `doApprove(row)` | `` | `aigicrm-ui/src/views/fabushi/book.vue:68` |
+| 驳回 | `openReject(row)` | `` | `aigicrm-ui/src/views/fabushi/book.vue:69` |
+| (icon/button) | `openPdf(row)` | `` | `aigicrm-ui/src/views/fabushi/book.vue:70` |
+| 章节 | `openSections(row)` | `` | `aigicrm-ui/src/views/fabushi/book.vue:71` |
+| 版式 | `openLayout(row)` | `` | `aigicrm-ui/src/views/fabushi/book.vue:72` |
+| 停用 | `doDisable(row)` | `` | `aigicrm-ui/src/views/fabushi/book.vue:73` |
+| 查看原因 | `showRejectReason(row)` | `` | `aigicrm-ui/src/views/fabushi/book.vue:74` |
+| 删除 | `doDelete(row)` | `` | `aigicrm-ui/src/views/fabushi/book.vue:75` |
+| 取消 | `submitVisible = false` | `` | `aigicrm-ui/src/views/fabushi/book.vue:106` |
+| 提交 | `doSubmit` | `` | `aigicrm-ui/src/views/fabushi/book.vue:107` |
+| 取消 | `rejectVisible = null` | `` | `aigicrm-ui/src/views/fabushi/book.vue:114` |
+| 确认驳回 | `doReject` | `` | `aigicrm-ui/src/views/fabushi/book.vue:115` |
+| 添加 | `addSection` | `` | `aigicrm-ui/src/views/fabushi/book.vue:127` |
+| 删除 | `removeSection(item)` | `userStore.hasPermission('fabushi:book:manage')` | `aigicrm-ui/src/views/fabushi/book.vue:133` |
+| 取消 | `layoutVisible = null` | `` | `aigicrm-ui/src/views/fabushi/book.vue:154` |
+| 保存标记 | `doSaveLayout` | `` | `aigicrm-ui/src/views/fabushi/book.vue:155` |
 | 查询 | `resetPage` | `` | `aigicrm-ui/src/views/fabushi/content.vue:11` |
-| 详情 | `openDetail(row)` | `` | `aigicrm-ui/src/views/fabushi/content.vue:31` |
-| 下架 | `openOffline(row)` | `` | `aigicrm-ui/src/views/fabushi/content.vue:32` |
-| 恢复 | `doRestore(row)` | `` | `aigicrm-ui/src/views/fabushi/content.vue:33` |
-| 关闭 | `detailVisible = false` | `` | `aigicrm-ui/src/views/fabushi/content.vue:58` |
-| 下架该作品 | `openOffline(detailRow)` | `` | `aigicrm-ui/src/views/fabushi/content.vue:59` |
-| 恢复该作品 | `doRestore(detailRow)` | `` | `aigicrm-ui/src/views/fabushi/content.vue:60` |
-| 取消 | `offlineVisible = false` | `` | `aigicrm-ui/src/views/fabushi/content.vue:68` |
-| 确认下架 | `doOffline` | `` | `aigicrm-ui/src/views/fabushi/content.vue:69` |
-| ← 返回分享广场 | `router.back()` | `` | `aigicrm-ui/src/views/fabushi/detail.vue:4` |
-| 木鱼 | `toggleLike` | `` | `aigicrm-ui/src/views/fabushi/detail.vue:31` |
-| 发送 | `submitComment` | `` | `aigicrm-ui/src/views/fabushi/detail.vue:46` |
-| 在线阅读 | `openReader` | `` | `aigicrm-ui/src/views/fabushi/detail.vue:71` |
-| 去书目浏览 | `goLibrary` | `` | `aigicrm-ui/src/views/fabushi/detail.vue:72` |
-| ＋ 发布内容 | `openPublish` | `canCreate` | `aigicrm-ui/src/views/fabushi/feed.vue:8` |
-| 重置 | `resetFilters` | `canView` | `aigicrm-ui/src/views/fabushi/feed.vue:32` |
-| 进入书目浏览 | `goLibrary` | `` | `aigicrm-ui/src/views/fabushi/feed.vue:74` |
-| 选择图片 / 音视频 | `pickAttachment` | `` | `aigicrm-ui/src/views/fabushi/feed.vue:121` |
-| 移除 | `removePendingAttachment(index)` | `` | `aigicrm-ui/src/views/fabushi/feed.vue:127` |
-| 取消 | `publishVisible = false` | `` | `aigicrm-ui/src/views/fabushi/feed.vue:132` |
-| 发布 | `submitPost` | `` | `aigicrm-ui/src/views/fabushi/feed.vue:133` |
-| 我的阅读 | `router.push('/fabushi/shelf')` | `` | `aigicrm-ui/src/views/fabushi/library.vue:8` |
+| 详情 | `openDetail(row)` | `` | `aigicrm-ui/src/views/fabushi/content.vue:32` |
+| 下架 | `openOffline(row)` | `` | `aigicrm-ui/src/views/fabushi/content.vue:33` |
+| 恢复 | `doRestore(row)` | `` | `aigicrm-ui/src/views/fabushi/content.vue:34` |
+| 恢复已删 | `doRestoreDeleted(row)` | `` | `aigicrm-ui/src/views/fabushi/content.vue:35` |
+| 关闭 | `detailVisible = false` | `` | `aigicrm-ui/src/views/fabushi/content.vue:60` |
+| 下架该作品 | `openOffline(detailRow)` | `` | `aigicrm-ui/src/views/fabushi/content.vue:61` |
+| 恢复该作品 | `doRestore(detailRow)` | `` | `aigicrm-ui/src/views/fabushi/content.vue:62` |
+| 取消 | `offlineVisible = false` | `` | `aigicrm-ui/src/views/fabushi/content.vue:70` |
+| 确认下架 | `doOffline` | `` | `aigicrm-ui/src/views/fabushi/content.vue:71` |
+| ← 返回认知广场 | `router.back()` | `` | `aigicrm-ui/src/views/fabushi/detail.vue:4` |
+| · 已被复诵 次 | `onReciteClick` | `` | `aigicrm-ui/src/views/fabushi/detail.vue:39` |
+| 修改 | `openEdit` | `` | `aigicrm-ui/src/views/fabushi/detail.vue:43` |
+| 删除 | `removePost` | `` | `aigicrm-ui/src/views/fabushi/detail.vue:44` |
+| 发送 | `submitComment` | `` | `aigicrm-ui/src/views/fabushi/detail.vue:77` |
+| 在线阅读 | `openReader` | `` | `aigicrm-ui/src/views/fabushi/detail.vue:102` |
+| 去书目浏览 | `goLibrary` | `` | `aigicrm-ui/src/views/fabushi/detail.vue:103` |
+| 取消 | `editVisible = false` | `` | `aigicrm-ui/src/views/fabushi/detail.vue:121` |
+| 保存 | `saveEdit` | `` | `aigicrm-ui/src/views/fabushi/detail.vue:122` |
+| ＋每日诵读 | `openPublish('songdu')` | `` | `aigicrm-ui/src/views/fabushi/feed.vue:9` |
+| ＋每日随施 | `openPublish('suishi')` | `` | `aigicrm-ui/src/views/fabushi/feed.vue:10` |
+| ＋再读一本 | `openPublish('zaidu')` | `` | `aigicrm-ui/src/views/fabushi/feed.vue:11` |
+| 查询 | `resetPage` | `` | `aigicrm-ui/src/views/fabushi/feed.vue:40` |
+| 重置 | `resetByBook` | `` | `aigicrm-ui/src/views/fabushi/feed.vue:41` |
+| 书目详情 | `goBookDetail` | `` | `aigicrm-ui/src/views/fabushi/feed.vue:80` |
+| ＋我在本书上传 | `quickPublish('zaidu', selectedBook.id)` | `` | `aigicrm-ui/src/views/fabushi/feed.vue:81` |
+| 详情 | `openDetail(row.id)` | `` | `aigicrm-ui/src/views/fabushi/feed.vue:109` |
+| 重置 | `resetFilters` | `canView` | `aigicrm-ui/src/views/fabushi/feed.vue:135` |
+| 进入我的觉醒 | `goAwaken` | `` | `aigicrm-ui/src/views/fabushi/feed.vue:212` |
+| 在线阅读 | `openRead(recommendedBook)` | `` | `aigicrm-ui/src/views/fabushi/feed.vue:235` |
+| 去诵读 | `quickPublish('songdu', recommendedBook.id)` | `` | `aigicrm-ui/src/views/fabushi/feed.vue:236` |
+| 去设置 | `goAwaken` | `` | `aigicrm-ui/src/views/fabushi/feed.vue:249` |
+| 回我的觉醒 | `router.push('/fabushi/shelf')` | `` | `aigicrm-ui/src/views/fabushi/highlights.vue:10` |
+| 去书目浏览 | `router.push('/fabushi/library')` | `` | `aigicrm-ui/src/views/fabushi/highlights.vue:20` |
+| 清空搜索 | `keyword = ''` | `` | `aigicrm-ui/src/views/fabushi/highlights.vue:26` |
+| 继续阅读 › | `router.push(`/fabushi/read/${g.bookId}`)` | `` | `aigicrm-ui/src/views/fabushi/highlights.vue:36` |
+| 删除 | `remove(h)` | `` | `aigicrm-ui/src/views/fabushi/highlights.vue:52` |
+| 我的觉醒 | `router.push('/fabushi/shelf')` | `` | `aigicrm-ui/src/views/fabushi/library.vue:8` |
 | 查询 | `onSearch` | `` | `aigicrm-ui/src/views/fabushi/library.vue:19` |
 | 在线阅读 | `openReader(book)` | `` | `aigicrm-ui/src/views/fabushi/library.vue:52` |
 | 写心得 | `writePost(book)` | `` | `aigicrm-ui/src/views/fabushi/library.vue:53` |
 | 加入书架 | `addShelf(book)` | `` | `aigicrm-ui/src/views/fabushi/library.vue:54` |
 | ‹ 返回书目 | `router.back()` | `` | `aigicrm-ui/src/views/fabushi/read.vue:4` |
-| 保存进度 | `saveProgress` | `` | `aigicrm-ui/src/views/fabushi/read.vue:9` |
-| 下载 | `downloadPdf` | `` | `aigicrm-ui/src/views/fabushi/read.vue:10` |
+| ⚙ 版式 | `settingsOpen = !settingsOpen` | `` | `aigicrm-ui/src/views/fabushi/read.vue:12` |
+| 下载 | `downloadPdf` | `` | `aigicrm-ui/src/views/fabushi/read.vue:13` |
+| 重试 | `retry` | `` | `aigicrm-ui/src/views/fabushi/read.vue:157` |
+| ‹ 上一页 | `prevPage` | `` | `aigicrm-ui/src/views/fabushi/read.vue:160` |
+| = totalPages" @click="nextPage">下一页 › | `` | `` | `aigicrm-ui/src/views/fabushi/read.vue:165` |
 | 去书目浏览 | `router.push('/fabushi/library')` | `` | `aigicrm-ui/src/views/fabushi/shelf.vue:5` |
-| 继续阅读 | `router.push(`/fabushi/read/${book.bookId}`)` | `` | `aigicrm-ui/src/views/fabushi/shelf.vue:24` |
-| 移除 | `remove(book)` | `` | `aigicrm-ui/src/views/fabushi/shelf.vue:25` |
-| 发起活动 | `createVisible = true` | `canManage` | `aigicrm-ui/src/views/fabushi/shelf.vue:42` |
-| 参与 | `joinActivity(a)` | `` | `aigicrm-ui/src/views/fabushi/shelf.vue:47` |
-| 保存设置 | `saveSettings` | `` | `aigicrm-ui/src/views/fabushi/shelf.vue:63` |
-| 取消 | `createVisible = false` | `` | `aigicrm-ui/src/views/fabushi/shelf.vue:75` |
-| 创建 | `createActivity` | `` | `aigicrm-ui/src/views/fabushi/shelf.vue:75` |
-| 查询 | `loadData` | `` | `aigicrm-ui/src/views/fabushi/stats.vue:11` |
-| 导出报表（CSV） | `exportStats` | `userStore.hasPermission('fabushi:stats:export')` | `aigicrm-ui/src/views/fabushi/stats.vue:13` |
+| 今日诵读 | `openPublish('songdu')` | `` | `aigicrm-ui/src/views/fabushi/shelf.vue:25` |
+| 随手施 | `openPublish('suishi')` | `` | `aigicrm-ui/src/views/fabushi/shelf.vue:30` |
+| 继续精读 | `openPublish('zaidu')` | `` | `aigicrm-ui/src/views/fabushi/shelf.vue:35` |
+| 我的书摘（） | `router.push('/fabushi/highlights')` | `` | `aigicrm-ui/src/views/fabushi/shelf.vue:49` |
+| 进入我的书架 › | `active = 'shelf'` | `` | `aigicrm-ui/src/views/fabushi/shelf.vue:52` |
+| 查看阅读记录 › | `active = 'records'` | `` | `aigicrm-ui/src/views/fabushi/shelf.vue:53` |
+| 提醒设置 › | `active = 'settings'` | `` | `aigicrm-ui/src/views/fabushi/shelf.vue:54` |
+| 一键续读 | `router.push(`/fabushi/read/${summary.currentBook.bookId}`)` | `` | `aigicrm-ui/src/views/fabushi/shelf.vue:68` |
+| (icon/button) | `toggleManage` | `` | `aigicrm-ui/src/views/fabushi/shelf.vue:87` |
+| 管理分组 | `groupDialogVisible = true` | `` | `aigicrm-ui/src/views/fabushi/shelf.vue:95` |
+| (icon/button) | `togglePin(book)` | `` | `aigicrm-ui/src/views/fabushi/shelf.vue:121` |
+| ↑ | `move(book, -1)` | `` | `aigicrm-ui/src/views/fabushi/shelf.vue:122` |
+| ↓ | `move(book, 1)` | `` | `aigicrm-ui/src/views/fabushi/shelf.vue:123` |
+| 移出 | `remove(book)` | `` | `aigicrm-ui/src/views/fabushi/shelf.vue:124` |
+| 续读 | `router.push(`/fabushi/read/${book.bookId}`)` | `` | `aigicrm-ui/src/views/fabushi/shelf.vue:126` |
+| 置顶 | `batch('pin')` | `` | `aigicrm-ui/src/views/fabushi/shelf.vue:137` |
+| 取消置顶 | `batch('unpin')` | `` | `aigicrm-ui/src/views/fabushi/shelf.vue:138` |
+| 加入分组 | `batch('group')` | `` | `aigicrm-ui/src/views/fabushi/shelf.vue:142` |
+| 移出书架（保留进度） | `batch('remove')` | `` | `aigicrm-ui/src/views/fabushi/shelf.vue:143` |
+| 取消 | `selected = []` | `` | `aigicrm-ui/src/views/fabushi/shelf.vue:144` |
+| 保存设置 | `saveSettings` | `` | `aigicrm-ui/src/views/fabushi/shelf.vue:174` |
+| 改名 | `renameGroup(g)` | `` | `aigicrm-ui/src/views/fabushi/shelf.vue:184` |
+| 删除 | `removeGroup(g)` | `` | `aigicrm-ui/src/views/fabushi/shelf.vue:185` |
+| 新建 | `createGroup` | `` | `aigicrm-ui/src/views/fabushi/shelf.vue:192` |
+| 关闭 | `groupDialogVisible = false` | `` | `aigicrm-ui/src/views/fabushi/shelf.vue:194` |
 | 取消 | `createFolderVisible = false` | `` | `aigicrm-ui/src/views/file/CreateFolderDialog.vue:9` |
 | 创建 | `handleCreateFolder` | `` | `aigicrm-ui/src/views/file/CreateFolderDialog.vue:10` |
 | 批量下载 | `doBatchDownload` | `userStore.hasPermission('file:download')` | `aigicrm-ui/src/views/file/FileTable.vue:6` |
-| 批量删除 | `doBatchDelete` | `userStore.hasPermission('file:delete')` | `aigicrm-ui/src/views/file/FileTable.vue:7` |
+| 批量删除 | `doBatchDelete` | `userStore.hasPermission('file:delete') || userStore.hasPermission('fabushi:file:delete')` | `aigicrm-ui/src/views/file/FileTable.vue:7` |
 | 取消选择 | `clearSelection` | `` | `aigicrm-ui/src/views/file/FileTable.vue:8` |
 | 批量恢复() | `doBatchRestore` | `` | `aigicrm-ui/src/views/file/RecycleBinDialog.vue:8` |
 | 批量彻底删除() | `doBatchPurge` | `userStore.hasPermission('file:purge')` | `aigicrm-ui/src/views/file/RecycleBinDialog.vue:9` |
@@ -321,6 +367,11 @@ Generated from local source: `.`
 | 取消 | `visible = false` | `` | `aigicrm-ui/src/views/login/ForgotPasswordDialog.vue:89` |
 | (icon/button) | `handleNext` | `` | `aigicrm-ui/src/views/login/ForgotPasswordDialog.vue:90` |
 | 登 录 | `handleLogin` | `` | `aigicrm-ui/src/views/login/index.vue:41` |
+| 新增行业 | `addCustomIndustry` | `` | `aigicrm-ui/src/views/onboarding/index.vue:44` |
+| 导入演示客户 | `seedDemoData` | `` | `aigicrm-ui/src/views/onboarding/index.vue:65` |
+| 0" :disabled="saving" @click="step -= 1">上一步 | `` | `` | `aigicrm-ui/src/views/onboarding/index.vue:77` |
+| 下一步 | `next` | `` | `aigicrm-ui/src/views/onboarding/index.vue:79` |
+| 进入系统 | `finish` | `` | `aigicrm-ui/src/views/onboarding/index.vue:80` |
 | ← 返回提醒管理 | `goBack` | `` | `aigicrm-ui/src/views/reminder/detail.vue:4` |
 | 查看客户完整档案 › | `goCustomer` | `` | `aigicrm-ui/src/views/reminder/detail.vue:52` |
 | 标记已处理 | `markProcessed` | `` | `aigicrm-ui/src/views/reminder/detail.vue:73` |
@@ -371,14 +422,29 @@ Generated from local source: `.`
 | 确定 | `submitType` | `` | `aigicrm-ui/src/views/system/DictManager.vue:91` |
 | 取消 | `dataDialogVisible = false` | `` | `aigicrm-ui/src/views/system/DictManager.vue:112` |
 | 确定 | `submitData` | `` | `aigicrm-ui/src/views/system/DictManager.vue:113` |
-| ＋ 添加授权 | `openAdd(null)` | `canEdit` | `aigicrm-ui/src/views/system/FileSpaceDefaults.vue:11` |
-| ＋加人 | `openAdd(fg)` | `canEdit` | `aigicrm-ui/src/views/system/FileSpaceDefaults.vue:60` |
-| 全选 | `checkAll` | `` | `aigicrm-ui/src/views/system/FileSpaceDefaults.vue:107` |
-| 清空 | `clearUsers` | `` | `aigicrm-ui/src/views/system/FileSpaceDefaults.vue:108` |
-| 取消 | `addVisible = false` | `` | `aigicrm-ui/src/views/system/FileSpaceDefaults.vue:178` |
-| 保存授权 | `save` | `` | `aigicrm-ui/src/views/system/FileSpaceDefaults.vue:179` |
-| 添加授权 | `openPermDialog` | `canEdit` | `aigicrm-ui/src/views/system/PermCenter.vue:75` |
-| 撤销 | `revokePerm(scope?.row?.id)` | `canEdit` | `aigicrm-ui/src/views/system/PermCenter.vue:95` |
+| 新增授权 | `openAdd` | `canEdit` | `aigicrm-ui/src/views/system/FileGrantDialog.vue:6` |
+| 刷新 | `load` | `` | `aigicrm-ui/src/views/system/FileGrantDialog.vue:7` |
+| 删除 | `remove(row)` | `canEdit` | `aigicrm-ui/src/views/system/FileGrantDialog.vue:33` |
+| 取消 | `formVisible=false` | `` | `aigicrm-ui/src/views/system/FileGrantDialog.vue:98` |
+| 保存 | `save` | `` | `aigicrm-ui/src/views/system/FileGrantDialog.vue:99` |
+| 统一授权 | `grantRef?.open()` | `canEdit` | `aigicrm-ui/src/views/system/FileSpaceDefaults.vue:12` |
+| ＋ 添加授权 | `openAdd(null)` | `canEdit` | `aigicrm-ui/src/views/system/FileSpaceDefaults.vue:13` |
+| ＋加人 | `openAdd(fg)` | `canEdit` | `aigicrm-ui/src/views/system/FileSpaceDefaults.vue:63` |
+| 全选 | `checkAll` | `` | `aigicrm-ui/src/views/system/FileSpaceDefaults.vue:110` |
+| 清空 | `clearUsers` | `` | `aigicrm-ui/src/views/system/FileSpaceDefaults.vue:111` |
+| 取消 | `addVisible = false` | `` | `aigicrm-ui/src/views/system/FileSpaceDefaults.vue:181` |
+| 保存授权 | `save` | `` | `aigicrm-ui/src/views/system/FileSpaceDefaults.vue:182` |
+| 提交审批 | `submitHandover` | `userStore.hasPermission('system:user:edit')` | `aigicrm-ui/src/views/system/LifecycleDialog.vue:32` |
+| 提交审批 | `submitMove` | `userStore.hasPermission('system:user:edit')` | `aigicrm-ui/src/views/system/LifecycleDialog.vue:51` |
+| 刷新 | `loadRequests` | `` | `aigicrm-ui/src/views/system/LifecycleDialog.vue:64` |
+| 通过 | `approve(row)` | `row.status === 'pending' && (userStore.hasPermission('approval:view') || userStore.hasPermission('system:user:edit'))` | `aigicrm-ui/src/views/system/LifecycleDialog.vue:91` |
+| 驳回 | `reject(row)` | `row.status === 'pending' && (userStore.hasPermission('approval:view') || userStore.hasPermission('system:user:edit'))` | `aigicrm-ui/src/views/system/LifecycleDialog.vue:92` |
+| 回滚 | `rollback(row)` | `row.status === 'approved' && userStore.hasPermission('system:user:edit')` | `aigicrm-ui/src/views/system/LifecycleDialog.vue:93` |
+| 转交 | `openTransfer(row)` | `` | `aigicrm-ui/src/views/system/LifecycleDialog.vue:94` |
+| 取消 | `transferVisible=false` | `` | `aigicrm-ui/src/views/system/LifecycleDialog.vue:115` |
+| 确认转交 | `submitTransfer` | `` | `aigicrm-ui/src/views/system/LifecycleDialog.vue:116` |
+| 添加授权 | `openPermDialog` | `canEdit` | `aigicrm-ui/src/views/system/PermCenter.vue:76` |
+| 撤销 | `revokePerm(scope?.row?.id)` | `canEdit` | `aigicrm-ui/src/views/system/PermCenter.vue:96` |
 | 全选 | `checkAllUsers` | `` | `aigicrm-ui/src/views/system/PermGrantDialog.vue:23` |
 | 清空 | `clearUsers` | `` | `aigicrm-ui/src/views/system/PermGrantDialog.vue:24` |
 | 清空 | `clearEditUsers` | `` | `aigicrm-ui/src/views/system/PermGrantDialog.vue:70` |
@@ -391,6 +457,7 @@ Generated from local source: `.`
 | 全不勾 | `toggleModuleAll(false)` | `` | `aigicrm-ui/src/views/system/PermScopeManager.vue:57` |
 | 全勾 | `toggleModuleAll(true)` | `` | `aigicrm-ui/src/views/system/PermScopeManager.vue:58` |
 | 恢复默认范围 | `resetCurrent` | `` | `aigicrm-ui/src/views/system/PermScopeManager.vue:59` |
+| → | `emit('goto-panel', panelLinkOf(item).pane)` | `` | `aigicrm-ui/src/views/system/PermScopeManager.vue:95` |
 | 刷新 | `loadData` | `` | `aigicrm-ui/src/views/system/PositionRulePanel.vue:8` |
 | 配置规则 | `openRuleDialog(row)` | `canEdit` | `aigicrm-ui/src/views/system/PositionRulePanel.vue:21` |
 | 取消 | `dialogVisible = false` | `` | `aigicrm-ui/src/views/system/PositionRulePanel.vue:42` |
@@ -402,7 +469,8 @@ Generated from local source: `.`
 | 清空 | `clearSecSelection(sec.key)` | `` | `aigicrm-ui/src/views/system/SeaConfigManager.vue:128` |
 | 取消 | `poolDialogVisible = false` | `` | `aigicrm-ui/src/views/system/SeaConfigManager.vue:161` |
 | 确定 | `submitPool` | `` | `aigicrm-ui/src/views/system/SeaConfigManager.vue:162` |
-| 新增用户 | `openDialog()` | `` | `aigicrm-ui/src/views/system/UserFilterBar.vue:8` |
+| 离职交接/调动 | `lifecycleRef?.open()` | `userStore.isAdmin() || userStore.hasPermission('system:user:edit')` | `aigicrm-ui/src/views/system/UserFilterBar.vue:9` |
+| 新增用户 | `openDialog()` | `` | `aigicrm-ui/src/views/system/UserFilterBar.vue:10` |
 | 取消 | `dialogVisible = false` | `` | `aigicrm-ui/src/views/system/UserFormDialog.vue:91` |
 | 保存 | `handleSave` | `` | `aigicrm-ui/src/views/system/UserFormDialog.vue:92` |
 | 重试 | `retryLoad` | `` | `aigicrm-ui/src/views/system/UserTable.vue:7` |
@@ -412,8 +480,8 @@ Generated from local source: `.`
 | 新增流程 | `openDialog()` | `canEditConfig` | `aigicrm-ui/src/views/system/approvalConfig.vue:6` |
 | 编辑 | `openDialog(row)` | `canEditConfig` | `aigicrm-ui/src/views/system/approvalConfig.vue:28` |
 | 删除 | `` | `` | `aigicrm-ui/src/views/system/approvalConfig.vue:30` |
-| 取消 | `visible=false` | `` | `aigicrm-ui/src/views/system/approvalConfig.vue:77` |
-| 保存 | `doSave` | `` | `aigicrm-ui/src/views/system/approvalConfig.vue:78` |
+| 取消 | `visible=false` | `` | `aigicrm-ui/src/views/system/approvalConfig.vue:84` |
+| 保存 | `doSave` | `` | `aigicrm-ui/src/views/system/approvalConfig.vue:85` |
 | 新增部门 | `openDialog()` | `canEditDept` | `aigicrm-ui/src/views/system/dept.vue:5` |
 | 管理{{ adminCounts[row.id] ? ` (${adminCounts[row.id]})` : '' }} | `showAdmins(row)` | `canEditDept` | `aigicrm-ui/src/views/system/dept.vue:35` |
 | 编辑 | `openDialog(row)` | `canEditDept` | `aigicrm-ui/src/views/system/dept.vue:36` |
@@ -446,12 +514,14 @@ Generated from local source: `.`
 | 详情 | `openFileDetail(row)` | `` | `aigicrm-ui/src/views/system/recycle.vue:217` |
 | 恢复 | `handleRestoreFile(row)` | `canRestore && row.contentAvailable` | `aigicrm-ui/src/views/system/recycle.vue:218` |
 | 彻底删除 | `handleHardDeleteFile(row)` | `canPurge` | `aigicrm-ui/src/views/system/recycle.vue:219` |
-| 恢复 | `handleRestoreFolder(row)` | `canRestore` | `aigicrm-ui/src/views/system/recycle.vue:244` |
-| 彻底删除 | `handleHardDeleteFolder(row)` | `canPurge` | `aigicrm-ui/src/views/system/recycle.vue:245` |
-| 下载文件 | `downloadRecycleFile(detailData.file)` | `` | `aigicrm-ui/src/views/system/recycle.vue:341` |
-| 关闭 | `detailVisible = false` | `` | `aigicrm-ui/src/views/system/recycle.vue:350` |
-| 恢复 | `restoreFromDetail` | `canRestore && detailData && detailCanRestore` | `aigicrm-ui/src/views/system/recycle.vue:351` |
-| 彻底删除 | `hardDeleteFromDetail` | `canPurge && detailData` | `aigicrm-ui/src/views/system/recycle.vue:352` |
+| 恢复 | `handleRestoreBook(row)` | `canRestore` | `aigicrm-ui/src/views/system/recycle.vue:245` |
+| 彻底删除 | `handleHardDeleteBook(row)` | `canPurge` | `aigicrm-ui/src/views/system/recycle.vue:246` |
+| 恢复 | `handleRestoreFolder(row)` | `canRestore` | `aigicrm-ui/src/views/system/recycle.vue:271` |
+| 彻底删除 | `handleHardDeleteFolder(row)` | `canPurge` | `aigicrm-ui/src/views/system/recycle.vue:272` |
+| 下载文件 | `downloadRecycleFile(detailData.file)` | `` | `aigicrm-ui/src/views/system/recycle.vue:368` |
+| 关闭 | `detailVisible = false` | `` | `aigicrm-ui/src/views/system/recycle.vue:377` |
+| 恢复 | `restoreFromDetail` | `canRestore && detailData && detailCanRestore` | `aigicrm-ui/src/views/system/recycle.vue:378` |
+| 彻底删除 | `hardDeleteFromDetail` | `canPurge && detailData` | `aigicrm-ui/src/views/system/recycle.vue:379` |
 | 新增角色 | `openDialog()` | `canAddRole` | `aigicrm-ui/src/views/system/role.vue:5` |
 | 编辑 | `openDialog(row)` | `canEditRole` | `aigicrm-ui/src/views/system/role.vue:30` |
 | 权限 | `openPermDialog(row)` | `canEditRole` | `aigicrm-ui/src/views/system/role.vue:31` |
@@ -549,38 +619,89 @@ Generated from local source: `.`
 | (button) | `onCategoryTap` | `` | `aigicrm-miniprogram/pages/fabushi/book/index.wxml:3` |
 | 搜索 | `onSearch` | `` | `aigicrm-miniprogram/pages/fabushi/book/index.wxml:10` |
 | 电子书 · · 页 · 作品 心得 诵读 查看详情 › | `openBook` | `` | `aigicrm-miniprogram/pages/fabushi/book/index.wxml:13` |
-| · 页 · 电子书 × 心得 诵读 作品 写心得 / 诵读 加入书架 在线阅读在线阅读 章节结构 暂无章节（管理员可在 PC 书目管理维护） 本书目内容 暂无作品，欢迎发布第一条 · 木鱼 · 评论 结构树（序→部分→章→节）为二期；一期按书目维度发布通读内容。 | `closeDetail` | `{{detailVisible}}` | `aigicrm-miniprogram/pages/fabushi/book/index.wxml:34` |
-| · 页 · 电子书 × 心得 诵读 作品 写心得 / 诵读 加入书架 在线阅读在线阅读 章节结构 暂无章节（管理员可在 PC 书目管理维护） 本书目内容 暂无作品，欢迎发布第一条 · 木鱼 · 评论 结构树（序→部分→章→节）为二期；一期按书目维度发布通读内容。 | `noop` | `` | `aigicrm-miniprogram/pages/fabushi/book/index.wxml:35` |
+| · 页 · 电子书 × 心得 诵读 作品 写心得 / 诵读 加入书架 在线阅读在线阅读 章节结构 暂无章节（管理员可在 PC 书目管理维护） 本书目内容 暂无作品，欢迎发布第一条 NEW · 木鱼 · 评论 结构树（序→部分→章→节）为二期；一期按书目维度发布通读内容。 | `closeDetail` | `{{detailVisible}}` | `aigicrm-miniprogram/pages/fabushi/book/index.wxml:34` |
+| · 页 · 电子书 × 心得 诵读 作品 写心得 / 诵读 加入书架 在线阅读在线阅读 章节结构 暂无章节（管理员可在 PC 书目管理维护） 本书目内容 暂无作品，欢迎发布第一条 NEW · 木鱼 · 评论 结构树（序→部分→章→节）为二期；一期按书目维度发布通读内容。 | `noop` | `` | `aigicrm-miniprogram/pages/fabushi/book/index.wxml:35` |
 | × | `closeDetail` | `` | `aigicrm-miniprogram/pages/fabushi/book/index.wxml:42` |
 | 写心得 / 诵读 | `goUploadForBook` | `` | `aigicrm-miniprogram/pages/fabushi/book/index.wxml:50` |
 | 加入书架 | `addShelf` | `` | `aigicrm-miniprogram/pages/fabushi/book/index.wxml:51` |
 | 在线阅读 | `openReader` | `{{detailBook.pdfFileId}}` | `aigicrm-miniprogram/pages/fabushi/book/index.wxml:52` |
-| · 木鱼 · 评论 | `openPost` | `` | `aigicrm-miniprogram/pages/fabushi/book/index.wxml:62` |
-| 🐟 | `toggleLike` | `` | `aigicrm-miniprogram/pages/fabushi/detail/index.wxml:12` |
-| 发送 | `submitComment` | `` | `aigicrm-miniprogram/pages/fabushi/detail/index.wxml:36` |
+| NEW · 木鱼 · 评论 | `openPost` | `` | `aigicrm-miniprogram/pages/fabushi/book/index.wxml:62` |
+| 在线阅读 | `openReader` | `` | `aigicrm-miniprogram/pages/fabushi/bybook/index.wxml:14` |
+| 我也传 | `goUpload` | `{{canCreate}}` | `aigicrm-miniprogram/pages/fabushi/bybook/index.wxml:15` |
+| (button) | `onSortTap` | `` | `aigicrm-miniprogram/pages/fabushi/bybook/index.wxml:20` |
+| NEW · · 木鱼 · 复诵 详情 | `goDetail` | `` | `aigicrm-miniprogram/pages/fabushi/bybook/index.wxml:36` |
+| 修改 | `startEdit` | `` | `aigicrm-miniprogram/pages/fabushi/detail/index.wxml:6` |
+| 删除 | `removePost` | `` | `aigicrm-miniprogram/pages/fabushi/detail/index.wxml:7` |
+| 取消 | `cancelEdit` | `` | `aigicrm-miniprogram/pages/fabushi/detail/index.wxml:13` |
+| 保存 | `saveEdit` | `` | `aigicrm-miniprogram/pages/fabushi/detail/index.wxml:14` |
+| 🐟 | `toggleLike` | `` | `aigicrm-miniprogram/pages/fabushi/detail/index.wxml:27` |
+| · | `toggleRecite` | `` | `aigicrm-miniprogram/pages/fabushi/detail/index.wxml:29` |
+| 加载更多评论（/） | `loadMoreComments` | `{{hasMoreComments}}` | `aigicrm-miniprogram/pages/fabushi/detail/index.wxml:62` |
+| 重点 | `toggleHighlight` | `` | `aigicrm-miniprogram/pages/fabushi/detail/index.wxml:65` |
+| 🎤 | `enterVoice` | `` | `aigicrm-miniprogram/pages/fabushi/detail/index.wxml:66` |
+| 发送 | `submitComment` | `` | `aigicrm-miniprogram/pages/fabushi/detail/index.wxml:67` |
+| s ⏹ 发送 | `stopVoice` | `` | `aigicrm-miniprogram/pages/fabushi/detail/index.wxml:71` |
 | (button) | `onTabTap` | `` | `aigicrm-miniprogram/pages/fabushi/feed/index.wxml:2` |
-| 🐟 💬 已读 | `goDetail` | `` | `aigicrm-miniprogram/pages/fabushi/feed/index.wxml:13` |
-| ＋ | `goUpload` | `{{canCreate}}` | `aigicrm-miniprogram/pages/fabushi/feed/index.wxml:30` |
-| 刷新 | `refresh` | `` | `aigicrm-miniprogram/pages/fabushi/index.wxml:8` |
-| ＋ 上传 | `goUpload` | `{{canCreate}}` | `aigicrm-miniprogram/pages/fabushi/index.wxml:9` |
-| (button) | `onTab` | `` | `aigicrm-miniprogram/pages/fabushi/index.wxml:21` |
-| 搜索 | `onSearch` | `` | `aigicrm-miniprogram/pages/fabushi/index.wxml:30` |
-| 今日推荐 · · 页 · 电子书 查看 | `goBook` | `{{activeTab === 'lib' && recommended}}` | `aigicrm-miniprogram/pages/fabushi/index.wxml:34` |
-| 参与 | `joinActivity` | `` | `aigicrm-miniprogram/pages/fabushi/index.wxml:48` |
-| 木鱼 评论 | `openPost` | `` | `aigicrm-miniprogram/pages/fabushi/index.wxml:53` |
-| · 页 · 读到第 页 | `goShelfBook` | `` | `aigicrm-miniprogram/pages/fabushi/index.wxml:71` |
-| 提醒设置 › | `goSettings` | `` | `aigicrm-miniprogram/pages/fabushi/index.wxml:99` |
-| ≡ 内容流心得 · 诵读 · 正能量 › | `goFeed` | `` | `aigicrm-miniprogram/pages/fabushi/index.wxml:112` |
-| 书 书目浏览按类别浏览书目与心得 › | `goBook` | `` | `aigicrm-miniprogram/pages/fabushi/index.wxml:117` |
+| 人 · 条 | `onBookTap` | `` | `aigicrm-miniprogram/pages/fabushi/feed/index.wxml:18` |
+| NEW 🐟 💬 已读 | `goDetail` | `` | `aigicrm-miniprogram/pages/fabushi/feed/index.wxml:28` |
+| ＋ | `goUpload` | `{{canCreate}}` | `aigicrm-miniprogram/pages/fabushi/feed/index.wxml:45` |
+| (button) | `onRatio` | `` | `aigicrm-miniprogram/pages/fabushi/image-editor/index.wxml:13` |
+| 放大 | `onZoomIn` | `` | `aigicrm-miniprogram/pages/fabushi/image-editor/index.wxml:18` |
+| 缩小 | `onZoomOut` | `` | `aigicrm-miniprogram/pages/fabushi/image-editor/index.wxml:19` |
+| 重置 | `onReset` | `` | `aigicrm-miniprogram/pages/fabushi/image-editor/index.wxml:20` |
+| 使用原图 | `onUseOriginal` | `` | `aigicrm-miniprogram/pages/fabushi/image-editor/index.wxml:23` |
+| 其余用原图 | `onUseOriginalForRest` | `{{showUseOriginalForRest}}` | `aigicrm-miniprogram/pages/fabushi/image-editor/index.wxml:24` |
+| (button) | `onConfirm` | `` | `aigicrm-miniprogram/pages/fabushi/image-editor/index.wxml:25` |
+| 刷新 | `refresh` | `` | `aigicrm-miniprogram/pages/fabushi/index.wxml:10` |
+| ＋ 上传 | `goUpload` | `{{canCreate}}` | `aigicrm-miniprogram/pages/fabushi/index.wxml:11` |
+| 继续阅读 · 在读 读到第 页 · % 翻开 › | `goReadReading` | `{{readingBook}}` | `aigicrm-miniprogram/pages/fabushi/index.wxml:17` |
+| (button) | `onTab` | `` | `aigicrm-miniprogram/pages/fabushi/index.wxml:36` |
+| 诵 每日诵读每天朗读背诵一小段经典 · 今日 条 诵读 | `goUpload` | `` | `aigicrm-miniprogram/pages/fabushi/index.wxml:52` |
+| 施 每日随施随手上传正能量 · 今日 条 随施 | `goUpload` | `` | `aigicrm-miniprogram/pages/fabushi/index.wxml:57` |
+| 读 再读一本阶段性精读书目 · 在读 本 精读 | `goUpload` | `` | `aigicrm-miniprogram/pages/fabushi/index.wxml:62` |
+| 进入我的书架 › | `onTab` | `` | `aigicrm-miniprogram/pages/fabushi/index.wxml:68` |
+| 查看阅读数据 › | `onTab` | `` | `aigicrm-miniprogram/pages/fabushi/index.wxml:69` |
+| 提醒设置 › | `goSettings` | `` | `aigicrm-miniprogram/pages/fabushi/index.wxml:70` |
+| (button) | `onFeedTab` | `` | `aigicrm-miniprogram/pages/fabushi/index.wxml:77` |
+| 搜索 | `onSearch` | `` | `aigicrm-miniprogram/pages/fabushi/index.wxml:82` |
+| 🐟 木鱼 💬 评论 | `openPost` | `` | `aigicrm-miniprogram/pages/fabushi/index.wxml:85` |
+| 搜索 | `onSearch` | `` | `aigicrm-miniprogram/pages/fabushi/index.wxml:106` |
+| 今日推荐 · · 页 · 电子书 查看 | `goBook` | `{{recommended}}` | `aigicrm-miniprogram/pages/fabushi/index.wxml:109` |
+| (button) | `onShelfStatusFilter` | `` | `aigicrm-miniprogram/pages/fabushi/index.wxml:122` |
+| 全部 | `onGroupFilter` | `` | `aigicrm-miniprogram/pages/fabushi/index.wxml:125` |
+| (button) | `onGroupFilter` | `` | `aigicrm-miniprogram/pages/fabushi/index.wxml:126` |
+| (button) | `toggleManage` | `` | `aigicrm-miniprogram/pages/fabushi/index.wxml:129` |
+| ＋ 分组 | `onNewGroup` | `{{manageMode}}` | `aigicrm-miniprogram/pages/fabushi/index.wxml:130` |
+| ★ ✓ · 页 · 读到第 页 | `onShelfTap` | `` | `aigicrm-miniprogram/pages/fabushi/index.wxml:134` |
+| (button) | `changeShelfStatus` | `{{!manageMode}}` | `aigicrm-miniprogram/pages/fabushi/index.wxml:146` |
+| (button) | `togglePin` | `` | `aigicrm-miniprogram/pages/fabushi/index.wxml:147` |
+| 置顶 | `onBatch` | `` | `aigicrm-miniprogram/pages/fabushi/index.wxml:153` |
+| 取消置顶 | `onBatch` | `` | `aigicrm-miniprogram/pages/fabushi/index.wxml:154` |
+| 加入分组 | `onBatch` | `` | `aigicrm-miniprogram/pages/fabushi/index.wxml:155` |
+| 移出（保留进度） | `onBatch` | `` | `aigicrm-miniprogram/pages/fabushi/index.wxml:156` |
+| · 本 › | `onGroupManage` | `` | `aigicrm-miniprogram/pages/fabushi/index.wxml:158` |
+| 提醒设置 › | `goSettings` | `` | `aigicrm-miniprogram/pages/fabushi/index.wxml:172` |
+| ≡ 认知广场每日诵读 · 每日随施 · 再读一本 › | `goFeed` | `` | `aigicrm-miniprogram/pages/fabushi/index.wxml:208` |
+| 书 书目浏览类别 · 书目 · 版本 › | `goBook` | `` | `aigicrm-miniprogram/pages/fabushi/index.wxml:213` |
 | (button) | `save` | `` | `aigicrm-miniprogram/pages/fabushi/settings/index.wxml:15` |
 | (button) | `onScope` | `` | `aigicrm-miniprogram/pages/fabushi/upload/index.wxml:3` |
-| (button) | `submit` | `` | `aigicrm-miniprogram/pages/fabushi/upload/index.wxml:19` |
-| 图片 / 视频 | `chooseMedia` | `` | `aigicrm-miniprogram/pages/fabushi/upload/index.wxml:24` |
-| 音频 | `chooseAudio` | `` | `aigicrm-miniprogram/pages/fabushi/upload/index.wxml:24` |
-| 移除 | `removeAttachment` | `` | `aigicrm-miniprogram/pages/fabushi/upload/index.wxml:25` |
-| 再敲一下 | `replayMuyu` | `` | `aigicrm-miniprogram/pages/fabushi/upload/index.wxml:44` |
-| 查看作品 | `goDetail` | `` | `aigicrm-miniprogram/pages/fabushi/upload/index.wxml:45` |
-| 返回 | `goBack` | `` | `aigicrm-miniprogram/pages/fabushi/upload/index.wxml:47` |
+| A · 先写后读 | `onChannel` | `` | `aigicrm-miniprogram/pages/fabushi/upload/index.wxml:10` |
+| B · 按书诵一段 | `onChannel` | `` | `aigicrm-miniprogram/pages/fabushi/upload/index.wxml:11` |
+| 选择已有章节 | `toggleManualSection` | `` | `aigicrm-miniprogram/pages/fabushi/upload/index.wxml:40` |
+| 自我录入章节 | `toggleManualSection` | `` | `aigicrm-miniprogram/pages/fabushi/upload/index.wxml:41` |
+| 图片 | `chooseMedia` | `` | `aigicrm-miniprogram/pages/fabushi/upload/index.wxml:75` |
+| 拍摄 | `chooseMedia` | `` | `aigicrm-miniprogram/pages/fabushi/upload/index.wxml:76` |
+| 视频 | `chooseVideo` | `` | `aigicrm-miniprogram/pages/fabushi/upload/index.wxml:77` |
+| (button) | `toggleRecord` | `` | `aigicrm-miniprogram/pages/fabushi/upload/index.wxml:78` |
+| 手机文件 | `choosePhoneFile` | `` | `aigicrm-miniprogram/pages/fabushi/upload/index.wxml:79` |
+| 选图后可放大查看、裁剪 | `toggleEditOnPick` | `` | `aigicrm-miniprogram/pages/fabushi/upload/index.wxml:82` |
+| 从聊天文件选音频（备选入口） | `chooseAudio` | `` | `aigicrm-miniprogram/pages/fabushi/upload/index.wxml:87` |
+| (button) | `playAttachment` | `` | `aigicrm-miniprogram/pages/fabushi/upload/index.wxml:89` |
+| 移除 | `removeAttachment` | `` | `aigicrm-miniprogram/pages/fabushi/upload/index.wxml:90` |
+| (button) | `submit` | `` | `aigicrm-miniprogram/pages/fabushi/upload/index.wxml:95` |
+| 再敲一下 | `replayMuyu` | `` | `aigicrm-miniprogram/pages/fabushi/upload/index.wxml:113` |
+| 查看作品 | `goDetail` | `` | `aigicrm-miniprogram/pages/fabushi/upload/index.wxml:114` |
+| 返回 | `goBack` | `` | `aigicrm-miniprogram/pages/fabushi/upload/index.wxml:116` |
 | (button) | `submit` | `` | `aigicrm-miniprogram/pages/files/folder-form/index.wxml:9` |
 | 取消 | `back` | `` | `aigicrm-miniprogram/pages/files/folder-form/index.wxml:10` |
 | ＋ 上传 | `uploadFile` | `{{fileView.showUploadAction}}` | `aigicrm-miniprogram/pages/files/index.wxml:8` |
@@ -598,23 +719,23 @@ Generated from local source: `.`
 | 取消 | `noop` | `` | `aigicrm-miniprogram/pages/files/index.wxml:62` |
 | (button) | `onSheetAction` | `` | `aigicrm-miniprogram/pages/files/index.wxml:65` |
 | 取消 | `closeActionSheet` | `` | `aigicrm-miniprogram/pages/files/index.wxml:70` |
-| ＋ 新建 | `openFolderForm` | `` | `aigicrm-miniprogram/pages/files/index.wxml:74` |
-| ··· | `openFolderActions` | `` | `aigicrm-miniprogram/pages/files/index.wxml:79` |
-| 申请扩容 关闭 当前配额 可申请上限 申请后总配额（GB） 申请理由 取消 提交申请 | `closeStorageApply` | `{{storageApplyView.visible}}` | `aigicrm-miniprogram/pages/files/index.wxml:86` |
-| 申请扩容 关闭 当前配额 可申请上限 申请后总配额（GB） 申请理由 取消 提交申请 | `noop` | `` | `aigicrm-miniprogram/pages/files/index.wxml:87` |
-| 关闭 | `closeStorageApply` | `` | `aigicrm-miniprogram/pages/files/index.wxml:90` |
-| 取消 | `closeStorageApply` | `` | `aigicrm-miniprogram/pages/files/index.wxml:108` |
-| 提交申请 | `submitStorageApply` | `` | `aigicrm-miniprogram/pages/files/index.wxml:109` |
-| 上传到文件夹取消 根目录 上传到这里 | `cancelFolderSelect` | `{{folderSelect.visible}}` | `aigicrm-miniprogram/pages/files/index.wxml:115` |
-| 上传到文件夹取消 根目录 上传到这里 | `noop` | `` | `aigicrm-miniprogram/pages/files/index.wxml:116` |
-| 取消 | `cancelFolderSelect` | `` | `aigicrm-miniprogram/pages/files/index.wxml:117` |
-| 根目录 | `selectFolderItem` | `` | `aigicrm-miniprogram/pages/files/index.wxml:120` |
-| (button) | `selectFolderItem` | `` | `aigicrm-miniprogram/pages/files/index.wxml:122` |
-| 上传到这里 | `confirmFolderSelect` | `` | `aigicrm-miniprogram/pages/files/index.wxml:124` |
-| 重命名文件取消 确认重命名 | `cancelRenameModal` | `{{renameModal.visible}}` | `aigicrm-miniprogram/pages/files/index.wxml:129` |
-| 重命名文件取消 确认重命名 | `noop` | `` | `aigicrm-miniprogram/pages/files/index.wxml:130` |
-| 取消 | `cancelRenameModal` | `` | `aigicrm-miniprogram/pages/files/index.wxml:131` |
-| 确认重命名 | `confirmRename` | `` | `aigicrm-miniprogram/pages/files/index.wxml:133` |
+| ＋ 新建 | `openFolderForm` | `` | `aigicrm-miniprogram/pages/files/index.wxml:75` |
+| ··· | `openFolderActions` | `` | `aigicrm-miniprogram/pages/files/index.wxml:80` |
+| 申请扩容 关闭 当前配额 可申请上限 申请后总配额（GB） 申请理由 取消 提交申请 | `closeStorageApply` | `{{storageApplyView.visible}}` | `aigicrm-miniprogram/pages/files/index.wxml:87` |
+| 申请扩容 关闭 当前配额 可申请上限 申请后总配额（GB） 申请理由 取消 提交申请 | `noop` | `` | `aigicrm-miniprogram/pages/files/index.wxml:88` |
+| 关闭 | `closeStorageApply` | `` | `aigicrm-miniprogram/pages/files/index.wxml:91` |
+| 取消 | `closeStorageApply` | `` | `aigicrm-miniprogram/pages/files/index.wxml:109` |
+| 提交申请 | `submitStorageApply` | `` | `aigicrm-miniprogram/pages/files/index.wxml:110` |
+| 上传到文件夹取消 根目录 上传到这里 | `cancelFolderSelect` | `{{folderSelect.visible}}` | `aigicrm-miniprogram/pages/files/index.wxml:116` |
+| 上传到文件夹取消 根目录 上传到这里 | `noop` | `` | `aigicrm-miniprogram/pages/files/index.wxml:117` |
+| 取消 | `cancelFolderSelect` | `` | `aigicrm-miniprogram/pages/files/index.wxml:118` |
+| 根目录 | `selectFolderItem` | `` | `aigicrm-miniprogram/pages/files/index.wxml:121` |
+| (button) | `selectFolderItem` | `` | `aigicrm-miniprogram/pages/files/index.wxml:123` |
+| 上传到这里 | `confirmFolderSelect` | `` | `aigicrm-miniprogram/pages/files/index.wxml:125` |
+| 重命名文件取消 确认重命名 | `cancelRenameModal` | `{{renameModal.visible}}` | `aigicrm-miniprogram/pages/files/index.wxml:130` |
+| 重命名文件取消 确认重命名 | `noop` | `` | `aigicrm-miniprogram/pages/files/index.wxml:131` |
+| 取消 | `cancelRenameModal` | `` | `aigicrm-miniprogram/pages/files/index.wxml:132` |
+| 确认重命名 | `confirmRename` | `` | `aigicrm-miniprogram/pages/files/index.wxml:134` |
 | (button) | `openReminder` | `` | `aigicrm-miniprogram/pages/home/index.wxml:6` |
 | (button) | `openTask` | `{{taskSummary}}` | `aigicrm-miniprogram/pages/home/index.wxml:31` |
 | 全部应用 › | `openAppCenter` | `` | `aigicrm-miniprogram/pages/home/index.wxml:53` |
@@ -694,14 +815,14 @@ Generated from local source: `.`
 | (button) | `sendCode` | `` | `aigicrm-miniprogram/pages/login/forgot/index.wxml:18` |
 | (button) | `next` | `` | `aigicrm-miniprogram/pages/login/forgot/index.wxml:28` |
 | (button) | `back` | `` | `aigicrm-miniprogram/pages/login/forgot/index.wxml:29` |
-| 记住账号 | `toggleRememberAccount` | `` | `aigicrm-miniprogram/pages/login/index.wxml:19` |
-| 记住密码 | `toggleRememberPassword` | `` | `aigicrm-miniprogram/pages/login/index.wxml:23` |
-| (button) | `submit` | `` | `aigicrm-miniprogram/pages/login/index.wxml:28` |
-| (button) | `toggleAgreed` | `` | `aigicrm-miniprogram/pages/login/index.wxml:31` |
-| 《用户服务协议》 | `openAgreement` | `` | `aigicrm-miniprogram/pages/login/index.wxml:36` |
-| 《隐私政策》 | `openPrivacyDoc` | `` | `aigicrm-miniprogram/pages/login/index.wxml:37` |
-| 忘记密码？ | `openForgot` | `{{loginView.showForgotAction}}` | `aigicrm-miniprogram/pages/login/index.wxml:40` |
-| 陕ICP备2024024412号 | `copyBeianUrl` | `` | `aigicrm-miniprogram/pages/login/index.wxml:43` |
+| 记住账号 | `toggleRememberAccount` | `` | `aigicrm-miniprogram/pages/login/index.wxml:18` |
+| 记住密码 | `toggleRememberPassword` | `` | `aigicrm-miniprogram/pages/login/index.wxml:22` |
+| (button) | `submit` | `` | `aigicrm-miniprogram/pages/login/index.wxml:27` |
+| (button) | `toggleAgreed` | `` | `aigicrm-miniprogram/pages/login/index.wxml:30` |
+| 《用户服务协议》 | `openAgreement` | `` | `aigicrm-miniprogram/pages/login/index.wxml:35` |
+| 《隐私政策》 | `openPrivacyDoc` | `` | `aigicrm-miniprogram/pages/login/index.wxml:36` |
+| 忘记密码？ | `openForgot` | `{{loginView.showForgotAction}}` | `aigicrm-miniprogram/pages/login/index.wxml:39` |
+| 陕ICP备2024024412号 | `copyBeianUrl` | `` | `aigicrm-miniprogram/pages/login/index.wxml:42` |
 | 刷新 | `refresh` | `` | `aigicrm-miniprogram/pages/profile/diagnostic/index.wxml:8` |
 | 复制 | `copyPermissions` | `` | `aigicrm-miniprogram/pages/profile/diagnostic/index.wxml:31` |
 | 返回 | `goBack` | `` | `aigicrm-miniprogram/pages/profile/feedback/index.wxml:8` |
@@ -844,6 +965,7 @@ Generated from local source: `.`
 | `approveFabushiBook` | `PUT` | `/fabushi/books/${id}/approve` | `aigicrm-ui/src/api/fabushi.js` |
 | `rejectFabushiBook` | `PUT` | `/fabushi/books/${id}/reject` | `aigicrm-ui/src/api/fabushi.js` |
 | `disableFabushiBook` | `PUT` | `/fabushi/books/${id}/disable` | `aigicrm-ui/src/api/fabushi.js` |
+| `deleteFabushiBook` | `DELETE` | `/fabushi/books/${id}` | `aigicrm-ui/src/api/fabushi.js` |
 | `attachBookPdf` | `POST` | `/fabushi/books/${id}/pdf` | `aigicrm-ui/src/api/fabushi.js` |
 | `getFabushiPosts` | `GET` | `/fabushi/posts` | `aigicrm-ui/src/api/fabushi.js` |
 | `getFabushiPostDetail` | `GET` | `/fabushi/posts/${id}` | `aigicrm-ui/src/api/fabushi.js` |
@@ -857,12 +979,23 @@ Generated from local source: `.`
 | `getFabushiDashboard` | `GET` | `/fabushi/stats/dashboard` | `aigicrm-ui/src/api/fabushi.js` |
 | `getFabushiTeamStats` | `GET` | `/fabushi/stats/team` | `aigicrm-ui/src/api/fabushi.js` |
 | `getFabushiPersonalStats` | `GET` | `/fabushi/stats/personal` | `aigicrm-ui/src/api/fabushi.js` |
+| `getFabushiAwakenStatus` | `GET` | `/fabushi/awaken/status` | `aigicrm-ui/src/api/fabushi.js` |
 | `getFabushiShelf` | `GET` | `/fabushi/shelf` | `aigicrm-ui/src/api/fabushi.js` |
 | `addFabushiShelf` | `POST` | `/fabushi/shelf` | `aigicrm-ui/src/api/fabushi.js` |
+| `batchFabushiShelf` | `POST` | `/fabushi/shelf/batch` | `aigicrm-ui/src/api/fabushi.js` |
+| `getFabushiShelfGroups` | `GET` | `/fabushi/shelf/groups` | `aigicrm-ui/src/api/fabushi.js` |
+| `createFabushiShelfGroup` | `POST` | `/fabushi/shelf/groups` | `aigicrm-ui/src/api/fabushi.js` |
+| `renameFabushiShelfGroup` | `PUT` | `/fabushi/shelf/groups/${id}` | `aigicrm-ui/src/api/fabushi.js` |
+| `deleteFabushiShelfGroup` | `DELETE` | `/fabushi/shelf/groups/${id}` | `aigicrm-ui/src/api/fabushi.js` |
 | `updateFabushiShelf` | `PUT` | `/fabushi/shelf/${id}` | `aigicrm-ui/src/api/fabushi.js` |
 | `removeFabushiShelf` | `DELETE` | `/fabushi/shelf/${id}` | `aigicrm-ui/src/api/fabushi.js` |
 | `getFabushiProgress` | `GET` | `/fabushi/progress/${bookId}` | `aigicrm-ui/src/api/fabushi.js` |
 | `saveFabushiProgress` | `PUT` | `/fabushi/progress/${bookId}` | `aigicrm-ui/src/api/fabushi.js` |
+| `getFabushiBookmarks` | `GET` | `/fabushi/bookmarks` | `aigicrm-ui/src/api/fabushi.js` |
+| `getMyFabushiBookmarks` | `GET` | `/fabushi/bookmarks/mine` | `aigicrm-ui/src/api/fabushi.js` |
+| `addFabushiBookmark` | `POST` | `/fabushi/bookmarks` | `aigicrm-ui/src/api/fabushi.js` |
+| `removeFabushiBookmark` | `DELETE` | `/fabushi/bookmarks/${id}` | `aigicrm-ui/src/api/fabushi.js` |
+| `updateFabushiBookLayout` | `PUT` | `/fabushi/books/${id}/layout` | `aigicrm-ui/src/api/fabushi.js` |
 | `getFabushiRecords` | `GET` | `/fabushi/records` | `aigicrm-ui/src/api/fabushi.js` |
 | `getFabushiSettings` | `GET` | `/fabushi/settings` | `aigicrm-ui/src/api/fabushi.js` |
 | `saveFabushiSettings` | `PUT` | `/fabushi/settings` | `aigicrm-ui/src/api/fabushi.js` |
@@ -875,6 +1008,13 @@ Generated from local source: `.`
 | `joinFabushiActivity` | `POST` | `/fabushi/activities/${id}/join` | `aigicrm-ui/src/api/fabushi.js` |
 | `createFabushiActivity` | `POST` | `/fabushi/activities` | `aigicrm-ui/src/api/fabushi.js` |
 | `endFabushiActivity` | `PUT` | `/fabushi/activities/${id}/end` | `aigicrm-ui/src/api/fabushi.js` |
+| `getFabushiMonthly` | `GET` | `/fabushi/stats/monthly` | `aigicrm-ui/src/api/fabushi.js` |
+| `updateFabushiPost` | `PUT` | `/fabushi/posts/${id}` | `aigicrm-ui/src/api/fabushi.js` |
+| `deleteFabushiPost` | `DELETE` | `/fabushi/posts/${id}` | `aigicrm-ui/src/api/fabushi.js` |
+| `getDeletedFabushiPosts` | `GET` | `/fabushi/posts/deleted` | `aigicrm-ui/src/api/fabushi.js` |
+| `restoreDeletedFabushiPost` | `PUT` | `/fabushi/posts/${id}/restore-deleted` | `aigicrm-ui/src/api/fabushi.js` |
+| `getFabushiRecitations` | `GET` | `/fabushi/posts/${id}/recitations` | `aigicrm-ui/src/api/fabushi.js` |
+| `addFabushiRecitation` | `POST` | `/fabushi/posts/${id}/recitations` | `aigicrm-ui/src/api/fabushi.js` |
 | `getFolderTree` | `GET` | `/file/folders` | `aigicrm-ui/src/api/file.js` |
 | `getFileList` | `GET` | `/file/list` | `aigicrm-ui/src/api/file.js` |
 | `createFolder` | `POST` | `/file/folders` | `aigicrm-ui/src/api/file.js` |
@@ -942,6 +1082,9 @@ Generated from local source: `.`
 | `getDeletedFolders` | `GET` | `/system/recycle/folders` | `aigicrm-ui/src/api/recycle.js` |
 | `restoreDeletedFolder` | `POST` | `/system/recycle/folders/${id}/restore` | `aigicrm-ui/src/api/recycle.js` |
 | `hardDeleteFolder` | `POST` | `/system/recycle/folders/${id}/purge` | `aigicrm-ui/src/api/recycle.js` |
+| `getDeletedBooks` | `GET` | `/system/recycle/books` | `aigicrm-ui/src/api/recycle.js` |
+| `restoreDeletedBook` | `POST` | `/system/recycle/books/${id}/restore` | `aigicrm-ui/src/api/recycle.js` |
+| `hardDeleteBook` | `POST` | `/system/recycle/books/${id}/purge` | `aigicrm-ui/src/api/recycle.js` |
 | `getReminderList` | `GET` | `/reminder/list` | `aigicrm-ui/src/api/reminder.js` |
 | `getExpiringList` | `GET` | `/reminder/expiring-list` | `aigicrm-ui/src/api/reminder.js` |
 | `ensureExpiring` | `POST` | `/reminder/ensure-expiring` | `aigicrm-ui/src/api/reminder.js` |
@@ -998,6 +1141,7 @@ Generated from local source: `.`
 | `getConfigList` | `GET` | `/system/configs` | `aigicrm-ui/src/api/system.js` |
 | `getPublicConfig` | `GET` | `/system/configs/public` | `aigicrm-ui/src/api/system.js` |
 | `updateConfigs` | `PUT` | `/system/configs` | `aigicrm-ui/src/api/system.js` |
+| `seedOnboardingDemo` | `POST` | `/onboarding/seed-demo` | `aigicrm-ui/src/api/system.js` |
 | `getDictTypes` | `GET` | `/system/dict/types` | `aigicrm-ui/src/api/system.js` |
 | `getDictModules` | `GET` | `/system/dict/modules` | `aigicrm-ui/src/api/system.js` |
 | `createDictType` | `POST` | `/system/dict/types` | `aigicrm-ui/src/api/system.js` |
@@ -1085,10 +1229,6 @@ Generated from local source: `.`
 | `getCustomerGroupNames` | `GET` | `/api/customer/group-names` | `aigicrm-miniprogram/api/customer.js` |
 | `addCustomerShares` | `POST` | `/api/customer/' + id + '/shares` | `aigicrm-miniprogram/api/customer.js` |
 | `removeCustomerShare` | `DELETE` | `/api/customer/' + id + '/shares/' + userId` | `aigicrm-miniprogram/api/customer.js` |
-| `addInvoice` | `POST` | `/api/customer/' + id + '/invoices` | `aigicrm-miniprogram/api/customer.js` |
-| `deleteInvoice` | `DELETE` | `/api/customer/' + id + '/invoices/' + invoiceId + '?reason=' + encodeURIComponent(reason || '')` | `aigicrm-miniprogram/api/customer.js` |
-| `addPayment` | `POST` | `/api/customer/' + id + '/payments` | `aigicrm-miniprogram/api/customer.js` |
-| `deletePayment` | `DELETE` | `/api/customer/' + id + '/payments/' + paymentId + '?reason=' + encodeURIComponent(reason || '')` | `aigicrm-miniprogram/api/customer.js` |
 | `getCustomerIndicator` | `GET` | `/api/customer/' + id + '/indicator` | `aigicrm-miniprogram/api/customer.js` |
 | `saveCustomerIndicator` | `POST` | `/api/customer/' + id + '/indicator` | `aigicrm-miniprogram/api/customer.js` |
 | `getCustomerStageAmounts` | `GET` | `/api/customer/' + id + '/stage-amounts` | `aigicrm-miniprogram/api/customer.js` |
@@ -1111,29 +1251,45 @@ Generated from local source: `.`
 | `toggleFabushiLike` | `GET` | `/api/fabushi/posts/${postId` | `aigicrm-miniprogram/api/fabushi.js` |
 | `markFabushiRead` | `POST` | `/api/fabushi/reads/mark` | `aigicrm-miniprogram/api/fabushi.js` |
 | `getFabushiPersonalStats` | `GET` | `/api/fabushi/stats/personal` | `aigicrm-miniprogram/api/fabushi.js` |
+| `getFabushiAwakenStatus` | `GET` | `/api/fabushi/awaken/status` | `aigicrm-miniprogram/api/fabushi.js` |
 | `getFabushiShelf` | `GET` | `/api/fabushi/shelf` | `aigicrm-miniprogram/api/fabushi.js` |
 | `addFabushiShelf` | `POST` | `/api/fabushi/shelf` | `aigicrm-miniprogram/api/fabushi.js` |
 | `updateFabushiShelf` | `GET` | `/api/fabushi/shelf/${id` | `aigicrm-miniprogram/api/fabushi.js` |
 | `removeFabushiShelf` | `GET` | `/api/fabushi/shelf/${id` | `aigicrm-miniprogram/api/fabushi.js` |
+| `batchFabushiShelf` | `POST` | `/api/fabushi/shelf/batch` | `aigicrm-miniprogram/api/fabushi.js` |
+| `getFabushiShelfGroups` | `GET` | `/api/fabushi/shelf/groups` | `aigicrm-miniprogram/api/fabushi.js` |
+| `createFabushiShelfGroup` | `POST` | `/api/fabushi/shelf/groups` | `aigicrm-miniprogram/api/fabushi.js` |
+| `renameFabushiShelfGroup` | `GET` | `/api/fabushi/shelf/groups/${id` | `aigicrm-miniprogram/api/fabushi.js` |
+| `deleteFabushiShelfGroup` | `GET` | `/api/fabushi/shelf/groups/${id` | `aigicrm-miniprogram/api/fabushi.js` |
 | `getFabushiProgress` | `GET` | `/api/fabushi/progress/${bookId` | `aigicrm-miniprogram/api/fabushi.js` |
 | `saveFabushiProgress` | `GET` | `/api/fabushi/progress/${bookId` | `aigicrm-miniprogram/api/fabushi.js` |
 | `getFabushiRecords` | `GET` | `/api/fabushi/records` | `aigicrm-miniprogram/api/fabushi.js` |
 | `getFabushiSettings` | `GET` | `/api/fabushi/settings` | `aigicrm-miniprogram/api/fabushi.js` |
 | `saveFabushiSettings` | `PUT` | `/api/fabushi/settings` | `aigicrm-miniprogram/api/fabushi.js` |
+| `getFabushiReadToday` | `GET` | `/api/fabushi/reads/today` | `aigicrm-miniprogram/api/fabushi.js` |
+| `getFabushiUploadTicket` | `GET` | `/api/fabushi/upload-ticket` | `aigicrm-miniprogram/api/fabushi.js` |
+| `getFabushiReaderTicket` | `GET` | `/api/fabushi/reader-ticket` | `aigicrm-miniprogram/api/fabushi.js` |
 | `getFabushiDashboard` | `GET` | `/api/fabushi/stats/dashboard` | `aigicrm-miniprogram/api/fabushi.js` |
+| `getFabushiMonthly` | `GET` | `/api/fabushi/stats/monthly` | `aigicrm-miniprogram/api/fabushi.js` |
 | `addFabushiAttachment` | `GET` | `/api/fabushi/posts/${postId` | `aigicrm-miniprogram/api/fabushi.js` |
 | `removeFabushiAttachment` | `GET` | `/api/fabushi/posts/${postId` | `aigicrm-miniprogram/api/fabushi.js` |
 | `getFabushiSections` | `GET` | `/api/fabushi/books/${bookId` | `aigicrm-miniprogram/api/fabushi.js` |
 | `createFabushiSection` | `GET` | `/api/fabushi/books/${bookId` | `aigicrm-miniprogram/api/fabushi.js` |
+| `createFabushiSectionSelf` | `GET` | `/api/fabushi/books/${bookId` | `aigicrm-miniprogram/api/fabushi.js` |
 | `deleteFabushiSection` | `GET` | `/api/fabushi/books/${bookId` | `aigicrm-miniprogram/api/fabushi.js` |
 | `getFabushiActivities` | `GET` | `/api/fabushi/activities` | `aigicrm-miniprogram/api/fabushi.js` |
 | `joinFabushiActivity` | `GET` | `/api/fabushi/activities/${id` | `aigicrm-miniprogram/api/fabushi.js` |
 | `createFabushiActivity` | `POST` | `/api/fabushi/activities` | `aigicrm-miniprogram/api/fabushi.js` |
 | `endFabushiActivity` | `GET` | `/api/fabushi/activities/${id` | `aigicrm-miniprogram/api/fabushi.js` |
+| `fabushiScopeLabel` | `GET` | `/api/fabushi/posts/${id` | `aigicrm-miniprogram/api/fabushi.js` |
+| `deleteFabushiPost` | `GET` | `/api/fabushi/posts/${id` | `aigicrm-miniprogram/api/fabushi.js` |
+| `getFabushiRecitations` | `GET` | `/api/fabushi/posts/${id` | `aigicrm-miniprogram/api/fabushi.js` |
+| `addFabushiRecitation` | `GET` | `/api/fabushi/posts/${id` | `aigicrm-miniprogram/api/fabushi.js` |
 | `encodeDownloadPath` | `GET` | `/api/file/list` | `aigicrm-miniprogram/api/file.js` |
 | `getStorageInfo` | `GET` | `/api/file/storage` | `aigicrm-miniprogram/api/file.js` |
 | `getStorageApplyInfo` | `GET` | `/api/file/storage/apply-info` | `aigicrm-miniprogram/api/file.js` |
 | `getDownloadToken` | `GET` | `/api/file/download-token` | `aigicrm-miniprogram/api/file.js` |
+| `getH5UploadTicket` | `GET` | `/api/file/upload-ticket` | `aigicrm-miniprogram/api/file.js` |
 | `getFolders` | `GET` | `/api/file/folders` | `aigicrm-miniprogram/api/file.js` |
 | `createFolder` | `POST` | `/api/file/folders` | `aigicrm-miniprogram/api/file.js` |
 | `renameFolder` | `PUT` | `/api/file/folders/' + id` | `aigicrm-miniprogram/api/file.js` |
@@ -1270,9 +1426,19 @@ Generated from local source: `.`
 | `PUT` | `/api/fabushi/books/{id}/reject` | `hasAuthority('fabushi:book:manage')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiBookController.java` |
 | `PUT` | `/api/fabushi/books/{id}/disable` | `hasAuthority('fabushi:book:manage')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiBookController.java` |
 | `POST` | `/api/fabushi/books/{id}/pdf` | `hasAuthority('fabushi:book:manage')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiBookController.java` |
+| `PUT` | `/api/fabushi/books/{id}/layout` | `hasAuthority('fabushi:book:manage')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiBookController.java` |
+| `DELETE` | `/api/fabushi/books/{id}` | `hasAuthority('fabushi:book:manage')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiBookController.java` |
+| `GET` | `/api/fabushi/bookmarks` | `hasAuthority('fabushi:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiBookmarkController.java` |
+| `GET` | `/api/fabushi/bookmarks/mine` | `hasAuthority('fabushi:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiBookmarkController.java` |
+| `POST` | `/api/fabushi/bookmarks` | `hasAuthority('fabushi:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiBookmarkController.java` |
+| `DELETE` | `/api/fabushi/bookmarks/{id}` | `hasAuthority('fabushi:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiBookmarkController.java` |
 | `GET` | `/api/fabushi/posts` | `hasAuthority('fabushi:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiPostController.java` |
 | `GET` | `/api/fabushi/posts/{id}` | `hasAuthority('fabushi:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiPostController.java` |
 | `POST` | `/api/fabushi/posts` | `hasAuthority('fabushi:create')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiPostController.java` |
+| `PUT` | `/api/fabushi/posts/{id}` | `hasAuthority('fabushi:create')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiPostController.java` |
+| `DELETE` | `/api/fabushi/posts/{id}` | `hasAuthority('fabushi:create')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiPostController.java` |
+| `GET` | `/api/fabushi/posts/deleted` | `hasAuthority('fabushi:content:manage')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiPostController.java` |
+| `PUT` | `/api/fabushi/posts/{id}/restore-deleted` | `hasAuthority('fabushi:content:manage')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiPostController.java` |
 | `POST` | `/api/fabushi/posts/{id}/attachments` | `hasAuthority('fabushi:create')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiPostController.java` |
 | `DELETE` | `/api/fabushi/posts/{postId}/attachments/{attachmentId}` | `hasAuthority('fabushi:create')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiPostController.java` |
 | `PUT` | `/api/fabushi/posts/{id}/offline` | `hasAuthority('fabushi:content:manage')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiPostController.java` |
@@ -1281,23 +1447,38 @@ Generated from local source: `.`
 | `GET` | `/api/fabushi/posts/{id}/comments` | `hasAuthority('fabushi:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiPostController.java` |
 | `POST` | `/api/fabushi/posts/{id}/like` | `hasAuthority('fabushi:create')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiPostController.java` |
 | `POST` | `/api/fabushi/reads/mark` | `hasAuthority('fabushi:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiReadController.java` |
+| `GET` | `/api/fabushi/reads/today` | `hasAuthority('fabushi:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiReadController.java` |
+| `GET` | `/api/fabushi/awaken/status` | `hasAuthority('fabushi:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiReadingController.java` |
 | `GET` | `/api/fabushi/shelf` | `hasAuthority('fabushi:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiReadingController.java` |
 | `POST` | `/api/fabushi/shelf` | `hasAuthority('fabushi:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiReadingController.java` |
 | `PUT` | `/api/fabushi/shelf/{id}` | `hasAuthority('fabushi:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiReadingController.java` |
 | `DELETE` | `/api/fabushi/shelf/{id}` | `hasAuthority('fabushi:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiReadingController.java` |
+| `POST` | `/api/fabushi/shelf/batch` | `hasAuthority('fabushi:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiReadingController.java` |
+| `GET` | `/api/fabushi/shelf/groups` | `hasAuthority('fabushi:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiReadingController.java` |
+| `POST` | `/api/fabushi/shelf/groups` | `hasAuthority('fabushi:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiReadingController.java` |
+| `PUT` | `/api/fabushi/shelf/groups/{id}` | `hasAuthority('fabushi:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiReadingController.java` |
+| `DELETE` | `/api/fabushi/shelf/groups/{id}` | `hasAuthority('fabushi:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiReadingController.java` |
 | `GET` | `/api/fabushi/progress/{bookId}` | `hasAuthority('fabushi:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiReadingController.java` |
 | `PUT` | `/api/fabushi/progress/{bookId}` | `hasAuthority('fabushi:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiReadingController.java` |
 | `GET` | `/api/fabushi/records` | `hasAuthority('fabushi:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiReadingController.java` |
 | `GET` | `/api/fabushi/settings` | `hasAuthority('fabushi:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiReadingController.java` |
 | `PUT` | `/api/fabushi/settings` | `hasAuthority('fabushi:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiReadingController.java` |
+| `POST` | `/api/fabushi/posts/{id}/recitations` | `hasAuthority('fabushi:create')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiRecitationController.java` |
+| `GET` | `/api/fabushi/posts/{id}/recitations` | `hasAuthority('fabushi:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiRecitationController.java` |
 | `GET` | `/api/fabushi/books/{bookId}/sections` | `hasAuthority('fabushi:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiSectionController.java` |
 | `POST` | `/api/fabushi/books/{bookId}/sections` | `hasAuthority('fabushi:book:manage')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiSectionController.java` |
+| `POST` | `/api/fabushi/books/{bookId}/sections/self` | `hasAuthority('fabushi:create')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiSectionController.java` |
 | `PUT` | `/api/fabushi/books/{bookId}/sections/{id}` | `hasAuthority('fabushi:book:manage')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiSectionController.java` |
 | `DELETE` | `/api/fabushi/books/{bookId}/sections/{id}` | `hasAuthority('fabushi:book:manage')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiSectionController.java` |
 | `GET` | `/api/fabushi/stats/team` | `hasAuthority('fabushi:stats:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiStatsController.java` |
 | `GET` | `/api/fabushi/stats/dashboard` | `hasAuthority('fabushi:stats:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiStatsController.java` |
 | `GET` | `/api/fabushi/stats/export` | `hasAuthority('fabushi:stats:export')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiStatsController.java` |
+| `GET` | `/api/fabushi/stats/monthly` | `hasAuthority('fabushi:stats:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiStatsController.java` |
+| `GET` | `/api/fabushi/stats/monthly/export` | `hasAuthority('fabushi:stats:export')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiStatsController.java` |
 | `GET` | `/api/fabushi/stats/personal` | `hasAuthority('fabushi:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiStatsController.java` |
+| `GET` | `/api/fabushi/upload-ticket` | `hasAuthority('fabushi:create')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiUploadTicketController.java` |
+| `GET` | `/api/fabushi/reader-ticket` | `hasAuthority('fabushi:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiUploadTicketController.java` |
+| `POST` | `/api/fabushi/upload/h5` | `` | `aigicrm-backend/src/main/java/com/aigicrm/module/fabushi/controller/FabushiUploadTicketController.java` |
 | `GET` | `/api/file/download-token` | `hasAuthority('file:download')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java` |
 | `GET` | `/api/file/folders` | `hasAuthority('file:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java` |
 | `GET` | `/api/file/list` | `hasAuthority('file:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java` |
@@ -1305,22 +1486,32 @@ Generated from local source: `.`
 | `POST` | `/api/file/folders` | `hasAnyAuthority('file:folder:create','file:folder:manage')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java` |
 | `PUT` | `/api/file/folders/{id}` | `hasAnyAuthority('file:folder:rename','file:folder:manage')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java` |
 | `DELETE` | `/api/file/folders/{id}` | `hasAnyAuthority('file:folder:delete','file:folder:manage')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java` |
-| `DELETE` | `/api/file/{id}` | `hasAuthority('file:delete')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java` |
+| `DELETE` | `/api/file/{id}` | `hasAnyAuthority('file:delete','fabushi:file:delete')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java` |
 | `POST` | `/api/file/{id}/replace` | `hasAuthority('file:edit')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java` |
 | `GET` | `/api/file/{id}/versions` | `hasAuthority('file:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java` |
 | `GET` | `/api/file/{id}/versions/{versionNo}/download` | `hasAuthority('file:download')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java` |
-| `POST` | `/api/file/{id}/versions/{versionNo}/rollback` | `hasAuthority('file:edit')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java` |
-| `POST` | `/api/file/batch-delete` | `hasAuthority('file:delete')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java` |
+| `POST` | `/api/file/{id}/versions/{versionNo}/rollback` | `hasAnyAuthority('file:edit','file:version:rollback')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java` |
+| `POST` | `/api/file/batch-delete` | `hasAnyAuthority('file:delete','fabushi:file:delete')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java` |
 | `POST` | `/api/file/batch-download` | `hasAuthority('file:download')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java` |
 | `PUT` | `/api/file/{id}/rename` | `hasAuthority('file:edit')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java` |
 | `GET` | `/api/file/storage` | `hasAuthority('file:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java` |
 | `GET` | `/api/file/storage/apply-info` | `hasAuthority('file:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java` |
+| `POST` | `/api/file/chunk/init` | `hasAuthority('file:upload')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java` |
+| `POST` | `/api/file/chunk/{uploadId}` | `hasAuthority('file:upload')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java` |
+| `POST` | `/api/file/chunk/{uploadId}/complete` | `hasAuthority('file:upload')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java` |
+| `GET` | `/api/file/{id}/preview` | `hasAuthority('file:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java` |
 | `GET` | `/api/file/download/{id}` | `hasAuthority('file:download')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java` |
 | `GET` | `/api/file/download/public/**` | `` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java` |
 | `GET` | `/api/file/download/**` | `hasAuthority('file:download')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java` |
 | `POST` | `/api/file/{id}/share` | `hasAuthority('file:share')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java` |
 | `GET` | `/api/file/shared-to-me` | `hasAuthority('file:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java` |
 | `GET` | `/api/file/shared-to-me/count` | `hasAuthority('file:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java` |
+| `GET` | `/api/file/grants` | `hasAuthority('file:acl:manage')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileGrantController.java` |
+| `POST` | `/api/file/grants` | `hasAuthority('file:acl:manage')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileGrantController.java` |
+| `PUT` | `/api/file/grants/{id}` | `hasAuthority('file:acl:manage')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileGrantController.java` |
+| `DELETE` | `/api/file/grants/{id}` | `hasAuthority('file:acl:manage')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileGrantController.java` |
+| `GET` | `/api/file/upload-ticket` | `hasAuthority('file:upload')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileH5UploadController.java` |
+| `POST` | `/api/file/upload/h5` | `` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileH5UploadController.java` |
 | `GET` | `/api/file/reconciliation` | `hasAnyAuthority('file:reconcile','file:folder:manage')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileReconciliationController.java` |
 | `GET` | `/api/file/recycle/files` | `hasAuthority('file:delete')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileRecycleController.java` |
 | `GET` | `/api/file/recycle/folders` | `hasAuthority('file:delete')` | `aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileRecycleController.java` |
@@ -1365,6 +1556,7 @@ Generated from local source: `.`
 | `GET` | `/api/reminder/pending-count` | `hasAuthority('reminder:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/reminder/controller/ReminderController.java` |
 | `POST` | `/api/reminder/ensure-expiring` | `hasAuthority('reminder:ensure')` | `aigicrm-backend/src/main/java/com/aigicrm/module/reminder/controller/ReminderController.java` |
 | `POST` | `/api/reminder/{id}/process` | `hasAuthority('reminder:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/reminder/controller/ReminderController.java` |
+| `DELETE` | `/api/reminder/{id}` | `hasAuthority('reminder:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/reminder/controller/ReminderController.java` |
 | `POST` | `/api/score/items` | `hasAuthority('score:manage')` | `aigicrm-backend/src/main/java/com/aigicrm/module/score/controller/ScoreController.java` |
 | `PUT` | `/api/score/items/{id}` | `hasAuthority('score:manage')` | `aigicrm-backend/src/main/java/com/aigicrm/module/score/controller/ScoreController.java` |
 | `DELETE` | `/api/score/items/{id}` | `hasAuthority('score:manage')` | `aigicrm-backend/src/main/java/com/aigicrm/module/score/controller/ScoreController.java` |
@@ -1392,6 +1584,15 @@ Generated from local source: `.`
 | `GET` | `/api/statistics/customer-rankings` | `hasAuthority('statistics:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/statistics/controller/StatisticsController.java` |
 | `GET` | `/api/statistics/analysis` | `hasAuthority('statistics:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/statistics/controller/StatisticsController.java` |
 | `GET` | `/api/statistics/team-activities` | `hasAuthority('statistics:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/statistics/controller/StatisticsController.java` |
+| `POST` | `/api/system/lifecycle/handover` | `hasAuthority('system:user:edit')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/LifecycleController.java` |
+| `POST` | `/api/system/lifecycle/org-move` | `hasAuthority('system:user:edit')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/LifecycleController.java` |
+| `GET` | `/api/system/lifecycle/requests` | `hasAnyAuthority('system:user:edit','approval:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/LifecycleController.java` |
+| `GET` | `/api/system/lifecycle/requests/{id}` | `hasAnyAuthority('system:user:edit','approval:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/LifecycleController.java` |
+| `POST` | `/api/system/lifecycle/requests/{id}/transfer-approver` | `hasAuthority('system:user:edit')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/LifecycleController.java` |
+| `POST` | `/api/system/lifecycle/requests/{id}/approve` | `hasAnyAuthority('system:user:edit','approval:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/LifecycleController.java` |
+| `POST` | `/api/system/lifecycle/requests/{id}/reject` | `hasAnyAuthority('system:user:edit','approval:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/LifecycleController.java` |
+| `POST` | `/api/system/lifecycle/requests/{id}/rollback` | `hasAuthority('system:user:edit')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/LifecycleController.java` |
+| `POST` | `/api/onboarding/seed-demo` | `hasAuthority('system:config:edit')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/OnboardingController.java` |
 | `GET` | `/api/system/perm-center/meta` | `hasAnyAuthority('system:menu:view','system:role:view','system:scope:grant')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/PermCenterController.java` |
 | `GET` | `/api/system/perm-center/preview` | `hasAuthority('system:config:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/PermCenterController.java` |
 | `GET` | `/api/system/recycle/customers` | `hasAuthority('system:recycle:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/RecycleController.java` |
@@ -1402,6 +1603,15 @@ Generated from local source: `.`
 | `GET` | `/api/system/recycle/users/{id}` | `hasAuthority('system:recycle:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/RecycleController.java` |
 | `POST` | `/api/system/recycle/users/{id}/restore` | `hasAuthority('system:recycle:restore')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/RecycleController.java` |
 | `POST` | `/api/system/recycle/users/{id}/purge` | `hasAuthority('system:recycle:purge')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/RecycleController.java` |
+| `GET` | `/api/system/recycle/tasks` | `hasAuthority('system:recycle:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/RecycleController.java` |
+| `POST` | `/api/system/recycle/tasks/{id}/restore` | `hasAuthority('system:recycle:restore')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/RecycleController.java` |
+| `POST` | `/api/system/recycle/tasks/{id}/purge` | `hasAuthority('system:recycle:purge')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/RecycleController.java` |
+| `GET` | `/api/system/recycle/reminders` | `hasAuthority('system:recycle:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/RecycleController.java` |
+| `POST` | `/api/system/recycle/reminders/{id}/restore` | `hasAuthority('system:recycle:restore')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/RecycleController.java` |
+| `POST` | `/api/system/recycle/reminders/{id}/purge` | `hasAuthority('system:recycle:purge')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/RecycleController.java` |
+| `GET` | `/api/system/recycle/incentives` | `hasAuthority('system:recycle:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/RecycleController.java` |
+| `POST` | `/api/system/recycle/incentives/{id}/restore` | `hasAuthority('system:recycle:restore')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/RecycleController.java` |
+| `POST` | `/api/system/recycle/incentives/{id}/purge` | `hasAuthority('system:recycle:purge')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/RecycleController.java` |
 | `GET` | `/api/system/recycle/files` | `hasAuthority('system:recycle:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/RecycleController.java` |
 | `GET` | `/api/system/recycle/files/{id}` | `hasAuthority('system:recycle:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/RecycleController.java` |
 | `GET` | `/api/system/recycle/files/{id}/content` | `hasAuthority('system:recycle:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/RecycleController.java` |
@@ -1411,6 +1621,13 @@ Generated from local source: `.`
 | `POST` | `/api/system/recycle/folders/{id}/restore` | `hasAuthority('system:recycle:restore')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/RecycleController.java` |
 | `POST` | `/api/system/recycle/folders/{id}/purge` | `hasAuthority('system:recycle:purge')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/RecycleController.java` |
 | `POST` | `/api/system/recycle/files/purge` | `hasAuthority('system:recycle:purge')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/RecycleController.java` |
+| `GET` | `/api/system/recycle/books` | `hasAuthority('system:recycle:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/RecycleController.java` |
+| `POST` | `/api/system/recycle/books/{id}/restore` | `hasAuthority('system:recycle:restore')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/RecycleController.java` |
+| `POST` | `/api/system/recycle/books/{id}/purge` | `hasAuthority('system:recycle:purge')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/RecycleController.java` |
+| `POST` | `/api/system/recycle/exports` | `hasAuthority('system:recycle:export')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/RecycleExportController.java` |
+| `GET` | `/api/system/recycle/exports` | `hasAuthority('system:recycle:export')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/RecycleExportController.java` |
+| `GET` | `/api/system/recycle/exports/{id}/download` | `hasAuthority('system:recycle:export')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/RecycleExportController.java` |
+| `DELETE` | `/api/system/recycle/exports/{id}` | `hasAuthority('system:recycle:export')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/RecycleExportController.java` |
 | `GET` | `/api/system/perm-scopes/{roleCode}` | `hasAuthority('system:config:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/RolePermScopeController.java` |
 | `PUT` | `/api/system/perm-scopes/{roleCode}` | `hasAuthority('system:scope:grant')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/RolePermScopeController.java` |
 | `GET` | `/api/system/perm-scopes/assignee/{type}/{key}` | `hasAuthority('system:config:view')` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/RolePermScopeController.java` |
@@ -1481,6 +1698,7 @@ Generated from local source: `.`
 | `POST` | `/api/task/{id}/complete` | `hasAuthority('task:manage')` | `aigicrm-backend/src/main/java/com/aigicrm/module/task/controller/TaskController.java` |
 | `POST` | `/api/task/{id}/cancel` | `hasAuthority('task:manage')` | `aigicrm-backend/src/main/java/com/aigicrm/module/task/controller/TaskController.java` |
 | `POST` | `/api/task/{id}/transfer` | `hasAuthority('task:manage')` | `aigicrm-backend/src/main/java/com/aigicrm/module/task/controller/TaskController.java` |
+| `DELETE` | `/api/task/{id}` | `hasAuthority('task:manage')` | `aigicrm-backend/src/main/java/com/aigicrm/module/task/controller/TaskController.java` |
 | `POST` | `/api/system/task/check-expire` | `hasAuthority('system:task:run')` | `aigicrm-backend/src/main/java/com/aigicrm/task/ScheduledTaskController.java` |
 
 ## Local Migration Permission Sources
@@ -1510,6 +1728,7 @@ Generated from local source: `.`
 | `fabushi:content:manage` | 法布施内容下架 (V2026.11.16.1__fabushi_module.sql) |
 | `fabushi:content:view` | fabushi/content (V2026.11.16.1__fabushi_module.sql) |
 | `fabushi:create` | 法布施发布互动 (V2026.11.16.1__fabushi_module.sql) |
+| `fabushi:file:delete` | 法布施文件删除 (V2026.11.17.1__customer_unique_file_governance.sql) |
 | `fabushi:stats:export` | 法布施统计导出 (V2026.11.16.1__fabushi_module.sql) |
 | `fabushi:stats:view` | fabushi/stats (V2026.11.16.1__fabushi_module.sql) |
 | `fabushi:view` | 法布施内容浏览 (V2026.11.16.1__fabushi_module.sql) |
@@ -1526,6 +1745,7 @@ Generated from local source: `.`
 | `file:reconcile` | 文件对账 (V2026.11.14.11__file_permission_v2.sql) |
 | `file:share` | 文件分享 (V2026.09.11.3__restore_file_mutation_permission_bindings.sql) |
 | `file:upload` | 文件上传 (V2026.09.11.3__restore_file_mutation_permission_bindings.sql) |
+| `file:version:rollback` | 文件版本回滚 (V2026.11.17.1__customer_unique_file_governance.sql) |
 | `file:view` | 文件ACL管理 (V16__add_sys_user_security_columns_and_menu_permissions.sql) |
 | `finance:manage` | 财务管理 (V2026.09.19.6__permission_separation.sql) |
 | `finance:view` | 客户财务查看 (V2026.09.13.1__register_missing_used_permission_codes.sql) |
@@ -1574,6 +1794,7 @@ Generated from local source: `.`
 | `system:position:edit` | 岗位编辑 (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
 | `system:position:rule:edit` | 岗位规则绑定 (V2026.11.14.10__admin_management_codes.sql) |
 | `system:position:view` | system/position/index (V2026.09.11.6__seed_permission_dictionary_and_roles.sql) |
+| `system:recycle:export` | 导出回收站 (V2026.11.19.2__recycle_export.sql) |
 | `system:recycle:purge` | 清空文件回收站 (V2026.10.18.2__file_recycle_retention_and_purge.sql) |
 | `system:recycle:restore` | 恢复已删除数据 (V2026.10.18.1__recycle_bin_menu_and_permissions.sql) |
 | `system:recycle:view` | /system/recycle (V2026.10.18.1__recycle_bin_menu_and_permissions.sql) |
@@ -1648,21 +1869,17 @@ Generated from local source: `.`
 
 | Permission | Code Reference | Context |
 | --- | --- | --- |
-| `contact:view` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java:465` | `if (!SecurityUtils.hasAuthority("contact:view")) return Result.ok(List.of());` |
+| `contact:view` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java:479` | `if (!SecurityUtils.hasAuthority("contact:view")) return Result.ok(List.of());` |
 | `customer:date:edit` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/service/FieldPermissionService.java:22` | `return SecurityUtils.hasAuthority("customer:date:edit");` |
-| `customer:date:edit` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/service/PermissionMetadataService.java:64` | `"customer:date:edit", "customer:invoice-date:edit");` |
+| `customer:date:edit` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/service/PermissionMetadataService.java:75` | `"customer:date:edit", "customer:invoice-date:edit");` |
 | `customer:invoice-date:edit` | `aigicrm-backend/src/main/java/com/aigicrm/module/customer/service/FieldPermissionService.java:27` | `return SecurityUtils.hasAuthority("customer:invoice-date:edit");` |
-| `customer:invoice-date:edit` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/service/PermissionMetadataService.java:64` | `"customer:date:edit", "customer:invoice-date:edit");` |
-| `incentive:person-rank:export` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/service/PermissionMetadataService.java:60` | `"incentive:person-rank:export", "incentive:rank:export",` |
-| `incentive:rank:export` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/service/PermissionMetadataService.java:60` | `"incentive:person-rank:export", "incentive:rank:export",` |
-| `sea:claim` | `aigicrm-backend/src/main/java/com/aigicrm/module/approval/service/ApprovalService.java:280` | `&& !SecurityUtils.hasAuthority("sea:claim")) {` |
-| `system:role:grant` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/service/PermissionMetadataService.java:61` | `"system:role:grant", "system:menu:edit");` |
-| `system:role:grant` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysRoleService.java:82` | `if (SecurityUtils.hasAuthority("system:role:grant")) return;` |
-| `system:role:grant` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysRoleService.java:318` | `if (!SecurityUtils.hasAuthority("system:role:grant")) {` |
-| `system:role:grant` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysRoleService.java:455` | `if (SecurityUtils.hasAuthority("system:role:grant")) {` |
-| `system:role:grant` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysUserService.java:289` | `if (SecurityUtils.hasAuthority("system:role:grant")) return;` |
-| `system:role:grant` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysUserService.java:556` | `if (!SecurityUtils.hasAuthority("system:role:grant") && hasAdminRole(userId)) {` |
-| `system:role:grant` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysUserService.java:778` | `if (!SecurityUtils.hasAuthority("system:role:grant") && hasAdminRole(userId)) {` |
+| `customer:invoice-date:edit` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/service/PermissionMetadataService.java:75` | `"customer:date:edit", "customer:invoice-date:edit");` |
+| `incentive:person-rank:export` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/service/PermissionMetadataService.java:71` | `"incentive:person-rank:export", "incentive:rank:export",` |
+| `incentive:rank:export` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/service/PermissionMetadataService.java:71` | `"incentive:person-rank:export", "incentive:rank:export",` |
+| `sea:claim` | `aigicrm-backend/src/main/java/com/aigicrm/module/approval/service/ApprovalService.java:352` | `&& !SecurityUtils.hasAuthority("sea:claim")) {` |
+| `system:role:grant` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/service/PermissionMetadataService.java:72` | `"system:role:grant", "system:menu:edit");` |
+| `system:role:grant` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysRoleService.java:30` | `private static final String LIT_SYSTEM_ROLE_GRANT = "system:role:grant";` |
+| `system:role:grant` | `aigicrm-backend/src/main/java/com/aigicrm/module/system/service/SysUserService.java:39` | `private static final String LIT_SYSTEM_ROLE_GRANT = "system:role:grant";` |
 
 ### UI Permission Tokens Missing In Known Sources
 
@@ -1676,12 +1893,10 @@ Generated from local source: `.`
 
 ### Mini Program API Wrappers Without Backend Endpoint Match
 
-- `POST /api/customer/{id}/invoices` from `aigicrm-miniprogram/api/customer.js` (`addInvoice`)
-- `DELETE /api/customer/{id}/invoices/{id}?reason={id}(reason || '')` from `aigicrm-miniprogram/api/customer.js` (`deleteInvoice`)
-- `POST /api/customer/{id}/payments` from `aigicrm-miniprogram/api/customer.js` (`addPayment`)
-- `DELETE /api/customer/{id}/payments/{id}?reason={id}(reason || '')` from `aigicrm-miniprogram/api/customer.js` (`deletePayment`)
 - `GET /api/fabushi/shelf/${id` from `aigicrm-miniprogram/api/fabushi.js` (`updateFabushiShelf`)
 - `GET /api/fabushi/shelf/${id` from `aigicrm-miniprogram/api/fabushi.js` (`removeFabushiShelf`)
+- `GET /api/fabushi/shelf/groups/${id` from `aigicrm-miniprogram/api/fabushi.js` (`renameFabushiShelfGroup`)
+- `GET /api/fabushi/shelf/groups/${id` from `aigicrm-miniprogram/api/fabushi.js` (`deleteFabushiShelfGroup`)
 - `GET /api/fabushi/activities/${id` from `aigicrm-miniprogram/api/fabushi.js` (`joinFabushiActivity`)
 - `GET /api/fabushi/activities/${id` from `aigicrm-miniprogram/api/fabushi.js` (`endFabushiActivity`)
 - `GET /api/task/${id` from `aigicrm-miniprogram/api/task.js` (`completeTask`)

@@ -177,7 +177,7 @@ Page({
     if (!this.data.isOwner) return
     wx.showModal({
       title: '删除内容',
-      content: '删除后可在 PC 内容治理（已删除）中找回，附件保留在文件中心。确认删除？',
+      content: '删除后可在 PC 内容管理（已删除）中找回，附件保留在文件中心。确认删除？',
       confirmColor: '#e11d48',
       success: (res) => {
         if (!res.confirm) return

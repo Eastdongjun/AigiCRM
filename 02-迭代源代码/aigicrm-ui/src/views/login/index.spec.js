@@ -15,9 +15,16 @@ vi.mock('vue-router', () => ({ useRouter: () => ({ push }) }))
 vi.mock('@/store/user', () => ({ useUserStore: () => ({ applyGroupInfo: vi.fn() }) }))
 
 import LoginIndex from './index.vue'
-import { login } from '@/api/auth'
-import { getPublicConfig, changePassword } from '@/api/system'
+import { login as loginMock } from '@/api/auth'
+import { getPublicConfig as getPublicConfigMock, changePassword as changePasswordMock } from '@/api/system'
 import { ElMessageBox } from 'element-plus'
+
+// vi.mock 的工厂返回的是 vi.fn(): 这里按 Mock 取用, 以便设应答(类型检查基线只认声明的类型)。
+// 【GL-14 2026-11-24】首登强制改密的用例(85b362d4)加上后, 这几处 mock 调用让类型检查超出基线, 默认门禁一直是红的。
+const login = /** @type {import('vitest').Mock} */ (loginMock)
+const getPublicConfig = /** @type {import('vitest').Mock} */ (getPublicConfigMock)
+const changePassword = /** @type {import('vitest').Mock} */ (changePasswordMock)
+const messageBox = /** @type {any} */ (ElMessageBox)
 
 // 测试哑口令: 非任何真实系统凭据, 仅用于断言"口令不落盘"(片段拼接避免凭据字面量)
 const PWD_OLD = ['Old', 'Secret1'].join('')
@@ -92,7 +99,7 @@ describe('登录页 B1: 口令不落盘 localStorage', () => {
 
   it('强制改密成功: 新口令不落盘，token 移除，账号保留', async () => {
     login.mockResolvedValue({ data: { token: 'tk-3', pwdResetRequired: 1, groupIds: [], currentGroupId: null } })
-    ElMessageBox.prompt.mockResolvedValue({ value: PWD_NEW })
+    messageBox.prompt.mockResolvedValue({ value: PWD_NEW })
     changePassword.mockResolvedValue({})
     const wrapper = mountLogin()
     wrapper.vm.form.username = 'spec_user'
@@ -109,7 +116,7 @@ describe('登录页 B1: 口令不落盘 localStorage', () => {
   it('取消强制改密: 旧口令不写回，遗留口令键被清除', async () => {
     localStorage.setItem(PASS_KEY, b64(PWD_OLD))
     login.mockResolvedValue({ data: { token: 'tk-4', pwdResetRequired: 1, groupIds: [], currentGroupId: null } })
-    ElMessageBox.prompt.mockRejectedValue(new Error('cancel'))
+    messageBox.prompt.mockRejectedValue(new Error('cancel'))
     const wrapper = mountLogin()
     wrapper.vm.form.username = 'spec_user'
     wrapper.vm.form.password = PWD_INIT

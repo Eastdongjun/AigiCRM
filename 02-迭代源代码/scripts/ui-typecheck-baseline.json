@@ -1,10 +1,10 @@
 {
-  "_comment": "vue-tsc 基线(2026-11-16 收敛后收紧, vue-tsc 5.9.3, checkJs)——存量按文件冻结, 新增即FAIL; 修一处减一数。本轮修 18 处(含法布施/文件组件运行时缺陷)。",
+  "_comment": "vue-tsc 基线(2026-11-16 收敛后收紧, vue-tsc 5.9.3, checkJs)——存量按文件冻结, 新增即FAIL; 修一处减一数。本轮修 18 处(含法布施/文件组件运行时缺陷)。2026-11-24 GL-14 再收紧 3 处(login/index.spec.js 里被 mock 的接口按 Mock 取用)。",
   "src/views/incentive/search.spec.js": 68,
   "src/views/reminder/index.spec.js": 42,
   "src/views/statistics/index.vue": 41,
   "src/composables/useCustomerForm.spec.js": 36,
-  "src/views/login/index.spec.js": 28,
+  "src/views/login/index.spec.js": 25,
   "src/views/system/PermScopeManager.spec.js": 26,
   "src/composables/useFileBlob.spec.js": 24,
   "src/composables/useIncentiveUpload.spec.js": 23,

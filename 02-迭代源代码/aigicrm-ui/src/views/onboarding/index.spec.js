@@ -13,7 +13,19 @@ vi.mock('vue-router', () => ({ useRouter: () => ({ replace: vi.fn() }) }))
 vi.mock('element-plus', () => ({ ElMessage: { success: vi.fn(), warning: vi.fn(), error: vi.fn() } }))
 
 import Onboarding from './index.vue'
-import { getConfigList, updateConfigs, getDictData, getDictTypes, createDictData, seedOnboardingDemo } from '@/api/system'
+import {
+  getConfigList as getConfigListMock, updateConfigs as updateConfigsMock, getDictData as getDictDataMock,
+  getDictTypes as getDictTypesMock, createDictData as createDictDataMock, seedOnboardingDemo as seedOnboardingDemoMock,
+} from '@/api/system'
+
+// vi.mock 的工厂返回的是 vi.fn(): 这里按 Mock 取用, 以便设应答(类型检查基线只认声明的类型)。
+// 【GL-14 2026-11-24】这个文件是 85b362d4 新增的, 这几处 mock 调用不在类型基线里, 默认门禁一直是红的。
+const getConfigList = /** @type {import('vitest').Mock} */ (getConfigListMock)
+const updateConfigs = /** @type {import('vitest').Mock} */ (updateConfigsMock)
+const getDictData = /** @type {import('vitest').Mock} */ (getDictDataMock)
+const getDictTypes = /** @type {import('vitest').Mock} */ (getDictTypesMock)
+const createDictData = /** @type {import('vitest').Mock} */ (createDictDataMock)
+const seedOnboardingDemo = /** @type {import('vitest').Mock} */ (seedOnboardingDemoMock)
 
 const stubs = {
   'el-card': { template: '<div><slot name="header" /><slot /></div>' },
