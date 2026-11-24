@@ -583,10 +583,43 @@ local_contracts() {
   run "$ROOT/scripts/check-dict-source-contract.sh"
   run "$ROOT/scripts/check-sensitive-permission-contract.sh"
   run "$ROOT/scripts/check-jwt-secret-contract.sh"
+  # 【GL-14 2026-11-24】安全用途的随机值必须取自 SecureRandom(守住安全修复 9db17c8f 的“验证码随机源”一项)
+  #   + 契约自身的行为测试(隔离夹具, 含修复前的写法与“时间戳当验证码”这类不弱也不安全的来源)
+  run "$ROOT/scripts/check-secure-random-contract.sh"
+  run bash "$ROOT/scripts/test-check-secure-random-contract.sh"
   # 【F1 2026-10-21】全量 secret 扫描(p1-p6 形态, 含 aigicrm-ui/*.mjs)+其行为测试;
   #   quality-gate.sh 复用同一脚本, 检查逻辑单一出处
   run "$ROOT/scripts/check-secret-scan.sh"
   run bash "$ROOT/scripts/test-secret-scan.sh"
+  # 【GL-05 / GL-06 2026-11-24】后端运行时单一出处的行为测试(先红后绿):
+  #   正向部署、健康检查失败后的自动回滚、rollback.sh 必须引用 deploy-lib.sh 的同一份启动函数;
+  #   FILE_GRANT_MODE 未显式设置即拒绝。此前几份内联启动函数已漂移, rollback.sh 的后端回滚从未能跑通。
+  run bash "$ROOT/scripts/test-deploy-backend-runtime.sh"
+  # 【GL-07 2026-11-24】迁移后断言(只读 SQL)及其接入的行为测试(先红后绿):
+  #   断言脚本: 本批迁移全部应用、内容类型对账、租户列、菜单名与父组、行业词表、首启向导标记、提醒频率;
+  #   接入: deploy-db.sh / deploy-db-test.sh 必须先取迁移前快照、迁移后带快照断言, 不通过即中止。
+  #   此前迁移完只打印计数不做判断; 按菜单名定位的两支迁移"0 行受影响"也算成功。
+  run bash "$ROOT/scripts/test-verify-post-migrate.sh"
+  run bash "$ROOT/scripts/test-deploy-db-postassert.sh"
+  # 【2026-11-24 修正】API 机器契约检查不得改写被跟踪的文件。旧写法每次运行都把生成结果写回 docs/api/api-list
+  #   (生成时间行必变), 跑完契约集工作区就是脏的, 与部署/小程序上传守卫的"工作区干净"要求冲突。
+  run bash "$ROOT/scripts/test-api-contract-diff-readonly.sh"
+  # 【GL-08 2026-11-24】冒烟脚本的行为测试(先红后绿): 法布施只读端点全部调到、缺销售员账号明确不通过、
+  #   登录失败与越权各自报红、生产地址不接受覆盖。用本机假后端, 不连任何真实环境。
+  run bash "$ROOT/scripts/test-smoke-test.sh"
+  # 【GL-09 2026-11-24】生产部署制品溯源的行为测试(先红后绿): 当前 HEAD 必须是冻结清单登记的提交、工作区干净,
+  #   测试服取回的 jar 与构建出的前端入口必须与冻结清单的指纹一致, 否则一步生产远端动作都不发生。
+  #   同时钉住"退出码守卫": macOS 自带 bash 3.2 在 set -e + EXIT 陷阱下会把未定义变量引起的中止报成退出码 0。
+  run bash "$ROOT/scripts/test-release-provenance.sh"
+  # 【2026-11-24】退出码守卫: macOS 自带 bash 3.2 在 set -e + set -u + EXIT 陷阱同时存在时, 会把未定义变量引起的
+  #   中止报成退出码 0 —— 检查脚本"假通过", 部署脚本"假成功"。守卫见 exit-guard.sh。
+  run bash "$ROOT/scripts/test-exit-guard.sh"
+  run python3 "$ROOT/scripts/check-exit-guard-contract.py"
+  # 契约本身是对脚本做文本分析, 错法恰恰是"漏报"; 用夹具逐条钉住它的判定
+  run python3 "$ROOT/scripts/test-exit-guard-contract.py"
+  # 【GL-13 2026-11-24】生产最小告警脚本的行为测试(先红后绿): 用隔离 PATH + 桩命令 + 可控时钟,
+  #   不连任何服务器, 也不会回落到本机真实的 docker / curl。
+  run bash "$ROOT/scripts/test-ops-alert-check.sh"
   run "$ROOT/scripts/check-prod-config-contract.sh"
   run "$ROOT/scripts/check-client-ip-contract.sh"
   run "$ROOT/scripts/check-customer-status-contract.sh"
@@ -632,6 +665,30 @@ local_contracts() {
   run node "$ROOT/scripts/test-miniprogram-data-scope-label.js"
   run node "$ROOT/scripts/test-miniprogram-reminder-list.js"
   run node "$ROOT/scripts/test-miniprogram-statistics-page.js"
+  # 【GL-10 2026-11-24】小程序上传守卫(先红后绿): 源码目录有未提交改动、有本机覆盖档却没声明测试环境、
+  #   嵌套仓库、非法目标、非 git 目录 → 拒绝上传。测试在临时 git 仓库里用演练模式运行 upload.mjs, 不联网。
+  run node "$ROOT/scripts/test-miniprogram-upload-guard.js"
+  # 【GL-12 2026-11-24】小程序图片编辑(放大查看 + 裁剪, 先红后绿): 几何 / 手势 / 编辑队列的纯函数,
+  #   加上在 node 下驱动真实的发布页与编辑页(画布、触摸、导出都是桩, 不连任何环境)。
+  #   真机上的触摸手感、横竖图、带旋转信息的照片在真机清单(GL-25)。
+  run node "$ROOT/scripts/test-miniprogram-image-editor.js"
+  # 【GL-14 2026-11-24】小程序法布施详情页: 评论分页(首屏 10 条 / 加载更多 / 发完评论回到第一页)、
+  #   音频评论补可播地址、复诵录音出错后状态复位(修复 a93eed71: 之后录的语音评论不再被当成复诵提交)
+  run node "$ROOT/scripts/test-miniprogram-fabushi-detail.js"
+  # 【GL-16 2026-11-24】法布施已废止的名称(内容治理→内容管理、分享广场→认知广场)不得再出现在小程序与 PC 前端源码里
+  #   + 契约自身的行为测试(隔离夹具: 逐处点名、不误报依赖包与文档、根目录不对不通过)
+  run "$ROOT/scripts/check-fabushi-terminology.sh"
+  run bash "$ROOT/scripts/test-check-fabushi-terminology.sh"
+  # 【GL-14 2026-11-24】Vue 模板不得引用 setup 里不存在的绑定(用 Vue 自带编译器查, 挂载冒烟抓不到这一类:
+  #   incentive/UploadDialog.vue 漏解构 trackFile, “跟踪记录”那一格自 10-30 起在生产上渲染不出来)。
+  #   需要前端依赖已安装; 找不到编译器时退出 2(fail-closed, 不静默跳过)。
+  run node "$ROOT/scripts/check-vue-template-bindings.mjs"
+  run node "$ROOT/scripts/test-check-vue-template-bindings.mjs"
+  # 【2026-11-24 修正】web-view 内核兼容门禁(gate.sh [3b])的行为测试: polyfill 落在 reader chunk 的静态依赖里也算
+  #   主线程注入(打包器把它拆进几个页面共用的 chunk 之后, 原检查自 0a578b9b 起一直误报); 真正的 worker 文件按
+  #   “没有被任何 chunk 静态 import”来认, 不看文件名顺序; 主线程/worker 任一份丢失、只有动态 import、缺 chunk 都必须红。
+  #   隔离夹具(临时目录里几个 chunk 文件), 不需要构建。
+  run bash "$ROOT/scripts/test-verify-webview-kernel-compat.sh"
   run bash "$ROOT/scripts/test-sea-claim-matrix-safety.sh"
   run "$ROOT/scripts/check-prototype-state-contract.sh"
   run python3 "$ROOT/scripts/check-mobile-navigation-contract.py"
