@@ -50,6 +50,10 @@ page { background: #f7f3ec; }
 .attach-btn.rec { background: #b5543a; color: #fff7ee; font-weight: 700; }
 .rec-hint { color: #b5543a; }
 .attach-sub { margin-top: 10rpx; color: #9c9184; font-size: 20rpx; text-align: center; }
+/* 【GL-12】选图后裁剪的开关: 小圆点指示开/关 */
+.attach-toggle { display: flex; align-items: center; gap: 10rpx; margin-top: 14rpx; color: #9c9184; font-size: 20rpx; }
+.attach-switch { width: 26rpx; height: 26rpx; border-radius: 50%; border: 1rpx solid #c8d8cc; background: #fffdf8; box-sizing: border-box; }
+.attach-switch.on { border-color: #2d5a4a; background: #2d5a4a; }
 .attach-name.playable { color: #2d5a4a; }
 .attach-name.playing { font-weight: 700; }
 /* 【计划切片 4】三类型分型提示 */

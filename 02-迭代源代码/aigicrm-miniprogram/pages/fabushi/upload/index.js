@@ -2,6 +2,8 @@ const { hasPermission, requireLogin } = require('../../../utils/auth')
 const { getFabushiBooks, createFabushiPost, addFabushiAttachment, getFabushiSettings, getFabushiUploadTicket, getFabushiSections, createFabushiSectionSelf } = require('../../../api/fabushi')
 const { uploadFile, getDownloadToken, getDownloadUrl } = require('../../../api/file')
 const { showError } = require('../../../utils/feedback')
+// 【GL-12 2026-11-24】选图后进图片编辑器(放大查看 + 裁剪): 队列、开关、回传的纯函数
+const imageEditor = require('../../../utils/fabushi-image-editor')
 
 // 【法布施一期 2026-11-15】发布页: 心得/诵读(文字版)/正能量; 书目可选挂靠
 // (附件图/音/视二期; 提交成功回书目列表/工作台)
@@ -44,7 +46,9 @@ Page({
     attachHint: '图片 0/5 · 视频 0/5 · 语音 0/10',
     recording: false,
     recordSeconds: 0,
-    playingIndex: -1
+    playingIndex: -1,
+    // 【GL-12】选图后裁剪的开关(记在本机存储, 默认开)
+    editOnPick: true
   },
 
   onShow() {
@@ -55,6 +59,8 @@ Page({
       app.globalData.fabushiUploadFiles = null
       this.consumeH5Files(manifest)
     }
+    // 【GL-12】从图片编辑页回来: 取走这一张的结果, 继续下一张或开始上传
+    this.consumeImageEditResult()
     // 【F1-3 木鱼音效】拉设置开关(失败保持默认开)
     getFabushiSettings().then((s) => {
       if (s && s.soundEnabled !== undefined) this.setData({ soundEnabled: Number(s.soundEnabled) !== 0 })
@@ -92,8 +98,66 @@ Page({
     // 【D7 切片 6】觉醒三板块直达对应发布类型
     const presetScope = query && query.scope
     const scopeType = SCOPE_OPTIONS.some((item) => item.value === presetScope) ? presetScope : 'songdu'
-    this.setData({ canCreate: true, scopeType })
+    this.setData({ canCreate: true, scopeType, editOnPick: this.readEditOnPick() })
     this.loadBooks()
+  },
+
+  readEditOnPick() {
+    let stored = ''
+    try { stored = wx.getStorageSync(imageEditor.EDIT_ON_PICK_KEY) } catch (e) { /* 读不到存储按默认开 */ }
+    return imageEditor.readEditOnPick(stored)
+  },
+
+  toggleEditOnPick() {
+    const editOnPick = !this.data.editOnPick
+    try { wx.setStorageSync(imageEditor.EDIT_ON_PICK_KEY, editOnPick) } catch (e) { /* 存储失败只影响下次进页面的默认值 */ }
+    this.setData({ editOnPick })
+  },
+
+  // ===== 【GL-12】选图后进图片编辑器: 逐张排队; 队列走完再把整批(含视频)交给原有上传 =====
+
+  startImageEdit(files) {
+    if (!files.length) return
+    this._editQueue = imageEditor.createEditQueue(files, this.data.editOnPick)
+    this._editNavigateFailed = false
+    this.advanceImageEdit()
+  },
+
+  advanceImageEdit() {
+    const queue = this._editQueue
+    if (!queue) return
+    const target = this._editNavigateFailed ? -1 : imageEditor.currentEditTarget(queue)
+    if (target < 0) {
+      this._editQueue = null
+      this._editRequest = null
+      this.uploadFiles(queue.files)
+      return
+    }
+    const requestId = 'img-' + Date.now() + '-' + ((this._editSeq || 0) + 1)
+    this._editSeq = (this._editSeq || 0) + 1
+    this._editRequest = requestId
+    const url = '/pages/fabushi/image-editor/index?src=' + encodeURIComponent(queue.files[target].path)
+      + '&requestId=' + encodeURIComponent(requestId)
+      + '&position=' + (queue.cursor + 1) + '&total=' + queue.targets.length
+    // 打不开编辑页(页面栈已满等): 这一批都按原图上传, 不为后面的图反复重试
+    wx.navigateTo({
+      url,
+      fail: () => {
+        this._editNavigateFailed = true
+        this.consumeImageEditResult({ requestId, edited: false }, '图片编辑页打不开，已使用原图')
+      }
+    })
+  },
+
+  // result 由编辑页失败兜底时直接传入; 否则从 globalData 取属于本次请求的回传
+  consumeImageEditResult(result, toast) {
+    const queue = this._editQueue
+    if (!queue || !this._editRequest) return
+    const taken = result || imageEditor.takeEditResult(getApp().globalData, this._editRequest)
+    if (!taken) return
+    this._editQueue = imageEditor.applyEditResult(queue, taken)
+    if (toast) wx.showToast({ title: toast, icon: 'none' })
+    this.advanceImageEdit()
   },
 
   loadBooks() {
@@ -386,7 +450,8 @@ Page({
       })
       if (imgCut) wx.showToast({ title: '图片最多' + imgMax + '张，已保留前' + imgMax, icon: 'none' })
       else if (vidCut) wx.showToast({ title: '视频最多5段，已保留前5', icon: 'none' })
-      this.uploadFiles(files)
+      // 【GL-12】图片先过编辑器(可放大查看、裁剪), 结果替换原图; 开关关着时等同于直接 uploadFiles
+      this.startImageEdit(files)
     } })
   },
 

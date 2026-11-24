@@ -1,0 +1,21 @@
+/* 【GL-12 2026-11-24】法布施图片编辑页: 深色舞台衬托图片, 工具栏沿用法布施的纸色 */
+page { background: #1f1c18; height: 100vh; overflow: hidden; }
+.editor { display: flex; flex-direction: column; height: 100vh; }
+.stage-wrap { position: relative; flex: 1; min-height: 0; }
+.stage { width: 100%; height: 100%; }
+.position { position: absolute; top: 20rpx; left: 0; width: 100%; text-align: center; color: rgba(255, 247, 238, .8); font-size: 23rpx; pointer-events: none; }
+.stage-mask { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: #9c9184; font-size: 26rpx; }
+.toolbar { flex: 0 0 auto; background: #f7f3ec; padding: 20rpx 24rpx calc(24rpx + env(safe-area-inset-bottom)); }
+.ratios { white-space: nowrap; }
+.ratio-chip { display: inline-block; padding: 12rpx 30rpx; margin-right: 12rpx; border-radius: 999rpx; background: #efe7d8; color: #6b6257; font-size: 26rpx; }
+.ratio-chip.active { background: #2d5a4a; color: #fff7ee; font-weight: 600; }
+.hint { margin-top: 16rpx; color: #9c9184; font-size: 21rpx; }
+.actions { display: flex; gap: 12rpx; margin-top: 16rpx; }
+.act-btn { flex: 1; padding: 16rpx 0; border-radius: 12rpx; background: #eef3ee; color: #2d5a4a; text-align: center; font-size: 25rpx; }
+.act-btn.disabled { opacity: .4; }
+.decide { display: flex; gap: 14rpx; margin-top: 20rpx; }
+.decide-btn { flex: 1; padding: 22rpx 0; border-radius: 16rpx; text-align: center; font-size: 27rpx; font-weight: 700; }
+.decide-btn.primary { background: #b5543a; color: #fff7ee; }
+.decide-btn.primary.disabled { opacity: .5; }
+.decide-btn.ghost { background: #eef3ee; color: #2d5a4a; border: 1rpx solid #c8d8cc; }
+.export-canvas { position: fixed; left: -9999px; top: 0; }
