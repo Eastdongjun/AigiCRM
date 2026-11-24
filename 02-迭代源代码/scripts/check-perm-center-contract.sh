@@ -105,7 +105,8 @@ grep -Fq "recordGrantVersion" "$BE/com/aigicrm/module/incentive/controller/Incen
 # ---- F. 四项激励独立数据范围(2026-11-05 用户拍板 B) ----
 grep -Fq "'incentive:stats:view': { module: 'incentive', action: 'stats_view' }" "$UI/views/system/PermScopeManager.vue" || fail 'PermScopeManager must map incentive:stats:view to (incentive,stats_view) scope target'
 grep -Fq "'incentive:rank:view': { module: 'incentive', action: 'stats_view' }" "$UI/views/system/PermScopeManager.vue" || fail 'PermScopeManager must map incentive:rank:view to the same (incentive,stats_view) scope target'
-grep -Fq 'resolveModuleUsers(user, "incentive", "stats_view")' "$BE/com/aigicrm/module/incentive/service/IncentiveService.java" || fail 'IncentiveService stats scope must read (incentive,stats_view) independent action'
+# 【2026-11-25 重锚】统计可见范围的解析自 3e53984e 起在 IncentiveStatsService 里, 钉跟着指过去
+grep -Fq 'resolveModuleUsers(user, "incentive", "stats_view")' "$BE/com/aigicrm/module/incentive/service/IncentiveStatsService.java" || fail 'IncentiveStatsService stats scope must read (incentive,stats_view) independent action'
 grep -Fq '{"incentive", "stats_view"' "$BE/com/aigicrm/module/system/service/PermCenterService.java" || fail 'PermCenter preview must include (incentive,stats_view) scope row'
 [ -f "$MIG/V2026.11.05.7__incentive_stats_scope_action_backfill.sql" ] || fail 'migration must backfill (statistics,view) rows to (incentive,stats_view)'
 

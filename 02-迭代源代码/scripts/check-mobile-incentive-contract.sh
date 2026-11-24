@@ -26,6 +26,8 @@ manifest="$ROOT/docs/unified-feature-manifest.md"
 permission_controller="$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/incentive/controller/IncentivePermissionController.java"
 incentive_controller="$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/incentive/controller/IncentiveController.java"
 incentive_service="$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/incentive/service/IncentiveService.java"
+# 【2026-11-25 重锚】附件文件名回填的各槽 setXxxName 自 3e53984e 起在 IncentiveStatsService 里
+incentive_stats_service="$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/incentive/service/IncentiveStatsService.java"
 automator_package="$ROOT/scripts/miniprogram/package.json"
 automator_script="$ROOT/scripts/miniprogram/verify-incentive-attachments.mjs"
 matrix="$ROOT/docs/function-permission-matrix.md"
@@ -71,12 +73,12 @@ grep -q 'getReadRanking' "$page" || { echo "FAIL: incentive mobile read ranking 
 grep -q 'getGrantCheck' "$api" || { echo "FAIL: incentive grant check API is missing" >&2; exit 1; }
 grep -q '/api/incentive/permission/check' "$api" || { echo "FAIL: incentive grant check endpoint is stale" >&2; exit 1; }
 grep -q '@GetMapping("/customer-records")' "$incentive_controller" || { echo "FAIL: mobile incentive customer-records backend route is missing" >&2; exit 1; }
-grep -q 'getCustomerRecords(industry' "$incentive_controller" || { echo "FAIL: mobile incentive customer-records route does not call service detail query" >&2; exit 1; }
+grep -q 'incentiveService.getCustomerRecords(new IncentiveCustomerRecordQuery(' "$incentive_controller" || { echo "FAIL: mobile incentive customer-records route does not call service detail query (3e53984e 起参数收进 IncentiveCustomerRecordQuery)" >&2; exit 1; }
 grep -q 'fillFileNames(records)' "$incentive_service" || { echo "FAIL: incentive service does not hydrate file names for mobile attachments" >&2; exit 1; }
-grep -q 'r.setFilePreName(joinFileNames' "$incentive_service" || { echo "FAIL: incentive service does not hydrate pre-install file names" >&2; exit 1; }
-grep -q 'r.setFileMidName(joinFileNames' "$incentive_service" || { echo "FAIL: incentive service does not hydrate mid-install file names" >&2; exit 1; }
-grep -q 'r.setFilePostName(joinFileNames' "$incentive_service" || { echo "FAIL: incentive service does not hydrate post-install file names" >&2; exit 1; }
-grep -q 'r.setFileTrackName(joinFileNames' "$incentive_service" || { echo "FAIL: incentive service does not hydrate follow-up file names" >&2; exit 1; }
+grep -q 'r.setFilePreName(joinFileNames' "$incentive_stats_service" || { echo "FAIL: incentive service does not hydrate pre-install file names" >&2; exit 1; }
+grep -q 'r.setFileMidName(joinFileNames' "$incentive_stats_service" || { echo "FAIL: incentive service does not hydrate mid-install file names" >&2; exit 1; }
+grep -q 'r.setFilePostName(joinFileNames' "$incentive_stats_service" || { echo "FAIL: incentive service does not hydrate post-install file names" >&2; exit 1; }
+grep -q 'r.setFileTrackName(joinFileNames' "$incentive_stats_service" || { echo "FAIL: incentive service does not hydrate follow-up file names" >&2; exit 1; }
 grep -q 'verify:incentive-attachments' "$automator_package" || { echo "FAIL: incentive DevTools automator verification script is not exposed" >&2; exit 1; }
 grep -q 'WECHAT_AUTOMATOR_WS' "$automator_script" || { echo "FAIL: incentive DevTools automator script cannot target a configurable websocket" >&2; exit 1; }
 grep -q 'verifyUploadPage' "$automator_script" || { echo "FAIL: incentive DevTools automator does not verify upload attachments" >&2; exit 1; }

@@ -57,8 +57,14 @@ grep -Fq 'class="file-card has"' "$UPLOAD_DIALOG" && fail "上传弹窗平铺文
 # 下次查询现算——写后必即时, 读重负载仍有30s兜底
 # 【死码清理 2026-11-08】第五写口"全量重算"(recalculateAllScores)随 POST /records/recalculate
 # 死端点删除(双端零调用)不复存在, 下限 5 → 4
+# 【2026-11-25 重锚】关键词六路匹配自 3e53984e 起在 IncentiveStatsService 里, 正钉跟着指过去;
+#   反钉(弱字段、REGEXP 回退)改为对 incentive service 目录递归求和, 下次再拆类也不会漏。
+#   递归计数在“一处都没有”时 grep 退出码是 1, 与 pipefail 同用时必须跟 || true(否则脚本会在这里静默中止)。
 INCENTIVE_SERVICE="$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/incentive/service/IncentiveService.java"
+INCENTIVE_STATS_SERVICE="$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/incentive/service/IncentiveStatsService.java"
+INCENTIVE_SERVICE_DIR="$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/incentive/service"
 assert_file "$INCENTIVE_SERVICE"
+assert_file "$INCENTIVE_STATS_SERVICE"
 assert_contains "$INCENTIVE_SERVICE" "private void evictScoreboardCache()"
 EVICT_CALLS=$(grep -c "evictScoreboardCache();" "$INCENTIVE_SERVICE")
 [ "$EVICT_CALLS" -ge 4 ] || fail "激励排行写穿失效调用点不足(应≥4: add/update/delete/removeFile), 实际 $EVICT_CALLS"
@@ -66,22 +72,22 @@ EVICT_CALLS=$(grep -c "evictScoreboardCache();" "$INCENTIVE_SERVICE")
 # ①关联产品 ②具体产品 ③客户名 ④分类名 ⑤上传人姓名 ⑥文件名——客户名/分类/上传人/文件名
 # 均以 OR 加入匹配集; 展示层(PC/MP)有关键字时打散为纯记录列表(不按客户分组卡片)。
 # 弱字段(备注+安装前问题)维持已撤(2026-11-06), 本钉防复活
-REMARK_HITS=$(grep -c "getRemark, keyword" "$INCENTIVE_SERVICE" || true)
-DETAIL_HITS=$(grep -c "getPreInstallQuestion, keyword" "$INCENTIVE_SERVICE" || true)
+REMARK_HITS=$(grep -rc "getRemark, keyword" "$INCENTIVE_SERVICE_DIR" | awk -F: '{s+=$NF} END {print s+0}' || true)
+DETAIL_HITS=$(grep -rc "getPreInstallQuestion, keyword" "$INCENTIVE_SERVICE_DIR" | awk -F: '{s+=$NF} END {print s+0}' || true)
 [ "$REMARK_HITS" -eq 0 ] || fail "关键词弱字段回潮: 备注命中 $REMARK_HITS 处(2026-11-06 已撤)"
 [ "$DETAIL_HITS" -eq 0 ] || fail "关键词弱字段回潮: 安装前问题命中 $DETAIL_HITS 处(2026-11-06 已撤)"
 # 六路核心字段均须在
-PRODUCT_HITS=$(grep -c "getRelatedProducts, keyword" "$INCENTIVE_SERVICE" || true)
+PRODUCT_HITS=$(grep -c "getRelatedProducts, keyword" "$INCENTIVE_STATS_SERVICE" || true)
 [ "$PRODUCT_HITS" -ge 1 ] || fail "关键词缺关联产品分支, 实际 $PRODUCT_HITS"
-CUST_JOIN_HITS=$(grep -c "BizCustomer::getCustomerName, keyword" "$INCENTIVE_SERVICE" || true)
+CUST_JOIN_HITS=$(grep -c "BizCustomer::getCustomerName, keyword" "$INCENTIVE_STATS_SERVICE" || true)
 [ "$CUST_JOIN_HITS" -ge 1 ] || fail "关键词缺客户名分支(customer表LIKE), 实际 $CUST_JOIN_HITS"
-CAT_JOIN_HITS=$(grep -c "BizIncentiveCategory::getCategoryName, keyword" "$INCENTIVE_SERVICE" || true)
+CAT_JOIN_HITS=$(grep -c "BizIncentiveCategory::getCategoryName, keyword" "$INCENTIVE_STATS_SERVICE" || true)
 [ "$CAT_JOIN_HITS" -ge 1 ] || fail "关键词缺分类名分支(category表LIKE), 实际 $CAT_JOIN_HITS"
 # 【修复 2026-11-09】文件名路径=JSON_OVERLAPS 精确元素匹配: 四槽位列存 JSON 数组(如 [178,179]),
 # 旧 REGEXP 子串匹配把 [193]/[1119] 误当 19 命中(生产实证: 文件ID=19 误报35条真命中0条)
-FILE_HITS=$(grep -cF 'JSON_OVERLAPS(file_pre_id, CAST({0} AS JSON))' "$INCENTIVE_SERVICE" || true)
+FILE_HITS=$(grep -cF 'JSON_OVERLAPS(file_pre_id, CAST({0} AS JSON))' "$INCENTIVE_STATS_SERVICE" || true)
 [ "$FILE_HITS" -ge 1 ] || fail "关键词缺文件名分支(biz_file反查+JSON_OVERLAPS精确元素匹配), 实际 $FILE_HITS"
-REGEXP_HITS=$(grep -c 'file_pre_id REGEXP' "$INCENTIVE_SERVICE" || true)
+REGEXP_HITS=$(grep -rc 'file_pre_id REGEXP' "$INCENTIVE_SERVICE_DIR" | awk -F: '{s+=$NF} END {print s+0}' || true)
 [ "$REGEXP_HITS" -eq 0 ] || fail "文件名分支回退REGEXP子串匹配(JSON数组列禁用,须JSON_OVERLAPS), 实际 $REGEXP_HITS 处"
 
 # 【2026-10-29 左面板联动+筛选扩展】点左侧子分类=右侧表格按记录 categoryId 过滤(记录挂二级,数值归一);

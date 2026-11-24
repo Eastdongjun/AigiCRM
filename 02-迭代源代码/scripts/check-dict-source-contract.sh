@@ -134,7 +134,10 @@ require_contains "学分录入.xlsx" "$BE/com/aigicrm/module/score/service/Score
 # (grep 无匹配返回 1, set -e 下命令替换会静默退出脚本——必须 || true 兜住)
 TERMDIR_UI=$(grep -rl '积分' "$UI" 2>/dev/null | grep -v 'terminology.js\|legacy-routes.spec.js' | head -3 || true)
 TERMDIR_MP=$(grep -rl '积分' "$MP/pages" "$MP/components" "$MP/utils" "$MP/api" "$MP/app.js" 2>/dev/null | grep -v 'terminology.js\|pages/incentive/index.wxml\|pages/incentive/index.js' | head -3 || true)
-TERMDIR_BE=$(grep -rl '积分' "$BE" 2>/dev/null | grep -v '.mimosa\|.baseline' | head -3 || true)
+# (2026-11-25 修正) 后端那条排除规则里的句点原先没有转义: 写成 .mimosa\|.baseline 时句点是“任意字符”,
+#   路径里只要出现“某字符+mimosa”或“某字符+baseline”(例如把检出目录命名成 xxx-baseline), 整个目录都会被跳过,
+#   于是给出假的“通过”(2026-11-24 做契约基线时实测到)。现在只排除真正的 .mimosa / .baseline。
+TERMDIR_BE=$(grep -rl '积分' "$BE" 2>/dev/null | grep -v '\.mimosa\|\.baseline' | head -3 || true)
 [ -z "$TERMDIR_UI" ] || fail "PC 仍有'积分'残留(术语统一2026-11-02): $TERMDIR_UI"
 [ -z "$TERMDIR_MP" ] || fail "MP 仍有'积分'残留(术语统一2026-11-02): $TERMDIR_MP"
 [ -z "$TERMDIR_BE" ] || fail "后端仍有'积分'残留(术语统一2026-11-02): $TERMDIR_BE"

@@ -564,6 +564,9 @@ local_contracts() {
   run "$ROOT/scripts/check-incentive-record-table-contract.sh"
   run "$ROOT/scripts/check-incentive-read-ranking-contract.sh"
   run "$ROOT/scripts/check-native-sql-tenant-scope.sh"
+  # 【2026-11-25】原生 SQL 租户范围契约的行为测试: 契约新增“带处数的豁免”(登记的处数必须等于实际的调用点数,
+  #   以后再往豁免过的文件里加原生 SQL 就会红); 这个安全护栏此前没有自己的行为测试。隔离夹具, 不需要构建。
+  run bash "$ROOT/scripts/test-check-native-sql-tenant-scope.sh"
   run "$ROOT/scripts/check-pr22-coverage-ledger.sh"
   run "$ROOT/scripts/check-incentive-search-detail-contract.sh"
   run "$ROOT/scripts/check-incentive-stats-detail-contract.sh"

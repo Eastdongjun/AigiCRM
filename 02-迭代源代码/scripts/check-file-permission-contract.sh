@@ -81,6 +81,16 @@ ACL_CONTROLLER="$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/file/cont
 FILE_SERVICE="$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/file/service/FileService.java"
 PERM_SERVICE="$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/file/service/FolderPermissionService.java"
 GRANT_SERVICE="$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/file/service/FolderTypeDefaultService.java"
+# 【2026-11-25 重锚】文件服务自 17fe6ab3 / 5d037bb3 拆类后: 建夹在 FileFolderService, 上传落库在 FileStorageService,
+#   改名在 FileMutationService(替换仍在 FileService)。下面的归属快照、建夹门槛、改名校验三组钉跟着指过去;
+#   materializeAcl 的反钉改为对整个 file service 目录递归。类再改名时这里直接报缺文件, 不会静默变成空检查。
+FILE_FOLDER_SERVICE="$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/file/service/FileFolderService.java"
+FILE_STORAGE_SERVICE="$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/file/service/FileStorageService.java"
+FILE_MUTATION_SERVICE="$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/file/service/FileMutationService.java"
+FILE_SERVICE_DIR="$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/file/service"
+for f in "$FILE_FOLDER_SERVICE" "$FILE_STORAGE_SERVICE" "$FILE_MUTATION_SERVICE"; do
+  [ -f "$f" ] || fail "missing file service class: $f"
+done
 MIG_BASE="$ROOT/aigicrm-backend/src/main/resources/db/migration"
 [ -f "$MIG_BASE/V2026.11.09.3__folder_type_default.sql" ] || fail "missing folder_type_default migration"
 [ -f "$MIG_BASE/V2026.11.09.2__normalize_folder_acl_perms.sql" ] || fail "missing acl perms normalize migration"
@@ -106,19 +116,22 @@ if grep -Fq 'P_DOWNLOAD.equals(action)) && "public"' "$PERM_SERVICE"; then
   fail 'public view/download fallback must stay removed (ruling B)'
 fi
 # 归属快照: 建夹 owner=创建人 + org 快照; 上传 org 快照
-grep -Fq 'folder.setOwnerId(creator)' "$FILE_SERVICE" || fail 'createFolder must set owner=creator'
-grep -Fq 'folder.setOrgId(' "$FILE_SERVICE" || fail 'createFolder must snapshot org'
-grep -Fq 'bizFile.setOrgId(' "$FILE_SERVICE" || fail 'upload must snapshot org'
-# 建夹门槛走判定链
-grep -Fq 'folderPermissionService.canCreateFolder(type, creator)' "$FILE_SERVICE" || fail 'createFolder gate must consult canCreateFolder'
+grep -Fq 'folder.setOwnerId(creator)' "$FILE_FOLDER_SERVICE" || fail 'createFolder must set owner=creator'
+grep -Fq 'folder.setOrgId(' "$FILE_FOLDER_SERVICE" || fail 'createFolder must snapshot org'
+grep -Fq 'bizFile.setOrgId(' "$FILE_STORAGE_SERVICE" || fail 'upload must snapshot org'
+# 建夹门槛走判定链, 且必须先于落库(先校验再 insert; 校验挪到 insert 之后等于没拦)
+grep -Fq 'folderPermissionService.canCreateFolder(type, creator)' "$FILE_FOLDER_SERVICE" || fail 'createFolder gate must consult canCreateFolder'
+GATE_LINE=$(grep -nF 'folderPermissionService.canCreateFolder(type, creator)' "$FILE_FOLDER_SERVICE" | head -1 | cut -d: -f1 || true)
+INSERT_LINE=$(grep -nF 'folderMapper.insert(folder)' "$FILE_FOLDER_SERVICE" | head -1 | cut -d: -f1 || true)
+{ [ -n "$GATE_LINE" ] && [ -n "$INSERT_LINE" ] && [ "$GATE_LINE" -lt "$INSERT_LINE" ]; } || fail 'createFolder gate must run before the folder is inserted'
 # 动作细分(11-09 保留钉)
-grep -Fq 'checkFile(fileId, FolderPermissionService.P_RENAME, userId)' "$FILE_SERVICE" || fail 'renameFile must check P_RENAME'
+grep -Fq 'checkFile(fileId, FolderPermissionService.P_RENAME, userId)' "$FILE_MUTATION_SERVICE" || fail 'renameFile must check P_RENAME'
 grep -Fq 'checkFile(fileId, FolderPermissionService.P_REPLACE, userId)' "$FILE_SERVICE" || fail 'replaceFile must check P_REPLACE'
 # 授权必须过期: 保存校验 + 续期
 grep -Fq '到期时间必须晚于当前时间' "$GRANT_SERVICE" || fail 'grant save must validate expiry when provided (到期可选, 2026-11-10 用户令权限都是勾选的)'
 grep -Fq 'renewGrant' "$GRANT_SERVICE" || fail 'grant renew endpoint service missing'
 # v1 物化防复活
-if grep -Fq 'materializeAcl' "$FILE_SERVICE" "$GRANT_SERVICE"; then
+if grep -rqF 'materializeAcl' "$FILE_SERVICE_DIR" "$GRANT_SERVICE"; then
   fail 'materializeAcl retired; do not resurrect'
 fi
 # 本人恒管(11-10 上午批保留钉) + PC isOwn

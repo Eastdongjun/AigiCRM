@@ -58,6 +58,13 @@ ALLOW = {
     'fabushi/detail.vue': (
         [("removePost", "本人删除内容: 服务端 FabushiPostService.deleteOwn 校验'作者本人或 admin', 前端隐藏非授权边界(CODE-REVIEW-20261123 R1-02 分诊)")],
         "法布施详情: 作者自助删除"),
+    'fabushi/feed.vue': (
+        [("resetByBook", RESET_FILTER_VIEW_OP)],
+        "法布施认知广场: 按书罗列的筛选重置(2026-11-25 分诊)"),
+    'fabushi/highlights.vue': (
+        [("keyword = ''", CLEAR_FILTER_VIEW_OP),
+         ("remove(h)", "删除本人书摘: 页面只加载本人的书摘, 服务端 FabushiBookmarkService.remove 对不是本人的书签返回 404, 控制器另有 fabushi:view 校验(2026-11-25 分诊)")],
+        "法布施书摘页: 清空搜索与本人书摘删除"),
     'fabushi/read.vue': (
         [("bm-del", "删除页码书签: 书签为本人私有数据, 服务端 FabushiBookmarkService.remove 校验 userId 归属(CODE-REVIEW-20261123 R1-02 分诊)"),
          ("resetSettings", "恢复本版式默认: 纯前端重置 localStorage 阅读设置, 无任何请求, 无破坏面(CODE-REVIEW-20261123 R1-02 分诊)")],

@@ -154,22 +154,18 @@ const x = 1
   // ⑩ 真实源码树
   runCase('⑩ 真实源码树', 0, ['PASS'], UI)
 
-  // ⑪ 历史缺陷文件: HEAD 版 incentive/UploadDialog.vue(trackFile 漏了解构), 必须被点名
-  const broken = spawnSync('git', ['show', 'HEAD:./aigicrm-ui/src/views/incentive/UploadDialog.vue'], { cwd: SRC, encoding: 'utf8' })
-  if (broken.status !== 0 || !broken.stdout.includes(':files="trackFile"')) {
-    // 这个提交之后 HEAD 版已是修好的; 改用手工还原缺陷的副本
-    const current = fs.readFileSync(path.join(UI, 'src', 'views', 'incentive', 'UploadDialog.vue'), 'utf8')
-    const reverted = current.replace('fileSlots, trackFile,', 'fileSlots,')
-    if (current === reverted) {
-      failed++
-      console.log('FAIL ⑪ 历史缺陷 — 既取不到 HEAD 版的缺陷文件, 也没能从当前文件还原出缺陷')
-    } else {
-      reset({ 'UploadDialog.vue': reverted })
-      runCase('⑪ 历史缺陷(从当前文件还原): trackFile 漏了解构', 1, ['trackFile', 'UploadDialog.vue'])
-    }
+  // ⑪ 历史缺陷文件: incentive/UploadDialog.vue 里 trackFile 漏了解构(2026-10-30 起, 11-24 修复), 必须被点名。
+  //    第一版直接拿 HEAD 版文件当缺陷样本——那只是因为当时修复还没提交。修复一提交, HEAD 就是修好的版本,
+  //    这个场景立刻变红(2026-11-25 提交之后跑全量契约时实测)。现在不依赖 git 历史: 取当前文件, 把解构里的
+  //    trackFile 去掉, 还原出当年的缺陷; 替换没生效(代码写法变了)就报失败, 提醒更新这里, 而不是悄悄跳过。
+  const current = fs.readFileSync(path.join(UI, 'src', 'views', 'incentive', 'UploadDialog.vue'), 'utf8')
+  const reverted = current.replace('fileSlots, trackFile,', 'fileSlots,')
+  if (current === reverted) {
+    failed++
+    console.log('FAIL ⑪ 历史缺陷 — 没能从当前文件还原出缺陷(UploadDialog.vue 的解构写法变了, 请更新本场景)')
   } else {
-    reset({ 'UploadDialog.vue': broken.stdout })
-    runCase('⑪ 历史缺陷(HEAD 版文件): trackFile 漏了解构', 1, ['trackFile', 'UploadDialog.vue'])
+    reset({ 'UploadDialog.vue': reverted })
+    runCase('⑪ 历史缺陷(从当前文件还原): trackFile 漏了解构', 1, ['trackFile', 'UploadDialog.vue'])
   }
 } finally {
   fs.rmSync(WORK, { recursive: true, force: true })

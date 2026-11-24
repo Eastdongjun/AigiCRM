@@ -7,7 +7,8 @@
 #   C. el-table/v-for 大列表页无分页（提示）
 set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SRC="$ROOT/aigicrm-ui/src/views"
+# 被扫的视图目录。AIGI_PAGINATION_SRC 只给行为测试(test-pagination-anti-patterns-path-safety.sh)喂夹具用, 平时不用设。
+SRC="${AIGI_PAGINATION_SRC:-$ROOT/aigicrm-ui/src/views}"
 COMPOSABLES="$ROOT/aigicrm-ui/src/composables"
 FAIL=0
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[0;33m'; NC='\033[0m'
@@ -42,6 +43,16 @@ while IFS= read -r f; do
     if [ -n "$fn" ]; then
       defline=$(grep -n "function $fn\b\|const $fn =" "$f" | head -1 | cut -d: -f1)
       if [ -n "$defline" ]; then
+        # 【2026-11-25】显式归类: 不分页的加载函数(不带页码参数、不喂任何分页列表)只有写了
+        #   `pagination-audit: no-pager 理由` 才放行, 而且必须写在定义行本身, 或紧贴定义的上一行且那一行是纯注释。
+        #   不写就照旧要查, 所以不会被默认放过; 写在别的函数那一行的行尾不算。
+        if sed -n "${defline}p" "$f" | grep -qF 'pagination-audit: no-pager'; then
+          continue
+        fi
+        if [ "$defline" -gt 1 ] && sed -n "$((defline-1))p" "$f" | grep -qE '^[[:space:]]*(//|/\*|\*)' \
+          && sed -n "$((defline-1))p" "$f" | grep -qF 'pagination-audit: no-pager'; then
+          continue
+        fi
         # 页码变量名覆盖 current/pageNum/page 三种常见命名
         has_reset=$(sed -n "${defline},$((defline+15))p" "$f" | grep -cE "(current|pageNum|page)(\.value)?\s*=\s*1\b")
         if [ "$has_reset" = "0" ]; then

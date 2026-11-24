@@ -47,6 +47,9 @@ MP_FILES="$ROOT/aigicrm-miniprogram/pages/files/index.js"
 FOLDER_PANEL="$ROOT/aigicrm-ui/src/views/file/FolderPanel.vue"
 FPS="$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/file/service/FolderPermissionService.java"
 FSVC="$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/file/service/FileService.java"
+# 【2026-11-25 重锚】树组装(回填 folderActions 与行级 perms)自 5d037bb3 起在 FileQueryService 里
+FQSVC="$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/file/service/FileQueryService.java"
+[ -f "$FQSVC" ] || fail "missing file service class: FileQueryService.java"
 FCTRL="$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/file/controller/FileController.java"
 USEFP="$ROOT/aigicrm-ui/src/composables/useFilePage.js"
 
@@ -71,10 +74,10 @@ rg -Fq "folderActionsForBatch" "$FPS" || fail "folderActionsForBatch 缺失—�
 # ⑤ 无夹文件空间锚
 rg -Fq "file.getFileScope() != null" "$FPS" || fail "checkFile 无夹文件 fileScope 空间锚被移除——跨空间越权回退(根因4)"
 
-# ⑥ 树组装+根目录行级类型授权(T2: row.perms 方案)
-rg -Fq "folder.setFolderActions" "$FSVC" || fail "FileService 树组装未回填 folderActions"
-rg -Fq "folderActionsForBatch" "$FSVC" || fail "FileService 未调用 folderActionsForBatch"
-rg -Fq "permsForFiles(page.getRecords(), userId)" "$FSVC" || fail "FileService 列表未回填行级 row.perms(根因2回退)"
+# ⑥ 树组装+根目录行级类型授权(T2: row.perms 方案) —— 组装在 FileQueryService(5d037bb3 抽出)
+rg -Fq "folder.setFolderActions" "$FQSVC" || fail "FileQueryService 树组装未回填 folderActions"
+rg -Fq "folderActionsForBatch" "$FQSVC" || fail "FileQueryService 未调用 folderActionsForBatch"
+rg -Fq "permsForFiles(page.getRecords(), userId)" "$FQSVC" || fail "FileQueryService 列表未回填行级 row.perms(根因2回退)"
 rg -Fq "Array.isArray(row?.perms) ? row.perms : folderPerms.value" "$FILE_TABLE" || fail "PC 行级优先消费缺失(row.perms)"
 ! rg -Fq 'GetMapping("/folders/type-perms")' "$FCTRL" || fail "已退役的页级 type-perms 端点复活(T2 已由行级取代)"
 

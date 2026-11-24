@@ -34,7 +34,7 @@
       <text class="bb-group-count">{{g.count}} 条</text>
     </view>
     <view
-      wx:for="{{g.items}}" wx:for-item="item" wx:key="id"
+      wx:for="{{g.items}}" wx:for-item="item" wx:for-index="itemIdx" wx:key="id"
       class="bb-item" data-id="{{item.id}}" bindtap="goDetail"
     >
       <view class="bb-avatar">{{item.avatar}}</view>

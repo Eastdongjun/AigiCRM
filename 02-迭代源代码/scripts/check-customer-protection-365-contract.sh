@@ -11,6 +11,12 @@ set -o pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 CS="$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/customer/service/CustomerService.java"
+# 【2026-11-25 重锚】保护期口径自 23bb802d / a6587bcc 拆类后: 365 天默认值与捞取线在 CustomerLifecycleService,
+#   捞取保护线(claim_date 不被覆写)的比较在 CustomerFinanceService; CustomerService 只留转发。
+#   正钉跟着指过去, “不得残留 360”的反钉改为对 customer service 目录递归。
+CLC="$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/customer/service/CustomerLifecycleService.java"
+CFC="$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/customer/service/CustomerFinanceService.java"
+CSDIR="$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/customer/service"
 SEA="$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/sea/service/SeaService.java"
 CTRL="$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/customer/controller/CustomerController.java"
 EVENTSVC="$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/customer/service/CustomerEventService.java"
@@ -31,19 +37,22 @@ assert_file() { [ -f "$1" ] || fail "Missing file: $1"; }
 assert_contains() { grep -Fq "$3" "$2" || fail "Missing '$3' in $2"; }
 assert_not_contains() { ! grep -Fq "$3" "$2" || fail "Unexpected '$3' in $2 (口径回归)"; }
 
-for f in "$CS" "$SEA" "$CTRL" "$EVENTSVC" "$MIG" "$MIG_EVENTS" "$ADD_VUE" "$ADDR_VUE" \
+for f in "$CS" "$CLC" "$CFC" "$SEA" "$CTRL" "$EVENTSVC" "$MIG" "$MIG_EVENTS" "$ADD_VUE" "$ADDR_VUE" \
          "$MAIN_TABLE" "$USE_LIST" "$DETAIL_VUE" "$EVENTS_TAB" "$CUSTOMER_API"; do
   assert_file "$f"
 done
 
 # ① 裁决A: 默认保护 365(后端不得残留 360 默认值; 测试文件不在本钉范围)
-assert_contains protection_days_365 "$CS" 'getConfigInt("customer.protection.days", 365)'
-assert_not_contains protection_days_360 "$CS" 'getConfigInt("customer.protection.days", 360)'
+assert_contains protection_days_365 "$CLC" 'getConfigInt("customer.protection.days", 365)'
+if grep -rqF 'getConfigInt("customer.protection.days", 360)' "$CSDIR"; then
+  fail "Unexpected 'getConfigInt(\"customer.protection.days\", 360)' in customer services (口径回归)"
+fi
 
 # ② 裁决B: 捞取短保护=捞取线 claim+adjust.days(180); 注册日不再被覆写; 捞取日期独立字段
-assert_contains claim_line "$CS" 'claim.plusDays(adjustDays)'
+assert_contains claim_line "$CLC" 'claim.plusDays(adjustDays)'
 assert_contains claim_reset_entry "$CS" 'public void applyClaimReset(BizCustomer customer, LocalDate claimDate)'
-assert_contains claim_guard "$CS" 'customer.getClaimDate() != null && candidateDate.isBefore(customer.getClaimDate())'
+assert_contains claim_reset_impl "$CLC" 'public void applyClaimReset(BizCustomer customer, LocalDate claimDate)'
+assert_contains claim_guard "$CFC" 'customer.getClaimDate() != null && candidateDate.isBefore(customer.getClaimDate())'
 assert_not_contains sea_overwrite_register "$SEA" 'customer.setRegisterDate'
 assert_contains claim_written "$SEA" 'applyClaimReset'
 assert_not_contains sea_dead_config_helper "$SEA" 'private int getConfigInt'

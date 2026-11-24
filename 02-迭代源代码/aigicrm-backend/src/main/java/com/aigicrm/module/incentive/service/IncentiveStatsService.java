@@ -36,7 +36,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
 /**
- * 激励统计与已读：分类统计、积分榜、部门排行、客户记录查询、已读统计/排行、单条查看判定。
+ * 激励统计与已读：分类统计、个人排行、部门排行、客户记录查询、已读统计/排行、单条查看判定。
  *
  * <p>S5.3 从 {@link IncentiveService} 抽出；授权与可见性复用 IncentiveAccessService。</p>
  */

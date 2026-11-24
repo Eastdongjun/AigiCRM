@@ -458,6 +458,7 @@ const switchPeriod = (value) => {
 }
 
 // 【2026-11-16 P3】月度报告加载与导出
+// pagination-audit: no-pager 月度报告按月整体返回、不带页码，也不喂本页任何分页列表（本页的分页器都是对本地数据分页）
 const loadMonthly = async () => {
   const r = await getFabushiMonthly(monthlyMonth.value).catch(() => null)
   monthly.value = (r && r.data) || monthly.value

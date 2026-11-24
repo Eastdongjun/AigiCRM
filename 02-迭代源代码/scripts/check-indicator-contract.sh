@@ -93,23 +93,28 @@ grep -Fq '开票、回款均 ≥ 真核心门槛' "$DOC" || fail 'operator docum
 grep -Fq '五项评分满分 15 分' "$DOC" || fail 'operator documentation must state the 5-item / 15-point rule'
 
 # ---- 7) 【2026-11-03 用户令门槛配置化】双门槛不落死值: 配置键/管理入口/自动刷新全链正钉 + 硬编码反钉 ----
+# 【2026-11-25 重锚】门槛的读取与核心判定自 d1672e06 起在 CustomerIndicatorService 里(CustomerService 只留
+#   常量别名与转发)。正钉跟着指到它; 反钉改为对 customer service 目录递归, 下次再拆类也不会漏。
 CS="$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/customer/service/CustomerService.java"
+CSI="$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/customer/service/CustomerIndicatorService.java"
+CSDIR="$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/customer/service"
 CONFCTL="$ROOT/aigicrm-backend/src/main/java/com/aigicrm/module/system/controller/SysConfigController.java"
 MIG="$ROOT/aigicrm-backend/src/main/resources/db/migration/V2026.11.03.1__core_threshold_config.sql"
 BASIC="$ROOT/aigicrm-ui/src/views/system/BasicSettings.vue"
 grep -Fq 'customer.core.minor.wan' "$MIG" || fail 'migration V2026.11.03.1 must seed customer.core.minor.wan'
 grep -Fq 'customer.core.major.wan' "$MIG" || fail 'migration V2026.11.03.1 must seed customer.core.major.wan'
-grep -Fq 'CORE_MINOR_WAN_KEY = "customer.core.minor.wan"' "$CS" || fail 'CustomerService must define the minor threshold config key'
-grep -Fq 'CORE_MAJOR_WAN_KEY = "customer.core.major.wan"' "$CS" || fail 'CustomerService must define the major threshold config key'
-grep -Fq 'configDecimal' "$CS" || fail 'CustomerService must read thresholds from sys_config (configDecimal)'
+grep -Fq 'CORE_MINOR_WAN_KEY = "customer.core.minor.wan"' "$CSI" || fail 'CustomerIndicatorService must define the minor threshold config key'
+grep -Fq 'CORE_MAJOR_WAN_KEY = "customer.core.major.wan"' "$CSI" || fail 'CustomerIndicatorService must define the major threshold config key'
+grep -Fq 'configDecimal' "$CSI" || fail 'CustomerIndicatorService must read thresholds from sys_config (configDecimal)'
 grep -Fq 'configDecimal' "$STATS" || fail 'StatisticsQueryService must read thresholds from sys_config (configDecimal)'
-grep -Fq 'recalculateAllCoreStatuses' "$CS" || fail 'CustomerService must expose full core-status refresh (recalculateAllCoreStatuses)'
+grep -Fq 'recalculateAllCoreStatuses' "$CSI" || fail 'CustomerIndicatorService must implement full core-status refresh (recalculateAllCoreStatuses)'
+grep -Fq 'recalculateAllCoreStatuses' "$CS" || fail 'CustomerService must expose full core-status refresh (recalculateAllCoreStatuses; SysConfigController calls it here)'
 grep -Fq 'recalculateAllCoreStatuses' "$CONFCTL" || fail 'SysConfigController must trigger full refresh after threshold change'
 grep -Fq 'customer.core.major.wan' "$BASIC" || fail 'admin UI (BasicSettings) must bind the major threshold config key'
 grep -Fq 'customer.core.minor.wan' "$BASIC" || fail 'admin UI (BasicSettings) must bind the minor threshold config key'
 # 反钉: 判定服务不得再出现写死门槛常量(配置化后唯一来源=sys_config, 脏值回退默认仅作兜底)
-if grep -Fq 'CORE_ANNUAL_THRESHOLD' "$CS"; then
-  fail 'CustomerService must not hardcode CORE_ANNUAL_THRESHOLD (config-driven since 2026-11-03)'
+if grep -rqF 'CORE_ANNUAL_THRESHOLD' "$CSDIR"; then
+  fail 'customer services must not hardcode CORE_ANNUAL_THRESHOLD (config-driven since 2026-11-03)'
 fi
 if grep -Fq 'CORE_THRESHOLD' "$STATS"; then
   fail 'StatisticsQueryService must not hardcode CORE_THRESHOLD (config-driven since 2026-11-03)'
