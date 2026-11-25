@@ -98,7 +98,7 @@
       <div v-if="!visibleShelf.length" class="empty">当前筛选下没有书架记录，去书目浏览加入一本吧。</div>
 
       <div v-else :class="viewMode === 'grid' ? 'shelf-grid' : 'shelf-list'">
-        <article v-for="book in pagedShelf" :key="book.id" class="shelf-card" :class="{ selected: selected.includes(book.id) }" @click="onCardClick(book)">
+        <article v-for="book in pagedShelf" :key="book.id" class="shelf-card" :class="{ selected: selected.includes(book.id), managing: manageMode }" @click="onCardClick(book)">
           <div class="cover-wrap">
             <div class="cover">{{ book.cover }}</div>
             <span v-if="book.pinned" class="pin">★</span>
@@ -447,6 +447,10 @@ onMounted(async () => {
 .card-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 7px; }
 .pct { color: var(--text-muted); font-size: 11px; }
 .card-actions { display: flex; flex-wrap: wrap; gap: 2px; max-width: 130px; }
+/* 【2026-11-26】管理模式: 卡片里的四个操作按钮另起一行。原来它们和封面、文字挤在同一行, 一行放不下时
+   书名被盖住、备注被压成一列一字。契约见 views/fabushi/fabushi-shelf-manage.spec.js */
+.shelf-card.managing { flex-wrap: wrap; }
+.shelf-card.managing .card-actions { flex: 1 0 100%; max-width: none; justify-content: flex-end; margin-top: 6px; }
 .batch-bar { position: sticky; bottom: 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 12px; padding: 10px; border-radius: var(--radius-md); background: var(--el-fill-color-light); }
 .records-head { display: flex; justify-content: space-between; align-items: center; color: var(--text-primary); font-size: 13px; font-weight: 700; }
 .record-stats { display: flex; gap: 24px; margin-top: 12px; color: var(--text-muted); font-size: 12px; }
