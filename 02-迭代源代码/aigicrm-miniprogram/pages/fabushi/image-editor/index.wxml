@@ -1,4 +1,5 @@
-<view class="editor">
+<view class="fb-page editor">
+  <!-- 【2026-11-25 用户裁决】小程序法布施界面按原型 v7 重做外观: 工具栏的配色换成原型那一套(舞台仍是深色, 为了衬托图片)。 -->
   <!-- 舞台: 图片在这块画布上拖动、缩放; 裁剪框固定在画布中央; 标注画在图片上 -->
   <view class="stage-wrap">
     <canvas id="stage" type="2d" class="stage"
@@ -58,7 +59,7 @@
       <view class="decide-btn primary {{exporting ? 'disabled' : ''}}" bindtap="onConfirm">{{exporting ? '处理中…' : '确定'}}</view>
     </view>
   </view>
-</view>
 
-<!-- 导出画布: 放在屏幕外, 只在确定时使用; 尺寸随本次裁剪结果变化 -->
-<canvas id="export" type="2d" class="export-canvas" style="width: {{exportWidth}}px; height: {{exportHeight}}px;"></canvas>
+  <!-- 导出画布: 放在屏幕外, 只在确定时使用; 尺寸随本次裁剪结果变化 -->
+  <canvas id="export" type="2d" class="export-canvas" style="width: {{exportWidth}}px; height: {{exportHeight}}px;"></canvas>
+</view>
