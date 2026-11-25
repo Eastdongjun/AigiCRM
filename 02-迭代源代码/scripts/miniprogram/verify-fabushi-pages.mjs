@@ -102,15 +102,20 @@ try {
     admin: state.user && state.user.admin
   })
 
-  // 1) 工作台入口
+  // 1) 工作台（2026-11-26 起按原型 v7 的 A1：首屏“我的觉醒”主卡 + 三个板块，下面是五个页签；
+  //    旧版的 .fb-entry 入口格已不存在）
   let page = await mini.reLaunch('/pages/fabushi/index')
   await sleep(2500)
   let d = await page.data()
-  const entries = await page.$$('.fb-entry')
-  const entryTitles = []
-  for (const e of entries) entryTitles.push(((await e.text()) || '').trim())
-  record('workbench', entries.length >= 2 && entryTitles.some((t) => t.includes('内容流')), {
-    path: page.path, entries: entries.length, entryTitles, canCreate: d.canCreate, personal: d.personal
+  const textsOf = async (selector, root) => {
+    const out = []
+    for (const el of await (root || page).$$(selector)) out.push(((await el.text()) || '').trim())
+    return out
+  }
+  const tabLabels = await textsOf('.mobile-tab')
+  const blockNames = await textsOf('.aw-block .aw-name')
+  record('workbench', tabLabels.join('/') === '觉醒/广场/书库/书架/统计' && blockNames.join('/') === '每日诵读/每日随施/再读一本', {
+    path: page.path, tabs: tabLabels, blocks: blockNames, canCreate: d.canCreate, personal: d.personal
   })
   await shot(mini, 'workbench')
 
