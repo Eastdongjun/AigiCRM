@@ -16,6 +16,9 @@ TMP_PW="PM$(date +%s)$RANDOM"
 PASS=0; FAIL=0
 ok()  { echo "PASS: $1"; PASS=$((PASS+1)); }
 bad() { echo "FAIL: $1"; FAIL=$((FAIL+1)); }
+# 日志里截取响应文本: 读取指定字节数后按 UTF-8 解码, 丢掉被切断的多字节字符尾巴
+# 【2026-11-25 修正】原 head -c 120 会把汉字切成两半, 输出不是合法 UTF-8, test-loop 解码失败后整轮输出丢失
+snip() { python3 -c 'import sys; print(sys.stdin.buffer.read(int(sys.argv[1])).decode("utf-8", "ignore").replace("\n", " "))' "$1"; }
 
 # 密钥只在服务器侧 .env 展开, 经 docker exec -e 注入容器; SQL 走 stdin, 不拼远程命令
 db() {
@@ -30,7 +33,10 @@ login_token() {
 }
 
 cleanup() {
-  db "DELETE FROM sys_user_role WHERE user_id IN (SELECT id FROM sys_user WHERE username='$TMP_USER');
+  # 【2026-11-25 修正】先删机器人名下的 pmx7 客户再删机器人: biz_customer.owner_id 外键指向 sys_user(NO ACTION),
+  # 顺序反了删除用户会报 1451, 同一批后面的语句不再执行, 临时角色和菜单绑定就留下来了
+  db "DELETE FROM biz_customer WHERE customer_name LIKE 'pmx7-c-%';
+      DELETE FROM sys_user_role WHERE user_id IN (SELECT id FROM sys_user WHERE username='$TMP_USER');
       DELETE FROM sys_user WHERE username='$TMP_USER';
       DELETE FROM sys_role_menu WHERE role_id IN (SELECT id FROM sys_role WHERE role_code='perm_matrix_tmp');
       DELETE FROM sys_role WHERE role_code='perm_matrix_tmp';" >/dev/null
@@ -166,7 +172,7 @@ TARGET_CID=$(db "SELECT id FROM biz_customer WHERE owner_id=$ADMIN_ID AND delete
 # 【2026-11-22 修正】拒绝判据扩至现行 PERM_DENIED 文案(「您的权限不支持此访问…」), 原「无权」已不匹配
 FB=$(curl -s -m 15 -X POST "$BASE/api/customer/$TARGET_CID/stage-amounts" -H "Authorization: Bearer $FT" -H "Origin: $BASE" -H "Content-Type: application/json" -d '{}')
 if printf '%s' "$FB" | grep -qE '无权|权限不支持|PERM_DENIED'; then
-  ok "finance stage-amounts 范围外客户 → 拒绝(对象校验生效: $(printf '%s' "$FB" | head -c 120))"
+  ok "finance stage-amounts 范围外客户 → 拒绝(对象校验生效: $(printf '%s' "$FB" | snip 120))"
 else
   bad "finance stage-amounts 未被权限拒绝(疑似穿透服务层): $FB"
 fi
