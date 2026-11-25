@@ -82,6 +82,7 @@ const {
 const vm = (wrapper) => /** @type {any} */ (wrapper.vm)
 import BookView from './book.vue'
 import DetailView from './detail.vue'
+import FabushiMuyu from '@/components/fabushi/FabushiMuyu.vue'
 import HighlightsView from './highlights.vue'
 import ReadView from './read.vue'
 import ShelfView from './shelf.vue'
@@ -388,11 +389,13 @@ describe('法布施列表翻页的视图接线（挂载冒烟）', () => {
   })
 })
 
-// 【2026-11-25 用户要求】测试环境里 PC 端法布施的木鱼图要和小程序一样。
-// 此前详情页的木鱼是“棕色圆盘里套一个 🐟”, 小程序里没有这种画法; 小程序的木鱼图是发布成功页那只
-// 纯 CSS 画的木鱼(pages/fabushi/upload/index.wxml 的 muyu-stage: 光晕、波纹、鱼身、坐垫、木槌)。
-// 这里钉住两件事: ① 按钮里就是这五个部件、图里没有表情符号; ② 敲一下时动画类挂上, 等最长的一段动画放完才摘掉。
-// 抓不到: 真实的样子与比例(要靠截图比对)、音效。
+// 【2026-11-25 用户裁决】“PC 端的木鱼需要做成和小程序的木鱼一样，注意尺寸就行”。
+// 小程序的木鱼图是发布成功页那只纯 CSS 画的木鱼（pages/fabushi/upload/index.wxml 的 muyu-stage: 光晕、波纹、鱼身、坐垫、木槌）。
+// 详情页用的是 FabushiMuyu 组件——它自己的测试拿小程序的 wxml / wxss 逐项对账；这里钉住详情页这一侧的三件事:
+//   ① 按钮里就是这个组件的五个部件、图里没有表情符号；
+//   ② 敲一下时动画类挂上，等最长的一段动画放完才摘掉；+1 只在新增点赞时出现；
+//   ③ PC 上取的尺寸是小程序原尺寸的一半。
+// 抓不到: 真实的样子与比例（要靠截图比对）、音效。
 describe('detail.vue 木鱼图：与小程序发布成功页那只木鱼同源', () => {
   const { toggleFabushiLike } = fabushiApi
   const openDetail = async (likedByMe) => {
@@ -431,6 +434,17 @@ describe('detail.vue 木鱼图：与小程序发布成功页那只木鱼同源',
     expect(button.text()).not.toContain('🐟')
     expect(button.text()).toContain('木鱼')
     expect(button.text()).toContain('2')
+    expect(button.find('.muyu-plus').exists(), '平时不该有 +1').toBe(false)
+  })
+
+  it('PC 上取小程序原尺寸的一半：鱼身约 42×30 像素，整只连坐垫木槌约 72×54 像素', async () => {
+    const wrapper = await openDetail(false)
+    const fish = muyuButton(wrapper).findComponent(FabushiMuyu)
+    expect(fish.exists(), '按钮里用的是 FabushiMuyu 组件').toBe(true)
+    expect(fish.props('scale')).toBe(0.5)
+    expect(fish.attributes('style') || '').toContain('--muyu-s: 0.5')
+    // 只此一处：按钮里不再另画一份木鱼
+    expect(muyuButton(wrapper).findAll('.muyu-stage').length).toBe(1)
   })
 
   it('敲一下：动画类挂上，小程序那几段动画里最长的 0.8 秒放完才摘掉', async () => {
@@ -446,6 +460,8 @@ describe('detail.vue 木鱼图：与小程序发布成功页那只木鱼同源',
       expect(button.classes()).toContain('on')
       expect(button.text()).toContain('3')
       expect(vm(wrapper).muyuPlus).toBe(1)
+      // +1 在舞台里(与小程序同一个位置), 这一下敲完就收起
+      expect(button.find('.muyu-stage .muyu-plus').exists()).toBe(true)
 
       // 小程序的木槌 0.55 秒、波纹/光晕各 0.8 秒: 0.8 秒之内动画类必须在。
       // 推进时钟后要等界面重新渲染再读, 否则读到的是旧状态(第一版就因为没等而红在了错的那一行)
@@ -458,8 +474,21 @@ describe('detail.vue 木鱼图：与小程序发布成功页那只木鱼同源',
       vi.advanceTimersByTime(1)
       await flushPromises()
       expect(muyuButton(wrapper).classes()).not.toContain('hit')
+      expect(muyuButton(wrapper).find('.muyu-plus').exists()).toBe(false)
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  it('取消点赞也会敲一下（挂动画类），但不显示 +1', async () => {
+    const wrapper = await openDetail(true)
+    toggleFabushiLike.mockResolvedValue({ data: { liked: false, likeCount: 1 } })
+    await muyuButton(wrapper).trigger('click')
+    await flushPromises()
+    const button = muyuButton(wrapper)
+    expect(button.classes()).toContain('hit')
+    expect(button.classes()).not.toContain('on')
+    expect(vm(wrapper).muyuPlus).toBe(0)
+    expect(button.find('.muyu-plus').exists()).toBe(false)
   })
 })

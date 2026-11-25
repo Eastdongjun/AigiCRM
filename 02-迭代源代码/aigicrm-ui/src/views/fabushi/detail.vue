@@ -29,19 +29,13 @@
 
         <div class="detail-actions">
           <!-- 【D25 切片 7】PC 木鱼：敲击动画 + 波纹 + +1 飞起。
-               【2026-11-25 用户要求】木鱼图与小程序同源：直接搬小程序发布成功页那一只
-               (aigicrm-miniprogram/pages/fabushi/upload/index.wxml 的 muyu-stage：光晕、波纹、鱼身、坐垫、木槌)，
-               五个部件、配色、敲击动画都一样，只是整体缩小。此前是“棕色圆盘里套一个 🐟”，小程序里没有这种画法。 -->
-          <button type="button" class="muyu" :class="{ hit: muyuHit, on: liked }" :aria-label="liked ? '取消木鱼' : '敲木鱼'" @click="toggleLike">
-            <span class="muyu-stage" aria-hidden="true">
-              <span class="muyu-glow"></span>
-              <span class="muyu-ripple"></span>
-              <span class="muyu-body"></span>
-              <span class="muyu-cushion"></span>
-              <span class="muyu-mallet"></span>
-            </span>
+               【2026-11-25 用户裁决】“PC 端的木鱼需要做成和小程序的木鱼一样，注意尺寸就行”。
+               木鱼图是 FabushiMuyu：与小程序发布成功页那只逐项同源（部件、尺寸、配色、动画都有对账测试），
+               这里只定尺寸。小程序原尺寸下整只木鱼约 144×108 像素（手机发布成功页的主视觉）；
+               放进 PC 详情页的操作行取一半（MUYU_SCALE）：鱼身约 42×30 像素，连坐垫和木槌约 72×54 像素。 -->
+          <button type="button" class="muyu" :class="{ hit: muyuHit, on: liked }" :aria-label="liked ? '取消木鱼' : '敲木鱼'" :aria-pressed="liked" @click="toggleLike">
+            <FabushiMuyu :scale="MUYU_SCALE" :hit="muyuHit" :plus-key="muyuPlus" />
             <span class="muyu-text">木鱼 <b>{{ likeCount }}</b></span>
-            <span v-if="muyuPlus" :key="muyuPlus" class="muyu-plus" aria-hidden="true">+1</span>
           </button>
           <span class="detail-count">评论 {{ comments.length }}</span>
           <el-button plain type="success" :loading="savingRecite" @click="onReciteClick">
@@ -144,6 +138,7 @@ import {
   updateFabushiPost, deleteFabushiPost, getFabushiRecitations, addFabushiRecitation, getFabushiSettings,
 } from '@/api/fabushi'
 import { usePagedList } from '@/composables/usePagedList'
+import FabushiMuyu from '@/components/fabushi/FabushiMuyu.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -169,6 +164,8 @@ const { current: recPage, size: recSize, total: recitationTotal, totalPages: rec
 // 【D25 计划切片 3】PC 木鱼音效（复用 MP muyu.mp3；受用户设置 soundEnabled 控制，默认开）
 const muyuSfx = typeof Audio !== 'undefined' ? new Audio('/audio/muyu.mp3') : null
 const soundOn = ref(true)
+// PC 上这只木鱼取小程序原尺寸的一半：鱼身约 42×30 像素，和操作行里别的控件比不失衡，木槌和坐垫也看得清
+const MUYU_SCALE = 0.5
 const muyuHit = ref(false)
 const muyuPlus = ref(0)
 let muyuTimer = null
@@ -416,38 +413,19 @@ onBeforeUnmount(() => { if (muyuTimer) clearTimeout(muyuTimer) })
 .attachment-name { color: var(--text-muted); font-size: 11px; }
 .detail-body { margin-top: 16px; color: var(--text-secondary); font-size: 14px; line-height: 1.95; white-space: pre-wrap; }
 .detail-actions { display: flex; align-items: center; gap: 10px; margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--border-light); }
-/* 【D25 · 2026-11-25 与小程序同源】木鱼图直接搬小程序发布成功页那一只
-   (aigicrm-miniprogram/pages/fabushi/upload/index.wxss 里 .muyu-stage 这一组的规则)。
-   下面的尺寸是按 750 设计稿 1rpx = 0.5px 换算的小程序原始尺寸, 配色、圆角、阴影、木槌的敲击动画照抄,
-   再把整个舞台缩放到 .3 放进胶囊按钮。只有两处与小程序不同:
-     ① 波纹最多放到 2 倍(小程序是 2.4 倍): 这里舞台在按钮里, 2 倍刚好不出按钮;
-     ② “+1”沿用 PC 原来的写法(飞到按钮上方), 没有放进舞台——缩放后 22px 的字会小到看不清。 */
-.muyu { position: relative; display: inline-flex; align-items: center; gap: 8px; height: 42px; padding: 0 14px 0 6px; border: 1px solid #d8c8a8; border-radius: 999px; background: linear-gradient(135deg, #fff8e8, #f1e2c0); cursor: pointer; transition: transform .12s, border-color .12s, box-shadow .12s; }
-.muyu:hover { border-color: #b5543a; box-shadow: 0 3px 10px rgba(181, 84, 58, .16); }
-.muyu.on { border-color: #b5543a; background: linear-gradient(135deg, #fdece0, #f6d9c6); }
-.muyu.hit { transform: scale(.94); }
-/* 舞台: 小程序里 300×260rpx → 150×130px, 缩放不改变布局占位, 用负外边距把占位收回到缩放后的 45×39 */
-.muyu-stage { position: relative; flex: none; width: 150px; height: 130px; margin: 0 -105px -91px 0; transform: scale(.3); transform-origin: 0 0; }
-.muyu-stage > span { position: absolute; display: block; }
-.muyu-glow { left: 50%; top: 50%; width: 120px; height: 120px; margin: -60px 0 0 -60px; border-radius: 50%; background: radial-gradient(circle, rgba(251, 191, 36, .28), rgba(251, 191, 36, 0) 68%); opacity: 0; }
-.muyu-ripple { left: 50%; top: 50%; width: 40px; height: 40px; margin: -20px 0 0 -20px; border: 1px solid rgba(245, 158, 11, .7); border-radius: 50%; opacity: 0; }
-.muyu-body { left: 50%; top: 31px; width: 85px; height: 59px; margin-left: -42.5px; border-radius: 50% 50% 46% 46%; background: linear-gradient(160deg, #b45309, #92400e); box-shadow: inset 0 6px 9px rgba(255, 255, 255, .18), 0 9px 14px rgba(146, 64, 14, .26); }
-.muyu-body::after { content: ''; position: absolute; left: 50%; top: 17px; width: 48px; height: 19px; margin-left: -24px; border-radius: 50%; border: 2.5px solid rgba(255, 255, 255, .28); }
-.muyu-cushion { left: 50%; bottom: 11px; width: 95px; height: 22px; margin-left: -47.5px; border-radius: 50%; background: #f59e0b; opacity: .5; }
-.muyu-mallet { right: 11px; top: 19px; width: 8px; height: 65px; border-radius: 5px; background: #78350f; transform: rotate(22deg); transform-origin: 50% 100%; }
-.muyu-mallet::before { content: ''; position: absolute; left: -7px; top: -13px; width: 22px; height: 22px; border-radius: 50%; background: #92400e; }
-.muyu.hit .muyu-mallet { animation: muyu-hit .55s ease-out; }
-.muyu.hit .muyu-ripple { animation: muyu-ripple .8s ease-out; }
-.muyu.hit .muyu-glow { animation: muyu-glow .8s ease-out; }
-.muyu-text { color: #6b4a2f; font-size: 12px; white-space: nowrap; }
-.muyu-text b { color: #b5543a; font-variant-numeric: tabular-nums; }
-.muyu-plus { position: absolute; left: 22px; top: 0; z-index: 3; color: #b5543a; font-size: 13px; font-weight: 800; pointer-events: none; animation: muyu-float .75s ease-out forwards; }
-@keyframes muyu-hit { 0% { transform: rotate(22deg); } 45% { transform: rotate(-18deg); } 100% { transform: rotate(22deg); } }
-@keyframes muyu-ripple { 0% { opacity: .8; transform: scale(.5); } 100% { opacity: 0; transform: scale(2); } }
-@keyframes muyu-glow { 0% { opacity: .2; } 40% { opacity: 1; } 100% { opacity: 0; } }
-@keyframes muyu-float { 0% { transform: translateY(0); opacity: 0; } 25% { opacity: 1; } 100% { transform: translateY(-26px); opacity: 0; } }
+/* 【D25 · 2026-11-25 用户裁决】木鱼图与小程序同源，画法在 FabushiMuyu（fabushi-muyu.css）里；这里只管它在操作行里的摆法。
+   不再套胶囊底：整只木鱼放大之后，按钮的边框和底色会把它框小（小程序和 PC 原型里它都是直接摆在页面上的）。 */
+.muyu { position: relative; display: inline-flex; align-items: center; gap: 10px; padding: 0 10px 0 0; border: 0; background: none; cursor: pointer; font: inherit; color: #6b4a2f; }
+.muyu:hover .fmuyu { transform: translateY(-1px); }
+.muyu:active .fmuyu { transform: scale(.96); }
+.muyu:focus-visible { outline: 2px solid var(--primary); outline-offset: 4px; border-radius: 12px; }
+.muyu-text { font-size: 13px; white-space: nowrap; }
+.muyu-text b { margin-left: 2px; color: var(--text-1); font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.muyu.on .muyu-text b { color: #b5543a; }
+/* “+1”在小程序里是 22px，按 0.5 缩放后只有 11px，PC 上偏小：这里放大到缩放后 14px（位置、颜色、飞起的动画不变） */
+.muyu :deep(.muyu-plus) { font-size: 28px; }
 @media (prefers-reduced-motion: reduce) {
-  .muyu, .muyu.hit .muyu-mallet, .muyu.hit .muyu-ripple, .muyu.hit .muyu-glow, .muyu-plus { animation: none; transition: none; }
+  .fmuyu { transition: none; }
 }
 .detail-count { color: var(--text-muted); font-size: 11px; }
 .recite-sec { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--border-light); }

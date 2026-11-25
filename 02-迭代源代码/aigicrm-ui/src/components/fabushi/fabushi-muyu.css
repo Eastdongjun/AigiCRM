@@ -1,0 +1,31 @@
+/* PC 木鱼：与小程序发布成功页那只木鱼同源。
+   【2026-11-25 用户裁决】“PC 端的木鱼需要做成和小程序的木鱼一样，注意尺寸就行”。
+   下面 .muyu-* 的每一条规则都来自 aigicrm-miniprogram/pages/fabushi/upload/index.wxss，
+   按 750 设计稿 1rpx = 0.5px 换算成像素；数值、配色、动画照抄，不在这里“调一调”——
+   FabushiMuyu.spec.js 会读小程序的 wxss 与本文件逐项对账，两边不一致就红。
+   只有两条是 PC 自己的：.fmuyu（占位）和 .fmuyu .muyu-stage（定位与缩放），外加减少动态效果的那一段。
+   尺寸只由一个变量 --muyu-s 决定：1 = 小程序原尺寸，0.5 = 一半。 */
+
+/* 占位就是木鱼本身的包围盒（小程序原尺寸下 x 27.5–171.1、y 10.9–119：含坐垫和探出去的木槌），随系数变 */
+.fmuyu { --muyu-s: 1; position: relative; display: inline-block; flex: none; width: calc(143.6px * var(--muyu-s)); height: calc(108.1px * var(--muyu-s)); vertical-align: middle; line-height: 0; pointer-events: none; transition: transform .12s; }
+/* 舞台仍是小程序的 300×260rpx（= 150×130px），整体缩放；包围盒从 (27.5, 10.9) 开始，所以向左上偏移这么多 */
+.fmuyu .muyu-stage { position: absolute; left: calc(-27.5px * var(--muyu-s)); top: calc(-10.9px * var(--muyu-s)); width: 150px; height: 130px; transform: scale(var(--muyu-s)); transform-origin: 0 0; }
+.fmuyu .muyu-glow { position: absolute; left: 50%; top: 50%; width: 120px; height: 120px; margin: -60px 0 0 -60px; border-radius: 50%; background: radial-gradient(circle, rgba(251,191,36,.28), rgba(251,191,36,0) 68%); opacity: 0; }
+.fmuyu .muyu-ripple { position: absolute; left: 50%; top: 50%; width: 40px; height: 40px; margin: -20px 0 0 -20px; border: 1px solid rgba(245,158,11,.7); border-radius: 50%; opacity: 0; }
+.fmuyu .muyu-body { position: absolute; left: 50%; top: 31px; width: 85px; height: 59px; margin-left: -42.5px; border-radius: 50% 50% 46% 46%; background: linear-gradient(160deg, #b45309, #92400e); box-shadow: inset 0 6px 9px rgba(255,255,255,.18), 0 9px 14px rgba(146,64,14,.26); }
+.fmuyu .muyu-body::after { content: ''; position: absolute; left: 50%; top: 17px; width: 48px; height: 19px; margin-left: -24px; border-radius: 50%; border: 2.5px solid rgba(255,255,255,.28); }
+.fmuyu .muyu-cushion { position: absolute; left: 50%; bottom: 11px; width: 95px; height: 22px; margin-left: -47.5px; border-radius: 50%; background: #f59e0b; opacity: .5; }
+.fmuyu .muyu-mallet { position: absolute; right: 11px; top: 19px; width: 8px; height: 65px; border-radius: 5px; background: #78350f; transform: rotate(22deg); transform-origin: 50% 100%; }
+.fmuyu .muyu-mallet::before { content: ''; position: absolute; left: -7px; top: -13px; width: 22px; height: 22px; border-radius: 50%; background: #92400e; }
+.fmuyu .muyu-plus { position: absolute; right: 12.5px; top: 12px; color: #f59e0b; font-weight: 900; font-size: 22px; opacity: 0; }
+.fmuyu.go .muyu-mallet { animation: muyu-hit .55s ease-out; }
+.fmuyu.go .muyu-ripple { animation: muyu-ripple .8s ease-out; }
+.fmuyu.go .muyu-plus { animation: muyu-plus .8s ease-out; }
+.fmuyu.go .muyu-glow { animation: muyu-glow .8s ease-out; }
+@keyframes muyu-hit { 0% { transform: rotate(22deg); } 45% { transform: rotate(-18deg); } 100% { transform: rotate(22deg); } }
+@keyframes muyu-ripple { 0% { opacity: .8; transform: scale(.5); } 100% { opacity: 0; transform: scale(2.4); } }
+@keyframes muyu-plus { 0% { opacity: 0; transform: translateY(7px); } 35% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-21px); } }
+@keyframes muyu-glow { 0% { opacity: .2; } 40% { opacity: 1; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .fmuyu, .fmuyu.go .muyu-mallet, .fmuyu.go .muyu-ripple, .fmuyu.go .muyu-plus, .fmuyu.go .muyu-glow { animation: none; transition: none; }
+}
