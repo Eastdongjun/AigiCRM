@@ -37,7 +37,7 @@ const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url))
 const DEFAULT_MP_ROOT = path.resolve(SCRIPT_DIR, '..', 'aigicrm-miniprogram')
 const SHARED_STYLE_DIR = path.join('pages', 'fabushi')
 const SHARED_STYLE_NAME = 'fabushi-v7.wxss'
-const SHARED_STYLE_IMPORT = /@import\s+["']fabushi-v7\.wxss["']/
+const SHARED_STYLE_IMPORT = /@import\s+["'](?:\.\.\/)?fabushi-v7\.wxss["']/
 const SCOPED = /^\.fb-page(?![\w-])/
 
 function usage() {
@@ -197,6 +197,7 @@ function selftest() {
   const cases = [
     { name: 'page 底色规则放行', css: 'page { background: #f5f7fb; }', ok: true },
     { name: '@import 行放行', css: '@import "fabushi-v7.wxss";\n.fb-page .a { color: red; }', ok: true },
+    { name: '子目录页面的 @import 行放行', css: "@import '../fabushi-v7.wxss';\n.fb-page .a { color: red; }", ok: true },
     { name: '注释里的选择器不算', css: '/* 说明 .card { } */\n.fb-page .b { color: red; }', ok: true },
     { name: '多段选择器都限定了', css: '.fb-page .cover.navy, .fb-page .book-ico.navy { color: red; }', ok: true },
     { name: '伪元素', css: '.fb-page .stats-hero::after { content: none; }', ok: true },

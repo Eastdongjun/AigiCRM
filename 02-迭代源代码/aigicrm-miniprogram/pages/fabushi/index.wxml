@@ -128,7 +128,7 @@
         <view class="book-ico {{item.coverTone}}">{{item.coverText}}</view>
         <view class="book-main">
           <view class="book-name">《{{item.title}}》<text wx:if="{{item.pdfFileId}}" class="type-tag songdu">电子书</text></view>
-          <view class="book-meta">{{item.categoryName || '书目'}}<text wx:if="{{item.author}}"> · {{item.author}}</text><text wx:if="{{item.pages}}"> · {{item.pages}} 页</text> · {{item.memberCount || 0}} 人在读</view>
+          <view class="book-meta">{{item.categoryName || '书目'}}<text wx:if="{{item.author}}"> · {{item.author}}</text><text wx:if="{{item.pages}}"> · {{item.pages}} 页</text> · {{item.memberCount || 0}} 人参与</view>
         </view>
         <text class="arrow">›</text>
       </view>

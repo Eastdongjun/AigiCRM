@@ -1,45 +1,91 @@
-<view class="fb-tabs">
-  <view
-    wx:for="{{tabs}}"
-    wx:key="value"
-    class="fb-tab {{active === item.value ? 'active' : ''}}"
-    data-value="{{item.value}}"
-    bindtap="onTabTap"
-  >{{item.label}}</view>
-</view>
-
-<!-- 【D15 2026-11-23】再读一本分区：按书罗列，点书下钻 A3 按书浏览页 -->
-<view wx:if="{{active === 'zaidu'}}" class="fb-book-strip">
-  <view class="fb-book-head">
-    <text class="fb-book-title">按书浏览</text>
-    <text class="fb-book-tip">点书看这本书里每个人传了什么</text>
-  </view>
-  <scroll-view scroll-x class="fb-book-scroll">
-    <view
-      wx:for="{{books}}" wx:key="id"
-      class="fb-book-chip"
-      data-id="{{item.id}}" bindtap="onBookTap"
-    >{{item.title}}<text class="fb-book-count">{{item.memberCount || 0}} 人 · {{item.postCount || 0}} 条</text></view>
-  </scroll-view>
-</view>
-
-<view class="fb-list">
-  <view wx:if="{{!loading && !posts.length}}" class="fb-empty">暂无法布施内容</view>
-  <view wx:for="{{posts}}" wx:key="id" class="fb-card" data-id="{{item.id}}" bindtap="goDetail">
-    <view class="fb-card-title">{{item.title || '无标题'}}<text wx:if="{{item.isNew}}" class="fb-new">NEW</text></view>
-    <view class="fb-card-content">{{item.content}}</view>
-    <view class="fb-card-meta">
-      <text>{{item.userName || '法布施'}}</text>
-      <text>{{item.createdAt}}</text>
+<view class="fb-page feed-page">
+  <!-- 【2026-11-25 用户裁决】小程序法布施界面按原型 v7 重做外观。本页 = 原型 A2 认知广场(朋友圈式信息流)。 -->
+  <!-- 搜索与筛选(原型 A2): 搜索走服务端(人名 / 书籍 / 具体文字) -->
+  <view class="card search-card">
+    <view class="search-row">
+      <view class="search-box">
+        <view class="search-ico"></view>
+        <input class="search-input" placeholder="搜人名 / 书籍 / 具体文字" value="{{keyword}}" bindinput="onKeywordInput" confirm-type="search" bindconfirm="onSearch" />
+      </view>
+      <view class="mini-action" bindtap="onSearch">搜索</view>
     </view>
-    <view class="fb-card-stats">
-      <text>🐟 {{item.likeCount || 0}}</text>
-      <text>💬 {{item.commentCount || 0}}</text>
-      <text wx:if="{{item.readByMe}}">已读</text>
+    <view class="filter-chips">
+      <view wx:for="{{filters}}" wx:key="value" class="filter-chip {{active === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="onFilterTap">{{item.label}}</view>
+      <view class="filter-chip {{unreadOnly ? 'active' : ''}}" bindtap="onToggleUnread">只看未读</view>
     </view>
   </view>
-  <view wx:if="{{loading}}" class="fb-loading">加载中...</view>
-  <view wx:elif="{{posts.length && posts.length >= total}}" class="fb-end">没有更多了</view>
-</view>
 
-<view wx:if="{{canCreate}}" class="fb-fab" bindtap="goUpload">＋</view>
+  <view wx:if="{{loading && !posts.length}}" class="empty">加载中…</view>
+  <view wx:elif="{{!loading && !posts.length}}" class="empty">{{keyword ? '没有搜到相关内容' : (unreadOnly ? '没有未读的内容' : '暂无内容')}}</view>
+
+  <!-- 朋友圈式卡片: 头像 + 昵称 + 类型 / 正文 / 语音条 / 图片 / 时间·来源 / 灰底操作行 / 谁点了木鱼。点卡片进详情页 -->
+  <view wx:for="{{posts}}" wx:key="id" class="card mom-card" data-id="{{item.id}}" bindtap="goDetail">
+    <view class="mom-head">
+      <view class="mom-ava {{item.avatarTone}}">{{item.avatarText}}</view>
+      <view class="mom-main">
+        <view class="mom-name">{{item.userName || '法布施'}}<text class="type-tag {{item.scopeType}}">{{item.typeLabel}}</text></view>
+        <view wx:if="{{item.title && item.content}}" class="mom-title">{{item.title}}</view>
+        <view class="mom-text">{{item.content || item.title}}</view>
+        <view wx:if="{{item.audioCount}}" class="mom-audio">
+          <view class="recite-wave">
+            <view class="bar" style="height: 10rpx;"></view><view class="bar" style="height: 20rpx;"></view><view class="bar" style="height: 14rpx;"></view><view class="bar" style="height: 24rpx;"></view><view class="bar" style="height: 18rpx;"></view><view class="bar" style="height: 26rpx;"></view><view class="bar" style="height: 12rpx;"></view>
+          </view>
+          <text>语音 {{item.audioCount}} 段</text>
+        </view>
+        <view wx:if="{{item.pics.length}}" class="mom-grid">
+          <view wx:for="{{item.pics}}" wx:for-item="pic" wx:for-index="picIndex" wx:key="id" class="mimg">
+            <image class="mimg-img" src="{{pic.url}}" mode="aspectFill" />
+            <text wx:if="{{picIndex === 2 && item.picCount > 3}}" class="anno">+{{item.picCount - 3}}</text>
+          </view>
+        </view>
+        <view class="mom-meta">
+          <text>{{item.timeText}}</text>
+          <text wx:if="{{item.bookTitle}}" class="src">《{{item.bookTitle}}》<text wx:if="{{item.sectionTitle}}"> › {{item.sectionTitle}}</text></text>
+          <text wx:elif="{{item.scopeType === 'suishi'}}">随手施 · 不关联书目</text>
+          <text wx:if="{{item.scopeType === 'zaidu' && item.picCount}}">书页 {{item.picCount}} 张</text>
+          <text wx:if="{{item.isNew}}" class="badge-new">NEW</text>
+          <text class="read {{item.readByMe ? '' : 'unread'}}">{{item.readByMe ? '已读' : '未读'}}</text>
+        </view>
+      </view>
+    </view>
+    <view class="mom-acts">
+      <text>木鱼 {{item.likeCount || 0}} · 评论 {{item.commentCount || 0}}<text wx:if="{{item.recitationCount}}"> · 复诵 {{item.recitationCount}}</text></text>
+      <text wx:if="{{canCreate}}" class="more" data-id="{{item.id}}" catchtap="onMore">⋯</text>
+    </view>
+    <view wx:if="{{item.likerText}}" class="mom-inter"><view><text class="likers">木鱼：</text>{{item.likerText}}</view></view>
+  </view>
+
+  <view wx:if="{{loading && posts.length}}" class="empty">加载中…</view>
+  <view wx:elif="{{noMore && posts.length}}" class="empty">没有更多了</view>
+
+  <!-- 再读一本 · 按书罗列: 先选书, 再进“按书浏览”页(原型 A3) -->
+  <view class="card bybook-entry">
+    <text class="type-tag zaidu">再读一本</text>
+    <text class="bybook-text">按书罗列 → 每本书看每个人上传的内容</text>
+    <text class="mini-action" bindtap="onOpenPicker">按书浏览 ›</text>
+  </view>
+
+  <!-- 选书面板 -->
+  <view wx:if="{{pickerOpen}}" class="mask" bindtap="onClosePicker">
+    <view class="sheet" catchtap="noop">
+      <view class="sheet-head">
+        <text class="sheet-title">按书浏览</text>
+        <text class="mini-action secondary" bindtap="onClosePicker">收起</text>
+      </view>
+      <scroll-view scroll-y class="sheet-body">
+        <view wx:for="{{books}}" wx:key="id" class="book-row" data-id="{{item.id}}" bindtap="onBookTap">
+          <view class="book-ico {{item.coverTone}}">{{item.coverText}}</view>
+          <view class="book-main">
+            <view class="book-name">《{{item.title}}》</view>
+            <view class="book-meta">{{item.memberCount || 0}} 人在读 · {{item.postCount || 0}} 条内容</view>
+          </view>
+          <text class="arrow">›</text>
+        </view>
+        <view wx:if="{{!books.length}}" class="empty">书库还是空的</view>
+      </scroll-view>
+    </view>
+  </view>
+
+  <!-- 原型把“＋ 发布”放在导航栏右侧; 小程序导航栏右侧是胶囊按钮, 放不下, 发布入口用右下角的悬浮按钮 -->
+  <view wx:if="{{canCreate}}" class="fab" bindtap="goUpload">＋</view>
+</view>

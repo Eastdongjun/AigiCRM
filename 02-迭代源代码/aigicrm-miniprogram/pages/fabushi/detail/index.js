@@ -2,12 +2,25 @@ const { hasPermission, requireLogin } = require('../../../utils/auth')
 const { getFabushiPostDetail, getFabushiComments, addFabushiComment, toggleFabushiLike, markFabushiRead, updateFabushiPost, deleteFabushiPost, getFabushiRecitations, addFabushiRecitation } = require('../../../api/fabushi')
 const { getDownloadToken, getDownloadUrl, uploadFile } = require('../../../api/file')
 const { showError } = require('../../../utils/feedback')
+// 【2026-11-25 用户裁决】界面按原型 v7 重做外观: 页面上的文字(类型名、时间、谁复诵了)由这个纯函数模块从接口数据算出来
+const vm = require('../../../utils/fabushi-view-model')
+
+// 下载令牌接口回来的可能是 {token} / {data:{token}} / 直接就是字符串: 统一取成字符串
+const tokenOf = (res) => {
+  if (!res) return ''
+  if (typeof res === 'string') return res
+  return res.token || (res.data && res.data.token) || ''
+}
 
 Page({
   data: {
     id: '',
     post: {},
+    typeLabel: '',
+    timeText: '',
+    isNew: false,
     attachments: [],
+    imageUrls: [],
     comments: [],
     commentsTotal: 0,
     hasMoreComments: false,
@@ -25,6 +38,9 @@ Page({
     reciteMode: false,
     recitations: [],
     recitationCount: 0,
+    intoView: '',
+    // 复诵条上的一行小字: 前两位是谁、各多长
+    reciteText: '',
     loading: true,
     dlToken: ''
   },
@@ -47,6 +63,8 @@ Page({
       return
     }
     this.setData({ id: options.id || '', canCreate: hasPermission('fabushi:create') })
+    // 认知广场的 ⋯ 菜单跳过来时可以指定落点: comment = 评论输入框, recite = 复诵条
+    this._focus = options.focus || ''
     this.loadDetail()
   },
 
@@ -59,18 +77,27 @@ Page({
     this.setData({ loading: true })
     getFabushiPostDetail(id).then((res) => {
       const data = res || {}
+      const post = data.post || {}
+      // 标题按类型写(原型 A4 的例子是“再读作品”)
+      wx.setNavigationBarTitle({ title: vm.WORK_TITLE[post.scopeType] || '作品详情' })
       this.setData({
-        post: data.post || {},
+        post,
+        // WXML 里的 typeLabel / timeText / isNew: 类型名、时间(今天 09:30 / 昨天 18:40)、30 天内标 NEW
+        typeLabel: vm.SCOPE_LABEL[post.scopeType] || '内容',
+        timeText: vm.timeText(post.createdAt),
+        isNew: Boolean(post.isNew),
         attachments: data.attachments || [],
+        imageUrls: [],
         likeCount: Number(data.likeCount) || 0,
         liked: Boolean(data.likedByMe),
         loading: false,
         // 【D13 计划切片 2】仅作者本人显示"管理"（修改/删除）；admin 不代编辑
-        isOwner: Boolean((data.post || {}).userId) && String((data.post || {}).userId) === String((getApp().globalData.currentUser || {}).userId || '')
+        isOwner: Boolean(post.userId) && String(post.userId) === String((getApp().globalData.currentUser || {}).userId || '')
       })
       this.loadAttachmentUrls()
       this.setData({ editing: false, editContent: '' })
       this.loadRecitations()
+      this.scrollToFocus()
       markFabushiRead(id).then(() => {
         // 【F4a】读过了 → 清法布施 tabBar 红点
         const { setUnreadDot } = require('../../../utils/fabushi-reminder')
@@ -87,9 +114,10 @@ Page({
     const rows = this.data.attachments || []
     if (!rows.length) return
     getDownloadToken().then((res) => {
-      const token = res && (res.token || (res.data && res.data.token)) || ''
+      const token = tokenOf(res)
       const attachments = rows.map((item) => ({ ...item, url: getDownloadUrl({ id: item.fileId }) + (token ? '?token=' + encodeURIComponent(token) : '') }))
-      this.setData({ dlToken: token, attachments })
+      // 书页(图片)单独列一份地址: 九宫格里按顺序显示, 点击放大查看
+      this.setData({ dlToken: token, attachments, imageUrls: attachments.filter((item) => item.fileType === 'image').map((item) => item.url) })
     }).catch(() => {})
   },
 
@@ -98,15 +126,24 @@ Page({
       const comments = res || []
       // 【F2】audio 评论补可播 URL(与附件同 download-token 通道)
       const needUrl = comments.some((c) => c.type === 'audio' && c.audioFileId)
-      if (!needUrl) { this._allComments = comments; this.showFirstComments(comments); return }
+      const decorate = (token) => comments.map((c) => {
+        // 头像首字与底色、评论类型名是 WXML 按 item.xxx 读的派生字段, 逐个写出(视图绑定契约要的就是这个“生产处”)
+        const view = {
+          avatarText: String(c.userName || '同').slice(0, 1),
+          avatarTone: vm.coverTone(c.userId),
+          typeLabel: c.type === 'highlight' ? '重点描述' : (c.type === 'audio' ? '语音诵读' : ''),
+          typeClass: c.type === 'highlight' ? 'cyan' : (c.type === 'audio' ? 'songdu' : '')
+        }
+        if (c.type === 'audio' && c.audioFileId) {
+          return { ...c, ...view, audioUrl: getDownloadUrl({ id: c.audioFileId }) + (token ? '?token=' + encodeURIComponent(token) : '') }
+        }
+        return { ...c, ...view }
+      })
+      if (!needUrl) { this._allComments = decorate(''); this.showFirstComments(this._allComments); return }
       getDownloadToken().then((r) => {
-        const token = r && (r.token || (r.data && r.data.token)) || ''
-        const rows = comments.map((c) => (c.type === 'audio' && c.audioFileId
-          ? { ...c, audioUrl: getDownloadUrl({ id: c.audioFileId }) + (token ? '?token=' + encodeURIComponent(token) : '') }
-          : c))
-        this._allComments = rows
-        this.showFirstComments(rows)
-      }).catch(() => { this._allComments = comments; this.showFirstComments(comments) })
+        this._allComments = decorate(tokenOf(r))
+        this.showFirstComments(this._allComments)
+      }).catch(() => { this._allComments = decorate(''); this.showFirstComments(this._allComments) })
     }).catch(() => {})
   },
 
@@ -193,15 +230,43 @@ Page({
   loadRecitations() {
     const id = this.data.id
     if (!id) return
-    Promise.resolve(getDownloadToken()).then((token) => {
-      const tk = token || this.data.dlToken || ''
-      return getFabushiRecitations(id).then((res) => {
-        const rows = res || []
-        // 复诵音频回填 download-token URL（与附件同机制）
-        rows.forEach((r) => { r.url = `/api/file/download/${r.audioFileId}?token=${encodeURIComponent(tk)}` })
-        this.setData({ recitations: rows, recitationCount: rows.length })
+    getDownloadToken().catch(() => null).then((res) => {
+      const token = tokenOf(res) || this.data.dlToken || ''
+      return getFabushiRecitations(id).then((list) => {
+        const rows = list || []
+        // 复诵音频回填可播地址: 与附件同一条通道(下载地址 + 下载令牌)。
+        // 【2026-11-25 修正】原来只有域名后面那一段路径(前面没有接口域名, 小程序里放不出声音), 而且令牌的位置放的是
+        //   整个应答对象(拼出来是 object Object) —— 复诵列表里的音频一直播不出来。
+        rows.forEach((r) => { r.url = r.audioFileId ? getDownloadUrl({ id: r.audioFileId }) + (token ? '?token=' + encodeURIComponent(token) : '') : '' })
+        this.setData({ recitations: rows, recitationCount: rows.length, reciteText: vm.reciteText(rows) })
       })
-    }).catch(() => this.setData({ recitations: [], recitationCount: 0 }))
+    }).catch(() => this.setData({ recitations: [], recitationCount: 0, reciteText: '' }))
+  },
+
+  // 落点(认知广场的 ⋯ 菜单跳过来时可以指定): 滚到评论输入框或复诵条。
+  // 用页面里滚动容器的 scroll-into-view, 不用 wx.pageScrollTo 这个接口 —— 导航契约禁用它(会破坏返回时的滚动位置保持)。
+  scrollToFocus() {
+    const target = this._focus === 'comment' ? 'comment-box' : (this._focus === 'recite' ? 'recite-strip' : '')
+    this._focus = ''
+    if (!target) return
+    wx.nextTick(() => this.scrollInto(target))
+  },
+
+  // 先清空再设: 连续两次滚到同一处也能触发
+  scrollInto(target) {
+    this.setData({ intoView: '' }, () => this.setData({ intoView: target }))
+  },
+
+  focusComments() {
+    this.scrollInto('comment-box')
+  },
+
+  // 书页点击放大查看(原型 A4 · D12)
+  previewImage(e) {
+    const urls = (this.data.attachments || []).filter((item) => item.fileType === 'image' && item.url).map((item) => item.url)
+    const current = urls[Number(e.currentTarget.dataset.index) || 0]
+    if (!current) return
+    wx.previewImage({ current, urls })
   },
 
   toggleRecite() {

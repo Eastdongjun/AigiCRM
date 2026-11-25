@@ -1,46 +1,35 @@
-/* 【书卷改版 2026-11-16】A4 书目页: 纸色底/墨绿主色/朱砂强调/宋体书名 */
-page { background: #f7f3ec; }
-.cat-bar { white-space: nowrap; background: transparent; padding: 18rpx 16rpx 8rpx; }
-.cat-chip { display: inline-block; padding: 10rpx 26rpx; margin: 0 10rpx 8rpx 0; border-radius: 999rpx; background: #efe7d8; color: #6b6257; font-size: 24rpx; }
-.cat-chip.active { background: #2d5a4a; color: #fff7ee; font-weight: 600; }
-.search-bar { display: flex; gap: 12rpx; background: transparent; padding: 12rpx 24rpx 22rpx; }
-.search-input { flex: 1; border: 1rpx solid #e0d5c2; background: #fffdf8; border-radius: 14rpx; padding: 14rpx 24rpx; font-size: 26rpx; color: #2e2a24; }
-.search-btn { color: #2d5a4a; font-size: 26rpx; padding: 14rpx 8rpx; font-weight: 600; }
-.book-card { position: relative; background: #fffdf8; margin: 0 16rpx 16rpx; border: 1rpx solid #e8e0d3; border-radius: 16rpx; padding: 22rpx 24rpx 22rpx 30rpx; overflow: hidden; }
-.book-card::before { content: ''; position: absolute; left: 0; top: 16rpx; bottom: 16rpx; width: 6rpx; border-radius: 0 4rpx 4rpx 0; background: #d9cdb8; }
-.book-title { font-family: 'Songti SC', 'STSong', serif; font-size: 30rpx; font-weight: 700; color: #2e2a24; }
-.book-meta { font-size: 22rpx; color: #9c9184; margin-top: 8rpx; }
-.empty, .loading { text-align: center; color: #9c9184; font-size: 24rpx; padding: 60rpx 0; }
-.book-title-row { display: flex; align-items: center; justify-content: space-between; gap: 10rpx; }
-.book-pdf { flex-shrink: 0; padding: 2rpx 9rpx; border-radius: 6rpx; color: #b5543a; background: #f8e9e0; font-size: 18rpx; }
-.book-foot { display: flex; align-items: center; gap: 16rpx; margin-top: 12rpx; color: #9c9184; font-size: 20rpx; }
-.book-detail-link { margin-left: auto; color: #2d5a4a; font-size: 20rpx; font-weight: 600; }
-.book-stat { color: #6b6257; font-size: 20rpx; }
+@import "../fabushi-v7.wxss";
 
-/* 详情弹层: 书卷底部抽屉 */
-.detail-mask { position: fixed; inset: 0; z-index: 40; display: flex; align-items: flex-end; background: rgba(46, 42, 36, .45); }
-.detail-sheet { width: 100%; max-height: 82vh; overflow-y: auto; padding: 14rpx 26rpx 40rpx; border-radius: 26rpx 26rpx 0 0; background: #f7f3ec; box-sizing: border-box; }
-.detail-grab { width: 70rpx; height: 6rpx; margin: 0 auto 18rpx; border-radius: 99rpx; background: #d9cdb8; }
-.detail-head { display: flex; align-items: flex-start; gap: 12rpx; padding: 24rpx; border: 1rpx solid #e8e0d3; border-radius: 18rpx; background: #fffdf8; }
-.detail-main { flex: 1; min-width: 0; }
-.detail-title { color: #2e2a24; font-family: 'Songti SC', 'STSong', serif; font-size: 32rpx; font-weight: 800; }
-.detail-meta { margin-top: 8rpx; color: #a67c52; font-size: 21rpx; }
-.detail-close { width: 44rpx; height: 44rpx; color: #9c9184; font-size: 38rpx; line-height: 38rpx; text-align: center; }
-.detail-stats { display: flex; margin-top: 12rpx; padding: 18rpx; border: 1rpx solid #e8e0d3; border-radius: 16rpx; background: #fffdf8; }
-.detail-stat { flex: 1; text-align: center; }
-.detail-stat text { display: block; color: #9c9184; font-size: 19rpx; }
-.detail-stat text:first-child { color: #2d5a4a; font-family: 'Songti SC', 'STSong', serif; font-size: 32rpx; font-weight: 800; margin-bottom: 2rpx; }
-.detail-actions { display: flex; gap: 12rpx; margin-top: 12rpx; }
-.detail-btn { flex: 1; padding: 18rpx 0; border-radius: 14rpx; color: #fff7ee; background: #b5543a; font-size: 23rpx; text-align: center; font-weight: 700; }
-.detail-btn.ghost { color: #2d5a4a; border: 1rpx solid #c8d8cc; background: #eef3ee; font-weight: 600; }
-.detail-btn.disabled { opacity: .45; }
-.detail-section-title { margin: 20rpx 4rpx 10rpx; color: #2e2a24; font-family: 'Songti SC', 'STSong', serif; font-size: 25rpx; font-weight: 800; }
-.detail-empty { padding: 24rpx; border: 1rpx dashed #d9cdb8; border-radius: 14rpx; color: #9c9184; background: transparent; font-size: 22rpx; text-align: center; }
-.detail-post { padding: 18rpx 20rpx; margin-bottom: 10rpx; border: 1rpx solid #e8e0d3; border-radius: 14rpx; background: #fffdf8; }
-.detail-post-title { color: #2e2a24; font-size: 23rpx; font-weight: 600; }
-.detail-post-meta { margin-top: 6rpx; color: #9c9184; font-size: 19rpx; }
-.detail-note { margin-top: 14rpx; color: #9c9184; font-size: 19rpx; line-height: 1.6; text-align: center; }
-.section-row { display: flex; align-items: center; gap: 8rpx; padding: 12rpx 16rpx; border-radius: 12rpx; background: #fffdf8; margin-bottom: 8rpx; color: #6b6257; font-size: 22rpx; border: 1rpx solid #efe7d8; }
-.section-level { flex-shrink: 0; padding: 1rpx 8rpx; border-radius: 6rpx; color: #a67c52; background: #f4ead9; font-family: 'Songti SC', 'STSong', serif; font-size: 18rpx; }
-/* 【F1 2026-11-19 spec v2】30 天内发布的作品标 NEW */
-.detail-new { display: inline-block; margin-left: 8rpx; padding: 1rpx 8rpx; border-radius: 6rpx; background: #b5543a; color: #fff7ee; font-size: 16rpx; font-weight: 700; font-family: sans-serif; vertical-align: middle; }
+/* 书目浏览(原型 A5 · 类别 → 书目 → 版本)。公共的设计变量与组件样式在 ../fabushi-v7.wxss, 这里的规则同样限定在 .fb-page 之下
+   (原因见那个文件的文件头)。 */
+.fb-page.book-page { padding-bottom: 80rpx; }
+.fb-page .cat-scroll { width: 100%; margin-bottom: 14rpx; white-space: nowrap; }
+.fb-page .cat-row { display: inline-flex; gap: 10rpx; }
+.fb-page .book-list { padding: 8rpx; }
+.fb-page .expand-hint { margin-left: 10rpx; color: var(--accent); }
+
+/* 行内展开的版本面板 */
+.fb-page .version-panel { padding: 0 14rpx 18rpx; }
+.fb-page .version-chips { display: flex; flex-wrap: wrap; gap: 10rpx; padding: 16rpx; border: 2rpx solid var(--mp-blue-line); border-radius: 20rpx 20rpx 0 0; background: var(--mp-blue-bg); }
+.fb-page .version-meta { padding: 10rpx 16rpx 0; font-size: 21rpx; color: var(--mp-ink3); }
+.fb-page .version-acts { display: flex; flex-wrap: wrap; gap: 12rpx; padding: 14rpx 16rpx 16rpx; border: 2rpx solid var(--mp-blue-line); border-top: 0; border-radius: 0 0 20rpx 20rpx; background: var(--mp-blue-bg); }
+.fb-page .mini-action.disabled { opacity: .45; }
+.fb-page .sub-title { margin: 18rpx 4rpx 6rpx; font-size: 25rpx; font-weight: 800; color: var(--mp-ink); }
+.fb-page .section-row { display: flex; gap: 12rpx; padding: 10rpx 6rpx; font-size: 23rpx; color: var(--mp-ink2); }
+.fb-page .section-level { flex-shrink: 0; padding: 0 10rpx; border-radius: 8rpx; font-size: 18rpx; color: var(--mp-ink3); background: var(--mp-tile); }
+.fb-page .post-row { padding: 12rpx 6rpx; border-top: 2rpx solid var(--mp-card-line-soft); }
+.fb-page .post-title { font-size: 24rpx; font-weight: 700; color: var(--mp-ink); }
+
+/* 页脚 */
+.fb-page .lib-foot { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; margin-top: 4rpx; }
+.fb-page .lib-hint { font-size: 21rpx; color: var(--mp-ink3); }
+
+/* 提交书目表单 */
+.fb-page .form-body { padding: 0 28rpx calc(24rpx + env(safe-area-inset-bottom)); }
+.fb-page .form-row { display: flex; align-items: center; gap: 18rpx; padding: 14rpx 0; border-top: 2rpx solid var(--mp-card-line-soft); }
+.fb-page .form-row:first-child { border-top: 0; }
+.fb-page .form-label { flex-shrink: 0; width: 120rpx; font-size: 24rpx; color: var(--mp-ink2); }
+.fb-page .form-flex { flex: 1; min-width: 0; }
+.fb-page .form-row .polished-select { margin-top: 0; }
+.fb-page .form-field { flex: 1; min-width: 0; box-sizing: border-box; height: 72rpx; padding: 0 20rpx; border: 2rpx solid var(--mp-card-line); border-radius: 16rpx; font-size: 25rpx; color: var(--mp-ink); background: var(--mp-tile); }
+.fb-page .submit-btn { margin-top: 16rpx; }

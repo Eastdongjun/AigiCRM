@@ -2,9 +2,11 @@
 // 书头卡（版本元信息 + 参与 N 人 · 内容 N 条 · 另有 N 版本 + 在线阅读/我也传）
 // + 三种排列（按时间 / 按章节 / 按成员）+ 分组内容列表（章节名 + N 条 + 成员行）。
 // 分组全在前端做（一次拉全量本区内容），不额外加接口，也不做「先按章节查再按成员查」的多趟往返。
+// 【2026-11-25 用户裁决】“小程序法布施界面按原型 v7 重做外观”: 版式按原型 A3 重排, 取数与分组逻辑不变。
 const { requireLogin, hasPermission } = require('../../../utils/auth')
 const { getFabushiBook, getFabushiBooks, getFabushiPosts } = require('../../../api/fabushi')
 const { showError } = require('../../../utils/feedback')
+const vm = require('../../../utils/fabushi-view-model')
 
 const SORTS = [
   { value: 'time', label: '按时间' },
@@ -16,12 +18,6 @@ const EDITION_LABEL = { original: '原版', annotated: '注释本', translation:
 
 // 【S4.2 2026-11-23】分页拉取。此前一次 size=100 全量拉，超过 100 条静默截断且无提示。
 const PAGE_SIZE = 20
-
-const fmtTime = (value) => {
-  const s = String(value || '')
-  if (!s) return ''
-  return s.replace('T', ' ').slice(5, 16) // 11-23 09:30
-}
 
 // 摘要：标题优先，否则正文前 40 字（原型行内只给一句）
 const summaryOf = (post) => {
@@ -52,7 +48,11 @@ Page({
     sort: 'time',
     book: null,
     versionText: '',
-    statsText: '',
+    // 书头卡的封面文字与底色、参与人数与内容条数(原型 A3: “参与 8 人 · 内容 36 条 · 另有 2 版本”)
+    coverText: '',
+    coverTone: '',
+    memberCount: 0,
+    otherVersions: 0,
     groups: [],
     total: 0,
     loadedCount: 0,
@@ -97,17 +97,27 @@ Page({
         const versionText = [book.author, book.publisher,
           EDITION_LABEL[book.editionType] || book.editionType || '',
           book.pages ? book.pages + ' 页' : ''].filter(Boolean).join(' · ')
-        const stats = [
-          '参与 ' + (book.memberCount || 0) + ' 人',
-          '内容 ' + (book.postCount || 0) + ' 条'
-        ].join(' · ')
-        this.setData({ book, versionText, statsText: stats })
-        // 同名不同版本 = 同一本书的其他版本（D2：书名+作者+版本唯一确定一本书）
+        const title = String(book.title == null ? '' : book.title).replace(/[《》]/g, '')
+        // 标题带上书名(原型 A3 的导航标题: “按书浏览 · 道德经”)
+        wx.setNavigationBarTitle({ title: title ? '按书浏览 · ' + title : '按书浏览' })
+        // 书头卡的“参与 N 人”是这本书全部内容的作者数(书目接口给的); “再读内容 N 条”用下面列表自己的总数,
+        // 两个数口径不同(书目接口的内容条数含诵读、随施), 不混在一起显示
+        this.setData({
+          book,
+          versionText,
+          coverText: vm.coverText(book.title),
+          coverTone: vm.coverTone(book.id),
+          memberCount: Number(book.memberCount) || 0
+        })
+        // 同名不同版本 = 同一本书的其他版本（D2：书名+作者+版本唯一确定一本书）。
+        // 书名比的时候去掉书名号: 同一本书的不同版本, 录入时有的带《》有的不带
+        const sameTitle = (other) => String(other.title == null ? '' : other.title).replace(/[《》]/g, '').trim() === title
         return getFabushiBooks({ status: 'approved', current: 1, size: 200 }).then((r) => {
           const all = (r && r.records) || []
-          const others = all.filter((b) => b.title === book.title && b.id !== book.id).length
+          const others = all.filter((b) => b.id !== book.id && sameTitle(b)).length
           this.setData({
-            book: Object.assign({}, this.data.book, { otherVersions: others })
+            book: Object.assign({}, this.data.book, { otherVersions: others }),
+            otherVersions: others
           })
         })
       })
@@ -126,12 +136,14 @@ Page({
     return getFabushiPosts({ scopeType: 'zaidu', bookId: this._bookId, current: page, size: PAGE_SIZE })
       .then((res) => {
         const data = res || {}
+        // avatarText / avatarTone / timeText 是 WXML 按 item.xxx 读的派生字段, 逐个在这里写出(视图绑定契约要的就是这个“生产处”)
         const records = (data.records || []).map((item) => Object.assign({}, item, {
           isNew: Boolean(item.isNew),
           summary: summaryOf(item),
           formText: formOf(item),
-          timeText: fmtTime(item.createdAt),
-          avatar: String(item.userName || '法').slice(0, 1)
+          timeText: vm.timeText(item.createdAt),
+          avatarText: String(item.userName || '法').slice(0, 1),
+          avatarTone: vm.coverTone(item.userId)
         }))
         this._page = page
         this._records = reset ? records : (this._records || []).concat(records)

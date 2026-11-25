@@ -136,6 +136,20 @@ check('环比角标: 正数 ↑、负数 ↓; 没有数或正好是 0 不显示'
   assert.equal(vm.trendBadge('abc'), '')
 })
 
+console.log('作品详情页用到的两处文字')
+check('复诵条的小字: 前两位是谁、各多长; 超过两位写“等 N 人”; 没有时说明可以直接诵读', () => {
+  assert.equal(vm.reciteText([{ userName: '李长青', durationSeconds: 58 }, { userName: '陈慧', durationSeconds: 62 }, { userName: '王晓兰' }]),
+    '李长青 58s · 陈慧 62s 等 3 人 —— 他人可直接诵读本段')
+  assert.equal(vm.reciteText([{ userName: '陈慧' }]), '陈慧 —— 他人可直接诵读本段')
+  assert.equal(vm.reciteText([]), '还没有人复诵 · 他人可以直接诵读本段')
+  assert.equal(vm.reciteText(null), '还没有人复诵 · 他人可以直接诵读本段')
+})
+check('详情页标题按类型: 诵读作品 / 随施作品 / 再读作品', () => {
+  assert.equal(vm.WORK_TITLE.songdu, '诵读作品')
+  assert.equal(vm.WORK_TITLE.suishi, '随施作品')
+  assert.equal(vm.WORK_TITLE.zaidu, '再读作品')
+})
+
 console.log('信息流条目')
 check('时间、类型名、NEW 标记; 图片最多 3 张并带上下载令牌; 音频只计数', () => {
   const post = {

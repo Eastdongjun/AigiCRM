@@ -1,75 +1,105 @@
-<view class="fb-detail">
-  <view wx:if="{{loading}}" class="fb-loading">加载中...</view>
+<!-- 整页放在一个滚动容器里: “落点”(从认知广场的 ⋯ 菜单跳来时指定的评论输入框 / 复诵条)靠滚动容器的 scroll-into-view 实现。
+     页面脚本里不用 wx.pageScrollTo —— 导航契约禁用它(会破坏返回时的滚动位置保持)。 -->
+<view class="fb-page detail-page">
+<scroll-view scroll-y class="detail-scroll" scroll-into-view="{{intoView}}" scroll-with-animation enhanced show-scrollbar="{{false}}">
+<view class="detail-body">
+  <view wx:if="{{loading}}" class="empty">加载中…</view>
   <block wx:else>
-    <view wx:if="{{isOwner}}" class="fb-owner-bar">
-      <view wx:if="{{!editing}}">
-        <view class="fb-owner-btn" bindtap="startEdit">修改</view>
-        <view class="fb-owner-btn danger" bindtap="removePost">删除</view>
-        <text class="fb-owner-note">仅作者可见 · 删除后可在 PC「内容管理」找回</text>
+    <!-- 来源条: 类型 + 书目 › 章节 -->
+    <view class="src-strip">
+      <text class="type-tag {{post.scopeType}}">{{typeLabel}}</text>
+      <text wx:if="{{post.bookTitle}}" class="src-book">《{{post.bookTitle}}》<text wx:if="{{post.sectionTitle}}"> › {{post.sectionTitle}}</text></text>
+    </view>
+
+    <!-- 作者 + 时间 + 正文 + 附件 + 木鱼 -->
+    <view class="card head-card">
+      <view class="feed-head">
+        <view class="feed-head-main">
+          <view class="feed-title">{{post.userName || '法布施'}}<text wx:if="{{isNew}}" class="badge-new">NEW</text><text wx:if="{{isOwner}}" class="pbtn">本人</text></view>
+          <view class="feed-meta">{{timeText}}<text wx:if="{{post.deptName}}"> · {{post.deptName}}</text> · 木鱼 {{likeCount}} · 评论 {{commentsTotal}}</view>
+        </view>
       </view>
+      <view wx:if="{{post.title}}" class="detail-title">{{post.title}}</view>
+      <view class="detail-text">{{post.content}}</view>
+
+      <!-- 附件: 书页(图片)点击放大查看; 视频、语音用系统播放器 -->
+      <view wx:if="{{imageUrls.length}}" class="attach-grid">
+        <image wx:for="{{imageUrls}}" wx:key="*this" wx:for-index="imgIndex" class="attach-thumb" src="{{item}}" mode="aspectFill" data-index="{{imgIndex}}" bindtap="previewImage" />
+      </view>
+      <block wx:for="{{attachments}}" wx:key="id">
+        <video wx:if="{{item.fileType === 'video' && item.url}}" class="attach-video" src="{{item.url}}" controls />
+        <audio wx:if="{{item.fileType === 'audio' && item.url}}" class="attach-audio" name="语音附件" author="" src="{{item.url}}" controls />
+      </block>
+      <view wx:if="{{imageUrls.length}}" class="attach-note">书页点击放大查看</view>
+
+      <view class="detail-acts">
+        <text class="mini-action {{liked ? 'on' : ''}}" bindtap="toggleLike">木鱼 {{likeCount}}</text>
+        <text class="mini-action secondary" bindtap="focusComments">评论 {{commentsTotal}}</text>
+      </view>
+    </view>
+
+    <!-- 作者本人: 修改 / 删除(仅本人可见) -->
+    <view wx:if="{{isOwner}}" class="card owner-card">
+      <block wx:if="{{!editing}}">
+        <view class="owner-row">
+          <text class="mini-action" bindtap="startEdit">修改</text>
+          <text class="mini-action danger" bindtap="removePost">删除</text>
+          <text class="owner-note">仅作者可见 · 删除后可在 PC「内容管理」找回</text>
+        </view>
+      </block>
       <block wx:else>
-        <textarea class="fb-edit-area" value="{{editContent}}" maxlength="2000" bindinput="onEditInput" placeholder="编辑正文…" />
-        <view class="fb-owner-actions">
-          <view class="fb-owner-btn" bindtap="cancelEdit">取消</view>
-          <view class="fb-owner-btn primary" bindtap="saveEdit">保存</view>
+        <textarea class="edit-area" value="{{editContent}}" maxlength="2000" bindinput="onEditInput" placeholder="编辑正文…" />
+        <view class="owner-actions">
+          <text class="mini-action secondary" bindtap="cancelEdit">取消</text>
+          <text class="mini-action" bindtap="saveEdit">保存</text>
         </view>
       </block>
     </view>
 
-    <view class="fb-card">
-      <view class="fb-title">{{post.title || '无标题'}}</view>
-      <view class="fb-content">{{post.content}}</view>
-      <view class="fb-meta">
-        <text>{{post.userName || '法布施'}}</text>
-        <text>{{post.createdAt}}</text>
+    <!-- 复诵条: 谁复诵过 + 我要复诵 -->
+    <view class="recite-strip" id="recite-strip">
+      <view class="recite-wave">
+        <view class="bar" style="height: 10rpx;"></view><view class="bar" style="height: 20rpx;"></view><view class="bar" style="height: 14rpx;"></view><view class="bar" style="height: 24rpx;"></view><view class="bar" style="height: 18rpx;"></view><view class="bar" style="height: 26rpx;"></view><view class="bar" style="height: 12rpx;"></view>
       </view>
-      <view class="fb-actions">
-        <view class="fb-action {{liked ? 'active' : ''}}" bindtap="toggleLike">🐟 {{likeCount}}</view>
-        <text class="fb-action">💬 {{comments.length}}</text>
-        <view class="fb-action recite {{reciteMode ? 'reciting' : ''}}" bindtap="toggleRecite">
-          {{reciteMode ? '⏹ 停止复诵' : '🎤 我要复诵'}} · {{recitationCount}}
+      <view class="recite-main">
+        <view class="recite-title">复诵 {{recitationCount}} 次</view>
+        <view class="recite-sub">{{reciteMode ? '正在录音 · ' + recSeconds + 's' : reciteText}}</view>
+      </view>
+      <text class="mini-action {{reciteMode ? 'warn' : ''}}" bindtap="toggleRecite">{{reciteMode ? '停止并提交' : '我要复诵'}}</text>
+    </view>
+    <view wx:if="{{recitations.length}}" class="card recite-list">
+      <view wx:for="{{recitations}}" wx:key="id" class="stats-list-row {{index === recitations.length - 1 ? 'last' : ''}}">
+        <text class="row-main-text">{{item.userName || '同事'}}<text wx:if="{{item.durationSeconds}}"> · {{item.durationSeconds}}s</text></text>
+        <audio wx:if="{{item.url}}" class="recite-audio" name="{{item.userName || '同事'}}的复诵" author="" src="{{item.url}}" controls />
+      </view>
+    </view>
+
+    <!-- 评论 -->
+    <view class="section-heading">评论 · {{commentsTotal}}</view>
+    <view class="card comment-card" id="comment-box">
+      <view wx:if="{{!comments.length}}" class="empty">还没有评论</view>
+      <view wx:for="{{comments}}" wx:key="id" class="comment-row">
+        <view class="comment-ico {{item.type === 'highlight' ? 'highlight' : ''}}">{{item.avatarText}}</view>
+        <view class="comment-main">
+          <view class="comment-name">{{item.userName || '同事'}}<text wx:if="{{item.typeLabel}}" class="type-tag {{item.typeClass}}">{{item.typeLabel}}</text></view>
+          <view wx:if="{{item.content}}" class="comment-content">{{item.content}}</view>
+          <audio wx:if="{{item.type === 'audio' && item.audioUrl}}" class="comment-audio" name="{{item.userName || '同事'}}的语音评论" author="" src="{{item.audioUrl}}" controls />
         </view>
       </view>
-    </view>
+      <view wx:if="{{hasMoreComments}}" class="more-row" bindtap="loadMoreComments">加载更多评论（{{comments.length}}/{{commentsTotal}}）</view>
 
-    <view wx:if="{{recitations.length}}" class="fb-card">
-      <view class="fb-section-title">复诵 · {{recitationCount}}（他人对本段也进行朗读/背诵）</view>
-      <view wx:for="{{recitations}}" wx:key="id" class="fb-recite-row">
-        <text class="fb-recite-name">{{item.userName || '同事'}}</text>
-        <text wx:if="{{item.durationSeconds}}" class="fb-recite-dur">{{item.durationSeconds}}s</text>
-        <audio wx:if="{{item.url}}" src="{{item.url}}" style="flex:1; height:40px;" />
+      <view wx:if="{{canCreate && !voiceMode}}" class="comment-form">
+        <input class="comment-input" value="{{commentText}}" placeholder="写评论…" bindinput="onCommentInput" />
+        <text class="mini-action {{highlightChecked ? 'on' : 'secondary'}}" bindtap="toggleHighlight">重点</text>
+        <text class="mini-action secondary" bindtap="enterVoice">语音</text>
+        <text class="mini-action" bindtap="submitComment">{{submitting ? '发送中' : '发送'}}</text>
       </view>
-    </view>
-
-    <view wx:if="{{attachments.length}}" class="fb-card">
-      <view class="fb-section-title">附件</view>
-      <view wx:for="{{attachments}}" wx:key="id" class="fb-attachment">
-        <image wx:if="{{item.fileType === 'image'}}" class="fb-attach-image" src="{{item.url}}" mode="widthFix" />
-        <video wx:elif="{{item.fileType === 'video'}}" class="fb-attach-video" src="{{item.url}}" controls />
-        <audio wx:elif="{{item.fileType === 'audio'}}" class="fb-attach-audio" src="{{item.url}}" controls />
-        <view class="fb-attach-name">{{item.fileName || item.fileType}}</view>
-      </view>
-    </view>
-
-    <view class="fb-card">
-      <view class="fb-section-title">评论（{{commentsTotal}}）</view>
-      <view wx:if="{{!comments.length}}" class="fb-empty">还没有评论</view>
-      <view wx:for="{{comments}}" wx:key="id" class="fb-comment {{item.type === 'highlight' ? 'highlight' : ''}}">
-        <view class="fb-comment-name">{{item.userName || '同事'}}<text wx:if="{{item.type === 'highlight'}}" class="fb-comment-badge">重点</text></view>
-        <view wx:if="{{item.content}}" class="fb-comment-content">{{item.content}}</view>
-        <audio wx:if="{{item.type === 'audio' && item.audioUrl}}" class="fb-comment-audio" src="{{item.audioUrl}}" controls />
-      </view>
-      <view wx:if="{{hasMoreComments}}" class="fb-more" bindtap="loadMoreComments">加载更多评论（{{comments.length}}/{{commentsTotal}}）</view>
-      <view wx:if="{{canCreate && !voiceMode}}" class="fb-comment-form">
-        <input class="fb-input" value="{{commentText}}" placeholder="写评论..." bindinput="onCommentInput" />
-        <view class="fb-chip {{highlightChecked ? 'on' : ''}}" bindtap="toggleHighlight">重点</view>
-        <view class="fb-chip" bindtap="enterVoice">🎤</view>
-        <button class="fb-send" size="mini" bindtap="submitComment" loading="{{submitting}}">发送</button>
-      </view>
-      <view wx:if="{{canCreate && voiceMode}}" class="fb-comment-form">
-        <input class="fb-input" value="{{commentText}}" placeholder="语音标题（可选）" bindinput="onCommentInput" />
-        <view class="fb-chip rec" bindtap="stopVoice">{{recSeconds}}s ⏹ 发送</view>
+      <view wx:if="{{canCreate && voiceMode}}" class="comment-form">
+        <input class="comment-input" value="{{commentText}}" placeholder="语音标题（可选）" bindinput="onCommentInput" />
+        <text class="mini-action warn" bindtap="stopVoice">{{recSeconds}}s · 停止并发送</text>
       </view>
     </view>
   </block>
+</view>
+</scroll-view>
 </view>

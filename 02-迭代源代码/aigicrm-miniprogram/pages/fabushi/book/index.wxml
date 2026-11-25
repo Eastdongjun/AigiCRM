@@ -1,68 +1,108 @@
-<scroll-view class="cat-bar" scroll-x>
-  <view class="cat-chip {{activeCategory === '' ? 'active' : ''}}" data-code="" bindtap="onCategoryTap">全部</view>
-  <view class="cat-chip {{activeCategory === item.dictValue ? 'active' : ''}}"
-        wx:for="{{categories}}" wx:key="dictValue"
-        data-code="{{item.dictValue}}" bindtap="onCategoryTap">{{item.dictLabel}}</view>
-</scroll-view>
-
-<view class="search-bar">
-  <input class="search-input" placeholder="搜书名 / 作者" value="{{keyword}}" bindinput="onKeywordInput" confirm-type="search" bindconfirm="onSearch" />
-  <view class="search-btn" bindtap="onSearch">搜索</view>
-</view>
-
-<view class="book-card" wx:for="{{books}}" wx:key="id" data-id="{{item.id}}" bindtap="openBook">
-  <view class="book-title-row">
-    <view class="book-title">{{item.title}}</view>
-    <text wx:if="{{item.pdfFileId}}" class="book-pdf">电子书</text>
-  </view>
-  <view class="book-meta">
-    <text wx:if="{{item.categoryName}}">{{item.categoryName}}</text>
-    <text wx:if="{{item.author}}"> · {{item.author}}</text>
-    <text wx:if="{{item.pages}}"> · {{item.pages}}页</text>
-    <text wx:if="{{item.postCount}}"> · 作品 {{item.postCount}}</text>
-  </view>
-  <view class="book-foot">
-    <text class="book-stat">心得 {{item.heartCount || 0}}</text>
-    <text class="book-stat">诵读 {{item.recitationCount || 0}}</text>
-    <text class="book-detail-link">查看详情 ›</text>
-  </view>
-</view>
-
-<view class="empty" wx:if="{{!loading && books.length === 0}}">暂无书目</view>
-<view class="loading" wx:if="{{loading}}">加载中…</view>
-
-<view wx:if="{{detailVisible}}" class="detail-mask" bindtap="closeDetail">
-  <view class="detail-sheet" catchtap="noop">
-    <view class="detail-grab" />
-    <view class="detail-head">
-      <view class="detail-main">
-        <view class="detail-title">{{detailBook.title}}</view>
-        <view class="detail-meta">{{detailBook.author || '法布施书目'}}<text wx:if="{{detailBook.pages}}"> · {{detailBook.pages}} 页</text><text wx:if="{{detailBook.pdfFileId}}"> · 电子书</text></view>
+<!-- 【法布施一期 2026-11-15】书目列表: 分类 + 搜索 + 分页 -->
+<!-- 【2026-11-25 用户裁决】小程序法布施界面按原型 v7 重做外观: 本页 = 原型 A5 书目浏览(类别 → 书目 → 版本)。 -->
+<view class="fb-page book-page">
+  <!-- 类别(横向滑动) + 搜索 -->
+  <scroll-view scroll-x class="cat-scroll" enhanced show-scrollbar="{{false}}">
+    <view class="cat-row">
+      <view class="filter-chip {{activeCategory === '' ? 'active' : ''}}" data-code="" bindtap="onCategoryTap">全部</view>
+      <view wx:for="{{categories}}" wx:key="dictValue" class="filter-chip {{activeCategory === item.dictValue ? 'active' : ''}}" data-code="{{item.dictValue}}" bindtap="onCategoryTap">{{item.dictLabel}}</view>
+    </view>
+  </scroll-view>
+  <view class="card search-card">
+    <view class="search-row">
+      <view class="search-box">
+        <view class="search-ico"></view>
+        <input class="search-input" placeholder="书名 / 作者 / 版本" value="{{keyword}}" bindinput="onKeywordInput" confirm-type="search" bindconfirm="onSearch" />
       </view>
-      <view class="detail-close" bindtap="closeDetail">×</view>
+      <view class="mini-action" bindtap="onSearch">搜索</view>
     </view>
-    <view class="detail-stats">
-      <view class="detail-stat"><text>{{detailBook.heartCount || 0}}</text><text>心得</text></view>
-      <view class="detail-stat"><text>{{detailBook.recitationCount || 0}}</text><text>诵读</text></view>
-      <view class="detail-stat"><text>{{detailBook.postCount || 0}}</text><text>作品</text></view>
+  </view>
+
+  <!-- 书目列表: 点一行在行内展开 —— 这个书名的几个版本可切换, 选定版本下面是阅读 / 发布 / 按书浏览 / 加书架、章节结构、本书目内容 -->
+  <view class="card book-list">
+    <block wx:for="{{books}}" wx:for-item="book" wx:for-index="bookIdx" wx:key="id">
+      <view class="book-row {{bookIdx === 0 ? 'first' : ''}}" data-id="{{book.id}}" bindtap="openBook">
+        <view class="book-ico {{book.coverTone}}">{{book.coverText}}</view>
+        <view class="book-main">
+          <view class="book-name">{{book.titleText}}<text wx:if="{{book.pdfFileId}}" class="type-tag songdu">电子书</text></view>
+          <view class="book-meta">{{book.categoryName || '书目'}}<text wx:if="{{book.author}}"> · {{book.author}}</text><text wx:if="{{book.pages}}"> · {{book.pages}} 页</text></view>
+          <view class="book-meta">心得 {{book.heartCount || 0}} · 诵读 {{book.recitationCount || 0}} · 作品 {{book.postCount || 0}}<text wx:if="{{expandedId === book.id}}" class="expand-hint">收起 ⌃</text></view>
+        </view>
+      </view>
+      <view wx:if="{{expandedId === book.id}}" class="version-panel">
+        <view class="version-chips">
+          <view wx:for="{{versions}}" wx:for-item="ver" wx:for-index="verIdx" wx:key="id" class="filter-chip {{selectedId === ver.id ? 'active' : ''}}" data-id="{{ver.id}}" bindtap="pickVersion">{{ver.label}}</view>
+        </view>
+        <view class="book-meta version-meta">选定：{{detailVersionText || '…'}}<text wx:if="{{detailBook.publisher}}"> · {{detailBook.publisher}}</text><text wx:if="{{detailBook.pages}}"> · {{detailBook.pages}} 页</text></view>
+        <view class="version-acts">
+          <text class="mini-action {{detailBook.pdfFileId ? '' : 'disabled'}}" bindtap="openReader">在线阅读</text>
+          <text class="mini-action secondary" bindtap="goUploadForBook">去发布</text>
+          <text class="mini-action secondary" bindtap="goByBook">按书浏览</text>
+          <text class="mini-action secondary" bindtap="addShelf">加书架</text>
+        </view>
+
+        <view class="sub-title">章节结构</view>
+        <view wx:if="{{sections.length === 0}}" class="card-hint">暂无章节（管理员可在 PC 书目管理维护）</view>
+        <view wx:for="{{sections}}" wx:for-item="sec" wx:for-index="secIdx" wx:key="id" class="section-row" style="padding-left: {{sec.depth * 24}}rpx;">
+          <text class="section-level">{{sec.levelCode === 'preface' ? '序' : sec.levelCode === 'part' ? '部分' : sec.levelCode === 'chapter' ? '章' : '节'}}</text><text>{{sec.title}}</text>
+        </view>
+
+        <view class="sub-title">本书目内容</view>
+        <view wx:if="{{detailPosts.length === 0}}" class="card-hint">暂无内容，欢迎发布第一条</view>
+        <view wx:for="{{detailPosts}}" wx:for-item="post" wx:for-index="postIdx" wx:key="id" class="post-row" data-id="{{post.id}}" bindtap="openPost">
+          <view class="post-title">{{post.title || post.content}}<text wx:if="{{post.isNew}}" class="badge-new">NEW</text></view>
+          <view class="book-meta">{{post.userName || '法布施'}} · {{post.timeText}} · 木鱼 {{post.likeCount || 0}} · 评论 {{post.commentCount || 0}}</view>
+        </view>
+      </view>
+    </block>
+    <view wx:if="{{!loading && books.length === 0}}" class="empty">暂无书目</view>
+    <view wx:if="{{loading}}" class="empty">加载中…</view>
+  </view>
+
+  <!-- 页脚: 人人可提交书目, 管理员审核后展示 -->
+  <view class="lib-foot">
+    <text class="lib-hint">人人可提交书目 · 管理员审核后展示</text>
+    <text wx:if="{{canCreate}}" class="mini-action" bindtap="openSubmit">＋ 提交书目</text>
+  </view>
+
+  <!-- 提交书目: 类别、书名必填; 其余可选。提交后待管理员审核 -->
+  <view wx:if="{{submitOpen}}" class="mask" bindtap="closeSubmit">
+    <view class="sheet" catchtap="noop">
+      <view class="sheet-head">
+        <text class="sheet-title">提交书目</text>
+        <text class="mini-action secondary" bindtap="closeSubmit">收起</text>
+      </view>
+      <view class="form-body">
+        <view class="form-row">
+          <text class="form-label">类别</text>
+          <picker class="form-flex" range="{{categories}}" range-key="dictLabel" value="{{form.categoryIndex < 0 ? 0 : form.categoryIndex}}" bindchange="onCategoryPick">
+            <view class="polished-select">{{form.categoryIndex >= 0 && categories[form.categoryIndex] ? categories[form.categoryIndex].dictLabel : '请选择类别'}}<text class="go">▾</text></view>
+          </picker>
+        </view>
+        <view class="form-row">
+          <text class="form-label">书名</text>
+          <input class="form-field" value="{{form.title}}" placeholder="如：道德经" maxlength="100" data-field="title" bindinput="onFormInput" />
+        </view>
+        <view class="form-row">
+          <text class="form-label">作者</text>
+          <input class="form-field" value="{{form.author}}" placeholder="可选" maxlength="50" data-field="author" bindinput="onFormInput" />
+        </view>
+        <view class="form-row">
+          <text class="form-label">出版社</text>
+          <input class="form-field" value="{{form.publisher}}" placeholder="可选" maxlength="50" data-field="publisher" bindinput="onFormInput" />
+        </view>
+        <view class="form-row">
+          <text class="form-label">版本类型</text>
+          <picker class="form-flex" range="{{editions}}" range-key="label" value="{{form.editionIndex}}" bindchange="onEditionPick">
+            <view class="polished-select">{{editions[form.editionIndex].label}}<text class="go">▾</text></view>
+          </picker>
+        </view>
+        <view class="form-row">
+          <text class="form-label">页数</text>
+          <input class="form-field" type="number" value="{{form.pages}}" placeholder="可选" maxlength="6" data-field="pages" bindinput="onFormInput" />
+        </view>
+        <view class="detail-primary-action submit-btn {{submitting ? 'disabled' : ''}}" bindtap="submitBook">{{submitting ? '提交中…' : '提交（待管理员审核）'}}</view>
+      </view>
     </view>
-    <view class="detail-actions">
-      <view class="detail-btn {{canCreate ? '' : 'disabled'}}" bindtap="goUploadForBook">写心得 / 诵读</view>
-      <view class="detail-btn ghost" bindtap="addShelf">加入书架</view>
-      <view wx:if="{{detailBook.pdfFileId}}" class="detail-btn ghost" bindtap="openReader">在线阅读</view><view wx:else class="detail-btn ghost disabled">在线阅读</view>
-    </view>
-    <view class="detail-section-title">章节结构</view>
-    <view wx:if="{{sections.length === 0}}" class="detail-empty">暂无章节（管理员可在 PC 书目管理维护）</view>
-    <view wx:for="{{sections}}" wx:key="id" class="section-row" style="padding-left: {{item.depth * 24}}rpx;">
-      <text class="section-level">{{item.levelCode === 'preface' ? '序' : item.levelCode === 'part' ? '部分' : item.levelCode === 'chapter' ? '章' : '节'}}</text>
-      <text>{{item.title}}</text>
-    </view>
-    <view class="detail-section-title">本书目内容</view>
-    <view wx:if="{{detailPosts.length === 0}}" class="detail-empty">暂无作品，欢迎发布第一条</view>
-    <view wx:for="{{detailPosts}}" wx:key="id" class="detail-post" data-id="{{item.id}}" bindtap="openPost">
-      <view class="detail-post-title">{{item.title || (item.content || '')}}<text wx:if="{{item.isNew}}" class="detail-new">NEW</text></view>
-      <view class="detail-post-meta">{{item.userName || '法布施'}} · 木鱼 {{item.likeCount || 0}} · 评论 {{item.commentCount || 0}}</view>
-    </view>
-    <view class="detail-note">结构树（序→部分→章→节）为二期；一期按书目维度发布通读内容。</view>
   </view>
 </view>

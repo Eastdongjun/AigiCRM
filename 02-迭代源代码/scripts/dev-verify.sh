@@ -685,6 +685,7 @@ local_contracts() {
   run node "$ROOT/scripts/test-miniprogram-image-editor.js"
   # 【GL-14 2026-11-24】小程序法布施详情页: 评论分页(首屏 10 条 / 加载更多 / 发完评论回到第一页)、
   #   音频评论补可播地址、复诵录音出错后状态复位(修复 a93eed71: 之后录的语音评论不再被当成复诵提交)
+  #   【2026-11-25 追加】复诵列表的可播地址(原来令牌位置放的是整个应答对象, 一直播不出来)、从认知广场跳来的落点、书页放大、评论行的头像与类型名。
   run node "$ROOT/scripts/test-miniprogram-fabushi-detail.js"
   # 【2026-11-25 用户裁决: 小程序法布施界面按原型 v7 重做外观】
   #   1) 文案/封面/进度/觉醒三板块等由接口数据算视图字段的纯函数(utils/fabushi-view-model.js);
@@ -694,6 +695,11 @@ local_contracts() {
   #   画面是否画对(版式、配色)不在这两个测试里, 靠开发者工具里逐屏截图与原型并排核对。
   run node "$ROOT/scripts/test-miniprogram-fabushi-view-model.js"
   run node "$ROOT/scripts/test-miniprogram-fabushi-home.js"
+  #   同一批里的另外三页: 认知广场(A2: “全部”分区 / 服务端搜索 / “只看未读”的前端过滤与连取 / ⋯ 菜单 / 按书浏览选书面板 / 应答晚到不覆盖)、
+  #   按书浏览(A3: 书头卡 / 成员行 / 三种排列 / 分页, 这一页此前没有测试)、书目浏览(A5: 行内展开版本链 / 提交书目表单的校验与载荷)。
+  run node "$ROOT/scripts/test-miniprogram-fabushi-feed.js"
+  run node "$ROOT/scripts/test-miniprogram-fabushi-bybook.js"
+  run node "$ROOT/scripts/test-miniprogram-fabushi-book.js"
   # 【GL-16 2026-11-24】法布施已废止的名称(内容治理→内容管理、分享广场→认知广场)不得再出现在小程序与 PC 前端源码里
   #   + 契约自身的行为测试(隔离夹具: 逐处点名、不误报依赖包与文档、根目录不对不通过)
   run "$ROOT/scripts/check-fabushi-terminology.sh"

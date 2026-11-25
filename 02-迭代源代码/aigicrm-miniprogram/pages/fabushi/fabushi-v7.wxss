@@ -116,9 +116,12 @@ page { background: #f5f7fb; }
 .fb-page .mom-ava { display: flex; flex-shrink: 0; align-items: center; justify-content: center; width: 76rpx; height: 76rpx; border-radius: 14rpx; font-size: 30rpx; font-weight: 800; color: #fff; background: var(--cover-navy); }
 .fb-page .mom-main { flex: 1; min-width: 0; }
 .fb-page .mom-name { display: flex; align-items: center; flex-wrap: wrap; gap: 10rpx; font-size: 25rpx; font-weight: 800; color: var(--navy); }
-.fb-page .mom-text { margin-top: 6rpx; font-size: 23rpx; line-height: 1.7; color: var(--mp-ink); }
+/* 有标题的作品: 标题单独一行(原型 A2 的卡片只有正文; 这里的作品可以带标题) */
+.fb-page .mom-title { margin-top: 6rpx; font-size: 24rpx; font-weight: 800; color: var(--mp-ink); }
+.fb-page .mom-text { margin-top: 6rpx; font-size: 23rpx; line-height: 1.7; color: var(--mp-ink); word-break: break-all; }
 .fb-page .mom-grid { display: grid; grid-template-columns: repeat(3, 132rpx); gap: 8rpx; margin-top: 14rpx; }
-.fb-page .mimg { position: relative; height: 132rpx; border-radius: 12rpx; background: var(--mp-tile); }
+.fb-page .mimg { position: relative; height: 132rpx; overflow: hidden; border-radius: 12rpx; background: var(--mp-tile); }
+.fb-page .mimg-img { display: block; width: 100%; height: 100%; }
 .fb-page .mimg .anno { position: absolute; right: 6rpx; bottom: 6rpx; padding: 0 8rpx; border-radius: 6rpx; font-size: 16rpx; font-weight: 800; color: #fff; background: rgba(23, 32, 51, .72); }
 .fb-page .mom-audio { display: flex; align-items: center; gap: 14rpx; margin-top: 14rpx; padding: 12rpx 18rpx; border-radius: 16rpx; font-size: 21rpx; color: var(--mp-ink2); background: var(--mp-tile); }
 .fb-page .recite-wave { display: flex; align-items: flex-end; gap: 4rpx; height: 28rpx; }
@@ -132,6 +135,17 @@ page { background: #f5f7fb; }
 .fb-page .mom-inter .likers { font-weight: 700; color: var(--navy); }
 .fb-page .mom-cmt { margin-top: 8rpx; padding-top: 8rpx; border-top: 2rpx dashed var(--mp-card-line); }
 .fb-page .mom-cmt .cmt-name { color: var(--navy); font-weight: 800; }
+/* 认知广场底部: 再读一本 · 按书浏览入口 */
+.fb-page .bybook-entry { display: flex; align-items: center; gap: 14rpx; padding: 18rpx 24rpx; }
+.fb-page .bybook-text { flex: 1; min-width: 0; font-size: 21rpx; color: var(--mp-ink2); }
+/* 底部弹出的选书面板(按书浏览先选书) */
+.fb-page .mask { position: fixed; left: 0; right: 0; top: 0; bottom: 0; z-index: 20; display: flex; align-items: flex-end; background: rgba(23, 32, 51, .45); }
+.fb-page .sheet { display: flex; flex-direction: column; width: 100%; max-height: 72vh; border-radius: 28rpx 28rpx 0 0; background: var(--mp-card); }
+.fb-page .sheet-head { display: flex; align-items: center; justify-content: space-between; padding: 24rpx 28rpx 12rpx; }
+.fb-page .sheet-title { font-size: 30rpx; font-weight: 800; color: var(--mp-ink); }
+.fb-page .sheet-body { box-sizing: border-box; max-height: 56vh; padding: 0 16rpx calc(24rpx + env(safe-area-inset-bottom)); }
+/* 右下角的发布按钮 */
+.fb-page .fab { position: fixed; right: 32rpx; bottom: calc(48rpx + env(safe-area-inset-bottom)); z-index: 10; display: flex; align-items: center; justify-content: center; width: 104rpx; height: 104rpx; border-radius: 50%; font-size: 56rpx; font-weight: 300; line-height: 1; color: #fff; background: var(--accent); box-shadow: 0 16rpx 32rpx rgba(37, 99, 235, .32); }
 
 /* ===== 书目行 / 封面 / 进度条 ===== */
 .fb-page .book-row { display: flex; align-items: center; gap: 14rpx; padding: 16rpx 14rpx; border-top: 2rpx solid var(--mp-card-line-soft); }
@@ -151,13 +165,13 @@ page { background: #f5f7fb; }
 .fb-page .section-heading { display: flex; align-items: center; justify-content: space-between; margin: 24rpx 4rpx 16rpx; font-size: 29rpx; font-weight: 800; color: var(--mp-ink); }
 .fb-page .section-heading .more { font-size: 22rpx; font-weight: 400; color: var(--mp-ink3); }
 
-/* 封面 / 书目图标的六种底色(与 utils/fabushi-view-model.js 的 coverTone 一一对应) */
-.fb-page .cover.navy, .fb-page .book-ico.navy { background-color: #1d4ed8; background-image: var(--cover-navy); }
-.fb-page .cover.cyan, .fb-page .book-ico.cyan { background-color: #0e7490; background-image: var(--cover-cyan); }
-.fb-page .cover.amber, .fb-page .book-ico.amber { background-color: #b45309; background-image: var(--cover-amber); }
-.fb-page .cover.teal, .fb-page .book-ico.teal { background-color: #14b8a6; background-image: var(--cover-teal); }
-.fb-page .cover.violet, .fb-page .book-ico.violet { background-color: #6d28d9; background-image: var(--cover-violet); }
-.fb-page .cover.gray, .fb-page .book-ico.gray { background-color: #64748b; background-image: var(--cover-gray); }
+/* 封面 / 书目图标 / 头像的六种底色(与 utils/fabushi-view-model.js 的 coverTone 一一对应) */
+.fb-page .cover.navy, .fb-page .book-ico.navy, .fb-page .mom-ava.navy { background-color: #1d4ed8; background-image: var(--cover-navy); }
+.fb-page .cover.cyan, .fb-page .book-ico.cyan, .fb-page .mom-ava.cyan { background-color: #0e7490; background-image: var(--cover-cyan); }
+.fb-page .cover.amber, .fb-page .book-ico.amber, .fb-page .mom-ava.amber { background-color: #b45309; background-image: var(--cover-amber); }
+.fb-page .cover.teal, .fb-page .book-ico.teal, .fb-page .mom-ava.teal { background-color: #14b8a6; background-image: var(--cover-teal); }
+.fb-page .cover.violet, .fb-page .book-ico.violet, .fb-page .mom-ava.violet { background-color: #6d28d9; background-image: var(--cover-violet); }
+.fb-page .cover.gray, .fb-page .book-ico.gray, .fb-page .mom-ava.gray { background-color: #64748b; background-image: var(--cover-gray); }
 
 /* ===== 表单类(B2–B4) ===== */
 .fb-page .stats-tabs { display: flex; gap: 16rpx; margin: 20rpx 2rpx 18rpx; }

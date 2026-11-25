@@ -8,6 +8,8 @@
 const SCOPE_LABEL = { songdu: '每日诵读', suishi: '每日随施', zaidu: '再读一本' }
 const STATUS_LABEL = { wish: '想读', reading: '在读', finished: '已读完', favorite: '收藏' }
 const FREQ_LABEL = { daily: '每天', weekday: '工作日', weekend: '休息日' }
+// 作品详情页的标题(原型 A4 的例子是“再读作品”): 按类型
+const WORK_TITLE = { songdu: '诵读作品', suishi: '随施作品', zaidu: '再读作品' }
 // 封面的几种底色, 与样式里的 .cover.navy / .cyan / … 一一对应
 const COVER_TONES = ['navy', 'cyan', 'amber', 'teal', 'violet', 'gray']
 
@@ -105,6 +107,14 @@ function trendBadge(pct) {
   return `${value > 0 ? '↑ ' : '↓ '}${Math.round(Math.abs(value) * 10) / 10}%`
 }
 
+// 作品详情页复诵条上的一行小字(原型 A4): 前两位是谁、各多长; 还没有人复诵时说明可以直接诵读
+function reciteText(rows) {
+  const list = Array.isArray(rows) ? rows : []
+  if (!list.length) return '还没有人复诵 · 他人可以直接诵读本段'
+  const head = list.slice(0, 2).map((row) => `${row.userName || '同事'}${row.durationSeconds ? ' ' + row.durationSeconds + 's' : ''}`).join(' · ')
+  return `${head}${list.length > 2 ? ` 等 ${list.length} 人` : ''} —— 他人可直接诵读本段`
+}
+
 // 附件的下载地址: 与详情页同一条通道(下载令牌放在地址里)
 function downloadUrl(fileId, token, base) {
   return `${base || ''}/api/file/download/${fileId}${token ? `?token=${encodeURIComponent(token)}` : ''}`
@@ -146,4 +156,4 @@ function shelfRowView(row, index) {
   }
 }
 
-module.exports = { SCOPE_LABEL, STATUS_LABEL, coverText, coverTone, timeText, progressText, awakeningView, reminderView, teamTotals, trendBadge, downloadUrl, postView, shelfRowView }
+module.exports = { SCOPE_LABEL, STATUS_LABEL, WORK_TITLE, coverText, coverTone, timeText, progressText, awakeningView, reminderView, teamTotals, trendBadge, reciteText, downloadUrl, postView, shelfRowView }

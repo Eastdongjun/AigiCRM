@@ -1,44 +1,25 @@
-/* 【MP-PARITY 2026-11-23】A3 按书浏览：书卷语言（纸色底 / 墨绿 / 朱砂 / 宋体标题） */
-page { background: #f7f3ec; }
-.bb-page { padding-bottom: 40rpx; }
+@import "../fabushi-v7.wxss";
 
+/* 按书浏览(原型 A3 · 再读一本 · 按书下钻)。公共的设计变量与组件样式在 ../fabushi-v7.wxss, 这里的规则同样限定在 .fb-page 之下
+   (原因见那个文件的文件头)。 */
 /* 书头卡 */
-.bb-head { background: #fffdf8; padding: 24rpx; border-bottom: 1rpx solid #e8e0d3; }
-.bb-title-row { display: flex; align-items: center; gap: 12rpx; }
-.bb-title { font-family: 'Songti SC', 'STSong', serif; font-size: 34rpx; font-weight: 800; color: #2e2a24; }
-.bb-tag { padding: 2rpx 12rpx; border-radius: 6rpx; background: #e8f1f4; color: #0e7490; font-size: 20rpx; }
-.bb-meta { margin-top: 10rpx; font-size: 22rpx; color: #9c9184; line-height: 1.5; }
-.bb-stats { margin-top: 10rpx; font-size: 24rpx; color: #a67c52; }
-.bb-acts { display: flex; gap: 16rpx; margin-top: 20rpx; }
-.bb-btn { flex: 1; height: 72rpx; line-height: 72rpx; margin: 0; padding: 0; border-radius: 36rpx; border: 1rpx solid #2d5a4a; background: #fffdf8; color: #2d5a4a; font-size: 26rpx; }
-.bb-btn.primary { background: #2d5a4a; color: #fff7ee; }
-.bb-btn[disabled] { opacity: .45; }
+.fb-page .bb-head { padding: 22rpx 26rpx; }
+.fb-page .bb-head-row { display: flex; align-items: center; gap: 20rpx; }
+.fb-page .bb-head-main { flex: 1; min-width: 0; }
+.fb-page .bb-head-main .book-name { font-size: 27rpx; }
+.fb-page .bb-head-main .book-meta { margin-top: 4rpx; }
+.fb-page .bb-strong { font-weight: 800; color: var(--mp-ink); }
+.fb-page .bb-acts { display: flex; gap: 14rpx; margin-top: 18rpx; }
+.fb-page .bb-acts .detail-primary-action, .fb-page .bb-acts .secondary-btn { flex: 1; width: auto; height: 68rpx; margin: 0; font-size: 25rpx; }
 
-/* 排列切换 */
-.bb-sorts { display: flex; align-items: center; gap: 10rpx; padding: 18rpx 24rpx; background: #fffdf8; border-bottom: 1rpx solid #e8e0d3; position: sticky; top: 0; z-index: 2; }
-.bb-sort { padding: 8rpx 20rpx; border: 1rpx solid #e8e0d3; border-radius: 999rpx; font-size: 24rpx; color: #6b6257; background: #f7f3ec; }
-.bb-sort.active { border-color: #2d5a4a; background: #eef3eb; color: #2d5a4a; font-weight: 700; }
-.bb-count { margin-left: auto; font-size: 22rpx; color: #9c9184; }
+/* 三种排列 */
+.fb-page .bb-sorts { margin-top: 20rpx; }
+.fb-page .bb-count { align-self: center; margin-left: auto; font-size: 21rpx; color: var(--mp-ink3); }
 
-/* 分组 */
-.bb-group { margin-top: 8rpx; }
-.bb-group-head { display: flex; align-items: center; justify-content: space-between; padding: 16rpx 24rpx 8rpx; }
-.bb-group-title { font-family: 'Songti SC', 'STSong', serif; font-size: 26rpx; font-weight: 700; color: #a67c52; }
-.bb-group-count { font-size: 20rpx; color: #b9ae9c; }
-
-/* 成员行 */
-.bb-item { display: flex; align-items: flex-start; gap: 16rpx; margin: 0 16rpx 12rpx; padding: 20rpx; background: #fffdf8; border: 1rpx solid #e8e0d3; border-radius: 14rpx; }
-.bb-avatar { flex-shrink: 0; width: 56rpx; height: 56rpx; line-height: 56rpx; text-align: center; border-radius: 50%; background: #eef3eb; color: #2d5a4a; font-size: 26rpx; font-weight: 700; }
-.bb-item-main { flex: 1; min-width: 0; }
-.bb-item-name { font-size: 24rpx; color: #2e2a24; }
-.bb-name { font-weight: 700; }
-.bb-form { color: #9c9184; font-size: 21rpx; }
-.bb-new { display: inline-block; margin-left: 8rpx; padding: 2rpx 8rpx; border-radius: 6rpx; background: #b5543a; color: #fff7ee; font-size: 18rpx; font-weight: 700; vertical-align: middle; }
-.bb-item-summary { margin-top: 8rpx; font-size: 26rpx; color: #2e2a24; line-height: 1.5; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-.bb-item-meta { margin-top: 10rpx; font-size: 21rpx; color: #9c9184; }
-.bb-detail { flex-shrink: 0; align-self: center; font-size: 22rpx; color: #2d5a4a; }
-
-.bb-loading, .bb-empty { text-align: center; color: #9c9184; font-size: 24rpx; padding: 60rpx 0; }
-.bb-foot { margin-top: 24rpx; text-align: center; font-size: 20rpx; color: #b9ae9c; padding: 0 40rpx; line-height: 1.6; }
-/* 【S4.2】分页状态条 */
-.bb-more { margin-top: 20rpx; text-align: center; font-size: 22rpx; color: #9c9184; }
+/* 分组内容列表 */
+.fb-page .bb-group { padding: 8rpx; }
+.fb-page .bb-group-head { display: flex; align-items: center; justify-content: space-between; padding: 14rpx 18rpx; border-radius: 16rpx 16rpx 0 0; font-size: 20rpx; font-weight: 800; color: var(--mp-ink2); background: var(--mp-tile); }
+.fb-page .bb-group .book-row:first-child, .fb-page .bb-group-head + .book-row { border-top: 0; }
+.fb-page .bb-form { font-size: 21rpx; font-weight: 400; color: var(--mp-ink2); }
+.fb-page .bb-summary { display: -webkit-box; margin-top: 6rpx; overflow: hidden; font-size: 23rpx; line-height: 1.5; color: var(--mp-ink); -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.fb-page .bb-foot { margin-top: 18rpx; padding: 0 40rpx; text-align: center; font-size: 19rpx; line-height: 1.6; color: var(--mp-ink4); }

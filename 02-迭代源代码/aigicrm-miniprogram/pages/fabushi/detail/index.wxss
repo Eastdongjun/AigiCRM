@@ -1,44 +1,54 @@
-/* 【书卷改版 2026-11-16】作品详情页: 纸色底/宋体标题/墨绿互动 */
-page { background: #f7f3ec; }
-.fb-detail { padding: 16rpx; background: #f7f3ec; min-height: 100vh; box-sizing: border-box; }
-/* 【D13 计划切片 2】作者本人管理条（修改/删除，仅作者可见） */
-.fb-owner-bar { background: #fffdf8; border: 1rpx dashed #cdbfa8; border-radius: 16rpx; padding: 18rpx 22rpx; margin-bottom: 16rpx; }
-.fb-owner-btn { display: inline-block; padding: 8rpx 26rpx; margin-right: 14rpx; border-radius: 999rpx; border: 1rpx solid #2d5a4a; color: #2d5a4a; font-size: 26rpx; font-weight: 700; }
-.fb-owner-btn.danger { border-color: #b5543a; color: #b5543a; }
-.fb-owner-btn.primary { background: #2d5a4a; color: #fff; }
-.fb-owner-note { font-size: 20rpx; color: #a89a80; }
-.fb-edit-area { width: 100%; min-height: 200rpx; margin: 12rpx 0; padding: 16rpx; box-sizing: border-box; border: 1rpx solid #e8e0d3; border-radius: 12rpx; font-size: 27rpx; color: #4a4238; }
-.fb-owner-actions { display: flex; justify-content: flex-end; }
-.fb-card { background: #fffdf8; border: 1rpx solid #e8e0d3; border-radius: 16rpx; padding: 26rpx; margin-bottom: 16rpx; }
-.fb-title { font-family: 'Songti SC', 'STSong', serif; font-size: 36rpx; font-weight: 800; color: #2e2a24; line-height: 1.5; }
-.fb-content { font-size: 29rpx; color: #4a4238; line-height: 1.9; margin-top: 18rpx; white-space: pre-wrap; }
-.fb-meta { display: flex; justify-content: space-between; font-size: 22rpx; color: #9c9184; margin-top: 22rpx; }
-.fb-actions { display: flex; gap: 40rpx; margin-top: 20rpx; font-size: 28rpx; color: #6b6257; }
-.fb-action.active { color: #b5543a; font-weight: 700; }
-.fb-section-title { font-family: 'Songti SC', 'STSong', serif; font-size: 28rpx; font-weight: 700; color: #2e2a24; margin-bottom: 12rpx; }
-.fb-comment { padding: 12rpx 0; border-bottom: 1rpx dashed #e8e0d3; }
-.fb-comment-name { font-size: 24rpx; color: #2d5a4a; font-weight: 600; }
-.fb-comment-content { font-size: 26rpx; color: #4a4238; margin-top: 4rpx; }
-.fb-comment-form { display: flex; gap: 12rpx; align-items: center; margin-top: 16rpx; }
-.fb-input { flex: 1; background: #faf6ee; border: 1rpx solid #e0d5c2; border-radius: 999rpx; padding: 12rpx 20rpx; font-size: 24rpx; color: #2e2a24; }
-.fb-send { background: #2d5a4a; color: #fff7ee; border-radius: 999rpx; }
-.fb-empty, .fb-loading { text-align: center; color: #9c9184; font-size: 24rpx; padding: 32rpx 0; }
-.fb-attachment { display: flex; flex-direction: column; gap: 8rpx; margin-bottom: 14rpx; }
-.fb-attach-image { width: 100%; border-radius: 14rpx; }
-.fb-attach-video { width: 100%; height: 380rpx; border-radius: 14rpx; }
-.fb-attach-audio { width: 100%; }
-.fb-attach-name { color: #9c9184; font-size: 19rpx; }
-/* 【F2 2026-11-19 拍板③】highlight 重点评论(徽标+描边底)与 audio 语音诵读评论 */
-.fb-comment.highlight { border-left: 6rpx solid #b5543a; padding-left: 14rpx; background: #fdf6f0; border-radius: 8rpx; }
-.fb-comment-badge { margin-left: 8rpx; padding: 1rpx 8rpx; border-radius: 6rpx; background: #b5543a; color: #fff7ee; font-size: 16rpx; font-weight: 700; }
-.fb-comment-audio { margin-top: 8rpx; width: 100%; }
-.fb-chip { padding: 8rpx 16rpx; border-radius: 999rpx; background: #efe7d8; color: #6b6257; font-size: 22rpx; flex-shrink: 0; }
-.fb-chip.on { background: #b5543a; color: #fff7ee; font-weight: 700; }
-.fb-chip.rec { background: #b5543a; color: #fff7ee; font-weight: 700; min-width: 120rpx; text-align: center; }
-/* 【D14 计划切片 3】复诵条 */
-.fb-action.recite { border: 1rpx solid #2d5a4a; border-radius: 999rpx; padding: 4rpx 18rpx; color: #2d5a4a; }
-.fb-action.recite.reciting { background: #b5543a; border-color: #b5543a; color: #fff; }
-.fb-recite-row { display: flex; align-items: center; gap: 12rpx; padding: 12rpx 0; border-top: 1rpx solid #efe7d8; }
-.fb-recite-name { font-size: 24rpx; font-weight: 700; color: #2e2a24; flex-shrink: 0; }
-.fb-recite-dur { font-size: 20rpx; color: #a89a80; flex-shrink: 0; }
-.fb-more { padding: 10px 0; color: #8a6a45; font-size: 12px; text-align: center; }
+@import "../fabushi-v7.wxss";
+
+/* 整页是一个滚动容器(落点靠 scroll-into-view): 页面本身不留内边距, 内边距放在容器里的内容层上 */
+.fb-page.detail-page { padding: 0; }
+.fb-page .detail-scroll { height: 100vh; }
+.fb-page .detail-body { padding: 24rpx 28rpx 60rpx; }
+
+/* 作品详情(原型 A4 · 作品详情 + 互动)。公共的设计变量与组件样式在 ../fabushi-v7.wxss, 这里的规则同样限定在 .fb-page 之下
+   (原因见那个文件的文件头)。 */
+/* 来源条: 类型 + 书目 › 章节 */
+.fb-page .src-strip { display: flex; align-items: center; gap: 12rpx; padding: 14rpx 20rpx; border: 2rpx solid var(--mp-card-line); border-radius: 18rpx; font-size: 20rpx; color: var(--mp-ink2); background: var(--mp-tile); }
+.fb-page .src-strip .src-book { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; color: #2364d8; }
+.fb-page .type-tag.cyan { color: var(--cyan); background: var(--cyan-bg); }
+
+/* 作者 + 正文 + 附件 + 木鱼 */
+.fb-page .head-card { margin-top: 16rpx; padding: 20rpx 24rpx; }
+.fb-page .detail-title { margin-top: 14rpx; font-size: 30rpx; font-weight: 800; line-height: 1.5; color: var(--mp-ink); }
+.fb-page .detail-text { margin-top: 10rpx; font-size: 25rpx; line-height: 1.8; color: var(--mp-ink); white-space: pre-wrap; word-break: break-all; }
+.fb-page .attach-grid { display: flex; flex-wrap: wrap; gap: 12rpx; margin-top: 16rpx; }
+.fb-page .attach-thumb { width: 172rpx; height: 120rpx; border-radius: 16rpx; background: var(--mp-tile); }
+.fb-page .attach-video { width: 100%; height: 380rpx; margin-top: 16rpx; border-radius: 16rpx; }
+.fb-page .attach-audio { width: 100%; margin-top: 12rpx; }
+.fb-page .attach-note { margin-top: 10rpx; font-size: 18rpx; color: var(--mp-ink4); }
+.fb-page .detail-acts { display: flex; gap: 16rpx; margin-top: 18rpx; padding-top: 16rpx; border-top: 2rpx dashed var(--mp-card-line); }
+
+/* 作者本人: 修改 / 删除 */
+.fb-page .owner-card { padding: 20rpx 24rpx; }
+.fb-page .owner-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12rpx; }
+.fb-page .owner-note { font-size: 18rpx; color: var(--mp-ink4); }
+.fb-page .mini-action.danger { color: #e11d48; border-color: #fecdd3; background: #fff1f2; }
+.fb-page .edit-area { box-sizing: border-box; width: 100%; min-height: 200rpx; padding: 16rpx; border: 2rpx solid var(--mp-card-line); border-radius: 16rpx; font-size: 26rpx; color: var(--mp-ink); background: var(--mp-tile); }
+.fb-page .owner-actions { display: flex; justify-content: flex-end; gap: 12rpx; margin-top: 12rpx; }
+
+/* 复诵条与复诵列表 */
+.fb-page .recite-strip { margin-top: 16rpx; }
+.fb-page .recite-main { flex: 1; min-width: 0; }
+.fb-page .recite-title { font-size: 22rpx; font-weight: 800; color: var(--mp-ink); }
+.fb-page .recite-sub { margin-top: 2rpx; font-size: 19rpx; line-height: 1.5; color: var(--mp-ink3); }
+.fb-page .recite-list { margin-top: 14rpx; padding: 4rpx 24rpx; }
+.fb-page .recite-audio { flex: 1; width: auto; min-width: 0; }
+
+/* 评论 */
+.fb-page .comment-card { padding: 4rpx 24rpx 8rpx; }
+.fb-page .comment-row { display: flex; align-items: flex-start; gap: 14rpx; padding: 16rpx 0; border-top: 2rpx solid var(--mp-card-line-soft); }
+.fb-page .comment-row:first-child { border-top: 0; }
+.fb-page .comment-ico { display: flex; flex-shrink: 0; align-items: center; justify-content: center; width: 52rpx; height: 52rpx; border-radius: 14rpx; font-size: 20rpx; font-weight: 800; color: var(--primary); background: var(--mp-blue-bg); }
+.fb-page .comment-ico.highlight { color: var(--cyan); background: var(--cyan-bg); }
+.fb-page .comment-main { flex: 1; min-width: 0; }
+.fb-page .comment-name { display: flex; align-items: center; gap: 8rpx; font-size: 22rpx; font-weight: 800; color: var(--mp-ink); }
+.fb-page .comment-content { margin-top: 4rpx; font-size: 23rpx; line-height: 1.6; color: var(--mp-ink2); word-break: break-all; }
+.fb-page .comment-audio { width: 100%; margin-top: 8rpx; }
+.fb-page .more-row { padding: 16rpx 0; border-top: 2rpx solid var(--mp-card-line-soft); text-align: center; font-size: 21rpx; color: var(--accent); }
+.fb-page .comment-form { display: flex; align-items: center; gap: 10rpx; padding: 16rpx 0 20rpx; border-top: 2rpx solid var(--mp-card-line-soft); }
+.fb-page .comment-input { flex: 1; min-width: 0; box-sizing: border-box; height: 58rpx; padding: 0 20rpx; border: 2rpx solid var(--mp-card-line); border-radius: 999rpx; font-size: 24rpx; color: var(--mp-ink); background: var(--mp-tile); }

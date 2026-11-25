@@ -8,14 +8,19 @@
 //   抓不到: 触底事件是否真的接到 loadMoreComments(WXML 绑定, 由模板绑定契约与开发者工具走查负责)、真机录音。
 const assert = require('node:assert/strict')
 
-const POST = { id: 501, userId: 7, title: '今日诵读', content: '内容' }
+let post = { id: 501, userId: 7, title: '今日诵读', content: '内容' }   // 详情接口返回的作品(每个场景可以换)
 // 测试用的假下载票据(片段拼接: 不是任何真实票据, 也不让凭据扫描把它当成字面量)
 const FAKE_DOWNLOAD_TOKEN = ['dl-token', 'for-test'].join('-')
 const requests = []      // wx.request 的调用: { url, method, data }
 const uploads = []       // wx.uploadFile 的调用: { filePath, formData }
 const toasts = []
 const modals = []
+const titles = []        // wx.setNavigationBarTitle 设过的标题
+const pageScrolls = []   // wx.pageScrollTo 被调用的次数(应当一直是 0)
+const previews = []      // wx.previewImage 放大的图片
 let commentFeed = []     // 接口返回的评论列表(每个场景自己设)
+let recitationFeed = []  // 接口返回的复诵列表(每个场景自己设)
+let attachments = []     // 详情接口返回的附件(每个场景自己设)
 let recorder = null
 let uploadSeq = 0        // 上传序号(每个场景从 0 开始): 第 n 次上传得到的文件 id = 77000 + n
 
@@ -23,13 +28,13 @@ function ok(data) { return { statusCode: 200, data: { code: 200, data } } }
 function route(opts) {
   const url = opts.url || ''
   const method = opts.method || 'GET'
-  if (/\/fabushi\/posts\/501$/.test(url)) return opts.success(ok({ post: POST, attachments: [], likeCount: 0 }))
+  if (/\/fabushi\/posts\/501$/.test(url)) return opts.success(ok({ post, attachments, likeCount: 0 }))
   if (/\/fabushi\/posts\/501\/comments$/.test(url)) {
     // 服务端收到评论后, 新评论排在列表最前(下次拉取就能看到)
     if (method === 'POST') commentFeed = [comment(99, { content: (opts.data && opts.data.content) || '语音评论', type: (opts.data && opts.data.type) || 'text' })].concat(commentFeed)
     return opts.success(ok(commentFeed))
   }
-  if (/\/fabushi\/posts\/501\/recitations$/.test(url)) return opts.success(ok(method === 'POST' ? true : []))
+  if (/\/fabushi\/posts\/501\/recitations$/.test(url)) return opts.success(ok(method === 'POST' ? true : recitationFeed))
   if (/download-token/.test(url)) return opts.success(ok({ token: FAKE_DOWNLOAD_TOKEN }))
   return opts.success(ok(true))
 }
@@ -61,12 +66,17 @@ global.wx = {
   removeStorageSync: () => {},
   showToast: (opts) => toasts.push(opts && opts.title),
   showModal: (opts) => modals.push(opts && opts.title),
+  setNavigationBarTitle: (opts) => titles.push(opts && opts.title),
+  nextTick: (fn) => fn(),
+  pageScrollTo: () => pageScrolls.push(1),   // 页面脚本不应该调用它(导航契约禁用): 调用了这里会记下来
+  previewImage: (opts) => previews.push(opts),
   navigateBack: () => {},
   navigateTo: () => {},
   redirectTo: () => {},
   switchTab: () => {},
 }
-const app = { globalData: { demoMode: false, apiBaseUrl: '', currentUser: { userId: 7, username: 'admin', roles: ['admin'] }, permissions: [] } }
+// 接口域名给一个非空的值: 可播地址必须是完整的网络地址(小程序里相对路径放不出声音), 空域名下看不出差别
+const app = { globalData: { demoMode: false, apiBaseUrl: 'https://api.test', currentUser: { userId: 7, username: 'admin', roles: ['admin'] }, permissions: [] } }
 global.getApp = () => app
 global.getCurrentPages = () => []
 let pageConfig = null
@@ -76,22 +86,29 @@ require('../aigicrm-miniprogram/pages/fabushi/detail/index.js')
 assert.ok(pageConfig, '详情页配置已捕获')
 
 const drain = () => new Promise((resolve) => setImmediate(resolve))
+const settle = () => new Promise((resolve) => setTimeout(resolve, 40))   // 多步的 Promise 链(取令牌 → 取复诵列表 → 整理)都走完
 const comment = (n, extra) => Object.assign({ id: n, type: 'text', content: `评论 ${n}`, userName: '同学' }, extra || {})
 const commentPosts = () => requests.filter((r) => /\/comments$/.test(r.url) && r.method === 'POST')
 const recitationPosts = () => requests.filter((r) => /\/recitations$/.test(r.url) && r.method === 'POST')
 
-async function openPage(comments) {
+async function openPage(comments, options, seed) {
   commentFeed = comments
+  recitationFeed = (seed && seed.recitationFeed) || []
+  attachments = (seed && seed.attachments) || []
+  post = (seed && seed.post) || { id: 501, userId: 7, title: '今日诵读', content: '内容' }
   makeRecorder()
   uploadSeq = 0
   requests.length = 0
   uploads.length = 0
   toasts.length = 0
   modals.length = 0
+  titles.length = 0
+  pageScrolls.length = 0
+  previews.length = 0
   const page = Object.create(pageConfig)
   page.data = JSON.parse(JSON.stringify(pageConfig.data))
-  page.setData = function (patch) { Object.assign(this.data, patch) }
-  page.onLoad({ id: '501' })
+  page.setData = function (patch, done) { Object.assign(this.data, patch); if (typeof done === 'function') done() }
+  page.onLoad(Object.assign({ id: '501' }, options || {}))
   await drain()
   return page
 }
@@ -177,6 +194,70 @@ async function run() {
   assert.strictEqual(recitationPosts().length, 0, '没有提交到复诵接口')
   assert.deepStrictEqual(commentPosts().map((r) => r.data), [{ type: 'audio', audioFileId: 77001 }], '按语音评论提交')
   assert.ok(toasts.includes('已评论'), '提示已评论')
+
+  // ---- 8. 【2026-11-25 修正】复诵列表的可播地址: 下载地址 + 下载令牌 ----
+  //      原来是相对路径 "/api/file/download/…", 令牌的位置放的是整个应答对象(拼出来是 [object Object]) —— 一直播不出来。
+  page = await openPage([], null, { recitationFeed: [
+    { id: 1, userName: '李长青', audioFileId: 8802, durationSeconds: 58 },
+    { id: 2, userName: '陈慧', audioFileId: 8803, durationSeconds: 62 }
+  ] })
+  await settle()
+  assert.strictEqual(page.data.recitationCount, 2, '复诵条数')
+  assert.deepStrictEqual(page.data.recitations.map((r) => r.url), [
+    'https://api.test/api/file/download/8802?token=' + FAKE_DOWNLOAD_TOKEN,
+    'https://api.test/api/file/download/8803?token=' + FAKE_DOWNLOAD_TOKEN
+  ], '每条复诵都是可播地址(完整的下载地址 + 下载令牌)')
+  assert.strictEqual(page.data.reciteText, '李长青 58s · 陈慧 62s —— 他人可直接诵读本段', '复诵条的小字: 前两位是谁、各多长')
+
+  // ---- 9. 落点(认知广场的 ⋯ 菜单跳过来时可以指定): 滚到评论输入框 / 复诵条; 没指定就不滚 ----
+  //      滚动靠页面里滚动容器的 scroll-into-view(页面数据里的 intoView), 不用 wx.pageScrollTo(导航契约禁用)。
+  page = await openPage([], { focus: 'comment' })
+  await settle()
+  assert.strictEqual(page.data.intoView, 'comment-box', 'focus=comment: 滚到评论输入框')
+  page = await openPage([], { focus: 'recite' })
+  await settle()
+  assert.strictEqual(page.data.intoView, 'recite-strip', 'focus=recite: 滚到复诵条')
+  page = await openPage([])
+  await settle()
+  assert.strictEqual(page.data.intoView, '', '没指定落点: 不滚')
+  page.focusComments()
+  assert.strictEqual(page.data.intoView, 'comment-box', '点“评论”按钮: 滚到评论输入框')
+  page.focusComments()
+  assert.strictEqual(page.data.intoView, 'comment-box', '再点一次: 仍然滚到评论输入框(先清空再设)')
+  assert.strictEqual(pageScrolls.length, 0, '页面脚本没有调用 wx.pageScrollTo(导航契约禁用它)')
+
+  // ---- 10. 书页点击放大查看(原型 A4): 只把图片附件放进九宫格; 点第几张就从第几张开始看 ----
+  page = await openPage([], null, { attachments: [
+    { id: 1, fileId: 6001, fileType: 'image' },
+    { id: 2, fileId: 6002, fileType: 'audio' },
+    { id: 3, fileId: 6003, fileType: 'image' }
+  ] })
+  await settle()
+  assert.deepStrictEqual(page.data.imageUrls.map((u) => u.split('?')[0]), ['https://api.test/api/file/download/6001', 'https://api.test/api/file/download/6003'], '九宫格里只有图片')
+  assert.ok(page.data.imageUrls[0].endsWith('?token=' + FAKE_DOWNLOAD_TOKEN), '地址带下载令牌')
+  page.previewImage({ currentTarget: { dataset: { index: 1 } } })
+  assert.deepStrictEqual(previews.map((p) => p.current), [page.data.imageUrls[1]], '点第二张: 从第二张开始看')
+  assert.deepStrictEqual(previews[0].urls, page.data.imageUrls, '左右翻的是全部书页')
+
+  // ---- 11. 评论行: 头像首字与类型名(重点描述 / 语音诵读); 文字评论不带类型 ----
+  page = await openPage([
+    comment(1, { userName: '陈慧', userId: 3, type: 'highlight' }),
+    comment(2, { userName: '李长青', userId: 4, type: 'audio', audioFileId: 8801 }),
+    comment(3, { userName: '王晓兰', userId: 5 })
+  ])
+  await settle()
+  assert.deepStrictEqual(
+    page.data.comments.map((c) => [c.avatarText, c.typeLabel, c.typeClass]),
+    [['陈', '重点描述', 'cyan'], ['李', '语音诵读', 'songdu'], ['王', '', '']], '头像首字与类型名')
+
+  // ---- 12. 标题与来源条按类型: 再读一本 → “再读作品”; 没有类型 → “作品详情” ----
+  //      (时间用往年的日期: 不管哪天跑, 结果都一样)
+  page = await openPage([])
+  assert.deepStrictEqual({ titles, label: page.data.typeLabel }, { titles: ['作品详情'], label: '内容' }, '没有类型: 通用标题')
+  page = await openPage([], null, { post: { id: 501, userId: 7, scopeType: 'zaidu', title: '上善若水', content: '抄了三遍', bookTitle: '道德经', sectionTitle: '第八章', createdAt: '2025-01-01T07:50:00', isNew: true } })
+  assert.deepStrictEqual(
+    { titles, label: page.data.typeLabel, time: page.data.timeText, isNew: page.data.isNew },
+    { titles: ['再读作品'], label: '再读一本', time: '2025-01-01', isNew: true }, '再读一本: 标题、类型名、时间、NEW')
 }
 
 run().then(() => {
