@@ -395,6 +395,10 @@ miniprogram_check() {
       node -e 'const fs=require("fs"); JSON.parse(fs.readFileSync(process.argv[1], "utf8"));' "$ROOT/$file" || rc=1
     done < <(cd "$ROOT" && git ls-files --cached --others --exclude-standard 'aigicrm-miniprogram/**/*.json' 'aigicrm-miniprogram/*.json')
 
+    # 【2026-11-25】法布施 v7 样式作用域契约(带自检): 原型的类名(.card / .stats-tile …)与全局 app.wxss 撞名,
+    #   法布施样式必须限定在 .fb-page 之下, 否则被全局规则盖掉、页面不报错只是画得不对
+    node "$ROOT/scripts/check-mp-fabushi-style-scope.mjs" --selftest && node "$ROOT/scripts/check-mp-fabushi-style-scope.mjs" || rc=1
+
     if [ -f "$ROOT/aigicrm-miniprogram/app.json" ]; then
       node - "$ROOT/aigicrm-miniprogram" <<'NODE' || rc=1
 const fs = require("fs");
@@ -682,6 +686,14 @@ local_contracts() {
   # 【GL-14 2026-11-24】小程序法布施详情页: 评论分页(首屏 10 条 / 加载更多 / 发完评论回到第一页)、
   #   音频评论补可播地址、复诵录音出错后状态复位(修复 a93eed71: 之后录的语音评论不再被当成复诵提交)
   run node "$ROOT/scripts/test-miniprogram-fabushi-detail.js"
+  # 【2026-11-25 用户裁决: 小程序法布施界面按原型 v7 重做外观】
+  #   1) 文案/封面/进度/觉醒三板块等由接口数据算视图字段的纯函数(utils/fabushi-view-model.js);
+  #   2) 在 node 下驱动真实的法布施主页(pages/fabushi/index.js): 提醒自检(顺带修掉 11-19 起 onShow 里加载路径多写一级、
+  #      每次进页面都抛错的老缺陷)、觉醒重算、提醒卡、续读去向、信息流取数与搜索、广场页签点木鱼、书库封面、
+  #      书架勾选(按记录编号)与状态、统计页签的条宽与人数。
+  #   画面是否画对(版式、配色)不在这两个测试里, 靠开发者工具里逐屏截图与原型并排核对。
+  run node "$ROOT/scripts/test-miniprogram-fabushi-view-model.js"
+  run node "$ROOT/scripts/test-miniprogram-fabushi-home.js"
   # 【GL-16 2026-11-24】法布施已废止的名称(内容治理→内容管理、分享广场→认知广场)不得再出现在小程序与 PC 前端源码里
   #   + 契约自身的行为测试(隔离夹具: 逐处点名、不误报依赖包与文档、根目录不对不通过)
   run "$ROOT/scripts/check-fabushi-terminology.sh"
