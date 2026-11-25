@@ -60,6 +60,12 @@ assert.ok(pageConfig, '主页配置已捕获')
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 30))   // 让“取令牌 → 整理条目”这类多步的 Promise 链都走完
 const tap = (value) => ({ currentTarget: { dataset: { value } } })
+// “今天 / 昨天”是相对运行当天算的: 夹具里的时间与期望都按运行当天生成, 结果不随日期变。
+// (2026-11-26 修正: 原来写死了 11-25 的日期, 门禁跨过零点后就红了)
+const pad2 = (n) => String(n).padStart(2, '0')
+const dayKey = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
+const TODAY = dayKey(new Date())
+const YESTERDAY = dayKey(new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate() - 1))
 
 function open() {
   requests.length = 0
@@ -160,9 +166,9 @@ async function run() {
 
   await check('信息流: “全部”不传类型; 图片带下载令牌的地址; 类型名与时间; 搜索词原样传给接口', async () => {
     fixtures = { posts: { records: [
-      { id: 9, scopeType: 'suishi', content: '下班路上的晚霞', createdAt: '2026-11-25T09:30:00', likeCount: 3, commentCount: 1,
+      { id: 9, scopeType: 'suishi', content: '下班路上的晚霞', createdAt: TODAY + 'T09:30:00', likeCount: 3, commentCount: 1,
         attachments: [{ id: 1, fileId: 101, fileType: 'image' }, { id: 2, fileId: 102, fileType: 'image' }, { id: 3, fileId: 103, fileType: 'image' }, { id: 4, fileId: 104, fileType: 'image' }] },
-      { id: 10, scopeType: 'zaidu', title: '上善若水', createdAt: '2026-11-24T07:50:00', attachments: [{ id: 5, fileId: 105, fileType: 'audio' }] }
+      { id: 10, scopeType: 'zaidu', title: '上善若水', createdAt: YESTERDAY + 'T07:50:00', attachments: [{ id: 5, fileId: 105, fileType: 'audio' }] }
     ], total: 2 } }
     const page = open()
     await settle()

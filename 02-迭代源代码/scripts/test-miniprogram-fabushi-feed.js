@@ -57,7 +57,13 @@ assert.ok(pageConfig, '页面配置已捕获')
 const settle = () => new Promise((resolve) => setTimeout(resolve, 40))   // 让“取令牌 → 整理条目”“连取下一页”这类多步的 Promise 链都走完
 const tap = (value) => ({ currentTarget: { dataset: { value } } })
 const postCalls = () => requests.filter((r) => /\/fabushi\/posts(\?|$)/.test(r.url))
-const post = (id, extra) => ({ id, scopeType: 'suishi', content: '内容' + id, createdAt: '2026-11-24T18:40:00', readByMe: false, likeCount: 0, commentCount: 0, ...(extra || {}) })
+// “今天 / 昨天”是相对运行当天算的: 夹具里的时间与期望都按运行当天生成, 结果不随日期变。
+// (2026-11-26 修正: 原来写死了 11-24 的日期, 门禁跨过零点后就红了)
+const pad2 = (n) => String(n).padStart(2, '0')
+const runDate = new Date()
+const yesterday = new Date(runDate.getFullYear(), runDate.getMonth(), runDate.getDate() - 1)
+const YESTERDAY = `${yesterday.getFullYear()}-${pad2(yesterday.getMonth() + 1)}-${pad2(yesterday.getDate())}`
+const post = (id, extra) => ({ id, scopeType: 'suishi', content: '内容' + id, createdAt: YESTERDAY + 'T18:40:00', readByMe: false, likeCount: 0, commentCount: 0, ...(extra || {}) })
 // 第 page 页: 每页 PAGE_SIZE(10) 条, 共 total 条
 const paged = (total, make) => (params) => {
   const current = Number(params.current) || 1
