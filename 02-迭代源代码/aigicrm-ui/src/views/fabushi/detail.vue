@@ -28,10 +28,18 @@
         </div>
 
         <div class="detail-actions">
-          <!-- 【D25 切片 7】与 MP 同源的 CSS 木鱼：径向渐变造型 + 敲击动画 + 波纹环 + +1 飞起 -->
+          <!-- 【D25 切片 7】PC 木鱼：敲击动画 + 波纹 + +1 飞起。
+               【2026-11-25 用户要求】木鱼图与小程序同源：直接搬小程序发布成功页那一只
+               (aigicrm-miniprogram/pages/fabushi/upload/index.wxml 的 muyu-stage：光晕、波纹、鱼身、坐垫、木槌)，
+               五个部件、配色、敲击动画都一样，只是整体缩小。此前是“棕色圆盘里套一个 🐟”，小程序里没有这种画法。 -->
           <button type="button" class="muyu" :class="{ hit: muyuHit, on: liked }" :aria-label="liked ? '取消木鱼' : '敲木鱼'" @click="toggleLike">
-            <span class="muyu-ring" aria-hidden="true"></span>
-            <span class="muyu-body" aria-hidden="true">🐟</span>
+            <span class="muyu-stage" aria-hidden="true">
+              <span class="muyu-glow"></span>
+              <span class="muyu-ripple"></span>
+              <span class="muyu-body"></span>
+              <span class="muyu-cushion"></span>
+              <span class="muyu-mallet"></span>
+            </span>
             <span class="muyu-text">木鱼 <b>{{ likeCount }}</b></span>
             <span v-if="muyuPlus" :key="muyuPlus" class="muyu-plus" aria-hidden="true">+1</span>
           </button>
@@ -272,7 +280,8 @@ const toggleLike = async () => {
     muyuHit.value = true
     if (!wasLiked && liked.value) muyuPlus.value += 1
     if (muyuTimer) clearTimeout(muyuTimer)
-    muyuTimer = setTimeout(() => { muyuHit.value = false }, 520)
+    // 动画类要等最长的一段放完再摘: 与小程序一致，木槌 0.55 秒，波纹与光晕各 0.8 秒
+    muyuTimer = setTimeout(() => { muyuHit.value = false }, 820)
     if (muyuSfx && soundOn.value) {
       try { muyuSfx.currentTime = 0; muyuSfx.play() } catch (e) { /* 自动播放策略忽略 */ }
     }
@@ -407,23 +416,38 @@ onBeforeUnmount(() => { if (muyuTimer) clearTimeout(muyuTimer) })
 .attachment-name { color: var(--text-muted); font-size: 11px; }
 .detail-body { margin-top: 16px; color: var(--text-secondary); font-size: 14px; line-height: 1.95; white-space: pre-wrap; }
 .detail-actions { display: flex; align-items: center; gap: 10px; margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--border-light); }
-/* 【D25】CSS 木鱼：径向渐变木鱼造型 + 敲击下沉 + 双波纹 + +1 飞起（零后端改动） */
-.muyu { position: relative; display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px 0 8px; border: 1px solid #d8c8a8; border-radius: 999px; background: linear-gradient(135deg, #fff8e8, #f1e2c0); cursor: pointer; transition: transform .12s, border-color .12s, box-shadow .12s; }
+/* 【D25 · 2026-11-25 与小程序同源】木鱼图直接搬小程序发布成功页那一只
+   (aigicrm-miniprogram/pages/fabushi/upload/index.wxss 里 .muyu-stage 这一组的规则)。
+   下面的尺寸是按 750 设计稿 1rpx = 0.5px 换算的小程序原始尺寸, 配色、圆角、阴影、木槌的敲击动画照抄,
+   再把整个舞台缩放到 .3 放进胶囊按钮。只有两处与小程序不同:
+     ① 波纹最多放到 2 倍(小程序是 2.4 倍): 这里舞台在按钮里, 2 倍刚好不出按钮;
+     ② “+1”沿用 PC 原来的写法(飞到按钮上方), 没有放进舞台——缩放后 22px 的字会小到看不清。 */
+.muyu { position: relative; display: inline-flex; align-items: center; gap: 8px; height: 42px; padding: 0 14px 0 6px; border: 1px solid #d8c8a8; border-radius: 999px; background: linear-gradient(135deg, #fff8e8, #f1e2c0); cursor: pointer; transition: transform .12s, border-color .12s, box-shadow .12s; }
 .muyu:hover { border-color: #b5543a; box-shadow: 0 3px 10px rgba(181, 84, 58, .16); }
 .muyu.on { border-color: #b5543a; background: linear-gradient(135deg, #fdece0, #f6d9c6); }
 .muyu.hit { transform: scale(.94); }
-.muyu-body { position: relative; z-index: 2; display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: radial-gradient(circle at 32% 28%, #e0a76a 0%, #b97438 52%, #7d4823 100%); box-shadow: inset 0 -2px 4px rgba(0, 0, 0, .22), 0 2px 4px rgba(90, 50, 20, .24); font-size: 14px; line-height: 1; }
-.muyu.hit .muyu-body { animation: muyu-knock .32s ease-out; }
-.muyu-ring { position: absolute; left: 8px; top: 5px; width: 26px; height: 26px; border: 2px solid rgba(181, 84, 58, .5); border-radius: 50%; opacity: 0; pointer-events: none; }
-.muyu.hit .muyu-ring { animation: muyu-ripple .5s ease-out; }
+/* 舞台: 小程序里 300×260rpx → 150×130px, 缩放不改变布局占位, 用负外边距把占位收回到缩放后的 45×39 */
+.muyu-stage { position: relative; flex: none; width: 150px; height: 130px; margin: 0 -105px -91px 0; transform: scale(.3); transform-origin: 0 0; }
+.muyu-stage > span { position: absolute; display: block; }
+.muyu-glow { left: 50%; top: 50%; width: 120px; height: 120px; margin: -60px 0 0 -60px; border-radius: 50%; background: radial-gradient(circle, rgba(251, 191, 36, .28), rgba(251, 191, 36, 0) 68%); opacity: 0; }
+.muyu-ripple { left: 50%; top: 50%; width: 40px; height: 40px; margin: -20px 0 0 -20px; border: 1px solid rgba(245, 158, 11, .7); border-radius: 50%; opacity: 0; }
+.muyu-body { left: 50%; top: 31px; width: 85px; height: 59px; margin-left: -42.5px; border-radius: 50% 50% 46% 46%; background: linear-gradient(160deg, #b45309, #92400e); box-shadow: inset 0 6px 9px rgba(255, 255, 255, .18), 0 9px 14px rgba(146, 64, 14, .26); }
+.muyu-body::after { content: ''; position: absolute; left: 50%; top: 17px; width: 48px; height: 19px; margin-left: -24px; border-radius: 50%; border: 2.5px solid rgba(255, 255, 255, .28); }
+.muyu-cushion { left: 50%; bottom: 11px; width: 95px; height: 22px; margin-left: -47.5px; border-radius: 50%; background: #f59e0b; opacity: .5; }
+.muyu-mallet { right: 11px; top: 19px; width: 8px; height: 65px; border-radius: 5px; background: #78350f; transform: rotate(22deg); transform-origin: 50% 100%; }
+.muyu-mallet::before { content: ''; position: absolute; left: -7px; top: -13px; width: 22px; height: 22px; border-radius: 50%; background: #92400e; }
+.muyu.hit .muyu-mallet { animation: muyu-hit .55s ease-out; }
+.muyu.hit .muyu-ripple { animation: muyu-ripple .8s ease-out; }
+.muyu.hit .muyu-glow { animation: muyu-glow .8s ease-out; }
 .muyu-text { color: #6b4a2f; font-size: 12px; white-space: nowrap; }
 .muyu-text b { color: #b5543a; font-variant-numeric: tabular-nums; }
-.muyu-plus { position: absolute; left: 18px; top: 0; z-index: 3; color: #b5543a; font-size: 13px; font-weight: 800; pointer-events: none; animation: muyu-float .75s ease-out forwards; }
-@keyframes muyu-knock { 0% { transform: translateY(0) scale(1); } 45% { transform: translateY(3px) scale(.86); } 100% { transform: translateY(0) scale(1); } }
-@keyframes muyu-ripple { 0% { transform: scale(.7); opacity: .8; } 100% { transform: scale(2.2); opacity: 0; } }
+.muyu-plus { position: absolute; left: 22px; top: 0; z-index: 3; color: #b5543a; font-size: 13px; font-weight: 800; pointer-events: none; animation: muyu-float .75s ease-out forwards; }
+@keyframes muyu-hit { 0% { transform: rotate(22deg); } 45% { transform: rotate(-18deg); } 100% { transform: rotate(22deg); } }
+@keyframes muyu-ripple { 0% { opacity: .8; transform: scale(.5); } 100% { opacity: 0; transform: scale(2); } }
+@keyframes muyu-glow { 0% { opacity: .2; } 40% { opacity: 1; } 100% { opacity: 0; } }
 @keyframes muyu-float { 0% { transform: translateY(0); opacity: 0; } 25% { opacity: 1; } 100% { transform: translateY(-26px); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) {
-  .muyu, .muyu.hit .muyu-body, .muyu.hit .muyu-ring, .muyu-plus { animation: none; transition: none; }
+  .muyu, .muyu.hit .muyu-mallet, .muyu.hit .muyu-ripple, .muyu.hit .muyu-glow, .muyu-plus { animation: none; transition: none; }
 }
 .detail-count { color: var(--text-muted); font-size: 11px; }
 .recite-sec { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--border-light); }

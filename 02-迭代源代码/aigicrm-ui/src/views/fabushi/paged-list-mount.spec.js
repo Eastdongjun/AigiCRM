@@ -387,3 +387,79 @@ describe('法布施列表翻页的视图接线（挂载冒烟）', () => {
     })
   })
 })
+
+// 【2026-11-25 用户要求】测试环境里 PC 端法布施的木鱼图要和小程序一样。
+// 此前详情页的木鱼是“棕色圆盘里套一个 🐟”, 小程序里没有这种画法; 小程序的木鱼图是发布成功页那只
+// 纯 CSS 画的木鱼(pages/fabushi/upload/index.wxml 的 muyu-stage: 光晕、波纹、鱼身、坐垫、木槌)。
+// 这里钉住两件事: ① 按钮里就是这五个部件、图里没有表情符号; ② 敲一下时动画类挂上, 等最长的一段动画放完才摘掉。
+// 抓不到: 真实的样子与比例(要靠截图比对)、音效。
+describe('detail.vue 木鱼图：与小程序发布成功页那只木鱼同源', () => {
+  const { toggleFabushiLike } = fabushiApi
+  const openDetail = async (likedByMe) => {
+    hoisted.route = { params: { id: '501' }, query: {} }
+    getFabushiPostDetail.mockResolvedValue({ data: {
+      post: { id: 501, title: '今日诵读', content: '内容', userId: 7, scopeType: 'songdu', bookId: 1, createdAt: '2026-11-20T08:00:00' },
+      attachments: [], likeCount: 2, likedByMe, recitationCount: 0, recitations: [],
+    } })
+    getFabushiComments.mockResolvedValue({ data: [] })
+    getFabushiBooks.mockResolvedValue({ data: { records: [book(1)], total: 1 } })
+    getFabushiSettings.mockResolvedValue({ data: { soundEnabled: 1 } })
+    const wrapper = await mountQuietly(DetailView)
+    expectQuiet('detail.vue 木鱼')
+    return wrapper
+  }
+  const muyuButton = (wrapper) => wrapper.find('button.muyu')
+  beforeEach(() => {
+    // 敲木鱼会调音效的 play(): 测试环境里的 Audio 没有实现它, 会打一行 “Not implemented”。换成什么都不做的替身
+    vi.stubGlobal('Audio', class { currentTime = 0; play() {} })
+  })
+  afterEach(() => { vi.unstubAllGlobals() })
+
+  it('按钮里是小程序那只木鱼的五个部件，全部由 CSS 画，没有 🐟', async () => {
+    const wrapper = await openDetail(false)
+    const button = muyuButton(wrapper)
+    expect(button.exists()).toBe(true)
+
+    const stage = button.find('.muyu-stage')
+    expect(stage.exists(), '木鱼舞台 .muyu-stage').toBe(true)
+    // 与小程序模板里的五个子节点一一对应
+    for (const part of ['muyu-glow', 'muyu-ripple', 'muyu-body', 'muyu-cushion', 'muyu-mallet']) {
+      expect(stage.find(`.${part}`).exists(), `缺少 ${part}`).toBe(true)
+    }
+    // 舞台只是图: 里面不该有文字或表情符号
+    expect(stage.text()).toBe('')
+    expect(button.text()).not.toContain('🐟')
+    expect(button.text()).toContain('木鱼')
+    expect(button.text()).toContain('2')
+  })
+
+  it('敲一下：动画类挂上，小程序那几段动画里最长的 0.8 秒放完才摘掉', async () => {
+    const wrapper = await openDetail(false)
+    toggleFabushiLike.mockResolvedValue({ data: { liked: true, likeCount: 3 } })
+    // 只把 setTimeout/clearTimeout 换成假的: flushPromises 靠 setImmediate, 留成真的才不会卡住
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    try {
+      await muyuButton(wrapper).trigger('click')
+      await flushPromises()
+      const button = muyuButton(wrapper)
+      expect(button.classes()).toContain('hit')
+      expect(button.classes()).toContain('on')
+      expect(button.text()).toContain('3')
+      expect(vm(wrapper).muyuPlus).toBe(1)
+
+      // 小程序的木槌 0.55 秒、波纹/光晕各 0.8 秒: 0.8 秒之内动画类必须在。
+      // 推进时钟后要等界面重新渲染再读, 否则读到的是旧状态(第一版就因为没等而红在了错的那一行)
+      vi.advanceTimersByTime(600)
+      await flushPromises()
+      expect(muyuButton(wrapper).classes()).toContain('hit')
+      vi.advanceTimersByTime(219)
+      await flushPromises()
+      expect(muyuButton(wrapper).classes()).toContain('hit')
+      vi.advanceTimersByTime(1)
+      await flushPromises()
+      expect(muyuButton(wrapper).classes()).not.toContain('hit')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+})
