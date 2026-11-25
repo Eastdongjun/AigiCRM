@@ -228,4 +228,6 @@ html, body, #app {
 .fabushi-book .rail, .fabushi-book .book-card, .fabushi-content .caps {
   background: #fffdf8;
 }
-.fabushi-feed .fb-fab, .fabushi-detail .back { background: #b5543a; }
+/* 【2026-11-26】详情页顶部的“← 返回认知广场”(.fabushi-detail .back)从这条里拿掉:
+   它原来也被刷成朱砂色, 蓝字压在红底上看不清(PC 原型 v8 的 P3 里这一行没有底色)。契约见 views/fabushi/fabushi-back-bar.spec.js */
+.fabushi-feed .fb-fab { background: #b5543a; }
