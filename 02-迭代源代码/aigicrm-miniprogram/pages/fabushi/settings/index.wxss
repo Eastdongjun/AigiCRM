@@ -1,12 +1,14 @@
-/* 【书卷改版 2026-11-16】提醒设置页: 纸色底/墨绿保存钮 */
-page { background: #f7f3ec; }
-.settings-page { padding: 28rpx 24rpx 60rpx; box-sizing: border-box; }
-.card { margin-bottom: 18rpx; padding: 8rpx 24rpx; border: 1rpx solid #e8e0d3; border-radius: 18rpx; background: #fffdf8; }
-.setting-row { display: flex; align-items: center; justify-content: space-between; gap: 20rpx; padding: 22rpx 0; border-bottom: 1rpx dashed #e8e0d3; }
-.setting-row:last-child { border-bottom: 0; }
-.setting-title { color: #2e2a24; font-size: 26rpx; font-weight: 600; }
-.setting-sub { margin-top: 5rpx; color: #9c9184; font-size: 20rpx; line-height: 1.5; }
-.setting-value { flex-shrink: 0; color: #2d5a4a; font-size: 23rpx; font-weight: 600; }
-.note-card { padding: 20rpx 24rpx; }
-.save-btn { margin-top: 30rpx; padding: 22rpx 0; border-radius: 16rpx; color: #fff7ee; background: #2d5a4a; font-size: 27rpx; font-weight: 700; text-align: center; }
-.save-btn.disabled { opacity: .6; }
+@import "../fabushi-v7.wxss";
+
+/* 每日提醒(原型 C4)。公共的设计变量与组件样式在 ../fabushi-v7.wxss, 这里的规则同样限定在 .fb-page 之下(原因见那个文件的文件头)。 */
+.fb-page .set-card { padding: 20rpx 24rpx 8rpx; }
+.fb-page .time-head { display: flex; justify-content: center; margin: 4rpx 0 16rpx; }
+.fb-page .time-pick { display: flex; align-items: center; gap: 16rpx; }
+.fb-page .time-big { font-size: 76rpx; font-weight: 800; line-height: 1.1; letter-spacing: 2rpx; font-variant-numeric: tabular-nums; color: var(--mp-ink); }
+.fb-page .freq-chips { justify-content: flex-end; margin-top: 0; }
+.fb-page .set-value.done { font-weight: 800; color: var(--green); }
+.fb-page .preview-card { padding: 22rpx 24rpx; }
+.fb-page .preview-box { padding: 18rpx 22rpx; border: 2rpx solid var(--mp-card-line); border-radius: 20rpx; background: var(--mp-tile); }
+.fb-page .preview-title { font-size: 24rpx; font-weight: 800; color: var(--mp-ink); }
+.fb-page .preview-text { margin-top: 8rpx; font-size: 22rpx; line-height: 1.6; color: var(--mp-ink2); }
+.fb-page .preview-meta { margin-top: 10rpx; font-size: 19rpx; color: var(--mp-ink4); }

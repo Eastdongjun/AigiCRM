@@ -1,0 +1,11 @@
+@import "../fabushi-v7.wxss";
+
+/* 阅读记录(原型 C3)。公共的设计变量与组件样式在 ../fabushi-v7.wxss, 这里的规则同样限定在 .fb-page 之下(原因见那个文件的文件头)。 */
+.fb-page .cal-card { padding: 22rpx 24rpx; }
+.fb-page .cal-head { display: flex; align-items: center; justify-content: space-between; gap: 12rpx; margin-bottom: 16rpx; }
+.fb-page .cal-title-wrap { flex: 1; min-width: 0; text-align: center; }
+.fb-page .cal-title { font-size: 27rpx; font-weight: 800; color: var(--mp-ink); }
+.fb-page .cal-sub { margin-top: 2rpx; font-size: 20rpx; color: var(--mp-ink3); }
+.fb-page .mini-action.disabled { opacity: .4; }
+.fb-page .cal-cell.future { color: var(--mp-ink4); opacity: .7; }
+.fb-page .foot-note { margin-top: 18rpx; padding: 0 20rpx; text-align: center; font-size: 19rpx; line-height: 1.6; color: var(--mp-ink4); }

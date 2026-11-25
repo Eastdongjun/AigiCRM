@@ -71,6 +71,7 @@
       <view class="gp-sub">去书库挑一本，按章节精读，进度会记在这里</view>
     </view>
     <view class="home-links">
+      <text class="mini-action secondary" bindtap="goRecords">阅读记录 ›</text>
       <text class="mini-action secondary" bindtap="goFeed">进入认知广场 ›</text>
       <text class="mini-action secondary" bindtap="goSettings">提醒设置 ›</text>
     </view>
@@ -291,7 +292,7 @@
         <view class="stats-list-row"><text class="row-main-text">累计阅读</text><text class="row-val">{{personal.myReadCount || 0}}</text></view>
         <view class="stats-list-row"><text class="row-main-text">收获木鱼</text><text class="row-val">{{personal.myLikesReceived || 0}}</text></view>
         <view class="stats-list-row"><text class="row-main-text">最常读类别</text><text class="row-val">{{personal.myTopCategory || '—'}}</text></view>
-        <view class="stats-list-row last" bindtap="goFeed"><text class="row-action">进入认知广场 ›</text></view>
+        <view class="stats-list-row last" bindtap="goRecords"><text class="row-action">阅读记录（打卡日历）›</text></view>
       </view>
     </block>
     <view wx:if="{{!canViewStats}}" class="card-hint center">团队统计需要统计查看权限</view>

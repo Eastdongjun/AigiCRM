@@ -2,15 +2,10 @@ const { hasPermission, requireLogin } = require('../../../utils/auth')
 const { getFabushiPostDetail, getFabushiComments, addFabushiComment, toggleFabushiLike, markFabushiRead, updateFabushiPost, deleteFabushiPost, getFabushiRecitations, addFabushiRecitation } = require('../../../api/fabushi')
 const { getDownloadToken, getDownloadUrl, uploadFile } = require('../../../api/file')
 const { showError } = require('../../../utils/feedback')
-// 【2026-11-25 用户裁决】界面按原型 v7 重做外观: 页面上的文字(类型名、时间、谁复诵了)由这个纯函数模块从接口数据算出来
+// 【2026-11-25 用户裁决】界面按原型 v7 重做外观: 页面上的文字(类型名、时间、谁复诵了)由这个纯函数模块从接口数据算出来;
+//   下载令牌的取法(downloadTokenOf)也在那里 —— 令牌接口回来的可能是 {token} / {data:{token}} / 字符串
 const vm = require('../../../utils/fabushi-view-model')
-
-// 下载令牌接口回来的可能是 {token} / {data:{token}} / 直接就是字符串: 统一取成字符串
-const tokenOf = (res) => {
-  if (!res) return ''
-  if (typeof res === 'string') return res
-  return res.token || (res.data && res.data.token) || ''
-}
+const tokenOf = vm.downloadTokenOf
 
 Page({
   data: {

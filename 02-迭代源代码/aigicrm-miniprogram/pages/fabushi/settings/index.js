@@ -37,6 +37,11 @@ Page({
   onReminder(e) { this.setData({ reminderEnabled: !!e.detail.value }) },
   onSound(e) { this.setData({ soundEnabled: !!e.detail.value }) },
   onFreq(e) { this.setData({ freqIndex: Number(e.detail.value) }) },
+  // 频率改成了三个可以直接点的小按钮(原型 C4)
+  onFreqTap(e) {
+    const index = Number(e.currentTarget.dataset.index)
+    if (FREQS[index]) this.setData({ freqIndex: index })
+  },
   onTime(e) { this.setData({ remindTime: e.detail.value }) },
   save() {
     if (this.data.submitting) return

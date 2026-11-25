@@ -21,7 +21,11 @@
  *   - 以 `.fb-page` 开头（后面不能再接类名里的字符，例如 .fb-page-foo 不算）。
  * @import / @keyframes 这类 at-rule 整块跳过。
  *
- * 退出码：0 = 通过；1 = 存在未限定的选择器，或自检不通过；2 = 参数/读取错误。
+ * 唯一的例外：发布成功页（pages/fabushi/upload/index.wxss）里木鱼那一组 `.muyu-*` 保持单类名。
+ *   PC 端的 FabushiMuyu 测试逐条读这里的规则（选择器 + 每个属性值）和 PC 的样式对账，加了前缀那边的对账会红；
+ *   这些类名在全局 app.wxss 里没有同名的（本脚本每次运行都核对一遍），不存在被盖掉的问题。
+ *
+ * 退出码：0 = 通过；1 = 存在未限定的选择器，或自检不通过，或例外的前提不成立；2 = 参数/读取错误。
  *
  * 用法：
  *   node scripts/check-mp-fabushi-style-scope.mjs
@@ -39,6 +43,9 @@ const SHARED_STYLE_DIR = path.join('pages', 'fabushi')
 const SHARED_STYLE_NAME = 'fabushi-v7.wxss'
 const SHARED_STYLE_IMPORT = /@import\s+["'](?:\.\.\/)?fabushi-v7\.wxss["']/
 const SCOPED = /^\.fb-page(?![\w-])/
+// 例外: 发布成功页里木鱼那一组(见文件头)。只认这一个文件里、以 .muyu- 开头的选择器(与 PC 测试挑规则的口径一样)
+const EXEMPT_FILE = 'pages/fabushi/upload/index.wxss'
+const EXEMPT_SELECTOR = /^\.muyu-/
 
 function usage() {
   return `Usage: node scripts/check-mp-fabushi-style-scope.mjs [options]
@@ -148,17 +155,43 @@ function topLevelRules(source) {
   return rules
 }
 
-/** 返回没限定在 .fb-page 之下的选择器：{ selector, part, line } */
-function unscopedSelectors(source) {
+/** 返回没限定在 .fb-page 之下、也不在例外范围内的选择器：{ selector, part, line } */
+function unscopedSelectors(source, file) {
   const out = []
   for (const rule of topLevelRules(source)) {
     for (const part of rule.selector.split(',')) {
       const text = part.trim()
       if (!text || text === 'page' || SCOPED.test(text)) continue
+      if (file === EXEMPT_FILE && EXEMPT_SELECTOR.test(text)) continue
       out.push({ selector: rule.selector, part: text, line: rule.line })
     }
   }
   return out
+}
+
+/** 例外范围内、当前确实用到的 muyu- 类名（用来核对“全局里没有同名规则”这个前提） */
+function exemptClassNames(source, file) {
+  const names = new Set()
+  if (file !== EXEMPT_FILE) return names
+  for (const rule of topLevelRules(source)) {
+    for (const part of rule.selector.split(',')) {
+      const text = part.trim()
+      if (!EXEMPT_SELECTOR.test(text)) continue
+      for (const match of text.matchAll(/\.(muyu-[A-Za-z][\w-]*)/g)) names.add(match[1])
+    }
+  }
+  return names
+}
+
+/** 全局 app.wxss 里出现过的类名 */
+function globalClassNames(mpRoot) {
+  const app = path.join(mpRoot, 'app.wxss')
+  if (!fs.existsSync(app)) return new Set()
+  const names = new Set()
+  for (const rule of topLevelRules(fs.readFileSync(app, 'utf8'))) {
+    for (const match of rule.selector.matchAll(/\.([A-Za-z][\w-]*)/g)) names.add(match[1])
+  }
+  return names
 }
 
 function walkStyles(dir) {
@@ -208,10 +241,14 @@ function selftest() {
     { name: '.fb-page 在后面不算限定', css: '.card .fb-page { color: red; }', ok: false },
     { name: 'page 加了类名不算 page', css: 'page.x { color: red; }', ok: false },
     { name: '元素选择器要拦', css: 'view { color: red; }', ok: false },
+    { name: '例外: 发布页里木鱼那一组放行', css: '.muyu-stage { }\n.muyu-body:after { }\n.muyu-stage.go .muyu-mallet { }', file: 'pages/fabushi/upload/index.wxss', ok: true },
+    { name: '例外只认发布页: 别的页面里的 .muyu- 也要拦', css: '.muyu-stage { }', file: 'pages/fabushi/feed/index.wxss', ok: false },
+    { name: '例外只认木鱼: 发布页里别的单类名也要拦', css: '.muyu-stage { }\n.sfx { }', file: 'pages/fabushi/upload/index.wxss', ok: false },
+    { name: '例外不放行“木鱼类名在后面”的选择器', css: '.card .muyu-body { }', file: 'pages/fabushi/upload/index.wxss', ok: false },
   ]
   let failed = 0
   for (const item of cases) {
-    const found = unscopedSelectors(item.css)
+    const found = unscopedSelectors(item.css, item.file)
     const passed = (found.length === 0) === item.ok
     if (!passed) failed += 1
     process.stdout.write(`  ${passed ? 'ok  ' : 'FAIL'}  ${item.name}\n`)
@@ -239,15 +276,30 @@ function main() {
   process.stdout.write('MP fabushi style-scope guard\n')
   process.stdout.write(`  root: ${mpRoot}\n`)
   let ruleCount = 0
+  let exemptCount = 0
   const violations = []
+  const clashes = new Set()
+  const globalNames = globalClassNames(mpRoot)
   for (const file of files) {
+    const rel = toPosix(path.relative(mpRoot, file))
     const source = fs.readFileSync(file, 'utf8')
     ruleCount += topLevelRules(source).length
-    for (const item of unscopedSelectors(source)) {
-      violations.push({ file: toPosix(path.relative(mpRoot, file)), ...item })
+    for (const item of unscopedSelectors(source, rel)) violations.push({ file: rel, ...item })
+    for (const name of exemptClassNames(source, rel)) {
+      exemptCount += 1
+      if (globalNames.has(name)) clashes.add(name)
     }
   }
   process.stdout.write(`  files: ${files.length}; top-level rules: ${ruleCount}\n`)
+  if (exemptCount > 0) {
+    process.stdout.write(`  exempt: ${exemptCount} muyu-* class name(s) in ${EXEMPT_FILE} (the PC FabushiMuyu test reads them literally; see the header)\n`)
+  }
+
+  if (clashes.size > 0) {
+    process.stdout.write(`\nFAIL: the exemption no longer holds: global app.wxss now defines a same-named class: ${[...clashes].join(', ')}\n`)
+    process.exitCode = 1
+    return
+  }
 
   if (violations.length > 0) {
     process.stdout.write(`\nFAIL: ${violations.length} selector(s) are not scoped under .fb-page\n`)

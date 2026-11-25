@@ -1,16 +1,56 @@
-<view class="settings-page">
-  <view class="card">
-    <view class="setting-row"><view><view class="setting-title">缺卡提醒</view><view class="setting-sub">当天未读才提醒，已读不打扰</view></view><switch checked="{{reminderEnabled}}" bindchange="onReminder" color="#1d4ed8" /></view>
-    <picker mode="selector" range="{{freqs}}" range-key="label" value="{{freqIndex}}" bindchange="onFreq">
-      <view class="setting-row"><view><view class="setting-title">提醒频率</view><view class="setting-sub">每天 / 工作日 / 休息日</view></view><text class="setting-value">{{freqs[freqIndex].label}} ›</text></view>
-    </picker>
-    <picker mode="time" value="{{remindTime}}" bindchange="onTime">
-      <view class="setting-row"><view><view class="setting-title">提醒时间</view><view class="setting-sub">默认 20:00，仅当天未读时提醒</view></view><text class="setting-value">{{remindTime}} ›</text></view>
-    </picker>
-    <view class="setting-row"><view><view class="setting-title">木鱼音效</view><view class="setting-sub">关闭后仅保留动画</view></view><switch checked="{{soundEnabled}}" bindchange="onSound" color="#1d4ed8" /></view>
+<view class="fb-page">
+  <!-- 每日提醒(原型 C4 · 闹钟式 · 可改可关)。【2026-11-25 用户裁决】小程序法布施界面按原型 v7 重做外观; 设置项与保存的做法不变。 -->
+  <view class="card set-card">
+    <!-- 提醒时间: 点“修改”用系统时间选择器改 -->
+    <view class="time-head">
+      <picker mode="time" value="{{remindTime}}" bindchange="onTime">
+        <view class="time-pick">
+          <text class="time-big">{{remindTime}}</text>
+          <text class="mini-action">修改 ›</text>
+        </view>
+      </picker>
+    </view>
+    <view class="set-row first">
+      <view class="set-main">
+        <view class="set-title">提醒开关</view>
+        <view class="set-sub">到了时间、当天还有没做的，进小程序时提醒一次（当天只提醒一次）</view>
+      </view>
+      <switch checked="{{reminderEnabled}}" bindchange="onReminder" color="#2563eb" />
+    </view>
+    <view class="set-row">
+      <view class="set-main"><view class="set-title">频率</view></view>
+      <view class="filter-chips freq-chips">
+        <view wx:for="{{freqs}}" wx:for-item="freq" wx:for-index="freqIdx" wx:key="value" class="filter-chip {{freqIndex === freqIdx ? 'active' : ''}}" data-index="{{freqIdx}}" bindtap="onFreqTap">{{freq.label}}</view>
+      </view>
+    </view>
+    <view class="set-row">
+      <view class="set-main"><view class="set-title">提醒什么</view></view>
+      <text class="set-value">诵读 / 随施 / 再读 当日没做的</text>
+    </view>
+    <view class="set-row">
+      <view class="set-main"><view class="set-title">当日已经发布过</view></view>
+      <text class="set-value done">不打扰</text>
+    </view>
+    <view class="set-row">
+      <view class="set-main">
+        <view class="set-title">木鱼音效</view>
+        <view class="set-sub">关掉后只留动画</view>
+      </view>
+      <switch checked="{{soundEnabled}}" bindchange="onSound" color="#2563eb" />
+    </view>
   </view>
-  <view class="card note-card">
-    <view class="setting-sub">微信订阅消息为一次性授权；额度用尽时降级为应用内提醒。PC 端可同步保存提醒设置。</view>
+
+  <view class="note-box">小程序做不到真正的闹钟：这里的提醒是打开小程序、进入法布施时的一次应用内提醒（当天只提醒一次，可随时关）；订阅消息要本人授权、额度有限，目前没有接入。</view>
+
+  <!-- 提醒的样子: 与实际弹出的一致(utils/fabushi-reminder.js) -->
+  <view class="card preview-card">
+    <view class="stats-card-title">预览 · 提醒的样子</view>
+    <view class="preview-box">
+      <view class="preview-title">法布施提醒</view>
+      <view class="preview-text">今日还未发布法布施内容，去诵读 / 随施 / 精读吧？</view>
+      <view class="preview-meta">{{reminderEnabled ? (freqs[freqIndex].label + ' ' + remindTime + ' 之后') : '提醒已关，不会弹'}} · 应用内弹窗 · 当天一次</view>
+    </view>
   </view>
-  <view class="save-btn {{submitting ? 'disabled' : ''}}" bindtap="save">{{submitting ? '保存中…' : '保存设置'}}</view>
+
+  <view class="detail-primary-action {{submitting ? 'disabled' : ''}}" bindtap="save">{{submitting ? '保存中…' : '保存设置'}}</view>
 </view>

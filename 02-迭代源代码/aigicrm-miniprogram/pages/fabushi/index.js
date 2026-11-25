@@ -359,6 +359,7 @@ Page({
 
   goFeed() { wx.navigateTo({ url: '/pages/fabushi/feed/index' }) },
   goSettings() { wx.navigateTo({ url: '/pages/fabushi/settings/index' }) },
+  goRecords() { wx.navigateTo({ url: '/pages/fabushi/records/index' }) },
   goUpload(e) {
     const scope = (e && e.currentTarget && e.currentTarget.dataset.scope) || 'songdu'
     wx.navigateTo({ url: `/pages/fabushi/upload/index?scope=${scope}` })

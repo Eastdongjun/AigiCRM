@@ -4,6 +4,8 @@ const { uploadFile, getDownloadToken, getDownloadUrl } = require('../../../api/f
 const { showError } = require('../../../utils/feedback')
 // 【GL-12 2026-11-24】选图后进图片编辑器(放大查看 + 裁剪): 队列、开关、回传的纯函数
 const imageEditor = require('../../../utils/fabushi-image-editor')
+// 【2026-11-25 用户裁决】界面按原型 v7 重做外观: 导航标题、成功页的文字、下载令牌的取法由这个纯函数模块统一
+const vm = require('../../../utils/fabushi-view-model')
 
 // 【法布施一期 2026-11-15】发布页: 心得/诵读(文字版)/正能量; 书目可选挂靠
 // (附件图/音/视二期; 提交成功回书目列表/工作台)
@@ -39,6 +41,9 @@ Page({
     success: false,
     publishedPostId: null,
     muyuAnim: false,
+    // 成功页的文字(原型 B5): “每日诵读已发布” + 一句说明
+    successTitle: '',
+    successSummary: '',
     attachments: [],
     imageAttachments: [],
     uploading: false,
@@ -99,7 +104,14 @@ Page({
     const presetScope = query && query.scope
     const scopeType = SCOPE_OPTIONS.some((item) => item.value === presetScope) ? presetScope : 'songdu'
     this.setData({ canCreate: true, scopeType, editOnPick: this.readEditOnPick() })
+    this.syncNavTitle(scopeType)
     this.loadBooks()
+  },
+
+  // 导航标题随类型走(原型 B2/B3/B4: “发布 · 每日诵读”)
+  syncNavTitle(scopeType) {
+    const option = SCOPE_OPTIONS.find((item) => item.value === scopeType)
+    wx.setNavigationBarTitle({ title: option ? '发布 · ' + option.label : '发布' })
   },
 
   readEditOnPick() {
@@ -406,6 +418,7 @@ Page({
     const patch = { scopeType, sections: [], sectionIndex: -1 }
     if (scopeType === 'suishi') patch.title = ''
     this.setData(patch)
+    this.syncNavTitle(scopeType)
     const bookId = this.currentBookId()
     if ((scopeType === 'zaidu' || scopeType === 'songdu') && bookId) this.loadSectionsFor(bookId)
     this.syncAttachHint(); this.syncImageAttachments()
@@ -477,7 +490,9 @@ Page({
   syncImageAttachments() {
     const images = this.data.attachments.filter((a) => a.fileType === 'image')
     if (!images.length) { this.setData({ imageAttachments: [] }); return }
-    getDownloadToken().then((token) => {
+    getDownloadToken().then((res) => {
+      // 【2026-11-25 修正】令牌接口回来的是 {token}; 原来直接把整个应答对象拼进地址(成了 object Object), 九宫格预览一直是裂图
+      const token = vm.downloadTokenOf(res)
       const list = images.map((a) => ({
         fileId: a.fileId,
         preview: getDownloadUrl({ id: a.fileId }) + (token ? '?token=' + encodeURIComponent(token) : '')
@@ -575,7 +590,17 @@ Page({
           fileId: a.fileId, fileType: a.fileType, durationSeconds: a.durationSeconds || undefined
         })))
       }
-      this.setData({ submitting: false, success: true, publishedPostId: id || null, muyuAnim: true })
+      // 成功页的一句话(原型 B5): 挂了哪本书、哪个章节、带了几段语音 / 几张图。章节在这里是拍平后的路径(如“上篇 / 第八章”)
+      const counts = this.attachmentCounts()
+      const pickedSection = sectionIndex >= 0 && sections[sectionIndex] ? String(sections[sectionIndex].path || '') : ''
+      const view = vm.publishSuccessView(scopeType, {
+        bookTitle: isSuishi ? '' : (this.data.titles[this.data.titleIndex] || ''),
+        sectionTitle: isZaidu ? (useManualSection ? String(manualSection).trim() : pickedSection) : (isSongduB ? pickedSection : ''),
+        audioCount: counts.audio,
+        imageCount: counts.image
+      })
+      this.setData({ submitting: false, success: true, publishedPostId: id || null, muyuAnim: true, successTitle: view.title, successSummary: view.summary })
+      wx.setNavigationBarTitle({ title: '提交成功' })
       if (wx.vibrateShort) wx.vibrateShort({ type: 'light' })
       this.playMuyuSound()
     }).catch((err) => {

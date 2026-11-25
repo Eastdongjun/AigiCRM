@@ -405,6 +405,8 @@ async function testUploadPageWiring() {
     removeStorageSync: () => {},
     showToast: (opts) => toasts.push(opts && opts.title),
     showModal: () => {},
+    // 发布页进页面 / 切类型时会把导航标题改成“发布 · 每日诵读”(2026-11-25 按原型重做外观)
+    setNavigationBarTitle: () => {},
     navigateTo: (opts) => {
       navigations.push(opts.url)
       if (navigateFails && opts.fail) opts.fail({ errMsg: 'navigateTo:fail webview count limit exceed' })

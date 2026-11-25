@@ -54,6 +54,7 @@
     "pages/fabushi/bybook/index",
     "pages/fabushi/detail/index",
     "pages/fabushi/settings/index",
+    "pages/fabushi/records/index",
     "pages/fabushi/reader/index",
     "pages/fabushi/uploader/index",
     "pages/fabushi/image-editor/index"

@@ -700,6 +700,11 @@ local_contracts() {
   run node "$ROOT/scripts/test-miniprogram-fabushi-feed.js"
   run node "$ROOT/scripts/test-miniprogram-fabushi-bybook.js"
   run node "$ROOT/scripts/test-miniprogram-fabushi-book.js"
+  #   发布页(B2–B5)按原型重排后新增的三样: 导航标题随类型、九宫格预览地址(原来令牌位置放的是整个应答对象, 预览一直是裂图)、成功页的文字。
+  #   录音、图片编辑、H5 回传仍由下面两个测试管。
+  run node "$ROOT/scripts/test-miniprogram-fabushi-upload-view.js"
+  #   阅读记录(C3, 新页面: 按月取记录、翻月、应答晚到不覆盖)与每日提醒(C4: 频率按钮、保存的载荷)。
+  run node "$ROOT/scripts/test-miniprogram-fabushi-personal.js"
   # 【GL-16 2026-11-24】法布施已废止的名称(内容治理→内容管理、分享广场→认知广场)不得再出现在小程序与 PC 前端源码里
   #   + 契约自身的行为测试(隔离夹具: 逐处点名、不误报依赖包与文档、根目录不对不通过)
   run "$ROOT/scripts/check-fabushi-terminology.sh"

@@ -150,6 +150,72 @@ check('详情页标题按类型: 诵读作品 / 随施作品 / 再读作品', ()
   assert.equal(vm.WORK_TITLE.zaidu, '再读作品')
 })
 
+console.log('下载令牌与发布成功页')
+check('下载令牌: 接口可能给 {token} / {data:{token}} / 字符串, 统一取成字符串; 没有就给空', () => {
+  assert.equal(vm.downloadTokenOf({ token: 'a' }), 'a')
+  assert.equal(vm.downloadTokenOf({ data: { token: 'b' } }), 'b')
+  assert.equal(vm.downloadTokenOf('c'), 'c')
+  assert.equal(vm.downloadTokenOf(null), '')
+  assert.equal(vm.downloadTokenOf({}), '')
+})
+check('发布成功页: 标题按类型; 说明里写书名(不重复套书名号)、章节、语音段数、图片张数', () => {
+  assert.deepEqual(vm.publishSuccessView('songdu', { bookTitle: '《论语》', sectionTitle: '学而第一', audioCount: 2 }),
+    { title: '每日诵读已发布', summary: '《论语》学而第一，语音 2 段，已进认知广场，等书友来复诵你的声音吧。' })
+  assert.deepEqual(vm.publishSuccessView('suishi', { imageCount: 3 }), { title: '每日随施已发布', summary: '图片 3 张，已进认知广场，等大家来点木鱼吧。' })
+  assert.deepEqual(vm.publishSuccessView('zaidu', {}), { title: '再读一本已发布', summary: '已进认知广场，等大家来点木鱼吧。' })
+  assert.deepEqual(vm.publishSuccessView('other', {}), { title: '内容已发布', summary: '已进认知广场，等大家来点木鱼吧。' }, '认不出的类型叫“内容”')
+})
+
+console.log('阅读记录页(原型 C3)')
+const NOV25 = new Date(2026, 10, 25, 10, 0, 0)   // 2026-11-25 周三
+check('月份键: 前后挪月跨年也对', () => {
+  assert.equal(vm.monthKey(new Date(2026, 0, 5)), '2026-01')
+  assert.equal(vm.shiftMonth('2026-11', -1), '2026-10')
+  assert.equal(vm.shiftMonth('2026-01', -1), '2025-12')
+  assert.equal(vm.shiftMonth('2026-12', 1), '2027-01')
+  assert.equal(vm.shiftMonth('不是月份', 1), vm.monthKey(), '认不出的月份回到当月')
+})
+check('打卡日历(当月): 周一起始、前后用邻月日期补位、今天 / 打卡 / 还没到的日子各有状态; 标题写已读几天; 还没到的日子即使接口里有记录也不算', () => {
+  // 28 日还没到(今天 25 日), 接口里却有这一天的记录: 不能算进打卡
+  const records = { month: '2026-11', days: [[2, 1], [3, 2], [4, 1], [6, 3], [7, 1], [9, 2], [10, 1], [11, 2], [24, 3], [28, 5], [31, 1]].map(([d, c]) => ({ date: `2026-11-${String(d).padStart(2, '0')}`, count: c })) }
+  const view = vm.recordsView('2026-11', records, { myStreakDays: 4, myReadDays: 26, monthSongdu: 12, monthSuishi: 14 }, { todayRecitations: 1, todayGifts: 0, todayPosts: 2 }, NOV25)
+  assert.deepEqual([view.monthKey, view.monthLabel, view.doneLabel, view.canNext], ['2026-11', '2026年11月', '已读 9/25 天', false])
+  assert.equal(view.cells.length % 7, 0, '整周')
+  assert.deepEqual(view.cells.slice(0, 6).map((c) => [c.day, c.state]), [[26, 'out'], [27, 'out'], [28, 'out'], [29, 'out'], [30, 'out'], [31, 'out']], '2026-11-01 是周日: 前面补 6 天十月')
+  assert.deepEqual(view.cells.slice(6, 12).map((c) => [c.day, c.state]), [[1, ''], [2, 'done'], [3, 'done'], [4, 'done'], [5, ''], [6, 'done']])
+  assert.deepEqual([view.cells[6 + 24], view.cells[6 + 25]], [{ key: 'c30', day: 25, state: 'today' }, { key: 'c31', day: 26, state: 'future' }], '25 日是今天; 26 日起还没到')
+  assert.deepEqual(view.cells.slice(-6).map((c) => [c.day, c.state]), [[1, 'out'], [2, 'out'], [3, 'out'], [4, 'out'], [5, 'out'], [6, 'out']], '最后不满一周的用十二月补齐')
+  assert.equal(new Set(view.cells.map((c) => c.key)).size, view.cells.length, '每一格的标识都不重复')
+})
+check('时间线与四格: 今天一行写三件套的进度和还差哪一件; 连续读了几天合成一行(写最后那天、一共几篇、连续几天; 今天 / 昨天 / 月-日)', () => {
+  const records = { month: '2026-11', days: [[2, 1], [3, 2], [4, 1], [6, 3], [7, 1], [9, 2], [10, 1], [11, 2], [24, 3]].map(([d, c]) => ({ date: `2026-11-${String(d).padStart(2, '0')}`, count: c })) }
+  const view = vm.recordsView('2026-11', records, { myStreakDays: 4, myReadDays: 26, monthSongdu: 12, monthSuishi: 14 }, { todayRecitations: 1, todayGifts: 0, todayPosts: 2 }, NOV25)
+  assert.deepEqual(view.timeline.map((row) => [row.left, row.right]), [
+    ['今天已发布 · 诵读 1 · 随施 0 · 再读 1', '还差随施'],
+    ['昨天 · 阅读 3 篇', '连续 1 天'],
+    ['11-11 · 阅读 5 篇', '连续 3 天'],
+    ['11-07 · 阅读 4 篇', '连续 2 天'],
+    ['11-04 · 阅读 4 篇', '连续 3 天']
+  ])
+  assert.deepEqual(view.tiles, [
+    { num: 4, unit: '天', label: '连续阅读' }, { num: 26, unit: '天', label: '累计打卡' },
+    { num: 12, unit: '条', label: '本月诵读' }, { num: 14, unit: '次', label: '本月随施' }
+  ])
+  const done = vm.recordsView('2026-11', records, {}, { todayRecitations: 1, todayGifts: 1, todayPosts: 3 }, NOV25)
+  assert.equal(done.timeline[0].right, '三件齐了')
+  assert.equal(done.timeline[0].left, '今天已发布 · 诵读 1 · 随施 1 · 再读 1')
+})
+check('翻到别的月份: 没有今天这一行、不写还没到的日子、按整月算天数; 未来的月份不能再往后翻; 接口里别的月份的记录不算', () => {
+  const records = { month: '2026-10', days: [{ date: '2026-10-03', count: 2 }, { date: '2026-10-04', count: 1 }, { date: '2026-11-02', count: 9 }] }
+  const view = vm.recordsView('2026-10', records, {}, {}, NOV25)
+  assert.deepEqual([view.monthLabel, view.doneLabel, view.canNext, view.readDays], ['2026年10月', '已读 2/31 天', true, 2])
+  assert.deepEqual(view.cells.slice(0, 3).map((c) => c.day), [28, 29, 30], '2026-10-01 是周四: 前面补 3 天九月')
+  assert.deepEqual(view.timeline.map((row) => [row.left, row.right]), [['10-04 · 阅读 3 篇', '连续 2 天']], '没有今天这一行; 3、4 两天连着, 合成一行')
+  assert.equal(vm.recordsView('2026-12', {}, {}, {}, NOV25).canNext, false)
+  assert.equal(vm.recordsView('', {}, {}, {}, NOV25).monthKey, '2026-11', '没给月份按当月')
+  assert.deepEqual(vm.recordsView('2026-11', null, null, null, NOV25).timeline.map((row) => row.right), ['还差诵读'], '没有任何数据: 只有今天一行')
+})
+
 console.log('信息流条目')
 check('时间、类型名、NEW 标记; 图片最多 3 张并带上下载令牌; 音频只计数', () => {
   const post = {

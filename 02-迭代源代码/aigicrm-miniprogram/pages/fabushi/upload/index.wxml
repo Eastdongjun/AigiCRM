@@ -1,104 +1,116 @@
 <block wx:if="{{!success}}">
-  <view class="scope-row">
-    <view class="scope-chip {{scopeType === item.value ? 'active' : ''}}"
-          wx:for="{{scopeOptions}}" wx:key="value"
-          data-value="{{item.value}}" bindtap="onScope">{{item.label}}</view>
+<view class="fb-page upload-page">
+  <!-- 【法布施一期 2026-11-15】发布页; 附件图/音/视; 提交成功回工作台 -->
+  <!-- 【2026-11-25 用户裁决】小程序法布施界面按原型 v7 重做外观。本页 = 原型 B2 每日诵读 / B3 每日随施 / B4 再读一本 三个发布界面,
+       在同一页里切换类型。取数、校验、录音、图片编辑的做法都不变, 只换了版式。 -->
+  <!-- 类型 -->
+  <view class="filter-chips scope-chips">
+    <view wx:for="{{scopeOptions}}" wx:key="value" class="filter-chip {{scopeType === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="onScope">{{item.label}}</view>
   </view>
 
   <!-- 【PROTO-AUDIT-20261123 P6】每日诵读双通道：A 先写后读 / B 按书诵一段 -->
-  <view wx:if="{{scopeType === 'songdu'}}" class="scope-row">
-    <view class="scope-chip {{channel === 'A' ? 'active' : ''}}" data-value="A" bindtap="onChannel">A · 先写后读</view>
-    <view class="scope-chip {{channel === 'B' ? 'active' : ''}}" data-value="B" bindtap="onChannel">B · 按书诵一段</view>
+  <view wx:if="{{scopeType === 'songdu'}}" class="stats-tabs channel-tabs">
+    <view class="stats-tab {{channel === 'A' ? 'active' : ''}}" data-value="A" bindtap="onChannel">A · 先写后读</view>
+    <view class="stats-tab {{channel === 'B' ? 'active' : ''}}" data-value="B" bindtap="onChannel">B · 按书诵一段</view>
   </view>
 
-  <view class="form-card">
-    <!-- 【PROTO-AUDIT-20261123 P8】三级选书：类别 → 书目 → 版本 -->
-    <block wx:if="{{scopeType !== 'suishi'}}">
+  <!-- 【PROTO-AUDIT-20261123 P8】三级选书：类别 → 书目 → 版本（随施不关联书目；诵读 A 通道也要选书） -->
+  <block wx:if="{{scopeType !== 'suishi'}}">
+    <view class="form-section-title">{{scopeType === 'zaidu' ? '① 选书' : '选书'}}<text class="hint">类别 → 书目 → 版本 · 必选</text></view>
+    <view class="card select-card">
       <picker mode="selector" range="{{categories}}" range-key="name" value="{{categoryIndex}}" bindchange="onCategoryChange">
-        <view class="form-row">
-          <text class="form-label">① 类别</text>
-          <text class="form-value">{{categoryIndex >= 0 ? categories[categoryIndex].name : '全部类别'}}</text>
-        </view>
+        <view class="polished-select"><text class="sel-label">类别</text><text class="sel-value">{{categoryIndex >= 0 ? categories[categoryIndex].name : '全部类别'}}</text><text class="go">▾</text></view>
       </picker>
       <picker mode="selector" range="{{titles}}" value="{{titleIndex}}" bindchange="onTitleChange">
-        <view class="form-row">
-          <text class="form-label">② 书目 *</text>
-          <text class="form-value">{{titleIndex >= 0 ? titles[titleIndex] : '请选择书目'}}</text>
-        </view>
+        <view class="polished-select"><text class="sel-label">书目</text><text class="sel-value">{{titleIndex >= 0 ? titles[titleIndex] : '请选择书目 *'}}</text><text class="go">▾</text></view>
       </picker>
       <picker mode="selector" range="{{editions}}" range-key="editionName" value="{{editionIndex}}" bindchange="onEditionChange">
-        <view class="form-row">
-          <text class="form-label">③ 版本</text>
-          <text class="form-value">{{editionIndex >= 0 ? editions[editionIndex].editionName : '请选择版本'}}</text>
-        </view>
+        <view class="polished-select"><text class="sel-label">版本</text><text class="sel-value">{{editionIndex >= 0 ? editions[editionIndex].editionName : '请选择版本'}}</text><text class="go">▾</text></view>
       </picker>
-    </block>
+    </view>
+  </block>
 
-    <!-- 再读一本：② 确定章节（选择已有 / 自我录入） -->
-    <block wx:if="{{scopeType === 'zaidu'}}">
-      <view class="scope-row" style="margin: 4px 0 8px">
-        <view class="scope-chip {{!useManualSection ? 'active' : ''}}" bindtap="toggleManualSection">选择已有章节</view>
-        <view class="scope-chip {{useManualSection ? 'active' : ''}}" bindtap="toggleManualSection">自我录入章节</view>
-      </view>
-      <picker wx:if="{{!useManualSection}}" mode="selector" range="{{sectionNames}}" value="{{sectionIndex}}" bindchange="onSectionChange">
-        <view class="form-row">
-          <text class="form-label">章节 *</text>
-          <text class="form-value">{{sectionIndex >= 0 ? sectionNames[sectionIndex] : (sectionNames.length ? '请选择章节' : '本书暂无章节，请切到「自我录入章节」')}}</text>
-        </view>
-      </picker>
-      <input wx:else class="form-input" placeholder="例如：第八章 · 上善若水" value="{{manualSection}}" bindinput="onManualSection" />
-    </block>
-
-    <!-- 每日诵读 B 通道：具体段落 -->
-    <picker wx:if="{{scopeType === 'songdu' && channel === 'B'}}" mode="selector" range="{{sectionNames}}" value="{{sectionIndex}}" bindchange="onSectionChange">
-      <view class="form-row">
-        <text class="form-label">具体段落 *</text>
-        <text class="form-value">{{sectionIndex >= 0 ? sectionNames[sectionIndex] : (sectionNames.length ? '请选择段落' : '本书暂无章节')}}</text>
-      </view>
+  <!-- 再读一本：② 章节（选择已有 / 自我录入） -->
+  <block wx:if="{{scopeType === 'zaidu'}}">
+    <view class="form-section-title">② 章节<text class="hint">选择或自录</text></view>
+    <view class="stats-tabs section-tabs">
+      <view class="stats-tab {{!useManualSection ? 'active' : ''}}" bindtap="toggleManualSection">选已有</view>
+      <view class="stats-tab {{useManualSection ? 'active' : ''}}" bindtap="toggleManualSection">自录章节</view>
+    </view>
+    <picker wx:if="{{!useManualSection}}" mode="selector" range="{{sectionNames}}" value="{{sectionIndex}}" bindchange="onSectionChange">
+      <view class="polished-select"><text class="sel-value">{{sectionIndex >= 0 ? sectionNames[sectionIndex] : (sectionNames.length ? '请选择章节 *' : '本书暂无章节，请切到「自录章节」')}}</text><text class="go">▾</text></view>
     </picker>
+    <input wx:else class="form-field" placeholder="例如：第八章 · 上善若水" value="{{manualSection}}" bindinput="onManualSection" />
+  </block>
 
-    <input wx:if="{{scopeType === 'zaidu'}}" class="form-input" placeholder="标题（可选）" value="{{title}}" bindinput="onTitle" />
-    <textarea class="form-textarea" placeholder="{{scopeType === 'suishi' ? '随手施：一句话/一页书/一张照片都行…' : scopeType === 'songdu' ? '今日诵读内容（可留空，以语音为主）…' : '写下本章节的精读记录…'}}" value="{{content}}" bindinput="onContent" maxlength="2000" />
-    <view wx:if="{{scopeType === 'suishi'}}" class="suishi-tip">不关联书目 · 不设标题 · 全员可见 · 附件归档「文件中心 › 法布施」，像发朋友圈一样简单</view>
-  </view>
+  <!-- 每日诵读 B 通道：具体段落 -->
+  <block wx:if="{{scopeType === 'songdu' && channel === 'B'}}">
+    <view class="form-section-title">具体段落<text class="hint">必选</text></view>
+    <picker mode="selector" range="{{sectionNames}}" value="{{sectionIndex}}" bindchange="onSectionChange">
+      <view class="polished-select"><text class="sel-value">{{sectionIndex >= 0 ? sectionNames[sectionIndex] : (sectionNames.length ? '请选择段落 *' : '本书暂无章节')}}</text><text class="go">▾</text></view>
+    </picker>
+  </block>
 
-  <!-- 【PROTO-AUDIT-20261123 P7】已选图片九宫格预览 -->
-  <view wx:if="{{imageAttachments.length}}" class="img-grid">
-    <view wx:for="{{imageAttachments}}" wx:key="fileId" class="img-cell">
-      <image class="img-thumb" src="{{item.preview}}" mode="aspectFill" data-index="{{index}}" bindtap="previewImage" />
-    </view>
-  </view>
+  <!-- 内容: 文字 + 九宫格 + 工具行 -->
+  <view class="form-section-title">{{scopeType === 'suishi' ? '这一刻的想法' : (scopeType === 'songdu' ? '诵读素材（文字或图片）' : '③ 内容')}}<text class="hint">{{scopeType === 'suishi' ? '不设标题 · 纯文字也能发' : (scopeType === 'songdu' ? '可留空，以语音为主' : '文字 / 书页 / 语音')}}</text></view>
+  <view class="card composer">
+    <input wx:if="{{scopeType === 'zaidu'}}" class="composer-title" placeholder="标题（可选）" value="{{title}}" bindinput="onTitle" maxlength="120" />
+    <textarea class="composer-text" placeholder="{{scopeType === 'suishi' ? '随手施：一句话/一页书/一张照片都行…' : scopeType === 'songdu' ? '今日诵读内容（可留空，以语音为主）…' : '写下本章节的精读记录…'}}" value="{{content}}" bindinput="onContent" maxlength="2000" auto-height />
 
-  <view class="attach-card">
-    <view class="attach-head"><text>附件</text><text class="attach-count">{{attachHint}}</text></view>
-    <view class="attach-btns">
-      <view class="attach-btn" data-source="album" bindtap="chooseMedia">图片</view>
-      <view class="attach-btn" data-source="camera" bindtap="chooseMedia">拍摄</view>
-      <view class="attach-btn" bindtap="chooseVideo">视频</view>
-      <view class="attach-btn {{recording ? 'rec' : ''}}" bindtap="toggleRecord">{{recording ? '停止 · ' + recordSeconds + 's' : '录制语音'}}</view>
-      <view class="attach-btn" bindtap="choosePhoneFile">手机文件</view>
+    <!-- 【PROTO-AUDIT-20261123 P7】已选图片九宫格预览: 点图放大; 最后一格是添加 -->
+    <view class="composer-grid">
+      <view wx:for="{{imageAttachments}}" wx:for-item="img" wx:for-index="imgIdx" wx:key="fileId" class="composer-cell">
+        <image class="composer-img" src="{{img.preview}}" mode="aspectFill" data-index="{{imgIdx}}" bindtap="previewImage" />
+      </view>
+      <view class="composer-cell add" data-source="album" bindtap="chooseMedia">＋</view>
     </view>
-    <!-- 【GL-12】选图后裁剪的开关(记在本机存储) -->
-    <view class="attach-toggle" aria-role="switch" aria-checked="{{editOnPick}}" bindtap="toggleEditOnPick">
-      <text class="attach-switch {{editOnPick ? 'on' : ''}}"></text>
-      <text>选图后可放大查看、裁剪</text>
+
+    <!-- 工具行: 图片 / 拍摄 / 视频 / 说话 / 文件 -->
+    <view class="tool-row">
+      <view class="tool-item" data-source="album" bindtap="chooseMedia">图片</view>
+      <view class="tool-item" data-source="camera" bindtap="chooseMedia">拍摄</view>
+      <view class="tool-item" bindtap="chooseVideo">视频</view>
+      <view class="tool-item {{recording ? 'rec' : ''}}" bindtap="toggleRecord">{{recording ? '停止 ' + recordSeconds + 's' : '说话'}}</view>
+      <view class="tool-item" bindtap="choosePhoneFile">文件</view>
     </view>
-    <view wx:if="{{recording}}" class="attach-hint rec-hint">录音中…每段最长 60 秒，到时自动保存；不足 1 秒丢弃</view>
-    <view class="attach-sub" bindtap="chooseAudio">从聊天文件选音频（备选入口）</view>
-    <view wx:for="{{attachments}}" wx:key="fileId" class="attach-item">
+    <view class="composer-foot">
+      <text>{{attachHint}}</text>
+      <text class="foot-link" bindtap="chooseAudio">从聊天文件选音频</text>
+    </view>
+
+    <!-- 附件清单: 语音可以在这里试听, 都可以移除 -->
+    <view wx:for="{{attachments}}" wx:key="fileId" class="stats-list-row attach-item {{index === attachments.length - 1 ? 'last' : ''}}">
       <text class="attach-name {{item.fileType === 'audio' ? 'playable' : ''}} {{playingIndex === index ? 'playing' : ''}}" data-index="{{index}}" catchtap="playAttachment">{{item.fileType === 'audio' ? (playingIndex === index ? '⏸ ' : '▶ ') : ''}}{{item.name}}</text>
-      <text class="attach-remove" data-index="{{index}}" bindtap="removeAttachment">移除</text>
+      <text class="mini-action secondary attach-remove" data-index="{{index}}" bindtap="removeAttachment">移除</text>
     </view>
-    <view wx:if="{{uploading}}" class="attach-hint">上传中…</view>
+
+    <!-- 【GL-12】选图后裁剪的开关(记在本机存储) -->
+    <view class="set-row edit-toggle" bindtap="toggleEditOnPick">
+      <view class="set-main">
+        <view class="set-title">选图后先编辑</view>
+        <view class="set-sub">放大查看、裁剪、标注之后再上传</view>
+      </view>
+      <view class="switch {{editOnPick ? '' : 'off'}}"></view>
+    </view>
+    <view wx:if="{{recording}}" class="card-hint rec-hint">录音中…每段最长 60 秒，到时自动保存；不足 1 秒丢弃</view>
+    <view wx:if="{{uploading}}" class="card-hint">上传中…</view>
   </view>
-  <view class="tip">附件上传到法布施空间，计入个人配额。</view>
-  <view class="submit-btn {{submitting ? 'disabled' : ''}}" bindtap="submit">
-    {{submitting ? '发布中…' : (scopeType === 'suishi' ? '随手一发' : scopeType === 'songdu' ? '提交每日诵读' : '发布再读一本')}}
+
+  <view class="note-box blue">{{scopeType === 'suishi' ? '不关联书目 · 不设标题 · 纯文字也能发；附件自动归档到「文件中心 › 法布施」' : (scopeType === 'songdu' ? '人人、天天对经典的小而短的读和诵；A 通道不选段落，B 通道选书选段；至少录一段语音' : '按章节日日上传，整本读下来就是一份精读记录；先定书、定章节、再传内容')}}</view>
+
+  <view class="submit-bar">
+    <view class="detail-primary-action {{scopeType === 'zaidu' ? 'green' : ''}} {{submitting ? 'disabled' : ''}}" bindtap="submit">
+      {{submitting ? '发布中…' : (scopeType === 'suishi' ? '发表' : scopeType === 'songdu' ? '提交每日诵读' : '发布再读一本')}}
+    </view>
   </view>
+</view>
 </block>
 
 <block wx:else>
-  <view class="success-page">
+<view class="fb-page success-page">
+  <!-- 原型 B5 提交成功 · 木鱼动画。下面这一段木鱼舞台(从 muyu-stage 那一行到它闭合)和样式里的木鱼规则保持原样:
+       PC 端的 FabushiMuyu 测试逐条读这里的模板与样式对账, 改了名字或加了前缀, 那边的对账会红。 -->
+  <view class="knock-panel">
     <view class="muyu-stage {{muyuAnim ? 'go' : ''}}">
       <view class="muyu-glow"></view>
       <view class="muyu-ripple"></view>
@@ -107,13 +119,18 @@
       <view class="muyu-mallet"></view>
       <view class="muyu-plus">+1</view>
     </view>
-    <view class="success-title">发布成功</view>
-    <view class="success-sub">已进入法布施认知广场，30 天内展示 NEW。</view>
-    <view class="success-actions">
-      <view class="success-btn ghost" bindtap="replayMuyu">再敲一下</view>
-      <view class="success-btn primary" bindtap="goDetail">查看作品</view>
-    </view>
-    <view class="success-back" bindtap="goBack">返回</view>
-    <view class="success-note">木鱼 = 点赞，同一资产两用；音效在「我的」设置中可关闭。</view>
+    <view class="sfx">笃——</view>
+    <view class="merit"><text class="merit-pill">功德 +1</text></view>
   </view>
+  <view class="card success-card">
+    <view class="feed-title">{{successTitle}}</view>
+    <view class="feed-summary">{{successSummary}}</view>
+  </view>
+  <view class="success-actions">
+    <view class="secondary-btn" bindtap="replayMuyu">再敲一下</view>
+    <view class="detail-primary-action" bindtap="goDetail">查看作品</view>
+  </view>
+  <view class="success-back" bindtap="goBack">返回</view>
+  <view class="success-note">点赞别人的作品也是敲木鱼（同一资产两用）；木鱼音效可以在提醒设置里关闭；30 天内展示 NEW。</view>
+</view>
 </block>

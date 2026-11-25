@@ -115,9 +115,29 @@ function reciteText(rows) {
   return `${head}${list.length > 2 ? ` 等 ${list.length} 人` : ''} —— 他人可直接诵读本段`
 }
 
-// 附件的下载地址: 与详情页同一条通道(下载令牌放在地址里)
+// 下载令牌接口回来的可能是 {token} / {data:{token}} / 直接就是字符串: 统一取成字符串。
+// 【2026-11-25 修正】详情页复诵列表、发布页九宫格预览原来直接把整个应答对象拼进地址(成了 object Object), 图片和语音都放不出来
+function downloadTokenOf(res) {
+  if (!res) return ''
+  if (typeof res === 'string') return res
+  return res.token || (res.data && res.data.token) || ''
+}
+
+// 下载地址 + 令牌(与 api/file.js 的 getDownloadUrl 同一条通道); base 为空时只有路径
 function downloadUrl(fileId, token, base) {
   return `${base || ''}/api/file/download/${fileId}${token ? `?token=${encodeURIComponent(token)}` : ''}`
+}
+
+// 发布成功页的文字(原型 B5): “每日诵读已发布” + 一句说明(挂了哪本书、哪个章节、带了几段语音 / 几张图)
+function publishSuccessView(scopeType, form) {
+  const f = form || {}
+  const label = SCOPE_LABEL[scopeType] || '内容'
+  const parts = []
+  if (f.bookTitle) parts.push(`《${String(f.bookTitle).replace(/[《》]/g, '')}》${f.sectionTitle || ''}`)
+  if (f.audioCount) parts.push(`语音 ${f.audioCount} 段`)
+  if (f.imageCount) parts.push(`图片 ${f.imageCount} 张`)
+  const head = parts.length ? parts.join('，') + '，' : ''
+  return { title: `${label}已发布`, summary: `${head}已进认知广场，${scopeType === 'songdu' ? '等书友来复诵你的声音吧' : '等大家来点木鱼吧'}。` }
 }
 
 // 信息流条目(原型 A2 / A1 广场页签): 类型名、时间、NEW、九宫格里的图片(最多 3 张)、音频段数、谁点了木鱼
@@ -156,4 +176,93 @@ function shelfRowView(row, index) {
   }
 }
 
-module.exports = { SCOPE_LABEL, STATUS_LABEL, WORK_TITLE, coverText, coverTone, timeText, progressText, awakeningView, reminderView, teamTotals, trendBadge, reciteText, downloadUrl, postView, shelfRowView }
+// ===== 阅读记录页(原型 C3) =====
+// 'YYYY-MM'
+function monthKey(date) {
+  const d = date || new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+}
+
+// 前后挪几个月: 'YYYY-MM'
+function shiftMonth(key, delta) {
+  const m = String(key).match(/^(\d{4})-(\d{2})$/)
+  if (!m) return monthKey()
+  const d = new Date(Number(m[1]), Number(m[2]) - 1 + delta, 1)
+  return monthKey(d)
+}
+
+const sameDay = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
+
+// 阅读记录页要显示的全部数据: 月份标题、打卡日历(周一起始)、四格、近几日时间线。
+// records = 阅读记录接口({month, days:[{date, count}], readDays, readCount}); personal = 个人统计; awake = 今日觉醒状态。
+function recordsView(key, records, personal, awake, now) {
+  const today = now || new Date()
+  const current = monthKey(today)
+  const month = /^(\d{4}-\d{2})$/.test(String(key || '')) ? String(key) : current
+  const [year, monthNo] = month.split('-').map(Number)
+  const first = new Date(year, monthNo - 1, 1)
+  const daysInMonth = new Date(year, monthNo, 0).getDate()
+  const isCurrent = month === current
+  // 某天读了多少篇: 按“几号”查。当月还没到的日子即使接口里有记录也不算(正常不会有)
+  const countOf = new Map()
+  const lastDay = isCurrent ? today.getDate() : daysInMonth
+  for (const row of (records && Array.isArray(records.days) ? records.days : [])) {
+    const m = String(row.date || '').match(/^(\d{4})-(\d{2})-(\d{2})$/)
+    if (m && Number(m[1]) === year && Number(m[2]) === monthNo && Number(m[3]) >= 1 && Number(m[3]) <= lastDay) countOf.set(Number(m[3]), Number(row.count) || 0)
+  }
+  const cells = []
+  const lead = (first.getDay() + 6) % 7                      // 周一起始: 周一=0 … 周日=6
+  const prevDays = new Date(year, monthNo - 1, 0).getDate()   // 上个月有几天
+  // key: 列表项的唯一标识(补位格的日期会重复, 不能拿日期当标识)
+  for (let i = lead - 1; i >= 0; i--) cells.push({ key: 'c' + cells.length, day: prevDays - i, state: 'out' })
+  for (let day = 1; day <= daysInMonth; day++) {
+    const isToday = isCurrent && day === today.getDate()
+    const future = isCurrent && day > today.getDate()
+    cells.push({ key: 'c' + cells.length, day, state: isToday ? 'today' : (countOf.has(day) ? 'done' : (future ? 'future' : '')) })
+  }
+  // 最后一周不满 7 格的, 用下个月的 1、2、… 补齐
+  let trailing = 1
+  while (cells.length % 7 !== 0) cells.push({ key: 'c' + cells.length, day: trailing++, state: 'out' })
+  const readDays = countOf.size
+  const elapsed = isCurrent ? today.getDate() : daysInMonth
+  // 时间线: 今天一行是觉醒三件套的进度; 下面是有阅读记录的日子, 右边写“到那一天为止连续读了几天”
+  const timeline = []
+  const a = awake || {}
+  if (isCurrent) {
+    const progress = awakeningView(a, personal, null)
+    const zaidu = Math.max(0, (Number(a.todayPosts) || 0) - (Number(a.todayRecitations) || 0) - (Number(a.todayGifts) || 0))
+    timeline.push({ key: 't' + timeline.length, left: `今天已发布 · 诵读 ${Number(a.todayRecitations) || 0} · 随施 ${Number(a.todayGifts) || 0} · 再读 ${zaidu}`, right: progress.nextScope ? `还差${progress.nextLabel.replace('去', '')}` : '三件齐了' })
+  }
+  // 一段连续的日子合成一行: 写最后那天、这一段一共读了几篇、连续几天
+  const recorded = [...countOf.entries()].sort((x, y) => y[0] - x[0])
+  for (const [day] of recorded) {
+    if (countOf.has(day + 1)) continue                         // 第二天也读了: 这一天属于更靠后那一段, 已经写过了
+    let streak = 0
+    let total = 0
+    for (let d = day; countOf.has(d); d--) { streak += 1; total += countOf.get(d) }
+    const date = new Date(year, monthNo - 1, day)
+    const yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1)
+    const label = sameDay(date, today) ? '今天' : (sameDay(date, yesterday) ? '昨天' : `${String(monthNo).padStart(2, '0')}-${String(day).padStart(2, '0')}`)
+    timeline.push({ key: 't' + timeline.length, left: `${label} · 阅读 ${total} 篇`, right: `连续 ${streak} 天` })
+  }
+  const p = personal || {}
+  return {
+    monthKey: month,
+    monthLabel: `${year}年${monthNo}月`,
+    cells,
+    readDays,
+    daysInMonth,
+    doneLabel: `已读 ${readDays}/${elapsed} 天`,
+    // “下个月”只有在还没到当月时才能点('YYYY-MM' 直接比大小)
+    canNext: month < current,
+    timeline,
+    tiles: [
+      { num: Number(p.myStreakDays) || 0, unit: '天', label: '连续阅读' },
+      { num: Number(p.myReadDays) || 0, unit: '天', label: '累计打卡' },
+      { num: Number(p.monthSongdu) || 0, unit: '条', label: '本月诵读' },
+      { num: Number(p.monthSuishi) || 0, unit: '次', label: '本月随施' }
+    ]
+  }
+}
+
+module.exports = { SCOPE_LABEL, STATUS_LABEL, WORK_TITLE, coverText, coverTone, timeText, progressText, awakeningView, reminderView, teamTotals, trendBadge, reciteText, downloadTokenOf, downloadUrl, postView, publishSuccessView, shelfRowView, monthKey, shiftMonth, recordsView }

@@ -1,0 +1,38 @@
+<!-- 阅读记录(原型 C3): 打卡日历 + 四格 + 近几日时间线。【2026-11-25 用户裁决】小程序法布施界面按原型 v7 重做外观。 -->
+<view class="fb-page">
+  <!-- 打卡日历: 可以翻到之前的月份 -->
+  <view class="card cal-card">
+    <view class="cal-head">
+      <text class="mini-action secondary" bindtap="onPrevMonth">‹ 上个月</text>
+      <view class="cal-title-wrap">
+        <view class="cal-title">{{monthLabel}}</view>
+        <view class="cal-sub">{{doneLabel}}</view>
+      </view>
+      <text class="mini-action secondary {{canNext ? '' : 'disabled'}}" bindtap="onNextMonth">下个月 ›</text>
+    </view>
+    <view class="cal-grid">
+      <view wx:for="{{weekDays}}" wx:for-item="wd" wx:for-index="wdIdx" wx:key="*this" class="cal-cell hd">{{wd}}</view>
+      <view wx:for="{{cells}}" wx:for-item="cell" wx:for-index="cellIdx" wx:key="key" class="cal-cell {{cell.state}}">{{cell.day}}</view>
+    </view>
+  </view>
+
+  <!-- 四格: 连续阅读 / 累计打卡 / 本月诵读 / 本月随施 -->
+  <view class="stats-grid">
+    <view wx:for="{{tiles}}" wx:for-item="tile" wx:for-index="tileIdx" wx:key="label" class="stats-tile">
+      <text class="stats-num">{{tile.num}}<text class="stats-unit">{{tile.unit}}</text></text>
+      <text class="stats-label">{{tile.label}}</text>
+    </view>
+  </view>
+
+  <!-- 近几日时间线 -->
+  <view class="card stats-list-card">
+    <view class="stats-card-title">近几日</view>
+    <view wx:if="{{!timeline.length}}" class="card-hint center">{{loading ? '加载中…' : '这个月还没有阅读记录'}}</view>
+    <view wx:for="{{timeline}}" wx:for-item="row" wx:for-index="rowIdx" wx:key="key" class="stats-list-row {{rowIdx === timeline.length - 1 ? 'last' : ''}}">
+      <text class="row-main-text">{{row.left}}</text>
+      <text class="row-val">{{row.right}}</text>
+    </view>
+  </view>
+
+  <view class="foot-note">日历上打格的是有阅读记录的日子(读过别人的作品); 诵读、随施、再读是当天自己发布的内容。</view>
+</view>
