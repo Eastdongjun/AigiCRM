@@ -30,7 +30,7 @@
           <div v-for="c in pagedCases" :key="c.key" class="case-card" @click="openCase(c)">
             <div class="case-cover">
               <img v-if="c.cover && c.cover.type === 'image' && !thumbFailed.has(c.cover.id)"
-                :src="thumbUrl(c.cover.id)" loading="lazy" @error="markThumbFailed(c.cover.id)" />
+                :src="thumbUrl(c.cover.id)" :alt="c.cover.label || '案例封面'" loading="lazy" @error="markThumbFailed(c.cover.id)" />
               <div v-else-if="c.cover && c.cover.type === 'video'" class="cover-face cover-vid">
                 <el-icon :size="30"><VideoPlay /></el-icon>
               </div>

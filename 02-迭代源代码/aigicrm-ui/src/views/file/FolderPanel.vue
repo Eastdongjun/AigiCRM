@@ -46,7 +46,6 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
 import { injectFilePage } from '@/composables/useFilePage'
 import { useUserStore } from '@/store/user'
 import { ElMessage } from 'element-plus'

@@ -15,7 +15,7 @@
         <button v-if="count > 1" class="pv-nav prev" @click="step(-1)"><el-icon><ArrowLeft /></el-icon></button>
         <video v-if="type==='video'" :src="url" controls autoplay class="pv-media" />
         <!-- 【图片秒开 2026-10-17】先秒开缩略图, 原图后台预载到货自动换上(displaySrc) -->
-        <img v-else-if="type==='image' && !error" :src="displaySrc" class="pv-media" @error="onImageError" />
+        <img v-else-if="type==='image' && !error" :src="displaySrc" alt="图片预览" class="pv-media" @error="onImageError" />
         <!-- 文档类统一走 components/preview 渲染器（与 FilePreview 同源，2026-10-16 文件阅读器） -->
         <div v-else-if="type==='pdf'" class="pv-doc-panel"><PdfFrame :url="url" :file-name="name" /></div>
         <div v-else-if="type==='docx'" class="pv-doc-panel"><DocxView :url="url" :file-name="name" /></div>
@@ -42,7 +42,7 @@
       </div>
       <div v-if="count > 1" class="pv-thumbs">
         <div v-for="(f,i) in list" :key="f.id" class="pv-thumb" :class="{active:i===index}" @click="index=i; error=false">
-          <img v-if="f.type==='image' && !thumbFailed.has(f.id)" :src="thumbUrl(f.id)" @error="onThumbError(f.id)" />
+          <img v-if="f.type==='image' && !thumbFailed.has(f.id)" :src="thumbUrl(f.id)" :alt="f.label || '缩略图'" @error="onThumbError(f.id)" />
           <span v-else-if="f.type==='image'" class="pv-thumb-na">不可用</span>
           <div v-else-if="f.type==='video'" class="pv-thumb-vid"><el-icon :size="18"><VideoPlay /></el-icon></div>
           <div v-else class="pv-thumb-doc"><el-icon :size="16"><Document /></el-icon></div>

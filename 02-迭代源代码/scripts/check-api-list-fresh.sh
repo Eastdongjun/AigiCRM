@@ -10,9 +10,13 @@ ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 GEN="$SCRIPT_DIR/gen-api.py"
 SRC="$ROOT/aigicrm-backend/src/main/java/com/aigicrm"
 COMMITTED="$ROOT/docs/api/api-list.md"
-TMP="$(mktemp /tmp/api-list-fresh.XXXXXX.md)"
+# 【2026-11-27 并发修复】原写法 mktemp /tmp/api-list-fresh.XXXXXX.md 的 X 不在结尾,
+# macOS/BSD 的 mktemp 不会随机化(直接按字面名建文件), 两个实例并发时第二个必报
+# "mkstemp failed ... File exists"。改成 mktemp -d 建唯一目录再放固定文件名。
+TMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/api-list-fresh.XXXXXX")"
+TMP="$TMP_DIR/api-list-fresh.md"
 # 【退出码守卫】见 exit-guard.sh: bash 3.2 在 set -e + EXIT 陷阱下会把未定义变量引起的中止报成退出码 0
-cleanup_tmp() { rm -f "$TMP"; }
+cleanup_tmp() { rm -rf "$TMP_DIR"; }
 . "$(cd "$(dirname "$0")" && pwd)/exit-guard.sh"
 exit_guard_install cleanup_tmp
 

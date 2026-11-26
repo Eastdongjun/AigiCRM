@@ -16,7 +16,7 @@
         </el-form-item>
         <el-form-item label="系统Logo">
           <div style="display: flex; align-items: center; gap: 12px">
-            <img v-if="configMap['system.logo']" :src="logoPreviewSrc" class="logo-preview" />
+            <img v-if="configMap['system.logo']" :src="logoPreviewSrc" alt="系统标识" class="logo-preview" />
             <el-upload
               :action="'/api/file/upload'"
               :headers="uploadHeaders()"

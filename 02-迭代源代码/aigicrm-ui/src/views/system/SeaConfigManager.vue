@@ -169,7 +169,7 @@
 import { ref, reactive, computed, onMounted, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import { confirmAction } from '@/utils/confirm'
-import { Plus, OfficeBuilding, View, Sort, Select, Setting, User } from '@element-plus/icons-vue'
+import { Plus, OfficeBuilding, View, Sort, Select, Setting } from '@element-plus/icons-vue'
 import { getSeaConfigs, createSeaConfig, updateSeaConfig, deleteSeaConfig, getOrgTree } from '@/api/sea'
 import { getRoleList } from '@/api/system'
 import { useUserStore } from '@/store/user'

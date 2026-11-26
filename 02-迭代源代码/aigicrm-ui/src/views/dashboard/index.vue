@@ -254,7 +254,7 @@ import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/store/user'
 // 【字面量收敛第一批 2026-11-12】权限码走生成物单源, 禁止手写字面量
 import { PERMISSION_CODES } from '@/generated/permission-codes'
-import { getDashboardData, getTeamActivities, getWeeklyStats, getDailyStats } from '@/api/statistics'
+import { getDashboardData, getTeamActivities, getDailyStats } from '@/api/statistics'
 import { getReminderList, getExpiringList } from '@/api/reminder'
 import { getApprovalList, approve as apiApprove, reject as apiReject } from '@/api/approval'
 import { defaultRecordPeriod } from '@/utils/incentive-period'

@@ -5,7 +5,7 @@
     <template v-if="cur">
       <span v-if="files.length > 1" class="pager-arrow" role="button" tabindex="0" aria-label="上一个文件" @click.stop="turn(-1)" @keydown.enter.prevent="turn(-1)"><el-icon><ArrowLeft /></el-icon></span>
       <div class="file-card has" @click.stop="previewCardFile(cur)">
-        <img v-if="(cur._existing ? (thumbsReady && cur.id) : true) && isImage(cur.name) && !cur._thumbFailed" :src="cur._existing ? existingThumb(cur) : getObjectURL(cur)" class="file-card-img" @error="cur._thumbFailed = true" />
+        <img v-if="(cur._existing ? (thumbsReady && cur.id) : true) && isImage(cur.name) && !cur._thumbFailed" :src="cur._existing ? existingThumb(cur) : getObjectURL(cur)" alt="文件缩略图" class="file-card-img" @error="cur._thumbFailed = true" />
         <div v-else class="file-card-icon"><el-icon :size="cur._existing ? 20 : 24"><Document /></el-icon></div>
         <span v-if="fileType(cur.name) === 'video'" class="file-card-play"><el-icon><VideoPlay /></el-icon></span>
         <!-- 已有文件也可移除（用户裁决 2026-10-10：上传错了需要修改；确认后走后端原子移除） -->

@@ -37,7 +37,6 @@ import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { injectCustomerDetail } from '@/composables/useCustomerDetail'
 import { createTask } from '@/api/task'
-import { addCustomerLog, getCustomerLogs } from '@/api/customer'
 import { useUserStore } from '@/store/user'
 
 const { readonly, newLog, logs, submitLog, customerId } = injectCustomerDetail()

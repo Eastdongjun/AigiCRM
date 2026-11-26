@@ -118,7 +118,7 @@
                   <div v-for="f in getFiles(r)" :key="f.id" class="dtl-file">
                     <template v-if="f.type==='image' && !thumbFailed.has(f.id)">
                       <div class="dtl-img-wrap">
-                        <img :src="thumbUrl(f.id)" @click="preview(f.id, f.type, f.label, previewableOf(r))" @error="markThumbFailed(f.id)" />
+                        <img :src="thumbUrl(f.id)" :alt="f.label || '缩略图'" @click="preview(f.id, f.type, f.label, previewableOf(r))" @error="markThumbFailed(f.id)" />
                         <div v-if="f.tag" class="dtl-file-tag" :style="{color:tagColor(f.tag), borderColor:tagColor(f.tag)}">{{ f.tag }}</div>
                         <div class="dtl-file-acts">
                           <el-button size="small" circle type="primary" @click.stop="preview(f.id, f.type, f.label, previewableOf(r))"><el-icon><ZoomIn /></el-icon></el-button>

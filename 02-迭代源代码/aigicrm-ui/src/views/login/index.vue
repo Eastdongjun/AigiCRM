@@ -3,7 +3,7 @@
     <div class="login-box">
       <div class="login-left">
         <div class="brand">
-          <img :src="systemLogo || '/favicon.png'" class="brand-logo-img" />
+          <img :src="systemLogo || '/favicon.png'" :alt="'系统标识'" class="brand-logo-img" />
         </div>
         <h1 class="system-title">{{ systemName }}</h1>
         <p class="system-subtitle">{{ systemSubtitle }}</p>

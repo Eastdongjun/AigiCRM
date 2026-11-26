@@ -97,7 +97,7 @@
               <!-- 【2026-11-11 用户令"能预览的全给预览"】文件块点击=直接开灯箱预览该文件(可翻该记录全部附件);
                    点下方信息条才进单记录详情, 原来所有块都跳详情两步走 -->
               <div v-for="f in getFiles(r).slice(0,3)" :key="f.id" class="flat-thumb" @click.stop="preview(f.id, f.type, f.label, getFiles(r))">
-                <img v-if="f.type==='image' && !thumbFailed.has(f.id)" :src="thumbUrl(f.id)" loading="lazy" @error="markThumbFailed(f.id)" />
+                <img v-if="f.type==='image' && !thumbFailed.has(f.id)" :src="thumbUrl(f.id)" :alt="f.label || '图片'" loading="lazy" @error="markThumbFailed(f.id)" />
                 <span v-else-if="f.type==='image'" class="flat-tile img">图</span>
                 <span v-else-if="f.type==='video'" class="flat-tile vid">▶</span>
                 <span v-else class="flat-tile doc">{{ (f.label||'文').slice(f.label.lastIndexOf('.')+1 || 0, 8) }}</span>
@@ -149,7 +149,7 @@
             <div v-for="f in getFiles(c.records[0]).slice(0,4)" :key="f.id" class="card-img">
               <template v-if="f.type==='image' && !thumbFailed.has(f.id)">
                 <div class="img-wrap">
-                  <img :src="thumbUrl(f.id)" @click="preview(f.id, f.type, f.label)" @error="markThumbFailed(f.id)" />
+                  <img :src="thumbUrl(f.id)" :alt="f.label || '图片'" @click="preview(f.id, f.type, f.label)" @error="markThumbFailed(f.id)" />
                   <div v-if="f.tag" class="img-tag">{{ f.tag }}</div>
                 </div>
               </template>

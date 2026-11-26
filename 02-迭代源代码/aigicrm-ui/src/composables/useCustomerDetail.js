@@ -2,11 +2,11 @@
 // 客户详情页 header + 5 个 tab 共享同一份状态(customer/invoices/indicator/incentiveRecords 等)，
 // 且 header 计算(isCore/totalScore)依赖各 tab 数据。用 provide/inject：父级 detail.vue 实例化一次并
 // provide，各 tab 子组件 inject 同一上下文（非模块单例——客户详情是 per-route，避免跨客户状态残留）。
-import { ref, reactive, computed, watch, inject } from 'vue'
+import { ref, reactive, computed, inject } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  getCustomer, getCustomerLogs, addCustomerLog, updateCustomer,
+  getCustomer, getCustomerLogs, addCustomerLog,
   // 【2026-11-08 死码清理】逐笔开票/回款 8 个写端点后端同批已删(2026-10-10 改阶段总额录入制后
   // 双端 UI 入口退役, 见 CustomerController「死码清理 2026-11-08」注记): addInvoice/deleteInvoice/
   // confirmInvoice/voidInvoice/addPayment/deletePayment/confirmPayment/voidPayment 不再引入,
