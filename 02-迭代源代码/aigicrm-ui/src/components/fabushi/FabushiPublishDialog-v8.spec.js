@@ -406,16 +406,18 @@ describe('发布器弹窗按 PC 原型 v8', () => {
       expect(wrapper.find('.frm-textarea').attributes('maxlength')).toBe('2000')
       expect(wrapper.find('.frm-textarea').attributes('placeholder')).toBe('写点什么…（纯文字也能发，不设标题、不关联书目）')
       expect(wrapper.find('.frm-foot').text()).toBe('不关联书目 · 不设标题 · 纯文字也能发；正能量、书的 1-5 页、心得、照片都行。')
-      // 已有的事实写进提示(不做成可点的工具): 附件保存在文件中心的法布施空间、社区内容全员可见。
-      // 原型那句“下架或书目停用后可见范围回落到上传人”与实现不符：下架后信息流和详情都不再给任何人看(发布人自己也看不到)，
-      // 记录只留在内容管理里；书目停用不影响已发内容。提示只写后端真做的那样。
+      // 已有的事实写进提示(不做成可点的工具): 附件保存在文件中心的法布施空间、社区内容全员可见;
+      // 内容下架或书目停用后, 附件在文件中心里的可见范围回落到上传人。
+      // 最后一句说的是附件, 不是信息流里的那条内容: 后端 FolderPermissionService.isFabushiCommunityFile 只把
+      // “已发布内容的附件 / 已通过书目的 PDF”当社区文件(全员可见), 一下架、一停用就不再全员可见,
+      // 改走上传人的数据范围。原型那句里夹着的权限码不照抄。
       const archive = wrapper.find('.pub-archive').text()
       expect(archive).toContain('文件中心 › 法布施')
       expect(archive).toContain('全员')
-      expect(archive).not.toContain('回落到上传人')
-      expect(archive).not.toContain('书目停用')
-      expect(archive).toContain('发布人自己也看不到')
-      expect(archive).toContain('内容管理')
+      expect(archive).toContain('内容下架或书目停用后')
+      expect(archive).toContain('附件')
+      expect(archive).toContain('可见范围回落到上传人')
+      expect(archive).not.toMatch(/fabushi:[a-z]/)
     })
 
     it('九宫格：没选图时是 6 个“＋”格子，点哪个都是选图；满了 9 张不再出现“＋”', async () => {
