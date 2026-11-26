@@ -3,7 +3,7 @@
     <div class="reader-shell">
       <!-- 【2026-11-26 按 PC 原型 v8】P5 在线阅读：深色阅读壳。顶栏 = 返回书目 · 书名 · 版式标记 · 版式设置 / 书签 / 书内搜索 / 下载 -->
       <div class="r-top">
-        <button type="button" class="back" @click="router.back()"><ElIcon><ArrowLeft /></ElIcon>返回书目</button>
+        <button type="button" class="back" @click="goBack"><ElIcon><ArrowLeft /></ElIcon>返回书目</button>
         <b class="r-name">《{{ book.title || '在线阅读' }}》</b>
         <span class="r-sub">
           <template v-if="bookSub">{{ bookSub }} · </template><b v-if="!bookError" class="ok">{{ layoutLabel(layoutType) }}</b>
@@ -97,6 +97,10 @@
           <div v-show="!(settings.reflow && textLayerState === 'yes')" ref="wrapEl" class="stage-canvas-wrap" @scroll.passive="onStageScroll">
             <canvas ref="canvasEl" class="stage-canvas" />
           </div>
+          <!-- 【2026-11-26】原样模式下书页是 PDF 画布（自带白底），“背景”要作用到书页上：
+               护眼米黄 = 在书页区盖一层米黄（正片叠底：白纸变米黄，字色不变淡）；夜间 = 给画布加反色（见样式）。
+               重排模式的书页是文字纸面，自己带底色，不用这一层。 -->
+          <div v-if="paperTinted" class="paper-tint" aria-hidden="true"></div>
           <div v-if="state === 'loading'" class="stage-mask">
             <div class="mask-title">正在加载电子书…</div>
             <div class="mask-sub">{{ loadPct ? loadPct + '%' : '' }}</div>
@@ -213,7 +217,9 @@ const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
 
-const book = ref({ id: null, title: '', author: '', pages: null, pdfFileId: null, layoutType: 'scan' })
+// 【2026-11-26】书目详情回来之前，版式标记是未知（空串）；回来之后是 text / scan。
+// 原来先按 scan 占位，文本版的书一打开就从 scan 变成 text，被当成“管理员改了版式”，按书记住的设置被冲回默认值。
+const book = ref({ id: null, title: '', author: '', pages: null, pdfFileId: null, layoutType: '' })
 const bookError = ref('')
 const pageInput = ref(1)
 const canvasEl = ref(null)
@@ -227,11 +233,17 @@ const toggleSide = (name) => {
   sidePanel.value = sidePanel.value === name ? 'toc' : name
 }
 const toggleSettings = () => { settingsOpen.value = !settingsOpen.value }
+/** 返回书目：从书目浏览、书架进来的就原路退回；收藏、分享链接直接打开的没有上一页（退回去只是空白页），就去书目浏览 */
+const goBack = () => {
+  const state = window.history.state
+  if (state && state.back) router.back()
+  else router.push('/fabushi/library')
+}
 const bookmarks = ref([])
 const { current: bookmarkPage, size: bookmarkSize, totalPages: bookmarkTotalPages, paged: pagedBookmarks } = usePagedList(bookmarks, { pageSize: 8 })
 const bookmarkBusy = ref(false)
 
-const layoutType = computed(() => book.value.layoutType === 'text' ? 'text' : 'scan')
+const layoutType = computed(() => (book.value.layoutType === 'text' || book.value.layoutType === 'scan' ? book.value.layoutType : ''))
 const bookSub = computed(() => {
   const pages = totalPages.value || book.value.pages
   return [book.value.author, pages ? `${pages} 页` : ''].filter(Boolean).join(' · ')
@@ -288,6 +300,8 @@ const resetSettings = () => { patch(normalizeReaderSettings(null, layoutType.val
 /* ============ 【D24 2026-11-23】重排 / 字号行距 / 书内搜索 ============ */
 // 文本层状态：probing=检测中 / yes=有文本层 / none=影印件无文本层（重排与搜索如实禁用）
 const textLayerState = ref('probing')
+/** 原样模式 + 护眼米黄：书页区盖一层米黄（重排模式的书页自己带底色，不盖） */
+const paperTinted = computed(() => settings.value.backdrop === 'sepia' && !(settings.value.reflow && textLayerState.value === 'yes'))
 const reflowEl = ref(null)
 const reflowBlocks = ref([])
 const reflowLoading = ref(false)
@@ -587,7 +601,7 @@ onBeforeUnmount(() => {
 .rs-snippet { color: var(--rs-text); font-size: 11px; line-height: 1.5; word-break: break-word; }
 
 /* 书页区 */
-.paper-zone { position: relative; display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; border-radius: var(--fx-r-md); background: var(--rs-bar); }
+.paper-zone { position: relative; display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; border-radius: var(--fx-r-md); background: var(--rs-bar); isolation: isolate; }
 .stage-canvas-wrap { display: flex; flex: 1; justify-content: center; align-items: flex-start; min-height: 0; overflow: auto; padding: 16px; }
 /* 【D15 2026-11-23】缩放用 zoom：canvas 的 width/height 由 useFabushiPdfReader 以行内样式写死，
    只有 zoom 能在不改渲染器、不被行内样式覆盖的前提下同时做到"视觉放大 + 撑开滚动区"。
@@ -595,7 +609,13 @@ onBeforeUnmount(() => {
    兼容性：Chrome/Edge/Safari 全版本；Firefox ≥126。Firefox <126 下 zoom 被忽略 ⇒ 缩放滑杆无效果，
    版式不坏（仍可正常阅读），已在部署说明"已知限制"登记。 */
 .stage-canvas { flex-shrink: 0; background: var(--reader-page-bg); border-radius: 4px; box-shadow: 0 4px 12px rgba(0, 0, 0, .45); zoom: var(--reader-zoom); filter: contrast(var(--reader-contrast)); clip-path: inset(var(--reader-crop) round 4px); }
-.stage-mask { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; background: var(--rs-bar); }
+/* 【2026-11-26】“背景”作用到书页上（原型里这个开关换的是书页本身的底色）：
+   护眼米黄 —— 盖一层米黄，正片叠底后白纸变米黄、字色只是略深，不动 PDF；
+   夜间 —— 画布先按对比度处理，再反色并把色相转回来（白底黑字 → 深底浅字，图片颜色基本不变）。
+   .paper-zone 上的 isolation 让这一层只和书页区里的内容混合，不影响外面的阅读壳。 */
+.paper-tint { position: absolute; inset: 0; z-index: 1; pointer-events: none; background: var(--reader-page-bg); mix-blend-mode: multiply; }
+.theme-night .stage-canvas { filter: contrast(var(--reader-contrast)) invert(.9) hue-rotate(180deg); }
+.stage-mask { position: absolute; inset: 0; z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; background: var(--rs-bar); }
 .mask-title { color: var(--rs-text); font-size: 14px; font-weight: 700; }
 .mask-sub { color: var(--rs-muted); font-size: 12px; }
 .mask-retry { --el-component-size: 28px; }

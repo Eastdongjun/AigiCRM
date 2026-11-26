@@ -10,7 +10,11 @@ import { ref } from 'vue'
 //      左侧面板 .r-toc，底部 .r-foot（上一页 / 进度条 / 页码 / 下一页 / 加书签）；
 //   ② 左侧面板有三种内容：目录（默认）、书签、书内搜索，由顶栏的按钮切换；版式设置是右上角的浮层，默认收起；
 //   ③ 目录来自章节接口（GET /fabushi/books/{id}/sections），按“序 / 部分 / 章 / 节”缩进；接口没有页码，所以目录行不是按钮（不做点不了的假入口）；
-//   ④ 图标不用表情符号；原型里给评审看的标注（D 编号、“已上线”“演示”）不做成界面文案。
+//   ④ 图标不用表情符号；原型里给评审看的标注（D 编号、“已上线”“演示”）不做成界面文案；
+//   ⑤ 【2026-11-26 用户在本机预览里点“护眼米黄”没反应】“背景”要作用到书页上：原样模式的书页是 PDF 画布（自带白底），
+//      护眼米黄 = 书页区盖一层米黄（正片叠底），夜间 = 画布反色；重排模式的书页自己带底色。
+//      同时修掉两处：“返回书目”在直接打开时退到空白页；文本版的书每次打开都把按书记住的设置冲回默认值
+//      （版式标记等书目详情回来才知道，见 composables/useFabushiReaderSettings.spec.js）。
 // 口径与 paged-list-mount.spec.js 相同：真实视图组件挂载；接口、路由、状态仓库、下载是替身；PDF 阅读器是替身。
 
 const hoisted = vi.hoisted(() => ({
@@ -20,6 +24,7 @@ const hoisted = vi.hoisted(() => ({
     'addFabushiBookmark', 'removeFabushiBookmark',
   ],
   back: vi.fn(),
+  push: vi.fn(),
   download: vi.fn(),
   reader: /** @type {any} */ ({}),
 }))
@@ -27,7 +32,7 @@ const hoisted = vi.hoisted(() => ({
 vi.mock('vue-router', async (importOriginal) => ({
   ...await importOriginal(),
   useRoute: () => hoisted.route,
-  useRouter: () => ({ push: vi.fn(), back: hoisted.back }),
+  useRouter: () => ({ push: hoisted.push, back: hoisted.back }),
 }))
 vi.mock('@/api/fabushi', () => {
   const api = {}
@@ -129,6 +134,67 @@ describe('在线阅读按 PC 原型 v8', () => {
     expect(wrapper.find('.r-set').exists()).toBe(false)
   })
 
+  it('背景要作用到书页上（原样模式）：护眼米黄给书页区盖一层米黄，纸白不盖；重排时不盖；夜间的样式有反色', async () => {
+    // 2026-11-26 用户在本机预览里点“护眼米黄”没反应：原样模式下书页是 PDF 画布，自带白底，
+    // 背景开关原来只改了一个被画布盖住的底色。原型里这个开关换的是书页本身的底色。
+    const wrapper = await mountReader()
+    // 文本版默认纸白：没有米黄那一层
+    expect(vm(wrapper).settings.backdrop).toBe('paper')
+    expect(wrapper.find('.paper-zone .paper-tint').exists()).toBe(false)
+    await wrapper.findAll('.r-top .r-btn')[0].trigger('click')
+    const seg = wrapper.findAll('.r-set .seg')[1].findAll('.seg-item')
+    expect(seg.map((b) => b.text())).toEqual(['纸白', '护眼米黄', '夜间'])
+    await seg[1].trigger('click')
+    expect(vm(wrapper).settings.backdrop).toBe('sepia')
+    const tint = wrapper.find('.paper-zone .paper-tint')
+    expect(tint.exists()).toBe(true)
+    expect(tint.attributes('aria-hidden')).toBe('true')
+    expect(tint.text()).toBe('')
+    // 重排模式下书页是文字纸面，自己带底色，不再盖这一层
+    vm(wrapper).textLayerState = 'yes'
+    await vm(wrapper).patch({ reflow: true })
+    await flushPromises()
+    expect(wrapper.find('.reflow-pane').exists()).toBe(true)
+    expect(wrapper.find('.paper-zone .paper-tint').exists()).toBe(false)
+    await vm(wrapper).patch({ reflow: false })
+    await flushPromises()
+    expect(wrapper.find('.paper-zone .paper-tint').exists()).toBe(true)
+    // 纸白：PDF 原色，不盖
+    await seg[0].trigger('click')
+    expect(wrapper.find('.paper-zone .paper-tint').exists()).toBe(false)
+    await seg[2].trigger('click')
+    expect(wrapper.find('.fx-page').classes()).toContain('theme-night')
+    expect(wrapper.find('.paper-zone .paper-tint').exists()).toBe(false)
+  })
+
+  it('文本版的书：打开后按书记住的背景还在（书目详情回来不算“管理员改了版式”，不能把设置冲回默认）', async () => {
+    window.localStorage.setItem('fabushi:reader-settings:3', JSON.stringify({ backdrop: 'night', zoom: 130 }))
+    try {
+      const wrapper = await mountReader()
+      expect(vm(wrapper).settings.backdrop).toBe('night')
+      expect(vm(wrapper).settings.zoom).toBe(130)
+      expect(wrapper.find('.fx-page').classes()).toContain('theme-night')
+    } finally {
+      window.localStorage.clear()
+    }
+  })
+
+  it('米黄那一层与夜间的写法：正片叠底（白纸变米黄、字不变淡）、不挡点击、只和书页区里的内容混合；夜间给画布加反色；遮罩盖在它上面', () => {
+    const src = readFileSync('src/views/fabushi/read.vue', 'utf-8')
+    const style = src.slice(src.indexOf('<style scoped>'))
+    const rule = (selector) => (style.match(new RegExp(`${selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\{([^}]*)\\}`)) || [])[1] || ''
+    expect(rule('.paper-tint')).toMatch(/mix-blend-mode:\s*multiply/)
+    expect(rule('.paper-tint')).toMatch(/background:\s*var\(--reader-page-bg\)/)
+    expect(rule('.paper-tint')).toMatch(/pointer-events:\s*none/)
+    expect(rule('.paper-tint')).toMatch(/position:\s*absolute/)
+    expect(rule('.paper-zone')).toMatch(/isolation:\s*isolate/)
+    expect(rule('.theme-night .stage-canvas')).toMatch(/filter:[^;}]*invert\(/)
+    expect(rule('.theme-night .stage-canvas')).toMatch(/hue-rotate\(180deg\)/)
+    // 画布原本的对比度滤镜在夜间也要留着
+    expect(rule('.theme-night .stage-canvas')).toMatch(/contrast\(var\(--reader-contrast\)\)/)
+    expect(rule('.stage-mask')).toMatch(/z-index:\s*2/)
+  })
+
   it('左侧面板：默认是目录；点“书签”“书内搜索”切过去，再点一次回到目录', async () => {
     const wrapper = await mountReader()
     expect(vm(wrapper).sidePanel).toBe('toc')
@@ -181,10 +247,18 @@ describe('在线阅读按 PC 原型 v8', () => {
     expect(addFabushiBookmark).not.toHaveBeenCalled()
   })
 
-  it('“返回书目”走路由返回；“下载”带鉴权头下载电子书', async () => {
+  it('“返回书目”：有上一页就原路返回，直接打开的（没有上一页）就去书目浏览；“下载”带鉴权头下载电子书', async () => {
     const wrapper = await mountReader()
+    // 从书目浏览 / 书架点进来：历史里有上一页，原路退回
+    window.history.replaceState({ back: '/fabushi/library' }, '')
     await wrapper.find('.r-top .back').trigger('click')
-    expect(hoisted.back).toHaveBeenCalled()
+    expect(hoisted.back).toHaveBeenCalledTimes(1)
+    expect(hoisted.push).not.toHaveBeenCalled()
+    // 收藏、分享链接直接打开的：没有上一页可退（退回去只是空白页），就去书目浏览
+    window.history.replaceState(null, '')
+    await wrapper.find('.r-top .back').trigger('click')
+    expect(hoisted.back).toHaveBeenCalledTimes(1)
+    expect(hoisted.push).toHaveBeenLastCalledWith('/fabushi/library')
     await wrapper.findAll('.r-top .r-btn')[3].trigger('click')
     expect(hoisted.download).toHaveBeenLastCalledWith('/api/file/download/77', expect.objectContaining({ name: '道德经.pdf' }))
   })

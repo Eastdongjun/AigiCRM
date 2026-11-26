@@ -8,7 +8,9 @@ import { ref } from 'vue'
 //   ① 深色阅读壳：顶栏（返回、书名、“第 x / N 页 · 版式标记”、版式按钮）、书页区、底部（上一页 / 进度条 / 页码 / 下一页）；
 //   ② 版式设置是一张底部卡片，默认收起，点“版式”才出来：阅读模式（重排 / 原样）、背景（纸白 / 护眼 / 夜间）、
 //      对比度增强、裁掉页边白边、字号行距（重排时）、书内搜索；
-//   ③ 点背景 / 对比度 / 裁边马上作用到书页（CSS 变量），并按书记到本地；
+//   ③ 点背景 / 对比度 / 裁边马上生效，并按书记到本地：对比度、裁边走画布上的 CSS 变量；
+//      背景里“护眼米黄”是书页区盖一层米黄（正片叠底）、夜间是画布反色（原样模式的书页是 PDF 画布，自带白底，
+//      只改 CSS 变量看不到变化——2026-11-26 用户在 PC 阅读器上发现，这里是同样的写法）；
 //   ④ 图标不用表情符号；原型里给评审看的标注不做成界面文案。
 // 渲染 / 进度的逻辑有自己的单测（useFabushiPdfReader.spec.js），这里是替身。
 
@@ -131,6 +133,56 @@ describe('小程序在线阅读按原型 v7 的 B1', () => {
     expect(wrapper.find('.mfr').classes()).toContain('theme-night')
     expect(wrapper.find('.mfr').attributes('style')).toContain('--reader-page-bg: #202525')
     expect(JSON.parse(window.localStorage.getItem('fabushi:reader-settings:3') || '{}').backdrop).toBe('night')
+  })
+
+  it('背景要作用到 PDF 书页上（原样模式）：护眼米黄给书页区盖一层米黄，纸白不盖；重排时不盖', async () => {
+    // 2026-11-26 用户在 PC 阅读器里点“护眼米黄”没反应（原样模式下书页是 PDF 画布，自带白底，背景开关只改了四周）。
+    // 小程序这一个阅读器是同样的写法，一起补上。
+    const wrapper = await mountReader()
+    expect(wrapper.find('.mfr-page .mfr-tint').exists()).toBe(false)
+    await wrapper.find('.mfr-head .mfr-btn').trigger('click')
+    const chip = (label) => wrapper.findAll('.mfr-chip').find((c) => c.text() === label)
+    await chip('护眼米黄').trigger('click')
+    const tint = wrapper.find('.mfr-page .mfr-tint')
+    expect(tint.exists()).toBe(true)
+    expect(tint.attributes('aria-hidden')).toBe('true')
+    expect(tint.text()).toBe('')
+    // 重排模式下书页是文字纸面，自己带底色，不再盖这一层
+    vm(wrapper).textLayerState = 'yes'
+    await vm(wrapper).setReflow(true)
+    await flushPromises()
+    expect(wrapper.find('.mfr-reflow').exists()).toBe(true)
+    expect(wrapper.find('.mfr-page .mfr-tint').exists()).toBe(false)
+    await vm(wrapper).setReflow(false)
+    await flushPromises()
+    expect(wrapper.find('.mfr-page .mfr-tint').exists()).toBe(true)
+    await chip('纸白').trigger('click')
+    expect(wrapper.find('.mfr-page .mfr-tint').exists()).toBe(false)
+    await chip('夜间').trigger('click')
+    expect(wrapper.find('.mfr-page .mfr-tint').exists()).toBe(false)
+  })
+
+  it('米黄那一层与夜间的写法：正片叠底（白纸变米黄、字不变淡）、不挡翻页的触摸、盖住整个书页区（书页和四周留白一起变暖）；夜间给画布加反色', () => {
+    const src = readFileSync('src/views/mp/FabushiReader.vue', 'utf-8')
+    const style = src.slice(src.indexOf('<style scoped>'))
+    const rule = (selector) => {
+      const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      return (style.match(new RegExp(`${escaped}\\s*\\{([^}]*)\\}`)) || [])[1] || ''
+    }
+    const tint = rule('.mfr-tint')
+    expect(tint).toMatch(/mix-blend-mode:\s*multiply/)
+    expect(tint).toMatch(/background:\s*var\(--reader-page-bg\)/)
+    expect(tint).toMatch(/pointer-events:\s*none/)
+    expect(tint).toMatch(/position:\s*absolute/)
+    // 盖满书页区: 只盖里面的书页、不盖留白的话, 四周会留一圈色差
+    expect(tint).toMatch(/(^|[^-])inset:\s*0/)
+    // 书页区自己是一个隔离的组: 这一层只和书页区里的内容混合, 不影响外面的阅读壳与版式卡片
+    expect(rule('.mfr-page')).toMatch(/position:\s*relative/)
+    expect(rule('.mfr-page')).toMatch(/isolation:\s*isolate/)
+    const night = rule('.theme-night .mfr-canvas')
+    expect(night).toMatch(/filter:[^;}]*invert\(/)
+    expect(night).toMatch(/hue-rotate\(180deg\)/)
+    expect(night).toMatch(/contrast\(var\(--reader-contrast\)\)/)
   })
 
   it('对比度增强 / 裁掉页边白边：点一下开、再点一下关', async () => {

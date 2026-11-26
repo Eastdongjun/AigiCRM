@@ -44,6 +44,10 @@
             >
               <canvas ref="canvasEl" class="mfr-canvas"></canvas>
             </div>
+            <!-- 【2026-11-26】原样模式下书页是 PDF 画布（自带白底），“护眼米黄”要在书页区盖一层米黄
+                 （正片叠底：白纸变米黄，字色不变淡；不挡触摸）；“夜间”给画布加反色（见样式）。
+                 重排模式的书页是文字纸面，自己带底色，不用这一层。 -->
+            <div v-if="!reflowOn && settings.backdrop === 'sepia'" class="mfr-tint" aria-hidden="true"></div>
 
             <!-- 重排（文字）：连续滚动，滚到底自动续页，顶部页变化即更新进度 -->
             <div
@@ -437,12 +441,17 @@ function onTouchEnd(e) {
 
 /* 书页区（原型 .reader-page + .paper） */
 .mfr-body { display: flex; flex: 1; flex-direction: column; min-height: 0; }
-.mfr-page { display: flex; flex: 1; flex-direction: column; min-height: 0; padding: 10px 12px; overflow: hidden; background: #e9e4d8; }
+.mfr-page { position: relative; display: flex; flex: 1; flex-direction: column; min-height: 0; padding: 10px 12px; overflow: hidden; background: #e9e4d8; isolation: isolate; }
 .theme-night .mfr-page { background: #141818; }
 .theme-sepia .mfr-page { background: #ddd2b8; }
 .mfr-stage { display: flex; flex: 1; justify-content: center; align-items: flex-start; min-height: 0; overflow: auto; }
 .mfr-canvas { flex-shrink: 0; border-radius: 4px; background: var(--reader-page-bg); box-shadow: 0 4px 12px rgba(60, 50, 20, .18); filter: contrast(var(--reader-contrast)); clip-path: inset(var(--reader-crop) round 4px); }
-.theme-night .mfr-canvas { box-shadow: 0 6px 24px rgba(0, 0, 0, .65); }
+.theme-night .mfr-canvas { box-shadow: 0 6px 24px rgba(0, 0, 0, .65); filter: contrast(var(--reader-contrast)) invert(.9) hue-rotate(180deg); }
+/* 【2026-11-26】“护眼米黄”：盖住整个书页区（PDF 书页 + 它四周的留白一起变暖，不留一圈色差），
+   正片叠底后白纸变米黄、字色只是略深，不动 PDF；pointer-events: none 让左右滑动翻页照常落到书页上。
+   夜间：画布先按对比度处理，再反色并把色相转回来（白底黑字 → 深底浅字，图片颜色基本不变）。
+   .mfr-page 上的 isolation 让这一层只和书页区里的内容混合。 */
+.mfr-tint { position: absolute; inset: 0; z-index: 1; pointer-events: none; background: var(--reader-page-bg); mix-blend-mode: multiply; }
 .mfr-reflow { flex: 1; min-height: 0; overflow-y: auto; }
 .mfr-paper { padding: 14px 16px 24px; border-radius: 4px; background: var(--reader-page-bg); box-shadow: 0 4px 12px rgba(60, 50, 20, .18); color: var(--reader-ink); font-family: 'Songti SC', 'STSong', serif; }
 .theme-night .mfr-paper { box-shadow: 0 6px 24px rgba(0, 0, 0, .65); }

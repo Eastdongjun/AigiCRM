@@ -41,10 +41,17 @@ export function useFabushiReaderSettings(bookId, layoutType) {
   // 换书：读该书记忆
   watch(bookId, () => load())
 
-  // 版式标记被管理员改动：以新默认值覆盖（用户后续调整仍会记住）
-  watch(layoutType, (value) => {
+  // 版式标记被管理员改动：以新默认值覆盖（用户后续调整仍会记住）。
+  // 【2026-11-26】打开书时标记先未知（空串：PC 阅读器要等书目详情回来才知道是文本版还是影印版），
+  // “未知 → 已知”这一次不算改动：按这本书记住的设置重新读一遍。原来把它当成改动，每次打开文本版的书，
+  // 都会把用户按书记住的背景、缩放等冲回默认值并写回本地（影印版碰巧不受影响：未知时的默认值就是影印版）。
+  watch(layoutType, (value, oldValue) => {
     if (value === loadedLayout) return
     loadedLayout = value
+    if (!oldValue) {
+      settings.value = normalizeReaderSettings(readStored(storageKey(bookId.value)), value)
+      return
+    }
     settings.value = resolveReaderDefaults(value)
   })
 
