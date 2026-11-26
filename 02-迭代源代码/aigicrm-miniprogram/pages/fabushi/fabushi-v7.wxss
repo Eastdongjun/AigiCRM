@@ -44,17 +44,19 @@ page { background: #f5f7fb; }
 .fb-page .hero-bar-btn.ghost { color: #fff; border: 2rpx solid rgba(255, 255, 255, .55); background: rgba(255, 255, 255, .16); }
 .fb-page .hero-bar-btn.solid { color: var(--primary); font-weight: 700; background: #fff; }
 
-/* ===== 觉醒三板块(A1) ===== */
-.fb-page .aw-list { margin-top: 18rpx; }
-.fb-page .aw-block { display: flex; align-items: center; gap: 18rpx; margin-bottom: 16rpx; padding: 22rpx 24rpx; border: 2rpx solid var(--mp-card-line); border-radius: 24rpx; background: var(--mp-card); box-shadow: 0 12rpx 32rpx rgba(35, 57, 96, .07); }
-.fb-page .aw-ico { position: relative; flex-shrink: 0; width: 72rpx; height: 72rpx; border-radius: 20rpx; background-repeat: no-repeat; background-position: center; background-size: 36rpx 36rpx; }
+/* ===== 觉醒三板块(A1) =====
+   【2026-11-27 用户指示】原来是竖排三大块(图标 + 名称/说明 + 右侧状态), 占去首屏近 200px;
+   改成横排一排三格: 每格上面一行是图标 + 名称, 下面是说明(一行省略)和状态。 */
+.fb-page .aw-list { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12rpx; margin-top: 18rpx; }
+.fb-page .aw-block { display: flex; flex-direction: column; gap: 8rpx; min-width: 0; padding: 16rpx 16rpx 14rpx; border: 2rpx solid var(--mp-card-line); border-radius: 20rpx; background: var(--mp-card); box-shadow: 0 8rpx 22rpx rgba(35, 57, 96, .06); }
+.fb-page .aw-top { display: flex; align-items: center; gap: 10rpx; }
+.fb-page .aw-ico { position: relative; flex-shrink: 0; width: 48rpx; height: 48rpx; border-radius: 14rpx; background-repeat: no-repeat; background-position: center; background-size: 28rpx 28rpx; }
 .fb-page .aw-ico.song { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1024 1024'%3E%3Cpath fill='%23fff' d='M512 320a192 192 0 1 0 0 384 192 192 0 0 0 0-384zm0 64a128 128 0 1 1 0 256 128 128 0 0 1 0-256zm32-320h-64v128h64V64zm0 768h-64v128h64V832zM64 480v64h128v-64H64zm768 0v64h128v-64H832zM231 155l-45 45 90 91 45-45-90-91zm566 567l-45 45 90 91 46-46-91-90zM231 804l90-90-45-46-90 91 45 45zm562-567l-91 90 45 46 91-91-45-45z'/%3E%3C/svg%3E"), linear-gradient(135deg, #16337a, #2563eb); }
 .fb-page .aw-ico.suishi { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1024 1024'%3E%3Cpath fill='%23fff' d='M512 96c-176 0-320 96-320 224 0 68 44 128 112 168l-24 132c-2 12 10 20 20 14l148-84c20 4 42 6 64 6 176 0 320-96 320-224S688 96 512 96z'/%3E%3C/svg%3E"), linear-gradient(135deg, #b45309, #f59e0b); }
 .fb-page .aw-ico.zaidu { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1024 1024'%3E%3Cpath fill='%23fff' d='M552 224c-56-40-144-64-232-64H96v640h240c72 0 144 16 200 44 8 4 24 4 32 0 56-28 128-44 200-44h160V160H664c-40 0-80 5-112 16zm-72 96v400c-56-24-136-32-208-32H160V224h160c88 0 136 40 160 96zm64 0c24-56 72-96 160-96h160v464H680c-72 0-152 8-136 32z'/%3E%3C/svg%3E"), linear-gradient(135deg, #047857, #10b981); }
-.fb-page .aw-main { flex: 1; min-width: 0; }
-.fb-page .aw-name { display: flex; align-items: center; gap: 10rpx; font-size: 26rpx; font-weight: 800; color: var(--mp-ink); }
-.fb-page .aw-sub { margin-top: 4rpx; font-size: 20rpx; line-height: 1.5; color: var(--mp-ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.fb-page .aw-state { flex-shrink: 0; padding: 4rpx 16rpx; border-radius: 999rpx; font-size: 19rpx; font-weight: 800; }
+.fb-page .aw-name { font-size: 24rpx; font-weight: 800; line-height: 1.2; color: var(--mp-ink); white-space: nowrap; }
+.fb-page .aw-sub { font-size: 18rpx; line-height: 1.4; color: var(--mp-ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fb-page .aw-state { align-self: flex-start; padding: 2rpx 12rpx; border-radius: 999rpx; font-size: 17rpx; font-weight: 800; line-height: 1.5; }
 .fb-page .aw-state.done { color: var(--green); background: var(--green-bg); }
 .fb-page .aw-state.todo { color: var(--amber-deep); background: var(--amber-bg); }
 

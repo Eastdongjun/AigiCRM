@@ -9,29 +9,31 @@
     </view>
   </view>
 
+  <!-- 【2026-11-27 用户指示】“每日诵读 / 每日随施 / 再读一本”原来竖排三大块, 占去首屏近 200px;
+       改成横排一排三格(图标 + 名称 / 说明一行 / 状态)。类名不变(.aw-block / .aw-name 有脚本在读)。 -->
   <view class="aw-list">
     <view class="aw-block" data-scope="songdu" bindtap="goUpload">
-      <view class="aw-ico song"></view>
-      <view class="aw-main">
+      <view class="aw-top">
+        <view class="aw-ico song"></view>
         <view class="aw-name">每日诵读</view>
-        <view class="aw-sub">{{awakening.songduSub}}</view>
       </view>
+      <view class="aw-sub">{{awakening.songduSub}}</view>
       <view class="aw-state {{awakening.songduDone ? 'done' : 'todo'}}">{{awakening.songduDone ? '已完成' : '待诵'}}</view>
     </view>
     <view class="aw-block" data-scope="suishi" bindtap="goUpload">
-      <view class="aw-ico suishi"></view>
-      <view class="aw-main">
+      <view class="aw-top">
+        <view class="aw-ico suishi"></view>
         <view class="aw-name">每日随施</view>
-        <view class="aw-sub">{{awakening.suishiSub}}</view>
       </view>
+      <view class="aw-sub">{{awakening.suishiSub}}</view>
       <view class="aw-state {{awakening.suishiDone ? 'done' : 'todo'}}">{{awakening.suishiDone ? '已完成' : '待施'}}</view>
     </view>
     <view class="aw-block" data-scope="zaidu" bindtap="goUpload">
-      <view class="aw-ico zaidu"></view>
-      <view class="aw-main">
+      <view class="aw-top">
+        <view class="aw-ico zaidu"></view>
         <view class="aw-name">再读一本</view>
-        <view class="aw-sub">{{awakening.zaiduSub}}</view>
       </view>
+      <view class="aw-sub">{{awakening.zaiduSub}}</view>
       <view class="aw-state {{awakening.zaiduDone ? 'done' : 'todo'}}">{{awakening.zaiduDone ? '今日已读' : '未读'}}</view>
     </view>
   </view>
