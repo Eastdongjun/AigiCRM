@@ -8,13 +8,14 @@
 .fb-page .scope-chips { margin: 4rpx 0 18rpx; }
 .fb-page .channel-tabs, .fb-page .section-tabs { margin: 0 0 16rpx; }
 
-/* 选书: 类别 / 书目 / 版本 三行 */
-.fb-page .select-card { padding: 8rpx 16rpx; }
+/* 选书(原型 B4): 一行合并的选择器 —— 三列选择器(类别 / 书目 / 版本)占满一行, 右侧是“换版本 ›” */
+.fb-page .select-card { display: flex; align-items: center; gap: 12rpx; padding: 10rpx 16rpx; }
+.fb-page .select-card > picker:first-child { flex: 1; min-width: 0; }
 .fb-page .polished-select { margin-top: 0; }
-.fb-page .select-card picker + picker .polished-select { margin-top: 10rpx; }
-.fb-page .sel-label { flex-shrink: 0; width: 84rpx; font-size: 22rpx; font-weight: 400; color: var(--mp-ink3); }
 .fb-page .sel-value { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 25rpx; color: var(--mp-ink); }
+.fb-page .sel-value.placeholder { color: var(--mp-ink4); }
 .fb-page .polished-select .go { flex-shrink: 0; margin-left: 10rpx; }
+.fb-page .swap-edition { flex-shrink: 0; padding: 10rpx 6rpx; color: #2364d8; font-size: 24rpx; font-weight: 700; white-space: nowrap; }
 .fb-page .form-field { box-sizing: border-box; width: 100%; height: 78rpx; padding: 0 22rpx; border: 2rpx solid var(--mp-card-line); border-radius: 18rpx; font-size: 26rpx; color: var(--mp-ink); background: var(--mp-tile); }
 
 /* 内容: 文字 + 九宫格 + 工具行 */

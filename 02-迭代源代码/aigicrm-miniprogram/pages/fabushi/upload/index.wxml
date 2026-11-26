@@ -15,17 +15,19 @@
   </view>
 
   <!-- 【PROTO-AUDIT-20261123 P8】三级选书：类别 → 书目 → 版本（随施不关联书目；诵读 A 通道也要选书） -->
+  <!-- 【2026-11-26 按原型 v7(B4)】选书是一行合并的选择器: 一个三列选择器(类别 / 书目 / 版本), 右侧“换版本 ›”。
+       类别、书目、版本的数据与原来相同, 只是并在一行里选 -->
   <block wx:if="{{scopeType !== 'suishi'}}">
-    <view class="form-section-title">{{scopeType === 'zaidu' ? '① 选书' : '选书'}}<text class="hint">类别 → 书目 → 版本 · 必选</text></view>
+    <view class="form-section-title">{{scopeType === 'zaidu' ? '① 选书' : '选书'}}<text class="hint">类别→书目→版本 · 必选</text></view>
     <view class="card select-card">
-      <picker mode="selector" range="{{categories}}" range-key="name" value="{{categoryIndex}}" bindchange="onCategoryChange">
-        <view class="polished-select"><text class="sel-label">类别</text><text class="sel-value">{{categoryIndex >= 0 ? categories[categoryIndex].name : '全部类别'}}</text><text class="go">▾</text></view>
+      <picker mode="multiSelector" range="{{bookPicker}}" value="{{bookPickerIndex}}" bindchange="onBookPicked" bindcolumnchange="onBookColumnChange">
+        <view class="polished-select">
+          <text class="sel-value {{bookSummary ? '' : 'placeholder'}}">{{bookSummary || '选类别 · 书目 · 版本 *'}}</text>
+          <text class="go">▾</text>
+        </view>
       </picker>
-      <picker mode="selector" range="{{titles}}" value="{{titleIndex}}" bindchange="onTitleChange">
-        <view class="polished-select"><text class="sel-label">书目</text><text class="sel-value">{{titleIndex >= 0 ? titles[titleIndex] : '请选择书目 *'}}</text><text class="go">▾</text></view>
-      </picker>
-      <picker mode="selector" range="{{editions}}" range-key="editionName" value="{{editionIndex}}" bindchange="onEditionChange">
-        <view class="polished-select"><text class="sel-label">版本</text><text class="sel-value">{{editionIndex >= 0 ? editions[editionIndex].editionName : '请选择版本'}}</text><text class="go">▾</text></view>
+      <picker wx:if="{{titleIndex >= 0 && editions.length > 1}}" mode="selector" range="{{editions}}" range-key="editionName" value="{{editionIndex}}" bindchange="onEditionChange">
+        <view class="swap-edition">换版本 ›</view>
       </picker>
     </view>
   </block>

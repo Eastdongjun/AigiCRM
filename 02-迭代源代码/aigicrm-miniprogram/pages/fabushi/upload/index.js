@@ -29,6 +29,11 @@ Page({
     editions: [],
     editionIndex: -1,
     bookIndex: -1,
+    // 【2026-11-26 按原型 v7(B4)】选书是一行合并的三列选择器: bookPicker = [类别列, 书目列, 版本列],
+    // bookPickerIndex = 三列各自的位置, bookSummary = 选好后那一行上的文字“类别 ·《书目》· 版本”
+    bookPicker: [[], [], []],
+    bookPickerIndex: [0, 0, 0],
+    bookSummary: '',
     manualSection: '',
     useManualSection: false,
     sections: [],
@@ -105,6 +110,9 @@ Page({
     const scopeType = SCOPE_OPTIONS.some((item) => item.value === presetScope) ? presetScope : 'songdu'
     this.setData({ canCreate: true, scopeType, editOnPick: this.readEditOnPick() })
     this.syncNavTitle(scopeType)
+    // 三列选择器里第一列(类别)当前停在哪个类别、第二列列出的是哪个类别下的书目
+    this._pickerCategory = 0
+    this._pickerTitles = null
     this.loadBooks()
   },
 
@@ -196,6 +204,7 @@ Page({
         books, categories, categoryIndex, titles, titleIndex, editions, editionIndex,
         bookIndex: editions.length && editionIndex >= 0 ? editionIndex : -1
       })
+      this.syncBookPicker()
     })
   },
 
@@ -234,6 +243,7 @@ Page({
     const categoryCode = this.data.categories[categoryIndex] ? this.data.categories[categoryIndex].code : null
     const titles = this.titleList(this.data.books, categoryCode)
     this.setData({ categoryIndex, titles, titleIndex: -1, editions: [], editionIndex: -1, bookIndex: -1, sections: [], sectionNames: [], sectionIndex: -1 })
+    this.syncBookPicker()
   },
 
   onTitleChange(e) {
@@ -242,18 +252,79 @@ Page({
     const title = this.data.titles[titleIndex] || null
     const editions = this.editionList(this.data.books, categoryCode, title)
     this.setData({ titleIndex, editions, editionIndex: editions.length ? 0 : -1, bookIndex: editions.length ? 0 : -1, sections: [], sectionNames: [], sectionIndex: -1 })
+    this.syncBookPicker()
     if (editions.length) this.loadSectionsFor(editions[0].id)
   },
 
   onEditionChange(e) {
     const editionIndex = Number(e.detail.value)
     this.setData({ editionIndex, bookIndex: editionIndex, sections: [], sectionNames: [], sectionIndex: -1 })
+    this.syncBookPicker()
     const book = this.data.editions[editionIndex]
     if (book) this.loadSectionsFor(book.id)
   },
 
+  // ===== 【2026-11-26 按原型 v7(B4)】一行合并的三列选择器(类别 / 书目 / 版本) + 右侧“换版本” =====
+  // 选书的逻辑还是上面三个 onXxxChange(它们仍被“换版本”和单元测试直接用); 这里只管三列选择器的列内容、
+  // 滚动某一列时后面的列跟着换、确认后把三个位置交给上面三个处理。
+  syncBookPicker() {
+    const { books, categories, titles, categoryIndex, titleIndex, editions, editionIndex } = this.data
+    if (!categories.length) {
+      this.setData({ bookPicker: [[], [], []], bookPickerIndex: [0, 0, 0], bookSummary: '' })
+      return
+    }
+    // 已经选了类别就以它为准; 没选过就停在第一列当前滚到的类别
+    const catIndex = categoryIndex >= 0 ? categoryIndex : (this._pickerCategory || 0)
+    const cat = categories[catIndex] || categories[0]
+    const columnTitles = categoryIndex >= 0 ? titles : (this._pickerTitles || this.titleList(books, cat.code))
+    const chosenTitle = titleIndex >= 0 ? titles[titleIndex] : null
+    const shownTitle = chosenTitle || columnTitles[0] || null
+    // 选了书目就列这本书的版本; 没选过就列第二列第一本书的版本
+    const columnEditions = chosenTitle ? editions : this.editionList(books, cat.code, shownTitle)
+    const chosenEdition = editionIndex >= 0 ? editions[editionIndex] : null
+    this._pickerCategory = categories.indexOf(cat)
+    this._pickerTitles = columnTitles
+    this.setData({
+      bookPicker: [categories.map((c) => c.name), columnTitles, columnEditions.map((x) => x.editionName)],
+      bookPickerIndex: [Math.max(catIndex, 0), Math.max(titleIndex, 0), Math.max(editionIndex, 0)],
+      // 与原型 B4 那一行同一个写法: “国学建议 ·《道德经》· 陈鼓应注”
+      bookSummary: cat && chosenTitle && chosenEdition ? cat.name + ' ·《' + chosenTitle + '》· ' + chosenEdition.editionName : ''
+    })
+  },
+
+  onBookColumnChange(e) {
+    const column = Number(e.detail && e.detail.column)
+    const value = Number(e.detail && e.detail.value) || 0
+    const { books, categories } = this.data
+    if (!categories.length) return
+    if (column === 0) {
+      this._pickerCategory = Math.min(Math.max(value, 0), categories.length - 1)
+      const cat = categories[this._pickerCategory]
+      this._pickerTitles = this.titleList(books, cat ? cat.code : null)
+    }
+    const cat = categories[this._pickerCategory]
+    const columnTitles = this._pickerTitles || []
+    // 第三列跟着第二列当前停的那本书走
+    const title = column === 1 ? (columnTitles[value] || null) : (columnTitles[0] || null)
+    const columnEditions = this.editionList(books, cat ? cat.code : null, title)
+    this.setData({ bookPicker: [categories.map((c) => c.name), columnTitles, columnEditions.map((x) => x.editionName)] })
+  },
+
+  onBookPicked(e) {
+    const value = (e && e.detail && e.detail.value) || []
+    // 认不出的位置按第 0 个处理
+    const categoryIndex = Number(value[0]) || 0
+    const titleIndex = Number(value[1]) || 0
+    const editionIndex = Number(value[2]) || 0
+    this.onCategoryChange({ detail: { value: categoryIndex } })
+    this.onTitleChange({ detail: { value: titleIndex } })
+    if (editionIndex) this.onEditionChange({ detail: { value: editionIndex } })
+  },
+
   loadSectionsFor(bookId) {
     getFabushiSections(bookId).then((res) => {
+      // 连着换了两版时, 前一版的章节可能后到: 只认当前选中的那一版
+      if (Number(this.currentBookId()) !== Number(bookId)) return
       const sections = (res && res.sections) || []
       const flat = []
       const walk = (nodes, prefix) => {

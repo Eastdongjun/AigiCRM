@@ -188,6 +188,53 @@ async function run() {
     assert.equal(page.data.successSummary, '《论语》上篇 / 第一章，语音 1 段，已进认知广场，等书友来复诵你的声音吧。')
   })
 
+  // 【2026-11-26 按小程序原型 v7】原型 B4 的选书是一行合并的选择器(“国学建议 ·《道德经》· 陈鼓应注” + “换版本 ›”),
+  // 重做外观时这一处留了三行下拉, 用户说“还有小程序的”之后补上: 一个三列选择器(类别 / 书目 / 版本) + 右侧“换版本”。
+  await check('选书是一行合并的选择器: 三列是类别 / 书目 / 版本; 滚动前两列时后面的列跟着换; 确认后选中的是那一版', async () => {
+    fixtures = { books: BOOKS.concat([
+      { id: 3, title: '论语', categoryCode: 'guoxue', categoryName: '国学建议书目', author: '杨伯峻', editionType: 'paper' },
+      { id: 4, title: '活法', categoryCode: 'manage', categoryName: '管理类', author: '稻盛和夫' }
+    ]) }
+    const page = open({ scope: 'zaidu' })
+    await settle()
+    assert.deepEqual(page.data.bookPicker.map((col) => col.slice()), [
+      ['国学建议书目', '管理类'], ['论语', '《道德经》'], ['translation', 'paper']
+    ], '三列: 类别 / 第一个类别下的书目 / 第一本书的各个版本')
+    assert.deepEqual(page.data.bookSummary, '', '还没选: 摘要是空的')
+    assert.equal(page.currentBookId(), null)
+
+    // 滚第一列到“管理类”: 第二列换成该类别下的书目, 第三列换成那本书的版本
+    page.onBookColumnChange({ detail: { column: 0, value: 1 } })
+    assert.deepEqual(page.data.bookPicker.map((col) => col.slice()), [['国学建议书目', '管理类'], ['活法'], ['默认版本']])
+    // 滚第二列: 第三列换成那本书的版本
+    page.onBookColumnChange({ detail: { column: 0, value: 0 } })
+    page.onBookColumnChange({ detail: { column: 1, value: 1 } })
+    assert.deepEqual(page.data.bookPicker[2].slice(), ['annotated'], '《道德经》只有一个版本')
+    assert.deepEqual({ c: page.data.categoryIndex, t: page.data.titleIndex }, { c: -1, t: -1 }, '只滚动、没确认: 页面的选择不变')
+
+    // 确认: 国学建议书目 → 论语 → 第 2 个版本
+    requests.length = 0
+    page.onBookPicked({ detail: { value: [0, 0, 1] } })
+    await settle()
+    assert.deepEqual(
+      { c: page.data.categoryIndex, t: page.data.titleIndex, e: page.data.editionIndex, id: page.currentBookId() },
+      { c: 0, t: 0, e: 1, id: 3 })
+    assert.equal(page.data.bookSummary, '国学建议书目 ·《论语》· paper')
+    assert.deepEqual(page.data.bookPickerIndex.slice(), [0, 0, 1])
+    assert.ok(requests.some((r) => /\/fabushi\/books\/3\/sections$/.test(r.url)), '章节按选中的那一版取')
+
+    // 右侧“换版本”: 回到同一本书的第 1 个版本, 三列选择器也跟着对齐
+    page.onEditionChange(pick(0))
+    await settle()
+    assert.deepEqual({ id: page.currentBookId(), summary: page.data.bookSummary }, { id: 1, summary: '国学建议书目 ·《论语》· translation' })
+    assert.deepEqual(page.data.bookPickerIndex.slice(), [0, 0, 0])
+
+    // 确认时给的值不完整 / 不是数字: 按第 0 个处理, 不抛错
+    page.onBookPicked({ detail: { value: ['x'] } })
+    await settle()
+    assert.deepEqual({ c: page.data.categoryIndex, t: page.data.titleIndex, e: page.data.editionIndex }, { c: 0, t: 0, e: 0 })
+  })
+
   console.log(`PASS: test-miniprogram-fabushi-upload-view (${passed} 条)`)
 }
 

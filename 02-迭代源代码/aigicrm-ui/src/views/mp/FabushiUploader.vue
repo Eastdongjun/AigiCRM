@@ -2,13 +2,13 @@
   <div class="mfbu">
     <!-- 仅微信小程序 web-view 内可用: URL 只带短时上传票(5min/scope=upload), 主 JWT 绝不进 URL -->
     <div v-if="!isWechat" class="mfbu-block">
-      <div class="mfbu-icon">🔒</div>
+      <ElIcon class="mfbu-icon"><Lock /></ElIcon>
       <div class="mfbu-title">请从微信小程序进入</div>
       <div class="mfbu-desc">本页面在小程序「法布施 → 发布 → 手机文件」中使用</div>
     </div>
 
     <div v-else-if="!ticket" class="mfbu-block">
-      <div class="mfbu-icon">⚠️</div>
+      <ElIcon class="mfbu-icon"><Warning /></ElIcon>
       <div class="mfbu-title">上传票缺失或已过期</div>
       <div class="mfbu-desc">请返回小程序重新进入（票有效期 5 分钟）</div>
     </div>
@@ -21,7 +21,7 @@
 
       <div class="mfbu-body">
         <div v-if="!items.length" class="mfbu-pick" @click="pickFiles">
-          <div class="mfbu-pick-icon">📄</div>
+          <ElIcon class="mfbu-pick-icon"><UploadFilled /></ElIcon>
           <div class="mfbu-pick-text">点击选择手机文件</div>
           <div class="mfbu-pick-sub">iOS「文件」App / 安卓文件管理器</div>
         </div>
@@ -56,6 +56,8 @@
 // ③鉴权从「URL 带主 JWT」改为短时上传票(先例模式=MP-TOKEN-001 待修弱点, 不复制)。
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { ElIcon } from 'element-plus'
+import { Lock, UploadFilled, Warning } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const ticket = ref('')
@@ -175,27 +177,32 @@ function finish() {
 </script>
 
 <style scoped>
-.mfbu { min-height: 100vh; background: #f7f3ec; font-family: -apple-system, 'PingFang SC', sans-serif; }
-.mfbu-block { padding-top: 40vh; text-align: center; }
-.mfbu-icon { font-size: 44px; margin-bottom: 12px; }
-.mfbu-head { padding: 28px 20px 12px; text-align: center; }
-.mfbu-title { font-size: 17px; font-weight: 600; color: #2e2a24; }
-.mfbu-desc { font-size: 13px; color: #9c9184; margin-top: 6px; line-height: 1.5; }
+/* 【2026-11-26 按小程序原型 v7】配色取自原型：浅灰蓝画布、白卡片、蓝色主色；图标用组件，不用表情符号 */
+.mfbu {
+  --mu-ink: #172033; --mu-ink2: #52627a; --mu-ink3: #7c8ba1; --mu-ink4: #94a3b8; --mu-line: #dbe4f0; --mu-line-soft: #eef2f7;
+  --mu-accent: #2563eb; --mu-primary: #1d4ed8; --mu-ok: #179050; --mu-ok-bg: #e8f7ef; --mu-danger: #e11d48; --mu-danger-bg: #ffe9ee;
+  min-height: 100vh; background: #f5f7fb; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', sans-serif; color: var(--mu-ink);
+}
+.mfbu-block { padding-top: 34vh; text-align: center; }
+.mfbu-icon { margin-bottom: 12px; color: var(--mu-ink4); font-size: 40px; }
+.mfbu-head { padding: 22px 20px 12px; text-align: center; }
+.mfbu-title { color: var(--mu-ink); font-size: 17px; font-weight: 600; }
+.mfbu-desc { margin-top: 6px; color: var(--mu-ink3); font-size: 13px; line-height: 1.5; }
 .mfbu-body { padding: 16px; }
-.mfbu-pick { background: #fffdf8; border: 1px dashed #d8cdbb; border-radius: 14px; padding: 44px 16px; text-align: center; }
-.mfbu-pick.small { padding: 14px; font-size: 14px; color: #2d5a4a; }
-.mfbu-pick-icon { font-size: 40px; }
-.mfbu-pick-text { font-size: 16px; color: #2e2a24; font-weight: 500; margin-top: 10px; }
-.mfbu-pick-sub { font-size: 12px; color: #9c9184; margin-top: 6px; }
-.mfbu-item { background: #fffdf8; border: 1px solid #e8e0d3; border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; }
-.mfbu-item-name { font-size: 14px; color: #2e2a24; word-break: break-all; }
-.mfbu-item-sub { font-size: 12px; color: #9c9184; margin-top: 4px; }
-.mfbu-ok { color: #2da641; }
-.mfbu-err { color: #d9453d; }
-.mfbu-bar { height: 6px; background: #efe7d8; border-radius: 3px; margin-top: 8px; overflow: hidden; }
-.mfbu-bar-in { height: 100%; background: #2d5a4a; border-radius: 3px; transition: width .2s; }
-.mfbu-retry { margin-top: 8px; width: 100%; height: 36px; border: none; border-radius: 8px; background: #b5543a; color: #fff7ee; font-size: 13px; }
-.mfbu-done { margin-top: 6px; width: 100%; height: 46px; border: none; border-radius: 12px; background: #2d5a4a; color: #fff7ee; font-size: 15px; font-weight: 600; }
+.mfbu-pick { padding: 44px 16px; border: 1px dashed var(--mu-line); border-radius: 14px; background: #fff; text-align: center; }
+.mfbu-pick.small { padding: 14px; color: var(--mu-primary); font-size: 14px; }
+.mfbu-pick-icon { color: var(--mu-accent); font-size: 40px; }
+.mfbu-pick-text { margin-top: 10px; color: var(--mu-ink); font-size: 16px; font-weight: 500; }
+.mfbu-pick-sub { margin-top: 6px; color: var(--mu-ink3); font-size: 12px; }
+.mfbu-item { margin-bottom: 10px; padding: 14px 16px; border: 1px solid var(--mu-line-soft); border-radius: 12px; background: #fff; box-shadow: 0 6px 16px rgba(35, 57, 96, .07); }
+.mfbu-item-name { color: var(--mu-ink); font-size: 14px; word-break: break-all; }
+.mfbu-item-sub { margin-top: 4px; color: var(--mu-ink3); font-size: 12px; }
+.mfbu-ok { color: var(--mu-ok); }
+.mfbu-err { color: var(--mu-danger); }
+.mfbu-bar { height: 6px; margin-top: 8px; overflow: hidden; border-radius: 3px; background: var(--mu-line-soft); }
+.mfbu-bar-in { height: 100%; border-radius: 3px; background: var(--mu-accent); transition: width .2s; }
+.mfbu-retry { width: 100%; height: 36px; margin-top: 8px; border: 0; border-radius: 8px; background: var(--mu-danger-bg); color: var(--mu-danger); font-size: 13px; font-family: inherit; }
+.mfbu-done { width: 100%; height: 46px; margin-top: 6px; border: 0; border-radius: 12px; background: var(--mu-primary); color: #fff; font-size: 15px; font-weight: 600; font-family: inherit; }
 .mfbu-done:disabled { opacity: .5; }
-.mfbu-foot { text-align: center; font-size: 12px; color: #9c9184; padding: 10px 0 24px; }
+.mfbu-foot { padding: 10px 0 24px; color: var(--mu-ink3); font-size: 12px; text-align: center; }
 </style>
