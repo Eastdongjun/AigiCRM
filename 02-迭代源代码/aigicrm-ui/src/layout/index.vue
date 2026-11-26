@@ -213,13 +213,14 @@
       </el-dialog>
 
       <!-- 内容区 -->
-      <el-main class="main-content">
+      <!-- 【2026-11-26 按 PC 原型 v8】法布施各页（路由 meta.bareShell）是“灰画布上直接摆卡片”，不套白色整体容器，内边距换成原型的 12px 16px -->
+      <el-main class="main-content" :class="{ 'main-content--bare': bareShell }">
         <!-- 【修复 20260804 路由切换卡死】原 <transition fade out-in> 包裹 router-view，
              从激励上传页(含 el-dialog/teleport 子树)切出时过渡永不完成 → 新页面组件挂载但 DOM 永远空白
              ("点击菜单没反应")，且任何 duration/超时配置都无法兜底。
              修复：移除 transition 直接渲染（无切换动画，功能优先）。 -->
         <!-- 【2026-09-20 全局页面骨架】所有菜单页统一：灰画布(main-content) → 白色整体容器(page-shell) → 页内小布局 -->
-        <div class="page-shell">
+        <div class="page-shell" :class="{ 'page-shell--bare': bareShell }">
           <router-view />
         </div>
       </el-main>
@@ -238,6 +239,9 @@ import { OfficeBuilding } from '@element-plus/icons-vue'
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
+// 【2026-11-26 按 PC 原型 v8】法布施各页（路由 meta.bareShell）在原型里是“灰画布上直接摆卡片”，没有白色整体容器。
+// 契约见 views/fabushi/fabushi-v8-layout.spec.js
+const bareShell = computed(() => Boolean(route.meta.bareShell))
 
 // 【修复 FEAT-20260804-DYNAMIC-MENU】把后端下发的两层 menus 树整理成"分组+可点击页面"，
 // 过滤掉没有任何可见子页面的空分组（比如角色没被授权该分组下任何页面时）
@@ -799,6 +803,16 @@ const handleCommand = (command) => {
   background: #f5f7fa;
   padding: 20px;
   overflow-y: auto;
+}
+/* 【2026-11-26 按 PC 原型 v8】法布施各页：内边距用原型的 12px 16px，去掉白色整体容器的底色、圆角、阴影和内边距 */
+.main-content.main-content--bare {
+  padding: 12px 16px;
+}
+.page-shell.page-shell--bare {
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  border-radius: 0;
 }
 .fade-enter-active, .fade-leave-active {
   transition: opacity 0.2s ease;

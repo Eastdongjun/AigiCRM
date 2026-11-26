@@ -1,222 +1,223 @@
 <template>
-  <div class="fabushi-stats" v-loading="loading">
-    <!-- 【UI-STATS-PAGE-001 2026-11-19】按已过审原型 v4 落地: 纵向卷轴三行型(全宽段带/等宽双卡/四卡),
-         成员榜前端分页(默认每页 10, 名次章=全榜前三, 占比条=全榜最高值分母), 后端需配套 UI-STATS-PAGE-001 -->
-    <!-- 【D28 切片 7】渐变 hero：页头 + 周期/导出控制内聚到同一块，数据口径与接口零改动 -->
-    <div class="stats-hero">
-    <!-- ① 页头: 标题回归法布施页头母题, 范围章/数据新鲜度上收(原"统计范围"假筛选移除) -->
-    <div class="page-head">
-      <div>
-        <h1>统计看板</h1>
-        <p class="sub">以读为纲 · 阅读推进一页通观</p>
+  <div class="fx-page fabushi-stats" v-loading="loading">
+    <!-- 【2026-11-26 按 PC 原型 v8】统计看板 = 原型 P12：主视觉条 → 五张数字卡 → 成员榜 / 类别热度分布 / 每日达成趋势 →
+         书目阅读榜 → 月度盘点 → 部门进度 → 月度报告 → 我的法布施 → 口径说明。
+         只改外观：数据口径与接口零改动，原有控件一个不少（周期切换、刷新、导出、按阅读 / 按发布、三处翻页、月度导出）。
+         原型里给评审看的标注（编号、“已上线”那句）不是界面文案。 -->
+    <!-- ① 主视觉条（原型 .stat-hero）：标题 + 口径说明 / 范围章 / 周期开关（切换即查，无冗余查询钮）/ 刷新 / 导出 -->
+    <div class="stat-hero">
+      <div class="sh-main">
+        <div class="sh-t">法布施 · 统计看板</div>
+        <div class="sh-sub">口径＝每日诵读 / 每日随施 / 再读一本 三类 · 数据截至 {{ freshTime }}</div>
       </div>
-      <div class="head-right">
-        <span class="fresh">数据截至 <b>{{ freshTime }}</b></span>
-        <span class="scope-chip">👁 {{ scopeText }}</span>
-        <span class="seal" aria-hidden="true">阅</span>
-      </div>
-    </div>
-
-    <!-- ② 控制条: 只留真控制; 周期切换即查(无冗余查询钮) -->
-    <div class="ctrl-bar">
-      <span class="ctrl-label">统计周期</span>
-      <div class="seg">
-        <button type="button" class="seg-item" :class="{ active: period === 'week' }" @click="switchPeriod('week')">本周</button>
-        <button type="button" class="seg-item" :class="{ active: period === 'month' }" @click="switchPeriod('month')">本月</button>
-      </div>
+      <span class="sh-chip">{{ scopeText }}</span>
       <span class="spacer" />
-      <button type="button" class="btn" @click="loadData">↻ 刷新</button>
-      <button v-if="userStore.hasPermission('fabushi:stats:export')" type="button" class="btn primary" @click="exportStats">⬇ 导出报表（CSV）</button>
-    </div>
-    </div>
-
-    <!-- ③ KPI×4: 阅读四指标, 副行统一口径公式一种性质 -->
-    <div class="kpi-row">
-      <div class="kpi" v-for="(card, i) in kpiCards" :key="card.label">
-        <div class="kpi-top">
-          <span class="kpi-icon" :class="'ki' + i" aria-hidden="true">{{ card.icon }}</span>
-          <span class="kpi-trend" :class="kpiTrendClass(i)">{{ kpiTrendText(i) }}</span>
-        </div>
-        <div class="label">{{ card.label }}</div>
-        <div class="value">
-          <template v-if="card.value != null">{{ card.value }}<span v-if="card.unit === '%'" class="unit-suffix">%</span><span v-else class="unit">{{ card.unit }}</span></template>
-          <template v-else>—</template>
-        </div>
-        <div class="kpi-spark" aria-hidden="true">
-          <i v-for="(h, idx) in sparkHeights" :key="idx" :style="{ height: h + '%' }" :class="{ today: idx === sparkHeights.length - 1 }" />
-        </div>
-        <div class="sub">{{ card.sub }}</div>
+      <div class="seg" role="group" aria-label="统计周期">
+        <button type="button" class="seg-item" :class="{ active: period === 'week' }" :aria-pressed="period === 'week'" @click="switchPeriod('week')">本周</button>
+        <button type="button" class="seg-item" :class="{ active: period === 'month' }" :aria-pressed="period === 'month'" @click="switchPeriod('month')">本月</button>
+      </div>
+      <div class="sh-acts">
+        <el-button class="hero-btn" :icon="Refresh" @click="loadData">刷新</el-button>
+        <el-button v-if="userStore.hasPermission('fabushi:stats:export')" class="hero-btn" :icon="Download" @click="exportStats">导出报表（CSV）</el-button>
       </div>
     </div>
 
-    <!-- 周期互动条: 发布/敲木鱼/评论在周期口径下的固定归位(口径=谁做的) -->
-    <div class="interact-strip">
-      <div class="interact-title"><b>周期互动</b><span>{{ dashboard.period === 'month' ? '本月' : '本周' }}</span></div>
-      <div class="interact-item"><span class="num">{{ dashboard.periodPosts || 0 }}</span><span class="u">篇</span><span class="lb">发布内容</span></div>
-      <div class="interact-item"><span class="num">{{ dashboard.periodLikes || 0 }}</span><span class="u">次</span><span class="lb">🐟 敲木鱼（点赞）</span></div>
-      <div class="interact-item"><span class="num">{{ dashboard.periodComments || 0 }}</span><span class="u">条</span><span class="lb">评论</span></div>
-      <span class="interact-note">口径：互动条与部门表按「谁做的」计；榜单「获木鱼」按「内容归属」计</span>
-    </div>
-
-    <!-- ④ 成员榜(行型 A 全宽 + 前端分页): 名次章=全榜前三, 占比条=指标/全榜最高值(跨页可比) -->
-    <section class="panel">
-      <div class="panel-head">
-        <span class="ttl">成员榜</span>
-        <span class="hint">默认按已读人次排序 · 名次章只属全榜前三</span>
-        <span class="right">
-          <span class="seg-mini">
-            <button type="button" :class="{ active: rankSort === 'read' }" @click="switchRankSort('read')">按阅读</button>
-            <button type="button" :class="{ active: rankSort === 'post' }" @click="switchRankSort('post')">按发布</button>
+    <!-- ② 数字卡 ×5（原型 .kcards / .kcard2）：只放接口真有的数。
+         原型的「今日已诵 / 已随施人数」「三类拆分」「人均复诵」接口没有，不放；见口径说明。 -->
+    <div class="kcards">
+      <div v-for="(card, i) in kpiCards" :key="card.label" class="kcard2">
+        <div class="krow">
+          <span class="kicon" :class="'ki' + i" aria-hidden="true"><ElIcon><component :is="card.icon" /></ElIcon></span>
+          <span class="kv2">
+            <template v-if="card.value != null">{{ card.value }}<i v-if="card.unit">{{ card.unit }}</i></template>
+            <template v-else>—</template>
           </span>
-        </span>
-      </div>
-      <table class="rank-table">
-        <thead>
-          <tr>
-            <th class="w-no">名次</th><th>成员</th><th>部门</th>
-            <!-- 【PROTO-AUDIT-20261123 P12】D1 三类型口径落到成员榜（原型列：诵读/随施/再读） -->
-            <th class="w-num r" title="每日诵读发布数">诵读</th>
-            <th class="w-num r" title="每日随施发布数">随施</th>
-            <th class="w-num r" title="再读一本发布数">再读</th>
-            <th class="w-num r">已读天数</th><th class="w-num r">已读人次</th>
-            <th class="w-num r">发布</th><th class="w-num r" title="内容被点赞数，按内容归属">获木鱼</th>
-            <!-- 【P12 2026-11-23】原型成员榜含「复诵」指标：口径＝他人对本人在本周期内容的复诵行数 -->
-            <th class="w-num r" title="本人内容被他人复诵的次数，按内容归属、限本周期">被复诵</th>
-            <th class="w-act">{{ metricLabel }}</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="(row, i) in pagedRanking" :key="row.userId">
-            <td class="w-no"><span class="rank-no" :class="medalClass(rankFrom + i)">{{ rankFrom + i + 1 }}</span></td>
-            <td><span class="who-cell"><span class="mini-avatar" :class="medalClass(rankFrom + i)">{{ (row.userName || '?').slice(0, 1) }}</span><span class="strong">{{ row.userName }}</span></span></td>
-            <td class="dim" :title="row.deptName">{{ row.deptName }}</td>
-            <td class="num w-num r">{{ row.songduCount || 0 }}</td>
-            <td class="num w-num r">{{ row.suishiCount || 0 }}</td>
-            <td class="num w-num r">{{ row.zaiduCount || 0 }}</td>
-            <td class="num w-num r">{{ row.readDays }}</td>
-            <td class="num w-num r">{{ row.readCount }}</td>
-            <td class="num w-num r">{{ row.postCount }}</td>
-            <td class="num w-num r">{{ row.likesReceived }}</td>
-            <td class="num w-num r">{{ row.recitationsReceived || 0 }}</td>
-            <td class="w-act"><span class="metric-bar"><span class="tr"><i :style="{ width: metricPct(row) + '%' }" /></span><span class="pc">{{ metricPct(row) }}%</span></span></td>
-          </tr>
-        </tbody>
-      </table>
-      <div v-if="!rankedTotal" class="empty">本周期暂无阅读 / 发布数据</div>
-      <!-- 分页底栏: 左信息右翻页; URL 直达态暂不做(vue-router 协同留待后续) -->
-      <div v-if="rankedTotal" class="rank-pager">
-        <span class="info">共 <b>{{ rankedTotal }}</b> 人上榜（可见范围 {{ scopeTotalText }}{{ dashboard.memberCount === -1 ? '' : ' 人' }}）</span>
-        <select v-model.number="rankSize" class="pager-size" aria-label="每页人数" @change="rankPage = 1">
-          <option :value="10">每页 10 人</option>
-          <option :value="20">每页 20 人</option>
-        </select>
-        <span class="pager-ctrl">
-          <button type="button" class="pager-btn" :disabled="rankPage === 1" aria-label="上一页" @click="rankPage = Math.max(1, rankPage - 1)">‹ 上一页</button>
-          <button v-for="p in rankTotalPages" :key="p" type="button" class="pager-btn" :class="{ active: p === rankPage }" :aria-current="p === rankPage ? 'page' : undefined" @click="rankPage = p">{{ p }}</button>
-          <button type="button" class="pager-btn" :disabled="rankPage === rankTotalPages" aria-label="下一页" @click="rankPage = Math.min(rankTotalPages, rankPage + 1)">下一页 ›</button>
-        </span>
-      </div>
-    </section>
-
-    <!-- ⑤ 等宽双卡行(行型 B): 类别分布 | 近 7 日趋势 -->
-    <div class="twin-row">
-      <section class="panel">
-        <div class="panel-head"><span class="ttl">类别分布</span><span class="hint">已读人次 · 占比</span></div>
-        <div v-for="(item, i) in dashboard.categoryReads || []" :key="item.categoryCode" class="heat-row">
-          <span class="heat-label" :title="item.categoryName">{{ item.categoryName }}</span>
-          <div class="heat-track"><i :style="{ width: heatWidth(item.readCount), background: heatGradient(i) }" /></div>
-          <span class="heat-val">{{ item.readCount }}</span>
-          <span class="heat-share">{{ heatShare(item.readCount) }}%</span>
+          <span class="ktrend" :class="kpiTrendClass(i)">{{ kpiTrendText(i) }}</span>
         </div>
-        <div v-if="!(dashboard.categoryReads || []).length" class="empty">本周期暂无书目阅读</div>
-      </section>
-      <section class="panel">
-        <div class="panel-head"><span class="ttl">近 7 日 · 每日一读达成</span><span class="hint">每日已读人数</span></div>
-        <div class="trend">
-          <div v-for="(item, i) in dashboard.trend || []" :key="item.date" class="trend-col" :class="{ today: i === (dashboard.trend || []).length - 1 }">
-            <span class="trend-val" :class="{ zero: !item.count }">{{ item.count }}</span>
-            <span v-if="!item.count" class="trend-dot" />
-            <div v-else class="trend-bar" :style="{ height: trendHeight(item.count) }" />
-            <span class="trend-label">{{ i === (dashboard.trend || []).length - 1 ? '今日' : item.label }}</span>
+        <div class="kl2">{{ card.label }}</div>
+        <div class="ksub" :title="card.note || undefined">{{ card.sub }}</div>
+        <div class="spark" aria-hidden="true">
+          <i v-for="(h, idx) in sparkHeights" :key="idx" :class="{ zero: sparkZeros[idx] }" :style="{ height: h + '%' }" />
+        </div>
+      </div>
+    </div>
+
+    <!-- ③ 成员榜（左）+ 类别热度分布 / 每日达成趋势（右）：宽屏左右排，窄屏上下排 -->
+    <div class="dash-grid">
+      <!-- 成员榜：名次章 = 全榜前三，占比条 = 指标 / 全榜最高值（跨页可比），前端分页 -->
+      <section class="table-card panel-pad rank-card">
+        <div class="panel-title">
+          成员榜 · {{ periodName }}
+          <span class="tt-sub">默认按已读人次排序 · 名次章只属全榜前三</span>
+          <span class="spacer" />
+          <div class="seg" role="group" aria-label="成员榜排序">
+            <button type="button" class="seg-item" :class="{ active: rankSort === 'read' }" :aria-pressed="rankSort === 'read'" @click="switchRankSort('read')">按阅读</button>
+            <button type="button" class="seg-item" :class="{ active: rankSort === 'post' }" :aria-pressed="rankSort === 'post'" @click="switchRankSort('post')">按发布</button>
           </div>
         </div>
+        <div class="table-scroll">
+          <table class="rank-table member-table">
+            <thead>
+              <tr>
+                <th class="c-no">名次</th><th>成员</th><th>部门</th>
+                <!-- 【PROTO-AUDIT-20261123 P12】三类型口径落到成员榜（原型列：诵读 / 随施 / 再读） -->
+                <th class="num" title="每日诵读发布数">诵读</th>
+                <th class="num" title="每日随施发布数">随施</th>
+                <th class="num" title="再读一本发布数">再读</th>
+                <th class="num">已读天数</th><th class="num">已读人次</th>
+                <th class="num">发布</th><th class="num" title="内容被点赞数，按内容归属">获木鱼</th>
+                <!-- 【P12 2026-11-23】复诵指标：口径＝他人对本人在本周期内容的复诵行数 -->
+                <th class="num" title="本人内容被他人复诵的次数，按内容归属、限本周期">被复诵</th>
+                <th class="c-bar" title="个人该指标 / 全榜最高值，跨页可比">{{ metricLabel }}</th>
+                <!-- 原型「活跃度」列：条长 = 接口排行项里的 activityPct（发布数 / 全榜最高发布数） -->
+                <th class="c-act" title="发布数 / 全榜最高发布数">活跃度</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(row, i) in pagedRanking" :key="row.userId">
+                <td class="c-no"><span class="rk2" :class="medalClass(rankFrom + i)">{{ rankFrom + i + 1 }}</span></td>
+                <td><span class="who"><span class="mini-ava">{{ (row.userName || '?').slice(0, 1) }}</span><b>{{ row.userName }}</b></span></td>
+                <td><span class="dept" :title="row.deptName">{{ row.deptName }}</span></td>
+                <td class="num">{{ row.songduCount || 0 }}</td>
+                <td class="num">{{ row.suishiCount || 0 }}</td>
+                <td class="num">{{ row.zaiduCount || 0 }}</td>
+                <td class="num">{{ row.readDays }}</td>
+                <td class="num">{{ row.readCount }}</td>
+                <td class="num">{{ row.postCount }}</td>
+                <td class="num">{{ row.likesReceived }}</td>
+                <td class="num">{{ row.recitationsReceived || 0 }}</td>
+                <td class="c-bar"><span class="metric-bar"><span class="tr"><i :style="{ width: metricPct(row) + '%' }" /></span><span class="pc">{{ metricPct(row) }}%</span></span></td>
+                <td class="c-act"><div class="rb act-bar" :title="`活跃度 ${activityPct(row)}%`"><i :style="{ width: activityPct(row) + '%' }" /></div></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div v-if="!rankedTotal" class="empty">本周期暂无阅读 / 发布数据</div>
+        <!-- 翻页底栏：左信息、右翻页 -->
+        <div v-if="rankedTotal" class="pager rank-pager">
+          <span class="info">共 <b>{{ rankedTotal }}</b> 人上榜（可见范围 {{ scopeTotalText }}{{ dashboard.memberCount === -1 ? '' : ' 人' }}）</span>
+          <select v-model.number="rankSize" class="pager-size" aria-label="每页人数" @change="rankPage = 1">
+            <option :value="10">每页 10 人</option>
+            <option :value="20">每页 20 人</option>
+          </select>
+          <span class="pager-ctrl">
+            <button type="button" class="pager-btn" :disabled="rankPage === 1" aria-label="上一页" @click="rankPage = Math.max(1, rankPage - 1)">‹ 上一页</button>
+            <button v-for="p in rankTotalPages" :key="p" type="button" class="pager-btn" :class="{ active: p === rankPage }" :aria-current="p === rankPage ? 'page' : undefined" @click="rankPage = p">{{ p }}</button>
+            <button type="button" class="pager-btn" :disabled="rankPage === rankTotalPages" aria-label="下一页" @click="rankPage = Math.min(rankTotalPages, rankPage + 1)">下一页 ›</button>
+          </span>
+        </div>
       </section>
+
+      <div class="dash-side">
+        <!-- 类别热度分布：条长 = 该类别 / 最高的类别，数值 = 已读人次，后附占比 -->
+        <section class="table-card panel-pad heat-card">
+          <div class="panel-title">类别热度分布<span class="tt-sub">已读人次 · 占比</span></div>
+          <div class="heat-list">
+            <div v-for="(item, i) in dashboard.categoryReads || []" :key="item.categoryCode" class="hbar-row">
+              <span class="hbar-lbl" :title="item.categoryName">{{ item.categoryName }}</span>
+              <div class="hbar-track"><i :class="heatHue(i)" :style="{ width: heatWidth(item.readCount) }" /></div>
+              <span class="hbar-val">{{ item.readCount }}</span>
+              <span class="hbar-share">{{ heatShare(item.readCount) }}%</span>
+            </div>
+          </div>
+          <div v-if="!(dashboard.categoryReads || []).length" class="empty">本周期暂无书目阅读</div>
+        </section>
+
+        <!-- 每日达成趋势：固定滚动近几日每日已读人数，不随周期切换变化；最后一根是今天 -->
+        <section class="table-card panel-pad trend-card">
+          <div class="panel-title">每日达成趋势<span class="tt-sub">近 7 日 · 每日已读人数</span></div>
+          <div class="chart">
+            <div
+              v-for="(item, i) in dashboard.trend || []"
+              :key="item.date"
+              class="bar"
+              :class="{ today: i === (dashboard.trend || []).length - 1, zero: !item.count }"
+              :style="{ height: trendHeight(item.count) }"
+            >
+              <span class="v">{{ item.count }}</span>
+            </div>
+          </div>
+          <div class="chart-x">
+            <span v-for="(item, i) in dashboard.trend || []" :key="item.date">{{ i === (dashboard.trend || []).length - 1 ? '今日' : item.label }}</span>
+          </div>
+        </section>
+      </div>
     </div>
 
-    <!-- ⑥ 书目阅读榜(行型 A 全宽) -->
-    <section class="panel">
-      <div class="panel-head">
-        <span class="ttl">书目阅读榜 · {{ dashboard.period === 'month' ? '本月' : '本周' }}</span>
-        <span class="hint">按已读人次排序 · 仅章节帖计入 · Top 10</span>
+    <!-- ④ 书目阅读榜（全宽） -->
+    <section class="table-card panel-pad book-card">
+      <div class="panel-title">
+        书目阅读榜 · {{ dashboard.period === 'month' ? '本月' : '本周' }}
+        <span class="tt-sub">按已读人次排序 · 仅章节帖计入 · Top 10</span>
       </div>
       <table class="rank-table">
-        <thead><tr><th>书名</th><th>类别</th><th class="w-num r">已读人数</th><th class="w-num r">已读人次</th><th class="w-act">阅读占比</th><th>最新阅读</th></tr></thead>
+        <thead><tr><th>书名</th><th>类别</th><th class="num">已读人数</th><th class="num">已读人次</th><th class="c-bar">阅读占比</th><th>最新阅读</th></tr></thead>
         <tbody>
           <tr v-for="(row, i) in pagedBookRanking" :key="row.bookId">
-            <td><span class="book-cell"><span class="mini-cover">{{ (row.title || '书').replace(/[《》]/g, '').slice(0, 2) }}</span><span class="strong">{{ row.title }}</span></span></td>
-            <!-- 【GL-14 2026-11-24】行号先转数字再取模: 类型检查不认这里的循环下标是数字(运行结果不变), 这一行让类型基线超了 1 处 -->
-            <td><span class="cat-chip" :class="'c' + (Number(i) % 3)">{{ row.categoryName || row.category || '—' }}</span></td>
-            <td class="num w-num r">{{ row.readUsers }}</td>
-            <td class="num w-num r">{{ row.readCount }}</td>
-            <td class="w-act"><span class="metric-bar"><span class="tr"><i :style="{ width: bookPct(row) + '%' }" /></span><span class="pc">{{ bookPct(row) }}%</span></span></td>
-            <td class="dim w-time">{{ shortTime(row.latestReadAt) }}</td>
+            <td><span class="book-cell"><span class="mini-cover">{{ (row.title || '书').replace(/[《》]/g, '').slice(0, 2) }}</span><b>{{ row.title }}</b></span></td>
+            <!-- 【GL-14 2026-11-24】行号先转数字再取模: 类型检查不认这里的循环下标是数字(运行结果不变) -->
+            <td><span class="tag" :class="catHue(i)">{{ row.categoryName || row.category || '—' }}</span></td>
+            <td class="num">{{ row.readUsers }}</td>
+            <td class="num">{{ row.readCount }}</td>
+            <td class="c-bar"><span class="metric-bar"><span class="tr"><i :style="{ width: bookPct(row) + '%' }" /></span><span class="pc">{{ bookPct(row) }}%</span></span></td>
+            <td class="time">{{ shortTime(row.latestReadAt) }}</td>
           </tr>
         </tbody>
       </table>
       <div v-if="!(dashboard.bookRanking || []).length" class="empty">本周期暂无书目阅读</div>
-      <div v-if="bookRankTotalPages > 1" class="inline-pager">
+      <div v-if="bookRankTotalPages > 1" class="pager">
         <span>共 {{ (dashboard.bookRanking || []).length }} 本</span>
-        <el-pagination v-model:current-page="bookRankPage" :page-size="bookRankSize" :total="(dashboard.bookRanking || []).length" layout="prev, pager, next" small />
+        <el-pagination v-model:current-page="bookRankPage" :page-size="bookRankSize" :total="(dashboard.bookRanking || []).length" layout="prev, pager, next" size="small" />
       </div>
     </section>
 
-    <!-- ⑦ 分隔带: 月度盘点是独立月份口径, 与上方周期切换切开 -->
+    <!-- ⑤ 分隔带: 月度盘点是独立月份口径, 与上方周期切换切开 -->
     <div class="sec-band">月 度 盘 点<span class="note">独立月份口径 · 与上方本周 / 本月切换无关</span></div>
 
-    <!-- ⑧ 部门进度(行型 A 全宽): 公司直隶/未分配徽标; 互动列=谁做的(后端真实口径) -->
-    <section class="panel">
-      <div class="panel-head">
-        <span class="ttl">部门进度 · {{ period === 'week' ? '本周' : '本月' }}</span>
-        <span class="hint">覆盖率 = 已读人数 / 部门成员数 · 木鱼 / 评论按"谁做的"计入本部门成员</span>
+    <!-- ⑥ 部门进度（全宽）: 公司直属/未分配徽标; 互动列=谁做的(后端真实口径) -->
+    <section class="table-card panel-pad dept-card">
+      <div class="panel-title">
+        部门进度 · {{ period === 'week' ? '本周' : '本月' }}
+        <span class="tt-sub">覆盖率 = 已读人数 / 部门成员数 · 木鱼 / 评论按"谁做的"计入本部门成员</span>
       </div>
       <div class="table-scroll">
         <table class="rank-table dept-table">
-          <colgroup><col /><col class="w-num" /><col class="w-num" /><col style="width: 168px" /><col class="w-num" /><col class="w-num" /><col class="w-num" /><col class="w-num" /></colgroup>
-          <thead><tr><th>部门</th><th class="r">成员数</th><th class="r">已读人数</th><th>覆盖率</th><th class="r">发布</th><th class="r" title="本部门成员敲出的点赞数">木鱼</th><th class="r" title="本部门成员发出的评论数">评论</th><th class="r">已读天数</th></tr></thead>
+          <thead><tr><th>部门</th><th class="num">成员数</th><th class="num">已读人数</th><th>覆盖率</th><th class="num">发布</th><th class="num" title="本部门成员敲出的点赞数">木鱼</th><th class="num" title="本部门成员发出的评论数">评论</th><th class="num">已读天数</th></tr></thead>
           <tbody>
             <tr v-for="row in pagedDeptProgress" :key="row.deptId ?? 'none'">
-              <td><span class="strong" :title="row.deptName">{{ row.deptName }}</span><span v-if="row.companyLevel" class="dept-badge">公司直隶</span><span v-if="row.deptId == null" class="dept-badge unassigned">无部门成员</span></td>
-              <td class="num r">{{ row.memberCount }}</td>
-              <td class="num r">{{ row.readUsers }}</td>
+              <td><span class="strong" :title="row.deptName">{{ row.deptName }}</span><span v-if="row.companyLevel" class="tag orange">公司直隶</span><span v-if="row.deptId == null" class="tag gray">无部门成员</span></td>
+              <td class="num">{{ row.memberCount }}</td>
+              <td class="num">{{ row.readUsers }}</td>
               <td>
                 <span v-if="row.coveragePct == null" class="dim-c">—</span>
                 <span v-else class="cov-wrap"><b class="cov-num">{{ row.coveragePct }}%</b><span class="cov-track"><i :style="{ width: Math.min(100, row.coveragePct || 0) + '%' }" /></span></span>
               </td>
-              <td class="num r">{{ row.posts }}</td>
-              <td class="num r">{{ row.likes }}</td>
-              <td class="num r">{{ row.comments }}</td>
-              <td class="num r">{{ row.readDays }}</td>
+              <td class="num">{{ row.posts }}</td>
+              <td class="num">{{ row.likes }}</td>
+              <td class="num">{{ row.comments }}</td>
+              <td class="num">{{ row.readDays }}</td>
             </tr>
           </tbody>
         </table>
       </div>
       <div v-if="!(dashboard.deptProgress || []).length" class="empty">本周期暂无部门数据</div>
-      <!-- 【GL-14 2026-11-24】部门进度每页 8 个, 但此前没有翻页条: 超过 8 个部门时后面的在界面上看不到。与书目阅读榜同一写法 -->
-      <div v-if="deptTotalPages > 1" class="inline-pager">
+      <!-- 部门进度每页 8 个: 超过 8 个部门时靠这条翻页条才看得到后面的 -->
+      <div v-if="deptTotalPages > 1" class="pager">
         <span>共 {{ (dashboard.deptProgress || []).length }} 个部门</span>
-        <el-pagination v-model:current-page="deptPage" :page-size="deptSize" :total="(dashboard.deptProgress || []).length" layout="prev, pager, next" small />
+        <el-pagination v-model:current-page="deptPage" :page-size="deptSize" :total="(dashboard.deptProgress || []).length" layout="prev, pager, next" size="small" />
       </div>
     </section>
 
-    <!-- ⑨ 月度报告(行型 A 全宽): 阅读组/互动组各一行格子; 环比无值时隐藏不露占位符 -->
-    <section class="panel">
-      <div class="panel-head">
-        <span class="ttl">月度报告</span>
-        <span class="hint">环比对上月</span>
-        <span class="right monthly-tools">
+    <!-- ⑦ 月度报告: 阅读组 / 互动组各一行格子; 环比无值时隐藏不露占位符 -->
+    <section class="table-card panel-pad monthly-card">
+      <div class="panel-title">
+        月度报告
+        <span class="tt-sub">环比对上月</span>
+        <span class="spacer" />
+        <span class="monthly-tools">
           <el-date-picker v-model="monthlyMonth" type="month" placeholder="选择月份" value-format="YYYY-MM"
             :clearable="false" style="width: 118px" size="small" @change="loadMonthly" />
-          <button v-if="userStore.hasPermission('fabushi:stats:export')" type="button" class="btn" @click="exportMonthly">导出</button>
+          <el-button v-if="userStore.hasPermission('fabushi:stats:export')" size="small" plain :icon="Download" @click="exportMonthly">导出</el-button>
         </span>
       </div>
       <div class="m-sub">阅读组</div>
@@ -249,8 +250,8 @@
       </div>
     </section>
 
-    <!-- ⑩ 个人条(墨绿反白, 个人域锚点) -->
-    <section class="personal">
+    <!-- ⑧ 个人条: 累计以来的个人卷账 -->
+    <section class="table-card panel-pad personal-card">
       <div class="p-head"><b>我的法布施</b><span>累计以来的个人卷账</span></div>
       <div class="personal-grid">
         <div><span>累计已读天数</span><b>{{ personal.myReadDays || 0 }}</b></div>
@@ -260,10 +261,10 @@
         <div><span>我的内容</span><b>{{ personal.myPosts || 0 }}</b></div>
         <div><span>获木鱼</span><b>{{ personal.myLikesReceived || 0 }}</b></div>
       </div>
-      <a class="p-cta" href="/fabushi/read" @click.prevent="goRead">进入我的觉醒 →</a>
+      <el-button type="primary" @click="goRead">进入我的觉醒</el-button>
     </section>
 
-    <!-- ⑪ 口径说明: 把"哪种数按谁算"一次讲清 -->
+    <!-- ⑨ 口径说明: 把“哪种数按谁算”一次讲清 -->
     <details class="glossary">
       <summary>口径说明（已读人次 · 获木鱼 · 敲木鱼 · 达成率…）</summary>
       <div class="g-body">
@@ -271,11 +272,14 @@
         <div class="g-row"><b>已读人次</b><span>阅读记录条数，同一人重复阅读累计</span></div>
         <div class="g-row"><b>获木鱼</b><span>内容被点赞数，按内容作者归属（榜单口径）</span></div>
         <div class="g-row"><b>被复诵</b><span>本人内容被他人复诵的次数，按内容作者归属、限本周期；复诵不计入本人诵读完成度（防刷口径）</span></div>
-        <div class="g-row"><b>敲木鱼 / 木鱼</b><span>点赞行为次数，按点赞人归属（互动条 / 部门表口径）</span></div>
+        <div class="g-row"><b>敲木鱼 / 木鱼</b><span>点赞行为次数，按点赞人归属（数字卡 / 部门表口径）</span></div>
+        <div class="g-row"><b>周期互动</b><span>发布 / 木鱼 / 评论按「谁做的」计；榜单「获木鱼」按「内容归属」计，两处的木鱼数口径不同</span></div>
         <div class="g-row"><b>每日一读达成率</b><span>开提醒成员的应读人日中实读占比</span></div>
+        <div class="g-row"><b>阅读覆盖率</b><span>周期已读人数 / 可见成员数；全集团范围接口不给人数，显示“—”</span></div>
         <div class="g-row"><b>近 7 日趋势</b><span>固定滚动近 7 天每日已读人数，不随周期切换变化</span></div>
-        <div class="g-row"><b>指标卡迷你条</b><span>四张卡共用同一条「近 7 日每日已读人数」趋势，仅作视觉参照，不代表各自指标的日序列</span></div>
+        <div class="g-row"><b>指标卡迷你条</b><span>五张卡共用同一条「近 7 日每日已读人数」趋势，仅作视觉参照，不代表各自指标的日序列</span></div>
         <div class="g-row"><b>阅读占比</b><span>个人该指标 / 全榜最高值，跨页可比</span></div>
+        <div class="g-row"><b>活跃度</b><span>成员发布数 / 全榜最高发布数</span></div>
         <div class="g-row"><b>可见成员</b><span>数据权限范围内的成员集合；全集团时部门表含全部组织</span></div>
       </div>
     </details>
@@ -286,10 +290,13 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { usePagedList } from '@/composables/usePagedList'
 import { useRouter } from 'vue-router'
+import { ElIcon } from 'element-plus'
+import { ChatDotRound, Download, PieChart, Reading, Refresh, TrendCharts, User } from '@element-plus/icons-vue'
 import { getFabushiDashboard, getFabushiMonthly, getFabushiPersonalStats } from '@/api/fabushi'
 import { useUserStore } from '@/store/user'
 import { downloadFile } from '@/utils/download'
 import { getToken } from '@/utils/token'
+import '@/assets/fabushi-v8.css'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -311,7 +318,9 @@ const personal = ref({
 const monthly = ref({ month: '', periodStart: '', periodEnd: '', memberCount: 0, posts: 0, likes: 0, comments: 0, readCount: 0, readUsers: 0, activeUsers: 0, coveragePct: null, prev: {}, deptProgress: [], ranking: [], trend: [] })
 const { current: bookRankPage, size: bookRankSize, totalPages: bookRankTotalPages, paged: pagedBookRanking } = usePagedList(computed(() => dashboard.value.bookRanking || []), { pageSize: 8 })
 const { current: deptPage, size: deptSize, totalPages: deptTotalPages, paged: pagedDeptProgress } = usePagedList(computed(() => dashboard.value.deptProgress || []), { pageSize: 8 })
-const monthlyMonth = ref(new Date().toISOString().slice(0, 7))
+// 默认月份按本机日期算（toISOString 是 UTC：月初的深夜、月末的傍晚会和本机差一个月）
+const localMonthOf = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+const monthlyMonth = ref(localMonthOf(new Date()))
 
 // 【UI-STATS-PAGE-001】成员榜分页态: 默认每页 10; 切排序/每页数回第 1 页
 const rankSort = ref('read')
@@ -328,7 +337,9 @@ const nowLabel = () => {
 const scopeText = computed(() => (dashboard.value.memberCount === -1 ? '全集团 · 全部' : `可见成员 ${dashboard.value.memberCount || 0} 人`))
 const scopeShort = computed(() => (dashboard.value.memberCount === -1 ? '全集团' : '可见成员'))
 const scopeTotalText = computed(() => (dashboard.value.memberCount === -1 ? '全集团' : String(dashboard.value.memberCount || 0)))
-const monthlyScopeText = computed(() => (monthly.value.memberCount === -1 ? '全集团' : `可见成员 ${monthly.value.memberCount || 0}`))
+const monthlyScopeText = computed(() => (monthly.value.memberCount === -1 ? '全集团' : `可见成员 ${monthly.value.memberCount || 0} 人`))
+// 周期名跟着接口回来的 period 走(本周 / 本月)
+const periodName = computed(() => (dashboard.value.period === 'month' ? '本月' : '本周'))
 
 // ---- 成员榜: 排序 / 全榜最高值 / 分页 ----
 const sortedRanking = computed(() => {
@@ -351,6 +362,8 @@ const metricPct = (row) => {
   const key = rankSort.value === 'read' ? 'readCount' : 'postCount'
   return Math.round(((Number(row[key]) || 0) * 100) / rankGlobalMax.value)
 }
+// 活跃度条: 直接用接口排行项里的 activityPct, 不在前端另算
+const activityPct = (row) => Math.min(100, Math.max(0, Math.round(Number(row.activityPct) || 0)))
 const switchRankSort = (value) => {
   if (rankSort.value === value) return
   rankSort.value = value
@@ -362,8 +375,15 @@ const maxHeat = computed(() => Math.max(1, ...(dashboard.value.categoryReads || 
 const totalHeat = computed(() => (dashboard.value.categoryReads || []).reduce((s, i) => s + (Number(i.readCount) || 0), 0) || 1)
 const heatWidth = (value) => Math.round(((Number(value) || 0) * 100) / maxHeat.value) + '%'
 const heatShare = (value) => Math.round(((Number(value) || 0) * 100) / totalHeat.value)
+// 横条 / 类别章的颜色按行号轮换(纯装饰, 不代表类别含义)
+const heatHue = (i) => 'h' + (Number(i) % 5)
+const catHue = (i) => ['blue', 'cyan', 'green'][Number(i) % 3]
 const maxTrend = computed(() => Math.max(1, ...(dashboard.value.trend || []).map((item) => Number(item.count) || 0)))
-const trendHeight = (value) => Math.max(10, Math.round(((Number(value) || 0) * 100) / maxTrend.value)) + '%'
+// 没人读的日子是空柱(高度 0, 由样式留一道细线); 其余最高的一天占满
+const trendHeight = (value) => {
+  const count = Number(value) || 0
+  return count ? Math.max(10, Math.round((count * 100) / maxTrend.value)) + '%' : '0%'
+}
 const maxBook = computed(() => Math.max(1, ...(dashboard.value.bookRanking || []).map((r) => Number(r.readCount) || 0)))
 const bookPct = (row) => Math.round(((Number(row.readCount) || 0) * 100) / maxBook.value)
 // 【UI-STATS-REDESIGN-001】latestReadAt(ISO) → "MM-DD HH:mm" 简显示
@@ -380,57 +400,67 @@ const pctText = (pct) => {
 }
 const pctClass = (pct) => ({ up: pct != null && pct > 0, down: pct != null && pct < 0 })
 
-// 【D28 切片 7】纯前端视觉：卡片图标/趋势 pill/7 日迷你条全部来自现有 dashboard 字段，零接口改动。
-// 迷你条四卡共用「近 7 日每日已读人数」同口径，口径说明里已标注，不伪造其他指标的日序列。
+// 五张数字卡(原型 P12): 图标 / 大数字 / 右上角的章 / 小字说明 / 底部迷你条。
+// 数字全部来自现有 dashboard 字段, 零接口改动。接口给 null 的(全集团的覆盖率、无人开提醒的达成率)显示“—”, 不在前端另算。
+// 原型的「今日已诵 / 已随施人数」「内容三类拆分」「本月木鱼」「人均复诵」后端没有对应字段, 不做。
 const kpiCards = computed(() => [
   {
-    label: '今日已读人数', icon: '阅',
+    label: '今日已读人数', icon: Reading,
     value: dashboard.value.todayReadUsers || 0, unit: '人',
-    sub: `今日已读 / ${scopeShort.value} ${dashboard.value.coveragePct != null ? dashboard.value.coveragePct + '%' : '—'}`
+    sub: `今日已读 / ${scopeShort.value} ${dashboard.value.coveragePct != null ? dashboard.value.coveragePct + '%' : '—'}`,
+    note: '',
   },
   {
-    label: '周期已读人数', icon: '周',
+    label: '周期已读人数', icon: User,
     value: dashboard.value.periodReadUsers || 0, unit: '人',
-    sub: `${dashboard.value.period === 'month' ? '本月' : '本周'}内有过阅读的成员`
+    sub: `${periodName.value}内有过阅读的成员`,
+    note: '',
   },
   {
-    label: '阅读覆盖率', icon: '覆',
+    label: '阅读覆盖率', icon: PieChart,
     value: dashboard.value.periodCoveragePct, unit: '%',
-    sub: `= 周期已读人数 / ${scopeShort.value}`
+    sub: `= 周期已读人数 / ${scopeShort.value}`,
+    note: '',
   },
   {
-    label: '每日一读达成率', icon: '达',
+    label: '每日一读达成率', icon: TrendCharts,
     value: dashboard.value.dailyGoalRate, unit: '%',
-    sub: '提醒应读人日中实读占比'
-  }
+    sub: '提醒应读人日中实读占比',
+    note: '',
+  },
+  {
+    label: `${periodName.value}发布内容`, icon: ChatDotRound,
+    value: dashboard.value.periodPosts || 0, unit: '篇',
+    sub: `木鱼 ${dashboard.value.periodLikes || 0} 次 · 评论 ${dashboard.value.periodComments || 0} 条`,
+    note: '口径：发布 / 木鱼 / 评论按「谁做的」计；榜单「获木鱼」按「内容归属」计',
+  },
 ])
 const trendValues = computed(() => (dashboard.value.trend || []).map((item) => Number(item.count) || 0))
+// 右上角的章: 只有「今日已读人数」有环比(今天比昨天, 由 trend 算出); 其余是周期名, 不编别的环比
 const trendDelta = computed(() => {
   const values = trendValues.value
   if (values.length < 2 || !values[values.length - 2]) return null
   return Math.round(((values[values.length - 1] - values[values.length - 2]) * 100) / values[values.length - 2])
 })
 const kpiTrendText = (i) => {
-  if (i !== 0 || trendDelta.value == null) return dashboard.value.period === 'month' ? '本月' : '本周'
-  return (trendDelta.value > 0 ? '▲ ' : trendDelta.value < 0 ? '▼ ' : '') + Math.abs(trendDelta.value) + '%'
+  if (i !== 0 || trendDelta.value == null) return periodName.value
+  return (trendDelta.value > 0 ? '↑ ' : trendDelta.value < 0 ? '↓ ' : '') + Math.abs(trendDelta.value) + '%'
 }
-const kpiTrendClass = (i) => (i === 0 && trendDelta.value != null ? (trendDelta.value >= 0 ? 'up' : 'down') : 'flat')
+// 与昨天持平是中性的灰章, 不算上涨
+const kpiTrendClass = (i) => (i === 0 && trendDelta.value != null ? (trendDelta.value > 0 ? 'up' : trendDelta.value < 0 ? 'down' : 'flat') : 'flat')
+// 迷你条五卡共用「近几日每日已读人数」同口径, 口径说明里已标注, 不伪造其他指标的日序列
 const sparkHeights = computed(() => {
   const values = trendValues.value
   const max = Math.max(1, ...values)
   return values.map((v) => Math.max(8, Math.round((v * 100) / max)))
 })
-const HEAT_GRADIENTS = [
-  'linear-gradient(90deg, #2d5a4a, #7fa08e)',
-  'linear-gradient(90deg, #a67c52, #d9b98a)',
-  'linear-gradient(90deg, #b5543a, #e0a07f)',
-  'linear-gradient(90deg, #40688a, #8fb6d1)',
-  'linear-gradient(90deg, #6a5a8a, #b3a4d1)'
-]
-const heatGradient = (i) => HEAT_GRADIENTS[i % HEAT_GRADIENTS.length]
+// 没人读的日子: 迷你条里是一道灰线
+const sparkZeros = computed(() => trendValues.value.map((v) => !v))
 const medalClass = (index) => (index === 0 ? 'gold' : index === 1 ? 'silver' : index === 2 ? 'bronze' : '')
 
-const goRead = () => router.push('/fabushi/library') // 【修复 2026-11-23】路由定义为 /fabushi/read/:bookId，无 bookId 不匹配——改跳书目浏览选书后再阅读
+// 【2026-11-26】按钮写的是“进入我的觉醒”, 就去“我的觉醒”那一页(与认知广场右栏的同名按钮同一个去处)。
+// 此前这里跳的是书目浏览: 11-23 的一次修复把 /fabushi/read(没有书目编号, 路由不匹配)改成了 /fabushi/library, 文案没跟着改。
+const goRead = () => router.push('/fabushi/shelf')
 
 const loadData = async () => {
   loading.value = true
@@ -479,229 +509,228 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* ===== 设计系统成文规则(与过审原型 v4 一致) =====
-   1. 圆角四档: 卡 12 / 控件 8 / 章签 6 / 胶囊·圆 999
-   2. 间距 4px 网格: 区块间隙 12, 卡片水平内边距 16, 纵向 8/12/16/20
-   3. 边框两档: 卡外框 1px solid #e8e0d3; 卡内分隔 1px dashed #efe7d8; 卡内单元格无框
-   4. 字号七档: 10/11/12/13/15/21/30, 大数字衬线两档 21/30
-   5. 对齐: 并排卡标题同行; 数值列右对齐含表头; 条形统一高 6px
-   6. 控件高 30px; 面板头迷你件 22px; 分页钮 24px */
-.fabushi-stats { display: flex; flex-direction: column; gap: 12px; }
+/* ===== 按 PC 原型 v8（P12 统计）=====
+   通用件（数字卡 .kcards/.kcard2/.spark、横条 .hbar-*、名次章 .rk2、进度条 .rb、柱状图 .chart、分段开关 .seg、
+   表格卡 .table-card/.panel-title、标签 .tag）在 assets/fabushi-v8.css；这里只写这一屏自己的版式，
+   数值取自原型的样式表，颜色一律用令牌。 */
 
-/* 【D28】渐变 hero：标题/范围/周期/导出收在同一视觉块 */
-.stats-hero { padding: 16px 18px; border-radius: 14px; background: linear-gradient(135deg, #22483c 0%, #2d5a4a 48%, #7fa08e 100%); box-shadow: 0 6px 18px rgba(45, 90, 74, .16); }
-.stats-hero .page-head h1 { color: #fff7ee; }
-.stats-hero .page-head .sub { color: rgba(255, 247, 238, .82); }
-.stats-hero .fresh { color: rgba(255, 247, 238, .78); }
-.stats-hero .fresh b { color: #fff7ee; }
-.stats-hero .scope-chip { color: #fff7ee; background: rgba(255, 247, 238, .18); }
-.stats-hero .seal { border-color: #fff7ee; color: #fff7ee; opacity: .9; }
-.stats-hero .ctrl-bar { margin-top: 12px; border-color: rgba(255, 247, 238, .4); }
+/* ① 主视觉条 */
+.stat-hero {
+  display: flex; flex-wrap: wrap; flex-shrink: 0; align-items: center; gap: 16px;
+  padding: 14px 18px; border-radius: var(--fx-r-md); background: var(--hero-gradient);
+  box-shadow: 0 8px 20px rgba(22, 51, 122, .25); color: #fff;
+}
+.sh-t { font-size: 16px; font-weight: 800; letter-spacing: 1px; }
+.sh-sub { margin-top: 3px; font-size: 11px; opacity: .75; }
+.sh-chip {
+  flex-shrink: 0; padding: 4px 12px; border: 1px solid rgba(255, 255, 255, .35); border-radius: var(--fx-r-pill);
+  background: rgba(255, 255, 255, .16); font-size: 11px; white-space: nowrap;
+}
+.stat-hero .seg { background: rgba(255, 255, 255, .16); }
+.stat-hero .seg-item { color: rgba(255, 255, 255, .85); }
+.stat-hero .seg-item:hover { color: #fff; }
+.stat-hero .seg-item.active { background: #fff; color: var(--primary-color); }
+.sh-acts { display: flex; flex-shrink: 0; gap: 8px; }
+.sh-acts .el-button + .el-button { margin-left: 0; }
+/* 主视觉条上的按钮：半透明白底（原型导出按钮的写法） */
+.hero-btn.el-button {
+  --el-button-text-color: #fff;
+  --el-button-bg-color: rgba(255, 255, 255, .18);
+  --el-button-border-color: rgba(255, 255, 255, .4);
+  --el-button-hover-text-color: #fff;
+  --el-button-hover-bg-color: rgba(255, 255, 255, .28);
+  --el-button-hover-border-color: rgba(255, 255, 255, .6);
+  --el-button-active-text-color: #fff;
+  --el-button-active-bg-color: rgba(255, 255, 255, .32);
+  --el-button-active-border-color: rgba(255, 255, 255, .7);
+  --el-button-outline-color: rgba(255, 255, 255, .7);
+}
 
-/* ① 页头 */
-.page-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-.page-head h1 { margin: 0; color: var(--text-primary); font-family: 'Songti SC', 'STSong', serif; font-size: 21px; font-weight: 800; letter-spacing: 2px; }
-.page-head .sub { margin: 4px 0 0; color: #a67c52; font-size: 11px; letter-spacing: 1px; }
-.head-right { display: flex; align-items: center; gap: 12px; }
-.scope-chip { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 12px; border-radius: 999px; background: #e4efe6; color: #2d5a4a; font-size: 12px; }
-.scope-chip b { font-weight: 700; }
-.fresh { color: var(--text-muted); font-size: 11px; }
-.fresh b { color: var(--text-secondary); font-weight: 600; }
-.seal { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border: 2px solid #b5543a; border-radius: 8px; color: #b5543a; font-family: 'Songti SC', 'STSong', serif; font-size: 18px; font-weight: 700; transform: rotate(-4deg); opacity: .88; user-select: none; }
+/* ② 数字卡 ×5 */
+.kcards .kcard2 { display: flex; flex-direction: column; }
+.kcards .kcard2 .krow { flex-wrap: wrap; }
+.kcards .kcard2 .kv2 { min-width: 0; white-space: nowrap; }
+.kcards .kcard2 .ktrend { flex-shrink: 0; white-space: nowrap; }
+.kcards .kcard2 .ktrend.down { background: var(--fx-red-bg); color: var(--fx-red); }
+.kcards .kcard2 .ktrend.flat { background: var(--fx-pill-gray-bg); color: var(--fx-pill-gray); }
+.kicon { font-size: 17px; }
+.kicon.ki0 { background: var(--hero-gradient); }
+.kicon.ki1 { background: linear-gradient(135deg, var(--fx-amber-deep), var(--fx-amber)); }
+.kicon.ki2 { background: var(--fx-green); }
+.kicon.ki3 { background: var(--fx-orange); }
+.kicon.ki4 { background: var(--fx-cyan); }
+.ksub {
+  margin-bottom: 9px; overflow: hidden; color: var(--text-muted); font-size: 10.5px; line-height: 1.45;
+  text-overflow: ellipsis; white-space: nowrap;
+}
+.kcards .kcard2 .spark { margin-top: auto; }
+.kcards .spark i.zero { background: var(--fx-line); opacity: 1; }
 
-/* ② 控制条 */
-.ctrl-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 16px; border: 1px solid var(--border-light); border-radius: 12px; background: #fffdf8; }
-.ctrl-label { color: #a67c52; font-size: 12px; }
-.seg { display: flex; gap: 2px; padding: 3px; border-radius: 8px; background: #efe7d8; }
-.seg-item { height: 24px; padding: 0 16px; border: 0; border-radius: 6px; color: #6b6257; background: transparent; font-size: 12px; line-height: 24px; cursor: pointer; transition: background .15s, color .15s; }
-.seg-item:hover { color: #2d5a4a; }
-.seg-item.active { color: #fff7ee; background: #2d5a4a; font-weight: 600; }
-.spacer { flex: 1; }
-.btn { display: inline-flex; align-items: center; gap: 5px; height: 30px; padding: 0 14px; border: 1px solid var(--border-light); border-radius: 8px; background: #fffdf8; color: #6b6257; font-size: 12px; cursor: pointer; transition: background .15s, border-color .15s, color .15s; }
-.btn:hover { border-color: #7fa08e; color: #2d5a4a; background: #faf6ee; }
-.btn.primary { border-color: #2d5a4a; color: #fff7ee; background: #2d5a4a; font-weight: 600; }
-.btn.primary:hover { border-color: #356350; background: #356350; color: #fff7ee; }
-
-/* ③ KPI 行 */
-.kpi-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
-.kpi { position: relative; padding: 14px 16px 12px; border: 1px solid var(--border-light); border-radius: 12px; background: #fffdf8; }
-.kpi::before { content: ''; position: absolute; top: 0; left: 16px; right: 16px; height: 3px; border-radius: 0 0 999px 999px; background: #2d5a4a; }
-.kpi-top { display: flex; align-items: center; justify-content: space-between; }
-.kpi-icon { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 8px; color: #fff7ee; font-family: 'Songti SC', 'STSong', serif; font-size: 13px; font-weight: 700; }
-.kpi-icon.ki0 { background: linear-gradient(135deg, #2d5a4a, #7fa08e); }
-.kpi-icon.ki1 { background: linear-gradient(135deg, #b5543a, #e0a07f); }
-.kpi-icon.ki2 { background: linear-gradient(135deg, #40688a, #8fb6d1); }
-.kpi-icon.ki3 { background: linear-gradient(135deg, #a67c52, #d9b98a); }
-.kpi-trend { padding: 2px 8px; border-radius: 999px; font-size: 10px; font-variant-numeric: tabular-nums; }
-.kpi-trend.up { color: #2d5a4a; background: #e4efe6; }
-.kpi-trend.down { color: #b5543a; background: #f8e9e0; }
-.kpi-trend.flat { color: #a67c52; background: #f4ead9; }
-.kpi-spark { display: flex; align-items: flex-end; gap: 3px; height: 18px; margin-top: 8px; }
-.kpi-spark i { flex: 1; max-width: 14px; border-radius: 2px 2px 0 0; background: #cfe0d4; }
-.kpi-spark i.today { background: #2d5a4a; }
-.kpi .value .unit-suffix { font-style: normal; font-size: 21px; }
-.kpi .label { color: var(--text-muted); font-size: 12px; }
-.kpi .value { margin-top: 8px; color: var(--text-primary); font-family: 'Songti SC', 'STSong', serif; font-size: 30px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.1; }
-.kpi .value .unit { margin-left: 4px; color: var(--text-muted); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 12px; font-weight: 500; }
-.kpi .value em { font-style: normal; font-size: 21px; }
-.kpi .sub { margin-top: 6px; color: #a67c52; font-size: 11px; }
-
-/* 周期互动条 */
-.interact-strip { display: flex; align-items: center; padding: 10px 16px; border: 1px solid var(--border-light); border-radius: 12px; background: #faf6ee; }
-.interact-title { display: flex; align-items: baseline; gap: 8px; padding-right: 20px; border-right: 1px dashed #efe7d8; }
-.interact-title b { color: var(--text-primary); font-family: 'Songti SC', 'STSong', serif; font-size: 15px; font-weight: 700; letter-spacing: 1px; }
-.interact-title span { color: var(--text-muted); font-size: 11px; }
-.interact-item { display: flex; align-items: baseline; gap: 8px; padding: 0 24px; }
-.interact-item + .interact-item { border-left: 1px dashed #efe7d8; }
-.interact-item .num { color: #2d5a4a; font-family: 'Songti SC', 'STSong', serif; font-size: 21px; font-weight: 800; font-variant-numeric: tabular-nums; }
-.interact-item .u { color: var(--text-muted); font-size: 11px; }
-.interact-item .lb { color: var(--text-secondary); font-size: 12px; }
-.interact-note { margin-left: auto; color: #a99d8c; font-size: 11px; }
-
-/* 面板通用 */
-.panel { padding: 14px 16px; border: 1px solid var(--border-light); border-radius: 12px; background: #fffdf8; }
-.panel-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
-.panel-head .ttl { color: var(--text-primary); font-family: 'Songti SC', 'STSong', serif; font-size: 15px; font-weight: 700; letter-spacing: 1px; }
-.panel-head .hint { color: var(--text-muted); font-size: 11px; }
-.panel-head .right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
-
-/* 行型 B: 等宽双卡 */
-.twin-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; align-items: stretch; }
+/* ③ 成员榜 + 两张图 */
+.dash-grid { display: flex; flex-direction: column; gap: 10px; }
+.dash-side { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; align-items: stretch; }
+.heat-card { display: flex; flex-direction: column; }
+.heat-list { display: flex; flex: 1; flex-direction: column; justify-content: center; }
+.panel-title .tt-sub { font-weight: 400; }
+/* 宽屏：成员榜在左，两张图上下叠在右（原型的排法）。断点取 1680px —— 这时左边不窄于 1280 宽下通栏的成员榜 */
+@media (min-width: 1680px) {
+  .dash-grid { display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 14px; align-items: stretch; }
+  .rank-card { min-width: 0; }
+  .dash-side { display: flex; flex-direction: column; gap: 14px; }
+  .heat-card { flex: 1; }
+}
 
 /* 表格 */
-.rank-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-.rank-table th { padding: 8px; color: var(--text-muted); font-size: 11px; font-weight: 500; text-align: left; border-bottom: 1px solid var(--border-light); white-space: nowrap; }
-.rank-table th.r, .rank-table td.r { text-align: right; }
-.rank-table td { padding: 9px 8px; color: var(--text-secondary); border-bottom: 1px dashed #efe7d8; transition: background .15s; }
-.rank-table tbody tr:hover td { background: #faf6ee; }
+.table-scroll { max-width: 100%; overflow-x: auto; }
+.rank-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.rank-table th {
+  padding: 9px 12px; border-bottom: 1px solid var(--border-light); background: var(--fx-table-head);
+  color: var(--fx-pill-gray); font-size: 12.5px; font-weight: 600; text-align: left; white-space: nowrap;
+}
+.rank-table td { padding: 9px 12px; border-bottom: 1px solid var(--border-light); color: var(--text-primary); white-space: nowrap; }
+.rank-table tbody tr:hover td { background: var(--fx-table-head); }
 .rank-table tbody tr:last-child td { border-bottom: 0; }
-.rank-table .strong { color: var(--text-primary); font-weight: 600; white-space: nowrap; }
-.rank-table .dim { color: var(--text-muted); max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rank-table .num { font-variant-numeric: tabular-nums; }
-.w-no { width: 48px; }
-.w-num { width: 84px; }
-.w-act { width: 140px; }
-.book-table .w-time { width: 110px; font-size: 11px; }
-.rank-no { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 999px; background: #f4ede0; color: var(--text-muted); font-size: 11px; font-weight: 700; }
-.rank-no.top { color: #b5543a; background: #f8e9e0; }
-.rank-no.gold, .mini-avatar.gold { color: #6b4a12; background: linear-gradient(135deg, #f7d774, #e0ac35); }
-.rank-no.silver, .mini-avatar.silver { color: #4b5158; background: linear-gradient(135deg, #e3e8ec, #b9c3cc); }
-.rank-no.bronze, .mini-avatar.bronze { color: #6e3d22; background: linear-gradient(135deg, #e7b58d, #c17d4e); }
-.who-cell { display: flex; align-items: center; gap: 8px; }
-.mini-avatar { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 24px; height: 24px; border-radius: 999px; background: linear-gradient(135deg, #2d5a4a, #4a7a62); color: #fff7ee; font-family: 'Songti SC', 'STSong', serif; font-size: 11px; font-weight: 700; }
-.metric-bar { display: inline-flex; align-items: center; gap: 8px; }
-.metric-bar .tr { display: inline-block; width: 72px; height: 6px; overflow: hidden; border-radius: 999px; background: #efe7d8; }
-.metric-bar .tr i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, #2d5a4a, #4a7a62); }
-.metric-bar .pc { color: var(--text-muted); font-size: 11px; font-variant-numeric: tabular-nums; min-width: 32px; }
+.rank-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.rank-table .c-bar { width: 116px; text-align: left; }
 
-/* 分页底栏 */
-.inline-pager { display: flex; align-items: center; justify-content: space-between; padding: 10px 4px; color: var(--text-muted); font-size: 11px; }
-.rank-pager { margin-top: 12px; padding-top: 8px; border-top: 1px dashed #efe7d8; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.rank-pager .info { color: #a99d8c; font-size: 11px; }
-.rank-pager .info b { color: var(--text-secondary); font-weight: 600; }
-.pager-size { height: 24px; padding: 0 6px; border: 1px solid var(--border-light); border-radius: 6px; background: #fffdf8; color: var(--text-secondary); font-size: 11px; cursor: pointer; }
-.pager-ctrl { margin-left: auto; display: flex; align-items: center; gap: 4px; }
-.pager-btn { height: 24px; min-width: 24px; padding: 0 8px; border: 1px solid var(--border-light); border-radius: 6px; background: #fffdf8; color: var(--text-secondary); font-size: 11px; font-variant-numeric: tabular-nums; cursor: pointer; transition: background .15s, border-color .15s, color .15s; }
-.pager-btn:hover:not(:disabled) { border-color: #7fa08e; color: #2d5a4a; }
-.pager-btn:disabled { border-color: #efe7d8; color: #a99d8c; opacity: .6; cursor: default; }
-.pager-btn.active { border-color: #2d5a4a; background: #2d5a4a; color: #fff7ee; font-weight: 600; }
+/* 成员榜：原有各列都保留，列多，单元格左右内边距收到 9px */
+.member-table th, .member-table td { padding: 9px; }
+.member-table .c-no { width: 44px; }
+.member-table .c-act { width: 90px; text-align: left; }
+.who { display: inline-flex; align-items: center; gap: 7px; vertical-align: middle; }
+.who b { max-width: 120px; overflow: hidden; font-weight: 700; text-overflow: ellipsis; }
+.mini-ava {
+  display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; width: 22px; height: 22px;
+  border-radius: 50%; background: var(--primary-color); color: #fff; font-size: 11px; font-weight: 700;
+}
+.dept { display: inline-block; max-width: 200px; overflow: hidden; vertical-align: bottom; text-overflow: ellipsis; white-space: nowrap; }
+.metric-bar { display: inline-flex; align-items: center; gap: 6px; vertical-align: middle; }
+.metric-bar .tr { display: inline-block; width: 56px; height: 7px; overflow: hidden; border-radius: var(--fx-r-pill); background: var(--fx-track); }
+.metric-bar .tr i, .cov-track i, .m-progress i {
+  display: block; height: 100%; border-radius: var(--fx-r-pill); background: linear-gradient(90deg, #3e8df3, var(--fx-accent));
+}
+.metric-bar .pc { min-width: 30px; color: var(--text-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.member-table .act-bar { width: 64px; }
 
-/* 类别分布 */
-.heat-row { display: flex; align-items: center; gap: 12px; margin: 10px 0; }
-.heat-label { flex: 0 0 140px; overflow: hidden; color: var(--text-secondary); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
-.heat-track { flex: 1; height: 6px; overflow: hidden; border-radius: 999px; background: #efe7d8; }
-.heat-track i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, #2d5a4a, #4a7a62); }
-.heat-val { flex-shrink: 0; min-width: 24px; color: #2d5a4a; font-size: 12px; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
-.heat-share { flex-shrink: 0; width: 44px; color: #a99d8c; font-size: 10px; text-align: right; font-variant-numeric: tabular-nums; }
+/* 翻页行（原型 .pager / .pg） */
+.panel-pad .pager {
+  display: flex; flex-wrap: wrap; flex-shrink: 0; align-items: center; justify-content: space-between; gap: 8px;
+  margin-top: 12px; padding: 9px 0 0; border-top: 1px solid var(--fx-line-soft); color: var(--text-secondary); font-size: 12px;
+}
+.panel-pad .pager b { color: var(--text-primary); font-weight: 700; }
+.rank-pager .pager-ctrl { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; }
+.pager-size {
+  height: 26px; padding: 0 6px; border: 1px solid var(--border-light); border-radius: 6px; background: #fff;
+  color: var(--text-secondary); font-size: 12px; cursor: pointer;
+}
+.pager-btn {
+  min-width: 26px; height: 26px; padding: 0 6px; border: 1px solid var(--border-light); border-radius: 6px; background: #fff;
+  color: var(--text-secondary); font-size: 12px; font-variant-numeric: tabular-nums; font-family: inherit; cursor: pointer;
+  transition: color .15s, border-color .15s, background-color .15s;
+}
+.pager-btn:hover:not(:disabled, .active) { border-color: var(--primary-color); color: var(--primary-color); }
+.pager-btn:disabled { color: var(--text-placeholder); cursor: default; }
+.pager-btn.active { border-color: var(--primary-color); background: var(--primary-color); color: #fff; font-weight: 700; }
 
-/* 近 7 日趋势: 0 = 基线空心点 */
-.trend { display: flex; align-items: flex-end; gap: 12px; height: 140px; padding-top: 12px; }
-.trend-col { display: flex; flex: 1; flex-direction: column; align-items: center; justify-content: flex-end; gap: 4px; height: 100%; }
-.trend-val { color: var(--text-muted); font-size: 10px; font-variant-numeric: tabular-nums; }
-.trend-val.zero { color: #a99d8c; opacity: .75; }
-.trend-bar { width: 100%; max-width: 28px; border-radius: 6px 6px 0 0; background: #a7c0af; }
-.trend-col.today .trend-bar { background: #2d5a4a; }
-.trend-dot { width: 7px; height: 7px; border: 1.5px solid #b3a58c; border-radius: 999px; background: transparent; }
-.trend-label { color: var(--text-muted); font-size: 10px; white-space: nowrap; }
-.trend-col.today .trend-label { color: #b5543a; font-weight: 600; }
+/* 类别热度分布：标签按真实类名放宽，条后带占比 */
+.heat-card .hbar-lbl {
+  width: auto; min-width: 76px; max-width: 96px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+}
+.heat-card .hbar-val { text-align: right; }
+.hbar-share {
+  flex-shrink: 0; min-width: 34px; color: var(--text-placeholder); font-size: 10.5px; font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.hbar-track i.h0 { background: linear-gradient(90deg, var(--fx-accent), #12b8cf); }
+.hbar-track i.h1 { background: linear-gradient(90deg, var(--fx-amber-deep), var(--fx-amber)); }
+.hbar-track i.h2 { background: linear-gradient(90deg, var(--fx-green), var(--fx-cyan)); }
+.hbar-track i.h3 { background: linear-gradient(90deg, var(--fx-red), var(--fx-amber)); }
+.hbar-track i.h4 { background: linear-gradient(90deg, var(--brand-navy), var(--el-color-primary-light-5)); }
 
-/* 书目榜 */
-.book-cell { display: flex; align-items: center; gap: 8px; }
-.mini-cover { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 24px; height: 32px; padding: 2px; border-radius: 3px; background: linear-gradient(135deg, #2d5a4a, #4a7a62); color: #fff7ee; font-family: 'Songti SC', 'STSong', serif; font-size: 9px; line-height: 1.25; text-align: center; letter-spacing: 1px; }
-.cat-chip { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 11px; }
-.cat-chip.c0 { color: #2d5a4a; background: #e4efe6; }
-.cat-chip.c1 { color: #a67c52; background: #f4ead9; }
-.cat-chip.c2 { color: #b5543a; background: #f8e9e0; }
+/* 每日达成趋势：每根柱顶上标数值（今天那根是黄色，没人读的日子是空柱）；日期与柱子逐根对齐 */
+.trend-card .chart { margin-top: 26px; }
+.trend-card .bar.zero { background: var(--fx-line); }
+.trend-card .bar:not(.today) .v { color: var(--fx-pill-gray); font-weight: 600; }
+.trend-card .chart-x { justify-content: flex-start; gap: 6px; }
+.trend-card .chart-x span { flex: 1; white-space: nowrap; text-align: center; }
+
+/* 书目阅读榜 */
+.book-cell { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; vertical-align: middle; }
+.book-cell b { min-width: 0; overflow: hidden; font-weight: 700; text-overflow: ellipsis; }
+.mini-cover {
+  display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; width: 24px; height: 32px; padding: 2px;
+  border-radius: 4px; background: linear-gradient(150deg, var(--fx-navy), var(--primary-color));
+  box-shadow: 0 3px 6px rgba(35, 57, 96, .2); color: #fff; font-size: 9px; line-height: 1.25; text-align: center;
+}
+.book-card .time { color: var(--text-muted); font-size: 11.5px; }
 
 /* 分隔带 */
-.sec-band { display: flex; align-items: center; gap: 16px; margin: 4px 0; color: #a67c52; font-size: 12px; letter-spacing: 2px; }
+.sec-band {
+  display: flex; flex-shrink: 0; align-items: center; gap: 16px; margin: 6px 0 2px;
+  color: var(--text-muted); font-size: 12.5px; font-weight: 700; letter-spacing: 2px;
+}
 .sec-band::before, .sec-band::after { content: ''; flex: 1; height: 1px; background: var(--border-light); }
-.sec-band .note { color: #a99d8c; font-size: 11px; letter-spacing: 0; }
+.sec-band .note { color: var(--text-placeholder); font-size: 11.5px; font-weight: 400; letter-spacing: 0; }
 
 /* 部门进度 */
-.dept-table .strong { max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cov-wrap { display: inline-flex; align-items: center; gap: 8px; }
-.cov-num { min-width: 40px; color: #2d5a4a; font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
-.cov-track { display: inline-block; width: 96px; height: 6px; overflow: hidden; border-radius: 999px; background: #efe7d8; }
-.cov-track i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, #2d5a4a, #4a7a62); }
-.dim-c { color: #a99d8c; }
-.dept-badge { display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 999px; background: #f4ead9; color: #a67c52; font-size: 10px; font-weight: 600; }
-.dept-badge.unassigned { background: #f1eee8; color: #a99d8c; }
-.table-scroll { max-height: 460px; overflow-y: auto; overscroll-behavior: contain; }
+.dept-card .table-scroll { max-height: 460px; overflow-y: auto; overscroll-behavior: contain; }
+.dept-table .strong { display: inline-block; max-width: 280px; overflow: hidden; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
+.dept-card .tag { margin-left: 8px; }
+.cov-wrap { display: inline-flex; align-items: center; gap: 8px; vertical-align: middle; }
+.cov-num { min-width: 40px; color: var(--text-primary); font-size: 12.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.cov-track { display: inline-block; width: 96px; height: 7px; overflow: hidden; border-radius: var(--fx-r-pill); background: var(--fx-track); }
+.dim-c { color: var(--text-placeholder); }
 
 /* 月度报告 */
-.monthly-tools { display: flex; align-items: center; gap: 8px; }
-.m-sub { margin: 12px 2px 8px; color: #a67c52; font-size: 12px; font-weight: 600; letter-spacing: 1px; }
-.m-sub:first-of-type { margin-top: 4px; }
+.monthly-tools { display: inline-flex; align-items: center; gap: 8px; }
+.monthly-card .panel-title + .m-sub { margin-top: 4px; }
+.m-sub { margin: 12px 0 8px; color: var(--text-secondary); font-size: 12.5px; font-weight: 700; }
 .m-grid { display: grid; gap: 12px; padding-bottom: 4px; }
 .m-grid.reads { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .m-grid.interacts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.m-cell { padding: 10px 14px; border-radius: 8px; background: #faf6ee; }
-.m-cell .lb { display: block; color: var(--text-muted); font-size: 11px; }
+.m-cell { padding: 10px 14px; border-radius: var(--fx-r-sm); background: var(--fx-table-head); }
+.m-cell .lb { display: block; color: var(--text-muted); font-size: 11.5px; }
 .m-cell .vrow { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
-.m-cell b.v { color: #2d5a4a; font-family: 'Songti SC', 'STSong', serif; font-size: 21px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.2; }
-.m-cell .vrow .unit { color: var(--text-muted); font-size: 11px; }
-.m-cell .m-month { color: #a99d8c; font-size: 11px; }
-.delta { display: inline-flex; align-items: center; padding: 1px 7px; border-radius: 999px; font-size: 10px; line-height: 16px; font-variant-numeric: tabular-nums; }
-.delta.up { color: #2d5a4a; background: #e4efe6; }
-.delta.down { color: #b5543a; background: #f8e9e0; }
-.m-progress { flex: 1; max-width: 160px; height: 6px; overflow: hidden; border-radius: 999px; background: #efe7d8; }
-.m-progress i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, #2d5a4a, #4a7a62); }
+.m-cell b.v { color: var(--brand-navy); font-size: 21px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.m-cell .vrow .unit { color: var(--text-muted); font-size: 11.5px; }
+.m-cell .m-month { color: var(--text-placeholder); font-size: 11.5px; }
+.delta { display: inline-flex; align-items: center; padding: 1px 7px; border-radius: var(--fx-r-pill); font-size: 10.5px; line-height: 16px; font-variant-numeric: tabular-nums; }
+.delta.up { color: var(--fx-green); background: var(--fx-green-bg); }
+.delta.down { color: var(--fx-red); background: var(--fx-red-bg); }
+.m-progress { flex: 1; max-width: 160px; height: 7px; overflow: hidden; border-radius: var(--fx-r-pill); background: var(--fx-line); }
 
-/* 个人条 */
-.personal { display: flex; align-items: center; gap: 24px; padding: 16px; border-radius: 12px; background: linear-gradient(135deg, #2d5a4a 0%, #4a7a62 100%); color: #fff7ee; }
-.personal .p-head { display: flex; flex-direction: column; gap: 4px; padding-right: 24px; border-right: 1px dashed rgba(255, 247, 238, .35); }
-.personal .p-head b { font-family: 'Songti SC', 'STSong', serif; font-size: 15px; font-weight: 700; letter-spacing: 1px; }
-.personal .p-head span { color: rgba(255, 247, 238, .72); font-size: 11px; }
-.personal-grid { display: flex; gap: 32px; flex-wrap: wrap; flex: 1; }
+/* 我的法布施 */
+.personal-card { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 16px 24px; }
+.personal-card > .el-button { flex-shrink: 0; margin-left: auto; }
+.p-head { display: flex; flex-direction: column; gap: 4px; padding-right: 24px; border-right: 1px solid var(--fx-line-soft); }
+.p-head b { font-size: 14px; font-weight: 700; }
+.p-head span { color: var(--text-muted); font-size: 11.5px; }
+.personal-grid { display: flex; flex: 1; flex-wrap: wrap; gap: 12px 32px; }
 .personal-grid div { display: flex; flex-direction: column; gap: 4px; }
-.personal-grid span { color: rgba(255, 247, 238, .72); font-size: 11px; }
-.personal-grid b { color: #fff7ee; font-family: 'Songti SC', 'STSong', serif; font-size: 21px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.2; }
-.personal-grid b.txt { font-size: 15px; font-weight: 700; }
-.personal .p-cta { flex-shrink: 0; display: inline-flex; align-items: center; height: 30px; padding: 0 16px; border: 1px solid rgba(255, 247, 238, .55); border-radius: 999px; color: #fff7ee; font-size: 12px; text-decoration: none; transition: background .15s; }
-.personal .p-cta:hover { background: rgba(255, 247, 238, .14); }
+.personal-grid span { color: var(--text-muted); font-size: 11.5px; }
+.personal-grid b { color: var(--text-primary); font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.personal-grid b.txt { font-size: 14px; }
 
 /* 口径说明 */
-.glossary { border: 1px solid var(--border-light); border-radius: 12px; background: #fffdf8; }
-.glossary summary { padding: 10px 16px; color: var(--text-muted); font-size: 11px; cursor: pointer; list-style: none; }
+.glossary { border-radius: var(--fx-r-md); background: #fff; box-shadow: var(--shadow-card); }
+.glossary summary { padding: 10px 16px; color: var(--text-muted); font-size: 12px; cursor: pointer; list-style: none; }
 .glossary summary::-webkit-details-marker { display: none; }
-.glossary summary::before { content: '▸ '; color: #a67c52; }
-.glossary[open] summary::before { content: '▾ '; }
+.glossary summary::before { content: '▸'; margin-right: 6px; color: var(--fx-pill-gray); }
+.glossary[open] summary::before { content: '▾'; }
 .glossary .g-body { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px 32px; padding: 2px 16px 12px; }
-.glossary .g-row { display: flex; gap: 8px; font-size: 11px; color: var(--text-muted); line-height: 1.8; }
+.glossary .g-row { display: flex; gap: 8px; color: var(--text-muted); font-size: 11.5px; line-height: 1.8; }
 .glossary .g-row b { flex-shrink: 0; color: var(--text-secondary); font-weight: 600; }
 
-.empty { padding: 16px 0; color: var(--text-muted); font-size: 12px; text-align: center; }
+.empty { padding: 16px 0; color: var(--text-placeholder); font-size: 12px; text-align: center; }
 
 @media (prefers-reduced-motion: reduce) {
-  .seg-item, .btn, .pager-btn, .rank-table td, .p-cta { transition: none; }
+  .pager-btn, .rank-table td { transition: none; }
 }
 @media (max-width: 1100px) {
-  .kpi-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .twin-row { grid-template-columns: 1fr; }
+  .fabushi-stats .kcards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .dash-side { grid-template-columns: 1fr; }
   .m-grid.reads, .m-grid.interacts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .glossary .g-body { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .personal { flex-wrap: wrap; }
 }
 @media (max-width: 640px) {
   .m-grid.reads, .m-grid.interacts, .glossary .g-body { grid-template-columns: 1fr; }

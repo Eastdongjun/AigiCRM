@@ -1,34 +1,27 @@
 <template>
-  <div class="fabushi-feed">
-    <div class="page-head">
-      <div>
-        <h1>认知广场</h1>
-        <p>每日诵读 · 每日随施 · 再读一本</p>
-      </div>
-      <div v-if="canCreate" style="display:flex; gap:8px;">
-        <el-button type="primary" @click="openPublish('songdu')">＋每日诵读</el-button>
-        <el-button type="warning" plain @click="openPublish('suishi')">＋每日随施</el-button>
-        <el-button type="success" plain @click="openPublish('zaidu')">＋再读一本</el-button>
-      </div>
-    </div>
-
-    <div class="caps" role="tablist" aria-label="内容类型">
+  <div class="fx-page fabushi-feed">
+    <!-- 【2026-11-26 按 PC 原型 v8】P1 / P2：页面直接摆在灰画布上（没有页头标题块），四个类型页签在最上面 -->
+    <div class="cat-tabs" role="tablist" aria-label="内容类型">
       <button
         v-for="tab in tabs"
         :key="tab.value"
-        class="cap"
+        class="cat-tab"
         :class="{ active: active === tab.value }"
         type="button"
+        role="tab"
+        :aria-selected="active === tab.value"
         @click="switchTab(tab.value)"
       >
-        {{ tab.label }} <span class="n">{{ counts[tab.value] || 0 }}</span>
+        <!-- 进到“再读一本”这一页签就是按书浏览（原型 P2 的页签文案），不带条数 -->
+        <template v-if="tab.value === 'zaidu' && active === 'zaidu'">再读一本 · 按书浏览</template>
+        <template v-else>{{ tab.label }}<span class="badge">{{ counts[tab.value] || 0 }}</span></template>
       </button>
     </div>
 
     <!-- 【P2 2026-11-23】再读一本分区 = 按书浏览（D15）：左侧按「具体版本的书」罗列，
          右侧=该书全部成员按时间序上传的内容表格。与四项激励「按客户罗列→点进客户看记录」同构。 -->
     <template v-if="active === 'zaidu'">
-      <div class="filter bb-filter">
+      <div class="filter-card">
         <span class="fl">书籍筛选</span>
         <el-input v-model="bookKeyword" clearable placeholder="书名 / 作者 / 版本" style="width: 200px" />
         <span class="fl">排序</span>
@@ -40,63 +33,61 @@
         <el-button type="primary" @click="resetPage">查询</el-button>
         <el-button plain @click="resetByBook">重置</el-button>
         <span class="spacer" />
-        <span class="bb-hint">按书罗列 → 点进每本书看每个人上传的内容（D15）</span>
+        <span class="filter-note">按书罗列 → 点进每本书看每个人上传的内容</span>
       </div>
 
-      <div class="bb-layout">
-        <aside class="bb-left">
-          <div class="bb-left-head">
-            <b>书目总览 · {{ filteredBooks.length }} 本</b>
-            <el-input v-model="bookListKeyword" size="small" clearable placeholder="搜书名" />
-          </div>
-          <div class="bb-left-list">
+      <div class="main-layout">
+        <aside class="sub-panel bybook-left">
+          <div class="sub-title">书目总览<span class="sub2">· {{ filteredBooks.length }} 本</span></div>
+          <el-input v-model="bookListKeyword" clearable placeholder="搜书名" class="sub-search">
+            <template #prefix><el-icon><Search /></el-icon></template>
+          </el-input>
+          <div class="sub-list">
             <button
-              v-for="book in sortedBooks" :key="book.id" type="button"
-              class="bb-book" :class="{ active: bookFilter === book.id }"
+              v-for="book in sortedBooks"
+              :key="book.id"
+              type="button"
+              class="sub-row"
+              :class="{ active: bookFilter === book.id }"
               @click="selectBook(book)"
             >
-              <span class="bb-name">
-                {{ book.title }}
-                <em>{{ versionLabel(book) }}</em>
-              </span>
-              <span class="bb-cnt">{{ book.memberCount || 0 }} 人</span>
+              <span class="sub-name">《{{ book.title }}》<em>{{ versionLabel(book) }}</em></span>
+              <span class="cnt">{{ book.memberCount || 0 }} 人</span>
             </button>
             <p v-if="!sortedBooks.length" class="bb-empty">暂无已审核书目</p>
           </div>
-          <p class="bb-left-note">书名+作者+版本三级确定后才是一本「在读的书」（D2）；不同版本各自成行。</p>
+          <p class="sub-foot">书名+作者+版本三级确定后才是一本「在读的书」；不同版本各自成行。</p>
         </aside>
 
-        <section class="bb-right">
-          <div class="bb-toolbar">
+        <section class="table-card">
+          <div class="toolbar">
             <template v-if="selectedBook">
-              <b class="bb-tt">{{ selectedBook.title }}</b>
-              <span class="bb-tt-sub">{{ versionLabel(selectedBook) }}</span>
+              <b class="tt">《{{ selectedBook.title }}》</b>
+              <span class="tt-sub">· {{ versionLabel(selectedBook) }}</span>
               <span v-if="selectedBook.pdfFileId" class="tag blue">电子书</span>
               <!-- 条数用当前查询的 total（=本页签口径），不用书级 postCount，避免与表格行数打架 -->
               <span class="tag green">参与 {{ selectedBook.memberCount || 0 }} 人 · 本区 {{ total }} 条</span>
             </template>
-            <b v-else class="bb-tt">全部书目</b>
+            <b v-else class="tt">全部书目</b>
             <span class="spacer" />
             <el-button v-if="selectedBook" size="small" plain @click="goBookDetail">书目详情</el-button>
             <el-button v-if="selectedBook" size="small" type="primary" @click="quickPublish('zaidu', selectedBook.id)">＋我在本书上传</el-button>
           </div>
 
-          <el-table :data="posts" v-loading="loading" size="small" class="bb-table" empty-text="该书还没有人上传内容">
-            <el-table-column label="成员" width="84">
+          <el-table :data="posts" v-loading="loading" class="bb-table" empty-text="该书还没有人上传内容">
+            <el-table-column label="成员" width="96">
               <template #default="{ row }"><b>{{ row.userName || '—' }}</b></template>
             </el-table-column>
-            <el-table-column label="章节" width="120" show-overflow-tooltip>
+            <el-table-column label="章节" width="150" show-overflow-tooltip>
               <template #default="{ row }">{{ row.sectionTitle || '—' }}</template>
             </el-table-column>
-            <el-table-column label="内容摘要" min-width="200">
-              <template #default="{ row }">
-                <span class="bb-summary">{{ summaryOf(row) }}</span>
-              </template>
+            <el-table-column label="内容摘要" min-width="220" show-overflow-tooltip>
+              <template #default="{ row }">{{ summaryOf(row) }}</template>
             </el-table-column>
-            <el-table-column label="形式" width="104">
-              <template #default="{ row }"><span class="bb-form">{{ formLabel(row) }}</span></template>
+            <el-table-column label="形式" width="150">
+              <template #default="{ row }"><span class="tag gray">{{ formLabel(row) }}</span></template>
             </el-table-column>
-            <el-table-column label="互动" width="132">
+            <el-table-column label="互动" width="170">
               <template #default="{ row }">
                 <span class="bb-inter">木鱼 {{ row.likeCount || 0 }} · 评论 {{ row.commentCount || 0 }}<template v-if="row.recitationCount"> · 复诵 {{ row.recitationCount }}</template></span>
               </template>
@@ -104,14 +95,14 @@
             <el-table-column label="时间" width="112">
               <template #default="{ row }">{{ formatTime(row.createdAt) }}</template>
             </el-table-column>
-            <el-table-column label="操作" width="62" fixed="right">
+            <el-table-column label="操作" width="70" fixed="right">
               <template #default="{ row }">
-                <el-button link type="primary" size="small" @click="openDetail(row.id)">详情</el-button>
+                <el-button link type="primary" @click="openDetail(row.id)">详情</el-button>
               </template>
             </el-table-column>
           </el-table>
 
-          <div class="bb-pager">
+          <div class="pager">
             <el-pagination
               v-model:current-page="current"
               :page-size="size"
@@ -124,92 +115,130 @@
       </div>
     </template>
 
-    <div v-else class="filter">
-      <span class="fl">筛选</span>
+    <div v-else class="filter-card">
+      <span class="fl">搜索</span>
+      <el-input v-model="keyword" clearable placeholder="人名 / 书籍 / 具体文字（服务端检索）" style="width: 250px" @keyup.enter="resetPage">
+        <template #prefix><el-icon><Search /></el-icon></template>
+      </el-input>
+      <!-- 按书筛选：原型 P1 的筛选条里没有这一项（按书看内容在“再读一本 · 按书浏览”里），这里保留，只占一个小下拉 -->
       <el-select v-model="bookFilter" clearable placeholder="全部书目" style="width: 150px" @change="resetPage">
         <el-option v-for="book in bookOptions" :key="book.id" :label="book.title" :value="book.id" />
       </el-select>
-      <el-input v-model="keyword" clearable placeholder="人名 / 书名 / 具体文字（服务端检索）" style="width: 280px" @keyup.enter="resetPage" />
-      <span class="spacer" />
       <el-checkbox v-model="unreadOnly">只看未读</el-checkbox>
-      <el-button v-if="canView" link type="primary" @click="resetFilters">重置</el-button>
+      <el-button plain @click="resetFilters">重置</el-button>
+      <span class="spacer" />
+      <template v-if="canCreate">
+        <el-button type="primary" @click="openPublish('songdu')">＋每日诵读</el-button>
+        <el-button plain @click="openPublish('suishi')">＋每日随施</el-button>
+        <el-button type="success" @click="openPublish('zaidu')">＋再读一本</el-button>
+      </template>
     </div>
 
     <div v-if="active !== 'zaidu'" class="feed-layout">
-      <section class="feed-list" v-loading="loading">
+      <section class="feed-col" v-loading="loading">
         <article v-for="post in visiblePosts" :key="post.id" class="moments-card" @click="openDetail(post.id)">
           <div class="mc-head">
-            <div class="mc-avatar">{{ (post.userName || '法').slice(0, 1) }}</div>
+            <div class="mc-ava" :class="`ava-${post.scopeType}`">{{ (post.userName || '法').slice(0, 1) }}</div>
             <div class="mc-main">
               <div class="mc-name">{{ post.userName || '法布施' }}<span class="tag" :class="post.scopeType">{{ typeLabel(post.scopeType) }}</span></div>
-              <div class="mc-text">{{ post.title || '' }}</div>
-              <div class="mc-text body">{{ post.content }}</div>
-              <div v-if="(post.attachments || []).some((a) => a.fileType === 'image')" class="mc-imgs">
+              <div v-if="post.title" class="mc-text title">{{ post.title }}</div>
+              <div class="mc-text">{{ post.content }}</div>
+              <div v-if="imagesOf(post).length" class="mc-imgs" :class="imagesOf(post).length === 1 ? 'g1' : 'g3'">
                 <el-image
-                  v-for="img in (post.attachments || []).filter((a) => a.fileType === 'image')"
+                  v-for="img in imagesOf(post)"
                   :key="img.id"
                   class="mc-img"
-                  :src="`/api/file/download/${img.fileId}?token=${encodeURIComponent(fileToken)}`"
-                  :preview-src-list="(post.attachments || []).filter((a) => a.fileType === 'image').map((a) => `/api/file/download/${a.fileId}?token=${encodeURIComponent(fileToken)}`)"
+                  :class="{ big: imagesOf(post).length === 1 }"
+                  :src="fileUrl(img.fileId)"
+                  :preview-src-list="imagesOf(post).map((a) => fileUrl(a.fileId))"
                   preview-teleported
                   fit="cover"
                   @click.stop
                 />
               </div>
-              <div v-if="(post.attachments || []).some((a) => a.fileType === 'audio')" class="mc-audio">
-                <audio v-for="a in (post.attachments || []).filter((x) => x.fileType === 'audio')" :key="a.id" :src="`/api/file/download/${a.fileId}?token=${encodeURIComponent(fileToken)}`" controls style="width:100%; height:32px;" @click.stop />
+              <div v-if="audiosOf(post).length" class="mc-audio" @click.stop>
+                <span class="recite-wave"><i v-for="h in WAVE" :key="h" :style="{ height: h + 'px' }" /></span>
+                <span>语音 {{ audiosOf(post).length }} 段</span>
+                <audio v-for="a in audiosOf(post)" :key="a.id" :src="fileUrl(a.fileId)" controls preload="none" class="mc-audio-ctl" />
               </div>
               <div class="mc-meta">
                 <span>{{ formatTime(post.createdAt) }}</span>
-                <span v-if="bookName(post)" class="src">{{ bookName(post) }}</span>
-                <span v-if="isNew(post)" class="new-badge">NEW</span>
-                <span class="read" :class="{ unread: !post.readByMe }" style="margin-left:auto;">{{ post.readByMe ? '已读' : '未读' }}</span>
+                <span v-if="bookName(post)" class="src">《{{ bookName(post) }}》<template v-if="post.sectionTitle"> › {{ post.sectionTitle }}</template></span>
+                <span v-if="sourceNote(post)">{{ sourceNote(post) }}</span>
+                <span v-if="isNew(post)" class="badge-new">NEW</span>
+                <span class="read-state" :class="{ unread: !post.readByMe }"><i class="read-dot" />{{ post.readByMe ? '已读' : '未读' }}</span>
               </div>
             </div>
           </div>
           <div class="mc-acts">
-            <span>🐟 木鱼 {{ post.likeCount || 0 }} · 评论 {{ post.commentCount || 0 }} · 🎤 复诵 {{ post.recitationCount || 0 }}</span>
-            <span class="more" @click.stop>⋯</span>
+            <span>木鱼 {{ post.likeCount || 0 }} · 评论 {{ post.commentCount || 0 }} · 复诵 {{ post.recitationCount || 0 }}</span>
+            <!-- 原型这一格是“⋯”操作菜单（木鱼 / 评论 / 复诵）：这里做成真的下拉，不做假按钮。
+                 拦截冒泡写在触发元素自己身上：el-dropdown 不会把组件上的点击监听接到包住触发元素的那一层，
+                 写在组件上拦不住，点“⋯”会连带触发整张卡片的“打开详情” -->
+            <el-dropdown
+              class="mc-more"
+              trigger="click"
+              placement="bottom-end"
+              popper-class="fx-popper"
+              @command="(cmd) => onMore(cmd, post)"
+            >
+              <span class="more" role="button" :aria-label="`对 ${post.userName || '这条内容'} 的这条内容：更多操作`" @click.stop>⋯</span>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="like" :disabled="likingIds.includes(post.id)">{{ post.likedByMe ? '取消木鱼' : '敲木鱼' }}</el-dropdown-item>
+                  <el-dropdown-item command="comment">查看评论</el-dropdown-item>
+                  <el-dropdown-item command="recite">我要复诵</el-dropdown-item>
+                  <el-dropdown-item command="detail">打开详情</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
           </div>
-          <div v-if="post.likeNames" class="mc-inter"><span class="likers">木鱼：</span>{{ post.likeNames }}</div>
+          <div v-if="post.likeNames" class="mc-inter"><div><span class="likers">木鱼：</span>{{ post.likeNames }}</div></div>
         </article>
         <el-empty v-if="!loading && !visiblePosts.length" description="暂无法布施内容" />
+        <div class="feed-pager">
+          <el-pagination
+            v-model:current-page="current"
+            :page-size="size"
+            :total="total"
+            layout="prev, pager, next"
+            @current-change="loadPosts"
+          />
+        </div>
       </section>
 
-      <aside class="feed-side">
+      <aside class="side-col">
         <!-- 【P1 2026-11-23】原型右栏第一位＝「我的觉醒 · 今日 x/3」三板块状态卡（D6）。
              数据源 GET /fabushi/awaken/status（早已存在，此前前端没用）。
              口径（如实标注，不臆造"今日"含义）：诵读=今日已发布诵读内容 / 随施=今日已发布随施 /
              再读=书架有「在读」书目（原型即如此计数：已诵 + 精读中 = 2/3）。 -->
-        <section class="side-card awaken-card">
-          <div class="side-title">
-            我的觉醒<template v-if="userStore.realName"> · {{ userStore.realName }}</template>
-            <span class="aw-score" :title="awakenRule">今日 {{ awakenDone }}/3</span>
+        <section class="side-card">
+          <div class="side-title" :title="awakenRule">
+            我的觉醒<template v-if="userStore.realName"> · {{ userStore.realName }}</template>（今日 {{ awakenDone }}/3）
           </div>
 
-          <div class="aw-row">
-            <span class="aw-label">每日诵读<em>晨 08:00</em></span>
-            <span v-if="awaken.todayRecitations > 0" class="aw-chip done">已诵 · 今日 {{ awaken.todayRecitations }} 条</span>
-            <button v-else type="button" class="aw-chip todo" @click="quickPublish('songdu')">未诵 · 去诵读</button>
+          <div class="side-row">
+            <span>每日诵读（晨 08:00）</span>
+            <span v-if="awaken.todayRecitations > 0" class="done-chip">已诵 · 今日 {{ awaken.todayRecitations }} 条</span>
+            <button v-else type="button" class="todo-chip" @click="quickPublish('songdu')">未诵 · 去诵读</button>
           </div>
 
-          <div class="aw-row">
-            <span class="aw-label">每日随施</span>
-            <span v-if="awaken.todayGifts > 0" class="aw-chip done">已施 · 今日 {{ awaken.todayGifts }} 条</span>
-            <button v-else type="button" class="aw-chip todo" @click="quickPublish('suishi')">未施 · 去随施</button>
+          <div class="side-row">
+            <span>每日随施</span>
+            <span v-if="awaken.todayGifts > 0" class="done-chip">已施 · 今日 {{ awaken.todayGifts }} 条</span>
+            <button v-else type="button" class="todo-chip" @click="quickPublish('suishi')">未施 · 去随施</button>
           </div>
 
-          <div class="aw-row">
-            <span class="aw-label">再读一本</span>
+          <div class="side-row">
+            <span>再读一本<template v-if="currentBook"> ·《{{ currentBook.title }}》</template></span>
             <span v-if="currentBook" class="aw-link">
               <!-- 总页数未知时只报当前位置，不显示「1/? 页」这种像 bug 的写法 -->
-              《{{ currentBook.title }}》第 {{ currentBook.lastPage || 1 }}<template v-if="currentBook.totalPages || currentBook.pages">/{{ currentBook.totalPages || currentBook.pages }}</template> 页
-              <em>精读中 {{ currentBook.progressPct || 0 }}%</em>
+              第 {{ currentBook.lastPage || 1 }}<template v-if="currentBook.totalPages || currentBook.pages">/{{ currentBook.totalPages || currentBook.pages }}</template> 页 · 精读中 {{ currentBook.progressPct || 0 }}%
             </span>
-            <button v-else type="button" class="aw-chip todo" @click="goLibrary">未开始 · 去选书</button>
+            <button v-else type="button" class="todo-chip" @click="goLibrary">未开始 · 去选书</button>
           </div>
 
-          <el-button class="side-action" type="primary" @click="goAwaken">进入我的觉醒</el-button>
+          <div class="rec-acts"><el-button type="primary" @click="goAwaken">进入我的觉醒</el-button></div>
         </section>
 
         <!-- 【P1 2026-11-23】原型右栏第二块：今日推荐书目。
@@ -218,19 +247,18 @@
              数值来自后端 fillDisplay 分类型统计（songduCount/suishiCount/zaiduMemberCount/recitationTotal）。 -->
         <section v-if="recommendedBook" class="side-card">
           <div class="side-title">今日推荐书目</div>
-          <div class="side-book">
-            <div class="cover">{{ recommendedBook.title.slice(0, 4) }}</div>
-            <div>
-              <b>《{{ recommendedBook.title }}》</b>
-              <span v-if="metaLine(recommendedBook)">{{ metaLine(recommendedBook) }}</span>
-              <span v-else-if="recommendedBook.categoryName">{{ recommendedBook.categoryName }}</span>
-              <span class="rec-stats" title="诵读/随施=内容条数；再读=参与人数；复诵=他人复诵次数">
+          <div class="rec-book">
+            <div class="book-spine">{{ recommendedBook.title.slice(0, 4) }}</div>
+            <div class="rec-main">
+              <div class="rec-title">《{{ recommendedBook.title }}》</div>
+              <div class="rec-meta">{{ metaLine(recommendedBook) || recommendedBook.categoryName }}</div>
+              <div class="rec-meta" title="诵读/随施=内容条数；再读=参与人数；复诵=他人复诵次数">
                 诵读 {{ recommendedBook.songduCount || 0 }} · 随施 {{ recommendedBook.suishiCount || 0 }}
                 · 再读 {{ recommendedBook.zaiduMemberCount || 0 }} 人 · 复诵 {{ recommendedBook.recitationTotal || 0 }}
-              </span>
+              </div>
             </div>
           </div>
-          <div class="side-actions">
+          <div class="rec-acts">
             <!-- 没挂电子书就不给「在线阅读」按钮，避免点了进空阅读器 -->
             <el-button v-if="recommendedBook.pdfFileId" size="small" type="primary" @click="openRead(recommendedBook)">在线阅读</el-button>
             <el-button size="small" plain @click="quickPublish('songdu', recommendedBook.id)">去诵读</el-button>
@@ -246,23 +274,12 @@
           </div>
           <div class="side-row"><span>时间</span><b>{{ remindTimeText }}</b></div>
           <p class="side-note">当日已上传不打扰；可改时间/可关（个人设置，非强制）。</p>
-          <el-button link type="primary" class="side-link" @click="goAwaken">去设置</el-button>
         </section>
 
         <!-- 【P1 2026-11-23】原「我的法布施」四格卡（我的内容/评论/阅读天数/获木鱼）已移除：
              v8 原型 P1 右栏只有 我的觉醒 / 今日推荐书目 / 每日提醒 三块，
              个人累计数据按新原型归到 P9 我的觉醒与 P3 详情页作者卡，P1 不再重复展示。 -->
       </aside>
-    </div>
-
-    <div v-if="active !== 'zaidu'" class="feed-pager">
-      <el-pagination
-        v-model:current-page="current"
-        :page-size="size"
-        :total="total"
-        layout="prev, pager, next"
-        @current-change="loadPosts"
-      />
     </div>
 
     <!-- 【PROTO-AUDIT-20261123】发布器按原型 P6/P7/P8 重做，逻辑收进独立组件 -->
@@ -278,14 +295,17 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
+import { Search } from '@element-plus/icons-vue'
 import { useUserStore } from '@/store/user'
 import {
-  getFabushiPosts, getFabushiBooks,
+  getFabushiPosts, getFabushiBooks, toggleFabushiLike,
   getFabushiAwakenStatus, getFabushiSettings,
 } from '@/api/fabushi'
 import FabushiPublishDialog from '@/components/fabushi/FabushiPublishDialog.vue'
 import { getDictData } from '@/api/system'
 import { refreshDownloadToken, getDownloadToken } from '@/utils/token'
+import '@/assets/fabushi-v8.css'
 
 const route = useRoute()
 const router = useRouter()
@@ -293,7 +313,11 @@ const userStore = useUserStore()
 const canCreate = computed(() => userStore.hasPermission('fabushi:create'))
 const fileToken = ref('')
 const refreshFileToken = async () => { fileToken.value = (await refreshDownloadToken()) || getDownloadToken() || '' }
-const canView = computed(() => userStore.hasPermission('fabushi:view'))
+const fileUrl = (fileId) => `/api/file/download/${fileId}?token=${encodeURIComponent(fileToken.value)}`
+const imagesOf = (post) => (post.attachments || []).filter((a) => a.fileType === 'image')
+const audiosOf = (post) => (post.attachments || []).filter((a) => a.fileType === 'audio')
+// 朋友圈卡片里语音条左侧的那一小段波形（固定的装饰，不代表真实波形）
+const WAVE = [6, 12, 8, 14, 10, 15, 7]
 
 // 【PROTO-AUDIT-20261123 P1】原型四胶囊：全部 / 每日诵读 / 每日随施 / 再读一本。
 // 「全部」= 不传 scopeType（后端 page() 对 null 不加类型条件），不是前端拼三个列表。
@@ -383,8 +407,20 @@ const formLabel = (post) => {
   return parts.length ? parts.join(' + ') : '文字'
 }
 
+/** 朋友圈卡片元信息行里、时间与书目之后的那一句（原型：通道 / 关联书目 / 图片张数）。 */
+const sourceNote = (post) => {
+  if (!post) return ''
+  const list = post.attachments || []
+  const has = (type) => list.some((a) => a.fileType === type)
+  if (post.scopeType === 'suishi') return has('image') ? `图片 ${list.filter((a) => a.fileType === 'image').length} 张` : ''
+  const parts = []
+  if (has('image')) parts.push('图片')
+  if (has('audio')) parts.push('语音')
+  if (parts.length) return `${parts.join('+')}${post.bookId ? '' : ' · 未关联书目'}`
+  return post.bookId ? '' : '文字 · 未关联书目'
+}
+
 const publishVisible = ref(false)
-const submitting = ref(false)
 const publishScope = ref('songdu')
 const presetBookId = ref(null)
 
@@ -413,7 +449,35 @@ const isNew = (post) => !post.readByMe && post.createdAt && (Date.now() - new Da
 const bookName = (post) => post.bookTitle || bookOptions.value.find((book) => book.id === post.bookId)?.title || ''
 const goLibrary = () => router.push('/fabushi/library')
 const openDetail = (id) => router.push(`/fabushi/detail/${id}`)
+// 从操作菜单进详情时直接落到评论区 / 复诵按钮（detail.vue 按 ?focus= 处理）
+const openDetailAt = (id, focus) => router.push({ path: `/fabushi/detail/${id}`, query: { focus } })
 const goBookDetail = () => { if (bookFilter.value) router.push(`/fabushi/library?bookId=${bookFilter.value}`) }
+
+// 列表里的“敲木鱼”（与详情页同一个接口；点过的再点一次是取消）。同一条内容在请求返回前不能重复点。
+const likingIds = ref([])
+const toggleLike = async (post) => {
+  if (!canCreate.value) {
+    ElMessage.warning('当前账号没有互动权限')
+    return
+  }
+  if (likingIds.value.includes(post.id)) return
+  likingIds.value.push(post.id)
+  try {
+    const { data } = await toggleFabushiLike(post.id)
+    post.likedByMe = Boolean(data && data.liked)
+    post.likeCount = Number(data && data.likeCount) || 0
+  } catch (e) {
+    // 全局拦截器已提示
+  } finally {
+    likingIds.value = likingIds.value.filter((id) => id !== post.id)
+  }
+}
+const onMore = (cmd, post) => {
+  if (cmd === 'like') toggleLike(post)
+  else if (cmd === 'comment') openDetailAt(post.id, 'comment')
+  else if (cmd === 'recite') openDetailAt(post.id, 'recite')
+  else openDetail(post.id)
+}
 
 /** 【P2】点左栏某本书：只换右栏内容，不重置左栏筛选。 */
 const selectBook = (book) => {
@@ -558,163 +622,86 @@ onMounted(async () => {
     loadAwaken(), loadRemind(), loadEditions(),
   ])
   // 【D7 切片 6】觉醒三板块直达对应发布器：?scope=songdu|suishi|zaidu
+  // 【2026-11-26 按 PC 原型 v8】带地址参数进来时落到对应的视图：
+  //   · 带书目编号（?bookId=）= 这本书的按书浏览：切到对应页签、左栏选中这本书、按这本书取内容；
+  //   · 有发布权限的人同时直达发布器，并把书预选好（原有行为）；加 publish=0 表示“只看不发”
+  //     （详情页右栏的“本书动态”这样进来——看这本书的内容，不是要发布）；
+  //   · 只带 scope：切到那一类并按那一类重新取内容（此前切了页签却不重新取，页签下面摆的还是“全部”的列表）。
   const presetScope = String(route.query.scope || '')
+  const scopeKnown = contentTabs.some((tab) => tab.value === presetScope)
   const queryBookId = route.query.bookId ? Number(route.query.bookId) : null
-  if (contentTabs.some((tab) => tab.value === presetScope)) {
+  const directPublish = String(route.query.publish || '') !== '0'
+  if (queryBookId && Number.isFinite(queryBookId)) {
+    // 只带书目编号、没带类型（或类型认不出）：按“再读一本”处理
+    const scope = scopeKnown ? presetScope : 'zaidu'
+    active.value = scope
+    bookFilter.value = queryBookId
+    current.value = 1
+    loadPosts()
+    if (directPublish && canCreate.value) openPublish(scope, queryBookId)
+  } else if (scopeKnown) {
     active.value = presetScope
-    if (queryBookId) bookFilter.value = queryBookId
     if (presetScope === 'zaidu' && !bookFilter.value && sortedBooks.value.length) {
       bookFilter.value = sortedBooks.value[0].id
     }
-    if (canCreate.value) openPublish(presetScope, queryBookId)
-    if (presetScope === 'zaidu') loadPosts()
-  } else if (queryBookId && canCreate.value) {
-    openPublish('zaidu', queryBookId)
+    current.value = 1
+    loadPosts()
+    if (directPublish && canCreate.value) openPublish(presetScope)
   }
 })
 </script>
 
 <style scoped>
-.fabushi-feed { display: flex; flex-direction: column; gap: 10px; }
-.page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
-.page-head h1 { margin: 0; color: var(--text-primary); font-size: 20px; font-weight: 800; }
-.page-head p { margin: 4px 0 0; color: var(--text-muted); font-size: 12px; }
-.caps { display: flex; gap: 4px; padding: 4px; border-radius: var(--radius-md); background: var(--el-fill-color-light); }
-.cap { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 6px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text-secondary); font-size: 13px; font-weight: 600; cursor: pointer; }
-.cap.active { color: var(--el-color-white); background: var(--hero-gradient); box-shadow: var(--shadow-card-hover); }
-.cap .n { padding: 1px 6px; border-radius: var(--radius-pill); background: var(--el-fill-color-darker); font-size: 11px; }
-.cap.active .n { background: rgba(255, 255, 255, .25); }
-.book-strip { margin-bottom: 10px; padding: 10px 12px; border: 1px solid var(--border-light); border-radius: var(--radius-md); background: var(--el-bg-color); }
-/* 【P2 2026-11-23】按书浏览：左书目列表 + 右成员内容表 */
-.bb-filter { margin-bottom: 10px; }
-.bb-hint { color: var(--text-placeholder); font-size: 11.5px; }
-.bb-layout { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 12px; align-items: start; }
-.bb-left { display: flex; flex-direction: column; max-height: 620px; padding: 10px; border: 1px solid var(--border-light); border-radius: var(--radius-md); background: var(--el-bg-color); }
-.bb-left-head { display: flex; flex-direction: column; gap: 7px; padding-bottom: 8px; border-bottom: 1px solid var(--border-light); }
-.bb-left-head b { color: var(--text-primary); font-size: 12.5px; }
-.bb-left-list { flex: 1; overflow-y: auto; margin-top: 4px; }
-.bb-book { display: flex; align-items: center; gap: 6px; width: 100%; padding: 7px 8px; border: 0; border-radius: var(--radius-sm); background: transparent; cursor: pointer; text-align: left; }
-.bb-book:hover { background: var(--el-fill-color-light); }
-.bb-book.active { background: var(--el-color-primary-light-9); }
-.bb-name { display: flex; flex-direction: column; flex: 1; min-width: 0; color: var(--text-primary); font-size: 12px; font-weight: 600; }
-.bb-name em { overflow: hidden; color: var(--text-placeholder); font-size: 10px; font-style: normal; font-weight: 400; text-overflow: ellipsis; white-space: nowrap; }
-.bb-book.active .bb-name { color: var(--primary-color); }
-.bb-cnt { flex-shrink: 0; color: var(--text-muted); font-size: 10.5px; font-variant-numeric: tabular-nums; }
+/* 通用件（页签 .cat-tabs、筛选条 .filter-card、标签 .tag、右栏卡片 .side-*、书脊、左侧子面板 .sub-*、表格卡）在 assets/fabushi-v8.css；
+   这里只写 P1 / P2 自己的版式。 */
+.main-layout { display: flex; align-items: flex-start; gap: 10px; }
+.bybook-left { width: 250px; max-height: calc(100vh - 270px); min-height: 320px; }
+.sub-search { margin-bottom: 8px; }
+.sub-list { flex: 1; min-height: 0; margin: 0 -12px; overflow-y: auto; }
+.sub-name { display: flex; align-items: baseline; gap: 4px; min-width: 0; }
+.sub-name > em { overflow: hidden; color: var(--text-placeholder); font-size: 11px; font-style: normal; font-weight: 400; text-overflow: ellipsis; white-space: nowrap; }
 .bb-empty { padding: 14px 4px; color: var(--text-placeholder); font-size: 11.5px; }
-.bb-left-note { margin: 8px 0 0; padding-top: 8px; border-top: 1px dashed var(--border-light); color: var(--text-placeholder); font-size: 10.5px; line-height: 1.6; }
-.bb-right { display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 10px 12px; border: 1px solid var(--border-light); border-radius: var(--radius-md); background: var(--el-bg-color); }
-.bb-toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding-bottom: 8px; border-bottom: 1px solid var(--border-light); }
-.bb-tt { color: var(--text-primary); font-size: 13px; font-weight: 800; }
-.bb-tt-sub { color: var(--text-muted); font-size: 11px; }
-.bb-toolbar .tag { padding: 1px 7px; border-radius: var(--radius-sm); font-size: 10px; font-weight: 700; }
-.bb-toolbar .tag.blue { color: var(--primary-color); background: var(--el-color-primary-light-9); }
-.bb-toolbar .tag.green { color: var(--el-color-success); background: var(--el-color-success-light-9); }
-.bb-table { width: 100%; }
+.table-card { flex: 1; }
 /* 列宽合计可能超过右栏宽度：交给 el-table 自己横向滚，别把「时间/操作」裁掉 */
-.bb-table :deep(.el-table__body-wrapper),
-.bb-table :deep(.el-table__header-wrapper) { overflow-x: auto; }
-.bb-summary { display: -webkit-box; overflow: hidden; color: var(--text-secondary); font-size: 12px; line-height: 1.6; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-.bb-form { color: var(--text-muted); font-size: 11px; }
-.bb-inter { color: var(--text-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
-.bb-pager { display: flex; justify-content: flex-end; padding-top: 6px; border-top: 1px solid var(--border-light); }
-@media (max-width: 1100px) { .bb-layout { grid-template-columns: 1fr; } .bb-left { max-height: 260px; } }
-.bs-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; color: var(--text-primary); font-size: 13px; }
-.bs-hint { color: var(--text-placeholder); font-size: 11px; }
-.bs-head .el-button { margin-left: auto; }
-.bs-list { display: flex; gap: 7px; overflow-x: auto; padding-bottom: 3px; }
-.bs-book { display: flex; flex: 0 0 auto; flex-direction: column; gap: 3px; padding: 7px 11px; border: 1px solid var(--border-light); border-radius: var(--radius-sm); background: var(--el-fill-color-lighter); cursor: pointer; text-align: left; }
-.bs-book.active { border-color: var(--primary-color); background: var(--el-color-primary-light-9); }
-.bs-title { color: var(--text-primary); font-size: 12px; font-weight: 700; }
-.bs-meta { color: var(--text-muted); font-size: 10.5px; }
-.bs-empty { color: var(--text-placeholder); font-size: 11px; }
-.filter { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; padding: 9px 12px; border: 1px solid var(--border-light); border-radius: var(--radius-md); background: var(--el-bg-color); }
-.fl { color: var(--text-secondary); font-size: 12px; }
-.spacer { flex: 1; }
-.feed-layout { display: grid; grid-template-columns: minmax(0, 1fr) 268px; gap: 12px; align-items: start; }
-.feed-list { display: flex; flex-direction: column; gap: 10px; min-height: 220px; }
-.moments-card { padding: 14px 16px; border: 1px solid var(--border-light); border-radius: var(--radius-md); background: var(--el-bg-color); box-shadow: var(--shadow-card); cursor: pointer; }
+.bb-table { width: 100%; }
+.bb-inter { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* P1 朋友圈式信息流 */
+.feed-layout { display: flex; align-items: flex-start; gap: 10px; }
+.feed-col { display: flex; flex: 1; flex-direction: column; gap: 10px; min-width: 0; min-height: 220px; }
+.side-col { position: sticky; top: 0; width: 300px; }
+.moments-card { padding: 11px 15px; border-radius: var(--fx-r-md); background: #fff; box-shadow: var(--shadow-card); cursor: pointer; transition: box-shadow .18s; }
+.moments-card:hover { box-shadow: var(--shadow-card-hover); }
 .mc-head { display: flex; gap: 10px; }
-.mc-avatar { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 40px; height: 40px; border-radius: 9px; color: var(--el-color-white); background: var(--hero-gradient); font-size: 16px; font-weight: 700; }
+.mc-ava { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 38px; height: 38px; border-radius: 8px; background: var(--hero-gradient); color: #fff; font-size: 15px; font-weight: 700; }
+.mc-ava.ava-songdu { background: linear-gradient(135deg, #0e7490, #12b8cf); }
+.mc-ava.ava-suishi { background: linear-gradient(135deg, #b45309, #f59e0b); }
 .mc-main { flex: 1; min-width: 0; }
-.mc-name { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; color: var(--text-primary); font-size: 13px; font-weight: 800; }
-.mc-name .tag { padding: 1px 6px; border-radius: var(--radius-sm); font-size: 10px; font-weight: 700; }
-.mc-name .tag.songdu { color: var(--primary-color); background: var(--el-color-primary-light-9); }
-.mc-name .tag.suishi { color: var(--el-color-warning-dark-2); background: var(--el-color-warning-light-9); }
-.mc-name .tag.zaidu { color: var(--el-color-success); background: var(--el-color-success-light-9); }
-.mc-text { margin-top: 3px; color: var(--text-primary); font-size: 13px; line-height: 1.7; white-space: pre-wrap; word-break: break-word; }
-.mc-text.body { color: var(--text-secondary); }
-.mc-imgs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-top: 8px; max-width: 330px; }
-.mc-img { width: 100%; aspect-ratio: 1; border-radius: 6px; overflow: hidden; }
-.mc-audio { margin-top: 8px; }
-.mc-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 7px; color: var(--text-placeholder); font-size: 11px; }
+.mc-name { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; color: var(--fx-navy); font-size: 13px; font-weight: 800; }
+.mc-text { margin-top: 3px; color: var(--text-primary); font-size: 13px; line-height: 1.65; white-space: pre-wrap; word-break: break-word; }
+.mc-text.title { font-weight: 600; }
+.mc-imgs { display: grid; gap: 4px; margin-top: 7px; }
+.mc-imgs.g3 { grid-template-columns: repeat(3, 78px); }
+.mc-imgs.g1 { grid-template-columns: 170px; }
+.mc-img { position: relative; height: 78px; overflow: hidden; border-radius: 6px; cursor: zoom-in; }
+.mc-img.big { height: 120px; }
+.mc-img :deep(img) { display: block; width: 100%; height: 100%; object-fit: cover; }
+.mc-audio { display: flex; align-items: center; gap: 9px; margin-top: 7px; padding: 6px 10px; border-radius: 6px; background: var(--fx-table-head); color: var(--text-secondary); font-size: 11.5px; }
+.recite-wave { display: flex; align-items: flex-end; flex-shrink: 0; gap: 2px; width: 34px; height: 16px; }
+.recite-wave i { width: 3px; border-radius: 2px; background: var(--primary-color); opacity: .7; }
+.mc-audio-ctl { width: 200px; height: 30px; margin-left: auto; }
+.mc-audio-ctl + .mc-audio-ctl { margin-left: 0; }
+.mc-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 6px; color: var(--text-placeholder); font-size: 11px; }
 .mc-meta .src { color: var(--primary-color); }
-.new-badge { padding: 1px 5px; border-radius: var(--radius-sm); color: var(--el-color-danger); background: var(--el-color-danger-light-9); font-size: 9px; font-weight: 700; }
-.mc-acts { display: flex; align-items: center; justify-content: space-between; margin-top: 9px; padding: 6px 12px; border-radius: 6px; background: var(--el-fill-color-light); color: var(--text-secondary); font-size: 12px; }
-.mc-acts .more { letter-spacing: 2px; color: var(--text-muted); font-weight: 800; }
-.mc-inter { margin-top: 6px; padding: 7px 12px; border-radius: 6px; background: var(--el-fill-color-light); color: var(--text-secondary); font-size: 12px; line-height: 1.7; }
-.mc-inter .likers { color: var(--text-primary); font-weight: 700; }
-.read { color: var(--text-muted); }
-.read.unread { color: var(--el-color-danger); font-weight: 700; }
-.req { color: var(--el-color-danger); }
-.hint { color: var(--text-muted); font-weight: 400; font-size: 11px; }
-.suishi-tip { padding: 9px 12px; border-radius: var(--radius-sm); background: var(--el-color-primary-light-9); color: var(--text-secondary); font-size: 12px; line-height: 1.7; }
-.moments-card { padding: 13px 15px; border: 1px solid var(--border-light); border-radius: var(--radius-md); background: var(--el-fill-color-lighter); cursor: pointer; transition: background .18s, box-shadow .18s; }
-.feed-item:hover { background: var(--el-bg-color); box-shadow: var(--shadow-card-hover); }
-.feed-top { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
-.tag { padding: 1px 6px; border-radius: var(--radius-sm); font-size: 10px; font-weight: 700; }
-.tag.songdu { color: var(--primary-color); background: var(--el-color-primary-light-9); }
-.tag.suishi { color: var(--el-color-success); background: var(--el-color-success-light-9); }
-.tag.zaidu { color: var(--el-color-warning-dark-2); background: var(--el-color-warning-light-9); }
-.feed-title { overflow: hidden; color: var(--text-primary); font-size: 14px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
-.new-badge { padding: 1px 5px; border-radius: var(--radius-sm); color: var(--el-color-danger); background: var(--el-color-danger-light-9); font-size: 9px; font-weight: 700; }
-.feed-time { flex-shrink: 0; margin-left: auto; color: var(--text-placeholder); font-size: 11px; }
-.feed-body { display: -webkit-box; overflow: hidden; color: var(--text-secondary); font-size: 12.5px; line-height: 1.7; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-.feed-book { display: inline-flex; margin-top: 7px; padding: 2px 7px; border-radius: var(--radius-sm); color: var(--primary-color); background: var(--el-color-primary-light-9); font-size: 11px; }
-.feed-meta { display: flex; align-items: center; gap: 14px; margin-top: 8px; color: var(--text-muted); font-size: 11px; }
-.feed-meta .read { margin-left: auto; color: var(--primary-color); }
-.feed-meta .read.unread { color: var(--text-placeholder); }
-.feed-side { display: flex; flex-direction: column; gap: 10px; }
-.side-card { padding: 13px 14px; border: 1px solid var(--border-light); border-radius: var(--radius-md); background: var(--el-fill-color-lighter); }
-.side-title { margin-bottom: 8px; color: var(--text-primary); font-size: 13px; font-weight: 700; }
-.side-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border-light); color: var(--text-secondary); font-size: 12px; }
-.side-row:last-child { border-bottom: 0; }
-.side-row b { color: var(--text-primary); font-size: 15px; font-variant-numeric: tabular-nums; }
-.side-row b.on { color: var(--el-color-success); }
-.side-row b.off { color: var(--text-placeholder); }
-/* 【P1 2026-11-23】我的觉醒三板块状态卡（原型右栏第一位） */
-.awaken-card .side-title { display: flex; align-items: center; gap: 6px; }
-.aw-score { margin-left: auto; padding: 1px 7px; border-radius: var(--radius-pill); color: var(--primary-color); background: var(--el-color-primary-light-9); font-size: 11px; font-weight: 700; cursor: help; }
-.aw-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--border-light); }
-.aw-row:last-of-type { border-bottom: 0; }
-.aw-label { display: flex; flex-direction: column; flex: 1; min-width: 0; color: var(--text-secondary); font-size: 12px; }
-.aw-label em { color: var(--text-placeholder); font-size: 10px; font-style: normal; }
-.aw-chip { flex-shrink: 0; max-width: 62%; padding: 2px 8px; border: 1px solid transparent; border-radius: var(--radius-pill); font-size: 10.5px; line-height: 1.5; text-align: right; }
-.aw-chip.done { color: var(--el-color-success); background: var(--el-color-success-light-9); }
-.aw-chip.todo { color: var(--el-color-warning-dark-2); background: var(--el-color-warning-light-9); border-color: var(--el-color-warning-light-5); cursor: pointer; }
-.aw-chip.todo:hover { border-color: var(--el-color-warning); }
-.aw-link { flex-shrink: 0; max-width: 62%; color: var(--primary-color); font-size: 10.5px; line-height: 1.5; text-align: right; }
-.aw-link em { display: block; color: var(--text-placeholder); font-size: 10px; font-style: normal; }
-.side-actions { display: flex; gap: 8px; margin-top: 9px; }
-.side-actions .el-button { flex: 1; margin-left: 0; }
-.side-note { margin: 6px 0 0; color: var(--text-placeholder); font-size: 10.5px; line-height: 1.6; }
-.side-link { padding: 0; margin-top: 2px; font-size: 11px; }
-.side-book { display: flex; align-items: flex-start; gap: 9px; margin-top: 7px; }
-.cover { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 38px; height: 52px; padding: 4px; border-radius: var(--radius-sm); color: var(--el-color-white); background: var(--hero-gradient); font-size: 10px; line-height: 1.2; text-align: center; }
-.side-book b { display: block; color: var(--text-primary); font-size: 12px; }
-/* 【P1 2026-11-23】元信息与统计行各自独占一行（原先 inline 会挤成一行看不清） */
-.side-book span { display: block; color: var(--text-muted); font-size: 10.5px; line-height: 1.6; }
-.side-book .rec-stats { color: var(--text-secondary); }
-.side-action { width: 100%; margin-top: 9px; }
-.feed-pager { display: flex; justify-content: flex-end; padding-top: 10px; border-top: 1px solid var(--border-light); }
-.form-row { display: grid; grid-template-columns: 70px minmax(0, 1fr); gap: 10px; align-items: start; margin-bottom: 12px; }
-.form-row label { padding-top: 7px; color: var(--text-secondary); font-size: 12px; }
-.type-caps { display: flex; gap: 4px; padding: 4px; border-radius: var(--radius-md); background: var(--el-fill-color-light); }
-.type-cap { flex: 1; padding: 6px 10px; border: 0; border-radius: var(--radius-sm); color: var(--text-secondary); background: transparent; font-size: 12px; cursor: pointer; }
-.type-cap.active { color: var(--el-color-white); background: var(--hero-gradient); }
-.attachment-field { display: flex; flex-direction: column; gap: 6px; }
-.attachment-actions { display: flex; align-items: center; gap: 8px; }
-.attachment-hint { color: var(--text-placeholder); font-size: 11px; }
-.attachment-chip { display: flex; align-items: center; justify-content: space-between; padding: 5px 8px; border-radius: var(--radius-sm); background: var(--el-fill-color-light); color: var(--text-secondary); font-size: 11px; }
-.form-placeholder { display: flex; align-items: center; min-height: 32px; padding: 0 10px; border: 1px solid var(--el-border-color); border-radius: var(--radius-sm); color: var(--text-placeholder); font-size: 12px; }
-@media (max-width: 1100px) { .feed-layout { grid-template-columns: 1fr; } }
+.mc-meta .read-state { margin-left: auto; }
+.mc-acts { display: flex; align-items: center; justify-content: space-between; margin-top: 7px; padding: 4px 10px; border-radius: 6px; background: var(--fx-table-head); color: var(--text-secondary); font-size: 12px; font-variant-numeric: tabular-nums; }
+.mc-more { margin-right: -6px; }
+.more { padding: 0 6px; color: var(--text-muted); font-size: 14px; font-weight: 800; letter-spacing: 2px; line-height: 22px; cursor: pointer; user-select: none; }
+.more:hover { color: var(--primary-color); }
+.mc-inter { margin-top: 6px; padding: 6px 10px; border-radius: 6px; background: var(--fx-table-head); color: var(--text-secondary); font-size: 12px; line-height: 1.75; }
+.mc-inter .likers { color: var(--fx-navy); font-weight: 600; }
+.feed-pager { display: flex; justify-content: flex-end; }
+
+/* 右栏“我的觉醒”三板块状态卡 */
+.aw-link { color: var(--primary-color); font-size: 11px; font-weight: 700; white-space: nowrap; }
 </style>

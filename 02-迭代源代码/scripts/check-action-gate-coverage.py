@@ -58,6 +58,9 @@ ALLOW = {
     'fabushi/detail.vue': (
         [("removePost", "本人删除内容: 服务端 FabushiPostService.deleteOwn 校验'作者本人或 admin', 前端隐藏非授权边界(CODE-REVIEW-20261123 R1-02 分诊)")],
         "法布施详情: 作者自助删除"),
+    'fabushi/content.vue': (
+        [("resetFilters", RESET_FILTER_VIEW_OP)],
+        "法布施内容管理: 筛选重置(2026-11-26 分诊)"),
     'fabushi/feed.vue': (
         [("resetByBook", RESET_FILTER_VIEW_OP)],
         "法布施认知广场: 按书罗列的筛选重置(2026-11-25 分诊)"),

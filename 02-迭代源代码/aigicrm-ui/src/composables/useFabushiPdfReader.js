@@ -82,6 +82,24 @@ export function searchInPagesPure(pages, keyword) {
 }
 
 /**
+ * 【2026-11-26 按 PC 原型 v8】画布的显示宽度（纯函数，便于单测）。
+ * 默认：铺满容器宽度（两侧各留 16 像素），不超过上限，下限 280 —— 与以前的算法完全一致。
+ * fitHeight=true（PC 阅读器，原型 P5 是一屏高的固定布局）：再按“容器高度 × 页面宽高比”反推一个宽度，取更小的那个，
+ * 书页整页放进可视区，一页不用上下滚动就能看全；横版书页不会被放大。
+ * 容器高度量不到（≤ 60，常见于首帧）时不按高度算，免得把书页压成一条线。
+ * @param {{parentWidth: number, parentHeight?: number, pageWidth: number, pageHeight: number,
+ *   maxWidth?: number, fitHeight?: boolean}} sizes
+ * @returns {number}
+ */
+export function fitCanvasWidth({ parentWidth, parentHeight = 0, pageWidth, pageHeight, maxWidth = MAX_CANVAS_WIDTH, fitHeight = false }) {
+  let width = Math.min(Number(parentWidth) - 32, maxWidth)
+  if (fitHeight && Number(parentHeight) > 60 && Number(pageWidth) > 0 && Number(pageHeight) > 0) {
+    width = Math.min(width, Math.floor((Number(parentHeight) - 32) * Number(pageWidth) / Number(pageHeight)))
+  }
+  return Math.max(MIN_CANVAS_WIDTH, width)
+}
+
+/**
  * @param {{
  *   bookId: import('vue').Ref<string|number>,
  *   pdfFileId: import('vue').Ref<string|number>,
@@ -89,13 +107,15 @@ export function searchInPagesPure(pages, keyword) {
  *   saveDelay?: number,
  *   canvasMaxWidth?: number,
  *   progress?: boolean,
- *   initialPage?: number
+ *   initialPage?: number,
+ *   fitHeight?: boolean
  * }} opts
  * 【F3a-2】票据模式(MP 壳): progress=false 关内建进度读写(由壳经 postMessage/容器代传);
  * initialPage>0 跳过进度回读直接从该页续读(URL 带 lastPage)。PC 端不传=行为不变。
+ * 【2026-11-26】fitHeight=true 时书页按容器高度整页适配(PC 阅读器); 不传=只按宽度, 小程序壳行为不变。
  */
 export function useFabushiPdfReader({ bookId, pdfFileId, token, saveDelay = SAVE_DEBOUNCE_MS, canvasMaxWidth = MAX_CANVAS_WIDTH,
-    progress = true, initialPage = 0 }) {
+    progress = true, initialPage = 0, fitHeight = false }) {
   const state = ref('loading') // loading | ready | error
   const loadPct = ref(0)
   const errorMsg = ref('')
@@ -189,8 +209,15 @@ export function useFabushiPdfReader({ bookId, pdfFileId, token, saveDelay = SAVE
     if (disposed) return
     const dpr = window.devicePixelRatio || 1
     const base = page.getViewport({ scale: 1 })
-    const parentWidth = canvas.parentElement ? canvas.parentElement.clientWidth : 0
-    const maxWidth = Math.max(MIN_CANVAS_WIDTH, Math.min(parentWidth - 32, canvasMaxWidth))
+    const parent = canvas.parentElement
+    const maxWidth = fitCanvasWidth({
+      parentWidth: parent ? parent.clientWidth : 0,
+      parentHeight: parent ? parent.clientHeight : 0,
+      pageWidth: base.width,
+      pageHeight: base.height,
+      maxWidth: canvasMaxWidth,
+      fitHeight,
+    })
     const viewport = page.getViewport({ scale: (maxWidth / base.width) * dpr })
     canvas.width = viewport.width
     canvas.height = viewport.height

@@ -182,52 +182,7 @@ html, body, #app {
 .el-table__empty-block { min-height: 180px; }
 .el-loading-mask { backdrop-filter: blur(1px); }
 
-/* ============ 法布施书卷皮肤(2026-11-16, 与 MP 书卷语言同源) ============
-   作用域: 仅 .fabushi-* 根 class 内 —— 变量覆盖法, Element 组件在页面内全部染色,
-   不影响其它模块。纸色 #f7f3ec / 卡 #fffdf8 / 边 #e8e0d3 / 墨绿 #2d5a4a / 朱砂 #b5543a */
-.fabushi-feed, .fabushi-library, .fabushi-shelf, .fabushi-reader, .fabushi-stats,
-.fabushi-detail, .fabushi-book, .fabushi-content {
-  --text-primary: #2e2a24;
-  --text-secondary: #6b6257;
-  --text-muted: #9c9184;
-  --text-placeholder: #a99d8c;
-  --border-light: #e8e0d3;
-  --primary-color: #2d5a4a;
-  --hero-gradient: linear-gradient(135deg, #2d5a4a 0%, #4a7a62 100%);
-  --el-color-primary: #2d5a4a;
-  --el-color-primary-dark-2: #244839;
-  --el-color-primary-light-3: #527a68;
-  --el-color-primary-light-5: #7fa08e;
-  --el-color-primary-light-7: #aec7b6;
-  --el-color-primary-light-8: #c9dacd;
-  --el-color-primary-light-9: #eef3ee;
-  --el-color-danger: #b5543a;
-  --el-color-danger-light-9: #f8e9e0;
-}
-.fabushi-feed, .fabushi-library, .fabushi-shelf, .fabushi-stats,
-.fabushi-detail, .fabushi-book, .fabushi-content {
-  background: #f7f3ec;
-  min-height: calc(100vh - 120px);
-  border-radius: 12px;
-  padding: 14px 16px;
-  box-sizing: border-box;
-}
-.fabushi-feed .page-head h1, .fabushi-library .page-head h1, .fabushi-shelf .page-head h1,
-.fabushi-stats .page-head h1, .fabushi-detail .fb-title, .fabushi-book .page-head h1,
-.fabushi-content .page-head h1 {
-  font-family: 'Songti SC', 'STSong', serif;
-  letter-spacing: 1px;
-}
-.fabushi-feed .cap.active .n, .fabushi-shelf .tab.active { color: #fff7ee; }
-.fabushi-feed .new-badge { color: #b5543a; background: #f8e9e0; }
-.fabushi-feed .tag.heart { color: #2d5a4a; background: #e4efe6; }
-.fabushi-feed .tag.recitation { color: #a67c52; background: #f4ead9; }
-.fabushi-feed .tag.znl { color: #b5543a; background: #f8e9e0; }
-.fabushi-feed .side-card, .fabushi-library .rail, .fabushi-library .book-card,
-.fabushi-shelf .panel, .fabushi-stats .panel, .fabushi-detail .fb-card,
-.fabushi-book .rail, .fabushi-book .book-card, .fabushi-content .caps {
-  background: #fffdf8;
-}
-/* 【2026-11-26】详情页顶部的“← 返回认知广场”(.fabushi-detail .back)从这条里拿掉:
-   它原来也被刷成朱砂色, 蓝字压在红底上看不清(PC 原型 v8 的 P3 里这一行没有底色)。契约见 views/fabushi/fabushi-back-bar.spec.js */
-.fabushi-feed .fb-fab { background: #b5543a; }
+/* 法布施页面（.fabushi-*）不再在这里有任何规则（2026-11-26）。
+   此前这里有一段“法布施书卷皮肤”，用变量覆盖法把页面染成米色纸底 + 墨绿 + 朱砂，与 PC 原型 v8（白底 + 蓝色主色）不一致；
+   用户裁决“PC 端按最新的原型来做”后已撤掉：法布施页面直接用上面这套应用默认令牌（即原型的配色），
+   页面自己的样式在各视图和 assets/fabushi-v8.css 里。契约见 views/fabushi/fabushi-back-bar.spec.js。 */

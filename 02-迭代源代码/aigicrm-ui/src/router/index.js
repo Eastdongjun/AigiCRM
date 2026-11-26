@@ -144,60 +144,62 @@ const routes = [
         meta: { title: '激励查询', parentTitle: '四项激励', icon: 'Search', permission: 'incentive:view' }
       },
       // 【2026-11-16】PC 员工端与小程序同功能：内容流 / 详情 / 书目浏览
+      // 【2026-11-26 按 PC 原型 v8】法布施各页 meta.bareShell = true：原型里这些页面是“灰画布上直接摆卡片”，
+      //   不套全局的白色整体容器（layout/index.vue 里按这个标记去掉白底、换成原型的内边距）。其它页面不变。
       {
         path: 'fabushi/feed',
         name: 'FabushiFeed',
         component: () => import('@/views/fabushi/feed.vue'),
-        meta: { title: '认知广场', parentTitle: '法布施', icon: 'ChatDotRound', permission: 'fabushi:view' }
+        meta: { title: '认知广场', parentTitle: '法布施', icon: 'ChatDotRound', permission: 'fabushi:view', bareShell: true }
       },
       {
         path: 'fabushi/detail/:id',
         name: 'FabushiDetail',
         component: () => import('@/views/fabushi/detail.vue'),
-        meta: { title: '内容详情', parentTitle: '认知广场', activeMenu: '/fabushi/feed', icon: 'Document', permission: 'fabushi:view' }
+        meta: { title: '内容详情', parentTitle: '认知广场', activeMenu: '/fabushi/feed', icon: 'Document', permission: 'fabushi:view', bareShell: true }
       },
       {
         path: 'fabushi/library',
         name: 'FabushiLibrary',
         component: () => import('@/views/fabushi/library.vue'),
-        meta: { title: '书目浏览', parentTitle: '法布施', icon: 'Reading', permission: 'fabushi:view' }
+        meta: { title: '书目浏览', parentTitle: '法布施', icon: 'Reading', permission: 'fabushi:view', bareShell: true }
       },
       {
         path: 'fabushi/shelf',
         name: 'FabushiShelf',
         component: () => import('@/views/fabushi/shelf.vue'),
-        meta: { title: '我的觉醒', parentTitle: '法布施', icon: 'Reading', permission: 'fabushi:view' }
+        meta: { title: '我的觉醒', parentTitle: '法布施', icon: 'Reading', permission: 'fabushi:view', bareShell: true }
       },
       {
         // 【P9B 2026-11-23】原型是独立屏，此前只是 shelf 里的弹窗
         path: 'fabushi/highlights',
         name: 'FabushiHighlights',
         component: () => import('@/views/fabushi/highlights.vue'),
-        meta: { title: '我的书摘', parentTitle: '我的觉醒', activeMenu: '/fabushi/shelf', icon: 'Notebook', permission: 'fabushi:view' }
+        meta: { title: '我的书摘', parentTitle: '我的觉醒', activeMenu: '/fabushi/shelf', icon: 'Notebook', permission: 'fabushi:view', bareShell: true }
       },
       {
         path: 'fabushi/read/:bookId',
         name: 'FabushiRead',
         component: () => import('@/views/fabushi/read.vue'),
-        meta: { title: '在线阅读', parentTitle: '书目浏览', activeMenu: '/fabushi/library', icon: 'Reading', permission: 'fabushi:view' }
+        meta: { title: '在线阅读', parentTitle: '书目浏览', activeMenu: '/fabushi/library', icon: 'Reading', permission: 'fabushi:view', bareShell: true }
       },
       {
         path: 'fabushi/book',
         name: 'FabushiBook',
         component: () => import('@/views/fabushi/book.vue'),
-        meta: { title: '书目管理', parentTitle: '法布施', icon: 'Collection', permission: 'fabushi:book:view' }
+        meta: { title: '书目管理', parentTitle: '法布施', icon: 'Collection', permission: 'fabushi:book:view', bareShell: true }
       },
       {
         path: 'fabushi/content',
         name: 'FabushiContent',
         component: () => import('@/views/fabushi/content.vue'),
-        meta: { title: '内容管理', parentTitle: '法布施', icon: 'Document', permission: 'fabushi:content:view' }
+        meta: { title: '内容管理', parentTitle: '法布施', icon: 'Document', permission: 'fabushi:content:view', bareShell: true }
       },
       {
         path: 'fabushi/stats',
         name: 'FabushiStats',
         component: () => import('@/views/fabushi/stats.vue'),
-        meta: { title: '统计看板', parentTitle: '法布施', icon: 'TrendCharts', permission: 'fabushi:stats:view' }
+        meta: { title: '统计看板', parentTitle: '法布施', icon: 'TrendCharts', permission: 'fabushi:stats:view', bareShell: true }
       },
       {
         // 【2026-11-05 用户令"四项服务的定位是给客户展示案例库的"】PC 端四项服务=案例库:

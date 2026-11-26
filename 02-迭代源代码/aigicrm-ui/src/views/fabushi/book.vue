@@ -1,93 +1,173 @@
 <template>
-  <div class="fabushi-book">
-    <div class="caps">
-      <button type="button" class="cap" :class="{ active: !query.categoryCode }" @click="selectCategory('')">
-        全部 <span class="n">{{ allBooks.length }}</span>
+  <div class="fx-page fabushi-book">
+    <!-- 【2026-11-26 按 PC 原型 v8】P10：页面直接摆在灰画布上（没有页头标题块），最上面一行是类别页签 -->
+    <div class="cat-tabs" role="tablist" aria-label="书目类别">
+      <button type="button" class="cat-tab" :class="{ active: !query.categoryCode }" role="tab" :aria-selected="!query.categoryCode" @click="selectCategory('')">
+        全部<span class="badge">{{ allBooks.length }}</span>
       </button>
-      <button v-for="c in categories" :key="c.dictValue" type="button" class="cap" :class="{ active: query.categoryCode === c.dictValue }" @click="selectCategory(c.dictValue)">
-        {{ c.dictLabel }} <span class="n">{{ categoryCounts[c.dictValue] || 0 }}</span>
+      <button
+        v-for="c in categories"
+        :key="c.dictValue"
+        type="button"
+        class="cat-tab"
+        :class="{ active: query.categoryCode === c.dictValue }"
+        role="tab"
+        :aria-selected="query.categoryCode === c.dictValue"
+        @click="selectCategory(c.dictValue)"
+      >
+        {{ c.dictLabel }}<span class="badge">{{ categoryCounts[c.dictValue] || 0 }}</span>
       </button>
     </div>
 
-    <div class="filter">
+    <div class="filter-card">
       <span class="fl">状态</span>
-      <el-select v-model="query.status" style="width: 120px" @change="onFilterChange">
-        <el-option label="全部状态" value="all" />
+      <el-select v-model="query.status" style="width: 108px" @change="onFilterChange">
+        <el-option label="全部" value="all" />
         <el-option label="已通过" value="approved" />
         <el-option label="待审核" value="pending" />
         <el-option label="已驳回" value="rejected" />
         <el-option label="已停用" value="disabled" />
       </el-select>
+      <!-- 电子书：书目分页接口没有这个入参，只在前端已有的全量书目上筛（见 script 里的 ebookFiltered） -->
+      <span class="fl">电子书</span>
+      <el-select v-model="ebookFilter" style="width: 108px" @change="onFilterChange">
+        <el-option label="全部" value="all" />
+        <el-option label="已挂载" value="yes" />
+        <el-option label="未挂载" value="no" />
+      </el-select>
+      <!-- 占位符照实写：后端书目分页的 keyword 只按书名查 -->
       <span class="fl">关键词</span>
-      <el-input v-model="query.keyword" clearable placeholder="书名 / 作者 / 提交人" style="width: 220px" @keyup.enter="onFilterChange" />
+      <el-input v-model="query.keyword" clearable placeholder="搜索书名" style="width: 220px" @keyup.enter="onFilterChange">
+        <template #prefix><ElIcon class="search-ico"><Search /></ElIcon></template>
+      </el-input>
       <el-button type="primary" @click="onFilterChange">查询</el-button>
-      <el-button @click="resetFilters">重置</el-button>
+      <el-button plain @click="resetFilters">重置</el-button>
       <span class="spacer" />
       <el-button :class="{ 'pending-btn': pendingCount }" @click="showPending">待审核 ({{ pendingCount }})</el-button>
       <el-button v-if="userStore.hasPermission('fabushi:create')" type="primary" @click="submitVisible = true">＋ 新增书目</el-button>
     </div>
 
-    <div class="book-layout">
+    <div class="main-layout">
+      <!-- 左栏：按书名去重的书目（一行一个书名）；同一书名的多个版本在右表里分别管理 -->
       <aside class="sub-panel">
-        <div class="sub-title">书目 · {{ categoryName || '全部' }}</div>
-        <el-input v-model="leftKeyword" clearable placeholder="搜索书目" size="small" />
-        <button v-for="book in pagedLeftBooks" :key="book.id" type="button" class="sub-row" :class="{ active: selectedBookId === book.id }" @click="selectBook(book)">
-          <span>{{ book.title }}</span><span class="cnt">{{ book.postCount || 0 }}</span>
-        </button>
-        <div v-if="!leftBooks.length" class="sub-empty">暂无书目</div>
-        <div v-if="leftTotalPages > 1" class="sub-pager">
-          <el-pagination v-model:current-page="leftPage" :page-size="leftSize" :total="leftBooks.length" layout="prev, pager, next" small />
+        <div class="sub-title">{{ categoryName || '全部' }} · 书目 {{ leftBooks.length }}</div>
+        <el-input v-model="leftKeyword" clearable placeholder="搜索书目" class="sub-search">
+          <template #prefix><ElIcon class="search-ico"><Search /></ElIcon></template>
+        </el-input>
+        <div class="sub-list">
+          <button
+            v-for="book in pagedLeftBooks"
+            :key="book.id"
+            type="button"
+            class="sub-row"
+            :class="{ active: selectedBookId === book.id }"
+            @click="selectBook(book)"
+          >
+            <ElIcon class="sub-ico"><Reading /></ElIcon>
+            <span class="sub-name">《{{ book.title }}》</span>
+            <span class="cnt">{{ book.versionCount > 1 ? `${book.versionCount} 版本` : book.versionCount }}</span>
+          </button>
+          <p v-if="!leftBooks.length" class="sub-empty">暂无书目</p>
         </div>
-        <div class="sub-note">左侧计数 = 该书目已发布作品数；右侧表格为当前筛选结果（含待审核/驳回，仅管理端可见）。</div>
+        <div v-if="leftTotalPages > 1" class="sub-pager">
+          <el-pagination v-model:current-page="leftPage" :page-size="leftSize" :total="leftBooks.length" layout="prev, pager, next" size="small" />
+        </div>
+        <p class="sub-foot">左列按书名去重；同一书名的多个版本在右侧表格里分别管理。参与、诵读都按版本计数。</p>
       </aside>
 
-      <section class="table-panel" v-loading="loading">
-        <div class="table-head">
-          <span class="tt">{{ selectedBookTitle || categoryName || '全部' }} · 书目治理</span>
+      <section class="table-card" v-loading="loading">
+        <div class="toolbar">
+          <span class="tt">{{ toolbarTitle }}</span>
           <span class="tag green">通过 {{ statusCount('approved') }}</span>
           <span class="tag orange">待审核 {{ statusCount('pending') }}</span>
-          <span class="tag red">驳回 {{ statusCount('rejected') }}</span>
           <span class="spacer" />
-          <span class="head-hint">状态操作需 fabushi:book:manage</span>
+          <span v-if="ebookFiltered && allTotal > allBooks.length" class="tt-sub">电子书筛选只覆盖最近 {{ allBooks.length }} 本（共 {{ allTotal }} 本）</span>
         </div>
-        <table class="data-table">
-          <thead><tr><th>书目</th><th>作者 / 版本 / 页数</th><th>类别</th><th>状态</th><th>电子书</th><th class="r" title="参与人数 / 已发布内容条数（原型「8 人/36 条」）">参与</th><th>版式</th><th>提交人 / 时间</th><th>操作</th></tr></thead>
-          <tbody>
-            <tr v-for="row in books" :key="row.id">
-              <td class="title-cell">{{ row.title }}</td>
-              <td>{{ row.author || '—' }}<template v-if="row.editionType"> · {{ editionLabel(row.editionType) }}</template><template v-if="row.pages"> · {{ row.pages }} 页</template></td>
-              <td class="dim">{{ row.categoryName || row.categoryCode || '—' }}</td>
-              <td><span class="status" :class="row.status">{{ statusText(row.status) }}</span></td>
-              <td><span v-if="row.pdfFileId" class="pdf-tag">已挂载</span><span v-else class="muted">未挂载</span></td>
-              <!-- 【P10 2026-11-23】原型「参与」= 人数/条数（8 人/36 条），此前只显示条数 -->
-              <td class="num r">{{ row.memberCount || 0 }} 人/{{ row.postCount || 0 }} 条</td>
-              <td><span class="layout-tag" :class="row.layoutType === 'text' ? 'text' : 'scan'">{{ layoutLabel(row.layoutType) }}</span></td>
-              <td>{{ row.submitterName || '—' }} · {{ formatDate(row.createdAt) }}</td>
-              <td class="actions">
-                <template v-if="userStore.hasPermission('fabushi:book:manage')">
-                  <el-button v-if="row.status === 'pending'" link type="primary" @click="doApprove(row)">通过</el-button>
-                  <el-button v-if="row.status === 'pending'" link type="warning" @click="openReject(row)">驳回</el-button>
-                  <el-button v-if="row.status === 'approved'" link type="primary" @click="openPdf(row)">{{ row.pdfFileId ? '换PDF' : '挂PDF' }}</el-button>
-                  <el-button v-if="row.status === 'approved'" link type="primary" @click="openSections(row)">章节</el-button>
-                  <el-button v-if="row.status === 'approved'" link type="primary" @click="openLayout(row)">版式</el-button>
-                  <el-button v-if="row.status === 'approved'" link type="danger" @click="doDisable(row)">停用</el-button>
-                  <el-button v-if="row.status === 'rejected'" link type="primary" @click="showRejectReason(row)">查看原因</el-button>
-                  <el-button link type="danger" @click="doDelete(row)">删除</el-button>
-                </template>
-                <span v-else class="muted">只读</span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        <div v-if="!loading && !books.length" class="empty">当前筛选暂无书目</div>
+        <!-- 表格照原型用手写的 <table>（原因见 script 顶部）：每一列都给了宽度，标签与数字不换行；操作列放不下时在列内换行 -->
+        <div class="table-scroll">
+          <table class="data-table">
+            <colgroup>
+              <col class="c-title" />
+              <col class="c-cat" />
+              <col class="c-status" />
+              <col class="c-ebook" />
+              <col class="c-join" />
+              <col class="c-layout" />
+              <col class="c-submitter" />
+              <col class="c-acts" />
+            </colgroup>
+            <thead>
+              <tr>
+                <th><div class="cell">书名 / 作者 / 版本</div></th>
+                <th><div class="cell">类别</div></th>
+                <th><div class="cell">状态</div></th>
+                <th><div class="cell">电子书</div></th>
+                <th><div class="cell">参与</div></th>
+                <th><div class="cell">版式</div></th>
+                <th><div class="cell">提交人 / 时间</div></th>
+                <th><div class="cell">操作</div></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="row in tableRows" :key="row.id">
+                <td>
+                  <div class="cell">
+                    <div class="bt-title" :title="row.title">《{{ row.title }}》</div>
+                    <div class="bt-meta" :title="metaLine(row)">{{ metaLine(row) }}</div>
+                  </div>
+                </td>
+                <td><div class="cell" :title="row.categoryName || row.categoryCode">{{ row.categoryName || row.categoryCode || '—' }}</div></td>
+                <td><div class="cell"><span class="tag" :class="STATUS_TAG[row.status] || 'gray'">{{ statusText(row.status) }}</span></div></td>
+                <td>
+                  <div class="cell">
+                    <span v-if="row.pdfFileId" class="tag blue">已挂载</span>
+                    <span v-else class="tag gray">未挂载</span>
+                  </div>
+                </td>
+                <!-- 【P10 2026-11-23】参与 = 人数/条数 -->
+                <td><div class="cell"><span class="num" title="参与人数 / 已发布内容条数">{{ row.memberCount || 0 }} 人/{{ row.postCount || 0 }} 条</span></div></td>
+                <td><div class="cell"><span class="tag" :class="row.layoutType === 'text' ? 'cyan' : 'gray'">{{ layoutLabel(row.layoutType) }}</span></div></td>
+                <td>
+                  <div class="cell">
+                    <div class="bt-line" :title="row.submitterName">{{ row.submitterName || '—' }}</div>
+                    <div class="bt-meta">{{ formatDate(row.createdAt) }}</div>
+                  </div>
+                </td>
+                <td>
+                  <div class="cell acts-cell">
+                    <template v-if="userStore.hasPermission('fabushi:book:manage')">
+                      <el-button v-if="row.status === 'pending'" link type="primary" @click="doApprove(row)">通过</el-button>
+                      <el-button v-if="row.status === 'pending'" link type="warning" @click="openReject(row)">驳回</el-button>
+                      <el-button v-if="row.status === 'approved'" link type="primary" @click="openPdf(row)">{{ row.pdfFileId ? '换PDF' : '挂PDF' }}</el-button>
+                      <el-button v-if="row.status === 'approved'" link type="primary" @click="openSections(row)">章节</el-button>
+                      <el-button v-if="row.status === 'approved'" link type="primary" @click="openLayout(row)">版式</el-button>
+                      <el-button v-if="row.status === 'approved'" link type="danger" @click="doDisable(row)">停用</el-button>
+                      <el-button v-if="row.status === 'rejected'" link type="primary" @click="showRejectReason(row)">查看原因</el-button>
+                      <el-button link type="danger" @click="doDelete(row)">删除</el-button>
+                    </template>
+                    <span v-else class="muted">只读</span>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <div v-if="!loading && !tableRows.length" class="empty">当前筛选暂无书目</div>
+        </div>
         <div class="pager">
-          <span>共 {{ total }} 条</span>
-          <el-pagination v-model:current-page="query.current" v-model:page-size="query.size" :total="total" :page-sizes="pageSizes" layout="sizes, prev, pager, next" size="small" @change="loadData" />
+          <el-pagination
+            v-model:current-page="query.current"
+            v-model:page-size="query.size"
+            :total="tableTotal"
+            :page-sizes="pageSizes"
+            layout="total, sizes, prev, pager, next"
+            size="small"
+            @change="loadData"
+          />
         </div>
       </section>
     </div>
 
-    <el-dialog v-model="submitVisible" title="提交书目" width="480px">
+    <el-dialog v-model="submitVisible" title="提交书目" width="480px" class="fx-dialog">
       <el-form label-width="70px">
         <el-form-item label="类别" required>
           <el-select v-model="submitForm.categoryCode" placeholder="选择类别" style="width: 100%">
@@ -103,20 +183,24 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="submitVisible = false">取消</el-button>
-        <el-button type="primary" :loading="actionLoading" @click="doSubmit">提交</el-button>
+        <div class="dialog-footer">
+          <el-button @click="submitVisible = false">取消</el-button>
+          <el-button type="primary" :loading="actionLoading" @click="doSubmit">提交</el-button>
+        </div>
       </template>
     </el-dialog>
 
-    <el-dialog v-model="rejectVisible" title="驳回书目" width="420px">
+    <el-dialog v-model="rejectVisible" title="驳回书目" width="420px" class="fx-dialog">
       <el-input v-model="rejectReason" type="textarea" :rows="3" placeholder="驳回原因（必填，留痕）" />
       <template #footer>
-        <el-button @click="rejectVisible = null">取消</el-button>
-        <el-button type="warning" :loading="actionLoading" @click="doReject">确认驳回</el-button>
+        <div class="dialog-footer">
+          <el-button @click="rejectVisible = null">取消</el-button>
+          <el-button type="warning" :loading="actionLoading" @click="doReject">确认驳回</el-button>
+        </div>
       </template>
     </el-dialog>
 
-    <el-dialog v-model="sectionVisible" title="章节结构" width="560px">
+    <el-dialog v-model="sectionVisible" title="章节结构" width="560px" class="fx-dialog">
       <div class="section-head">
         <span>{{ sectionBook?.title }} · 序 / 部分 / 章 / 节</span>
         <div class="section-add">
@@ -135,7 +219,7 @@
       <div v-if="!sections.length" class="empty">暂无章节，先添加序/部分/章/节</div>
     </el-dialog>
 
-    <el-dialog v-model="pdfVisible" title="挂载电子书 PDF" width="460px">
+    <el-dialog v-model="pdfVisible" title="挂载电子书 PDF" width="460px" class="fx-dialog">
       <div class="upload-dropzone" @click="pickPdf">
         {{ pdfUploading ? '上传中…' : '点击选择 PDF（≤100MB，上传到法布施空间）' }}
         <input ref="pdfInputRef" type="file" accept=".pdf" style="display:none" @change="handlePdfChosen" />
@@ -144,15 +228,17 @@
     </el-dialog>
 
     <!-- 【D19 切片 7】管理员确认版式标记：文本版/影印版（自动检测文本层留批2） -->
-    <el-dialog v-model="layoutVisible" title="书目版式标记" width="420px">
+    <el-dialog v-model="layoutVisible" title="书目版式标记" width="420px" class="fx-dialog">
       <p class="pdf-hint">当前书目：{{ layoutVisible ? layoutVisible.title : '' }}</p>
       <el-radio-group v-model="layoutForm.layoutType">
         <el-radio-button v-for="item in layoutTypes" :key="item.value" :value="item.value">{{ item.label }}</el-radio-button>
       </el-radio-group>
       <p class="pdf-hint">{{ (layoutTypes.find((x) => x.value === layoutForm.layoutType) || {}).hint }}</p>
       <template #footer>
-        <el-button @click="layoutVisible = null">取消</el-button>
-        <el-button type="primary" :loading="actionLoading" @click="doSaveLayout">保存标记</el-button>
+        <div class="dialog-footer">
+          <el-button @click="layoutVisible = null">取消</el-button>
+          <el-button type="primary" :loading="actionLoading" @click="doSaveLayout">保存标记</el-button>
+        </div>
       </template>
     </el-dialog>
   </div>
@@ -160,7 +246,13 @@
 
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+// 【2026-11-26】ElIcon 在这里显式引入、模板里写 <ElIcon>：挂载冒烟测试（paged-list-mount.spec.js）里没有全局注册，
+// 模板自动解析的 <el-icon> 会报 “Failed to resolve component”。
+// 同一个原因，右侧表格照原型用手写的 <table>：显式引入 ElTable 虽然能过测试，但显式引入不走模板的按需解析，
+// 样式得手动 import 'element-plus/es/components/table/style/css'，而 vitest 加载不了它（Unknown file extension ".css"），
+// 会让那个冒烟测试整个挂掉；不补样式，生产上这张表就是裸的。
+import { ElMessage, ElMessageBox, ElIcon } from 'element-plus'
+import { Search, Reading } from '@element-plus/icons-vue'
 import request from '@/utils/request'
 import { useUserStore } from '@/store/user'
 import { getDictData } from '@/api/system'
@@ -171,17 +263,21 @@ import {
 } from '@/api/fabushi'
 import { FABUSHI_LAYOUT_TYPES, layoutLabel } from '@/utils/fabushi-reader-settings'
 import { inspectPdfFile } from '@/utils/pdf-inspect'
+import '@/assets/fabushi-v8.css'
 
 const userStore = useUserStore()
 const loading = ref(false)
 const actionLoading = ref(false)
 const books = ref([])
 const allBooks = ref([])
+const allTotal = ref(0)
 const total = ref(0)
 const categories = ref([])
 const editions = ref([])
 const pageSizes = [10, 20, 50]
 const query = ref({ status: 'all', categoryCode: '', keyword: '', current: 1, size: 10 })
+// 电子书筛选（all / yes / no）。不放进 query：query 会原样作为接口入参，而书目分页接口没有这个入参
+const ebookFilter = ref('all')
 const leftKeyword = ref('')
 const selectedBookId = ref(null)
 const submitVisible = ref(false)
@@ -205,17 +301,80 @@ const categoryCounts = computed(() => allBooks.value.reduce((map, book) => {
 const pendingCount = computed(() => allBooks.value.filter((book) => book.status === 'pending').length)
 const categoryName = computed(() => categories.value.find((c) => c.dictValue === query.value.categoryCode)?.dictLabel || '')
 const selectedBookTitle = computed(() => allBooks.value.find((book) => book.id === selectedBookId.value)?.title || '')
-const leftBooks = computed(() => allBooks.value
-  .filter((book) => (!query.value.categoryCode || book.categoryCode === query.value.categoryCode))
-  .filter((book) => !leftKeyword.value || String(book.title).includes(leftKeyword.value)))
+// 【P10 2026-11-26】左栏按书名去重（原型：左列=书目；同一书名的多个版本在右表里分别管理）。
+// 一行代表一个书名，带 versionCount；id 取该书名下的第一个版本，选中后右表按书名查询，各版本都会列出来。
+const leftBooks = computed(() => {
+  const rows = []
+  const byTitle = new Map()
+  for (const book of allBooks.value) {
+    if (query.value.categoryCode && book.categoryCode !== query.value.categoryCode) continue
+    const title = String(book.title || '')
+    if (leftKeyword.value && !title.includes(leftKeyword.value)) continue
+    const hit = byTitle.get(title)
+    if (hit) {
+      hit.versionCount += 1
+    } else {
+      const row = { ...book, versionCount: 1 }
+      byTitle.set(title, row)
+      rows.push(row)
+    }
+  }
+  return rows
+})
 const { current: leftPage, size: leftSize, totalPages: leftTotalPages, paged: pagedLeftBooks, reset: resetLeftPage } = usePagedList(leftBooks, { pageSize: 10 })
 watch([leftKeyword, () => query.value.categoryCode], resetLeftPage)
 
-const statusMap = { approved: '已通过', pending: '待审核', rejected: '已驳回', disabled: '已停用' }
+/**
+ * 【P10 2026-11-26】电子书筛选：书目分页接口（GET /fabushi/books）只收 categoryCode / keyword / status / current / size，
+ * 没有电子书入参。所以不往接口加参数，只在前端已有的全量书目（allBooks）上筛，口径与接口一致
+ * （类别相等、状态相等或“全部”、书名包含关键词、按提交时间倒序），再在前端分页。
+ * allBooks 一次最多拉 200 本，超出时工具条照实提示。
+ */
+const ebookFiltered = computed(() => {
+  if (ebookFilter.value === 'all') return null
+  const kw = String(query.value.keyword || '').trim().toLowerCase()
+  const wantPdf = ebookFilter.value === 'yes'
+  return allBooks.value.filter((book) =>
+    (!query.value.categoryCode || book.categoryCode === query.value.categoryCode)
+    && (query.value.status === 'all' || book.status === query.value.status)
+    && (!kw || String(book.title || '').toLowerCase().includes(kw))
+    && (wantPdf ? Boolean(book.pdfFileId) : !book.pdfFileId))
+})
+// 右表的数据与总条数：不筛电子书时就是接口分页的结果；筛了就用上面这份前端结果
+const tableRows = computed(() => {
+  const list = ebookFiltered.value
+  if (!list) return books.value
+  const start = (query.value.current - 1) * query.value.size
+  return list.slice(start, start + query.value.size)
+})
+const tableTotal = computed(() => (ebookFiltered.value ? ebookFiltered.value.length : total.value))
+
+// 工具条上的“通过 N / 待审核 N”按当前范围计数：当前类别；左栏选了书名时只数这个书名下的各版本
+const scopeBooks = computed(() => allBooks.value
+  .filter((book) => !query.value.categoryCode || book.categoryCode === query.value.categoryCode)
+  .filter((book) => !selectedBookId.value || book.title === selectedBookTitle.value))
+const toolbarTitle = computed(() => {
+  const scope = categoryName.value || '全部'
+  if (selectedBookId.value) return `${scope} · 《${selectedBookTitle.value}》版本治理`
+  if (query.value.keyword) return `${scope} · “${query.value.keyword}”的搜索结果`
+  return `${scope} · 书目治理`
+})
+
+const statusMap = { approved: '通过', pending: '待审核', rejected: '已驳回', disabled: '已停用' }
+const STATUS_TAG = { approved: 'green', pending: 'orange', rejected: 'red', disabled: 'gray' }
 const statusText = (s) => statusMap[s] || s
 const formatDate = (value) => (value ? String(value).replace('T', ' ').slice(0, 10) : '—')
 const editionLabel = (value) => editions.value.find((e) => e.dictValue === value)?.dictLabel || value
-const statusCount = (status) => allBooks.value.filter((book) => book.status === status).length
+const statusCount = (status) => scopeBooks.value.filter((book) => book.status === status).length
+/** 书名下面的小字：作者 · 出版社 · 版本 · 页数（与认知广场按书浏览、书目浏览同口径）；都没有时如实写“未标注版本”。 */
+const metaLine = (row) => {
+  const parts = [
+    row.author, row.publisher,
+    row.editionType ? editionLabel(row.editionType) : '',
+    row.pages ? `${row.pages} 页` : '',
+  ].filter(Boolean)
+  return parts.length ? parts.join(' · ') : '未标注版本'
+}
 
 const loadDicts = async () => {
   const [cats, eds] = await Promise.all([getDictData('fabushi_category'), getDictData('fabushi_edition_type')])
@@ -226,6 +385,7 @@ const loadDicts = async () => {
 const loadAll = async () => {
   const { data } = await getFabushiBooks({ status: 'all', current: 1, size: 200 })
   allBooks.value = (data && data.records) || []
+  allTotal.value = Number(data && data.total) || 0
 }
 
 const loadData = async () => {
@@ -239,7 +399,12 @@ const loadData = async () => {
 }
 
 const onFilterChange = () => { query.value.current = 1; selectedBookId.value = null; loadData() }
-const resetFilters = () => { query.value = { status: 'all', categoryCode: '', keyword: '', current: 1, size: 10 }; selectedBookId.value = null; loadData() }
+const resetFilters = () => {
+  query.value = { status: 'all', categoryCode: '', keyword: '', current: 1, size: 10 }
+  ebookFilter.value = 'all'
+  selectedBookId.value = null
+  loadData()
+}
 const selectCategory = (value) => { query.value.categoryCode = value; query.value.current = 1; selectedBookId.value = null; query.value.keyword = ''; loadData() }
 const selectBook = (book) => { selectedBookId.value = book.id; query.value.keyword = book.title; query.value.current = 1; loadData() }
 const showPending = () => { query.value.status = 'pending'; query.value.current = 1; loadData() }
@@ -393,56 +558,83 @@ onMounted(async () => { await Promise.all([loadDicts(), loadAll()]); await loadD
 </script>
 
 <style scoped>
-.fabushi-book { display: flex; flex-direction: column; gap: 10px; }
-.caps { display: flex; gap: 4px; padding: 4px; overflow-x: auto; border-radius: var(--radius-md); background: var(--el-fill-color-light); }
-.cap { flex: 0 0 auto; padding: 7px 10px; border: 0; border-radius: var(--radius-sm); color: var(--text-secondary); background: transparent; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; }
-.cap.active { color: var(--el-color-white); background: var(--hero-gradient); }
-.cap .n { margin-left: 3px; padding: 1px 5px; border-radius: var(--radius-pill); background: var(--el-fill-color-darker); font-size: 10px; }
-.cap.active .n { background: rgba(255, 255, 255, .25); }
-.filter { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; padding: 9px 12px; border: 1px solid var(--border-light); border-radius: var(--radius-md); background: var(--el-bg-color); }
-.fl { color: var(--text-secondary); font-size: 12px; }
-.spacer { flex: 1; }
-.pending-btn { color: var(--el-color-warning-dark-2); border-color: var(--el-color-warning-light-5); background: var(--el-color-warning-light-9); }
-.book-layout { display: grid; grid-template-columns: 256px minmax(0, 1fr); gap: 12px; align-items: start; }
-.sub-panel { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--border-light); border-radius: var(--radius-md); background: var(--el-bg-color); }
-.sub-title { color: var(--text-primary); font-size: 13px; font-weight: 700; }
-.sub-row { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 8px 9px; border: 0; border-radius: var(--radius-sm); color: var(--text-secondary); background: transparent; font-size: 12px; text-align: left; cursor: pointer; }
-.sub-row:hover { background: var(--el-fill-color-light); }
-.sub-row.active { color: var(--primary-color); background: var(--el-color-primary-light-9); font-weight: 700; }
-.sub-row .cnt { color: var(--text-muted); font-size: 10px; }
-.sub-empty { padding: 10px 0; color: var(--text-placeholder); font-size: 11px; }
+/* 通用件（页签 .cat-tabs、筛选条 .filter-card、标签 .tag、左侧子面板 .sub-*、表格卡 .table-card/.toolbar/.pager、
+   弹窗 .fx-dialog、Element Plus 的尺寸）在 assets/fabushi-v8.css；这里只写 P10 自己的版式，颜色一律用令牌。 */
+
+/* 类别多到一行放不下时，页签条横向滚动，而不是被裁掉 */
+.fabushi-book > .cat-tabs { overflow-x: auto; }
+
+/* 待审核入口有待审书目时用原型的橙色提醒 */
+.pending-btn {
+  --el-button-text-color: var(--fx-orange);
+  --el-button-bg-color: var(--fx-orange-bg);
+  --el-button-border-color: var(--el-color-warning-light-5);
+  --el-button-hover-text-color: var(--primary-color);
+  --el-button-hover-bg-color: var(--el-color-primary-light-9);
+  --el-button-hover-border-color: var(--primary-color);
+}
+
+/* 主体：左书目面板 + 右表格卡，两栏等高（原型的 .main-layout） */
+.main-layout { display: flex; gap: 10px; }
+/* 书目列表按内容定高：分页条紧跟在列表下面；只有脚注钉在面板底部（原型的 margin-top:auto） */
+.sub-list { margin: 0 -12px; }
+.sub-empty { margin: 0; padding: 12px; color: var(--text-placeholder); font-size: 11.5px; }
 .sub-pager { display: flex; justify-content: center; margin: 6px 0; }
-.sub-note { margin-top: 4px; color: var(--text-placeholder); font-size: 10.5px; line-height: 1.6; }
-.table-panel { overflow: hidden; border: 1px solid var(--border-light); border-radius: var(--radius-md); background: var(--el-bg-color); }
-.table-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--border-light); }
-.tt { color: var(--text-primary); font-size: 13px; font-weight: 700; }
-.head-hint { color: var(--text-placeholder); font-size: 10.5px; }
-.tag { padding: 1px 6px; border-radius: var(--radius-sm); font-size: 10px; }
-.tag.green { color: var(--el-color-success); background: var(--el-color-success-light-9); }
-.tag.orange { color: var(--el-color-warning-dark-2); background: var(--el-color-warning-light-9); }
-.tag.red { color: var(--el-color-danger); background: var(--el-color-danger-light-9); }
-.data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-.data-table th { padding: 8px 12px; color: var(--text-placeholder); background: var(--el-fill-color-lighter); font-size: 11px; font-weight: 500; text-align: left; }
-.data-table td { padding: 9px 12px; color: var(--text-secondary); border-top: 1px solid var(--border-light); }
-.title-cell { color: var(--text-primary) !important; font-weight: 600; }
-.status { padding: 1px 6px; border-radius: var(--radius-sm); font-size: 10px; }
-.status.approved { color: var(--el-color-success); background: var(--el-color-success-light-9); }
-.status.pending { color: var(--el-color-warning-dark-2); background: var(--el-color-warning-light-9); }
-.status.rejected { color: var(--el-color-danger); background: var(--el-color-danger-light-9); }
-.status.disabled { color: var(--text-muted); background: var(--el-fill-color-light); }
-.pdf-tag { color: var(--el-color-success); font-size: 11px; }
-.layout-tag { padding: 1px 7px; border-radius: 999px; font-size: 10px; }
-.layout-tag.text { color: #2d5a4a; background: #e4efe6; }
-.layout-tag.scan { color: #a67c52; background: #f4ead9; }
-.muted { color: var(--text-placeholder); font-size: 11px; }
-.actions { white-space: nowrap; }
-.empty { padding: 24px; color: var(--text-placeholder); text-align: center; font-size: 12px; }
-.pager { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-top: 1px solid var(--border-light); color: var(--text-muted); font-size: 11px; }
+/* 脚注落在面板底部（原型的 margin-top:auto） */
+.sub-panel .sub-foot { margin-top: auto; }
+
+.table-card { flex: 1; }
+
+/* 右侧表格：手写的 <table>，样子照 Element Plus 在法布施页面里的那张表（表头底色、灰字、行线）。
+   固定布局 + 每列定宽：短词（状态、电子书、参与、版式）各占一行，不再折成几行；表格最窄 814px，再窄就横向滚动。 */
+.table-scroll { overflow-x: auto; }
+.data-table {
+  width: 100%; min-width: 814px; border-spacing: 0; border-collapse: separate; table-layout: fixed;
+  color: var(--text-primary); font-size: 12.5px;
+}
+.data-table th, .data-table td { padding: 8px 0; border-bottom: 1px solid var(--fx-line-soft); text-align: left; vertical-align: middle; }
+.data-table th { background: var(--fx-table-head); color: var(--fx-pill-gray); font-weight: 600; }
+.data-table tbody tr:last-child td { border-bottom: 0; }
+.data-table tbody tr:hover td { background: var(--fx-table-head); }
+.c-cat { width: 96px; }
+.c-status { width: 72px; }
+.c-ebook { width: 72px; }
+.c-join { width: 100px; }
+.c-layout { width: 72px; }
+.c-submitter { width: 92px; }
+.c-acts { width: 160px; }
+/* 原型这张表是 .tbl-fit（左右内边距 9px），比通用的 12px 紧一点，八列才放得下 */
+.cell { padding: 0 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 书名一行、作者 · 版本 · 页数一行小字；提交人一行、时间一行小字。超出省略，不折行 */
+.bt-title, .bt-line, .bt-meta, .num { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bt-title { color: var(--text-primary); font-weight: 700; line-height: 20px; }
+.bt-line { color: var(--text-primary); line-height: 20px; }
+.bt-meta { color: var(--text-muted); font-size: 11px; line-height: 18px; }
+/* 参与人数 / 条数：不换行。inline-block + overflow:hidden 会让所在行高出几像素, 所以贴底对齐 */
+.num { display: inline-block; max-width: 100%; vertical-align: bottom; color: var(--text-primary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* 操作列：全部动作都摆出来（一个都不少），一行放不下就在列内换行（两行文字按钮 = 书名列两行的高度，行高保持一致） */
+.acts-cell { display: flex; flex-wrap: wrap; gap: 0 6px; }
+.acts-cell :deep(.el-button + .el-button) { margin-left: 0; }
+.acts-cell .muted { color: var(--text-placeholder); font-size: 11.5px; }
+
+/* 显式引入的 ElIcon 不经模板自动解析，Element Plus 给 .el-icon 的尺寸样式不会跟着带进来：这里自己定尺寸 */
+.search-ico, .sub-ico { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 1em; height: 1em; font-size: 14px; }
+.search-ico { color: var(--text-placeholder); }
+.sub-ico { color: var(--text-muted); }
+.sub-row.active .sub-ico { color: inherit; }
+.search-ico :deep(svg), .sub-ico :deep(svg) { width: 1em; height: 1em; }
+
+/* 表格卡比表格高时，分页条留在卡片底部（原型的样子） */
+.table-card .pager { margin-top: auto; }
+
 .upload-dropzone { padding: 28px; border: 1px dashed var(--el-border-color); border-radius: var(--radius-sm); color: var(--text-secondary); text-align: center; cursor: pointer; }
-.section-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; color: var(--text-secondary); font-size: 12px; }
+.section-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; color: var(--text-secondary); font-size: 12.5px; }
 .section-add { display: flex; gap: 6px; }
 .section-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border-light); }
-.section-level { width: 38px; color: var(--primary-color); font-size: 11px; }
-.section-title-cell { flex: 1; color: var(--text-primary); font-size: 12px; }
-.pdf-hint { margin-top: 8px; color: var(--text-muted); font-size: 12px; }
+.section-level { width: 38px; color: var(--primary-color); font-size: 11.5px; }
+.section-title-cell { flex: 1; color: var(--text-primary); font-size: 12.5px; }
+.empty { padding: 24px; color: var(--text-placeholder); text-align: center; font-size: 12.5px; }
+.pdf-hint { margin: 8px 0 0; color: var(--text-muted); font-size: 12.5px; }
 </style>

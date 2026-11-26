@@ -1,0 +1,263 @@
+/* ============================================================================
+   法布施（PC）公共样式 —— 照 PC 原型 v8（docs/prototypes/fabushi_pc_proto_v8.html）的通用部分搬过来
+   2026-11-26，用户裁决“PC 端按最新的原型来做”。
+
+   · 每个法布施页面的根节点带 .fx-page；这里的规则一律以 .fx- 开头（.fx-page / .fx-dialog …），
+     不会波及其它模块。契约见 views/fabushi/fabushi-v8-layout.spec.js。
+   · 类名沿用原型（cat-tabs / filter-card / side-card / tag / done-chip / ver-chip …），方便和原型逐条对照。
+   · 颜色：原型就是应用默认的设计令牌（--primary-color #1d4ed8 等），所以这里不再覆盖主色；
+     只补原型里有、应用令牌里没有的几个语义色（绿 / 橙 / 青 / 玫红）。
+   · 某一屏专用的版式写在各自视图的 <style scoped> 里，不放在这里。
+   原型里给评审看的标注（D 编号、权限码、“演示”之类）不是界面文案，各视图不会把它们显示给使用者。
+   ============================================================================ */
+
+/* ---------- 令牌与页面骨架（原型 :root 的“应用骨架”一段 + .content） ---------- */
+.fx-page {
+  --fx-accent: #2563eb;
+  --fx-navy: var(--brand-navy);
+  --fx-green: #179050; --fx-green-bg: #e8f7ef;
+  --fx-orange: #c8761c; --fx-orange-bg: #fdf3e8;
+  --fx-amber: var(--chart-amber); --fx-amber-deep: var(--chart-amber-deep); --fx-amber-bg: #fffbeb; --fx-amber-line: #fde9c0;
+  --fx-cyan: #0e7490; --fx-cyan-bg: #ecfeff;
+  --fx-red: #e11d48; --fx-red-bg: #ffe9ee;
+  --fx-line: #eef0f3;
+  --fx-line-soft: #f1f3f6;
+  --fx-table-head: #f5f7fa;
+  --fx-track: #f0f2f5;
+  --fx-pill-gray: #909399;
+  --fx-pill-gray-bg: #f4f4f5;
+  --fx-r-lg: var(--radius-lg);
+  --fx-r-md: var(--radius-md);
+  --fx-r-sm: var(--radius-sm);
+  --fx-r-pill: var(--radius-pill);
+  /* Element Plus 在法布施页面里的尺寸：原型里按钮、输入框高 30px，圆角 10px；成功色是原型的绿、警示色是原型的橙 */
+  --el-component-size: 30px;
+  --el-border-radius-base: 10px;
+  --el-border-color: #e4e7ed;
+  --el-color-success: #179050; --el-color-success-light-3: #5db184; --el-color-success-light-5: #8bc8a8;
+  --el-color-success-light-7: #b9d8cb; --el-color-success-light-8: #d0e1dd; --el-color-success-light-9: #e8f7ef; --el-color-success-dark-2: #127340;
+  --el-color-warning: #c8761c; --el-color-warning-light-3: #d49668; --el-color-warning-light-5: #e3bb8e;
+  --el-color-warning-light-7: #f1dab3; --el-color-warning-light-8: #f8ead6; --el-color-warning-light-9: #fdf3e8; --el-color-warning-dark-2: #a05e16;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: left;
+}
+.fx-page > .spacer, .fx-page .spacer { flex: 1; }
+
+/* ---------- Element Plus 在法布施页面里的样子（对齐原型的字阶与尺寸） ---------- */
+/* 原型的按钮高 30px（小号 26px）、字 12.5px；Element Plus 默认是 32px，这里按原型的来（链接型按钮不设高） */
+.fx-page .el-button { height: 30px; padding: 0 14px; font-size: 12.5px; font-weight: 500; }
+.fx-page .el-button--small { height: 26px; padding: 0 11px; font-size: 11.5px; }
+.fx-page .el-button.is-link { height: auto; padding: 2px 6px; }
+.fx-page .el-input__inner, .fx-page .el-textarea__inner, .fx-page .el-select__placeholder,
+.fx-page .el-range-input, .fx-page .el-checkbox__label { font-size: 12.5px; }
+.fx-page .el-form-item__label { font-size: 12.5px; color: var(--text-secondary); }
+.fx-page .el-table { font-size: 12.5px; --el-table-header-bg-color: var(--fx-table-head); --el-table-row-hover-bg-color: #f5f7fa; }
+.fx-page .el-table th.el-table__cell { padding: 8px 0; color: var(--fx-pill-gray); font-weight: 600; }
+.fx-page .el-table td.el-table__cell { padding: 8px 0; }
+.fx-page .el-table .cell { padding: 0 12px; }
+.fx-page .el-table--small th.el-table__cell, .fx-page .el-table--small td.el-table__cell { padding: 7px 0; }
+.fx-page .el-pagination { --el-pagination-button-bg-color: transparent; --el-pagination-button-color: var(--text-secondary); font-size: 12px; }
+.fx-page .el-pager li.is-active { background: var(--primary-color); color: #fff; border-radius: 6px; min-width: 26px; }
+.fx-page .el-empty { padding: 28px 0; }
+
+/* ---------- 弹窗（原型 .modal）：发布器等；弹窗挂在 body 下，所以用 .fx-dialog 这个类来限定 ---------- */
+.fx-dialog.el-dialog { --el-dialog-border-radius: 12px; padding: 0; overflow: hidden; box-shadow: 0 12px 32px rgba(0, 0, 0, .25); }
+.fx-dialog .el-dialog__header { margin: 0; padding: 15px 20px; border-bottom: 1px solid var(--border-light); cursor: default; }
+.fx-dialog .el-dialog__title { color: var(--text-primary); font-size: 15px; font-weight: 700; }
+.fx-dialog .el-dialog__headerbtn { top: 0; width: 56px; height: 54px; }
+.fx-dialog .el-dialog__body { padding: 16px 20px; }
+.fx-dialog .el-dialog__footer { padding: 12px 20px; border-top: 1px solid var(--border-light); }
+.fx-dialog .el-dialog__footer .dialog-footer { display: flex; justify-content: flex-end; gap: 10px; }
+
+/* ---------- 胶囊页签（原型 .cat-tabs） ---------- */
+.fx-page .cat-tabs { display: flex; flex-shrink: 0; padding: 4px; overflow: hidden; border-radius: 12px; background: var(--fx-track); }
+.fx-page .cat-tab {
+  display: flex; flex: 1; align-items: center; justify-content: center; gap: 6px; padding: 9px 6px;
+  border: 0; border-radius: var(--fx-r-sm); background: transparent; color: var(--text-secondary);
+  font-size: 13px; font-weight: 500; white-space: nowrap; cursor: pointer; user-select: none; font-family: inherit;
+}
+.fx-page .cat-tab:hover { color: var(--primary-color); }
+.fx-page .cat-tab.active { color: #fff; background: var(--hero-gradient); box-shadow: 0 2px 8px rgba(29, 78, 216, .28); font-weight: 700; }
+.fx-page .cat-tab .badge { padding: 1px 6px; border-radius: var(--fx-r-sm); background: rgba(0, 0, 0, .08); font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.fx-page .cat-tab.active .badge { background: rgba(255, 255, 255, .25); }
+.fx-page .cat-tab .badge.hot { color: var(--el-color-danger); background: var(--el-color-danger-light-9); }
+.fx-page .cat-tab.active .badge.hot { color: #fff; background: rgba(255, 255, 255, .25); }
+
+/* ---------- 筛选条（原型 .filter-card） ---------- */
+.fx-page .filter-card {
+  display: flex; align-items: center; flex-wrap: wrap; flex-shrink: 0; gap: 10px;
+  padding: 12px 16px; border-radius: var(--fx-r-md); background: #fff; box-shadow: var(--shadow-card);
+}
+.fx-page .fl { color: var(--text-secondary); font-size: 13px; }
+.fx-page .filter-note { color: var(--text-muted); font-size: 11.5px; }
+
+/* ---------- 标签 / 状态章（原型 .tag / .chip2 / .done-chip / .todo-chip） ---------- */
+.fx-page .tag { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 11px; line-height: 1.5; white-space: nowrap; }
+.fx-page .tag.blue, .fx-page .tag.songdu { color: var(--primary-color); background: var(--el-color-primary-light-9); }
+.fx-page .tag.gray { color: var(--fx-pill-gray); background: var(--fx-pill-gray-bg); }
+.fx-page .tag.orange, .fx-page .tag.suishi { color: var(--fx-orange); background: var(--fx-orange-bg); }
+.fx-page .tag.green, .fx-page .tag.zaidu { color: var(--fx-green); background: var(--fx-green-bg); }
+.fx-page .tag.red { color: var(--el-color-danger); background: var(--el-color-danger-light-9); }
+.fx-page .tag.cyan { color: var(--fx-cyan); background: var(--fx-cyan-bg); }
+.fx-page .chip2 {
+  display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border: 1px solid var(--fx-amber-line);
+  border-radius: var(--fx-r-pill); background: var(--fx-amber-bg); color: var(--fx-amber-deep); font-size: 11px; font-weight: 700; white-space: nowrap;
+}
+.fx-page .chip2.blue { border-color: transparent; background: var(--el-color-primary-light-9); color: var(--primary-color); }
+.fx-page .done-chip, .fx-page .todo-chip {
+  display: inline-flex; align-items: center; gap: 4px; padding: 2px 9px; border: 0; border-radius: var(--fx-r-pill);
+  font-size: 11px; font-weight: 700; white-space: nowrap; font-family: inherit;
+}
+.fx-page .done-chip { background: var(--fx-green-bg); color: var(--fx-green); }
+.fx-page .todo-chip { background: var(--fx-amber-bg); color: var(--fx-amber-deep); }
+.fx-page button.todo-chip, .fx-page button.done-chip { cursor: pointer; }
+.fx-page button.todo-chip:hover { box-shadow: 0 0 0 1px var(--fx-amber) inset; }
+.fx-page .badge-new { flex-shrink: 0; padding: 1px 6px; border-radius: 4px; background: var(--fx-amber-bg); color: var(--fx-amber-deep); font-size: 10px; font-weight: 700; }
+.fx-page .em { font-weight: 700; }
+.fx-page .sub2 { margin-top: 2px; color: var(--fx-pill-gray); font-size: 11px; }
+.fx-page .read-state { display: inline-flex; align-items: center; gap: 6px; color: var(--fx-pill-gray); font-size: 11px; }
+.fx-page .read-state .read-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--fx-track); }
+.fx-page .read-state.unread { color: var(--fx-red); font-weight: 700; }
+.fx-page .read-state.unread .read-dot { position: relative; background: var(--fx-red-bg); box-shadow: 0 0 0 3px rgba(225, 29, 72, .12); }
+.fx-page .read-state.unread .read-dot::after { content: ""; position: absolute; left: 1px; top: 1px; width: 5px; height: 5px; border-radius: 50%; background: var(--fx-red); }
+
+/* ---------- 分段开关（原型 .seg） ---------- */
+.fx-page .seg { display: inline-flex; padding: 3px; border-radius: var(--fx-r-md); background: var(--fx-track); }
+.fx-page .seg-item {
+  padding: 4px 14px; border: 0; border-radius: 7px; background: transparent; color: var(--text-secondary);
+  font-size: 12px; font-weight: 600; line-height: 17px; cursor: pointer; user-select: none; font-family: inherit;
+}
+.fx-page .seg-item.active { background: var(--text-primary); color: #fff; }
+
+/* ---------- 左侧子面板（原型 .sub-panel / .sub-title / .sub-row） ---------- */
+.fx-page .sub-panel {
+  display: flex; flex-direction: column; flex-shrink: 0; width: 210px; padding: 12px;
+  border-radius: var(--fx-r-md); background: #fff; box-shadow: var(--shadow-card);
+}
+.fx-page .sub-title, .fx-page .side-title, .fx-page .panel-title { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; color: var(--text-primary); font-size: 14px; font-weight: 700; }
+.fx-page .sub-title::before, .fx-page .side-title::before, .fx-page .panel-title::before { content: ""; flex-shrink: 0; width: 4px; height: 14px; border-radius: 2px; background: var(--primary-color); }
+.fx-page .sub-title .sub2, .fx-page .side-title .sub2 { margin: 0 0 0 auto; font-weight: 400; }
+.fx-page .sub-row {
+  display: flex; align-items: center; gap: 8px; padding: 9px 10px; border: 0; border-radius: 6px;
+  background: transparent; color: var(--text-secondary); font-size: 13px; text-align: left; cursor: pointer; font-family: inherit;
+}
+.fx-page .sub-row:hover { background: var(--fx-track); }
+.fx-page .sub-row.active { background: var(--el-color-primary-light-9); color: var(--primary-color); font-weight: 700; }
+.fx-page .sub-row .cnt { margin-left: auto; padding: 1px 7px; border-radius: var(--fx-r-pill); background: var(--fx-pill-gray-bg); color: var(--fx-pill-gray); font-size: 11px; font-weight: 400; font-variant-numeric: tabular-nums; }
+.fx-page .sub-row.active .cnt { background: rgba(29, 78, 216, .15); color: var(--primary-color); }
+.fx-page .sub-row .sub-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fx-page .sub-foot { margin: 8px 0 0; padding-top: 8px; border-top: 1px dashed var(--border-light); color: var(--text-placeholder); font-size: 10.5px; line-height: 1.6; }
+
+/* ---------- 卡片容器 / 表格卡（原型 .table-card / .toolbar / .pager） ---------- */
+.fx-page .panel { border-radius: var(--fx-r-md); background: #fff; box-shadow: var(--shadow-card); }
+.fx-page .panel-pad { padding: 14px 16px; }
+.fx-page .table-card { display: flex; flex-direction: column; min-width: 0; overflow: hidden; border-radius: var(--fx-r-md); background: #fff; box-shadow: var(--shadow-card); }
+.fx-page .toolbar { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid var(--fx-line-soft); }
+.fx-page .toolbar .tt { color: var(--text-primary); font-size: 14px; font-weight: 700; }
+.fx-page .toolbar .tt-sub { color: var(--text-muted); font-size: 11.5px; }
+.fx-page .pager { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 9px 16px; border-top: 1px solid var(--fx-line-soft); color: var(--text-secondary); font-size: 12px; }
+
+/* ---------- 右栏卡片（原型 .side-col / .side-card / .side-row） ---------- */
+.fx-page .side-col { display: flex; flex-direction: column; flex-shrink: 0; gap: 10px; }
+.fx-page .side-card { padding: 13px 15px; border-radius: var(--fx-r-md); background: #fff; box-shadow: var(--shadow-card); }
+.fx-page .side-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 0; border-top: 1px solid var(--fx-line-soft); color: var(--text-secondary); font-size: 12.5px; }
+.fx-page .side-row:first-of-type { border-top: 0; }
+.fx-page .side-row b { color: var(--text-primary); font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.fx-page .side-row b.on { color: var(--fx-green); }
+.fx-page .side-row b.off { color: var(--fx-pill-gray); }
+.fx-page .side-note { margin: 6px 0 0; color: var(--text-placeholder); font-size: 11px; line-height: 1.6; }
+.fx-page .side-link { padding: 0; margin-top: 4px; font-size: 11.5px; }
+
+/* ---------- 书脊（原型 .book-spine）：没有封面图的书都用它代替 ---------- */
+/* 左右不留内边距：书脊 44px 宽、字 10px，书名取前 4 个字正好一行（原型的书脊也是一行） */
+.fx-page .book-spine {
+  position: relative; display: flex; align-items: flex-end; justify-content: center; flex-shrink: 0;
+  width: 44px; height: 58px; padding: 0 0 5px; overflow: hidden; border-radius: 6px; white-space: nowrap;
+  background: linear-gradient(150deg, var(--fx-navy), var(--primary-color)); box-shadow: 0 5px 10px rgba(35, 57, 96, .2);
+  color: #fff; font-size: 10px; font-weight: 700; line-height: 1.2; text-align: center;
+}
+.fx-page .book-spine::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: rgba(255, 255, 255, .3); }
+.fx-page .rec-book { display: flex; align-items: center; gap: 11px; padding-top: 4px; }
+.fx-page .rec-main { flex: 1; min-width: 0; }
+.fx-page .rec-title { color: var(--text-primary); font-size: 13.5px; font-weight: 700; }
+.fx-page .rec-meta { margin-top: 3px; color: var(--text-muted); font-size: 11px; }
+.fx-page .rec-acts { display: flex; gap: 8px; margin-top: 8px; }
+.fx-page .rec-acts .el-button { flex: 1; margin-left: 0; }
+.fx-page .bnum { color: var(--text-primary); font-size: var(--font-num-hero); font-weight: 800; font-variant-numeric: tabular-nums; }
+.fx-page .bnum i { margin-left: 3px; color: var(--fx-pill-gray); font-size: 12px; font-style: normal; font-weight: 600; }
+
+/* ---------- 版本链按钮（原型 .ver-chip） ---------- */
+.fx-page .ver-chip {
+  display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 9px; border: 1px solid var(--border-light);
+  border-radius: var(--fx-r-pill); background: #fff; color: var(--text-secondary); font-size: 11px; cursor: pointer; font-family: inherit;
+}
+.fx-page .ver-chip:hover { border-color: var(--primary-color); color: var(--primary-color); }
+.fx-page .ver-chip.active { border-color: var(--primary-color); background: var(--el-color-primary-light-9); color: var(--primary-color); font-weight: 700; }
+
+/* ---------- 我的觉醒：开关行 / 阅读日历（原型 .set-row / .cal-grid） ---------- */
+.fx-page .set-row { display: flex; align-items: center; justify-content: space-between; gap: 9px; min-height: 36px; border-top: 1px solid var(--fx-line-soft); color: var(--text-secondary); font-size: 12.5px; }
+.fx-page .set-row:first-of-type { border-top: 0; }
+.fx-page .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.fx-page .cal-cell { display: flex; align-items: center; justify-content: center; height: 22px; border-radius: 6px; background: var(--fx-table-head); color: var(--text-placeholder); font-size: 9.5px; }
+.fx-page .cal-cell.hd { background: transparent; color: var(--fx-pill-gray); font-size: 9px; }
+.fx-page .cal-cell.done { background: var(--fx-green-bg); color: var(--fx-green); font-weight: 800; }
+.fx-page .cal-cell.today { background: var(--primary-color); color: #fff; font-weight: 800; }
+.fx-page .cal-cell.blank { background: transparent; }
+
+/* ---------- 统计（原型 .kcards / .kcard2 / .hbar-* / .chart） ---------- */
+.fx-page .kcards { display: grid; grid-template-columns: repeat(5, 1fr); flex-shrink: 0; gap: 12px; }
+.fx-page .kcard2 { position: relative; overflow: hidden; padding: 13px 15px 11px; border-radius: var(--fx-r-md); background: #fff; box-shadow: var(--shadow-card); }
+.fx-page .kcard2 .krow { display: flex; align-items: center; gap: 10px; }
+.fx-page .kicon { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 34px; height: 34px; border-radius: 10px; background: var(--hero-gradient); color: #fff; }
+.fx-page .kcard2 .kv2 { color: var(--text-primary); font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; }
+.fx-page .kcard2 .kv2 i { margin-left: 2px; color: var(--fx-pill-gray); font-size: 11px; font-style: normal; font-weight: 600; }
+.fx-page .kcard2 .kl2 { margin-top: 6px; color: var(--fx-pill-gray); font-size: 11px; }
+.fx-page .kcard2 .ktrend { margin-left: auto; padding: 2px 8px; border-radius: var(--fx-r-pill); background: var(--fx-green-bg); color: var(--fx-green); font-size: 10.5px; font-weight: 800; }
+.fx-page .kcard2 .ktrend.blue { background: var(--el-color-primary-light-9); color: var(--primary-color); }
+.fx-page .spark { display: flex; align-items: flex-end; gap: 3px; height: 22px; margin-top: 9px; }
+.fx-page .spark i { flex: 1; border-radius: 2px 2px 0 0; background: linear-gradient(180deg, #3e8df3, #b3d1f9); opacity: .85; }
+.fx-page .spark i:last-child { background: linear-gradient(180deg, var(--fx-amber), #fcd34d); }
+.fx-page .hbar-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
+.fx-page .hbar-lbl { width: 76px; color: var(--text-secondary); font-size: 12.5px; text-align: right; }
+.fx-page .hbar-track { flex: 1; height: 12px; overflow: hidden; border-radius: var(--fx-r-pill); background: var(--fx-track); }
+.fx-page .hbar-track i { display: block; height: 100%; border-radius: var(--fx-r-pill); background: linear-gradient(90deg, var(--fx-accent), #12b8cf); }
+.fx-page .hbar-val { width: 32px; color: var(--primary-color); font-size: 12.5px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.fx-page .rk2 { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 8px; background: var(--fx-track); color: var(--text-secondary); font-size: 12px; font-weight: 800; }
+.fx-page .rk2.gold { background: linear-gradient(135deg, #f59e0b, #fbbf24); color: #fff; }
+.fx-page .rk2.silver { background: linear-gradient(135deg, #64748b, #94a3b8); color: #fff; }
+.fx-page .rk2.bronze { background: linear-gradient(135deg, #b45309, #d97706); color: #fff; }
+.fx-page .rb { width: 100%; height: 7px; overflow: hidden; border-radius: var(--fx-r-pill); background: var(--fx-track); }
+.fx-page .rb i { display: block; height: 100%; border-radius: var(--fx-r-pill); background: linear-gradient(90deg, #3e8df3, var(--fx-accent)); }
+.fx-page .chart {
+  position: relative; display: flex; align-items: flex-end; gap: 6px; height: 92px; margin-top: 10px;
+  border-bottom: 1px solid var(--border-light);
+  background-image: repeating-linear-gradient(to top, transparent 0 22px, var(--fx-track) 22px 23px);
+}
+.fx-page .chart .bar { position: relative; flex: 1; min-height: 2px; border-radius: 4px 4px 0 0; background: linear-gradient(180deg, #3e8df3, #b3d1f9); }
+.fx-page .chart .bar.today { background: linear-gradient(180deg, var(--fx-amber), #fcd34d); }
+.fx-page .chart .bar .v { position: absolute; left: 50%; top: -16px; transform: translateX(-50%); color: var(--fx-amber-deep); font-size: 10px; font-weight: 800; }
+.fx-page .chart-x { display: flex; justify-content: space-between; margin-top: 6px; color: var(--fx-pill-gray); font-size: 10px; }
+
+/* ---------- 我的书架（原型 .shelf-* / .scell / .batch-bar） ---------- */
+.fx-page .shelf-hero { display: flex; align-items: center; flex-shrink: 0; gap: 14px; padding: 12px 16px; border-radius: var(--fx-r-md); background: #fff; box-shadow: var(--shadow-card); }
+.fx-page .shelf-hero .book-spine { width: 52px; height: 70px; }
+.fx-page .shelf-main { flex: 1; min-width: 0; }
+.fx-page .shelf-kicker { color: var(--text-placeholder); font-size: 11px; font-weight: 700; letter-spacing: 1px; }
+.fx-page .shelf-bookname { margin-top: 2px; color: var(--text-primary); font-size: 15px; font-weight: 800; }
+.fx-page .shelf-sub { margin-top: 3px; color: var(--text-muted); font-size: 11.5px; }
+.fx-page .shelf-acts { display: flex; flex-direction: column; flex-shrink: 0; gap: 8px; }
+.fx-page .shelf-acts .el-button { margin-left: 0; }
+.fx-page .scell { position: relative; cursor: pointer; user-select: none; text-align: center; }
+.fx-page .scell .book-spine { width: 100%; max-width: 104px; height: 118px; margin: 0 auto; font-size: 12px; }
+.fx-page .scell .sname { margin-top: 6px; overflow: hidden; color: var(--text-primary); font-size: 12px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.fx-page .scell .sprog { margin-top: 2px; color: var(--text-muted); font-size: 10.5px; }
+.fx-page .scell .rb { margin-top: 4px; }
+.fx-page .scell.checked .book-spine { outline: 2px solid var(--primary-color); outline-offset: 3px; }
+.fx-page .batch-bar { display: flex; align-items: center; flex-shrink: 0; gap: 10px; padding: 8px 14px; border-radius: var(--fx-r-md); background: var(--el-color-primary-light-9); color: var(--fx-navy); font-size: 12.5px; }
+.fx-page .batch-bar .el-button { margin-left: 0; }

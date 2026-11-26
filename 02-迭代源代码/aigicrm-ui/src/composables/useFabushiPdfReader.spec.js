@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { defineComponent, h, ref } from 'vue'
-import { clampPage, resolveResumePage, searchInPagesPure, useFabushiPdfReader } from './useFabushiPdfReader'
+import { clampPage, resolveResumePage, searchInPagesPure, useFabushiPdfReader, fitCanvasWidth } from './useFabushiPdfReader'
 
 // P3 PC/MP 共用阅读器：页码边界与续读定位是「翻页回传/重开续读」的正确性根，
 // 单独锁死，避免后续改渲染逻辑时回归这两条口径。
@@ -22,6 +22,44 @@ describe('clampPage', () => {
     expect(clampPage(7, 0)).toBe(7)
     expect(clampPage(7, null)).toBe(7)
     expect(clampPage(0, 0)).toBe(1)
+  })
+})
+
+// 【2026-11-26 按 PC 原型 v8】画布显示宽度。PC 阅读器（原型 P5）是一屏高的固定布局，书页要整页放进可视区；
+// 小程序壳不按高度适配（fitHeight 不传），行为与以前完全一样。
+describe('fitCanvasWidth', () => {
+  // 一页 A4 的原始尺寸（PDF 点）
+  const A4 = { pageWidth: 595, pageHeight: 842 }
+
+  it('不按高度适配时：铺满容器宽度（留 32 像素），不超过上限 —— 与以前的算法一致', () => {
+    expect(fitCanvasWidth({ parentWidth: 800, maxWidth: 860, ...A4 })).toBe(768)
+    expect(fitCanvasWidth({ parentWidth: 1200, maxWidth: 860, ...A4 })).toBe(860)
+    // 容器很窄：保底 280
+    expect(fitCanvasWidth({ parentWidth: 250, maxWidth: 860, ...A4 })).toBe(280)
+    expect(fitCanvasWidth({ parentWidth: 0, maxWidth: 860, ...A4 })).toBe(280)
+  })
+
+  it('按高度适配：竖版书页整页放进可视区，一页不用上下滚动就能看全', () => {
+    // 容器 800×570：按宽度是 768，按高度反推 538 × 595 / 842 = 380
+    expect(fitCanvasWidth({ parentWidth: 800, parentHeight: 570, maxWidth: 860, fitHeight: true, ...A4 })).toBe(380)
+  })
+
+  it('按高度适配：横版书页不会被放大，只取“按宽”和“按高”里更小的那个', () => {
+    // 容器 800×570，横版 842×595：按高反推 538 × 842 / 595 = 761，比按宽的 768 小
+    expect(fitCanvasWidth({ parentWidth: 800, parentHeight: 570, maxWidth: 860, fitHeight: true, pageWidth: 842, pageHeight: 595 })).toBe(761)
+    // 容器很宽很矮：按高反推只有 339
+    expect(fitCanvasWidth({ parentWidth: 1200, parentHeight: 512, maxWidth: 860, fitHeight: true, ...A4 })).toBe(339)
+  })
+
+  it('容器高度量不到（首帧为 0 或过矮）时不按高度算，免得把书页压成一条线', () => {
+    expect(fitCanvasWidth({ parentWidth: 800, parentHeight: 0, maxWidth: 860, fitHeight: true, ...A4 })).toBe(768)
+    expect(fitCanvasWidth({ parentWidth: 800, parentHeight: 60, maxWidth: 860, fitHeight: true, ...A4 })).toBe(768)
+    expect(fitCanvasWidth({ parentWidth: 800, maxWidth: 860, fitHeight: true, ...A4 })).toBe(768)
+  })
+
+  it('按高度算出来的宽度低于下限时仍保底 280（宁可滚动，也不能小到看不清）', () => {
+    // 容器 200×300：按高 268 × 595 / 842 = 189
+    expect(fitCanvasWidth({ parentWidth: 200, parentHeight: 300, maxWidth: 860, fitHeight: true, ...A4 })).toBe(280)
   })
 })
 
