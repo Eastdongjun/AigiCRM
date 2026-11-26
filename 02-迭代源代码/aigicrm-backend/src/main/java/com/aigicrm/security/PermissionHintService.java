@@ -84,8 +84,13 @@ public class PermissionHintService {
         this.menuMapper = menuMapper;
     }
 
-    /** 快照缓存：volatile 读 + 同步构建（懒加载，TTL 过期后首个 403 请求触发重建） */
-    private volatile Snapshot snapshot;
+    /**
+     * 快照缓存：AtomicReference 持有不可变快照 + 同步构建（懒加载，TTL 过期后首个 403 请求触发重建）。
+     * 【Sonar java:S3077】原实现是 volatile 字段；改成 AtomicReference 后引用写入具备同样的可见性，
+     * 且不再被判定为“仅靠 volatile 保证线程安全”。
+     */
+    private final java.util.concurrent.atomic.AtomicReference<Snapshot> snapshot =
+            new java.util.concurrent.atomic.AtomicReference<>();
 
     /**
      * 生成 403 中文提示。request 为被拒请求；fallback 为未命中端点时的兜底文案（传 null 用 {@link #FALLBACK_HINT}）。
@@ -128,24 +133,24 @@ public class PermissionHintService {
     /** 手动刷新（菜单/端点变更后可调用；常规场景靠 TTL 自然过期） */
     public void refresh() {
         synchronized (this) {
-            snapshot = buildSnapshot();
+            snapshot.set(buildSnapshot());
         }
     }
 
     // ==================== 内部实现 ====================
 
     private Snapshot currentSnapshot() {
-        Snapshot snap = snapshot;
+        Snapshot snap = snapshot.get();
         if (snap != null && System.currentTimeMillis() < snap.expireAt()) {
             return snap;
         }
         synchronized (this) {
-            snap = snapshot;
+            snap = snapshot.get();
             if (snap != null && System.currentTimeMillis() < snap.expireAt()) {
                 return snap;
             }
             snap = buildSnapshot();
-            snapshot = snap;
+            snapshot.set(snap);
             return snap;
         }
     }

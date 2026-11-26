@@ -30,29 +30,29 @@
         <table class="se-table">
           <thead>
             <tr class="se-th-group">
-              <th class="col-idx"></th>
-              <th class="col-cat"></th>
-              <th class="col-prod"></th>
-              <th class="col-range"></th>
-              <th class="col-op"></th>
-              <th class="col-user" :colspan="visibleUsers.length">
+              <th scope="col" class="col-idx"></th>
+              <th scope="col" class="col-cat"></th>
+              <th scope="col" class="col-prod"></th>
+              <th scope="col" class="col-range"></th>
+              <th scope="col" class="col-op"></th>
+              <th scope="col" class="col-user" :colspan="visibleUsers.length">
                 <div class="se-th-label">同事姓名</div>
               </th>
-              <th class="col-add-user"></th>
+              <th scope="col" class="col-add-user"></th>
             </tr>
             <tr class="se-th-row">
-              <th class="col-idx">#</th>
-              <th class="col-cat">大类</th>
-              <th class="col-prod">产品</th>
-              <th class="col-range">区间</th>
-              <th class="col-op"></th>
-              <th class="col-user" v-for="u in visibleUsers" :key="u.id">
+              <th scope="col" class="col-idx">#</th>
+              <th scope="col" class="col-cat">大类</th>
+              <th scope="col" class="col-prod">产品</th>
+              <th scope="col" class="col-range">区间</th>
+              <th scope="col" class="col-op"></th>
+              <th scope="col" class="col-user" v-for="u in visibleUsers" :key="u.id">
                 <div class="se-user-head">
                   <span>{{ u.realName }}</span>
                   <span v-if="isAdmin" class="se-user-rm" title="移除" @click="handleRemoveUser(u)">&times;</span>
                 </div>
               </th>
-              <th v-if="isAdmin" class="col-add-user">
+              <th scope="col" v-if="isAdmin" class="col-add-user">
                 <el-popover trigger="click" :width="180" placement="bottom-end">
                   <template #reference>
                     <el-button link size="small" class="se-add-user-btn">+</el-button>

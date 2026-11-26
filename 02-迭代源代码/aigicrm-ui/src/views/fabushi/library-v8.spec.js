@@ -489,7 +489,7 @@ describe('书目浏览按 PC 原型 v8', () => {
 
     expect(submitFabushiBook).toHaveBeenCalledTimes(1)
     expect(submitFabushiBook).toHaveBeenCalledWith({ categoryCode: 'guoxue', title: '活法', author: '稻盛和夫', editionType: 'yiban' })
-    expect(Object.keys(submitFabushiBook.mock.calls[0][0]).sort()).toEqual(['author', 'categoryCode', 'editionType', 'title'])
+    expect(Object.keys(submitFabushiBook.mock.calls[0][0]).sort((a, b) => a.localeCompare(b))).toEqual(['author', 'categoryCode', 'editionType', 'title'])
     expect(elMessage.success).toHaveBeenLastCalledWith('已提交，待管理员审核')
     expect(vm(wrapper).submitVisible).toBe(false)
     expect(vm(wrapper).submitForm).toEqual({ categoryCode: '', title: '', author: '', editionType: '' })

@@ -169,7 +169,7 @@ describe('发布器弹窗按 PC 原型 v8', () => {
 
     it('对外的 props / 事件没变：取消仍是发出 update:modelValue = false', async () => {
       const wrapper = await open()
-      expect(Object.keys(wrapper.props()).sort()).toEqual(['defaultScope', 'modelValue', 'presetBookId'])
+      expect(Object.keys(wrapper.props()).sort((a, b) => a.localeCompare(b))).toEqual(['defaultScope', 'modelValue', 'presetBookId'])
       await buttonByText(mainFooter(wrapper), '.btn-stub', '取消').trigger('click')
       expect(wrapper.emitted('update:modelValue')[wrapper.emitted('update:modelValue').length - 1]).toEqual([false])
     })

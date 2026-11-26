@@ -302,7 +302,8 @@ const applyExpiry = (v) => {
   form.expiresAt = (v === 'custom') ? '' : (v === 'forever') ? '' : fmt(new Date(Date.now() + (v === '1y' ? 365 : Number(v)) * 864e5))
 }
 const openAdd = (folderGroup) => {
-  Object.assign(form, { scopeType: folderGroup ? 'folder' : 'folder', folderId: folderGroup?.folderId || null, subjectType: 'USER', subjectIds: [], permsFile: [], permsFolder: [], scopeLevel: 'all', expiresAt: '' })
+  // 【Sonar javascript:S3923】原来写 folderGroup ? 'folder' : 'folder'（两个分支同值），这里就是固定 'folder'
+  Object.assign(form, { scopeType: 'folder', folderId: folderGroup?.folderId || null, subjectType: 'USER', subjectIds: [], permsFile: [], permsFolder: [], scopeLevel: 'all', expiresAt: '' })
   preset.value = 'viewer'; choosePreset('viewer')
   expiryQuick.value = 'forever'; applyExpiry('forever')
   userCount.value = 0

@@ -47,7 +47,8 @@ assert_contains "$UTIL" "CUSTOMER_STATUS_MAP[status]?.type || 'info'"
 
 assert_contains "$UTIL_SPEC" "maps known status codes to Chinese labels and tag types"
 assert_contains "$UTIL_SPEC" "falls back for unknown or empty status without throwing"
-assert_contains "$UTIL_SPEC" "Object.keys(CUSTOMER_STATUS_MAP).sort()"
+# 【2026-11-27】spec 里的键集断言补了比较函数(Sonar javascript:S2871), 契约同步到新写法, 断言意图不变。
+assert_contains "$UTIL_SPEC" "Object.keys(CUSTOMER_STATUS_MAP).sort((a, b) => a.localeCompare(b))"
 
 assert_contains "$CUSTOMER_LIST" "import { customerStatusTagType, customerStatusText } from '@/utils/customer-status'"
 assert_contains "$CUSTOMER_LIST" "const getStatusType = (row) => customerStatusTagType(row?.status)"

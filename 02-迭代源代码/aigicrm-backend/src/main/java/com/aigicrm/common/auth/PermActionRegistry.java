@@ -53,8 +53,9 @@ public class PermActionRegistry {
     public String codeOf(String module, String action) {
         if (module == null || action == null) return null;
         refreshIfNeeded();
-        for (String c : codesOf(module, action)) return c;
-        return null;
+        // 取槽内第一个动作码; 空列表返回 null。【Sonar java:S1751】原来写成单次迭代里的 return, 语义相同但不直观
+        List<String> slotCodes = codesOf(module, action);
+        return slotCodes.isEmpty() ? null : slotCodes.get(0);
     }
 
     /** 【P0-5 方案二】码 → [module, slotAction](槽码判定/范围匹配用; 非槽码返回 null) */

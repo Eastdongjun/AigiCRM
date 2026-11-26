@@ -182,7 +182,9 @@
               popper-class="fx-popper"
               @command="(cmd) => onMore(cmd, post)"
             >
-              <span class="more" role="button" :aria-label="`对 ${post.userName || '这条内容'} 的这条内容：更多操作`" @click.stop>⋯</span>
+              <!-- 【Sonar Web:MouseEventWithoutKeyboardEquivalentCheck】role=button 必须能被键盘聚焦;
+                   el-dropdown 自己处理 Enter/Space, 这里补 tabindex 与 keydown 兜底(不阻止冒泡, 下拉仍能收到) -->
+              <span class="more" role="button" tabindex="0" :aria-label="`对 ${post.userName || '这条内容'} 的这条内容：更多操作`" @click.stop @keydown.enter.prevent @keydown.space.prevent>⋯</span>
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item command="like" :disabled="likingIds.includes(post.id)">{{ post.likedByMe ? '取消木鱼' : '敲木鱼' }}</el-dropdown-item>

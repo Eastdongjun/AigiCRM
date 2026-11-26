@@ -13,15 +13,20 @@ public final class ClientIpUtils {
 
     private ClientIpUtils() {}
 
-    /** 可信代理网段（CIDR 列表，默认私有网段；可经 security.trusted-proxy-cidrs 覆盖） */
-    private static volatile String[] trustedCidrs = new String[]{
-            "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"
-    };
+    /**
+     * 可信代理网段（CIDR 列表，默认私有网段；可经 security.trusted-proxy-cidrs 覆盖）。
+     * 【Sonar java:S3077】原来用 volatile String[]——数组内容仍可被并发改，volatile 只保证引用可见；
+     * 改成 CopyOnWriteArrayList：读无锁、写入只在启动时一次，线程安全。
+     */
+    private static final java.util.concurrent.CopyOnWriteArrayList<String> TRUSTED_CIDRS =
+            new java.util.concurrent.CopyOnWriteArrayList<>(java.util.List.of(
+                    "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"));
 
     /** 由 TrustedProxyConfig 在启动时按配置覆盖 */
     public static void configureTrustedCidrs(String cidrs) {
         if (cidrs == null || cidrs.isBlank()) return;
-        trustedCidrs = cidrs.split(",");
+        TRUSTED_CIDRS.clear();
+        TRUSTED_CIDRS.addAll(java.util.Arrays.asList(cidrs.split(",")));
     }
 
     /** 取客户端真实 IP：直连 IP 属可信代理网段时采用 X-Real-IP，否则用直连 IP */
@@ -44,7 +49,7 @@ public final class ClientIpUtils {
         if (ip == null || ip.isBlank()) return false;
         long addr = ipToLong(ip);
         if (addr == -1) return false;
-        for (String cidr : trustedCidrs) {
+        for (String cidr : TRUSTED_CIDRS) {
             Cidr parsed = parseCidr(cidr);
             if (parsed != null && (addr & parsed.mask()) == (parsed.network() & parsed.mask())) return true;
         }

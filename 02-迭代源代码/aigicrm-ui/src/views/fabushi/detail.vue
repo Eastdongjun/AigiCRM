@@ -200,7 +200,7 @@ import { useUserStore } from '@/store/user'
 import { refreshDownloadToken, getDownloadToken } from '@/utils/token'
 import {
   getFabushiPostDetail, getFabushiComments, addFabushiComment, toggleFabushiLike, markFabushiRead, getFabushiBooks,
-  updateFabushiPost, deleteFabushiPost, getFabushiRecitations, addFabushiRecitation, getFabushiSettings,
+  updateFabushiPost, deleteFabushiPost, addFabushiRecitation, getFabushiSettings,
   getFabushiPersonalStats, getMyFabushiBookmarks,
 } from '@/api/fabushi'
 import { usePagedList } from '@/composables/usePagedList'
@@ -288,7 +288,9 @@ const bookLine = computed(() => {
 })
 // 照原型分段：按换行切成段落；两头的空行去掉，中间的空行留着当段间距
 const bodyLines = computed(() => {
-  const text = String(post.value.content || '').replace(/\r\n?/g, '\n').replace(/^\n+|\n+$/g, '')
+  // 两头换行去掉、中间的留着当段间距。【Sonar javascript:S5850】原来 ^\n+ 与 \n+$ 写在同一条正则的交替里,
+  // 被判“优先级不明确”; 拆成两次 replace, 语义更直白。
+  const text = String(post.value.content || '').replace(/\r\n?/g, '\n').replace(/^\n+/, '').replace(/\n+$/, '')
   return text ? text.split('\n') : []
 })
 const imageAttachments = computed(() => /** @type {any[]} */ (attachments.value).filter((item) => item.fileType === 'image'))

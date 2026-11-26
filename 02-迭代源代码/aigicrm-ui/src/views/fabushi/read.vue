@@ -208,7 +208,7 @@ import { useFabushiPdfReader } from '@/composables/useFabushiPdfReader'
 import { useFabushiReaderSettings } from '@/composables/useFabushiReaderSettings'
 import { usePagedList } from '@/composables/usePagedList'
 import {
-  FABUSHI_LAYOUT_TYPES, READER_BACKDROPS, layoutLabel, lineHeightRatio,
+  READER_BACKDROPS, layoutLabel, lineHeightRatio,
   normalizeReaderSettings, readingPercent, readerCssVars
 } from '@/utils/fabushi-reader-settings'
 import '@/assets/fabushi-v8.css'

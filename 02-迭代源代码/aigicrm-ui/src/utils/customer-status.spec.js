@@ -23,6 +23,6 @@ describe('customer-status', () => {
   })
 
   it('keeps the dictionary stable for the five business statuses', () => {
-    expect(Object.keys(CUSTOMER_STATUS_MAP).sort()).toEqual(['archived', 'expired', 'normal', 'sea', 'warning'])
+    expect(Object.keys(CUSTOMER_STATUS_MAP).sort((a, b) => a.localeCompare(b))).toEqual(['archived', 'expired', 'normal', 'sea', 'warning'])
   })
 })

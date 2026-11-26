@@ -234,7 +234,7 @@ describe('书目管理按 PC 原型 v8（P10）', () => {
     expect(wrapper.find('.sub-row.active').text()).toContain('《道德经》')
     const lastCall = /** @type {any[]} */ (getFabushiBooks.mock.calls[getFabushiBooks.mock.calls.length - 1])
     expect(lastCall[0]).toEqual(expect.objectContaining({ keyword: '道德经', current: 1 }))
-    expect(Object.keys(lastCall[0]).sort()).toEqual(['categoryCode', 'current', 'keyword', 'size', 'status'])
+    expect(Object.keys(lastCall[0]).sort((a, b) => a.localeCompare(b))).toEqual(['categoryCode', 'current', 'keyword', 'size', 'status'])
     expect(wrapper.find('.toolbar .tt').text()).toBe('全部 · 《道德经》版本治理')
     // 通过 / 待审核按当前范围（这个书名）计数
     expect(texts(wrapper, '.toolbar .tag')).toEqual(['通过 1', '待审核 1'])
@@ -333,7 +333,7 @@ describe('书目管理按 PC 原型 v8（P10）', () => {
     expect(tableRows(wrapper)).toHaveLength(0)
     expect(getFabushiBooks.mock.calls.length).toBe(callsBefore + 1)
     const lastCall = /** @type {any[]} */ (getFabushiBooks.mock.calls[getFabushiBooks.mock.calls.length - 1])
-    expect(Object.keys(lastCall[0]).sort()).toEqual(['categoryCode', 'current', 'keyword', 'size', 'status'])
+    expect(Object.keys(lastCall[0]).sort((a, b) => a.localeCompare(b))).toEqual(['categoryCode', 'current', 'keyword', 'size', 'status'])
   })
 
   it('电子书筛选与状态、关键词叠加时只认和接口同口径的行；重置回到“全部”', async () => {
