@@ -9,6 +9,7 @@ const { getDownloadToken } = require('../../../api/file')
 const { getDictData } = require('../../../api/system')
 const { incentiveRecords } = require('../../../data/demo')
 const { hasPermission, requireLogin } = require('../../../utils/auth')
+const { isAuthReady, ensurePermissionsReady } = require('../../../utils/permission-ready')
 const { showError, showErrorWithRetry } = require('../../../utils/feedback')
 const { buildIncentiveFiles, buildIncentiveFileGroups } = require('../../../utils/incentive-files')
 const { paginate } = require('../../../utils/paging')
@@ -253,24 +254,34 @@ Page({
   onLoad() {
     if (!requireLogin()) return
     this.setData({ apiBase: (getApp().globalData && getApp().globalData.apiBaseUrl) || '' })
-    if (!getApp().globalData.demoMode && !hasPermission('incentive:view')) {
-      wx.showToast({ title: '没有四项服务查看权限', icon: 'none' })
-      wx.switchTab({ url: '/pages/home/index' })
-      return
+    // 【BUG-MP-TABBAR-PERM-RACE-20261127】权限未回填时先等 /auth/info 回来再判定,
+    // 否则冷启动瞬间会把"尚未回填"误判成"没有四项服务查看权限"而踢回首页。
+    // admin/demo/已回填走同步快路径(现有单测与登录后正常路径行为不变)。
+    const init = () => {
+      if (!getApp().globalData.demoMode && !hasPermission('incentive:view')) {
+        wx.showToast({ title: '没有四项服务查看权限', icon: 'none' })
+        wx.switchTab({ url: '/pages/home/index' })
+        return
+      }
+      this.setData({ canUploadEvidence: !getApp().globalData.demoMode && hasPermission('incentive:add') })
+      this._categoryChildrenByMain = null
+      this.loadCategoryTree()
+      this.loadIndustryOptions()
+      this.ensureDlToken().then(() => {
+        this.loadRecords()
+      })
+      this.loadUsers()
+      this._loadedOnce = true
     }
-    this.setData({ canUploadEvidence: !getApp().globalData.demoMode && hasPermission('incentive:add') })
-    this._categoryChildrenByMain = null
-    this.loadCategoryTree()
-    this.loadIndustryOptions()
-    this.ensureDlToken().then(() => {
-      this.loadRecords()
-    })
-    this.loadUsers()
-    this._loadedOnce = true
+    if (isAuthReady()) return init()
+    ensurePermissionsReady().then(init)
   },
 
   // 与完整版同款回流契约: 上传/删除后 forceRefresh.incentive 命中即强制刷新; 30s 节流只拦纯回流
   onPermissionChanged() {
+    // 【BUG-MP-TABBAR-PERM-RACE-20261127】冷启动回填也会触发本回调: 页面尚未初始化时
+    // 交给 onLoad 的 init 统一取数, 避免同一份记录被拉两次。
+    if (!this._loadedOnce) return
     this.loadRecords();
   },
 

@@ -1,4 +1,5 @@
 const { hasPermission, requireLogin } = require('../../utils/auth')
+const { isAuthReady, ensurePermissionsReady } = require('../../utils/permission-ready')
 const {
   getFabushiPersonalStats, getFabushiBooks, getFabushiPosts, getFabushiShelf,
   getFabushiMonthly, getFabushiAwakenStatus, updateFabushiShelf,
@@ -72,6 +73,9 @@ Page({
 
   onPermissionChanged() {
     if (getApp().globalData.demoMode) return
+    // 【BUG-MP-TABBAR-PERM-RACE-20261127】冷启动回填也会触发本回调: 页面尚未初始化时
+    // 交给 onLoad 的 init 统一取数, 避免同一份数据被拉两次。
+    if (!this._loadedOnce) return
     if (!hasPermission('fabushi:view')) {
       wx.showToast({ title: '没有法布施查看权限', icon: 'none' })
       setTimeout(() => wx.switchTab({ url: '/pages/home/index' }), 300)
@@ -82,32 +86,44 @@ Page({
 
   onLoad() {
     if (!requireLogin()) return
-    if (!hasPermission('fabushi:view')) {
-      wx.switchTab({ url: '/pages/home/index' })
-      return
+    // 【BUG-MP-TABBAR-PERM-RACE-20261127】权限未回填时先等 /auth/info 回来再判定;
+    // admin/demo/已回填走同步快路径(现有单测与登录后正常路径行为不变)。
+    const init = () => {
+      if (!hasPermission('fabushi:view')) {
+        wx.switchTab({ url: '/pages/home/index' })
+        return
+      }
+      this.setData({ canCreate: hasPermission('fabushi:create') })
+      this.loadAll()
+      this.refreshReading()
+      this.loadReminder()
+      this._loadedOnce = true
     }
-    this.setData({ canCreate: hasPermission('fabushi:create') })
-    this.loadAll()
-    this.refreshReading()
-    this.loadReminder()
+    if (isAuthReady()) return init()
+    ensurePermissionsReady().then(init)
   },
 
   onShow() {
     if (typeof this.getTabBar === 'function' && this.getTabBar()) this.getTabBar().setData({ selected: 2 })
     if (getApp().globalData.demoMode) { this.setData({ canCreate: true }); return }
-    if (!hasPermission('fabushi:view')) {
-      wx.showToast({ title: '没有法布施查看权限', icon: 'none' })
-      setTimeout(() => wx.switchTab({ url: '/pages/home/index' }), 300)
-      return
+    // 【BUG-MP-TABBAR-PERM-RACE-20261127】同 onLoad: 未回填时等回填, 不把"未知"当"无权限"踢人。
+    const enter = () => {
+      if (!hasPermission('fabushi:view')) {
+        wx.showToast({ title: '没有法布施查看权限', icon: 'none' })
+        setTimeout(() => wx.switchTab({ url: '/pages/home/index' }), 300)
+        return
+      }
+      this.setData({ canCreate: hasPermission('fabushi:create') })
+      this.loadPersonal()
+      this.refreshReading()
+      if (this.data.activeTab === 'awaken') this.loadAwaken()
+      // 【2026-11-25 修正】路径原来多写了一级(../../../, 从 pages/fabushi/ 出发会指到项目之外), 11-19 起每次 onShow 都在这里抛
+      //   “找不到模块”, 提醒检查从来没执行过; 同目录层级下应该是 ../../
+      const { checkAndRemind } = require('../../utils/fabushi-reminder')
+      checkAndRemind()
     }
-    this.setData({ canCreate: hasPermission('fabushi:create') })
-    this.loadPersonal()
-    this.refreshReading()
-    if (this.data.activeTab === 'awaken') this.loadAwaken()
-    // 【2026-11-25 修正】路径原来多写了一级(../../../, 从 pages/fabushi/ 出发会指到项目之外), 11-19 起每次 onShow 都在这里抛
-    //   “找不到模块”, 提醒检查从来没执行过; 同目录层级下应该是 ../../
-    const { checkAndRemind } = require('../../utils/fabushi-reminder')
-    checkAndRemind()
+    if (isAuthReady()) return enter()
+    ensurePermissionsReady().then(enter)
   },
 
   // 主卡与三板块的文字(今日 x/3、下一步按钮、每块的副标题)由 awake / personal / readingBook 三份数据算出来, 任何一份更新后都要重算

@@ -72,6 +72,8 @@ function logout() {
   clearToken()
   globalData.currentUser = null
   globalData.permissions = []
+  // 【BUG-MP-TABBAR-PERM-RACE-20261127】登出后回到"未回填"状态, 下个账号重新等 /auth/info
+  globalData.permissionsLoaded = false
   globalData.groupIds = []
   globalData.currentGroupId = null
   wx.redirectTo({ url: '/pages/login/index' })

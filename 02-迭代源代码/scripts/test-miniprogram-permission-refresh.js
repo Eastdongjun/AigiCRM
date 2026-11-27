@@ -19,7 +19,7 @@ global.wx = {
 }
 const page = { onPermissionChanged() { page.called = true } }
 global.getCurrentPages = () => [page]
-const app = { globalData: { demoMode: false, currentUser: { id: 1, username: 'u' }, permissions: ['customer:view'], apiBaseUrl: 'http://test' } }
+const app = { globalData: { demoMode: false, currentUser: { id: 1, username: 'u' }, permissions: ['customer:view'], permissionsLoaded: true, apiBaseUrl: 'http://test' } }
 global.getApp = () => app
 
 const pr = require(path.resolve(__dirname, '../aigicrm-miniprogram/utils/permission-refresh.js'))
@@ -58,6 +58,20 @@ app.globalData.permissions = []
 componentConfig.methods.refreshTabs.call(comp)
 assert.equal(comp.data.tabs.find((t) => t.key === 'service').disabled, true,
     '撤码后回 disabled(权限回收即时生效语义)')
+
+// 【BUG-MP-TABBAR-PERM-RACE-20261127】权限尚未回填(permissionsLoaded=false, 有在途请求)时
+// tabBar 不置 disabled——permissions=[] 在回填前是"未知"而不是"无权限", 置灰会吞掉点击。
+// 回填成功后的重算与页面守卫由 scripts/test-miniprogram-tabbar-perm.js 覆盖。
+app.globalData.permissionsLoaded = false
+app.globalData.permissionRefreshPromise = new Promise(() => {})
+componentConfig.methods.refreshTabs.call(comp)
+assert.equal(comp.data.tabs.find((t) => t.key === 'service').disabled, false,
+    '未回填时 service tab 不 disabled(未知≠无权限)')
+assert.equal(comp.data.tabs.find((t) => t.key === 'fabushi').disabled, false,
+    '未回填时 fabushi tab 不 disabled')
+// 复原为已回填态, 不影响后续静态断言
+app.globalData.permissionRefreshPromise = null
+app.globalData.permissionsLoaded = true
 
 // admin 前端兜底：无任何 permissions 时 hasPermission 也应为 true；普通用户仍按码
 const auth = require(path.resolve(__dirname, '../aigicrm-miniprogram/utils/auth.js'))

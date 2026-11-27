@@ -28,6 +28,9 @@ App({
     demoMode: config.demoMode,
     currentUser: null,
     permissions: [],
+    // 【BUG-MP-TABBAR-PERM-RACE-20261127】权限回填完成标志: false=尚未拉到 /auth/info
+    // (permissions 为空不代表无权限), true=已回填(空数组才是真的无码)。登出时清回 false。
+    permissionsLoaded: false,
     groupIds: [],
     currentGroupId: null,
     permissionRefreshPromise: null,

@@ -676,6 +676,9 @@ local_contracts() {
   run node "$ROOT/scripts/test-miniprogram-data-scope-label.js"
   run node "$ROOT/scripts/test-miniprogram-reminder-list.js"
   run node "$ROOT/scripts/test-miniprogram-statistics-page.js"
+  # 【BUG-MP-TABBAR-PERM-RACE-20261127】冷启动权限回填竞态: 未回填时 tabBar 不置灰/页面守卫不踢人,
+  #   回填后按真实权限收敛; 另钉 selected 滞留时的路由去重与"无在途时主动补拉"。
+  run node "$ROOT/scripts/test-miniprogram-tabbar-perm.js"
   # 【GL-10 2026-11-24】小程序上传守卫(先红后绿): 源码目录有未提交改动、有本机覆盖档却没声明测试环境、
   #   嵌套仓库、非法目标、非 git 目录 → 拒绝上传。测试在临时 git 仓库里用演练模式运行 upload.mjs, 不联网。
   run node "$ROOT/scripts/test-miniprogram-upload-guard.js"

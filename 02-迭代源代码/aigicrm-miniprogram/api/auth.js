@@ -19,6 +19,9 @@ function loadCurrentUser() {
     globalData.permissions = user && Array.isArray(user.permissions) ? user.permissions : []
     globalData.groupIds = user && Array.isArray(user.groupIds) ? user.groupIds : []
     globalData.currentGroupId = user ? user.currentGroupId : null
+    // 【BUG-MP-TABBAR-PERM-RACE-20261127】回填成功即置位(权限为空也算: 那是真的无码)。
+    // 必须在 markChanged 之前置位——通知链里的 tabBar 重算要能区分"未回填"与"无权限"。
+    globalData.permissionsLoaded = true
     const after = JSON.stringify({
       permissions: globalData.permissions,
       dataScope: (user || {}).dataScope || '',
