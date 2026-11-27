@@ -1,5 +1,6 @@
 const { getIndicatorStats } = require('../../api/statistics')
 const { hasPermission, requireLogin } = require('../../utils/auth')
+const { whenPermissionsReady } = require('../../utils/permission-ready')
 const { showError } = require('../../utils/feedback')
 // 【2026-11-06 整体检查 P3】改用全站共享分页工具(双向收拢带 totalPages), 删除本地复制版
 const { paginate } = require('../../utils/paging')
@@ -74,6 +75,8 @@ Page({
 
   onPermissionChanged() {
     if (getApp().globalData.demoMode) return
+    // 【BUG-MP-TABBAR-PERM-RACE-20261127 第二批】冷启动回填也会触发本回调: 页面未初始化时跳过, 避免误踢/双拉。
+    if (!this._loadedOnce) return
     if (!(typeof hasPermission === 'function' && hasPermission('statistics:view'))) {
       wx.showToast({ title: '没有统计查看权限', icon: 'none' })
       setTimeout(() => wx.navigateBack(), 300)
@@ -84,11 +87,14 @@ Page({
 
   onLoad() {
     if (!requireLogin()) return
-    if (!getApp().globalData.demoMode && !hasPermission('statistics:view')) {
-      wx.showToast({ title: '没有统计查看权限', icon: 'none' })
-      return wx.switchTab({ url: '/pages/home/index' })
-    }
-    this.loadStats()
+    return whenPermissionsReady(() => {
+      if (!getApp().globalData.demoMode && !hasPermission('statistics:view')) {
+        wx.showToast({ title: '没有统计查看权限', icon: 'none' })
+        return wx.switchTab({ url: '/pages/home/index' })
+      }
+      this.loadStats()
+      this._loadedOnce = true
+    })
   },
 
   onShow() {

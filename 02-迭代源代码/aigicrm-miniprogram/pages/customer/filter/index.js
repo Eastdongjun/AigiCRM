@@ -1,4 +1,5 @@
 const { requireLogin, hasPermission } = require('../../../utils/auth')
+const { whenPermissionsReady } = require('../../../utils/permission-ready')
 const { showError } = require('../../../utils/feedback')
 const { getDictData, getDepts } = require('../../../api/system')
 const { getCustomerSimpleUsers } = require('../../../api/customer')
@@ -72,6 +73,8 @@ Page({
   },
   onPermissionChanged() {
     if (getApp().globalData.demoMode) return
+    // 【BUG-MP-TABBAR-PERM-RACE-20261127 第二批】冷启动回填也会触发本回调: 页面未初始化时跳过, 避免误踢/双拉。
+    if (!this._loadedOnce) return
     if (!hasPermission('customer:view')) {
       wx.showToast({ title: '没有操作权限', icon: 'none' })
       setTimeout(() => wx.navigateBack(), 300)
@@ -80,13 +83,16 @@ Page({
 
   onLoad() {
     if (!requireLogin()) return
-    if (!getApp().globalData.demoMode && !hasPermission('customer:view')) {
-      // 【D28 2026-10-04】补 return：无权限分支此前缺 return，已提示无权限并返回仍继续拉筛选下拉数据
-      wx.showToast({ title: '没有客户查看权限', icon: 'none' })
-      setTimeout(() => wx.navigateBack(), 500)
-      return
-    }
-    this.loadFilterOptions()
+    return whenPermissionsReady(() => {
+      if (!getApp().globalData.demoMode && !hasPermission('customer:view')) {
+        // 【D28 2026-10-04】补 return：无权限分支此前缺 return，已提示无权限并返回仍继续拉筛选下拉数据
+        wx.showToast({ title: '没有客户查看权限', icon: 'none' })
+        setTimeout(() => wx.navigateBack(), 500)
+        return
+      }
+      this.loadFilterOptions()
+      this._loadedOnce = true
+    })
   },
   applyState(patch, callback) {
     const next = { ...this.data, ...patch }

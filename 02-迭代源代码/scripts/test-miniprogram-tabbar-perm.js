@@ -252,6 +252,24 @@ async function main() {
     assert.equal(tab(bar, 'service').disabled, true, '拉取结果无码 → 收敛为置灰')
   })
 
+  await check('whenPermissionsReady: 已就绪同步执行; 未回填等待回填后再执行', async () => {
+    const pr = require('../aigicrm-miniprogram/utils/permission-ready.js')
+    resetApp({ permissions: ['x:view'], permissionsLoaded: true })
+    let sync = false
+    pr.whenPermissionsReady(() => { sync = true })
+    assert.equal(sync, true, '已就绪走同步快路径(不改变原页面时序)')
+    resetApp({ permissions: [], permissionsLoaded: false })
+    let resolveRefresh
+    app.globalData.permissionRefreshPromise = new Promise((resolve) => { resolveRefresh = resolve })
+    let ran = false
+    const pending = pr.whenPermissionsReady(() => { ran = true })
+    assert.equal(ran, false, '未回填不得提前执行入口主体')
+    app.globalData.permissionsLoaded = true
+    resolveRefresh(true)
+    await pending
+    assert.equal(ran, true, '回填完成后执行入口主体')
+  })
+
   console.log('PASS: test-miniprogram-tabbar-perm (' + passed + ' 条)')
 }
 

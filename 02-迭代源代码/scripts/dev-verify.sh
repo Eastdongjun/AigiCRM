@@ -641,6 +641,11 @@ local_contracts() {
   # 【2026-09-13】check-customer-file-contract.sh 已随「客户文件」功能移除（见 V2026.09.13.5 迁移）
   run "$ROOT/scripts/check-miniprogram-local-profile.sh"
   run python3 "$ROOT/scripts/check-miniprogram-permission-contract.py"
+  # 【BUG-MP-TABBAR-PERM-RACE-20261127】入口守卫必须等权限回填（onLoad/onShow 里
+  # hasPermission+踢人/提示 的方法必须引用 whenPermissionsReady/ensurePermissionsReady/
+  # isAuthReady/whenAuthReady）；先跑 --self-test 证明"改坏会红"，再扫全量页面。
+  run python3 "$ROOT/scripts/check-miniprogram-perm-ready-contract.py" --self-test
+  run python3 "$ROOT/scripts/check-miniprogram-perm-ready-contract.py"
   run python3 "$ROOT/scripts/check-permission-registration-contract.py"
   run "$ROOT/scripts/check-wechat-project-root.sh"
   run "$ROOT/scripts/check-mobile-manual-qa-contract.sh"

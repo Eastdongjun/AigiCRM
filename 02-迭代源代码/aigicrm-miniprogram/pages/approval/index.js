@@ -2,6 +2,7 @@ const { approveApproval, getApprovalList, getApprovalStatistics, rejectApproval 
 const { getDepts } = require('../../api/system')
 const { approvalRecords } = require('../../data/demo')
 const { hasPermission, requireLogin } = require('../../utils/auth')
+const { whenPermissionsReady } = require('../../utils/permission-ready')
 const { showError } = require('../../utils/feedback')
 // 【E6 去重】审批类型/状态映射与部门树扁平化原与 approval/detail、reminder 各复制一份, 收敛到共享模块
 const { approvalStatusText, approvalTypeLabel, normalizeApprovalNode, pendingStatus } = require('../../utils/label-maps')
@@ -183,24 +184,28 @@ Page({
 
   onLoad() {
     if (!requireLogin()) return
-    if (!getApp().globalData.demoMode && !hasPermission('approval:view')) {
-      wx.showToast({ title: '没有审批查看权限', icon: 'none' })
-      wx.switchTab({ url: '/pages/home/index' })
-      return
-    }
+    return whenPermissionsReady(() => {
+      if (!getApp().globalData.demoMode && !hasPermission('approval:view')) {
+        wx.showToast({ title: '没有审批查看权限', icon: 'none' })
+        wx.switchTab({ url: '/pages/home/index' })
+        return
+      }
 
-    this.setApprovalData({
-      canApprove: getApp().globalData.demoMode || hasPermission('approval:approve'),
-      canReject: getApp().globalData.demoMode || hasPermission('approval:reject')
+      this.setApprovalData({
+        canApprove: getApp().globalData.demoMode || hasPermission('approval:approve'),
+        canReject: getApp().globalData.demoMode || hasPermission('approval:reject')
+      })
+      this.loadFilters()
+      this.loadApprovals()
+      this.loadStats()
+      this._loadedOnce = true
     })
-    this.loadFilters()
-    this.loadApprovals()
-    this.loadStats()
-    this._loadedOnce = true
   },
 
   // 【PR-12 2026-09-19 首批】审批/驳回后返回列表即见结果:每次回到页面刷新待办与统计
   onPermissionChanged() {
+    // 【BUG-MP-TABBAR-PERM-RACE-20261127 第二批】冷启动回填也会触发本回调: 页面未初始化时交给 onLoad 统一取数, 避免双拉。
+    if (!this._loadedOnce) return
     this.loadApprovals(); this.loadStats();
   },
 

@@ -6,6 +6,7 @@ const { submitApproval } = require('../../api/approval')
 const { getDepts, getScopeUsers } = require('../../api/system')
 const { reminderRecords } = require('../../data/demo')
 const { hasPermission, requireLogin, isAdmin } = require('../../utils/auth')
+const { whenPermissionsReady } = require('../../utils/permission-ready')
 const { showError } = require('../../utils/feedback')
 const { isProcessed, markProcessed } = require('../../utils/demo-reminders')
 // 【E6 去重】部门树扁平化原与 approval/index 复制一份, 收敛到 utils/tree
@@ -225,23 +226,28 @@ Page({
   },
 
   onPermissionChanged() {
+    // 【BUG-MP-TABBAR-PERM-RACE-20261127 第二批】冷启动回填也会触发本回调: 页面未初始化时交给 onLoad 统一取数, 避免双拉。
+    if (!this._loadedOnce) return
     this.loadPendingCount(); this.loadReminders();
   },
 
   onLoad() {
     if (!requireLogin()) return
-    if (!getApp().globalData.demoMode && !hasPermission('reminder:view')) {
-      wx.showToast({ title: '没有提醒权限', icon: 'none' })
-      wx.switchTab({ url: '/pages/home/index' })
-      return
-    }
-    this.loadFilters()
-    // 【2026-09-22 缺陷修复】ensure-expiring 后端已收紧为 admin-only(P1-09 批次): 普通用户调用必 403,
-    // 且此前 403 也会触发 request.js 踢登录——非 admin 打开提醒页会被登出。到期提醒由服务端
-    // CustomerExpireTask 每晚生成兜底, 客户端补生成仅 admin 有意义; demo 档不发真实请求
-    const app = getApp()
-    const catchUp = app.globalData.demoMode || !isAdmin() ? Promise.resolve() : ensureExpiring().catch(() => {})
-    catchUp.finally(() => this.refresh())
+    return whenPermissionsReady(() => {
+      if (!getApp().globalData.demoMode && !hasPermission('reminder:view')) {
+        wx.showToast({ title: '没有提醒权限', icon: 'none' })
+        wx.switchTab({ url: '/pages/home/index' })
+        return
+      }
+      this.loadFilters()
+      // 【2026-09-22 缺陷修复】ensure-expiring 后端已收紧为 admin-only(P1-09 批次): 普通用户调用必 403,
+      // 且此前 403 也会触发 request.js 踢登录——非 admin 打开提醒页会被登出。到期提醒由服务端
+      // CustomerExpireTask 每晚生成兜底, 客户端补生成仅 admin 有意义; demo 档不发真实请求
+      const app = getApp()
+      const catchUp = app.globalData.demoMode || !isAdmin() ? Promise.resolve() : ensureExpiring().catch(() => {})
+      catchUp.finally(() => this.refresh())
+      this._loadedOnce = true
+    })
   },
 
   onKeywordInput(e) {

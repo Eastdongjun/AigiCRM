@@ -2,6 +2,7 @@
 // 【2026-11-25 用户裁决】“小程序法布施界面按原型 v7 重做外观”: 原型有这一屏, 小程序里此前没有这个页面(旧主页里只有一段阅读天数)。
 //   数据来自三个现成的接口: 阅读记录(按月)、个人统计、今日觉醒状态; 显示的内容都在 utils/fabushi-view-model.js 的 recordsView 里算。
 const { hasPermission, requireLogin } = require('../../../utils/auth')
+const { whenPermissionsReady } = require('../../../utils/permission-ready')
 const { getFabushiRecords, getFabushiPersonalStats, getFabushiAwakenStatus } = require('../../../api/fabushi')
 const { showError } = require('../../../utils/feedback')
 const vm = require('../../../utils/fabushi-view-model')
@@ -11,13 +12,15 @@ Page({
 
   onLoad() {
     if (!requireLogin()) return
-    if (!hasPermission('fabushi:view')) {
-      wx.showToast({ title: '没有法布施查看权限', icon: 'none' })
-      setTimeout(() => wx.navigateBack(), 600)
-      return
-    }
-    this._month = vm.monthKey(new Date())
-    this.load()
+    return whenPermissionsReady(() => {
+      if (!hasPermission('fabushi:view')) {
+        wx.showToast({ title: '没有法布施查看权限', icon: 'none' })
+        setTimeout(() => wx.navigateBack(), 600)
+        return
+      }
+      this._month = vm.monthKey(new Date())
+      this.load()
+    })
   },
 
   onPullDownRefresh() {

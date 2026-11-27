@@ -2,6 +2,7 @@ const { getAnalysis, getDashboardData } = require('../../api/statistics')
 const { getScoreRanking } = require('../../api/score')
 const { getScopeDepts } = require('../../api/system')
 const { requireLogin, hasPermission } = require('../../utils/auth')
+const { whenPermissionsReady } = require('../../utils/permission-ready')
 const { showErrorWithRetry } = require('../../utils/feedback')
 // 【E6 去重】组织树构建原与 incentive applyOrgs / sea applyDepts 三处同构, 收敛到 utils/tree
 const { buildDeptLevelOptions } = require('../../utils/tree')
@@ -258,18 +259,23 @@ Page({
   },
 
   onPermissionChanged() {
+    // 【BUG-MP-TABBAR-PERM-RACE-20261127 第二批】冷启动回填也会触发本回调: 页面未初始化时交给 onLoad 统一取数, 避免双拉。
+    if (!this._loadedOnce) return
     this.loadStats();
   },
 
   onLoad() {
     if (!requireLogin()) return
-    if (!getApp().globalData.demoMode && !hasPermission('statistics:view')) {
-      wx.showToast({ title: '没有统计查看权限', icon: 'none' })
-      wx.switchTab({ url: '/pages/home/index' })
-      return
-    }
-    this.loadDepts()
-    this.loadStats()
+    return whenPermissionsReady(() => {
+      if (!getApp().globalData.demoMode && !hasPermission('statistics:view')) {
+        wx.showToast({ title: '没有统计查看权限', icon: 'none' })
+        wx.switchTab({ url: '/pages/home/index' })
+        return
+      }
+      this.loadDepts()
+      this.loadStats()
+      this._loadedOnce = true
+    })
   },
 
   onPullDownRefresh() {

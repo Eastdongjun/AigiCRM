@@ -1,5 +1,6 @@
 const { addCustomerContact, updateCustomerContact } = require('../../../../api/customer')
 const { hasPermission, requireLogin } = require('../../../../utils/auth')
+const { whenPermissionsReady } = require('../../../../utils/permission-ready')
 const { showError } = require('../../../../utils/feedback')
 const { saveDemoContact, updateDemoContact } = require('../../../../utils/demo-contacts')
 // 【mp-0 2026-10-17】联系人字段由列表页 encodeURIComponent 一次后传入，此处安全解码一次；
@@ -39,6 +40,8 @@ Page({
   },
   onPermissionChanged() {
     if (getApp().globalData.demoMode) return
+    // 【BUG-MP-TABBAR-PERM-RACE-20261127 第二批】冷启动回填也会触发本回调: 页面未初始化时跳过, 避免误踢/双拉。
+    if (!this._loadedOnce) return
     if (!hasPermission('contact:view')) {
       wx.showToast({ title: '没有操作权限', icon: 'none' })
       setTimeout(() => wx.navigateBack(), 300)
@@ -47,17 +50,20 @@ Page({
 
   onLoad(options) {
     if (!requireLogin()) return
-    if (!getApp().globalData.demoMode && (!hasPermission('customer:view') || !hasPermission('customer:edit'))) { wx.showToast({ title: '没有联系人编辑权限', icon: 'none' }); wx.navigateBack(); return }
-    this.applyState({
-      id: options.id || '',
-      contactId: options.contactId || '',
-      isEdit: Boolean(options.contactId),
-      form: {
-        name: safeDecodeParam(options.name || ''),
-        position: safeDecodeParam(options.position || ''),
-        phone: safeDecodeParam(options.phone || ''),
-        remark: safeDecodeParam(options.remark || '')
-      }
+    return whenPermissionsReady(() => {
+      if (!getApp().globalData.demoMode && (!hasPermission('customer:view') || !hasPermission('customer:edit'))) { wx.showToast({ title: '没有联系人编辑权限', icon: 'none' }); wx.navigateBack(); return }
+      this.applyState({
+        id: options.id || '',
+        contactId: options.contactId || '',
+        isEdit: Boolean(options.contactId),
+        form: {
+          name: safeDecodeParam(options.name || ''),
+          position: safeDecodeParam(options.position || ''),
+          phone: safeDecodeParam(options.phone || ''),
+          remark: safeDecodeParam(options.remark || '')
+        }
+      })
+      this._loadedOnce = true
     })
   },
   applyState(patch, callback) {

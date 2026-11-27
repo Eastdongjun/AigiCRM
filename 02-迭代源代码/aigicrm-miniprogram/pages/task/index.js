@@ -1,4 +1,5 @@
 const { requireLogin, hasPermission } = require('../../utils/auth')
+const { whenPermissionsReady } = require('../../utils/permission-ready')
 const { showError } = require('../../utils/feedback')
 const { getTaskList, getTaskStatistics, completeTask, cancelTask, transferTask } = require('../../api/task')
 const { getCustomerSimpleUsers } = require('../../api/customer')
@@ -37,26 +38,33 @@ Page({
 
   onLoad() {
     if (!requireLogin()) return
-    if (!hasPermission('task:view')) {
-      wx.showToast({ title: '没有任务查看权限', icon: 'none' })
-      setTimeout(() => wx.navigateBack(), 300)
-      return
-    }
-    this.setData({ canManage: hasPermission('task:manage') })
-    this.loadStats()
-    this.loadList(true)
+    return whenPermissionsReady(() => {
+      if (!hasPermission('task:view')) {
+        wx.showToast({ title: '没有任务查看权限', icon: 'none' })
+        setTimeout(() => wx.navigateBack(), 300)
+        return
+      }
+      this.setData({ canManage: hasPermission('task:manage') })
+      this.loadStats()
+      this.loadList(true)
+      this._loadedOnce = true
+    })
   },
 
   onShow() {
-    if (!getApp().globalData.demoMode && !hasPermission('task:view') && this.data.tasks.length) {
-      wx.showToast({ title: '没有任务查看权限', icon: 'none' })
-      setTimeout(() => wx.navigateBack(), 300)
-      return
-    }
-    this.setData({ canManage: hasPermission('task:manage') })
+    return whenPermissionsReady(() => {
+      if (!getApp().globalData.demoMode && !hasPermission('task:view') && this.data.tasks.length) {
+        wx.showToast({ title: '没有任务查看权限', icon: 'none' })
+        setTimeout(() => wx.navigateBack(), 300)
+        return
+      }
+      this.setData({ canManage: hasPermission('task:manage') })
+    })
   },
 
   onPermissionChanged() {
+    // 【BUG-MP-TABBAR-PERM-RACE-20261127 第二批】冷启动回填也会触发本回调: 页面未初始化时交给 onLoad 统一取数, 避免双拉。
+    if (!this._loadedOnce) return
     if (!hasPermission('task:view')) {
       wx.showToast({ title: '没有任务查看权限', icon: 'none' })
       setTimeout(() => wx.navigateBack(), 300)

@@ -1,4 +1,5 @@
 const { requireLogin, hasPermission } = require('../../../utils/auth')
+const { whenPermissionsReady } = require('../../../utils/permission-ready')
 // 【E6 去重】捞取申请状态映射原与 sea/index 复制一份, 收敛到 utils/label-maps
 const { claimStatusText } = require('../../../utils/label-maps')
 
@@ -35,6 +36,8 @@ Page({
   },
   onPermissionChanged() {
     if (getApp().globalData.demoMode) return
+    // 【BUG-MP-TABBAR-PERM-RACE-20261127 第二批】冷启动回填也会触发本回调: 页面未初始化时跳过, 避免误踢。
+    if (!this._loadedOnce) return
     if (!hasPermission('sea:view')) {
       wx.showToast({ title: '没有公海查看权限', icon: 'none' })
       setTimeout(() => wx.navigateBack(), 300)
@@ -43,21 +46,24 @@ Page({
 
   onLoad(options) {
     if (!requireLogin()) return
-    if (!getApp().globalData.demoMode && !hasPermission('sea:view')) {
-      wx.showToast({ title: '没有公海查看权限', icon: 'none' })
-      setTimeout(() => wx.navigateBack(), 500)
-      return
-    }
-    const status = decodeURIComponent(options.status || '')
-    this.setClaimData({
-      title: decodeURIComponent(options.title || '捞取申请'),
-      status,
-      statusLabel: decodeURIComponent(options.statusLabel || '') || claimStatusText(status),
-      createdAt: decodeURIComponent(options.createdAt || ''),
-      applicantName: decodeURIComponent(options.applicantName || ''),
-      approverName: decodeURIComponent(options.approverName || ''),
-      approveTime: decodeURIComponent(options.approveTime || ''),
-      reason: decodeURIComponent(options.reason || '')
+    return whenPermissionsReady(() => {
+      if (!getApp().globalData.demoMode && !hasPermission('sea:view')) {
+        wx.showToast({ title: '没有公海查看权限', icon: 'none' })
+        setTimeout(() => wx.navigateBack(), 500)
+        return
+      }
+      const status = decodeURIComponent(options.status || '')
+      this.setClaimData({
+        title: decodeURIComponent(options.title || '捞取申请'),
+        status,
+        statusLabel: decodeURIComponent(options.statusLabel || '') || claimStatusText(status),
+        createdAt: decodeURIComponent(options.createdAt || ''),
+        applicantName: decodeURIComponent(options.applicantName || ''),
+        approverName: decodeURIComponent(options.approverName || ''),
+        approveTime: decodeURIComponent(options.approveTime || ''),
+        reason: decodeURIComponent(options.reason || '')
+      })
+      this._loadedOnce = true
     })
   },
   goBack() { wx.navigateBack() }

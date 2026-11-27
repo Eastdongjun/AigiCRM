@@ -1,6 +1,7 @@
 const { approveApproval, getApprovalDetail, rejectApproval } = require('../../../api/approval')
 const { approvalRecords } = require('../../../data/demo')
 const { hasPermission, requireLogin } = require('../../../utils/auth')
+const { whenPermissionsReady } = require('../../../utils/permission-ready')
 const { showError } = require('../../../utils/feedback')
 // 【E6 去重】审批类型/状态映射原与 approval/index 各复制一份, 收敛到 utils/label-maps
 const { approvalStatusText, approvalTypeLabel, nodeStatusText, normalizeApprovalNode, pendingStatus } = require('../../../utils/label-maps')
@@ -224,6 +225,8 @@ Page({
   },
   onPermissionChanged() {
     if (getApp().globalData.demoMode) return
+    // 【BUG-MP-TABBAR-PERM-RACE-20261127 第二批】冷启动回填也会触发本回调: 页面未初始化时跳过, 避免误踢/双拉。
+    if (!this._loadedOnce) return
     if (!hasPermission('approval:view')) {
       wx.showToast({ title: '没有审批查看权限', icon: 'none' })
       setTimeout(() => wx.navigateBack(), 300)
@@ -234,13 +237,16 @@ Page({
 
   onLoad(options) {
     if (!requireLogin()) return
-    if (!getApp().globalData.demoMode && !hasPermission('approval:view')) {
-      wx.showToast({ title: '没有审批查看权限', icon: 'none' })
-      setTimeout(() => wx.navigateBack(), 500)
-      return
-    }
-    this.setApprovalData({ id: options.id || '', canApprove: getApp().globalData.demoMode || hasPermission('approval:approve'), canReject: getApp().globalData.demoMode || hasPermission('approval:reject') })
-    this.loadDetail()
+    return whenPermissionsReady(() => {
+      if (!getApp().globalData.demoMode && !hasPermission('approval:view')) {
+        wx.showToast({ title: '没有审批查看权限', icon: 'none' })
+        setTimeout(() => wx.navigateBack(), 500)
+        return
+      }
+      this.setApprovalData({ id: options.id || '', canApprove: getApp().globalData.demoMode || hasPermission('approval:approve'), canReject: getApp().globalData.demoMode || hasPermission('approval:reject') })
+      this.loadDetail()
+      this._loadedOnce = true
+    })
   },
   loadDetail() {
     this.setApprovalData({ loading: true })

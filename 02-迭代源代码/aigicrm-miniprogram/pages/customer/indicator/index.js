@@ -1,5 +1,6 @@
 const { getCustomerIndicator, saveCustomerIndicator } = require('../../../api/customer')
 const { hasPermission, requireLogin } = require('../../../utils/auth')
+const { whenPermissionsReady } = require('../../../utils/permission-ready')
 const { showError, showErrorWithRetry } = require('../../../utils/feedback')
 const { readDemoCustomers, saveDemoCustomer } = require('../../../utils/demo-customers')
 // 【D24/D25 2026-10-04】五项指标配置/视图构建、核心门槛提示统一引用组内 shared(与客户表单/详情共用同一出处)
@@ -35,6 +36,8 @@ Page({
   },
   onPermissionChanged() {
     if (getApp().globalData.demoMode) return
+    // 【BUG-MP-TABBAR-PERM-RACE-20261127 第二批】冷启动回填也会触发本回调: 页面未初始化时跳过, 避免误踢/双拉。
+    if (!this._loadedOnce) return
     if (!hasPermission('statistics:view')) {
       wx.showToast({ title: '没有操作权限', icon: 'none' })
       setTimeout(() => wx.navigateBack(), 300)
@@ -43,9 +46,12 @@ Page({
 
   onLoad(options) {
     if (!requireLogin()) return
-    if (!getApp().globalData.demoMode && (!hasPermission('customer:view') || !hasPermission('customer:edit'))) { wx.showToast({ title: '没有指标编辑权限', icon: 'none' }); wx.navigateBack(); return }
-    this.applyState({ id: options.id || '' })
-    this.load()
+    return whenPermissionsReady(() => {
+      if (!getApp().globalData.demoMode && (!hasPermission('customer:view') || !hasPermission('customer:edit'))) { wx.showToast({ title: '没有指标编辑权限', icon: 'none' }); wx.navigateBack(); return }
+      this.applyState({ id: options.id || '' })
+      this.load()
+      this._loadedOnce = true
+    })
   },
   load() {
     if (!this.data.id) return

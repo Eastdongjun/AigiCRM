@@ -1,4 +1,5 @@
 const { hasPermission, requireLogin } = require('../../../utils/auth')
+const { whenPermissionsReady } = require('../../../utils/permission-ready')
 const { getFabushiPostDetail, getFabushiComments, addFabushiComment, toggleFabushiLike, markFabushiRead, updateFabushiPost, deleteFabushiPost, getFabushiRecitations, addFabushiRecitation } = require('../../../api/fabushi')
 const { getDownloadToken, getDownloadUrl, uploadFile } = require('../../../api/file')
 const { showError } = require('../../../utils/feedback')
@@ -42,6 +43,8 @@ Page({
 
   onPermissionChanged() {
     if (getApp().globalData.demoMode) return
+    // 【BUG-MP-TABBAR-PERM-RACE-20261127 第二批】冷启动回填也会触发本回调: 页面未初始化时跳过, 避免误踢/双拉。
+    if (!this._loadedOnce) return
     if (!hasPermission('fabushi:view')) {
       wx.showToast({ title: '没有法布施查看权限', icon: 'none' })
       setTimeout(() => wx.navigateBack(), 300)
@@ -52,15 +55,18 @@ Page({
 
   onLoad(options) {
     if (!requireLogin()) return
-    if (!getApp().globalData.demoMode && !hasPermission('fabushi:view')) {
-      wx.showToast({ title: '没有法布施查看权限', icon: 'none' })
-      setTimeout(() => wx.navigateBack(), 300)
-      return
-    }
-    this.setData({ id: options.id || '', canCreate: hasPermission('fabushi:create') })
-    // 认知广场的 ⋯ 菜单跳过来时可以指定落点: comment = 评论输入框, recite = 复诵条
-    this._focus = options.focus || ''
-    this.loadDetail()
+    return whenPermissionsReady(() => {
+      if (!getApp().globalData.demoMode && !hasPermission('fabushi:view')) {
+        wx.showToast({ title: '没有法布施查看权限', icon: 'none' })
+        setTimeout(() => wx.navigateBack(), 300)
+        return
+      }
+      this.setData({ id: options.id || '', canCreate: hasPermission('fabushi:create') })
+      // 认知广场的 ⋯ 菜单跳过来时可以指定落点: comment = 评论输入框, recite = 复诵条
+      this._focus = options.focus || ''
+      this.loadDetail()
+      this._loadedOnce = true
+    })
   },
 
   onHide() { this.discardRecording() },

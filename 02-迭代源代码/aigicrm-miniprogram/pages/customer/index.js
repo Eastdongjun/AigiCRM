@@ -1,5 +1,6 @@
 const { getCustomerCounts, getCustomerList } = require('../../api/customer')
 const { hasPermission, requireLogin } = require('../../utils/auth')
+const { whenPermissionsReady } = require('../../utils/permission-ready')
 const { showError } = require('../../utils/feedback')
 const { readDemoCustomers } = require('../../utils/demo-customers')
 // 【D24/D27 2026-10-04】状态文案、筛选草稿读取/参数拼装统一引用组内共享模块
@@ -111,19 +112,24 @@ Page({
 
   onLoad() {
     if (!requireLogin()) return
-    if (!getApp().globalData.demoMode && !hasPermission('customer:view')) {
-      wx.showToast({ title: '没有客户查看权限', icon: 'none' })
-      wx.switchTab({ url: '/pages/home/index' })
-      return
-    }
-    this.setCustomerData({
-      canAdd: getApp().globalData.demoMode || hasPermission('customer:add'),
-      canViewSea: getApp().globalData.demoMode || hasPermission('sea:view')
+    return whenPermissionsReady(() => {
+      if (!getApp().globalData.demoMode && !hasPermission('customer:view')) {
+        wx.showToast({ title: '没有客户查看权限', icon: 'none' })
+        wx.switchTab({ url: '/pages/home/index' })
+        return
+      }
+      this.setCustomerData({
+        canAdd: getApp().globalData.demoMode || hasPermission('customer:add'),
+        canViewSea: getApp().globalData.demoMode || hasPermission('sea:view')
+      })
+      this.refresh()
+      this._loadedOnce = true
     })
-    this.refresh()
   },
 
   onPermissionChanged() {
+    // 【BUG-MP-TABBAR-PERM-RACE-20261127 第二批】冷启动回填也会触发本回调: 页面未初始化时交给 onLoad 统一取数, 避免双拉。
+    if (!this._loadedOnce) return
     this.loadCounts(); this.loadCustomers();
   },
 

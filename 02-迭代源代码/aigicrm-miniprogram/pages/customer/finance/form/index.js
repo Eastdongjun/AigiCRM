@@ -1,5 +1,6 @@
 const { saveCustomerStageAmount } = require('../../../../api/customer')
 const { hasPermission, requireLogin } = require('../../../../utils/auth')
+const { whenPermissionsReady } = require('../../../../utils/permission-ready')
 const { showError } = require('../../../../utils/feedback')
 // 【D24 2026-10-04】返回兜底逻辑收敛到组内 shared(各表单共用同一份)
 const { navigateBackWithFallback } = require('../../shared')
@@ -47,6 +48,8 @@ Page({
 
   onPermissionChanged() {
     if (getApp().globalData.demoMode) return
+    // 【BUG-MP-TABBAR-PERM-RACE-20261127 第二批】冷启动回填也会触发本回调: 页面未初始化时跳过, 避免误踢/双拉。
+    if (!this._loadedOnce) return
     if (!(hasPermission('finance:manage') || hasPermission('customer:finance:edit') || (hasPermission('customer:edit') && hasPermission('finance:view')))) {
       wx.showToast({ title: '没有操作权限', icon: 'none' })
       setTimeout(() => wx.navigateBack(), 300)
@@ -55,18 +58,21 @@ Page({
 
   onLoad(options) {
     if (!requireLogin()) return
-    // 【2026-11-03 拆码对齐】后端第三通道 customer:finance:edit(开票回款编辑, 带独立数据范围)
-    if (!getApp().globalData.demoMode && !(hasPermission('finance:manage') || hasPermission('customer:finance:edit') || (hasPermission('customer:edit') && hasPermission('finance:view')))) {
-      wx.showToast({ title: '没有财务编辑权限', icon: 'none' })
-      wx.navigateBack()
-      return
-    }
-    // 编辑模式: 列表页带 periodYear/periodType 预填(同周期重复保存即覆盖修改)
-    const periodYear = Number(options.periodYear) || new Date().getFullYear()
-    const periodType = PERIOD_TYPES.some((item) => item.value === options.periodType) ? options.periodType : 'H1'
-    const isEdit = Boolean(options.periodYear)
-    const form = { periodYear, periodType, invoiceAmount: null, paymentAmount: null }
-    this.setData({ id: options.id || '', isEdit, form, stageFormView: buildStageFormView({ ...this.data, isEdit, form }) })
+    return whenPermissionsReady(() => {
+      // 【2026-11-03 拆码对齐】后端第三通道 customer:finance:edit(开票回款编辑, 带独立数据范围)
+      if (!getApp().globalData.demoMode && !(hasPermission('finance:manage') || hasPermission('customer:finance:edit') || (hasPermission('customer:edit') && hasPermission('finance:view')))) {
+        wx.showToast({ title: '没有财务编辑权限', icon: 'none' })
+        wx.navigateBack()
+        return
+      }
+      // 编辑模式: 列表页带 periodYear/periodType 预填(同周期重复保存即覆盖修改)
+      const periodYear = Number(options.periodYear) || new Date().getFullYear()
+      const periodType = PERIOD_TYPES.some((item) => item.value === options.periodType) ? options.periodType : 'H1'
+      const isEdit = Boolean(options.periodYear)
+      const form = { periodYear, periodType, invoiceAmount: null, paymentAmount: null }
+      this.setData({ id: options.id || '', isEdit, form, stageFormView: buildStageFormView({ ...this.data, isEdit, form }) })
+      this._loadedOnce = true
+    })
   },
 
   refreshStageFormView() {

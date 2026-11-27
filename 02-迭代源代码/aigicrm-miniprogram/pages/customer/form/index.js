@@ -1,6 +1,7 @@
 const { getCustomer, saveCustomerWithIndicator, updateCustomerWithIndicator, checkCustomerName, getCustomerSimpleUsers, getCustomerGroupNames, getCustomerIndicator } = require('../../../api/customer')
 const { getDepts, getDictData } = require('../../../api/system')
 const { hasPermission, requireLogin, isAdmin } = require('../../../utils/auth')
+const { whenPermissionsReady } = require('../../../utils/permission-ready')
 const { showError, showErrorWithRetry } = require('../../../utils/feedback')
 // 【E10】表单草稿接口自 api/system 迁至 api/draft(D38 域归位收尾), 引用随迁
 const { getFormDraft, saveFormDraft, deleteFormDraft } = require('../../../api/draft')
@@ -145,7 +146,11 @@ Page({
 
   onPermissionChanged() {
     if (getApp().globalData.demoMode) return
-    if (!hasPermission(id ? 'customer:edit' : 'customer:add')) {
+    // 【BUG-MP-TABBAR-PERM-RACE-20261127 第二批】冷启动回填也会触发本回调: 页面未初始化时跳过, 避免误踢/双拉。
+    if (!this._loadedOnce) return
+    // 【BUG-MP-TABBAR-PERM-RACE-20261127 第二批】全盘检查顺带修复: 原引用 onLoad 局部变量 id
+    // 在本回调作用域不存在(ReferenceError, 被 permission-refresh 的 try/catch 吞掉), 改用页面数据。
+    if (!hasPermission(this.data.id ? 'customer:edit' : 'customer:add')) {
       wx.showToast({ title: '没有操作权限', icon: 'none' })
       setTimeout(() => wx.navigateBack(), 300)
     }
@@ -153,29 +158,32 @@ Page({
 
   onLoad(options) {
     if (!requireLogin()) return
-    const id = options.id || ''
-    if (!getApp().globalData.demoMode && !hasPermission(id ? 'customer:edit' : 'customer:add')) {
-      wx.showToast({ title: '没有操作权限', icon: 'none' }); return wx.navigateBack()
-    }
-    this.setData({
-      id,
-      isEdit: !!id,
-      // 编辑态注册日仅 admin 或 customer:date:edit 可改（与 PC canEditProtectedDates 一致）
-      canEditDates: !id || getApp().globalData.demoMode || isAdmin() || (hasPermission('customer:edit') && hasPermission('customer:date:edit')),
-      // 【裁决 2026-11-02 用户名单】最近开票日人工维护: customer:invoice-date:edit(行政/总监/admin);
-      // 仅编辑态可改(新建默认留空口径不变), 与 PC canEditInvoiceDate 一致
-      canEditInvoiceDate: Boolean(id) && (getApp().globalData.demoMode || isAdmin() || (hasPermission('customer:edit') && hasPermission('customer:invoice-date:edit')))
-    }, () => this.refreshFormView())
-    // 【A4 三轮 2026-10-09】导航栏标题与 PC 对齐（新增客户/编辑客户）：原固定「客户表单」，PC 无此概念
-    wx.setNavigationBarTitle({ title: id ? '编辑客户' : '新增客户' })
-    // 【C5 2026-10-21】新建提交幂等键绑定本表单实例(onLoad 生成): 同一实例的超时重试复用同键
-    // (服务端已落库时回放同一客户 id, 不重复建客); 成功提交/onUnload 清空; 另开的新实例必是新键。
-    this._submitKey = newSubmitKey()
-    this._submitKeyName = ''
-    // 【M13 2026-10-04】记录选项加载 Promise：草稿恢复确认时挂在它后面，
-    // 保证 applyCustomer 重算 picker 索引时下拉候选已就绪(选项未加载时索引恒为 -1)
-    this.optionsPromise = this.loadOptions().then(() => (id ? this.loadDetail() : this.prefillOwner()))
-    if (!id) this.tryRestoreDraft() // 【议题四】新建时检查草稿恢复
+    return whenPermissionsReady(() => {
+      const id = options.id || ''
+      if (!getApp().globalData.demoMode && !hasPermission(id ? 'customer:edit' : 'customer:add')) {
+        wx.showToast({ title: '没有操作权限', icon: 'none' }); return wx.navigateBack()
+      }
+      this.setData({
+        id,
+        isEdit: !!id,
+        // 编辑态注册日仅 admin 或 customer:date:edit 可改（与 PC canEditProtectedDates 一致）
+        canEditDates: !id || getApp().globalData.demoMode || isAdmin() || (hasPermission('customer:edit') && hasPermission('customer:date:edit')),
+        // 【裁决 2026-11-02 用户名单】最近开票日人工维护: customer:invoice-date:edit(行政/总监/admin);
+        // 仅编辑态可改(新建默认留空口径不变), 与 PC canEditInvoiceDate 一致
+        canEditInvoiceDate: Boolean(id) && (getApp().globalData.demoMode || isAdmin() || (hasPermission('customer:edit') && hasPermission('customer:invoice-date:edit')))
+      }, () => this.refreshFormView())
+      // 【A4 三轮 2026-10-09】导航栏标题与 PC 对齐（新增客户/编辑客户）：原固定「客户表单」，PC 无此概念
+      wx.setNavigationBarTitle({ title: id ? '编辑客户' : '新增客户' })
+      // 【C5 2026-10-21】新建提交幂等键绑定本表单实例(onLoad 生成): 同一实例的超时重试复用同键
+      // (服务端已落库时回放同一客户 id, 不重复建客); 成功提交/onUnload 清空; 另开的新实例必是新键。
+      this._submitKey = newSubmitKey()
+      this._submitKeyName = ''
+      // 【M13 2026-10-04】记录选项加载 Promise：草稿恢复确认时挂在它后面，
+      // 保证 applyCustomer 重算 picker 索引时下拉候选已就绪(选项未加载时索引恒为 -1)
+      this.optionsPromise = this.loadOptions().then(() => (id ? this.loadDetail() : this.prefillOwner()))
+      if (!id) this.tryRestoreDraft() // 【议题四】新建时检查草稿恢复
+      this._loadedOnce = true
+    })
   },
 
   /** 下拉数据：部门 / 人员 / 字典 / 历史集团名（演示模式直接用演示候选，不请求接口） */

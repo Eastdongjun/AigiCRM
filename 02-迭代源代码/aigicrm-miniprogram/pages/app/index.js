@@ -1,4 +1,5 @@
 const { hasPermission, requireLogin, isAdmin } = require('../../utils/auth')
+const { isAuthReady, ensurePermissionsReady } = require('../../utils/permission-ready')
 const permissionRefresh = require('../../utils/permission-refresh')
 
 const APP_ICONS = {
@@ -103,6 +104,10 @@ Page({
   },
 
   computeApps() {
+    // 【BUG-MP-TABBAR-PERM-RACE-20261127 第二批】权限未回填时先等回填, 避免应用宫格按空权限渲染成"没有应用"
+    if (!getApp().globalData.demoMode && !isAuthReady()) {
+      return ensurePermissionsReady().then(() => this.computeApps())
+    }
     const apps = [
       // 【法布施一期 2026-11-15】需求裁决①: 入口在「应用」宫格权限卡第一位(与客户管理平级, tabBar 零改动)
       { key: 'fabushi', title: '法布施', subtitle: '读书 · 心得 · 正能量', color: 'blue', permission: 'fabushi:view' },

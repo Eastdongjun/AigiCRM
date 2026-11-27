@@ -46,6 +46,17 @@ function whenAuthReady() {
 }
 
 /**
+ * 入口守卫统一入口: 权限未回填时等回填再执行, 已就绪(demo/admin/已回填)同步执行。
+ * 只用于"会踢人/拦住取数"的 onLoad/onShow; 按钮级 hasPermission 不包(由 markChanged 重算)。
+ * 回填失败(网络/无 token)时 ensure 返回 false 后仍执行 fn, 由 fn 里的原判定回落原行为。
+ */
+function whenPermissionsReady(fn) {
+  if (typeof fn !== 'function') return Promise.resolve()
+  if (isAuthReady()) return fn()
+  return ensurePermissionsReady().then(() => fn())
+}
+
+/**
  * 确保权限已回填, 返回 Promise<boolean>(true=已就绪, false=回填失败/无 token)。
  * 顺序: 已就绪 → true; 有在途 → 等它; 否则持 token 时 force 拉一次。
  * 与 app.onShow 共用 globalData.permissionRefreshPromise 槽位, 避免并发重复请求。
@@ -82,4 +93,4 @@ function ensurePermissionsReady() {
   return globalData.permissionRefreshPromise
 }
 
-module.exports = { isAuthReady, whenAuthReady, ensurePermissionsReady }
+module.exports = { isAuthReady, whenAuthReady, whenPermissionsReady, ensurePermissionsReady }

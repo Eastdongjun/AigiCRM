@@ -5,6 +5,7 @@ const { deleteRecord, getCustomerRecords, getGrantCheck, getScoreByCustomer, mar
 const { incentiveRecords } = require('../../../data/demo')
 const { getDownloadUrl, getDownloadToken } = require('../../../api/file')
 const { hasPermission, isAdmin, requireLogin } = require('../../../utils/auth')
+const { whenPermissionsReady } = require('../../../utils/permission-ready')
 const { fetchRemoteAttachment } = require('../../../utils/attachment')
 const { showError } = require('../../../utils/feedback')
 const { buildIncentiveFiles } = require('../../../utils/incentive-files')
@@ -354,6 +355,8 @@ Page({
   },
   onPermissionChanged() {
     if (getApp().globalData.demoMode) return
+    // 【BUG-MP-TABBAR-PERM-RACE-20261127 第二批】冷启动回填也会触发本回调: 页面未初始化时跳过, 避免误踢/双拉。
+    if (!this._loadedOnce) return
     if (!(isAdmin() || hasPermission(PERMISSION_CODES.INCENTIVE_VIEW))) {
       wx.showToast({ title: '没有四项服务查看权限', icon: 'none' })
       setTimeout(() => wx.navigateBack(), 300)
@@ -364,16 +367,19 @@ Page({
 
   onLoad(options) {
     if (!requireLogin()) return
-    if (!getApp().globalData.demoMode && !hasPermission('incentive:view')) {
-      wx.showToast({ title: '没有四项服务查看权限', icon: 'none' })
-      setTimeout(() => wx.navigateBack(), 500)
-      return
-    }
-    // 【2026-11-10 用户令"检索只给那一条记录"】single=1: 只渲染命中的这条上传记录, 拨盘隐藏
-    this.setDetailData({ id: options.id || '', singleMode: options.single === '1', canDeleteRecords: !getApp().globalData.demoMode && isAdmin(), canEditRecords: !getApp().globalData.demoMode && isAdmin() })
-    this.loadGrantCheck()
-    this.loadDetail()
-    this.startClock()
+    return whenPermissionsReady(() => {
+      if (!getApp().globalData.demoMode && !hasPermission('incentive:view')) {
+        wx.showToast({ title: '没有四项服务查看权限', icon: 'none' })
+        setTimeout(() => wx.navigateBack(), 500)
+        return
+      }
+      // 【2026-11-10 用户令"检索只给那一条记录"】single=1: 只渲染命中的这条上传记录, 拨盘隐藏
+      this.setDetailData({ id: options.id || '', singleMode: options.single === '1', canDeleteRecords: !getApp().globalData.demoMode && isAdmin(), canEditRecords: !getApp().globalData.demoMode && isAdmin() })
+      this.loadGrantCheck()
+      this.loadDetail()
+      this.startClock()
+      this._loadedOnce = true
+    })
   },
   onShow() {
     this.startClock()

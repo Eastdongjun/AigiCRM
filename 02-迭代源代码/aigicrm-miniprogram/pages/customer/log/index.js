@@ -1,5 +1,6 @@
 const { addCustomerLog } = require('../../../api/customer')
 const { hasPermission, requireLogin } = require('../../../utils/auth')
+const { whenPermissionsReady } = require('../../../utils/permission-ready')
 const { showError } = require('../../../utils/feedback')
 // 【D24 2026-10-04】返回兜底逻辑收敛到组内 shared(各表单共用同一份)
 const { navigateBackWithFallback } = require('../shared')
@@ -29,6 +30,8 @@ Page({
   },
   onPermissionChanged() {
     if (getApp().globalData.demoMode) return
+    // 【BUG-MP-TABBAR-PERM-RACE-20261127 第二批】冷启动回填也会触发本回调: 页面未初始化时跳过, 避免误踢/双拉。
+    if (!this._loadedOnce) return
     if (!hasPermission('customer:view')) {
       wx.showToast({ title: '没有操作权限', icon: 'none' })
       setTimeout(() => wx.navigateBack(), 300)
@@ -37,12 +40,15 @@ Page({
 
   onLoad(options) {
     if (!requireLogin()) return
-    if (!getApp().globalData.demoMode && (!hasPermission('customer:view') || !hasPermission('customer:edit'))) {
-      wx.showToast({ title: '没有跟进记录权限', icon: 'none' })
-      wx.navigateBack()
-      return
-    }
-    this.setData({ id: options.id || '' })
+    return whenPermissionsReady(() => {
+      if (!getApp().globalData.demoMode && (!hasPermission('customer:view') || !hasPermission('customer:edit'))) {
+        wx.showToast({ title: '没有跟进记录权限', icon: 'none' })
+        wx.navigateBack()
+        return
+      }
+      this.setData({ id: options.id || '' })
+      this._loadedOnce = true
+    })
   },
   applyState(patch, callback) {
     const next = { ...this.data, ...patch }

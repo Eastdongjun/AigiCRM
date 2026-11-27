@@ -4,6 +4,7 @@ const { getCustomerList } = require('../../api/customer')
 const { getDepts, getDictData } = require('../../api/system')
 const { incentiveRecords } = require('../../data/demo')
 const { hasPermission, isAdmin, requireLogin } = require('../../utils/auth')
+const { whenPermissionsReady } = require('../../utils/permission-ready')
 // 【字面量收敛第一批 2026-11-12】权限码走生成物单源, 禁止手写字面量
 const { PERMISSION_CODES } = require('../../generated/permission-codes')
 const { fetchRemoteAttachment } = require('../../utils/attachment')
@@ -595,77 +596,81 @@ Page({
 
   onLoad(options) {
     if (!requireLogin()) return
-    // 【2026-11-03 用户令"查询和统计分开"】入口模式锁定页签集: ?mode=query|stats(应用中心两入口
-    // 分别带); 兼容旧 ?tab= 深链(tab∈统计侧推导 stats 模式)。tab 不属当前模式集时归位模式默认。
-    let tabMode = 'query'
-    if (options && options.mode === 'stats') tabMode = 'stats'
-    else if (options && options.mode === 'query') tabMode = 'query'
-    else if (options && ['stats', 'ranking'].indexOf(options.tab) >= 0) tabMode = 'stats'
-    const modeKeys = TAB_SETS[tabMode]
-    let initialTab = TAB_MODE_DEFAULTS[tabMode]
-    if (options && options.tab && modeKeys.indexOf(options.tab) >= 0) initialTab = options.tab
-    // 【2026-11-04 用户令"逐功能建码"】stats 模式双 pane 各绑注册码(统计=incentive:stats:view/
-    // 排行=incentive:rank:view, 见 utils/incentive-panes.js): 入口=注册码并集(任一命中可进),
-    // 默认 pane=第一个有权 pane, 无权 pane 不渲染不发请求。单元测试: scripts/test-miniprogram-incentive-panes.js。
-    let canStatsPanes = { stats: true, ranking: true }
-    if (tabMode === 'stats') {
-      const demo = Boolean(getApp().globalData.demoMode)
-      canStatsPanes = incentivePanes.computeStatsPanes(hasPermission, demo)
-      const firstAllowed = incentivePanes.firstAllowedStatsPane(canStatsPanes)
-      if (!firstAllowed) {
-        wx.showToast({ title: '没有统计排行权限', icon: 'none' })
+    return whenPermissionsReady(() => {
+      // 【2026-11-03 用户令"查询和统计分开"】入口模式锁定页签集: ?mode=query|stats(应用中心两入口
+      // 分别带); 兼容旧 ?tab= 深链(tab∈统计侧推导 stats 模式)。tab 不属当前模式集时归位模式默认。
+      let tabMode = 'query'
+      if (options && options.mode === 'stats') tabMode = 'stats'
+      else if (options && options.mode === 'query') tabMode = 'query'
+      else if (options && ['stats', 'ranking'].indexOf(options.tab) >= 0) tabMode = 'stats'
+      const modeKeys = TAB_SETS[tabMode]
+      let initialTab = TAB_MODE_DEFAULTS[tabMode]
+      if (options && options.tab && modeKeys.indexOf(options.tab) >= 0) initialTab = options.tab
+      // 【2026-11-04 用户令"逐功能建码"】stats 模式双 pane 各绑注册码(统计=incentive:stats:view/
+      // 排行=incentive:rank:view, 见 utils/incentive-panes.js): 入口=注册码并集(任一命中可进),
+      // 默认 pane=第一个有权 pane, 无权 pane 不渲染不发请求。单元测试: scripts/test-miniprogram-incentive-panes.js。
+      let canStatsPanes = { stats: true, ranking: true }
+      if (tabMode === 'stats') {
+        const demo = Boolean(getApp().globalData.demoMode)
+        canStatsPanes = incentivePanes.computeStatsPanes(hasPermission, demo)
+        const firstAllowed = incentivePanes.firstAllowedStatsPane(canStatsPanes)
+        if (!firstAllowed) {
+          wx.showToast({ title: '没有统计排行权限', icon: 'none' })
+          wx.switchTab({ url: '/pages/home/index' })
+          return
+        }
+        if (!canStatsPanes[initialTab]) initialTab = firstAllowed
+      }
+      this._tabMode = tabMode
+      this.setData({ tabMode, activeTab: initialTab, tabs: buildTabs(initialTab, tabMode, canStatsPanes), canStatsPanes })
+      wx.setNavigationBarTitle({ title: TAB_MODE_TITLES[tabMode] })
+      this.setData({ apiBase: (getApp().globalData && getApp().globalData.apiBaseUrl) || '' })
+      // 【M-10 2026-11-12 外部审计修复】守卫按 tabMode 分流(与 PC router/index.js:103 同口径):
+      // query 模式=激励查看(incentive:view) / stats 模式=统计排行(incentive:stats:view ∨ rank:view)。
+      // 修前: 只勾 stats:view/rank:view 的合法角色被 incentive:view 门槛踢回首页("勾了不可用")。
+      const requiredCode = tabMode === 'stats'
+        ? (hasPermission(PERMISSION_CODES.INCENTIVE_VIEW)
+           || hasPermission(PERMISSION_CODES.INCENTIVE_STATS_VIEW)
+           || hasPermission(PERMISSION_CODES.INCENTIVE_RANK_VIEW))
+        : hasPermission(PERMISSION_CODES.INCENTIVE_VIEW)
+      if (!getApp().globalData.demoMode && !requiredCode) {
+        wx.showToast({ title: tabMode === 'stats' ? '没有激励统计查看权限' : '没有四项服务查看权限', icon: 'none' })
         wx.switchTab({ url: '/pages/home/index' })
         return
       }
-      if (!canStatsPanes[initialTab]) initialTab = firstAllowed
-    }
-    this._tabMode = tabMode
-    this.setData({ tabMode, activeTab: initialTab, tabs: buildTabs(initialTab, tabMode, canStatsPanes), canStatsPanes })
-    wx.setNavigationBarTitle({ title: TAB_MODE_TITLES[tabMode] })
-    this.setData({ apiBase: (getApp().globalData && getApp().globalData.apiBaseUrl) || '' })
-    // 【M-10 2026-11-12 外部审计修复】守卫按 tabMode 分流(与 PC router/index.js:103 同口径):
-    // query 模式=激励查看(incentive:view) / stats 模式=统计排行(incentive:stats:view ∨ rank:view)。
-    // 修前: 只勾 stats:view/rank:view 的合法角色被 incentive:view 门槛踢回首页("勾了不可用")。
-    const requiredCode = tabMode === 'stats'
-      ? (hasPermission(PERMISSION_CODES.INCENTIVE_VIEW)
-         || hasPermission(PERMISSION_CODES.INCENTIVE_STATS_VIEW)
-         || hasPermission(PERMISSION_CODES.INCENTIVE_RANK_VIEW))
-      : hasPermission(PERMISSION_CODES.INCENTIVE_VIEW)
-    if (!getApp().globalData.demoMode && !requiredCode) {
-      wx.showToast({ title: tabMode === 'stats' ? '没有激励统计查看权限' : '没有四项服务查看权限', icon: 'none' })
-      wx.switchTab({ url: '/pages/home/index' })
-      return
-    }
-    this.setData({
-      canViewReadStats: getApp().globalData.demoMode || hasPermission(PERMISSION_CODES.INCENTIVE_READ_STATS) || isAdmin(),
-      canViewReadRanking: getApp().globalData.demoMode || hasPermission(PERMISSION_CODES.INCENTIVE_READ_RANKING_VIEW) || isAdmin(),
-      canUploadEvidence: !getApp().globalData.demoMode && hasPermission(PERMISSION_CODES.INCENTIVE_ADD),
-      canDeleteRecords: !getApp().globalData.demoMode && isAdmin()
+      this.setData({
+        canViewReadStats: getApp().globalData.demoMode || hasPermission(PERMISSION_CODES.INCENTIVE_READ_STATS) || isAdmin(),
+        canViewReadRanking: getApp().globalData.demoMode || hasPermission(PERMISSION_CODES.INCENTIVE_READ_RANKING_VIEW) || isAdmin(),
+        canUploadEvidence: !getApp().globalData.demoMode && hasPermission(PERMISSION_CODES.INCENTIVE_ADD),
+        canDeleteRecords: !getApp().globalData.demoMode && isAdmin()
+      })
+      this.loadGrantCheck()
+      this.ensureDlToken().then(() => {
+        this.loadRecords()
+      })
+      // 【NEW-001 2026-11-12 GoLive 审计修复】stats-only 角色只拉统计面板数据, 不再无条件
+      // 调全量查询族(categories/industry/devType/users/orgs 走 incentive:view 接口→403 弹窗风暴);
+      // query 模式才拉全量(与守卫分流 M-10 同口径)。
+      if (tabMode !== 'stats') {
+        this.loadCategories()
+        this.loadIndustryOptions()
+        this.loadDevTypeOptions()
+        this.loadUsers()
+        this.loadOrgs()
+      }
+      this.loadScoreboard()
+      this.loadReadStats()
+      this.loadReadRanking()
+      // 【2026-11-03 分开批】初始 tab/页签集已在 onLoad 头部落定(带模式), 原 _pendingTab 尾段机制移除
+      this._loadedOnce = true
     })
-    this.loadGrantCheck()
-    this.ensureDlToken().then(() => {
-      this.loadRecords()
-    })
-    // 【NEW-001 2026-11-12 GoLive 审计修复】stats-only 角色只拉统计面板数据, 不再无条件
-    // 调全量查询族(categories/industry/devType/users/orgs 走 incentive:view 接口→403 弹窗风暴);
-    // query 模式才拉全量(与守卫分流 M-10 同口径)。
-    if (tabMode !== 'stats') {
-      this.loadCategories()
-      this.loadIndustryOptions()
-      this.loadDevTypeOptions()
-      this.loadUsers()
-      this.loadOrgs()
-    }
-    this.loadScoreboard()
-    this.loadReadStats()
-    this.loadReadRanking()
-    // 【2026-11-03 分开批】初始 tab/页签集已在 onLoad 头部落定(带模式), 原 _pendingTab 尾段机制移除
-    this._loadedOnce = true
   },
 
   // 【PR-12 2026-09-19 首批】上传/追加成功 switchTab 回列表即见结果:每次显示刷新记录与统计
   // 【修复 2026-09-20】分类树随 onShow 刷新(此前仅 onLoad, 登录前失败后一直空树); 统计由树完成后串联
   onPermissionChanged() {
+    // 【BUG-MP-TABBAR-PERM-RACE-20261127 第二批】冷启动回填也会触发本回调: 页面未初始化时交给 onLoad 统一取数, 避免双拉。
+    if (!this._loadedOnce) return
     this.loadRecords();
   },
 

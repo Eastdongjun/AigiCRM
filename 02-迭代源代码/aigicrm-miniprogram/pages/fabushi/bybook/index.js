@@ -4,6 +4,7 @@
 // 分组全在前端做（一次拉全量本区内容），不额外加接口，也不做「先按章节查再按成员查」的多趟往返。
 // 【2026-11-25 用户裁决】“小程序法布施界面按原型 v7 重做外观”: 版式按原型 A3 重排, 取数与分组逻辑不变。
 const { requireLogin, hasPermission } = require('../../../utils/auth')
+const { whenPermissionsReady } = require('../../../utils/permission-ready')
 const { getFabushiBook, getFabushiBooks, getFabushiPosts } = require('../../../api/fabushi')
 const { showError } = require('../../../utils/feedback')
 const vm = require('../../../utils/fabushi-view-model')
@@ -64,19 +65,21 @@ Page({
 
   onLoad(query) {
     if (!requireLogin()) return
-    if (!hasPermission('fabushi:view')) {
-      wx.showToast({ title: '没有法布施查看权限', icon: 'none' })
-      return setTimeout(() => wx.navigateBack(), 600)
-    }
-    this._bookId = query && query.bookId ? Number(query.bookId) : null
-    if (!this._bookId) {
-      wx.showToast({ title: '参数缺失', icon: 'none' })
-      return setTimeout(() => wx.navigateBack(), 600)
-    }
-    this.setData({ canCreate: hasPermission('fabushi:create') })
-    wx.setNavigationBarTitle({ title: '按书浏览' })
-    this.loadBook()
-    this.loadPosts(true)
+    return whenPermissionsReady(() => {
+      if (!hasPermission('fabushi:view')) {
+        wx.showToast({ title: '没有法布施查看权限', icon: 'none' })
+        return setTimeout(() => wx.navigateBack(), 600)
+      }
+      this._bookId = query && query.bookId ? Number(query.bookId) : null
+      if (!this._bookId) {
+        wx.showToast({ title: '参数缺失', icon: 'none' })
+        return setTimeout(() => wx.navigateBack(), 600)
+      }
+      this.setData({ canCreate: hasPermission('fabushi:create') })
+      wx.setNavigationBarTitle({ title: '按书浏览' })
+      this.loadBook()
+      this.loadPosts(true)
+    })
   },
 
   onPullDownRefresh() {

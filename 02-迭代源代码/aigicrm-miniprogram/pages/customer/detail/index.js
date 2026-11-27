@@ -1,6 +1,7 @@
 const { deleteCustomer, getCustomer, getCustomerContacts, getCustomerLogs, getCustomerIndicator, getCustomerStageAmounts, saveCustomerRelationship, releaseCustomer, archiveCustomer } = require('../../../api/customer')
 const { submitApproval } = require('../../../api/approval')
 const { hasPermission, requireLogin, isAdmin } = require('../../../utils/auth')
+const { whenPermissionsReady } = require('../../../utils/permission-ready')
 // 【字面量收敛第一批 2026-11-12】权限码走生成物单源, 禁止手写字面量
 const { PERMISSION_CODES } = require('../../../generated/permission-codes')
 const { showError, showErrorWithRetry } = require('../../../utils/feedback')
@@ -296,6 +297,8 @@ Page({
 
   onPermissionChanged() {
     if (getApp().globalData.demoMode) return
+    // 【BUG-MP-TABBAR-PERM-RACE-20261127 第二批】冷启动回填也会触发本回调: 页面未初始化时跳过, 避免误踢/双拉。
+    if (!this._loadedOnce) return
     if (!(isAdmin() || hasPermission(PERMISSION_CODES.CUSTOMER_VIEW))) {
       wx.showToast({ title: '没有客户查看权限', icon: 'none' })
       setTimeout(() => wx.navigateBack(), 300)
@@ -306,23 +309,26 @@ Page({
 
   onLoad(options) {
     if (!requireLogin()) return
-    if (!getApp().globalData.demoMode && !hasPermission(PERMISSION_CODES.CUSTOMER_VIEW)) {
-      wx.showToast({ title: '没有客户查看权限', icon: 'none' })
-      wx.switchTab({ url: '/pages/home/index' })
-      return
-    }
-    const demoMode = getApp().globalData.demoMode
-    this.setDetailData({
-      id: options.id || '',
-      from: options.from || '',
-      canEdit: demoMode || hasPermission(PERMISSION_CODES.CUSTOMER_EDIT),
-      canDelete: !demoMode && hasPermission(PERMISSION_CODES.CUSTOMER_DELETE),
-      canViewFinance: demoMode || hasPermission(PERMISSION_CODES.FINANCE_VIEW),
-      canViewContacts: demoMode || hasPermission(PERMISSION_CODES.CONTACT_VIEW),
-      relationshipOptionsView: buildRelationshipOptions(this.data.relationshipOptions, this.data.indicator, demoMode || hasPermission(PERMISSION_CODES.CUSTOMER_EDIT))
+    return whenPermissionsReady(() => {
+      if (!getApp().globalData.demoMode && !hasPermission(PERMISSION_CODES.CUSTOMER_VIEW)) {
+        wx.showToast({ title: '没有客户查看权限', icon: 'none' })
+        wx.switchTab({ url: '/pages/home/index' })
+        return
+      }
+      const demoMode = getApp().globalData.demoMode
+      this.setDetailData({
+        id: options.id || '',
+        from: options.from || '',
+        canEdit: demoMode || hasPermission(PERMISSION_CODES.CUSTOMER_EDIT),
+        canDelete: !demoMode && hasPermission(PERMISSION_CODES.CUSTOMER_DELETE),
+        canViewFinance: demoMode || hasPermission(PERMISSION_CODES.FINANCE_VIEW),
+        canViewContacts: demoMode || hasPermission(PERMISSION_CODES.CONTACT_VIEW),
+        relationshipOptionsView: buildRelationshipOptions(this.data.relationshipOptions, this.data.indicator, demoMode || hasPermission(PERMISSION_CODES.CUSTOMER_EDIT))
+      })
+      this.loadRelationshipDict()
+      this.loadDetail()
+      this._loadedOnce = true
     })
-    this.loadRelationshipDict()
-    this.loadDetail()
   },
 
   /** 【#10 2026-10-12】后台字典覆盖客情选项(幂等一次): 成功后按当前指标重建选中态, 失败静默保持兜底文案 */

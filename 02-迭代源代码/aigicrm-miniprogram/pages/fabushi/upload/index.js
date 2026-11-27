@@ -1,4 +1,5 @@
 const { hasPermission, requireLogin } = require('../../../utils/auth')
+const { whenPermissionsReady } = require('../../../utils/permission-ready')
 const { getFabushiBooks, createFabushiPost, addFabushiAttachment, getFabushiSettings, getFabushiUploadTicket, getFabushiSections, createFabushiSectionSelf } = require('../../../api/fabushi')
 const { uploadFile, getDownloadToken, getDownloadUrl } = require('../../../api/file')
 const { showError } = require('../../../utils/feedback')
@@ -89,6 +90,8 @@ Page({
 
   onPermissionChanged() {
     if (getApp().globalData.demoMode) return
+    // 【BUG-MP-TABBAR-PERM-RACE-20261127 第二批】冷启动回填也会触发本回调: 页面未初始化时跳过, 避免误踢/双拉。
+    if (!this._loadedOnce) return
     if (!hasPermission('fabushi:create')) {
       wx.showToast({ title: '没有法布施发布权限', icon: 'none' })
       setTimeout(() => wx.navigateBack(), 300)
@@ -99,21 +102,24 @@ Page({
 
   onLoad(query) {
     if (!requireLogin()) return
-    if (!hasPermission('fabushi:create')) {
-      wx.showToast({ title: '无发布权限', icon: 'none' })
-      setTimeout(() => wx.navigateBack(), 1200)
-      return
-    }
-    this._presetBookId = query && query.bookId ? Number(query.bookId) : null
-    // 【D7 切片 6】觉醒三板块直达对应发布类型
-    const presetScope = query && query.scope
-    const scopeType = SCOPE_OPTIONS.some((item) => item.value === presetScope) ? presetScope : 'songdu'
-    this.setData({ canCreate: true, scopeType, editOnPick: this.readEditOnPick() })
-    this.syncNavTitle(scopeType)
-    // 三列选择器里第一列(类别)当前停在哪个类别、第二列列出的是哪个类别下的书目
-    this._pickerCategory = 0
-    this._pickerTitles = null
-    this.loadBooks()
+    return whenPermissionsReady(() => {
+      if (!hasPermission('fabushi:create')) {
+        wx.showToast({ title: '无发布权限', icon: 'none' })
+        setTimeout(() => wx.navigateBack(), 1200)
+        return
+      }
+      this._presetBookId = query && query.bookId ? Number(query.bookId) : null
+      // 【D7 切片 6】觉醒三板块直达对应发布类型
+      const presetScope = query && query.scope
+      const scopeType = SCOPE_OPTIONS.some((item) => item.value === presetScope) ? presetScope : 'songdu'
+      this.setData({ canCreate: true, scopeType, editOnPick: this.readEditOnPick() })
+      this.syncNavTitle(scopeType)
+      // 三列选择器里第一列(类别)当前停在哪个类别、第二列列出的是哪个类别下的书目
+      this._pickerCategory = 0
+      this._pickerTitles = null
+      this.loadBooks()
+      this._loadedOnce = true
+    })
   },
 
   // 导航标题随类型走(原型 B2/B3/B4: “发布 · 每日诵读”)

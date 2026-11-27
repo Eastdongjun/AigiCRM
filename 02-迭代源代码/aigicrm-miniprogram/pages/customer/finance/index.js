@@ -1,5 +1,6 @@
 const { getCustomerStageAmounts, getCustomerInvoices, getCustomerPayments } = require('../../../api/customer')
 const { hasPermission, requireLogin } = require('../../../utils/auth')
+const { whenPermissionsReady } = require('../../../utils/permission-ready')
 const { showError } = require('../../../utils/feedback')
 
 function toNumber(value) {
@@ -103,6 +104,8 @@ Page({
 
   onPermissionChanged() {
     if (getApp().globalData.demoMode) return
+    // 【BUG-MP-TABBAR-PERM-RACE-20261127 第二批】冷启动回填也会触发本回调: 页面未初始化时跳过, 避免误踢/双拉。
+    if (!this._loadedOnce) return
     if (!(typeof hasPermission === 'function' && hasPermission('finance:view'))) {
       wx.showToast({ title: '没有财务查看权限', icon: 'none' })
       setTimeout(() => wx.navigateBack(), 300)
@@ -113,14 +116,17 @@ Page({
 
   onLoad(options) {
     if (!requireLogin()) return
-    if (!getApp().globalData.demoMode && !hasPermission('finance:view')) {
-      wx.showToast({ title: '没有财务查看权限', icon: 'none' })
-      wx.navigateBack()
-      return
-    }
-    // 【2026-11-03 拆码对齐】后端第三通道 customer:finance:edit(开票回款编辑, 带独立数据范围)
-    this.setData({ id: options.id || '', canEdit: getApp().globalData.demoMode || hasPermission('finance:manage') || hasPermission('customer:finance:edit') || (hasPermission('customer:edit') && hasPermission('finance:view')) }, () => this.refreshStageView())
-    this.load()
+    return whenPermissionsReady(() => {
+      if (!getApp().globalData.demoMode && !hasPermission('finance:view')) {
+        wx.showToast({ title: '没有财务查看权限', icon: 'none' })
+        wx.navigateBack()
+        return
+      }
+      // 【2026-11-03 拆码对齐】后端第三通道 customer:finance:edit(开票回款编辑, 带独立数据范围)
+      this.setData({ id: options.id || '', canEdit: getApp().globalData.demoMode || hasPermission('finance:manage') || hasPermission('customer:finance:edit') || (hasPermission('customer:edit') && hasPermission('finance:view')) }, () => this.refreshStageView())
+      this.load()
+      this._loadedOnce = true
+    })
   },
 
   /** 【M14 对齐】从阶段表单返回时刷新(保存返回后列表不刷新) */

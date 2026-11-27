@@ -7,6 +7,7 @@ const { getDictData } = require('../../../api/system')
 // 【E10】表单草稿接口自 api/system 迁至 api/draft(D38 域归位收尾), 引用随迁
 const { getFormDraft, saveFormDraft, deleteFormDraft } = require('../../../api/draft')
 const { requireLogin, hasPermission } = require('../../../utils/auth')
+const { whenPermissionsReady } = require('../../../utils/permission-ready')
 const { fetchRemoteAttachment, saveDownloadedFileToDisk, isTextFileName, openTextView } = require('../../../utils/attachment')
 const { showError, showErrorWithRetry } = require('../../../utils/feedback')
 
@@ -532,6 +533,8 @@ Page({
 
   onPermissionChanged() {
     if (getApp().globalData.demoMode) return
+    // 【BUG-MP-TABBAR-PERM-RACE-20261127 第二批】冷启动回填也会触发本回调: 页面未初始化时跳过, 避免误踢/双拉。
+    if (!this._loadedOnce) return
     if (!(typeof hasPermission === 'function' && hasPermission('incentive:add'))) {
       wx.showToast({ title: '没有四项服务上传权限', icon: 'none' })
       setTimeout(() => wx.navigateBack(), 300)
@@ -542,15 +545,18 @@ Page({
 
   onLoad(options = {}) {
     if (!requireLogin()) return
-    const editId = options.id || ''
-    if (!getApp().globalData.demoMode && !editId && !hasPermission('incentive:add')) {
-      wx.showToast({ title: '没有四项服务上传权限', icon: 'none' })
-      wx.navigateBack()
-      return
-    }
-    this.setData({ editId }, () => this.refreshUploadViewState())
-    this.loadIndustries()
-    this.loadOptions()
+    return whenPermissionsReady(() => {
+      const editId = options.id || ''
+      if (!getApp().globalData.demoMode && !editId && !hasPermission('incentive:add')) {
+        wx.showToast({ title: '没有四项服务上传权限', icon: 'none' })
+        wx.navigateBack()
+        return
+      }
+      this.setData({ editId }, () => this.refreshUploadViewState())
+      this.loadIndustries()
+      this.loadOptions()
+      this._loadedOnce = true
+    })
   },
 
   loadIndustries() {

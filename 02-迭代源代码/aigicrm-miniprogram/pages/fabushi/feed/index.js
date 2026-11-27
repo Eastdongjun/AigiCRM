@@ -3,6 +3,7 @@
 //   朋友圈式卡片(头像 + 昵称 + 类型 / 正文 / 语音条 / 图片 / 时间·来源 / 灰底操作行 + ⋯ 菜单 / 谁点了木鱼)、底部“按书浏览”入口。
 //   取数与分页沿用原来的做法(每页 10 条, 触底加载, 旧的应答晚到不覆盖新的)。
 const { hasPermission, requireLogin } = require('../../../utils/auth')
+const { whenPermissionsReady } = require('../../../utils/permission-ready')
 const { getFabushiPosts, getFabushiBooks, toggleFabushiLike } = require('../../../api/fabushi')
 const { getDownloadToken } = require('../../../api/file')
 const { showError } = require('../../../utils/feedback')
@@ -39,6 +40,8 @@ Page({
 
   onPermissionChanged() {
     if (getApp().globalData.demoMode) return
+    // 【BUG-MP-TABBAR-PERM-RACE-20261127 第二批】冷启动回填也会触发本回调: 页面未初始化时跳过, 避免误踢/双拉。
+    if (!this._loadedOnce) return
     if (!hasPermission('fabushi:view')) {
       wx.showToast({ title: '没有法布施查看权限', icon: 'none' })
       setTimeout(() => wx.navigateBack(), 300)
@@ -50,13 +53,16 @@ Page({
 
   onLoad() {
     if (!requireLogin()) return
-    if (!getApp().globalData.demoMode && !hasPermission('fabushi:view')) {
-      wx.showToast({ title: '没有法布施查看权限', icon: 'none' })
-      setTimeout(() => wx.navigateBack(), 300)
-      return
-    }
-    this.setData({ canCreate: hasPermission('fabushi:create') })
-    this.reload()
+    return whenPermissionsReady(() => {
+      if (!getApp().globalData.demoMode && !hasPermission('fabushi:view')) {
+        wx.showToast({ title: '没有法布施查看权限', icon: 'none' })
+        setTimeout(() => wx.navigateBack(), 300)
+        return
+      }
+      this.setData({ canCreate: hasPermission('fabushi:create') })
+      this.reload()
+      this._loadedOnce = true
+    })
   },
 
   onShow() {

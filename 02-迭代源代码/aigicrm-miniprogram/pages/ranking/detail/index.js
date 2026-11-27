@@ -1,4 +1,5 @@
 const { requireLogin, hasPermission } = require('../../../utils/auth')
+const { whenPermissionsReady } = require('../../../utils/permission-ready')
 const { getScoreGrid, getScoreDeptMembers } = require('../../../api/score')
 const { showError } = require('../../../utils/feedback')
 
@@ -36,6 +37,8 @@ Page({
 
   onPermissionChanged() {
     if (getApp().globalData.demoMode) return
+    // 【BUG-MP-TABBAR-PERM-RACE-20261127 第二批】冷启动回填也会触发本回调: 页面未初始化时跳过, 避免误踢/双拉。
+    if (!this._loadedOnce) return
     if (!(typeof hasPermission === 'function' && hasPermission('score:view'))) {
       wx.showToast({ title: '没有学分排行权限', icon: 'none' })
       setTimeout(() => wx.navigateBack(), 300)
@@ -46,27 +49,30 @@ Page({
 
   onLoad(options) {
     if (!requireLogin()) return
-    if (!getApp().globalData.demoMode && !hasPermission('score:view')) {
-      wx.showToast({ title: '没有排行查看权限', icon: 'none' })
-      setTimeout(() => wx.navigateBack(), 500)
-      return
-    }
-    const name = decodeURIComponent(options.name || '')
-    const userId = options.userId || ''
-    const rank = options.rank || ''
-    const period = decodeURIComponent(options.period || '')
-    const dept = decodeURIComponent(options.dept || '')
-    const score = decodeURIComponent(options.score || '0')
-    // 无 userId(部门聚合行)=部门模式: 只出摘要卡+提示, 逐项明细需到个人榜下钻
-    const mode = userId ? 'personal' : 'dept'
-    const metaText = [period ? `周期 ${period}` : '', dept].filter(Boolean).join(' · ')
-    this.setData({
-      mode,
-      userId,
-      period,
-      header: buildDetailView({ name, score, metaText, rank, mode })
+    return whenPermissionsReady(() => {
+      if (!getApp().globalData.demoMode && !hasPermission('score:view')) {
+        wx.showToast({ title: '没有排行查看权限', icon: 'none' })
+        setTimeout(() => wx.navigateBack(), 500)
+        return
+      }
+      const name = decodeURIComponent(options.name || '')
+      const userId = options.userId || ''
+      const rank = options.rank || ''
+      const period = decodeURIComponent(options.period || '')
+      const dept = decodeURIComponent(options.dept || '')
+      const score = decodeURIComponent(options.score || '0')
+      // 无 userId(部门聚合行)=部门模式: 只出摘要卡+提示, 逐项明细需到个人榜下钻
+      const mode = userId ? 'personal' : 'dept'
+      const metaText = [period ? `周期 ${period}` : '', dept].filter(Boolean).join(' · ')
+      this.setData({
+        mode,
+        userId,
+        period,
+        header: buildDetailView({ name, score, metaText, rank, mode })
+      })
+      this.loadBreakdown()
+      this._loadedOnce = true
     })
-    this.loadBreakdown()
   },
 
   loadBreakdown() {

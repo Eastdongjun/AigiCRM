@@ -4,6 +4,7 @@ const { submitApproval } = require('../../api/approval')
 const { getDepts, getDictData } = require('../../api/system')
 const { seaRecords } = require('../../data/demo')
 const { hasPermission, requireLogin } = require('../../utils/auth')
+const { whenPermissionsReady } = require('../../utils/permission-ready')
 const { showError, showErrorWithRetry } = require('../../utils/feedback')
 // 【E6 去重】捞取申请状态映射原与 sea/claim-detail 复制一份; 组织树构建原与 incentive/statistics 同构, 均收敛到共享模块
 const { claimStatusText } = require('../../utils/label-maps')
@@ -218,22 +219,27 @@ Page({
   },
 
   onPermissionChanged() {
+    // 【BUG-MP-TABBAR-PERM-RACE-20261127 第二批】冷启动回填也会触发本回调: 页面未初始化时交给 onLoad 统一取数, 避免双拉。
+    if (!this._loadedOnce) return
     this.loadRecords(); this.loadStats();
   },
 
   onLoad() {
     if (!requireLogin()) return
-    if (!getApp().globalData.demoMode && !hasPermission('sea:view')) {
-      wx.showToast({ title: '没有公海查看权限', icon: 'none' })
-      wx.switchTab({ url: '/pages/home/index' })
-      return
-    }
-    this.loadPools()
-    this.loadDepts()
-    this.loadIndustryOptions()
-    this.loadStats()
-    this.loadRecords()
-    this.loadClaimRecords()
+    return whenPermissionsReady(() => {
+      if (!getApp().globalData.demoMode && !hasPermission('sea:view')) {
+        wx.showToast({ title: '没有公海查看权限', icon: 'none' })
+        wx.switchTab({ url: '/pages/home/index' })
+        return
+      }
+      this.loadPools()
+      this.loadDepts()
+      this.loadIndustryOptions()
+      this.loadStats()
+      this.loadRecords()
+      this.loadClaimRecords()
+      this._loadedOnce = true
+    })
   },
 
   loadIndustryOptions() {

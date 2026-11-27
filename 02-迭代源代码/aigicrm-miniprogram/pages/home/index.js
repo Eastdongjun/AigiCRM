@@ -3,6 +3,7 @@ const { getExpiringList, getPendingCount } = require('../../api/reminder')
 const { getDashboardData } = require('../../api/statistics')
 const { homeCards, reminderRecords } = require('../../data/demo')
 const { hasPermission, requireLogin } = require('../../utils/auth')
+const { isAuthReady, ensurePermissionsReady } = require('../../utils/permission-ready')
 const permissionRefresh = require('../../utils/permission-refresh')
 // 【字面量收敛第一批 2026-11-12】权限码走生成物单源(statistics:view 两处保留字面量供 dashboard 契约钉)
 const { PERMISSION_CODES } = require('../../generated/permission-codes')
@@ -196,6 +197,8 @@ Page({
   },
 
   openTask() {
+    // 【BUG-MP-TABBAR-PERM-RACE-20261127 第二批】权限未回填时等回填再判, 避免冷启动误弹"没有权限"
+    if (!isAuthReady()) return ensurePermissionsReady().then(() => this.openTask())
     if (!hasPermission('task:view') && !getApp().globalData.demoMode) {
       wx.showToast({ title: '没有任务查看权限', icon: 'none' })
       return
@@ -204,6 +207,8 @@ Page({
   },
 
   openIncentive() {
+    // 【BUG-MP-TABBAR-PERM-RACE-20261127 第二批】权限未回填时等回填再判, 避免冷启动误弹"没有权限"
+    if (!isAuthReady()) return ensurePermissionsReady().then(() => this.openIncentive())
     if (!hasPermission(PERMISSION_CODES.INCENTIVE_VIEW) && !getApp().globalData.demoMode) {
       wx.showToast({ title: '没有四项服务查看权限', icon: 'none' })
       return
@@ -212,6 +217,8 @@ Page({
   },
 
   openIncentiveUpload() {
+    // 【BUG-MP-TABBAR-PERM-RACE-20261127 第二批】权限未回填时等回填再判, 避免冷启动误弹"没有权限"
+    if (!isAuthReady()) return ensurePermissionsReady().then(() => this.openIncentiveUpload())
     if (!hasPermission(PERMISSION_CODES.INCENTIVE_ADD) && !getApp().globalData.demoMode) {
       wx.showToast({ title: '没有四项服务上传权限', icon: 'none' })
       return
@@ -220,6 +227,8 @@ Page({
   },
 
   openApproval() {
+    // 【BUG-MP-TABBAR-PERM-RACE-20261127 第二批】权限未回填时等回填再判, 避免冷启动误弹"没有权限"
+    if (!isAuthReady()) return ensurePermissionsReady().then(() => this.openApproval())
     if (!hasPermission(PERMISSION_CODES.APPROVAL_VIEW) && !getApp().globalData.demoMode) {
       wx.showToast({ title: '没有审批权限', icon: 'none' })
       return
@@ -228,6 +237,8 @@ Page({
   },
 
   openReminder() {
+    // 【BUG-MP-TABBAR-PERM-RACE-20261127 第二批】权限未回填时等回填再判, 避免冷启动误弹"没有权限"
+    if (!isAuthReady()) return ensurePermissionsReady().then(() => this.openReminder())
     if (!hasPermission(PERMISSION_CODES.REMINDER_VIEW) && !getApp().globalData.demoMode) {
       wx.showToast({ title: '没有提醒权限', icon: 'none' })
       return
@@ -236,6 +247,8 @@ Page({
   },
 
   openSea() {
+    // 【BUG-MP-TABBAR-PERM-RACE-20261127 第二批】权限未回填时等回填再判, 避免冷启动误弹"没有权限"
+    if (!isAuthReady()) return ensurePermissionsReady().then(() => this.openSea())
     if (!hasPermission(PERMISSION_CODES.SEA_VIEW) && !getApp().globalData.demoMode) {
       wx.showToast({ title: '没有公海权限', icon: 'none' })
       return
@@ -249,6 +262,8 @@ Page({
   },
 
   openNewCustomer() {
+    // 【BUG-MP-TABBAR-PERM-RACE-20261127 第二批】权限未回填时等回填再判, 避免冷启动误弹"没有权限"
+    if (!isAuthReady()) return ensurePermissionsReady().then(() => this.openNewCustomer())
     if (!hasPermission(PERMISSION_CODES.CUSTOMER_ADD) && !getApp().globalData.demoMode) {
       wx.showToast({ title: '没有新建客户权限', icon: 'none' })
       return
@@ -257,6 +272,8 @@ Page({
   },
 
   openStatistics() {
+    // 【BUG-MP-TABBAR-PERM-RACE-20261127 第二批】权限未回填时等回填再判, 避免冷启动误弹"没有权限"
+    if (!isAuthReady()) return ensurePermissionsReady().then(() => this.openStatistics())
     if (!hasPermission('statistics:view') && !getApp().globalData.demoMode) {
       wx.showToast({ title: '没有统计查看权限', icon: 'none' })
       return

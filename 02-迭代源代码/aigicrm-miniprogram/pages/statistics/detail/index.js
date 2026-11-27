@@ -1,5 +1,6 @@
 const { getDashboardData, getTeamActivities, getDailyStats, getWeeklyStats } = require('../../../api/statistics')
 const { requireLogin, hasPermission } = require('../../../utils/auth')
+const { whenPermissionsReady } = require('../../../utils/permission-ready')
 const { showError } = require('../../../utils/feedback')
 
 function percent(value, total) {
@@ -165,6 +166,8 @@ Page({
   },
   onPermissionChanged() {
     if (getApp().globalData.demoMode) return
+    // 【BUG-MP-TABBAR-PERM-RACE-20261127 第二批】冷启动回填也会触发本回调: 页面未初始化时跳过, 避免误踢/双拉。
+    if (!this._loadedOnce) return
     if (!(typeof hasPermission === 'function' && hasPermission('statistics:view'))) {
       wx.showToast({ title: '没有统计查看权限', icon: 'none' })
       setTimeout(() => wx.navigateBack(), 300)
@@ -175,12 +178,15 @@ Page({
 
   onLoad() {
     if (!requireLogin()) return
-    if (!getApp().globalData.demoMode && !hasPermission('statistics:view')) {
-      wx.showToast({ title: '没有统计查看权限', icon: 'none' })
-      setTimeout(() => wx.navigateBack(), 500)
-      return
-    }
-    this.loadStats()
+    return whenPermissionsReady(() => {
+      if (!getApp().globalData.demoMode && !hasPermission('statistics:view')) {
+        wx.showToast({ title: '没有统计查看权限', icon: 'none' })
+        setTimeout(() => wx.navigateBack(), 500)
+        return
+      }
+      this.loadStats()
+      this._loadedOnce = true
+    })
   },
   onPullDownRefresh() { this.loadStats().finally(() => wx.stopPullDownRefresh()) },
   loadStats() {
