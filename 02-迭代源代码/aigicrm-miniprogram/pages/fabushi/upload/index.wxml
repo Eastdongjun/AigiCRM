@@ -113,12 +113,14 @@
   <!-- 原型 B5 提交成功 · 木鱼动画。下面这一段木鱼舞台(从 muyu-stage 那一行到它闭合)和样式里的木鱼规则保持原样:
        PC 端的 FabushiMuyu 测试逐条读这里的模板与样式对账, 改了名字或加了前缀, 那边的对账会红。 -->
   <view class="knock-panel">
+    <!-- 【FABUSHI-DELTA-20261128 S2】木鱼=SVG 美术源 muyu-art.svg 导出的透明 PNG(assets/img/)，
+         PC 端 FabushiMuyu 内联同一份 SVG(契约测试比对)。敲击动画：鱼身压缩 + 木槌摆击 + 光晕/涟漪/+1。 -->
     <view class="muyu-stage {{muyuAnim ? 'go' : ''}}">
       <view class="muyu-glow"></view>
+      <view class="muyu-ground"></view>
+      <image class="muyu-img muyu-img-fish" src="/assets/img/muyu.png" mode="aspectFit" />
+      <image class="muyu-img muyu-img-mallet" src="/assets/img/muyu-mallet.png" mode="aspectFit" />
       <view class="muyu-ripple"></view>
-      <view class="muyu-body"></view>
-      <view class="muyu-cushion"></view>
-      <view class="muyu-mallet"></view>
       <view class="muyu-plus">+1</view>
     </view>
     <view class="sfx">笃——</view>

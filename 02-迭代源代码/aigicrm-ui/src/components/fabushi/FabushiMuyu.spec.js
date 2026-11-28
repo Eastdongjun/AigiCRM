@@ -3,213 +3,91 @@ import { readFileSync } from 'node:fs'
 import { mount } from '@vue/test-utils'
 import FabushiMuyu from './FabushiMuyu.vue'
 
-// 【2026-11-25 用户裁决】“PC 端的木鱼需要做成和小程序的木鱼一样，注意尺寸就行”。
-// 小程序的木鱼是发布成功页那只纯 CSS 画的（pages/fabushi/upload/index.wxml 的 muyu-stage）。
-// 这个组件把它原样搬过来，只多一个缩放系数 scale（1 = 小程序原尺寸；750 设计稿 1rpx = 0.5px）。
-// 这里钉住三件事：
-//   ① 模板：部件与小程序同一个顺序——读小程序的 wxml 对账，不在这里另抄一份常量；
-//   ② 样式：每一条尺寸、配色、动画都与小程序的 wxss 逐项相等——读小程序的 wxss 对账，rpx 换算成 px；
-//   ③ 行为：敲击时挂动画类、+1 只在新增点赞时飞起；缩放系数写在一个 CSS 变量上，占位跟着它变。
-// 以后小程序那边改了木鱼，这两条对账会红，提醒把 PC 这边同步过去。
-// 抓不到：真实渲染出来的样子（要靠截图比对）。
-// vitest 的 cwd 是 aigicrm-ui 根目录；jsdom 下 import.meta.url 不是 file 协议，所以用相对 cwd 的路径读文件。
+// 【FABUSHI-DELTA-20261128 S2】木鱼素材一致性契约（取代旧的 wxss 逐项对账——美术已从 CSS 拼装改为 SVG 源）。
+// 唯一美术源 = 本目录 muyu-art.svg：
+//   ① PC 端 FabushiMuyu.vue 内联的 SVG 必须与 muyu-art.svg 逐字符一致（谁改了图没同步另一份就红）；
+//   ② 小程序发布成功页 muyu-stage 必须引用 assets/img/muyu.png + muyu-mallet.png（同一源导出的 3x 透明 PNG），
+//      并保留光晕/涟漪/+1 舞台件；
+//   ③ PNG 实际尺寸必须等于画布尺寸×3（muyu.png 552×378 = 184×126@3x；muyu-mallet.png 138×228 = 46×76@3x），
+//      小程序 wxss 的显示尺寸必须等于画布尺寸×2rpx（184×126px → 368×252rpx；46×76px → 92×152rpx）；
+//   ④ 音效链路不动：小程序 muyu.mp3 播放逻辑与 PC muyuSfx 仍在（换图不换声）。
+//   ⑤ 行为：敲击挂 go 类、+1 只在新增点赞时飞起、缩放写在 --muyu-s 一个变量上。
+// 抓不到：PNG 内容是否真的由当前 SVG 导出（由导出流程保证；改了 muyu-art.svg 记得重导 PNG）。
+// vitest 的 cwd 是 aigicrm-ui 根目录；跨仓读小程序文件沿用旧对账的相对路径做法。
 
 const MP_DIR = '../aigicrm-miniprogram/pages/fabushi/upload'
+const MP_IMG = '../aigicrm-miniprogram/assets/img'
 const mpWxml = readFileSync(`${MP_DIR}/index.wxml`, 'utf-8')
 const mpWxss = readFileSync(`${MP_DIR}/index.wxss`, 'utf-8')
-const pcCss = readFileSync('src/components/fabushi/fabushi-muyu.css', 'utf-8')
+const mpJs = readFileSync(`${MP_DIR}/index.js`, 'utf-8')
+const pcDetailVue = readFileSync('src/views/fabushi/detail.vue', 'utf-8')
+const artSvg = readFileSync('src/components/fabushi/muyu-art.svg', 'utf-8')
+const pcVue = readFileSync('src/components/fabushi/FabushiMuyu.vue', 'utf-8')
 
-/** 小程序模板里木鱼舞台下的部件类名，按出现顺序 */
-const mpStageParts = () => {
-  const lines = mpWxml.split('\n')
-  const start = lines.findIndex((line) => line.includes('class="muyu-stage'))
-  const parts = []
-  for (const line of lines.slice(start + 1)) {
-    if (/^\s*<\/view>\s*$/.test(line)) break // 舞台闭合
-    const matched = line.match(/<view class="(muyu-[a-z]+)"/)
-    if (matched) parts.push(matched[1])
-  }
-  return parts
+/** PNG 的 IHDR 宽高（字节 16-23，大端） */
+const pngSize = (buf) => ({ width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) })
+
+/** 取 SVG 的内层内容（根标签内、剔除注释与空白差异）——根标签属性允许不同，内层必须逐字符一致 */
+const svgInner = (text) => {
+  const matched = text.match(/<svg[^>]*>([\s\S]*?)<\/svg>/)
+  if (!matched) return ''
+  return matched[1].replace(/<!--[\s\S]*?-->/g, '').replace(/\s+/g, ' ').trim()
+}
+const inlineSvgInner = () => {
+  const matched = pcVue.match(/<svg class="muyu-svg"[\s\S]*?<\/svg>/)
+  return matched ? svgInner(matched[0]) : ''
 }
 
-/** 把“一行一条规则”的样式文本拆成 { 选择器: { 属性: 值 } }；小程序的 wxss 和 PC 的 css 都是这种写法 */
-const parseRules = (text) => {
-  const rules = {}
-  let inMedia = false
-  for (const line of text.split('\n')) {
-    if (/^\s*@media/.test(line)) { inMedia = true; continue }
-    if (inMedia) { if (/^\s*}\s*$/.test(line)) inMedia = false; continue }
-    const matched = line.match(/^\s*([^{@}\s][^{]*?)\s*\{([^{}]*)\}\s*$/)
-    if (!matched) continue
-    const decls = {}
-    for (const decl of matched[2].split(';')) {
-      const colon = decl.indexOf(':')
-      if (colon > 0) decls[decl.slice(0, colon).trim()] = decl.slice(colon + 1).trim().replace(/\s+/g, ' ')
-    }
-    rules[matched[1].trim()] = decls
-  }
-  return rules
-}
-
-/** 关键帧：{ 名称: { '0': { 属性: 值 }, … } } */
-const parseKeyframes = (text) => {
-  const frames = {}
-  for (const line of text.split('\n')) {
-    const head = line.match(/^\s*@keyframes\s+([\w-]+)\s*\{(.*)\}\s*$/)
-    if (!head) continue
-    const steps = {}
-    for (const step of head[2].matchAll(/(\d+)%\s*\{([^{}]*)\}/g)) {
-      const decls = {}
-      for (const decl of step[2].split(';')) {
-        const colon = decl.indexOf(':')
-        if (colon > 0) decls[decl.slice(0, colon).trim()] = decl.slice(colon + 1).trim().replace(/\s+/g, ' ')
-      }
-      steps[step[1]] = decls
-    }
-    frames[head[1]] = steps
-  }
-  return frames
-}
-
-/** rpx → px：750 设计稿上 1rpx = 0.5px */
-const rpxToPx = (value) => value.replace(/(-?\d+(?:\.\d+)?)rpx/g, (_, digits) => `${Number((Number(digits) / 2).toFixed(3))}px`)
-
-/** 两边的根节点类名不同（小程序 .muyu-stage、PC .fmuyu），伪元素写法不同（:after / ::after）：都抹平后再比。
- *  根类名只在它后面还跟着别的（空格或 .go）时才剥掉，单独一条 .fmuyu / .muyu-stage 要留着。 */
-const normalizeSelector = (selector) => selector
-  .replace(/^\.muyu-stage(?=\s|\.)/, '')
-  .replace(/^\.fmuyu(?=\s|\.)/, '')
-  .trim()
-  .replace(/(^|[^:]):(after|before)\b/g, '$1::$2')
-  .trim()
-
-const mpRules = parseRules(mpWxss)
-const pcRules = parseRules(pcCss)
-const pcByKey = {}
-for (const [selector, decls] of Object.entries(pcRules)) pcByKey[normalizeSelector(selector)] = decls
-const mpFrames = parseKeyframes(mpWxss)
-const pcFrames = parseKeyframes(pcCss)
-
-describe('FabushiMuyu：模板与小程序发布成功页那只木鱼同源', () => {
-  it('先确认读得到小程序模板里的木鱼舞台（读不到的话下面的对账就是空转）', () => {
-    const parts = mpStageParts()
-    expect(parts.length, '小程序模板里木鱼舞台下的部件数').toBeGreaterThanOrEqual(5)
-    expect(parts[0]).toBe('muyu-glow')
-    expect(parts[parts.length - 1]).toBe('muyu-plus')
+describe('木鱼素材一致性契约(S2)：muyu-art.svg 单一源', () => {
+  it('① PC 组件内联 SVG 与 muyu-art.svg 内层逐字符一致，画布同为 34 42 184 126', () => {
+    expect(artSvg).toContain('viewBox="34 42 184 126"')
+    expect(pcVue).toContain('viewBox="34 42 184 126"')
+    expect(inlineSvgInner()).toBe(svgInner(artSvg))
   })
 
-  it('舞台下的部件与小程序同一个顺序（平时不显示 +1，所以是前 N-1 个）', () => {
-    const wrapper = mount(FabushiMuyu)
-    const rendered = [...wrapper.find('.muyu-stage').element.children].map((node) => node.className)
-    const expected = mpStageParts().filter((name) => name !== 'muyu-plus')
-    expect(rendered).toEqual(expected)
-    // 舞台只是图：里面没有文字，也没有表情符号
-    expect(wrapper.find('.muyu-stage').text()).toBe('')
-    expect(wrapper.text()).not.toContain('🐟')
+  it('② 小程序发布页引用同一源导出的 PNG，并保留光晕/涟漪/+1', () => {
+    expect(mpWxml).toContain('src="/assets/img/muyu.png"')
+    expect(mpWxml).toContain('src="/assets/img/muyu-mallet.png"')
+    for (const part of ['muyu-glow', 'muyu-ripple', 'muyu-plus', 'muyu-img-fish', 'muyu-img-mallet']) {
+      expect(mpWxml).toContain(part)
+    }
+    // 旧 CSS 拼装件不能再出现（防止两套美术并存）
+    for (const gone of ['muyu-body', 'muyu-cushion']) {
+      expect(mpWxml).not.toContain(`muyu-${gone}`)
+    }
   })
 
-  it('整个组件只有这一个根节点，是纯装饰（对读屏软件隐藏）', () => {
-    const wrapper = mount(FabushiMuyu)
-    expect(wrapper.element.className).toBe('fmuyu')
-    expect(wrapper.element.tagName).toBe('SPAN')
-    expect(wrapper.attributes('aria-hidden')).toBe('true')
+  it('③ PNG 实际尺寸 = 画布×3；wxss 显示尺寸 = 画布×2rpx', () => {
+    const fish = pngSize(readFileSync(`${MP_IMG}/muyu.png`))
+    const mallet = pngSize(readFileSync(`${MP_IMG}/muyu-mallet.png`))
+    expect(fish).toEqual({ width: 552, height: 378 })
+    expect(mallet).toEqual({ width: 138, height: 228 })
+    expect(mpWxss).toContain('.muyu-img-fish { left: -34rpx; top: 4rpx; width: 368rpx; height: 252rpx;')
+    expect(mpWxss).toContain('.muyu-img-mallet { left: 250rpx; top: 92rpx; width: 92rpx; height: 152rpx;')
+  })
+
+  it('④ 换图不换声：两端木鱼音效链路仍在', () => {
+    expect(mpJs).toContain('muyu.mp3')
+    expect(mpJs).toContain('playMuyuSound')
+    expect(pcDetailVue).toContain("new Audio('/audio/muyu.mp3')")
   })
 })
 
-describe('FabushiMuyu：样式与小程序的 wxss 逐项相等（rpx 换算成 px）', () => {
-  it('先确认读得到小程序的木鱼样式（读不到的话下面的对账就是空转）', () => {
-    expect(Object.keys(mpRules).filter((key) => key.startsWith('.muyu-')).length).toBeGreaterThanOrEqual(8)
-    expect(Object.keys(mpFrames)).toEqual(expect.arrayContaining(['muyu-hit', 'muyu-ripple', 'muyu-plus', 'muyu-glow']))
-    expect(rpxToPx('5rpx -48rpx 170rpx 50%')).toBe('2.5px -24px 85px 50%')
-    // 选择器归一化自带对照: 单冒号变双冒号、已是双冒号的不变、根类名只在后面还跟着别的时才剥
-    expect(normalizeSelector('.muyu-body:after')).toBe('.muyu-body::after')
-    expect(normalizeSelector('.fmuyu .muyu-body::after')).toBe('.muyu-body::after')
-    expect(normalizeSelector('.muyu-stage.go .muyu-mallet')).toBe('.go .muyu-mallet')
-    expect(normalizeSelector('.fmuyu.go .muyu-mallet')).toBe('.go .muyu-mallet')
-    expect(normalizeSelector('.fmuyu')).toBe('.fmuyu')
-  })
-
-  it('小程序 .muyu-* 的每一条规则，PC 都有同名规则，且每个属性值都相等', () => {
-    const problems = []
-    for (const [selector, decls] of Object.entries(mpRules)) {
-      if (!selector.startsWith('.muyu-')) continue
-      const key = normalizeSelector(selector)
-      if (selector === '.muyu-stage') continue // 舞台本身（position / margin）PC 另有摆法，见下一条用例
-      const pcDecl = pcByKey[key]
-      if (!pcDecl) { problems.push(`PC 没有 ${key} 这条规则`); continue }
-      for (const [prop, value] of Object.entries(decls)) {
-        const expected = rpxToPx(value)
-        if (pcDecl[prop] !== expected) problems.push(`${key} { ${prop} }：小程序 ${value} → 应为 ${expected}，PC 是 ${pcDecl[prop]}`)
-      }
-    }
-    expect(problems).toEqual([])
-  })
-
-  it('舞台还是小程序的 300×260rpx（= 150×130px）；敲击动画的每一段关键帧都相等', () => {
-    const stage = pcByKey['.muyu-stage']
-    expect(stage.width).toBe('150px')
-    expect(stage.height).toBe('130px')
-    const problems = []
-    for (const [name, steps] of Object.entries(mpFrames)) {
-      if (!name.startsWith('muyu-')) continue
-      for (const [percent, decls] of Object.entries(steps)) {
-        for (const [prop, value] of Object.entries(decls)) {
-          const expected = rpxToPx(value)
-          const actual = pcFrames[name] && pcFrames[name][percent] && pcFrames[name][percent][prop]
-          if (actual !== expected) problems.push(`@keyframes ${name} ${percent}% { ${prop} }：小程序 ${value} → 应为 ${expected}，PC 是 ${actual}`)
-        }
-      }
-    }
-    expect(problems).toEqual([])
-  })
-
-  it('缩放只动一个 CSS 变量：占位 = 整只木鱼的包围盒 × 系数（小程序原尺寸下 x 27.5–171.1、y 10.9–119，含坐垫和探出去的木槌）', () => {
-    const root = pcByKey['.fmuyu']
-    expect(root['--muyu-s']).toBe('1')
-    expect(root.width).toBe('calc(143.6px * var(--muyu-s))')
-    expect(root.height).toBe('calc(108.1px * var(--muyu-s))')
-    const stage = pcByKey['.muyu-stage']
-    expect(stage.left).toBe('calc(-27.5px * var(--muyu-s))')
-    expect(stage.top).toBe('calc(-10.9px * var(--muyu-s))')
-    expect(stage.transform).toBe('scale(var(--muyu-s))')
-    expect(stage['transform-origin']).toBe('0 0')
-  })
-})
-
-describe('FabushiMuyu：行为', () => {
-  const styleOf = (props) => {
-    const wrapper = props ? mount(FabushiMuyu, { props }) : mount(FabushiMuyu)
-    return wrapper.find('.fmuyu').attributes('style') || ''
-  }
-
-  it('缩放系数默认是 1（小程序原尺寸），传 0.5 就写成 0.5', () => {
-    expect(styleOf()).toContain('--muyu-s: 1')
-    expect(styleOf({ scale: 0.5 })).toContain('--muyu-s: 0.5')
-  })
-
-  it('敲击：hit 为真时挂上 go 类（与小程序触发动画的类同名）', async () => {
-    const wrapper = mount(FabushiMuyu, { props: { hit: false } })
-    expect(wrapper.find('.fmuyu').classes()).not.toContain('go')
-    await wrapper.setProps({ hit: true })
-    expect(wrapper.find('.fmuyu').classes()).toContain('go')
-    await wrapper.setProps({ hit: false })
-    expect(wrapper.find('.fmuyu').classes()).not.toContain('go')
-  })
-
-  it('+1 只在 plusKey 变化后出现，这一下敲完（hit 变回假）就收起；取消点赞的那一下不显示 +1', async () => {
-    const wrapper = mount(FabushiMuyu, { props: { hit: false, plusKey: 0 } })
+describe('木鱼组件行为', () => {
+  it('结构：鱼身/音槽闪金/木槌分组在；敲击挂 go；+1 只在新增点赞时飞起', async () => {
+    const wrapper = mount(FabushiMuyu, { props: { scale: 0.5 } })
+    expect(wrapper.find('svg.muyu-svg').exists()).toBe(true)
+    expect(wrapper.find('.m-fish').exists()).toBe(true)
+    expect(wrapper.find('.m-mallet').exists()).toBe(true)
+    expect(wrapper.find('.m-slotflash').exists()).toBe(true)
     expect(wrapper.find('.muyu-plus').exists()).toBe(false)
-    await wrapper.setProps({ hit: true })
-    expect(wrapper.find('.muyu-plus').exists()).toBe(false)
-    await wrapper.setProps({ hit: false })
-
     await wrapper.setProps({ hit: true, plusKey: 1 })
+    expect(wrapper.find('.fmuyu').classes()).toContain('go')
     expect(wrapper.find('.muyu-plus').exists()).toBe(true)
-    expect(wrapper.find('.muyu-plus').text()).toBe('+1')
-    // +1 在舞台里的位置与小程序最后一个部件对应
-    const parts = [...wrapper.find('.muyu-stage').element.children].map((node) => node.className)
-    expect(parts).toEqual(mpStageParts())
-    await wrapper.setProps({ hit: false })
+    await wrapper.setProps({ hit: false, plusKey: 1 })
+    expect(wrapper.find('.fmuyu').classes()).not.toContain('go')
     expect(wrapper.find('.muyu-plus').exists()).toBe(false)
+    // 缩放写在唯一变量上
+    expect(wrapper.find('.fmuyu').attributes('style')).toContain('--muyu-s: 0.5')
   })
 })

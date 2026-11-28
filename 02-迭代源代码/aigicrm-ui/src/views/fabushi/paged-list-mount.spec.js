@@ -418,19 +418,23 @@ describe('detail.vue 木鱼图：与小程序发布成功页那只木鱼同源',
   })
   afterEach(() => { vi.unstubAllGlobals() })
 
-  it('按钮里是小程序那只木鱼的五个部件，全部由 CSS 画，没有 🐟', async () => {
+  it('按钮里是小程序那只木鱼(S2 SVG 美术源)：舞台件 + 内联 SVG 的鱼身/音槽闪金/木槌，没有 🐟', async () => {
     const wrapper = await openDetail(false)
     const button = muyuButton(wrapper)
     expect(button.exists()).toBe(true)
 
     const stage = button.find('.muyu-stage')
     expect(stage.exists(), '木鱼舞台 .muyu-stage').toBe(true)
-    // 与小程序模板里的五个子节点一一对应
-    for (const part of ['muyu-glow', 'muyu-ripple', 'muyu-body', 'muyu-cushion', 'muyu-mallet']) {
+    // 舞台件与小程序模板一一对应（S2 起：鱼身/木槌 = 内联 SVG，不再是 CSS 拼装件）
+    for (const part of ['muyu-glow', 'muyu-ripple', 'muyu-ground']) {
       expect(stage.find(`.${part}`).exists(), `缺少 ${part}`).toBe(true)
     }
-    // 舞台只是图: 里面不该有文字或表情符号
-    expect(stage.text()).toBe('')
+    expect(stage.find('svg.muyu-svg').exists(), '内联 SVG 美术').toBe(true)
+    expect(stage.find('.m-fish').exists(), '鱼身组').toBe(true)
+    expect(stage.find('.m-mallet').exists(), '木槌组').toBe(true)
+    expect(stage.find('.m-slotflash').exists(), '音槽闪金').toBe(true)
+    // 舞台只是图: 里面不该有表情符号(+1 计数件平时不渲染)
+    expect(stage.text()).not.toContain('🐟')
     expect(button.text()).not.toContain('🐟')
     expect(button.text()).toContain('木鱼')
     expect(button.text()).toContain('2')

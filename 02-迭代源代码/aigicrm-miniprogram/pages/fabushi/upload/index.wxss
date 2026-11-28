@@ -61,21 +61,24 @@
 .fb-page .success-back { margin-top: 20rpx; font-size: 24rpx; color: var(--mp-ink2); }
 .fb-page .success-note { margin-top: 30rpx; padding: 0 40rpx; font-size: 20rpx; line-height: 1.7; color: var(--mp-ink3); }
 
-/* ===== 木鱼(发布成功页那只)。这一组保持原样, 理由见文件头 ===== */
+/* ===== 木鱼(发布成功页那只)。【FABUSHI-DELTA-20261128 S2】美术=SVG 源 muyu-art.svg 导出的
+   assets/img/muyu.png(184×126px 画布, 3x=552×378) 与 muyu-mallet.png(46×76px, 3x=138×228)。
+   舞台 300×260rpx(=150×130px)。单类名 .muyu-* 保留(PC 契约测试按这些名字对账)。 ===== */
 .muyu-stage { position: relative; width: 300rpx; height: 260rpx; margin: 0 auto; }
 .muyu-glow { position: absolute; left: 50%; top: 50%; width: 240rpx; height: 240rpx; margin: -120rpx 0 0 -120rpx; border-radius: 50%; background: radial-gradient(circle, rgba(251,191,36,.28), rgba(251,191,36,0) 68%); opacity: 0; }
-.muyu-body { position: absolute; left: 50%; top: 62rpx; width: 170rpx; height: 118rpx; margin-left: -85rpx; border-radius: 50% 50% 46% 46%; background: linear-gradient(160deg, #b45309, #92400e); box-shadow: inset 0 12rpx 18rpx rgba(255,255,255,.18), 0 18rpx 28rpx rgba(146,64,14,.26); }
-.muyu-body:after { content: ''; position: absolute; left: 50%; top: 34rpx; width: 96rpx; height: 38rpx; margin-left: -48rpx; border-radius: 50%; border: 5rpx solid rgba(255,255,255,.28); }
-.muyu-cushion { position: absolute; left: 50%; bottom: 22rpx; width: 190rpx; height: 44rpx; margin-left: -95rpx; border-radius: 50%; background: #f59e0b; opacity: .5; }
-.muyu-mallet { position: absolute; right: 22rpx; top: 38rpx; width: 16rpx; height: 130rpx; border-radius: 10rpx; background: #78350f; transform: rotate(22deg); transform-origin: 50% 100%; }
-.muyu-mallet:before { content: ''; position: absolute; left: -14rpx; top: -26rpx; width: 44rpx; height: 44rpx; border-radius: 50%; background: #92400e; }
+.muyu-ground { position: absolute; left: 50%; bottom: 8rpx; width: 300rpx; height: 40rpx; margin-left: -150rpx; border-radius: 50%; background: radial-gradient(ellipse, rgba(60,20,6,.24), rgba(60,20,6,0) 70%); }
+.muyu-img { position: absolute; }
+.muyu-img-fish { left: -34rpx; top: 4rpx; width: 368rpx; height: 252rpx; transform-origin: 50% 92%; }
+.muyu-img-mallet { left: 250rpx; top: 92rpx; width: 92rpx; height: 152rpx; transform-origin: 40% 88%; }
 .muyu-ripple { position: absolute; left: 50%; top: 50%; width: 80rpx; height: 80rpx; margin: -40rpx 0 0 -40rpx; border: 2rpx solid rgba(245,158,11,.7); border-radius: 50%; opacity: 0; }
 .muyu-plus { position: absolute; right: 25rpx; top: 24rpx; color: #f59e0b; font-size: 44rpx; font-weight: 900; opacity: 0; }
-.muyu-stage.go .muyu-mallet { animation: muyu-hit .55s ease-out; }
+.muyu-stage.go .muyu-img-mallet { animation: muyu-hit .6s cubic-bezier(.34,1.2,.5,1); }
+.muyu-stage.go .muyu-img-fish { animation: muyu-squash .6s ease-out; }
 .muyu-stage.go .muyu-ripple { animation: muyu-ripple .8s ease-out; }
 .muyu-stage.go .muyu-plus { animation: muyu-plus .8s ease-out; }
 .muyu-stage.go .muyu-glow { animation: muyu-glow .8s ease-out; }
-@keyframes muyu-hit { 0% { transform: rotate(22deg); } 45% { transform: rotate(-18deg); } 100% { transform: rotate(22deg); } }
+@keyframes muyu-hit { 0% { transform: rotate(0deg); } 30% { transform: rotate(-14deg); } 52% { transform: rotate(12deg); } 100% { transform: rotate(0deg); } }
+@keyframes muyu-squash { 0% { transform: scale(1,1); } 50% { transform: scale(1.02,.97); } 100% { transform: scale(1,1); } }
 @keyframes muyu-ripple { 0% { opacity: .8; transform: scale(.5); } 100% { opacity: 0; transform: scale(2.4); } }
 @keyframes muyu-plus { 0% { opacity: 0; transform: translateY(14rpx); } 35% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-42rpx); } }
 @keyframes muyu-glow { 0% { opacity: .2; } 40% { opacity: 1; } 100% { opacity: 0; } }
