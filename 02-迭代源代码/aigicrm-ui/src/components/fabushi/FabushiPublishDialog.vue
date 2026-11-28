@@ -74,6 +74,10 @@
           <span class="ver-label">版本切换：</span>
           <button v-for="b in versionChips" :key="b.id" type="button" class="ver-chip" :class="{ active: form.bookId === b.id }" :aria-pressed="form.bookId === b.id" @click="pickVersion(b)">{{ versionChipLabel(b) }}</button>
         </div>
+        <!-- 【FABUSHI-DELTA-20261128 R3/S4】打开这本书：对照着书诵读（新标签页打开，不打断弹窗里的输入） -->
+        <button v-if="form.bookId" type="button" class="open-book-link" @click="openBookReader">
+          <ElIcon><Reading /></ElIcon>打开这本书（对照诵读）
+        </button>
       </template>
 
       <!-- ============ P6 · B 通道：具体段落 ============ -->
@@ -298,7 +302,8 @@ import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue'
 // 图标容器写成 <ElIcon>（从 element-plus 显式引入）而不是靠自动引入的 <el-icon>：
 // FabushiPublishDialog.spec.js 挂载本组件时没有给 el-icon 准备桩，自动引入的标签会报 “Failed to resolve component”。
 import { ElIcon, ElImageViewer, ElMessage } from 'element-plus'
-import { Camera, Close, Document, Files, Folder, Microphone, Paperclip, Picture, Plus, VideoPlay, ZoomIn } from '@element-plus/icons-vue'
+import { Camera, Close, Document, Files, Folder, Microphone, Paperclip, Picture, Plus, Reading, VideoPlay, ZoomIn } from '@element-plus/icons-vue'
+import { useRouter } from 'vue-router'
 import request from '@/utils/request'
 import { addFabushiAttachment, createFabushiPost, getFabushiBooks, getFabushiSections } from '@/api/fabushi'
 import FabushiAudioList from './FabushiAudioList.vue'
@@ -310,6 +315,14 @@ const props = defineProps({
   presetBookId: { type: [Number, String], default: null },
 })
 const emit = defineEmits(['update:modelValue', 'published'])
+
+// 【FABUSHI-DELTA-20261128 R3/S4】打开这本书：新标签页进阅读器，对照诵读
+const router = useRouter()
+const openBookReader = () => {
+  if (!form.bookId) return
+  const href = router.resolve({ name: 'FabushiRead', params: { bookId: String(form.bookId) } }).href
+  window.open(href, '_blank')
+}
 
 const TYPE_TABS = [
   { value: 'songdu', label: '每日诵读' },
@@ -966,6 +979,12 @@ onBeforeUnmount(() => {
 /* 版本切换（原型 .bcard-tags + .ver-chip；按钮自己的样子在公共样式里） */
 .bcard-tags { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .ver-label { color: var(--text-placeholder); font-size: 10.5px; line-height: 15px; }
+/* 【FABUSHI-DELTA-20261128 R3/S4】打开这本书（新标签页进阅读器，对照诵读） */
+.open-book-link {
+  display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; padding: 2px 0;
+  border: none; background: none; color: var(--fx-accent, var(--el-color-primary)); font-size: 11.5px; cursor: pointer;
+}
+.open-book-link:hover { text-decoration: underline; }
 
 /* 图片与上传入口（原型 .att-row / .att-tile） */
 .att-row { display: flex; gap: 10px; }

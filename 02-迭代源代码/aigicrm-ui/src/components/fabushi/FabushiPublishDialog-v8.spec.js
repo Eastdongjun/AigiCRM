@@ -21,6 +21,10 @@ vi.mock('@/api/fabushi', () => ({
   getFabushiSections: vi.fn(),
 }))
 vi.mock('@/utils/request', () => ({ default: { post: vi.fn(), get: vi.fn() } }))
+// 【FABUSHI-DELTA-20261128 R3/S4】「打开这本书」用到 useRouter：resolve 固定回一个可断言的 href
+vi.mock('vue-router', () => ({
+  useRouter: () => ({ resolve: () => ({ href: '/fabushi/read/501' }) }),
+}))
 vi.mock('element-plus', async (importOriginal) => ({
   ...await importOriginal(),
   ElMessage: { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() },
@@ -648,5 +652,21 @@ describe('发布器弹窗按 PC 原型 v8', () => {
     const code = src.replace(/<!--[\s\S]*?-->|\/\*[\s\S]*?\*\/|^[ \t]*\/\/.*$/gm, '')
     expect(code).not.toMatch(/<el-icon[\s>]/)
     expect(src).not.toMatch(/\p{Extended_Pictographic}/u)
+  })
+
+  it('打开这本书(R3/S4)：选了版本才出现入口；点击新标签页打开阅读器；没选不出现', async () => {
+    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
+    const wrapper = await open({ defaultScope: 'zaidu' })
+    expect(wrapper.find('.open-book-link').exists()).toBe(false)
+    vm(wrapper).form.bookId = 2
+    await nextTick()
+    const link = wrapper.find('.open-book-link')
+    expect(link.exists()).toBe(true)
+    expect(link.text()).toContain('打开这本书')
+    await link.trigger('click')
+    expect(openSpy).toHaveBeenCalledTimes(1)
+    expect(openSpy.mock.calls[0][0]).toBe('/fabushi/read/501')
+    expect(openSpy.mock.calls[0][1]).toBe('_blank')
+    openSpy.mockRestore()
   })
 })

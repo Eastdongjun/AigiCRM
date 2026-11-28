@@ -19,6 +19,10 @@ vi.mock('@/api/fabushi', () => ({
   getFabushiSections: vi.fn(),
 }))
 vi.mock('@/utils/request', () => ({ default: { post: vi.fn(), get: vi.fn() } }))
+// 【FABUSHI-DELTA-20261128 R3/S4】发布器新增「打开这本书」用 useRouter：这里给固定替身
+vi.mock('vue-router', () => ({
+  useRouter: () => ({ resolve: () => ({ href: '/fabushi/read/501' }) }),
+}))
 vi.mock('element-plus', async (importOriginal) => ({
   ...await importOriginal(),
   ElMessage: { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() },
