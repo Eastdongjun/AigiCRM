@@ -21,6 +21,9 @@ const hoisted = vi.hoisted(() => ({
   reader: /** @type {any} */ ({}),
 }))
 
+// 【FABUSHI-DELTA-20261128 R3/S3】复诵模式查询参数测试时按用例改写
+const setQuery = (query) => { hoisted.route = { params: {}, query } }
+
 vi.mock('vue-router', async (importOriginal) => ({
   ...await importOriginal(),
   useRoute: () => hoisted.route,
@@ -92,6 +95,19 @@ describe('小程序在线阅读按原型 v7 的 B1', () => {
     expect(foot.find('.r-page').text()).toBe('36 / 512 · 7%')
     // 版式卡片默认收起
     expect(root.find('.mfr-sheet').exists()).toBe(false)
+  })
+
+  it('复诵模式(R3)：mode=recite 时顶部出现「复诵录音中」提示条；普通进入不出现', async () => {
+    // 普通进入（默认 query 无 mode）
+    const plain = await mountReader()
+    expect(plain.find('.mfr-recite').exists()).toBe(false)
+    plain.unmount()
+    // 边看书边诵跳入：query.mode=recite
+    setQuery({ ticket: 'ticket-for-test', bookId: '3', pdfFileId: '77', title: '%E9%81%93%E5%BE%B7%E7%BB%8F', layoutType: 'text', mode: 'recite' })
+    const recite = await mountReader()
+    expect(recite.find('.mfr-recite').exists()).toBe(true)
+    expect(recite.find('.mfr-recite').text()).toContain('复诵录音中')
+    expect(recite.find('.mfr-recite').text()).toContain('返回')
   })
 
   it('底部翻页条：‹ › 各翻一页；到头了按钮禁用', async () => {

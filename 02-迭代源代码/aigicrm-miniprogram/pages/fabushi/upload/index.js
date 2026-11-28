@@ -63,6 +63,12 @@ Page({
   },
 
   onShow() {
+    // 【FABUSHI-DELTA-20261128 R3/S3】边看书边诵返回: 自动停录, 段落照常走 onStop 入库
+    if (this._reciteReading && this.data.recording && this._recorder) {
+      this._reciteReading = false
+      this._recorder.stop()
+      wx.showToast({ title: '这段已录完，正在保存', icon: 'none' })
+    }
     // 【F3a】消费 H5 上传回传清单(容器页 bindmessage → globalData 中转)
     const app = getApp()
     const manifest = app.globalData.fabushiUploadFiles
@@ -79,7 +85,9 @@ Page({
   },
 
   onHide() {
-    // 【F2 录音】页面隐藏时保段: 停录且 ≥1s 段走 onStop 正常入库
+    // 【F2 录音】页面隐藏时保段: 停录且 ≥1s 段走 onStop 正常入库。
+    // 【FABUSHI-DELTA-20261128 R3/S3】边看书边诵跳阅读器期间豁免: RecorderManager 全局, 跳页录音不断。
+    if (this._reciteReading && this.data.recording) return
     if (this.data.recording && this._recorder) this._recorder.stop()
   },
 
@@ -413,6 +421,36 @@ Page({
     }
     // mp3 三端(iOS/Android/微信H5播放)兼容最好; 【FABUSHI-DELTA-20261128 R1】duration=300s(5分钟) 到时自动停走 onStop
     this._recorder.start({ format: 'mp3', duration: 300000, sampleRate: 44100, numberOfChannels: 1, encodeBitRate: 96000 })
+  },
+
+  // ===== 【FABUSHI-DELTA-20261128 R3/S3】B 通道「边看书边诵」=====
+  // 先起录音再跳阅读器(RecorderManager 全局, 跳页录音不断)；返回发布页 onShow 自动停录入库。
+  reciteReadingBook() {
+    const { editions, editionIndex } = this.data
+    const book = editionIndex >= 0 ? editions[editionIndex] : null
+    return book && book.pdfFileId ? book : null
+  },
+
+  openReaderWhileRecording() {
+    if (this.data.uploading) return
+    const book = this.reciteReadingBook()
+    if (!book) {
+      wx.showToast({ title: '先在上方选一本书', icon: 'none' })
+      return
+    }
+    if (!this.data.recording) {
+      if (this.attachmentCounts().audio >= 10) {
+        wx.showToast({ title: '语音已达上限10段', icon: 'none' })
+        return
+      }
+      this.initRecorder()
+      this._recorder.start({ format: 'mp3', duration: 300000, sampleRate: 44100, numberOfChannels: 1, encodeBitRate: 96000 })
+    }
+    this._reciteReading = true
+    wx.navigateTo({
+      url: '/pages/fabushi/reader/index?bookId=' + book.id + '&pdfFileId=' + book.pdfFileId
+        + '&layoutType=' + (book.layoutType || '') + '&mode=recite'
+    })
   },
 
   uploadRecordSegment(path, seconds) {

@@ -14,6 +14,8 @@
     </div>
 
     <template v-else>
+      <!-- 【FABUSHI-DELTA-20261128 R3/S3】复诵模式提示条：静态 UI，不做 H5↔小程序实时桥接 -->
+      <div v-if="reciteMode" class="mfr-recite">复诵录音中 · 读完点左上角返回，自动保存这段</div>
       <!-- 【2026-11-26 按小程序原型 v7】B1 在线阅读：深色阅读壳。顶栏 = 返回 · 书名与页码 · 版式 -->
       <div class="mfr-head">
         <button type="button" class="mfr-back" aria-label="返回" @click="goBack"><ElIcon><ArrowLeft /></ElIcon></button>
@@ -178,6 +180,8 @@ const title = ref('')
 const isWechat = /MicroMessenger/i.test(navigator.userAgent)
 const layoutType = computed(() => (route.query.layoutType === 'text' ? 'text' : 'scan'))
 const layoutText = computed(() => layoutLabel(layoutType.value))
+// 【FABUSHI-DELTA-20261128 R3/S3】复诵模式(小程序「边看书边诵」跳入)：顶部常驻提示条，读完点左上角返回
+const reciteMode = computed(() => route.query.mode === 'recite')
 
 const canvasEl = ref(null)
 const wxReady = ref(false)
@@ -431,6 +435,8 @@ function onTouchEnd(e) {
 .mfr-retry { display: inline-flex; align-items: center; gap: 6px; height: 40px; margin: 16px auto 0; padding: 0 26px; border: 0; border-radius: 999px; background: var(--mf-accent); color: #fff; font-size: 14px; }
 
 /* 顶栏（原型 .reader-head） */
+/* 【FABUSHI-DELTA-20261128 R3/S3】复诵模式提示条 */
+.mfr-recite { flex-shrink: 0; padding: 8px 12px; background: rgba(245,158,11,.16); color: var(--mf-text); font-size: 12px; text-align: center; letter-spacing: .02em; }
 .mfr-head { display: flex; align-items: center; flex-shrink: 0; gap: 9px; padding: 10px 12px; background: var(--mf-bar); color: var(--mf-text); }
 .mfr-back { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border: 1px solid var(--mf-btn-line); border-radius: 999px; background: var(--mf-btn); color: var(--mf-text); font-size: 16px; }
 .mfr-title-row { display: flex; flex: 1; flex-direction: column; align-items: center; min-width: 0; text-align: center; }

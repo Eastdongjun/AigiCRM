@@ -51,6 +51,11 @@
     <picker mode="selector" range="{{sectionNames}}" value="{{sectionIndex}}" bindchange="onSectionChange">
       <view class="polished-select"><text class="sel-value">{{sectionIndex >= 0 ? sectionNames[sectionIndex] : (sectionNames.length ? '请选择段落 *' : '本书暂无章节')}}</text><text class="go">▾</text></view>
     </picker>
+    <!-- 【FABUSHI-DELTA-20261128 R3/S3】边看书边诵：先起录音再进阅读器(录音跳页不断)，返回自动保存这段 -->
+    <view class="read-recite {{recording ? 'on' : ''}}" bindtap="openReaderWhileRecording">
+      <view class="read-recite-main">{{recording ? '边看书边诵 · 录音中' : '边看书边诵'}}</view>
+      <view class="read-recite-sub">{{recording ? '去阅读器继续看，回本页自动保存这段' : (bookSummary || '先在上方选一本书')}}</view>
+    </view>
   </block>
 
   <!-- 内容: 文字 + 九宫格 + 工具行 -->
@@ -94,7 +99,7 @@
       </view>
       <view class="switch {{editOnPick ? '' : 'off'}}"></view>
     </view>
-    <view wx:if="{{recording}}" class="card-hint rec-hint">录音中…每段最长 60 秒，到时自动保存；不足 1 秒丢弃</view>
+    <view wx:if="{{recording}}" class="card-hint rec-hint">录音中…每段最长 5 分钟，到时自动保存；不足 1 秒丢弃</view>
     <view wx:if="{{uploading}}" class="card-hint">上传中…</view>
   </view>
 

@@ -42,6 +42,12 @@
 .fb-page .switch.off { background: #cbd5e1; }
 .fb-page .switch.off::after { transform: translateX(-36rpx); }
 .fb-page .rec-hint { color: var(--amber-deep); }
+/* 【FABUSHI-DELTA-20261128 R3/S3】边看书边诵入口 */
+.fb-page .read-recite { display: flex; align-items: center; gap: 12rpx; margin-top: 14rpx; padding: 18rpx 24rpx; border: 2rpx solid var(--mp-card-line); border-radius: 16rpx; background: var(--mp-tile); }
+.fb-page .read-recite.on { border-color: var(--amber-deep); background: rgba(245,158,11,.08); }
+.fb-page .read-recite-main { font-size: 26rpx; font-weight: 700; color: var(--mp-ink); }
+.fb-page .read-recite.on .read-recite-main { color: var(--amber-deep); }
+.fb-page .read-recite-sub { flex: 1; min-width: 0; text-align: right; font-size: 21rpx; color: var(--mp-ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* 底部的提交按钮 */
 .fb-page .submit-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; padding: 16rpx 28rpx calc(16rpx + env(safe-area-inset-bottom)); border-top: 2rpx solid var(--mp-card-line); background: var(--mp-card); }
