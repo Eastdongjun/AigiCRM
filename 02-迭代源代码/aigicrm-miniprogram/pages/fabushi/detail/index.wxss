@@ -38,6 +38,8 @@
 .fb-page .recite-sub { margin-top: 2rpx; font-size: 19rpx; line-height: 1.5; color: var(--mp-ink3); }
 .fb-page .recite-list { margin-top: 14rpx; padding: 4rpx 24rpx; }
 .fb-page .recite-audio { flex: 1; width: auto; min-width: 0; }
+/* 【FABUSHI-DELTA-20261128 R5】仅发起人本人可见的移除入口 */
+.fb-page .recite-remove { flex-shrink: 0; align-self: center; margin-left: 12rpx; font-size: 22rpx; color: #b3402a; }
 
 /* 评论 */
 .fb-page .comment-card { padding: 4rpx 24rpx 8rpx; }

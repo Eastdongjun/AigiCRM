@@ -71,6 +71,8 @@
       <view wx:for="{{recitations}}" wx:key="id" class="stats-list-row {{index === recitations.length - 1 ? 'last' : ''}}">
         <text class="row-main-text">{{item.userName || '同事'}}<text wx:if="{{item.durationSeconds}}"> · {{item.durationSeconds}}s</text></text>
         <audio wx:if="{{item.url}}" class="recite-audio" name="{{item.userName || '同事'}}的复诵" author="" src="{{item.url}}" controls />
+        <!-- 【FABUSHI-DELTA-20261128 R5】仅发起人本人的行显示移除（服务端仍强校验） -->
+        <text wx:if="{{item.canRemove}}" class="recite-remove" catchtap="onRemoveRecitation" data-id="{{item.id}}">移除</text>
       </view>
     </view>
 

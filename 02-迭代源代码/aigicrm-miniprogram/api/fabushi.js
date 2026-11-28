@@ -113,4 +113,6 @@ function deleteFabushiPost(id) { return request({ url: `/api/fabushi/posts/${id}
 // 【D14 计划切片 3】复诵（独立实体表；同人同帖可多次）
 function getFabushiRecitations(id) { return request({ url: `/api/fabushi/posts/${id}/recitations` }) }
 function addFabushiRecitation(id, data) { return request({ url: `/api/fabushi/posts/${id}/recitations`, method: 'POST', data }) }
-module.exports = Object.assign(module.exports, { addFabushiAttachment, removeFabushiAttachment, getFabushiSections, createFabushiSection, createFabushiSectionSelf, deleteFabushiSection, getFabushiActivities, joinFabushiActivity, createFabushiActivity, endFabushiActivity, FABUSHI_SCOPE_TYPES, fabushiScopeLabel, updateFabushiPost, deleteFabushiPost, getFabushiRecitations, addFabushiRecitation })
+// 【FABUSHI-DELTA-20261128 R5】复诵移除（仅发起人本人，服务端强校验）
+function removeFabushiRecitation(postId, rid) { return request({ url: `/api/fabushi/posts/${postId}/recitations/${rid}`, method: 'DELETE' }) }
+module.exports = Object.assign(module.exports, { addFabushiAttachment, removeFabushiAttachment, getFabushiSections, createFabushiSection, createFabushiSectionSelf, deleteFabushiSection, getFabushiActivities, joinFabushiActivity, createFabushiActivity, endFabushiActivity, FABUSHI_SCOPE_TYPES, fabushiScopeLabel, updateFabushiPost, deleteFabushiPost, getFabushiRecitations, addFabushiRecitation, removeFabushiRecitation })

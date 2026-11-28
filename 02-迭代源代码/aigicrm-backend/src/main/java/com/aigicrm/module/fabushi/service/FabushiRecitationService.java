@@ -38,6 +38,7 @@ public class FabushiRecitationService {
     private final BizFileMapper fileMapper;
     private final SysUserMapper userMapper;
     private final SecurityAuditService securityAuditService;
+    private final com.aigicrm.module.system.service.RecycleBinService recycleBinService;
 
     /** 复诵(fabushi:create 门): 帖须 published；audio 必挂 fabushi 空间；≤300s；同人同帖可多次。 */
     @Transactional
@@ -127,5 +128,47 @@ public class FabushiRecitationService {
         return recitationMapper.selectList(new LambdaQueryWrapper<BizFabushiRecitation>()
                         .in(BizFabushiRecitation::getPostId, postIds)).stream()
                 .collect(Collectors.groupingBy(BizFabushiRecitation::getPostId, Collectors.counting()));
+    }
+
+    /**
+     * 【FABUSHI-DELTA-20261128 R5】复诵移除(发起人本人)：行逻辑删 + 音频服务端软删(回收站+审计)。
+     * 不走 FileMutationService.deleteFile：fabushi scope 删除要求 fabushi:file:delete 码
+     * (canDeleteFabushiFile)，发起人通常没有——此处授权由「发起人本人」校验承担，
+     * 音频处理结果与删除链同口径(deleted=1 + 回收站记录 + 审计；发起人=上传者)。
+     */
+    @Transactional
+    public Map<String, Object> removeData(Long postId, Long recitationId) {
+        com.aigicrm.security.SecurityUser user = com.aigicrm.security.SecurityUtils.getCurrentUser();
+        if (user == null) {
+            throw new BusinessException(401, "未登录");
+        }
+        BizFabushiRecitation row = recitationMapper.selectById(recitationId);
+        if (row == null || !postId.equals(row.getPostId())) {
+            throw new BusinessException(404, "复诵不存在");
+        }
+        if (!user.getUserId().equals(row.getUserId())) {
+            throw new BusinessException(403, "只能移除自己的复诵");
+        }
+        recitationMapper.deleteById(recitationId);
+        BizFile audio = fileMapper.selectById(row.getAudioFileId());
+        if (audio != null && (audio.getDeleted() == null || audio.getDeleted() != 1)) {
+            // 先填删除人/时间再翻删除标志（与文件删除链同口径：「我的回收站」归属依赖 deleted_by）
+            BizFile patch = new BizFile();
+            patch.setId(audio.getId());
+            patch.setDeletedAt(java.time.LocalDateTime.now());
+            patch.setDeletedBy(user.getUserId());
+            fileMapper.updateById(patch);
+            fileMapper.deleteById(audio.getId());
+            recycleBinService.record("file", audio.getId(), java.util.Map.of(
+                    "id", audio.getId(),
+                    "fileName", String.valueOf(audio.getFileName()),
+                    "fileSize", String.valueOf(audio.getFileSize()),
+                    "fileScope", String.valueOf(audio.getFileScope()),
+                    "uploaderId", String.valueOf(audio.getUploaderId())
+            ), "复诵移除", "user");
+        }
+        securityAuditService.permissionChange("fabushi_recitation_remove",
+                "post:" + postId + " recitation:" + recitationId + " by:" + user.getUserId());
+        return java.util.Map.of("id", recitationId);
     }
 }

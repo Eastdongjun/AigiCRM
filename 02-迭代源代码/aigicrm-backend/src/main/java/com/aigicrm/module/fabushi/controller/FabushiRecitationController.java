@@ -33,4 +33,11 @@ public class FabushiRecitationController {
     public Result<List<Map<String, Object>>> list(@PathVariable Long id) {
         return Result.ok(recitationService.listData(id));
     }
+
+    /** 复诵移除(R5 2026-11-28)：仅发起人本人；行逻辑删 + 音频软删进回收站。 */
+    @DeleteMapping("/{rid}")
+    @PreAuthorize("hasAuthority('fabushi:create')")
+    public Result<Map<String, Object>> remove(@PathVariable Long id, @PathVariable Long rid) {
+        return Result.ok(recitationService.removeData(id, rid));
+    }
 }

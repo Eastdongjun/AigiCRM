@@ -8,6 +8,7 @@ import com.aigicrm.module.fabushi.mapper.BizFabushiRecitationMapper;
 import com.aigicrm.module.file.entity.BizFile;
 import com.aigicrm.module.file.mapper.BizFileMapper;
 import com.aigicrm.module.system.mapper.SysUserMapper;
+import com.aigicrm.module.system.service.RecycleBinService;
 import com.aigicrm.security.SecurityAuditService;
 import com.aigicrm.security.SecurityUser;
 import com.aigicrm.security.SecurityUtils;
@@ -19,13 +20,16 @@ import org.mockito.MockedStatic;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
  * 【D14 2026-11-23】复诵矩阵钉（Q6 独立实体表）：post 须 published；audio 必挂 fabushi 空间；
- * ≤60s（未知时长沿 F1 口径放行）；同人同帖可多次（计数=行数）；复诵留痕审计。
+ * ≤300s（R1 2026-11-28 起；未知时长沿 F1 口径放行）；同人同帖可多次（计数=行数）；复诵留痕审计。
+ * 【FABUSHI-DELTA-20261128 R5】移除：仅发起人本人；行逻辑删 + 音频软删进回收站 + 审计。
  */
 class FabushiRecitationTest {
 
@@ -34,8 +38,9 @@ class FabushiRecitationTest {
     private final BizFileMapper fileMapper = mock(BizFileMapper.class);
     private final SysUserMapper userMapper = mock(SysUserMapper.class);
     private final SecurityAuditService auditService = mock(SecurityAuditService.class);
+    private final RecycleBinService recycleBinService = mock(RecycleBinService.class);
     private final FabushiRecitationService svc = new FabushiRecitationService(
-            recitationMapper, postMapper, fileMapper, userMapper, auditService);
+            recitationMapper, postMapper, fileMapper, userMapper, auditService, recycleBinService);
 
     private MockedStatic<SecurityUtils> sec;
 
@@ -95,12 +100,19 @@ class FabushiRecitationTest {
     }
 
     @Test
-    void create_over60s_rejected() {
+    void create_overLimit_rejected() {
         when(postMapper.selectById(31L)).thenReturn(publishedPost());
         when(fileMapper.selectById(600L)).thenReturn(fabushiFile());
         BusinessException ex = assertThrows(BusinessException.class,
-                () -> svc.create(31L, 600L, 61));
-        assertEquals("复诵不能超过 60 秒", ex.getMessage());
+                () -> svc.create(31L, 600L, 301));
+        assertEquals("复诵不能超过 5 分钟", ex.getMessage());
+    }
+
+    @Test
+    void create_atLimit_allowed() {
+        when(postMapper.selectById(31L)).thenReturn(publishedPost());
+        when(fileMapper.selectById(600L)).thenReturn(fabushiFile());
+        assertDoesNotThrow(() -> svc.create(31L, 600L, 300));
     }
 
     @Test
@@ -131,5 +143,80 @@ class FabushiRecitationTest {
         when(postMapper.selectById(31L)).thenReturn(publishedPost());
         when(fileMapper.selectById(600L)).thenReturn(fabushiFile());
         assertDoesNotThrow(() -> svc.create(31L, 600L, null));
+    }
+
+    // ==================== R5 移除 ====================
+
+    private BizFabushiRecitation recitation(Long id, Long userId) {
+        BizFabushiRecitation r = new BizFabushiRecitation();
+        r.setId(id);
+        r.setPostId(31L);
+        r.setUserId(userId);
+        r.setAudioFileId(600L);
+        return r;
+    }
+
+    @Test
+    void remove_byInitiator_ok_rowDeletedAndAudioRecycled() {
+        when(recitationMapper.selectById(77L)).thenReturn(recitation(77L, 9L));
+        BizFile f = fabushiFile();
+        f.setFileName("recite.mp3");
+        f.setFileSize(4096L);
+        f.setUploaderId(9L);
+        when(fileMapper.selectById(600L)).thenReturn(f);
+        assertDoesNotThrow(() -> svc.removeData(31L, 77L));
+        verify(recitationMapper).deleteById(77L);
+        verify(fileMapper).updateById(any(BizFile.class));
+        verify(fileMapper).deleteById(600L);
+        verify(recycleBinService).record(eq("file"), eq(600L), any(), eq("复诵移除"), eq("user"));
+        verify(auditService).permissionChange(eq("fabushi_recitation_remove"), any());
+    }
+
+    @Test
+    void remove_byOtherUser_403() {
+        when(recitationMapper.selectById(77L)).thenReturn(recitation(77L, 8L));
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> svc.removeData(31L, 77L));
+        assertEquals("只能移除自己的复诵", ex.getMessage());
+    }
+
+    @Test
+    void remove_missing_404() {
+        when(recitationMapper.selectById(77L)).thenReturn(null);
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> svc.removeData(31L, 77L));
+        assertEquals("复诵不存在", ex.getMessage());
+    }
+
+    @Test
+    void remove_crossPost_404() {
+        BizFabushiRecitation r = recitation(77L, 9L);
+        r.setPostId(99L);
+        when(recitationMapper.selectById(77L)).thenReturn(r);
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> svc.removeData(31L, 77L));
+        assertEquals("复诵不存在", ex.getMessage());
+    }
+
+    @Test
+    void remove_audioAlreadyGone_stillRemovesRow() {
+        when(recitationMapper.selectById(77L)).thenReturn(recitation(77L, 9L));
+        when(fileMapper.selectById(600L)).thenReturn(null);
+        assertDoesNotThrow(() -> svc.removeData(31L, 77L));
+        verify(recitationMapper).deleteById(77L);
+        verify(auditService).permissionChange(eq("fabushi_recitation_remove"), any());
+    }
+
+    @Test
+    void remove_audioAlreadyDeleted_skipFileSideEffects() {
+        when(recitationMapper.selectById(77L)).thenReturn(recitation(77L, 9L));
+        BizFile f = fabushiFile();
+        f.setDeleted(1);
+        when(fileMapper.selectById(600L)).thenReturn(f);
+        assertDoesNotThrow(() -> svc.removeData(31L, 77L));
+        verify(recitationMapper).deleteById(77L);
+        verify(fileMapper, org.mockito.Mockito.never()).deleteById(org.mockito.Mockito.anyLong());
+        verify(recycleBinService, org.mockito.Mockito.never())
+                .record(org.mockito.Mockito.anyString(), org.mockito.Mockito.anyLong(), any(), org.mockito.Mockito.anyString(), org.mockito.Mockito.anyString());
     }
 }

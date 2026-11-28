@@ -1,6 +1,6 @@
 const { hasPermission, requireLogin } = require('../../../utils/auth')
 const { whenPermissionsReady } = require('../../../utils/permission-ready')
-const { getFabushiPostDetail, getFabushiComments, addFabushiComment, toggleFabushiLike, markFabushiRead, updateFabushiPost, deleteFabushiPost, getFabushiRecitations, addFabushiRecitation } = require('../../../api/fabushi')
+const { getFabushiPostDetail, getFabushiComments, addFabushiComment, toggleFabushiLike, markFabushiRead, updateFabushiPost, deleteFabushiPost, getFabushiRecitations, addFabushiRecitation, removeFabushiRecitation } = require('../../../api/fabushi')
 const { getDownloadToken, getDownloadUrl, uploadFile } = require('../../../api/file')
 const { showError } = require('../../../utils/feedback')
 // 【2026-11-25 用户裁决】界面按原型 v7 重做外观: 页面上的文字(类型名、时间、谁复诵了)由这个纯函数模块从接口数据算出来;
@@ -238,7 +238,12 @@ Page({
         // 复诵音频回填可播地址: 与附件同一条通道(下载地址 + 下载令牌)。
         // 【2026-11-25 修正】原来只有域名后面那一段路径(前面没有接口域名, 小程序里放不出声音), 而且令牌的位置放的是
         //   整个应答对象(拼出来是 object Object) —— 复诵列表里的音频一直播不出来。
-        rows.forEach((r) => { r.url = r.audioFileId ? getDownloadUrl({ id: r.audioFileId }) + (token ? '?token=' + encodeURIComponent(token) : '') : '' })
+        // 【FABUSHI-DELTA-20261128 R5】自己的复诵行才给「移除」入口(服务端仍强校验发起人本人)。
+        const myId = String((getApp().globalData.currentUser || {}).userId || '')
+        rows.forEach((r) => {
+          r.url = r.audioFileId ? getDownloadUrl({ id: r.audioFileId }) + (token ? '?token=' + encodeURIComponent(token) : '') : ''
+          r.canRemove = !!myId && String(r.userId) === myId
+        })
         this.setData({ recitations: rows, recitationCount: rows.length, reciteText: vm.reciteText(rows) })
       })
     }).catch(() => this.setData({ recitations: [], recitationCount: 0, reciteText: '' }))
@@ -298,6 +303,26 @@ Page({
       this.setData({ reciteMode: false })
       this._reciteMode = false
       showError(err, '复诵失败')
+    })
+  },
+
+  // 【FABUSHI-DELTA-20261128 R5】移除自己的复诵（服务端强校验发起人；音频随行软删进回收站）
+  onRemoveRecitation(e) {
+    const rid = Number(e.currentTarget.dataset.id)
+    const row = (this.data.recitations || []).find((r) => Number(r.id) === rid)
+    if (!row || !row.canRemove) return
+    wx.showModal({
+      title: '移除复诵',
+      content: '移除后这段复诵录音将进入文件回收站，确定移除？',
+      confirmText: '移除',
+      confirmColor: '#c0392b',
+      success: (res) => {
+        if (!res.confirm) return
+        removeFabushiRecitation(this.data.id, rid).then(() => {
+          wx.showToast({ title: '已移除', icon: 'success' })
+          this.loadRecitations()
+        }).catch((err) => showError(err, '移除失败'))
+      }
     })
   },
 

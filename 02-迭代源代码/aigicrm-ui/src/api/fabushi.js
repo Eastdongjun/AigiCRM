@@ -226,3 +226,5 @@ export function restoreDeletedFabushiPost(id) { return request.put(`/fabushi/pos
 // 【D14 2026-11-23 计划切片 3】复诵（独立实体表；同人同帖可多次）
 export function getFabushiRecitations(id) { return request.get(`/fabushi/posts/${id}/recitations`) }
 export function addFabushiRecitation(id, data) { return request.post(`/fabushi/posts/${id}/recitations`, data) }
+// 【FABUSHI-DELTA-20261128 R5】复诵移除（仅发起人本人，服务端强校验）
+export function removeFabushiRecitation(postId, rid) { return request.delete(`/fabushi/posts/${postId}/recitations/${rid}`) }

@@ -89,6 +89,8 @@
             <b class="recite-name">{{ item.userName || '同事' }}</b>
             <span class="recite-sub"><template v-if="item.durationSeconds">复诵 {{ item.durationSeconds }} 秒 · </template>{{ formatTime(item.createdAt) }}</span>
             <audio v-if="recitationAudioUrl(item)" :src="recitationAudioUrl(item)" controls class="recite-audio" />
+            <!-- 【FABUSHI-DELTA-20261128 R5】仅发起人本人的行显示移除（服务端仍强校验） -->
+            <button v-if="Number(item.userId) === Number(userStore.userId)" type="button" class="recite-remove" @click="removeRecitation(item)">移除</button>
           </div>
         </div>
 
@@ -200,7 +202,7 @@ import { useUserStore } from '@/store/user'
 import { refreshDownloadToken, getDownloadToken } from '@/utils/token'
 import {
   getFabushiPostDetail, getFabushiComments, addFabushiComment, toggleFabushiLike, markFabushiRead, getFabushiBooks,
-  updateFabushiPost, deleteFabushiPost, addFabushiRecitation, getFabushiSettings,
+  updateFabushiPost, deleteFabushiPost, addFabushiRecitation, removeFabushiRecitation, getFabushiSettings,
   getFabushiPersonalStats, getMyFabushiBookmarks,
 } from '@/api/fabushi'
 import { usePagedList } from '@/composables/usePagedList'
@@ -495,6 +497,22 @@ const toggleLike = async () => {
 // ===== 【D14 计划切片 3】复诵（PC 录音=MediaRecorder；mp4 优先、webm 回退——Safari 不支持 webm 音频回放） =====
 const recitationAudioUrl = (item) => `/api/file/download/${item.audioFileId}?token=${encodeURIComponent(fileToken.value)}`
 
+// 【FABUSHI-DELTA-20261128 R5】移除自己的复诵（服务端强校验发起人；音频软删进回收站）
+const removeRecitation = async (item) => {
+  try {
+    await ElMessageBox.confirm('移除后这段复诵录音将进入文件回收站，确定移除？', '移除复诵', {
+      type: 'warning', confirmButtonText: '移除', cancelButtonText: '取消',
+    })
+  } catch (e) { return }
+  try {
+    await removeFabushiRecitation(route.params.id, item.id)
+    ElMessage.success('已移除')
+    await loadDetail()
+  } catch (e) {
+    // 全局拦截器已提示
+  }
+}
+
 const pickReciteMime = () => {
   if (!window.isSecureContext || !navigator.mediaDevices || typeof MediaRecorder === 'undefined') return null
   const candidates = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm']
@@ -728,6 +746,9 @@ onBeforeUnmount(() => {
 .recite-name { flex-shrink: 0; color: var(--text-primary); font-size: 12px; font-weight: 700; }
 .recite-sub { flex-shrink: 0; color: var(--text-muted); font-size: 11px; }
 .recite-audio { flex-shrink: 0; width: 240px; max-width: 46%; height: 32px; margin-left: auto; }
+/* 【FABUSHI-DELTA-20261128 R5】仅发起人本人可见的移除入口 */
+.recite-remove { flex-shrink: 0; border: none; background: none; padding: 0 2px; font-size: 11px; color: var(--el-color-danger); cursor: pointer; }
+.recite-remove:hover { text-decoration: underline; }
 
 /* 评论（原型 .cmt / .cmt-ava / .cmt-name / .cmt-time / .cmt-text） */
 .cmt-list { margin-top: 10px; }

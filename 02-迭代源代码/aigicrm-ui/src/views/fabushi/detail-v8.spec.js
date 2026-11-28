@@ -31,7 +31,7 @@ vi.mock('vue-router', async (importOriginal) => ({
 vi.mock('@/api/fabushi', () => ({
   getFabushiPostDetail: vi.fn(), getFabushiComments: vi.fn(), addFabushiComment: vi.fn(), toggleFabushiLike: vi.fn(),
   markFabushiRead: vi.fn(), getFabushiBooks: vi.fn(), updateFabushiPost: vi.fn(), deleteFabushiPost: vi.fn(),
-  getFabushiRecitations: vi.fn(), addFabushiRecitation: vi.fn(), getFabushiSettings: vi.fn(),
+  getFabushiRecitations: vi.fn(), addFabushiRecitation: vi.fn(), removeFabushiRecitation: vi.fn(), getFabushiSettings: vi.fn(),
   getFabushiPersonalStats: vi.fn(), getMyFabushiBookmarks: vi.fn(),
 }))
 vi.mock('@/utils/token', () => ({
@@ -63,7 +63,7 @@ const {
   deleteFabushiPost, getFabushiSettings, getFabushiPersonalStats, getMyFabushiBookmarks,
 } = fabushiApi
 const elMessageBox = /** @type {{ confirm: import('vitest').Mock }} */ (/** @type {unknown} */ (ElMessageBox))
-const elMessage = /** @type {{ warning: import('vitest').Mock }} */ (/** @type {unknown} */ (ElMessage))
+const elMessage = /** @type {{ warning: import('vitest').Mock, success: import('vitest').Mock }} */ (/** @type {unknown} */ (ElMessage))
 // <script setup> 组件默认不对外暴露内部绑定: 测试里按 any 读取
 const vm = (wrapper) => /** @type {any} */ (wrapper.vm)
 
@@ -426,6 +426,35 @@ describe('内容详情按 PC 原型 v8：复诵、评论、输入框', () => {
     expect(one.find('.recite-sub').text()).toBe('2026-11-20 09:30')
     getFabushiPostDetail.mockResolvedValue({ data: detail() })
     expect((await openDetail()).find('.recite-sec').exists()).toBe(false)
+  })
+
+  it('复诵移除(R5)：只有自己的行有「移除」；确认后发 DELETE 并重拉详情，取消不发', async () => {
+    getFabushiPostDetail.mockResolvedValue({
+      data: detail({ recitationCount: 2, recitations: [
+        recitation(1, { userId: 7, userName: '我' }),
+        recitation(2, { userId: 8, userName: '陈慧' }),
+      ] }),
+    })
+    const wrapper = await openDetail()
+    expectQuiet('复诵移除')
+    const rows = wrapper.findAll('.recite-row')
+    expect(rows[0].find('.recite-remove').exists()).toBe(true)
+    expect(rows[1].find('.recite-remove').exists()).toBe(false)
+    // 自己的行：确认 → DELETE → 重拉详情 → 成功提示
+    fabushiApi.removeFabushiRecitation.mockResolvedValue({ data: { id: 1 } })
+    elMessageBox.confirm.mockResolvedValue({})
+    await rows[0].find('.recite-remove').trigger('click')
+    await flushPromises()
+    expect(fabushiApi.removeFabushiRecitation).toHaveBeenCalledTimes(1)
+    expect(fabushiApi.removeFabushiRecitation.mock.calls[0]).toEqual(['501', 1])
+    expect(elMessage.success).toHaveBeenCalledWith('已移除')
+    expect(getFabushiPostDetail.mock.calls.length).toBeGreaterThanOrEqual(2)
+    // 别人的行：入口本来就不在；取消也不发
+    const callsBefore = fabushiApi.removeFabushiRecitation.mock.calls.length
+    elMessageBox.confirm.mockRejectedValue('cancel')
+    await rows[0].find('.recite-remove').trigger('click')
+    await flushPromises()
+    expect(fabushiApi.removeFabushiRecitation.mock.calls.length).toBe(callsBefore)
   })
 
   it('评论：头像字 + 姓名 + 时间 + 内容；没有评论时照实说“还没有评论”', async () => {
