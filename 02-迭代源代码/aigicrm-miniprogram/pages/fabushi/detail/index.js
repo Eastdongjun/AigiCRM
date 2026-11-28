@@ -279,7 +279,8 @@ Page({
     this.initRecorder()
     this._reciteMode = true
     this.setData({ reciteMode: true, voiceMode: false, highlightChecked: false })
-    this._recorder.start({ format: 'mp3', duration: 60000, sampleRate: 44100, numberOfChannels: 1, encodeBitRate: 96000 })
+    // 【FABUSHI-DELTA-20261128 R1】单段上限 5 分钟(300000ms), 到时自动停走 onStop
+    this._recorder.start({ format: 'mp3', duration: 300000, sampleRate: 44100, numberOfChannels: 1, encodeBitRate: 96000 })
     wx.showToast({ title: '复诵录音中…', icon: 'none' })
   },
 
@@ -380,7 +381,8 @@ Page({
     if (!this.data.canCreate || this.data.submitting) return
     this.initRecorder()
     this.setData({ voiceMode: true, highlightChecked: false, recSeconds: 0 })
-    this._recorder.start({ format: 'mp3', duration: 60000, sampleRate: 44100, numberOfChannels: 1, encodeBitRate: 96000 })
+    // 【FABUSHI-DELTA-20261128 R1】单段上限 5 分钟(300000ms)
+    this._recorder.start({ format: 'mp3', duration: 300000, sampleRate: 44100, numberOfChannels: 1, encodeBitRate: 96000 })
   },
 
   stopVoice() {

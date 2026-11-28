@@ -30,7 +30,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class FabushiRecitationService {
     private static final String LIT_PUBLISHED = "published";
-    private static final int MAX_SECONDS = 60;
+    /** 【FABUSHI-DELTA-20261128 R1】单段上限 5 分钟(300s); 前端录制 duration 同批改 300000ms。 */
+    private static final int MAX_SECONDS = 300;
 
     private final BizFabushiRecitationMapper recitationMapper;
     private final BizFabushiPostMapper postMapper;
@@ -38,7 +39,7 @@ public class FabushiRecitationService {
     private final SysUserMapper userMapper;
     private final SecurityAuditService securityAuditService;
 
-    /** 复诵(fabushi:create 门): 帖须 published；audio 必挂 fabushi 空间；≤60s；同人同帖可多次。 */
+    /** 复诵(fabushi:create 门): 帖须 published；audio 必挂 fabushi 空间；≤300s；同人同帖可多次。 */
     @Transactional
     public BizFabushiRecitation create(Long postId, Long audioFileId, Integer durationSeconds) {
         return doCreate(postId, audioFileId, durationSeconds);
@@ -63,7 +64,7 @@ public class FabushiRecitationService {
             throw new BusinessException(400, "复诵缺少音频文件");
         }
         if (durationSeconds != null && durationSeconds > MAX_SECONDS) {
-            throw new BusinessException(400, "复诵不能超过 60 秒");
+            throw new BusinessException(400, "复诵不能超过 5 分钟");
         }
         BizFile file = fileMapper.selectById(audioFileId);
         if (file == null || (file.getDeleted() != null && file.getDeleted() == 1)) {

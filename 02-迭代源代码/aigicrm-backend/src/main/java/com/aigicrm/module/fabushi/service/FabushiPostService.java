@@ -80,8 +80,8 @@ public class FabushiPostService {
     private static final int MAX_IMAGE_SUISHI = 9;
     private static final int MAX_VIDEO = 5;
     private static final int MAX_AUDIO = 10;
-    /** 【F1】音单段时长上限(秒); durationSeconds 未知暂放行, F2 录音上线后必填。 */
-    private static final int MAX_AUDIO_SECONDS = 60;
+    /** 【F1】音单段时长上限(秒); durationSeconds 未知暂放行, F2 录音上线后必填。【FABUSHI-DELTA-20261128 R1】60→300。 */
+    private static final int MAX_AUDIO_SECONDS = 300;
     /** 【F1 2026-11-19 spec v2】"一月内上传显示 NEW" 窗口(天)。 */
     private static final long NEW_WINDOW_DAYS = 30;
 
@@ -288,7 +288,7 @@ public class FabushiPostService {
     }
 
     /**
-     * 【F1 2026-11-19 spec v2】分型限额: 图≤5 / 视≤5 / 音≤10 段; 音单段>60s 拒绝。
+     * 【F1 2026-11-19 spec v2】【FABUSHI-DELTA-20261128 R1】分型限额: 图≤5 / 视≤5 / 音≤10 段; 音单段>300s(5分钟)拒绝。
      * durationSeconds 未知(旧聊天选文件路径)暂放行, F2 录音上线后改为必填校验。
      */
     private void enforceAttachmentLimits(Long postId, AttachmentInput input) {
@@ -308,7 +308,7 @@ public class FabushiPostService {
         if (TYPE_AUDIO.equals(type)) {
             if (sameType >= MAX_AUDIO) throw new BusinessException(400, "语音已达上限10段");
             if (input.durationSeconds() != null && input.durationSeconds() > MAX_AUDIO_SECONDS) {
-                throw new BusinessException(400, "单段语音不得超过60秒");
+                throw new BusinessException(400, "单段语音不得超过5分钟");
             }
         }
         // 其余类型 parseAttachmentInput 已白名单拦截，不可达。

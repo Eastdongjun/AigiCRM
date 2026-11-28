@@ -411,8 +411,8 @@ Page({
       wx.showToast({ title: '语音已达上限10段', icon: 'none' })
       return
     }
-    // mp3 三端(iOS/Android/微信H5播放)兼容最好; duration=60s 到时自动停走 onStop
-    this._recorder.start({ format: 'mp3', duration: 60000, sampleRate: 44100, numberOfChannels: 1, encodeBitRate: 96000 })
+    // mp3 三端(iOS/Android/微信H5播放)兼容最好; 【FABUSHI-DELTA-20261128 R1】duration=300s(5分钟) 到时自动停走 onStop
+    this._recorder.start({ format: 'mp3', duration: 300000, sampleRate: 44100, numberOfChannels: 1, encodeBitRate: 96000 })
   },
 
   uploadRecordSegment(path, seconds) {

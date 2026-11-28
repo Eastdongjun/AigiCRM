@@ -12,7 +12,8 @@
  *   case3  正例护栏：真 PDF 小文件上传+挂载 → 预期 200/200
  *   case4  F2 音段数上限：同帖挂载第 1-10 段 audio 放行、第 11 段 → 预期 400
  *          「语音已达上限10段」(F1 enforceAttachmentLimits; 2026-11-19 实现, live 待测试服窗口)
- *   case5  F2 单段时长：durationSeconds=61 → 预期 400「单段语音不得超过60秒」
+ *   case5  F2 单段时长：【FABUSHI-DELTA-20261128 R1 300s】durationSeconds=301 → 预期 400
+ *          「单段语音不得超过5分钟」；durationSeconds=300 → 预期放行
  *
  * 用法：FABUSHI_TEST_USER=admin FABUSHI_TEST_PASS=<测试口令> node scripts/test-fabushi-upload-limits.js [BASE_URL]
  *   BASE_URL 默认 http://111.229.37.220（测试服）
@@ -186,20 +187,28 @@ async function runCase4(token, results) {
 }
 
 async function runCase5(token, results) {
-  // ---------- case5: F2 单段时长——61s 400 ----------
+  // ---------- case5: F2 单段时长——301s 400 / 300s 放行（R1 2026-11-28 起 300s） ----------
   const post = await api(token, 'POST', '/fabushi/posts', { scopeType: 'heart', title: 'F2限额-单段时长', content: 'live case5' });
   const postId = post.body && post.body.data && post.body.data.id;
   if (!postId) throw new Error('case5 setup: create post failed ' + JSON.stringify(post.body).slice(0, 200));
   cleanupPosts.push(postId);
-  const up = await uploadFile(token, 'seg61.pdf', Buffer.from('%PDF-1.4\n' + 'case5 duration filler\n'.repeat(30), 'utf8'));
+  const up = await uploadFile(token, 'seg301.pdf', Buffer.from('%PDF-1.4\n' + 'case5 duration filler\n'.repeat(30), 'utf8'));
   const fileId = up.body && up.body.data && up.body.data.id;
   const at = await api(token, 'POST', `/fabushi/posts/${postId}/attachments`,
-    { fileId, fileType: 'audio', durationSeconds: 61 });
+    { fileId, fileType: 'audio', durationSeconds: 301 });
   results.push({
-    name: 'case5 F2 音单段时长: 61s 拒绝',
-    expect: '400 拒绝(单段语音不得超过60秒)',
+    name: 'case5 F2 音单段时长: 301s 拒绝',
+    expect: '400 拒绝(单段语音不得超过5分钟)',
     got: `http=${at.status} code=${at.body && at.body.code} msg=${((at.body && at.body.message) || '').slice(0, 30)}`,
-    pass: at.status === 400 && ((at.body && at.body.message) || '').includes('60秒'),
+    pass: at.status === 400 && ((at.body && at.body.message) || '').includes('5分钟'),
+  });
+  const ok = await api(token, 'POST', `/fabushi/posts/${postId}/attachments`,
+    { fileId, fileType: 'audio', durationSeconds: 300 });
+  results.push({
+    name: 'case5b F2 音单段时长: 300s 放行',
+    expect: '200(300s 恰好在上限内)',
+    got: `http=${ok.status} code=${ok.body && ok.body.code}`,
+    pass: ok.status === 200,
   });
 }
 
